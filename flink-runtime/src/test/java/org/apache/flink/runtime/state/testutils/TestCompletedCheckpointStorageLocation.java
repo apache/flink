@@ -25,42 +25,41 @@ import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A {@link CompletedCheckpointStorageLocation} for tests.
- */
+/** A {@link CompletedCheckpointStorageLocation} for tests. */
 public class TestCompletedCheckpointStorageLocation implements CompletedCheckpointStorageLocation {
 
-	private final StreamStateHandle metadataHandle;
+    private final StreamStateHandle metadataHandle;
 
-	private final String pointer;
+    private final String pointer;
 
-	private boolean disposed;
+    private boolean disposed;
 
-	public TestCompletedCheckpointStorageLocation() {
-		this(new EmptyStreamStateHandle(), "<pointer>");
-	}
+    public TestCompletedCheckpointStorageLocation() {
+        this(new EmptyStreamStateHandle(), "<pointer>");
+    }
 
-	public TestCompletedCheckpointStorageLocation(StreamStateHandle metadataHandle, String pointer) {
-		this.metadataHandle = checkNotNull(metadataHandle);
-		this.pointer = checkNotNull(pointer);
-	}
+    public TestCompletedCheckpointStorageLocation(
+            StreamStateHandle metadataHandle, String pointer) {
+        this.metadataHandle = checkNotNull(metadataHandle);
+        this.pointer = checkNotNull(pointer);
+    }
 
-	public boolean isDisposed() {
-		return disposed;
-	}
+    public boolean isDisposed() {
+        return disposed;
+    }
 
-	@Override
-	public String getExternalPointer() {
-		return pointer;
-	}
+    @Override
+    public String getExternalPointer() {
+        return pointer;
+    }
 
-	@Override
-	public StreamStateHandle getMetadataHandle() {
-		return metadataHandle;
-	}
+    @Override
+    public StreamStateHandle getMetadataHandle() {
+        return metadataHandle;
+    }
 
-	@Override
-	public void disposeStorageLocation() throws IOException {
-		disposed = true;
-	}
+    @Override
+    public void disposeStorageLocation() throws IOException {
+        disposed = true;
+    }
 }

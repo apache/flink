@@ -25,32 +25,33 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import java.io.IOException;
 
 /**
- * A DeserializationSchema which always throws an exception when the deserialize method is called. Also supports
- * waiting on a latch until at least one exception has been thrown.
+ * A DeserializationSchema which always throws an exception when the deserialize method is called.
+ * Also supports waiting on a latch until at least one exception has been thrown.
  */
 public class AlwaysThrowsDeserializationSchema implements DeserializationSchema<String> {
-	public static final String EXCEPTION_MESSAGE = "This method always throws an exception.";
+    public static final String EXCEPTION_MESSAGE = "This method always throws an exception.";
 
-	public transient OneShotLatch isExceptionThrown = new OneShotLatch();
+    public transient OneShotLatch isExceptionThrown = new OneShotLatch();
 
-	@Override
-	public String deserialize(final byte[] bytes) throws IOException {
-		isExceptionThrown.trigger();
-		throw new RuntimeException(EXCEPTION_MESSAGE);
-	}
+    @Override
+    public String deserialize(final byte[] bytes) throws IOException {
+        isExceptionThrown.trigger();
+        throw new RuntimeException(EXCEPTION_MESSAGE);
+    }
 
-	@Override
-	public boolean isEndOfStream(final String s) {
-		return false;
-	}
+    @Override
+    public boolean isEndOfStream(final String s) {
+        return false;
+    }
 
-	@Override
-	public TypeInformation<String> getProducedType() {
-		return BasicTypeInfo.STRING_TYPE_INFO;
-	}
+    @Override
+    public TypeInformation<String> getProducedType() {
+        return BasicTypeInfo.STRING_TYPE_INFO;
+    }
 
-	private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
-		this.isExceptionThrown = new OneShotLatch();
-	}
+    private void readObject(java.io.ObjectInputStream in)
+            throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        this.isExceptionThrown = new OneShotLatch();
+    }
 }

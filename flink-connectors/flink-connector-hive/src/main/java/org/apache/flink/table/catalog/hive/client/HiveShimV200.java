@@ -18,33 +18,54 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.api.common.serialization.BulkWriter;
+import org.apache.flink.orc.vector.RowDataVectorizer;
+import org.apache.flink.orc.writer.OrcBulkWriterFactory;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.logical.LogicalType;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 
 import java.lang.reflect.Method;
+import java.util.Properties;
 
-/**
- * Shim for Hive version 2.0.0.
- */
+/** Shim for Hive version 2.0.0. */
 public class HiveShimV200 extends HiveShimV122 {
 
-	@Override
-	public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
-		try {
-			Class<?>[] constructorArgTypes = {HiveConf.class};
-			Object[] constructorArgs = {hiveConf};
-			Method method = RetryingMetaStoreClient.class.getMethod("getProxy", HiveConf.class,
-				constructorArgTypes.getClass(), constructorArgs.getClass(), String.class);
-			// getProxy is a static method
-			return (IMetaStoreClient) method.invoke(null, hiveConf, constructorArgTypes, constructorArgs,
-				HiveMetaStoreClient.class.getName());
-		} catch (Exception ex) {
-			throw new CatalogException("Failed to create Hive Metastore client", ex);
-		}
-	}
+    @Override
+    public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
+        try {
+            Class<?>[] constructorArgTypes = {HiveConf.class};
+            Object[] constructorArgs = {hiveConf};
+            Method method =
+                    RetryingMetaStoreClient.class.getMethod(
+                            "getProxy",
+                            HiveConf.class,
+                            constructorArgTypes.getClass(),
+                            constructorArgs.getClass(),
+                            String.class);
+            // getProxy is a static method
+            return (IMetaStoreClient)
+                    method.invoke(
+                            null,
+                            hiveConf,
+                            constructorArgTypes,
+                            constructorArgs,
+                            HiveMetaStoreClient.class.getName());
+        } catch (Exception ex) {
+            throw new CatalogException("Failed to create Hive Metastore client", ex);
+        }
+    }
 
+    @Override
+    public BulkWriter.Factory<RowData> createOrcBulkWriterFactory(
+            Configuration conf, String schema, LogicalType[] fieldTypes) {
+        return new OrcBulkWriterFactory<>(
+                new RowDataVectorizer(schema, fieldTypes), new Properties(), conf);
+    }
 }

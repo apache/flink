@@ -26,44 +26,46 @@ import java.util.List;
 
 /** Data to verify state update with TTL. */
 public class TtlVerificationContext<UV, GV> implements Serializable {
-	private final int key;
-	@Nonnull
-	private final String  verifierId;
-	@Nonnull
-	private final List<ValueWithTs<UV>> prevUpdates;
-	@Nonnull
-	private final TtlUpdateContext<UV, GV> updateContext;
+    private final int key;
+    @Nonnull private final String verifierId;
+    @Nonnull private final List<ValueWithTs<UV>> prevUpdates;
+    @Nonnull private final TtlUpdateContext<UV, GV> updateContext;
 
-	@SuppressWarnings("unchecked")
-	public TtlVerificationContext(
-			int key,
-			@Nonnull String verifierId,
-			@Nonnull List<ValueWithTs<?>> prevUpdates,
-			@Nonnull TtlUpdateContext<?, ?> updateContext) {
-		this.key = key;
-		this.verifierId = verifierId;
-		this.prevUpdates = new ArrayList<>();
-		prevUpdates.forEach(pu -> this.prevUpdates.add((ValueWithTs<UV>) pu));
-		this.updateContext = (TtlUpdateContext<UV, GV>) updateContext;
-	}
+    @SuppressWarnings("unchecked")
+    public TtlVerificationContext(
+            int key,
+            @Nonnull String verifierId,
+            @Nonnull List<ValueWithTs<?>> prevUpdates,
+            @Nonnull TtlUpdateContext<?, ?> updateContext) {
+        this.key = key;
+        this.verifierId = verifierId;
+        this.prevUpdates = new ArrayList<>();
+        prevUpdates.forEach(pu -> this.prevUpdates.add((ValueWithTs<UV>) pu));
+        this.updateContext = (TtlUpdateContext<UV, GV>) updateContext;
+    }
 
-	@Nonnull
-	List<ValueWithTs<UV>> getPrevUpdates() {
-		return prevUpdates;
-	}
+    @Nonnull
+    List<ValueWithTs<UV>> getPrevUpdates() {
+        return prevUpdates;
+    }
 
-	@Nonnull
-	TtlUpdateContext<UV, GV> getUpdateContext() {
-		return updateContext;
-	}
+    @Nonnull
+    TtlUpdateContext<UV, GV> getUpdateContext() {
+        return updateContext;
+    }
 
-	@Override
-	public String toString() {
-		return "TtlVerificationContext{" +
-			"key=" + key +
-			", verifierId='" + verifierId + '\'' +
-			", prevUpdates=" + prevUpdates +
-			", updateContext=" + updateContext +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "TtlVerificationContext{"
+                + "key="
+                + key
+                + ", verifierId='"
+                + verifierId
+                + '\''
+                + ", prevUpdates="
+                + prevUpdates
+                + ", updateContext="
+                + updateContext
+                + '}';
+    }
 }

@@ -32,56 +32,58 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * a connection index. This allows multiple connections to the same task manager to be distinguished
  * by their connection index.
  *
- * <p>The connection index is assigned by the {@link IntermediateResult} and ensures that it is
- * safe to multiplex multiple data transfers over the same physical TCP connection.
+ * <p>The connection index is assigned by the {@link IntermediateResult} and ensures that it is safe
+ * to multiplex multiple data transfers over the same physical TCP connection.
  */
 public class ConnectionID implements Serializable {
 
-	private static final long serialVersionUID = -8068626194818666857L;
+    private static final long serialVersionUID = -8068626194818666857L;
 
-	private final InetSocketAddress address;
+    private final InetSocketAddress address;
 
-	private final int connectionIndex;
+    private final int connectionIndex;
 
-	public ConnectionID(TaskManagerLocation connectionInfo, int connectionIndex) {
-		this(new InetSocketAddress(connectionInfo.address(), connectionInfo.dataPort()), connectionIndex);
-	}
+    public ConnectionID(TaskManagerLocation connectionInfo, int connectionIndex) {
+        this(
+                new InetSocketAddress(connectionInfo.address(), connectionInfo.dataPort()),
+                connectionIndex);
+    }
 
-	public ConnectionID(InetSocketAddress address, int connectionIndex) {
-		this.address = checkNotNull(address);
-		checkArgument(connectionIndex >= 0);
-		this.connectionIndex = connectionIndex;
-	}
+    public ConnectionID(InetSocketAddress address, int connectionIndex) {
+        this.address = checkNotNull(address);
+        checkArgument(connectionIndex >= 0);
+        this.connectionIndex = connectionIndex;
+    }
 
-	public InetSocketAddress getAddress() {
-		return address;
-	}
+    public InetSocketAddress getAddress() {
+        return address;
+    }
 
-	public int getConnectionIndex() {
-		return connectionIndex;
-	}
+    public int getConnectionIndex() {
+        return connectionIndex;
+    }
 
-	@Override
-	public int hashCode() {
-		return address.hashCode() + (31 * connectionIndex);
-	}
+    @Override
+    public int hashCode() {
+        return address.hashCode() + (31 * connectionIndex);
+    }
 
-	@Override
-	public boolean equals(Object other) {
-		if (other.getClass() != ConnectionID.class) {
-			return false;
-		}
+    @Override
+    public boolean equals(Object other) {
+        if (other.getClass() != ConnectionID.class) {
+            return false;
+        }
 
-		final ConnectionID ra = (ConnectionID) other;
-		if (!ra.getAddress().equals(address) || ra.getConnectionIndex() != connectionIndex) {
-			return false;
-		}
+        final ConnectionID ra = (ConnectionID) other;
+        if (!ra.getAddress().equals(address) || ra.getConnectionIndex() != connectionIndex) {
+            return false;
+        }
 
-		return true;
-	}
+        return true;
+    }
 
-	@Override
-	public String toString() {
-		return address + " [" + connectionIndex + "]";
-	}
+    @Override
+    public String toString() {
+        return address + " [" + connectionIndex + "]";
+    }
 }

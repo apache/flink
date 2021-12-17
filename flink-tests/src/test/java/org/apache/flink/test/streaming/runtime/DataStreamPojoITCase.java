@@ -35,216 +35,221 @@ import java.util.List;
  * <p>See FLINK-3697
  */
 public class DataStreamPojoITCase extends AbstractTestBase {
-	static List<Data> elements = new ArrayList<>();
-	static {
-		elements.add(new Data(0, 0, 0));
-		elements.add(new Data(0, 0, 0));
-		elements.add(new Data(1, 1, 1));
-		elements.add(new Data(1, 1, 1));
-		elements.add(new Data(2, 2, 3));
-		elements.add(new Data(2, 2, 3));
-	}
+    static List<Data> elements = new ArrayList<>();
 
-	/**
-	 * Test composite key on the Data POJO (with nested fields).
-	 */
-	@Test
-	public void testCompositeKeyOnNestedPojo() throws Exception {
-		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
-		see.getConfig().disableObjectReuse();
-		see.setParallelism(3);
+    static {
+        elements.add(new Data(0, 0, 0));
+        elements.add(new Data(0, 0, 0));
+        elements.add(new Data(1, 1, 1));
+        elements.add(new Data(1, 1, 1));
+        elements.add(new Data(2, 2, 3));
+        elements.add(new Data(2, 2, 3));
+    }
 
-		DataStream<Data> dataStream = see.fromCollection(elements);
+    /** Test composite key on the Data POJO (with nested fields). */
+    @Test
+    public void testCompositeKeyOnNestedPojo() throws Exception {
+        StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+        see.getConfig().disableObjectReuse();
+        see.setParallelism(3);
 
-		DataStream<Data> summedStream = dataStream
-				.keyBy("aaa", "abc", "wxyz")
-				.sum("sum")
-				.keyBy("aaa", "abc", "wxyz")
-				.flatMap(new FlatMapFunction<Data, Data>() {
-					private static final long serialVersionUID = 788865239171396315L;
-					Data[] first = new Data[3];
-					@Override
-					public void flatMap(Data value, Collector<Data> out) throws Exception {
-						if (first[value.aaa] == null) {
-							first[value.aaa] = value;
-							if (value.sum != 1) {
-								throw new RuntimeException("Expected the sum to be one");
-							}
-						} else {
-							if (value.sum != 2) {
-								throw new RuntimeException("Expected the sum to be two");
-							}
-							if (first[value.aaa].aaa != value.aaa) {
-								throw new RuntimeException("aaa key wrong");
-							}
-							if (first[value.aaa].abc != value.abc) {
-								throw new RuntimeException("abc key wrong");
-							}
-							if (first[value.aaa].wxyz != value.wxyz) {
-								throw new RuntimeException("wxyz key wrong");
-							}
-						}
-					}
-				});
+        DataStream<Data> dataStream = see.fromCollection(elements);
 
-		summedStream.print();
+        DataStream<Data> summedStream =
+                dataStream
+                        .keyBy("aaa", "abc", "wxyz")
+                        .sum("sum")
+                        .keyBy("aaa", "abc", "wxyz")
+                        .flatMap(
+                                new FlatMapFunction<Data, Data>() {
+                                    private static final long serialVersionUID =
+                                            788865239171396315L;
+                                    Data[] first = new Data[3];
 
-		see.execute();
-	}
+                                    @Override
+                                    public void flatMap(Data value, Collector<Data> out)
+                                            throws Exception {
+                                        if (first[value.aaa] == null) {
+                                            first[value.aaa] = value;
+                                            if (value.sum != 1) {
+                                                throw new RuntimeException(
+                                                        "Expected the sum to be one");
+                                            }
+                                        } else {
+                                            if (value.sum != 2) {
+                                                throw new RuntimeException(
+                                                        "Expected the sum to be two");
+                                            }
+                                            if (first[value.aaa].aaa != value.aaa) {
+                                                throw new RuntimeException("aaa key wrong");
+                                            }
+                                            if (first[value.aaa].abc != value.abc) {
+                                                throw new RuntimeException("abc key wrong");
+                                            }
+                                            if (first[value.aaa].wxyz != value.wxyz) {
+                                                throw new RuntimeException("wxyz key wrong");
+                                            }
+                                        }
+                                    }
+                                });
 
-	/**
-	 * Test composite & nested key on the Data POJO.
-	 */
-	@Test
-	public void testNestedKeyOnNestedPojo() throws Exception {
-		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
-		see.getConfig().disableObjectReuse();
-		see.setParallelism(4);
+        summedStream.print();
 
-		DataStream<Data> dataStream = see.fromCollection(elements);
+        see.execute();
+    }
 
-		DataStream<Data> summedStream = dataStream
-				.keyBy("aaa", "stats.count")
-				.sum("sum")
-				.keyBy("aaa", "stats.count")
-				.flatMap(new FlatMapFunction<Data, Data>() {
-					private static final long serialVersionUID = -3678267280397950258L;
-					Data[] first = new Data[3];
-					@Override
-					public void flatMap(Data value, Collector<Data> out) throws Exception {
-						if (value.stats.count != 123) {
-							throw new RuntimeException("Wrong value for value.stats.count");
-						}
-						if (first[value.aaa] == null) {
-							first[value.aaa] = value;
-							if (value.sum != 1) {
-								throw new RuntimeException("Expected the sum to be one");
-							}
-						} else {
-							if (value.sum != 2) {
-								throw new RuntimeException("Expected the sum to be two");
-							}
-							if (first[value.aaa].aaa != value.aaa) {
-								throw new RuntimeException("aaa key wrong");
-							}
-							if (first[value.aaa].abc != value.abc) {
-								throw new RuntimeException("abc key wrong");
-							}
-							if (first[value.aaa].wxyz != value.wxyz) {
-								throw new RuntimeException("wxyz key wrong");
-							}
-						}
-					}
-				});
+    /** Test composite & nested key on the Data POJO. */
+    @Test
+    public void testNestedKeyOnNestedPojo() throws Exception {
+        StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+        see.getConfig().disableObjectReuse();
+        see.setParallelism(4);
 
-		summedStream.print();
+        DataStream<Data> dataStream = see.fromCollection(elements);
 
-		see.execute();
-	}
+        DataStream<Data> summedStream =
+                dataStream
+                        .keyBy("aaa", "stats.count")
+                        .sum("sum")
+                        .keyBy("aaa", "stats.count")
+                        .flatMap(
+                                new FlatMapFunction<Data, Data>() {
+                                    private static final long serialVersionUID =
+                                            -3678267280397950258L;
+                                    Data[] first = new Data[3];
 
-	@Test
-	public void testNestedPojoFieldAccessor() throws Exception {
-		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
-		see.getConfig().disableObjectReuse();
-		see.setParallelism(4);
+                                    @Override
+                                    public void flatMap(Data value, Collector<Data> out)
+                                            throws Exception {
+                                        if (value.stats.count != 123) {
+                                            throw new RuntimeException(
+                                                    "Wrong value for value.stats.count");
+                                        }
+                                        if (first[value.aaa] == null) {
+                                            first[value.aaa] = value;
+                                            if (value.sum != 1) {
+                                                throw new RuntimeException(
+                                                        "Expected the sum to be one");
+                                            }
+                                        } else {
+                                            if (value.sum != 2) {
+                                                throw new RuntimeException(
+                                                        "Expected the sum to be two");
+                                            }
+                                            if (first[value.aaa].aaa != value.aaa) {
+                                                throw new RuntimeException("aaa key wrong");
+                                            }
+                                            if (first[value.aaa].abc != value.abc) {
+                                                throw new RuntimeException("abc key wrong");
+                                            }
+                                            if (first[value.aaa].wxyz != value.wxyz) {
+                                                throw new RuntimeException("wxyz key wrong");
+                                            }
+                                        }
+                                    }
+                                });
 
-		DataStream<Data> dataStream = see.fromCollection(elements);
+        summedStream.print();
 
-		DataStream<Data> summedStream = dataStream
-			.keyBy("aaa")
-			.sum("stats.count")
-			.keyBy("aaa")
-			.flatMap(new FlatMapFunction<Data, Data>() {
-				Data[] first = new Data[3];
-				@Override
-				public void flatMap(Data value, Collector<Data> out) throws Exception {
-					if (first[value.aaa] == null) {
-						first[value.aaa] = value;
-						if (value.stats.count != 123) {
-							throw new RuntimeException("Expected stats.count to be 123");
-						}
-					} else {
-						if (value.stats.count != 2 * 123) {
-							throw new RuntimeException("Expected stats.count to be 2 * 123");
-						}
-					}
-				}
-			});
+        see.execute();
+    }
 
-		summedStream.print();
+    @Test
+    public void testNestedPojoFieldAccessor() throws Exception {
+        StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+        see.getConfig().disableObjectReuse();
+        see.setParallelism(4);
 
-		see.execute();
-	}
+        DataStream<Data> dataStream = see.fromCollection(elements);
 
-	@Test(expected = CompositeType.InvalidFieldReferenceException.class)
-	public void testFailOnNestedPojoFieldAccessor() throws Exception {
-		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStream<Data> summedStream =
+                dataStream
+                        .keyBy("aaa")
+                        .sum("stats.count")
+                        .keyBy("aaa")
+                        .flatMap(
+                                new FlatMapFunction<Data, Data>() {
+                                    Data[] first = new Data[3];
 
-		DataStream<Data> dataStream = see.fromCollection(elements);
-		dataStream.keyBy("aaa", "stats.count").sum("stats.nonExistingField");
-	}
+                                    @Override
+                                    public void flatMap(Data value, Collector<Data> out)
+                                            throws Exception {
+                                        if (first[value.aaa] == null) {
+                                            first[value.aaa] = value;
+                                            if (value.stats.count != 123) {
+                                                throw new RuntimeException(
+                                                        "Expected stats.count to be 123");
+                                            }
+                                        } else {
+                                            if (value.stats.count != 2 * 123) {
+                                                throw new RuntimeException(
+                                                        "Expected stats.count to be 2 * 123");
+                                            }
+                                        }
+                                    }
+                                });
 
-	/**
-	 * POJO.
-	 */
-	public static class Data {
-		public int sum; // sum
-		public int aaa; // keyBy
-		public int abc; //keyBy
-		public long wxyz; // keyBy
-		public int t1;
-		public int t2;
-		public Policy policy;
-		public Stats stats;
+        summedStream.print();
 
-		public Data() {
-		}
+        see.execute();
+    }
 
-		public Data(int aaa, int abc, int wxyz) {
-			this.sum = 1;
-			this.aaa = aaa;
-			this.abc = abc;
-			this.wxyz = wxyz;
-			this.stats = new Stats();
-			this.stats.count = 123L;
-		}
+    @Test(expected = CompositeType.InvalidFieldReferenceException.class)
+    public void testFailOnNestedPojoFieldAccessor() throws Exception {
+        StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		@Override
-		public String toString() {
-			return "Data{" +
-					"sum=" + sum +
-					", aaa=" + aaa +
-					", abc=" + abc +
-					", wxyz=" + wxyz +
-					'}';
-		}
-	}
+        DataStream<Data> dataStream = see.fromCollection(elements);
+        dataStream.keyBy("aaa", "stats.count").sum("stats.nonExistingField");
+    }
 
-	/**
-	 * POJO.
-	 */
-	public static class Policy {
-		public short a;
-		public short b;
-		public boolean c;
-		public boolean d;
+    /** POJO. */
+    public static class Data {
+        public int sum; // sum
+        public int aaa; // keyBy
+        public int abc; // keyBy
+        public long wxyz; // keyBy
+        public int t1;
+        public int t2;
+        public Policy policy;
+        public Stats stats;
 
-		public Policy() {}
-	}
+        public Data() {}
 
-	/**
-	 * POJO.
-	 */
-	public static class Stats {
-		public long count;
-		public float a;
-		public float b;
-		public float c;
-		public float d;
-		public float e;
+        public Data(int aaa, int abc, int wxyz) {
+            this.sum = 1;
+            this.aaa = aaa;
+            this.abc = abc;
+            this.wxyz = wxyz;
+            this.stats = new Stats();
+            this.stats.count = 123L;
+        }
 
-		public Stats() {}
-	}
+        @Override
+        public String toString() {
+            return "Data{" + "sum=" + sum + ", aaa=" + aaa + ", abc=" + abc + ", wxyz=" + wxyz
+                    + '}';
+        }
+    }
 
+    /** POJO. */
+    public static class Policy {
+        public short a;
+        public short b;
+        public boolean c;
+        public boolean d;
+
+        public Policy() {}
+    }
+
+    /** POJO. */
+    public static class Stats {
+        public long count;
+        public float a;
+        public float b;
+        public float c;
+        public float d;
+        public float e;
+
+        public Stats() {}
+    }
 }
-

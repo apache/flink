@@ -24,36 +24,33 @@ import java.io.IOException;
 
 public class DelayingIterator<T> implements MutableObjectIterator<T> {
 
-	private final MutableObjectIterator<T> iterator;
-	private final int delay;
-	
-	
-	public DelayingIterator(MutableObjectIterator<T> iterator, int delay) {
-		this.iterator = iterator;
-		this.delay = delay;
-	}
-	
-	@Override
-	public T next(T reuse) throws IOException {
-		try {
-			Thread.sleep(delay);
-		}
-		catch (InterruptedException e) {
-			// ignore, but restore interrupted state
-			Thread.currentThread().interrupt();
-		}
-		return iterator.next(reuse);
-	}
+    private final MutableObjectIterator<T> iterator;
+    private final int delay;
 
-	@Override
-	public T next() throws IOException {
-		try {
-			Thread.sleep(delay);
-		}
-		catch (InterruptedException e) {
-			// ignore, but restore interrupted state
-			Thread.currentThread().interrupt();
-		}
-		return iterator.next();
-	}
+    public DelayingIterator(MutableObjectIterator<T> iterator, int delay) {
+        this.iterator = iterator;
+        this.delay = delay;
+    }
+
+    @Override
+    public T next(T reuse) throws IOException {
+        try {
+            Thread.sleep(delay);
+        } catch (InterruptedException e) {
+            // ignore, but restore interrupted state
+            Thread.currentThread().interrupt();
+        }
+        return iterator.next(reuse);
+    }
+
+    @Override
+    public T next() throws IOException {
+        try {
+            Thread.sleep(delay);
+        } catch (InterruptedException e) {
+            // ignore, but restore interrupted state
+            Thread.currentThread().interrupt();
+        }
+        return iterator.next();
+    }
 }

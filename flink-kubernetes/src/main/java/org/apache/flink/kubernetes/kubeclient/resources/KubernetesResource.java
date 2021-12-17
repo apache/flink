@@ -18,32 +18,20 @@
 
 package org.apache.flink.kubernetes.kubeclient.resources;
 
-import org.apache.flink.configuration.Configuration;
-
-/**
- * Represent a kubernetes resource.
- */
+/** Represent a kubernetes resource. */
 public abstract class KubernetesResource<T> {
 
-	private T internalResource;
+    private T internalResource;
 
-	private final Configuration flinkConfig;
+    public KubernetesResource(T internalResource) {
+        this.internalResource = internalResource;
+    }
 
-	public KubernetesResource(Configuration flinkConfig, T internalResource) {
-		this.flinkConfig = flinkConfig;
-		this.internalResource = internalResource;
-	}
+    public T getInternalResource() {
+        return internalResource;
+    }
 
-	public Configuration getFlinkConfig() {
-		return flinkConfig;
-	}
-
-	public T getInternalResource() {
-		return internalResource;
-	}
-
-	public void setInternalResource(T resource) {
-		this.internalResource = resource;
-	}
-
+    public void setInternalResource(T resource) {
+        this.internalResource = resource;
+    }
 }

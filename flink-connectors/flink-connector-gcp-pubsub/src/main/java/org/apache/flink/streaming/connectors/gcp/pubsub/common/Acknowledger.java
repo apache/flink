@@ -19,10 +19,8 @@ package org.apache.flink.streaming.connectors.gcp.pubsub.common;
 
 import java.util.List;
 
-/**
- * @param <AcknowledgeId>
- */
+/** @param <AcknowledgeId> */
 public interface Acknowledger<AcknowledgeId> {
 
-	void acknowledge(List<AcknowledgeId> ids);
+    void acknowledge(List<AcknowledgeId> ids);
 }

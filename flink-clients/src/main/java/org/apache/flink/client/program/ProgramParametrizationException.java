@@ -20,22 +20,17 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.util.Preconditions;
 
-/**
- * Exception used to indicate that there is an error in the parametrization of a Flink program.
- */
+/** Exception used to indicate that there is an error in the parametrization of a Flink program. */
 public class ProgramParametrizationException extends RuntimeException {
-	/**
-	 * Serial version UID for serialization interoperability.
-	 */
-	private static final long serialVersionUID = 909054589029890262L;
+    /** Serial version UID for serialization interoperability. */
+    private static final long serialVersionUID = 909054589029890262L;
 
-	/**
-	 * Creates a <tt>ProgramParametrizationException</tt> with the given message.
-	 *
-	 * @param message
-	 *        The program usage string.
-	 */
-	public ProgramParametrizationException(String message) {
-		super(Preconditions.checkNotNull(message));
-	}
+    /**
+     * Creates a <tt>ProgramParametrizationException</tt> with the given message.
+     *
+     * @param message The program usage string.
+     */
+    public ProgramParametrizationException(String message) {
+        super(Preconditions.checkNotNull(message));
+    }
 }

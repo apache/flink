@@ -18,33 +18,32 @@
 
 package org.apache.flink.core.io;
 
-
 import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.List;
 
 /**
- * An input split assigner distributes the {@link InputSplit}s among the instances on which a
- * data source exists.
+ * An input split assigner distributes the {@link InputSplit}s among the instances on which a data
+ * source exists.
  */
 @PublicEvolving
 public interface InputSplitAssigner {
 
-	/**
-	 * Returns the next input split that shall be consumed. The consumer's host is passed as a parameter
-	 * to allow localized assignments.
-	 * 
-	 * @param host The host address of split requesting task.
-	 * @param taskId The id of the split requesting task.
-	 * @return the next input split to be consumed, or <code>null</code> if no more splits remain.
-	 */
-	InputSplit getNextInputSplit(String host, int taskId);
+    /**
+     * Returns the next input split that shall be consumed. The consumer's host is passed as a
+     * parameter to allow localized assignments.
+     *
+     * @param host The host address of split requesting task.
+     * @param taskId The id of the split requesting task.
+     * @return the next input split to be consumed, or <code>null</code> if no more splits remain.
+     */
+    InputSplit getNextInputSplit(String host, int taskId);
 
-	/**
-	 * Return the splits to assigner if the task failed to process it.
-	 *
-	 * @param splits The list of input splits to be returned.
-	 * @param taskId The id of the task that failed to process the input splits.
-	 * */
-	void returnInputSplit(List<InputSplit> splits, int taskId);
+    /**
+     * Return the splits to assigner if the task failed to process it.
+     *
+     * @param splits The list of input splits to be returned.
+     * @param taskId The id of the task that failed to process the input splits.
+     */
+    void returnInputSplit(List<InputSplit> splits, int taskId);
 }

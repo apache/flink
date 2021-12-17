@@ -17,7 +17,7 @@
  */
 
 /**
- * This package contains the classes for key/value state backends that store the state
- * on the JVM heap as objects.
+ * This package contains the classes for key/value state backends that store the state on the JVM
+ * heap as objects.
  */
 package org.apache.flink.runtime.state.heap;

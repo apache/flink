@@ -34,76 +34,76 @@ import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests that the file system factory picks up the entropy configuration properly.
- */
+/** Tests that the file system factory picks up the entropy configuration properly. */
 public class S3EntropyFsFactoryTest extends TestLogger {
 
-	@Test
-	public void testEntropyInjectionConfig() throws Exception {
-		final Configuration conf = new Configuration();
-		conf.setString("s3.entropy.key", "__entropy__");
-		conf.setInteger("s3.entropy.length", 7);
+    @Test
+    public void testEntropyInjectionConfig() throws Exception {
+        final Configuration conf = new Configuration();
+        conf.setString("s3.entropy.key", "__entropy__");
+        conf.setInteger("s3.entropy.length", 7);
 
-		TestFsFactory factory = new TestFsFactory();
-		factory.configure(conf);
+        TestFsFactory factory = new TestFsFactory();
+        factory.configure(conf);
 
-		FlinkS3FileSystem fs = (FlinkS3FileSystem) factory.create(new URI("s3://test"));
-		assertEquals("__entropy__", fs.getEntropyInjectionKey());
-		assertEquals(7, fs.generateEntropy().length());
-	}
+        FlinkS3FileSystem fs = (FlinkS3FileSystem) factory.create(new URI("s3://test"));
+        assertEquals("__entropy__", fs.getEntropyInjectionKey());
+        assertEquals(7, fs.generateEntropy().length());
+    }
 
-	/**
-	 * Test validates that the produced by AbstractS3FileSystemFactory object will contains
-	 * only first path from multiple paths in config.
-	 */
-	@Test
-	public void testMultipleTempDirsConfig() throws Exception {
-		final Configuration conf = new Configuration();
-		String dir1 =  "/tmp/dir1";
-		String dir2 =  "/tmp/dir2";
-		conf.setString("io.tmp.dirs", dir1 + "," + dir2);
+    /**
+     * Test validates that the produced by AbstractS3FileSystemFactory object will contains only
+     * first path from multiple paths in config.
+     */
+    @Test
+    public void testMultipleTempDirsConfig() throws Exception {
+        final Configuration conf = new Configuration();
+        String dir1 = "/tmp/dir1";
+        String dir2 = "/tmp/dir2";
+        conf.setString("io.tmp.dirs", dir1 + "," + dir2);
 
-		TestFsFactory factory = new TestFsFactory();
-		factory.configure(conf);
+        TestFsFactory factory = new TestFsFactory();
+        factory.configure(conf);
 
-		FlinkS3FileSystem fs = (FlinkS3FileSystem) factory.create(new URI("s3://test"));
-		assertEquals(fs.getLocalTmpDir(), dir1);
-	}
+        FlinkS3FileSystem fs = (FlinkS3FileSystem) factory.create(new URI("s3://test"));
+        assertEquals(fs.getLocalTmpDir(), dir1);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static final class TestFsFactory extends AbstractS3FileSystemFactory {
+    private static final class TestFsFactory extends AbstractS3FileSystemFactory {
 
-		TestFsFactory() {
-			super("testFs", new HadoopConfigLoader(
-					new String[0],
-					new String[0][],
-					"",
-					Collections.emptySet(),
-					Collections.emptySet(),
-					""));
-		}
+        TestFsFactory() {
+            super(
+                    "testFs",
+                    new HadoopConfigLoader(
+                            new String[0],
+                            new String[0][],
+                            "",
+                            Collections.emptySet(),
+                            Collections.emptySet(),
+                            ""));
+        }
 
-		@Override
-		protected org.apache.hadoop.fs.FileSystem createHadoopFileSystem() {
-			return Mockito.mock(org.apache.hadoop.fs.FileSystem.class);
-		}
+        @Override
+        protected org.apache.hadoop.fs.FileSystem createHadoopFileSystem() {
+            return Mockito.mock(org.apache.hadoop.fs.FileSystem.class);
+        }
 
-		@Override
-		protected URI getInitURI(URI fsUri, org.apache.hadoop.conf.Configuration hadoopConfig) {
-			return fsUri;
-		}
+        @Override
+        protected URI getInitURI(URI fsUri, org.apache.hadoop.conf.Configuration hadoopConfig) {
+            return fsUri;
+        }
 
-		@Nullable
-		@Override
-		protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
-			return null;
-		}
+        @Nullable
+        @Override
+        protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
+            return null;
+        }
 
-		@Override
-		public String getScheme() {
-			return "test";
-		}
-	}
+        @Override
+        public String getScheme() {
+            return "test";
+        }
+    }
 }

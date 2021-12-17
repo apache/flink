@@ -22,46 +22,46 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
 
 class DummyFSFileStatus implements FileStatus {
-	private final Path path;
-	private final int length;
+    private final Path path;
+    private final int length;
 
-	DummyFSFileStatus(Path path, int length) {
-		this.path = path;
-		this.length = length;
-	}
+    DummyFSFileStatus(Path path, int length) {
+        this.path = path;
+        this.length = length;
+    }
 
-	@Override
-	public long getLen() {
-		return length;
-	}
+    @Override
+    public long getLen() {
+        return length;
+    }
 
-	@Override
-	public long getBlockSize() {
-		return length;
-	}
+    @Override
+    public long getBlockSize() {
+        return length;
+    }
 
-	@Override
-	public short getReplication() {
-		return 0;
-	}
+    @Override
+    public short getReplication() {
+        return 0;
+    }
 
-	@Override
-	public long getModificationTime() {
-		return 0;
-	}
+    @Override
+    public long getModificationTime() {
+        return 0;
+    }
 
-	@Override
-	public long getAccessTime() {
-		return 0;
-	}
+    @Override
+    public long getAccessTime() {
+        return 0;
+    }
 
-	@Override
-	public boolean isDir() {
-		return false;
-	}
+    @Override
+    public boolean isDir() {
+        return false;
+    }
 
-	@Override
-	public Path getPath() {
-		return path;
-	}
+    @Override
+    public Path getPath() {
+        return path;
+    }
 }

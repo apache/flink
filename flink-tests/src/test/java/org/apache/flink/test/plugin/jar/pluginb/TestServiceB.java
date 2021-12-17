@@ -20,13 +20,11 @@ package org.apache.flink.test.plugin.jar.pluginb;
 
 import org.apache.flink.test.plugin.TestSpi;
 
-/**
- * Second implementation of {@link TestSpi}.
- */
+/** Second implementation of {@link TestSpi}. */
 public class TestServiceB implements TestSpi {
 
-	@Override
-	public String testMethod() {
-		return getClass().getName();
-	}
+    @Override
+    public String testMethod() {
+        return getClass().getName();
+    }
 }

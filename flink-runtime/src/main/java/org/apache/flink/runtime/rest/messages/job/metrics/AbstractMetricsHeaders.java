@@ -26,35 +26,35 @@ import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * {@link MessageHeaders} for {@link org.apache.flink.runtime.rest.handler.job.metrics.AbstractMetricsHandler}.
+ * {@link MessageHeaders} for {@link
+ * org.apache.flink.runtime.rest.handler.job.metrics.AbstractMetricsHandler}.
  */
-public abstract class AbstractMetricsHeaders<M extends MessageParameters> implements
-	MessageHeaders<EmptyRequestBody, MetricCollectionResponseBody, M> {
+public abstract class AbstractMetricsHeaders<M extends MessageParameters>
+        implements MessageHeaders<EmptyRequestBody, MetricCollectionResponseBody, M> {
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<MetricCollectionResponseBody> getResponseClass() {
-		return MetricCollectionResponseBody.class;
-	}
+    @Override
+    public Class<MetricCollectionResponseBody> getResponseClass() {
+        return MetricCollectionResponseBody.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public abstract M getUnresolvedMessageParameters();
+    @Override
+    public abstract M getUnresolvedMessageParameters();
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public abstract String getTargetRestEndpointURL();
-
+    @Override
+    public abstract String getTargetRestEndpointURL();
 }

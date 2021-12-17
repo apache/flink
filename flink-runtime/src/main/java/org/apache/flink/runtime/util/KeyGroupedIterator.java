@@ -23,9 +23,9 @@ import java.util.Iterator;
 
 public interface KeyGroupedIterator<E> {
 
-	boolean nextKey() throws IOException;
+    boolean nextKey() throws IOException;
 
-	E getCurrent();
+    E getCurrent();
 
-	Iterator<E> getValues();
+    Iterator<E> getValues();
 }

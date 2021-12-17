@@ -24,70 +24,69 @@ import org.apache.flink.types.CharValue;
 
 import java.util.Random;
 
-/**
- * A test for the {@link CharValueArraySerializer}.
- */
+/** A test for the {@link CharValueArraySerializer}. */
 public class CharValueArraySerializerTest extends ValueArraySerializerTestBase<CharValueArray> {
 
-	@Override
-	protected TypeSerializer<CharValueArray> createSerializer() {
-		return new CharValueArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<CharValueArray> createSerializer() {
+        return new CharValueArraySerializer();
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<CharValueArray> getTypeClass() {
-		return CharValueArray.class;
-	}
+    @Override
+    protected Class<CharValueArray> getTypeClass() {
+        return CharValueArray.class;
+    }
 
-	@Override
-	protected CharValueArray[] getTestData() {
-		int defaultElements = CharValueArray.DEFAULT_CAPACITY_IN_BYTES / CharValueArray.ELEMENT_LENGTH_IN_BYTES;
+    @Override
+    protected CharValueArray[] getTestData() {
+        int defaultElements =
+                CharValueArray.DEFAULT_CAPACITY_IN_BYTES / CharValueArray.ELEMENT_LENGTH_IN_BYTES;
 
-		Random rnd = new Random(874597969123412341L);
-		int rndLong = rnd.nextInt();
+        Random rnd = new Random(874597969123412341L);
+        int rndLong = rnd.nextInt();
 
-		CharValueArray lva0 = new CharValueArray();
+        CharValueArray lva0 = new CharValueArray();
 
-		CharValueArray lva1 = new CharValueArray();
-		lva1.addAll(lva0);
-		lva1.add(new CharValue((char) 0));
+        CharValueArray lva1 = new CharValueArray();
+        lva1.addAll(lva0);
+        lva1.add(new CharValue((char) 0));
 
-		CharValueArray lva2 = new CharValueArray();
-		lva2.addAll(lva1);
-		lva2.add(new CharValue((char) 1));
+        CharValueArray lva2 = new CharValueArray();
+        lva2.addAll(lva1);
+        lva2.add(new CharValue((char) 1));
 
-		CharValueArray lva3 = new CharValueArray();
-		lva3.addAll(lva2);
-		lva3.add(new CharValue((char) -1));
+        CharValueArray lva3 = new CharValueArray();
+        lva3.addAll(lva2);
+        lva3.add(new CharValue((char) -1));
 
-		CharValueArray lva4 = new CharValueArray();
-		lva4.addAll(lva3);
-		lva4.add(new CharValue(Character.MAX_VALUE));
+        CharValueArray lva4 = new CharValueArray();
+        lva4.addAll(lva3);
+        lva4.add(new CharValue(Character.MAX_VALUE));
 
-		CharValueArray lva5 = new CharValueArray();
-		lva5.addAll(lva4);
-		lva5.add(new CharValue(Character.MIN_VALUE));
+        CharValueArray lva5 = new CharValueArray();
+        lva5.addAll(lva4);
+        lva5.add(new CharValue(Character.MIN_VALUE));
 
-		CharValueArray lva6 = new CharValueArray();
-		lva6.addAll(lva5);
-		lva6.add(new CharValue((char) rndLong));
+        CharValueArray lva6 = new CharValueArray();
+        lva6.addAll(lva5);
+        lva6.add(new CharValue((char) rndLong));
 
-		CharValueArray lva7 = new CharValueArray();
-		lva7.addAll(lva6);
-		lva7.add(new CharValue((char) -rndLong));
+        CharValueArray lva7 = new CharValueArray();
+        lva7.addAll(lva6);
+        lva7.add(new CharValue((char) -rndLong));
 
-		CharValueArray lva8 = new CharValueArray();
-		lva8.addAll(lva7);
-		for (int i = 0; i < 1.5 * defaultElements; i++) {
-			lva8.add(new CharValue((char) i));
-		}
-		lva8.addAll(lva8);
+        CharValueArray lva8 = new CharValueArray();
+        lva8.addAll(lva7);
+        for (int i = 0; i < 1.5 * defaultElements; i++) {
+            lva8.add(new CharValue((char) i));
+        }
+        lva8.addAll(lva8);
 
-		return new CharValueArray[] {lva0, lva1, lva2, lva3, lva4, lva5, lva6, lva7, lva8};
-	}
+        return new CharValueArray[] {lva0, lva1, lva2, lva3, lva4, lva5, lva6, lva7, lva8};
+    }
 }

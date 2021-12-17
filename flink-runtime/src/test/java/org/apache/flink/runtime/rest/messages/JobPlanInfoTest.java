@@ -19,21 +19,20 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 
-/**
- * Tests that the {@link JobPlanInfo} can be marshalled and unmarshalled.
- */
+/** Tests that the {@link JobPlanInfo} can be marshalled and unmarshalled. */
 public class JobPlanInfoTest extends RestResponseMarshallingTestBase<JobPlanInfo> {
 
-	@Override
-	protected Class<JobPlanInfo> getTestResponseClass() {
-		return JobPlanInfo.class;
-	}
+    @Override
+    protected Class<JobPlanInfo> getTestResponseClass() {
+        return JobPlanInfo.class;
+    }
 
-	@Override
-	protected JobPlanInfo getTestResponseInstance() {
-		JobGraph jg = new JobGraph("job_007");
-		return new JobPlanInfo(JsonPlanGenerator.generatePlan(jg));
-	}
+    @Override
+    protected JobPlanInfo getTestResponseInstance() {
+        JobGraph jg = JobGraphTestUtils.emptyJobGraph();
+        return new JobPlanInfo(JsonPlanGenerator.generatePlan(jg));
+    }
 }

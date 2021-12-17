@@ -23,47 +23,39 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 
 import java.util.Objects;
 
-/**
- * A simple wrapper pojo that tags {@link OperatorSubtaskState} with metadata.
- */
+/** A simple wrapper pojo that tags {@link OperatorSubtaskState} with metadata. */
 @Internal
 @SuppressWarnings("WeakerAccess")
 public final class TaggedOperatorSubtaskState {
 
-	public int index;
+    public int index;
 
-	public OperatorSubtaskState state;
+    public OperatorSubtaskState state;
 
-	public TaggedOperatorSubtaskState(int index, OperatorSubtaskState state) {
-		this.index = index;
-		this.state = state;
-	}
+    public TaggedOperatorSubtaskState(int index, OperatorSubtaskState state) {
+        this.index = index;
+        this.state = state;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		} else if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        } else if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-		TaggedOperatorSubtaskState that = (TaggedOperatorSubtaskState) o;
-		return index == that.index &&
-			Objects.equals(state, that.state);
-	}
+        TaggedOperatorSubtaskState that = (TaggedOperatorSubtaskState) o;
+        return index == that.index && Objects.equals(state, that.state);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(index, state);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(index, state);
+    }
 
-	@Override
-	public String toString() {
-		return "TaggedOperatorSubtaskState{" +
-			"index=" + index +
-			", state=" + state +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "TaggedOperatorSubtaskState{" + "index=" + index + ", state=" + state + '}';
+    }
 }
-
-

@@ -34,88 +34,83 @@ import org.junit.runners.Parameterized;
 
 import java.util.List;
 
-/**
- * Test creating graphs from collections.
- */
+/** Test creating graphs from collections. */
 @RunWith(Parameterized.class)
 public class FromCollectionITCase extends MultipleProgramsTestBase {
 
-	public FromCollectionITCase(TestExecutionMode mode) {
-		super(mode);
-	}
+    public FromCollectionITCase(TestExecutionMode mode) {
+        super(mode);
+    }
 
-	private String expectedResult;
+    private String expectedResult;
 
-	@Test
-	public void testFromCollectionVerticesEdges() throws Exception {
-		/*
-		 * Test fromCollection(vertices, edges):
-		 */
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(),
-			TestGraphUtils.getLongLongEdges(), env);
+    @Test
+    public void testFromCollectionVerticesEdges() throws Exception {
+        /*
+         * Test fromCollection(vertices, edges):
+         */
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Graph<Long, Long, Long> graph =
+                Graph.fromCollection(
+                        TestGraphUtils.getLongLongVertices(),
+                        TestGraphUtils.getLongLongEdges(),
+                        env);
 
-		DataSet<Edge<Long, Long>> data = graph.getEdges();
-		List<Edge<Long, Long>> result = data.collect();
+        DataSet<Edge<Long, Long>> data = graph.getEdges();
+        List<Edge<Long, Long>> result = data.collect();
 
-		expectedResult = "1,2,12\n" +
-			"1,3,13\n" +
-			"2,3,23\n" +
-			"3,4,34\n" +
-			"3,5,35\n" +
-			"4,5,45\n" +
-			"5,1,51\n";
+        expectedResult =
+                "1,2,12\n"
+                        + "1,3,13\n"
+                        + "2,3,23\n"
+                        + "3,4,34\n"
+                        + "3,5,35\n"
+                        + "4,5,45\n"
+                        + "5,1,51\n";
 
-		compareResultAsTuples(result, expectedResult);
-	}
+        compareResultAsTuples(result, expectedResult);
+    }
 
-	@Test
-	public void testFromCollectionEdgesNoInitialValue() throws Exception {
-		/*
+    @Test
+    public void testFromCollectionEdgesNoInitialValue() throws Exception {
+        /*
          * Test fromCollection(edges) with no initial value for the vertices
          */
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		Graph<Long, NullValue, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongEdges(),
-			env);
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Graph<Long, NullValue, Long> graph =
+                Graph.fromCollection(TestGraphUtils.getLongLongEdges(), env);
 
-		DataSet<Vertex<Long, NullValue>> data = graph.getVertices();
-		List<Vertex<Long, NullValue>> result = data.collect();
+        DataSet<Vertex<Long, NullValue>> data = graph.getVertices();
+        List<Vertex<Long, NullValue>> result = data.collect();
 
-		expectedResult = "1,(null)\n" +
-			"2,(null)\n" +
-			"3,(null)\n" +
-			"4,(null)\n" +
-			"5,(null)\n";
+        expectedResult = "1,(null)\n" + "2,(null)\n" + "3,(null)\n" + "4,(null)\n" + "5,(null)\n";
 
-		compareResultAsTuples(result, expectedResult);
-	}
+        compareResultAsTuples(result, expectedResult);
+    }
 
-	@Test
-	public void testFromCollectionEdgesWithInitialValue() throws Exception {
-		/*
+    @Test
+    public void testFromCollectionEdgesWithInitialValue() throws Exception {
+        /*
          * Test fromCollection(edges) with vertices initialised by a
          * function that takes the id and doubles it
          */
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongEdges(),
-			new InitVerticesMapper(), env);
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Graph<Long, Long, Long> graph =
+                Graph.fromCollection(
+                        TestGraphUtils.getLongLongEdges(), new InitVerticesMapper(), env);
 
-		DataSet<Vertex<Long, Long>> data = graph.getVertices();
-		List<Vertex<Long, Long>> result = data.collect();
+        DataSet<Vertex<Long, Long>> data = graph.getVertices();
+        List<Vertex<Long, Long>> result = data.collect();
 
-		expectedResult = "1,2\n" +
-			"2,4\n" +
-			"3,6\n" +
-			"4,8\n" +
-			"5,10\n";
+        expectedResult = "1,2\n" + "2,4\n" + "3,6\n" + "4,8\n" + "5,10\n";
 
-		compareResultAsTuples(result, expectedResult);
-	}
+        compareResultAsTuples(result, expectedResult);
+    }
 
-	@SuppressWarnings("serial")
-	private static final class InitVerticesMapper implements MapFunction<Long, Long> {
-		public Long map(Long vertexId) {
-			return vertexId * 2;
-		}
-	}
+    @SuppressWarnings("serial")
+    private static final class InitVerticesMapper implements MapFunction<Long, Long> {
+        public Long map(Long vertexId) {
+            return vertexId * 2;
+        }
+    }
 }

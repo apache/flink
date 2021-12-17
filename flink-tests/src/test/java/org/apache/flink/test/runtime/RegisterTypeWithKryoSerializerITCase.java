@@ -36,98 +36,102 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * Test registering types with Kryo.
- */
+/** Test registering types with Kryo. */
 @RunWith(Parameterized.class)
 public class RegisterTypeWithKryoSerializerITCase extends MultipleProgramsTestBase {
 
-	public RegisterTypeWithKryoSerializerITCase(TestExecutionMode mode) {
-		super(mode);
-	}
+    public RegisterTypeWithKryoSerializerITCase(TestExecutionMode mode) {
+        super(mode);
+    }
 
-	/**
-	 * Tests whether the kryo serializer is forwarded via the ExecutionConfig.
-	 * @throws Exception
-	 */
-	@Test
-	public void testRegisterTypeWithKryoSerializer() throws Exception {
-		int numElements = 10;
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    /**
+     * Tests whether the kryo serializer is forwarded via the ExecutionConfig.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testRegisterTypeWithKryoSerializer() throws Exception {
+        int numElements = 10;
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		env.registerTypeWithKryoSerializer(TestClass.class, new TestClassSerializer());
+        env.registerTypeWithKryoSerializer(TestClass.class, new TestClassSerializer());
 
-		DataSet<Long> input = env.generateSequence(0, numElements - 1);
+        DataSet<Long> input = env.generateSequence(0, numElements - 1);
 
-		DataSet<TestClass> mapped = input.map(new MapFunction<Long, TestClass>() {
-			private static final long serialVersionUID = -529116076312998262L;
+        DataSet<TestClass> mapped =
+                input.map(
+                        new MapFunction<Long, TestClass>() {
+                            private static final long serialVersionUID = -529116076312998262L;
 
-			@Override
-			public TestClass map(Long value) throws Exception {
-				return new TestClass(value);
-			}
-		});
+                            @Override
+                            public TestClass map(Long value) throws Exception {
+                                return new TestClass(value);
+                            }
+                        });
 
-		List<TestClass> expected = new ArrayList<>(numElements);
+        List<TestClass> expected = new ArrayList<>(numElements);
 
-		for (int i = 0; i < numElements; i++) {
-			expected.add(new TestClass(42));
-		}
+        for (int i = 0; i < numElements; i++) {
+            expected.add(new TestClass(42));
+        }
 
-		compareResultCollections(expected, mapped.collect(), new Comparator<TestClass>() {
-			@Override
-			public int compare(TestClass o1, TestClass o2) {
-				return (int) (o1.getValue() - o2.getValue());
-			}
-		});
-	}
+        compareResultCollections(
+                expected,
+                mapped.collect(),
+                new Comparator<TestClass>() {
+                    @Override
+                    public int compare(TestClass o1, TestClass o2) {
+                        return (int) (o1.getValue() - o2.getValue());
+                    }
+                });
+    }
 
-	static class TestClass {
-		private final long value;
-		private Object obj = new Object();
+    static class TestClass {
+        private final long value;
+        private Object obj = new Object();
 
-		public TestClass(long value) {
-			this.value = value;
-		}
+        public TestClass(long value) {
+            this.value = value;
+        }
 
-		public long getValue() {
-			return value;
-		}
+        public long getValue() {
+            return value;
+        }
 
-		@Override
-		public String toString() {
-			return "TestClass(" + value + ")";
-		}
+        @Override
+        public String toString() {
+            return "TestClass(" + value + ")";
+        }
 
-		@Override
-		public boolean equals(Object obj) {
-			if (obj instanceof TestClass) {
-				TestClass other = (TestClass) obj;
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof TestClass) {
+                TestClass other = (TestClass) obj;
 
-				return value == other.value;
-			} else {
-				return false;
-			}
-		}
+                return value == other.value;
+            } else {
+                return false;
+            }
+        }
 
-		@Override
-		public int hashCode() {
-			return (int) value;
-		}
-	}
+        @Override
+        public int hashCode() {
+            return (int) value;
+        }
+    }
 
-	static class TestClassSerializer extends Serializer<TestClass> implements Serializable {
+    static class TestClassSerializer extends Serializer<TestClass> implements Serializable {
 
-		private static final long serialVersionUID = -3585880741695717533L;
+        private static final long serialVersionUID = -3585880741695717533L;
 
-		@Override
-		public void write(Kryo kryo, Output output, TestClass testClass) {
-			output.writeLong(42);
-		}
+        @Override
+        public void write(Kryo kryo, Output output, TestClass testClass) {
+            output.writeLong(42);
+        }
 
-		@Override
-		public TestClass read(Kryo kryo, Input input, Class<TestClass> aClass) {
-			return new TestClass(input.readLong());
-		}
-	}
+        @Override
+        public TestClass read(Kryo kryo, Input input, Class<TestClass> aClass) {
+            return new TestClass(input.readLong());
+        }
+    }
 }

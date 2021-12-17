@@ -18,53 +18,52 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 
+import java.io.IOException;
+
 @Internal
 public final class ByteComparator extends BasicTypeComparator<Byte> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	
-	public ByteComparator(boolean ascending) {
-		super(ascending);
-	}
+    public ByteComparator(boolean ascending) {
+        super(ascending);
+    }
 
-	@Override
-	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		byte b1 = firstSource.readByte();
-		byte b2 = secondSource.readByte();
-		int comp = (b1 < b2 ? -1 : (b1 == b2 ? 0 : 1)); 
-		return ascendingComparison ? comp : -comp; 
-	}
+    @Override
+    public int compareSerialized(DataInputView firstSource, DataInputView secondSource)
+            throws IOException {
+        byte b1 = firstSource.readByte();
+        byte b2 = secondSource.readByte();
+        int comp = (b1 < b2 ? -1 : (b1 == b2 ? 0 : 1));
+        return ascendingComparison ? comp : -comp;
+    }
 
+    @Override
+    public boolean supportsNormalizedKey() {
+        return true;
+    }
 
-	@Override
-	public boolean supportsNormalizedKey() {
-		return true;
-	}
+    @Override
+    public int getNormalizeKeyLen() {
+        return 1;
+    }
 
-	@Override
-	public int getNormalizeKeyLen() {
-		return 1;
-	}
+    @Override
+    public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
+        return keyBytes < 1;
+    }
 
-	@Override
-	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
-		return keyBytes < 1;
-	}
+    @Override
+    public void putNormalizedKey(Byte value, MemorySegment target, int offset, int numBytes) {
+        NormalizedKeyUtil.putByteNormalizedKey(value, target, offset, numBytes);
+    }
 
-	@Override
-	public void putNormalizedKey(Byte value, MemorySegment target, int offset, int numBytes) {
-		NormalizedKeyUtil.putByteNormalizedKey(value, target, offset, numBytes);
-	}
-
-	@Override
-	public ByteComparator duplicate() {
-		return new ByteComparator(ascendingComparison);
-	}
+    @Override
+    public ByteComparator duplicate() {
+        return new ByteComparator(ascendingComparison);
+    }
 }

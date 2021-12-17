@@ -72,7 +72,7 @@ class OnConnectedStream[IN1, IN2](stream: ConnectedStreams[IN1, IN2]) {
     * @return The key-grouped connected streams
     */
   @PublicEvolving
-  def keyingBy[K1: TypeInformation, K2: TypeInformation](key1: IN1 => K1, key2: IN2 => K2):
+  def keyingBy[KEY: TypeInformation](key1: IN1 => KEY, key2: IN2 => KEY):
       ConnectedStreams[IN1, IN2] =
     stream.keyBy(key1, key2)
 

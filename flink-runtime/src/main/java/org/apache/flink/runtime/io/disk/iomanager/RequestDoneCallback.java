@@ -22,13 +22,13 @@ import java.io.IOException;
 
 /**
  * Callback to be executed on completion of an asynchronous I/O request.
- * <p>
- * Depending on success or failure, either {@link #requestSuccessful(Object)}
- * or {@link #requestSuccessful(Object)} is called.
+ *
+ * <p>Depending on success or failure, either {@link #requestSuccessful(Object)} or {@link
+ * #requestSuccessful(Object)} is called.
  */
 public interface RequestDoneCallback<T> {
 
-	void requestSuccessful(T request);
+    void requestSuccessful(T request);
 
-	void requestFailed(T buffer, IOException e);
+    void requestFailed(T buffer, IOException e);
 }

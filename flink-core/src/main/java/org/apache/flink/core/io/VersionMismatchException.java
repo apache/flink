@@ -22,26 +22,23 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.IOException;
 
-/**
- * This exception signals that incompatible versions have been found during serialization.
- */
+/** This exception signals that incompatible versions have been found during serialization. */
 @PublicEvolving
 public class VersionMismatchException extends IOException {
 
-	private static final long serialVersionUID = 7024258967585372438L;
+    private static final long serialVersionUID = 7024258967585372438L;
 
-	public VersionMismatchException() {
-	}
+    public VersionMismatchException() {}
 
-	public VersionMismatchException(String message) {
-		super(message);
-	}
+    public VersionMismatchException(String message) {
+        super(message);
+    }
 
-	public VersionMismatchException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public VersionMismatchException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-	public VersionMismatchException(Throwable cause) {
-		super(cause);
-	}
+    public VersionMismatchException(Throwable cause) {
+        super(cause);
+    }
 }

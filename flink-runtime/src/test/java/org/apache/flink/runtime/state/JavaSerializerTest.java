@@ -32,79 +32,78 @@ import java.io.Serializable;
 
 import static org.junit.Assert.*;
 
-/**
- * A test that verifies that the {@link JavaSerializer} properly handles class loading. 
- */
+/** A test that verifies that the {@link JavaSerializer} properly handles class loading. */
 public class JavaSerializerTest extends SerializerTestBase<Serializable> {
 
-	/** Class loader and object that is not in the test class path. */
-	private static final ClassLoaderUtils.ObjectAndClassLoader<Serializable> OUTSIDE_CLASS_LOADING =
-		ClassLoaderUtils.createSerializableObjectFromNewClassLoader();
+    /** Class loader and object that is not in the test class path. */
+    private static final ClassLoaderUtils.ObjectAndClassLoader<Serializable> OUTSIDE_CLASS_LOADING =
+            ClassLoaderUtils.createSerializableObjectFromNewClassLoader();
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private ClassLoader originalClassLoader;
+    private ClassLoader originalClassLoader;
 
-	@Before
-	public void setupClassLoader() {
-		originalClassLoader = Thread.currentThread().getContextClassLoader();
-		Thread.currentThread().setContextClassLoader(OUTSIDE_CLASS_LOADING.getClassLoader());
-	}
+    @Before
+    public void setupClassLoader() {
+        originalClassLoader = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(OUTSIDE_CLASS_LOADING.getClassLoader());
+    }
 
-	@After
-	public void restoreOriginalClassLoader() {
-		Thread.currentThread().setContextClassLoader(originalClassLoader);
-	}
+    @After
+    public void restoreOriginalClassLoader() {
+        Thread.currentThread().setContextClassLoader(originalClassLoader);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Test
-	public void guardTest() {
-		// make sure that this test's assumptions hold
-		try {
-			Class.forName(OUTSIDE_CLASS_LOADING.getObject().getClass().getName());
-			fail("Test ineffective: The test class that should not be on the classpath is actually on the classpath.");
-		} catch (ClassNotFoundException e) {
-			// expected
-		}
-	}
+    @Test
+    public void guardTest() {
+        // make sure that this test's assumptions hold
+        try {
+            Class.forName(OUTSIDE_CLASS_LOADING.getObject().getClass().getName());
+            fail(
+                    "Test ineffective: The test class that should not be on the classpath is actually on the classpath.");
+        } catch (ClassNotFoundException e) {
+            // expected
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	protected TypeSerializer<Serializable> createSerializer() {
-		Thread.currentThread().setContextClassLoader(OUTSIDE_CLASS_LOADING.getClassLoader());
-		return new JavaSerializer<>();
-	}
+    @Override
+    protected TypeSerializer<Serializable> createSerializer() {
+        Thread.currentThread().setContextClassLoader(OUTSIDE_CLASS_LOADING.getClassLoader());
+        return new JavaSerializer<>();
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<Serializable> getTypeClass() {
-		return Serializable.class;
-	}
+    @Override
+    protected Class<Serializable> getTypeClass() {
+        return Serializable.class;
+    }
 
-	@Override
-	protected Serializable[] getTestData() {
-		return new Serializable[] {
-				new Integer(42),
-				new File("/some/path/that/I/made/up"),
+    @Override
+    protected Serializable[] getTestData() {
+        return new Serializable[] {
+            new Integer(42),
+            new File("/some/path/that/I/made/up"),
 
-				// an object that is not in the classpath
-				OUTSIDE_CLASS_LOADING.getObject(),
+            // an object that is not in the classpath
+            OUTSIDE_CLASS_LOADING.getObject(),
 
-				// an object that is in the classpath with a nested object not in the classpath
-				new Tuple1<>(OUTSIDE_CLASS_LOADING.getObject())
-		};
-	}
+            // an object that is in the classpath with a nested object not in the classpath
+            new Tuple1<>(OUTSIDE_CLASS_LOADING.getObject())
+        };
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public void testInstantiate() {
-		// this serializer does not support instantiation
-	}
+    @Override
+    public void testInstantiate() {
+        // this serializer does not support instantiation
+    }
 }

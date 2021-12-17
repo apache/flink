@@ -21,11 +21,8 @@ package org.apache.flink.runtime.jobmanager.slots;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 
-/**
- * SlotOwner implementation used for testing purposes only.
- */
+/** SlotOwner implementation used for testing purposes only. */
 public class DummySlotOwner implements SlotOwner {
-	@Override
-	public void returnLogicalSlot(LogicalSlot logicalSlot) {
-	}
+    @Override
+    public void returnLogicalSlot(LogicalSlot logicalSlot) {}
 }

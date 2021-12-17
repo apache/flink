@@ -30,106 +30,115 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A {@link Parameter} storing a list of {@link String} choices and parsing
- * the user's configured selection.
+ * A {@link Parameter} storing a list of {@link String} choices and parsing the user's configured
+ * selection.
  */
-public class ChoiceParameter
-extends SimpleParameter<String> {
+public class ChoiceParameter extends SimpleParameter<String> {
 
-	private List<String> choices = new ArrayList<>();
+    private List<String> choices = new ArrayList<>();
 
-	private List<String> hiddenChoices = new ArrayList<>();
+    private List<String> hiddenChoices = new ArrayList<>();
 
-	/**
-	 * Set the parameter name and add this parameter to the list of parameters
-	 * stored by owner.
-	 *
-	 * @param owner the {@link Parameterized} using this {@link Parameter}
-	 * @param name the parameter name
-	 */
-	public ChoiceParameter(ParameterizedBase owner, String name) {
-		super(owner, name);
-	}
+    /**
+     * Set the parameter name and add this parameter to the list of parameters stored by owner.
+     *
+     * @param owner the {@link Parameterized} using this {@link Parameter}
+     * @param name the parameter name
+     */
+    public ChoiceParameter(ParameterizedBase owner, String name) {
+        super(owner, name);
+    }
 
-	@Override
-	public ChoiceParameter setDefaultValue(String defaultValue) {
-		super.setDefaultValue(defaultValue);
-		choices.add(defaultValue);
-		return this;
-	}
+    @Override
+    public ChoiceParameter setDefaultValue(String defaultValue) {
+        super.setDefaultValue(defaultValue);
+        choices.add(defaultValue);
+        return this;
+    }
 
-	/**
-	 * Add additional choices. This function can be called multiple times.
-	 *
-	 * @param choices additional choices
-	 * @return this
-	 */
-	public ChoiceParameter addChoices(String... choices) {
-		Collections.addAll(this.choices, choices);
-		return this;
-	}
+    /**
+     * Add additional choices. This function can be called multiple times.
+     *
+     * @param choices additional choices
+     * @return this
+     */
+    public ChoiceParameter addChoices(String... choices) {
+        Collections.addAll(this.choices, choices);
+        return this;
+    }
 
-	/**
-	 * Add additional hidden choices. This function can be called multiple
-	 * times. These choices will not be printed in the usage string.
-	 *
-	 * @param hiddenChoices additional hidden choices
-	 * @return this
-	 */
-	public ChoiceParameter addHiddenChoices(String... hiddenChoices) {
-		Collections.addAll(this.hiddenChoices, hiddenChoices);
-		return this;
-	}
+    /**
+     * Add additional hidden choices. This function can be called multiple times. These choices will
+     * not be printed in the usage string.
+     *
+     * @param hiddenChoices additional hidden choices
+     * @return this
+     */
+    public ChoiceParameter addHiddenChoices(String... hiddenChoices) {
+        Collections.addAll(this.hiddenChoices, hiddenChoices);
+        return this;
+    }
 
-	@Override
-	public String getUsage() {
-		String option = new StrBuilder()
-			.append("--")
-			.append(name)
-			.append(" <")
-			.append(StringUtils.join(choices, " | "))
-			.append(">")
-			.toString();
+    @Override
+    public String getUsage() {
+        String option =
+                new StrBuilder()
+                        .append("--")
+                        .append(name)
+                        .append(" <")
+                        .append(StringUtils.join(choices, " | "))
+                        .append(">")
+                        .toString();
 
-		return hasDefaultValue ? "[" + option + "]" : option;
-	}
+        return hasDefaultValue ? "[" + option + "]" : option;
+    }
 
-	@Override
-	public void configure(ParameterTool parameterTool) {
-		Preconditions.checkArgument(choices.size() > 0, "No choices provided");
+    @Override
+    public void configure(ParameterTool parameterTool) {
+        Preconditions.checkArgument(choices.size() > 0, "No choices provided");
 
-		String selected = parameterTool.get(name);
+        String selected = parameterTool.get(name);
 
-		if (selected == null) {
-			if (hasDefaultValue) {
-				value = defaultValue;
-				return;
-			} else {
-				throw new ProgramParametrizationException(
-					"Must select a choice for option '" + name + "': '[" + StringUtils.join(choices, ", ") + "]'");
-			}
-		}
+        if (selected == null) {
+            if (hasDefaultValue) {
+                value = defaultValue;
+                return;
+            } else {
+                throw new ProgramParametrizationException(
+                        "Must select a choice for option '"
+                                + name
+                                + "': '["
+                                + StringUtils.join(choices, ", ")
+                                + "]'");
+            }
+        }
 
-		for (String choice : choices) {
-			if (choice.equals(selected)) {
-				this.value = selected;
-				return;
-			}
-		}
+        for (String choice : choices) {
+            if (choice.equals(selected)) {
+                this.value = selected;
+                return;
+            }
+        }
 
-		for (String choice : hiddenChoices) {
-			if (choice.equals(selected)) {
-				this.value = selected;
-				return;
-			}
-		}
+        for (String choice : hiddenChoices) {
+            if (choice.equals(selected)) {
+                this.value = selected;
+                return;
+            }
+        }
 
-		throw new ProgramParametrizationException(
-			"Selection '" + selected + "' for option '" + name + "' is not in choices '[" + StringUtils.join(choices, ", ") + "]'");
-	}
+        throw new ProgramParametrizationException(
+                "Selection '"
+                        + selected
+                        + "' for option '"
+                        + name
+                        + "' is not in choices '["
+                        + StringUtils.join(choices, ", ")
+                        + "]'");
+    }
 
-	@Override
-	public String toString() {
-		return this.value;
-	}
+    @Override
+    public String toString() {
+        return this.value;
+    }
 }

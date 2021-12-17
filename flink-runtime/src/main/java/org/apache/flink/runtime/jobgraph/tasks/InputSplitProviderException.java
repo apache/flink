@@ -20,17 +20,17 @@ package org.apache.flink.runtime.jobgraph.tasks;
 
 public class InputSplitProviderException extends Exception {
 
-	private static final long serialVersionUID = -8043190713983651548L;
+    private static final long serialVersionUID = -8043190713983651548L;
 
-	public InputSplitProviderException(String message) {
-		super(message);
-	}
+    public InputSplitProviderException(String message) {
+        super(message);
+    }
 
-	public InputSplitProviderException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public InputSplitProviderException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-	public InputSplitProviderException(Throwable cause) {
-		super(cause);
-	}
+    public InputSplitProviderException(Throwable cause) {
+        super(cause);
+    }
 }

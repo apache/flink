@@ -25,34 +25,32 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * {@link org.apache.flink.runtime.testtasks.BlockingNoOpInvokable} that sometimes fails.
- */
+/** {@link org.apache.flink.runtime.testtasks.BlockingNoOpInvokable} that sometimes fails. */
 public class SometimesExceptionSender extends AbstractInvokable {
 
-	private static Set<Integer> failingSenders;
+    private static Set<Integer> failingSenders;
 
-	public SometimesExceptionSender(Environment environment) {
-		super(environment);
-	}
+    public SometimesExceptionSender(Environment environment) {
+        super(environment);
+    }
 
-	static void configFailingSenders(int numTasks) {
-		failingSenders = Collections.singleton(ThreadLocalRandom.current().nextInt(numTasks));
-	}
+    static void configFailingSenders(int numTasks) {
+        failingSenders = Collections.singleton(ThreadLocalRandom.current().nextInt(numTasks));
+    }
 
-	@Override
-	public void invoke() throws Exception {
-		if (failingSenders.contains(this.getIndexInSubtaskGroup())) {
-			throw new Exception("Test exception");
-		} else {
-			final Object o = new Object();
-			//noinspection SynchronizationOnLocalVariableOrMethodParameter
-			synchronized (o) {
-				//noinspection InfiniteLoopStatement
-				while (true) {
-					o.wait();
-				}
-			}
-		}
-	}
+    @Override
+    public void invoke() throws Exception {
+        if (failingSenders.contains(this.getIndexInSubtaskGroup())) {
+            throw new Exception("Test exception");
+        } else {
+            final Object o = new Object();
+            //noinspection SynchronizationOnLocalVariableOrMethodParameter
+            synchronized (o) {
+                //noinspection InfiniteLoopStatement
+                while (true) {
+                    o.wait();
+                }
+            }
+        }
+    }
 }

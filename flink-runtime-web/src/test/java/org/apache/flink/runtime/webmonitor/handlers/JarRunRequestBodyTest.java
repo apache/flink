@@ -19,45 +19,44 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.rest.messages.RestRequestMarshallingTestBase;
 
 import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link JarRunRequestBody}.
- */
+/** Tests for {@link JarRunRequestBody}. */
 public class JarRunRequestBodyTest extends RestRequestMarshallingTestBase<JarRunRequestBody> {
 
-	@Override
-	protected Class<JarRunRequestBody> getTestRequestClass() {
-		return JarRunRequestBody.class;
-	}
+    @Override
+    protected Class<JarRunRequestBody> getTestRequestClass() {
+        return JarRunRequestBody.class;
+    }
 
-	@Override
-	protected JarRunRequestBody getTestRequestInstance() {
-		return new JarRunRequestBody(
-			"hello",
-			"world",
-			Arrays.asList("boo", "far"),
-			4,
-			new JobID(),
-			true,
-			"foo/bar"
-		);
-	}
+    @Override
+    protected JarRunRequestBody getTestRequestInstance() {
+        return new JarRunRequestBody(
+                "hello",
+                "world",
+                Arrays.asList("boo", "far"),
+                4,
+                new JobID(),
+                true,
+                "foo/bar",
+                RestoreMode.CLAIM);
+    }
 
-	@Override
-	protected void assertOriginalEqualsToUnmarshalled(
-			final JarRunRequestBody expected,
-			final JarRunRequestBody actual) {
-		assertEquals(expected.getEntryClassName(), actual.getEntryClassName());
-		assertEquals(expected.getProgramArguments(), actual.getProgramArguments());
-		assertEquals(expected.getProgramArgumentsList(), actual.getProgramArgumentsList());
-		assertEquals(expected.getParallelism(), actual.getParallelism());
-		assertEquals(expected.getJobId(), actual.getJobId());
-		assertEquals(expected.getAllowNonRestoredState(), actual.getAllowNonRestoredState());
-		assertEquals(expected.getSavepointPath(), actual.getSavepointPath());
-	}
+    @Override
+    protected void assertOriginalEqualsToUnmarshalled(
+            final JarRunRequestBody expected, final JarRunRequestBody actual) {
+        assertEquals(expected.getEntryClassName(), actual.getEntryClassName());
+        assertEquals(expected.getProgramArguments(), actual.getProgramArguments());
+        assertEquals(expected.getProgramArgumentsList(), actual.getProgramArgumentsList());
+        assertEquals(expected.getParallelism(), actual.getParallelism());
+        assertEquals(expected.getJobId(), actual.getJobId());
+        assertEquals(expected.getAllowNonRestoredState(), actual.getAllowNonRestoredState());
+        assertEquals(expected.getSavepointPath(), actual.getSavepointPath());
+        assertEquals(expected.getRestoreMode(), actual.getRestoreMode());
+    }
 }

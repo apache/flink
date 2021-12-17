@@ -18,9 +18,5 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
-/**
- * Shim for Hive version 2.3.6.
- */
-public class HiveShimV236 extends HiveShimV235 {
-
-}
+/** Shim for Hive version 2.3.6. */
+public class HiveShimV236 extends HiveShimV235 {}

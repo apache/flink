@@ -20,16 +20,14 @@ package org.apache.flink.api.common.typeinfo;
 
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-/**
- * Test for {@link FractionalTypeInfo}.
- */
+/** Test for {@link FractionalTypeInfo}. */
 public class FractionalTypeInfoTest extends TypeInformationTestBase<FractionalTypeInfo<?>> {
 
-	@Override
-	protected FractionalTypeInfo<?>[] getTestData() {
-		return new FractionalTypeInfo<?>[] {
-			(FractionalTypeInfo<?>) BasicTypeInfo.FLOAT_TYPE_INFO,
-			(FractionalTypeInfo<?>) BasicTypeInfo.DOUBLE_TYPE_INFO
-		};
-	}
+    @Override
+    protected FractionalTypeInfo<?>[] getTestData() {
+        return new FractionalTypeInfo<?>[] {
+            (FractionalTypeInfo<?>) BasicTypeInfo.FLOAT_TYPE_INFO,
+            (FractionalTypeInfo<?>) BasicTypeInfo.DOUBLE_TYPE_INFO
+        };
+    }
 }

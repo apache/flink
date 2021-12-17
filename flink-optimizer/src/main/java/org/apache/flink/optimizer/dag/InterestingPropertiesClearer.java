@@ -21,19 +21,19 @@ package org.apache.flink.optimizer.dag;
 import org.apache.flink.util.Visitor;
 
 final class InterestingPropertiesClearer implements Visitor<OptimizerNode> {
-	
-	static final InterestingPropertiesClearer INSTANCE = new InterestingPropertiesClearer();
 
-	@Override
-	public boolean preVisit(OptimizerNode visitable) {
-		if (visitable.getInterestingProperties() != null) {
-			visitable.clearInterestingProperties();
-			return true;
-		} else {
-			return false;
-		}
-	}
+    static final InterestingPropertiesClearer INSTANCE = new InterestingPropertiesClearer();
 
-	@Override
-	public void postVisit(OptimizerNode visitable) {}
+    @Override
+    public boolean preVisit(OptimizerNode visitable) {
+        if (visitable.getInterestingProperties() != null) {
+            visitable.clearInterestingProperties();
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public void postVisit(OptimizerNode visitable) {}
 }

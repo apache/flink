@@ -22,40 +22,43 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-/**
- * Snapshot class for the {@link TimerSerializer}.
- */
+/** Snapshot class for the {@link TimerSerializer}. */
 @Internal
-public class TimerSerializerSnapshot<K, N> extends CompositeTypeSerializerSnapshot<TimerHeapInternalTimer<K, N>, TimerSerializer<K, N>> {
+public class TimerSerializerSnapshot<K, N>
+        extends CompositeTypeSerializerSnapshot<
+                TimerHeapInternalTimer<K, N>, TimerSerializer<K, N>> {
 
-	private static final int VERSION = 2;
+    private static final int VERSION = 2;
 
-	public TimerSerializerSnapshot() {
-		super(TimerSerializer.class);
-	}
+    public TimerSerializerSnapshot() {
+        super(TimerSerializer.class);
+    }
 
-	public TimerSerializerSnapshot(TimerSerializer<K, N> timerSerializer) {
-		super(timerSerializer);
-	}
+    public TimerSerializerSnapshot(TimerSerializer<K, N> timerSerializer) {
+        super(timerSerializer);
+    }
 
-	@Override
-	protected int getCurrentOuterSnapshotVersion() {
-		return VERSION;
-	}
+    @Override
+    protected int getCurrentOuterSnapshotVersion() {
+        return VERSION;
+    }
 
-	@Override
-	protected TimerSerializer<K, N> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-		@SuppressWarnings("unchecked")
-		final TypeSerializer<K> keySerializer = (TypeSerializer<K>) nestedSerializers[0];
+    @Override
+    protected TimerSerializer<K, N> createOuterSerializerWithNestedSerializers(
+            TypeSerializer<?>[] nestedSerializers) {
+        @SuppressWarnings("unchecked")
+        final TypeSerializer<K> keySerializer = (TypeSerializer<K>) nestedSerializers[0];
 
-		@SuppressWarnings("unchecked")
-		final TypeSerializer<N> namespaceSerializer = (TypeSerializer<N>) nestedSerializers[1];
+        @SuppressWarnings("unchecked")
+        final TypeSerializer<N> namespaceSerializer = (TypeSerializer<N>) nestedSerializers[1];
 
-		return new TimerSerializer<>(keySerializer, namespaceSerializer);
-	}
+        return new TimerSerializer<>(keySerializer, namespaceSerializer);
+    }
 
-	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(TimerSerializer<K, N> outerSerializer) {
-		return new TypeSerializer<?>[] { outerSerializer.getKeySerializer(), outerSerializer.getNamespaceSerializer() };
-	}
+    @Override
+    protected TypeSerializer<?>[] getNestedSerializers(TimerSerializer<K, N> outerSerializer) {
+        return new TypeSerializer<?>[] {
+            outerSerializer.getKeySerializer(), outerSerializer.getNamespaceSerializer()
+        };
+    }
 }

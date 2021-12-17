@@ -32,162 +32,186 @@ import java.util.Locale;
 import java.util.Objects;
 
 /**
- * Response of the {@link DashboardConfigHandler} containing general configuration
- * values such as the time zone and the refresh interval.
+ * Response of the {@link DashboardConfigHandler} containing general configuration values such as
+ * the time zone and the refresh interval.
  */
 public class DashboardConfiguration implements ResponseBody {
 
-	public static final String FIELD_NAME_REFRESH_INTERVAL = "refresh-interval";
-	public static final String FIELD_NAME_TIMEZONE_OFFSET = "timezone-offset";
-	public static final String FIELD_NAME_TIMEZONE_NAME = "timezone-name";
-	public static final String FIELD_NAME_FLINK_VERSION = "flink-version";
-	public static final String FIELD_NAME_FLINK_REVISION = "flink-revision";
-	public static final String FIELD_NAME_FLINK_FEATURES = "features";
+    public static final String FIELD_NAME_REFRESH_INTERVAL = "refresh-interval";
+    public static final String FIELD_NAME_TIMEZONE_OFFSET = "timezone-offset";
+    public static final String FIELD_NAME_TIMEZONE_NAME = "timezone-name";
+    public static final String FIELD_NAME_FLINK_VERSION = "flink-version";
+    public static final String FIELD_NAME_FLINK_REVISION = "flink-revision";
+    public static final String FIELD_NAME_FLINK_FEATURES = "features";
 
-	public static final String FIELD_NAME_FEATURE_WEB_SUBMIT = "web-submit";
+    public static final String FIELD_NAME_FEATURE_WEB_SUBMIT = "web-submit";
 
-	@JsonProperty(FIELD_NAME_REFRESH_INTERVAL)
-	private final long refreshInterval;
+    public static final String FIELD_NAME_FEATURE_WEB_CANCEL = "web-cancel";
 
-	@JsonProperty(FIELD_NAME_TIMEZONE_NAME)
-	private final String timeZoneName;
+    @JsonProperty(FIELD_NAME_REFRESH_INTERVAL)
+    private final long refreshInterval;
 
-	@JsonProperty(FIELD_NAME_TIMEZONE_OFFSET)
-	private final int timeZoneOffset;
+    @JsonProperty(FIELD_NAME_TIMEZONE_NAME)
+    private final String timeZoneName;
 
-	@JsonProperty(FIELD_NAME_FLINK_VERSION)
-	private final String flinkVersion;
+    @JsonProperty(FIELD_NAME_TIMEZONE_OFFSET)
+    private final int timeZoneOffset;
 
-	@JsonProperty(FIELD_NAME_FLINK_REVISION)
-	private final String flinkRevision;
+    @JsonProperty(FIELD_NAME_FLINK_VERSION)
+    private final String flinkVersion;
 
-	@JsonProperty(FIELD_NAME_FLINK_FEATURES)
-	private final Features features;
+    @JsonProperty(FIELD_NAME_FLINK_REVISION)
+    private final String flinkRevision;
 
-	@JsonCreator
-	public DashboardConfiguration(
-			@JsonProperty(FIELD_NAME_REFRESH_INTERVAL) long refreshInterval,
-			@JsonProperty(FIELD_NAME_TIMEZONE_NAME) String timeZoneName,
-			@JsonProperty(FIELD_NAME_TIMEZONE_OFFSET) int timeZoneOffset,
-			@JsonProperty(FIELD_NAME_FLINK_VERSION) String flinkVersion,
-			@JsonProperty(FIELD_NAME_FLINK_REVISION) String flinkRevision,
-			@JsonProperty(FIELD_NAME_FLINK_FEATURES) Features features) {
-		this.refreshInterval = refreshInterval;
-		this.timeZoneName = Preconditions.checkNotNull(timeZoneName);
-		this.timeZoneOffset = timeZoneOffset;
-		this.flinkVersion = Preconditions.checkNotNull(flinkVersion);
-		this.flinkRevision = Preconditions.checkNotNull(flinkRevision);
-		this.features = features;
-	}
+    @JsonProperty(FIELD_NAME_FLINK_FEATURES)
+    private final Features features;
 
-	@JsonIgnore
-	public long getRefreshInterval() {
-		return refreshInterval;
-	}
+    @JsonCreator
+    public DashboardConfiguration(
+            @JsonProperty(FIELD_NAME_REFRESH_INTERVAL) long refreshInterval,
+            @JsonProperty(FIELD_NAME_TIMEZONE_NAME) String timeZoneName,
+            @JsonProperty(FIELD_NAME_TIMEZONE_OFFSET) int timeZoneOffset,
+            @JsonProperty(FIELD_NAME_FLINK_VERSION) String flinkVersion,
+            @JsonProperty(FIELD_NAME_FLINK_REVISION) String flinkRevision,
+            @JsonProperty(FIELD_NAME_FLINK_FEATURES) Features features) {
+        this.refreshInterval = refreshInterval;
+        this.timeZoneName = Preconditions.checkNotNull(timeZoneName);
+        this.timeZoneOffset = timeZoneOffset;
+        this.flinkVersion = Preconditions.checkNotNull(flinkVersion);
+        this.flinkRevision = Preconditions.checkNotNull(flinkRevision);
+        this.features = features;
+    }
 
-	@JsonIgnore
-	public int getTimeZoneOffset() {
-		return timeZoneOffset;
-	}
+    @JsonIgnore
+    public long getRefreshInterval() {
+        return refreshInterval;
+    }
 
-	@JsonIgnore
-	public String getTimeZoneName() {
-		return timeZoneName;
-	}
+    @JsonIgnore
+    public int getTimeZoneOffset() {
+        return timeZoneOffset;
+    }
 
-	@JsonIgnore
-	public String getFlinkVersion() {
-		return flinkVersion;
-	}
+    @JsonIgnore
+    public String getTimeZoneName() {
+        return timeZoneName;
+    }
 
-	@JsonIgnore
-	public String getFlinkRevision() {
-		return flinkRevision;
-	}
+    @JsonIgnore
+    public String getFlinkVersion() {
+        return flinkVersion;
+    }
 
-	@JsonIgnore
-	public Features getFeatures() {
-		return features;
-	}
+    @JsonIgnore
+    public String getFlinkRevision() {
+        return flinkRevision;
+    }
 
-	/**
-	 * Collection of features that are enabled/disabled.
-	 */
-	public static final class Features {
+    @JsonIgnore
+    public Features getFeatures() {
+        return features;
+    }
 
-		@JsonProperty(FIELD_NAME_FEATURE_WEB_SUBMIT)
-		private final boolean webSubmitEnabled;
+    /** Collection of features that are enabled/disabled. */
+    public static final class Features {
 
-		@JsonCreator
-		public Features(@JsonProperty(FIELD_NAME_FEATURE_WEB_SUBMIT) boolean webSubmitEnabled) {
-			this.webSubmitEnabled = webSubmitEnabled;
-		}
+        @JsonProperty(FIELD_NAME_FEATURE_WEB_SUBMIT)
+        private final boolean webSubmitEnabled;
 
-		@JsonIgnore
-		public boolean isWebSubmitEnabled() {
-			return webSubmitEnabled;
-		}
+        @JsonProperty(FIELD_NAME_FEATURE_WEB_CANCEL)
+        private final boolean webCancelEnabled;
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			Features features = (Features) o;
-			return webSubmitEnabled == features.webSubmitEnabled;
-		}
+        @JsonCreator
+        public Features(
+                @JsonProperty(FIELD_NAME_FEATURE_WEB_SUBMIT) boolean webSubmitEnabled,
+                @JsonProperty(FIELD_NAME_FEATURE_WEB_CANCEL) boolean webCancelEnabled) {
+            this.webSubmitEnabled = webSubmitEnabled;
+            this.webCancelEnabled = webCancelEnabled;
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(webSubmitEnabled);
-		}
-	}
+        @JsonIgnore
+        public boolean isWebSubmitEnabled() {
+            return webSubmitEnabled;
+        }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		DashboardConfiguration that = (DashboardConfiguration) o;
-		return refreshInterval == that.refreshInterval &&
-			timeZoneOffset == that.timeZoneOffset &&
-			Objects.equals(timeZoneName, that.timeZoneName) &&
-			Objects.equals(flinkVersion, that.flinkVersion) &&
-			Objects.equals(flinkRevision, that.flinkRevision) &&
-			Objects.equals(features, that.features);
-	}
+        @JsonIgnore
+        public boolean isWebCancelEnabled() {
+            return webCancelEnabled;
+        }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(refreshInterval, timeZoneName, timeZoneOffset, flinkVersion, flinkRevision, features);
-	}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            Features features = (Features) o;
+            return webSubmitEnabled == features.webSubmitEnabled
+                    && webCancelEnabled == features.webCancelEnabled;
+        }
 
-	public static DashboardConfiguration from(long refreshInterval, ZonedDateTime zonedDateTime, boolean webSubmitEnabled) {
+        @Override
+        public int hashCode() {
+            return Objects.hash(webSubmitEnabled, webCancelEnabled);
+        }
+    }
 
-		final String flinkVersion = EnvironmentInformation.getVersion();
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        DashboardConfiguration that = (DashboardConfiguration) o;
+        return refreshInterval == that.refreshInterval
+                && timeZoneOffset == that.timeZoneOffset
+                && Objects.equals(timeZoneName, that.timeZoneName)
+                && Objects.equals(flinkVersion, that.flinkVersion)
+                && Objects.equals(flinkRevision, that.flinkRevision)
+                && Objects.equals(features, that.features);
+    }
 
-		final EnvironmentInformation.RevisionInformation revision = EnvironmentInformation.getRevisionInformation();
-		final String flinkRevision;
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                refreshInterval,
+                timeZoneName,
+                timeZoneOffset,
+                flinkVersion,
+                flinkRevision,
+                features);
+    }
 
-		if (revision != null) {
-			flinkRevision = revision.commitId + " @ " + revision.commitDate;
-		} else {
-			flinkRevision = "unknown revision";
-		}
+    public static DashboardConfiguration from(
+            long refreshInterval,
+            ZonedDateTime zonedDateTime,
+            boolean webSubmitEnabled,
+            boolean webCancelEnabled) {
 
-		return new DashboardConfiguration(
-			refreshInterval,
-			zonedDateTime.getZone().getDisplayName(TextStyle.FULL, Locale.getDefault()),
-			// convert zone date time into offset in order to not do the day light saving adaptions wrt the offset
-			zonedDateTime.toOffsetDateTime().getOffset().getTotalSeconds() * 1000,
-			flinkVersion,
-			flinkRevision,
-			new Features(webSubmitEnabled));
-	}
+        final String flinkVersion = EnvironmentInformation.getVersion();
+
+        final EnvironmentInformation.RevisionInformation revision =
+                EnvironmentInformation.getRevisionInformation();
+        final String flinkRevision;
+
+        if (revision != null) {
+            flinkRevision = revision.commitId + " @ " + revision.commitDate;
+        } else {
+            flinkRevision = "unknown revision";
+        }
+
+        return new DashboardConfiguration(
+                refreshInterval,
+                zonedDateTime.getZone().getDisplayName(TextStyle.FULL, Locale.getDefault()),
+                // convert zone date time into offset in order to not do the day light saving
+                // adaptions wrt the offset
+                zonedDateTime.toOffsetDateTime().getOffset().getTotalSeconds() * 1000,
+                flinkVersion,
+                flinkRevision,
+                new Features(webSubmitEnabled, webCancelEnabled));
+    }
 }

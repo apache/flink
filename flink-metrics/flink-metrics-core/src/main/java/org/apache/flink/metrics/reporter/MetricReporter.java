@@ -25,55 +25,53 @@ import org.apache.flink.metrics.MetricGroup;
 /**
  * Reporters are used to export {@link Metric Metrics} to an external backend.
  *
- * <p>Reporters are instantiated either
- * a) via reflection, in which case they must be public, non-abstract, and have a public no-argument constructor.
- * b) via a {@link MetricReporterFactory}, in which case no restrictions apply. (recommended)
+ * <p>Reporters are instantiated either a) via reflection, in which case they must be public,
+ * non-abstract, and have a public no-argument constructor. b) via a {@link MetricReporterFactory},
+ * in which case no restrictions apply. (recommended)
  *
  * <p>Reporters are neither required nor encouraged to support both instantiation paths.
  */
 public interface MetricReporter {
 
-	// ------------------------------------------------------------------------
-	//  life cycle
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  life cycle
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Configures this reporter.
-	 *
-	 * <p>If the reporter was instantiated generically and hence parameter-less,
-	 * this method is the place where the reporter sets it's basic fields based on configuration values.
-	 * Otherwise, this method will typically be a no-op since resources can be acquired in the constructor.
-	 *
-	 * <p>This method is always called first on a newly instantiated reporter.
-	 *
-	 * @param config A properties object that contains all parameters set for this reporter.
-	 */
-	void open(MetricConfig config);
+    /**
+     * Configures this reporter.
+     *
+     * <p>If the reporter was instantiated generically and hence parameter-less, this method is the
+     * place where the reporter sets it's basic fields based on configuration values. Otherwise,
+     * this method will typically be a no-op since resources can be acquired in the constructor.
+     *
+     * <p>This method is always called first on a newly instantiated reporter.
+     *
+     * @param config A properties object that contains all parameters set for this reporter.
+     */
+    void open(MetricConfig config);
 
-	/**
-	 * Closes this reporter. Should be used to close channels, streams and release resources.
-	 */
-	void close();
+    /** Closes this reporter. Should be used to close channels, streams and release resources. */
+    void close();
 
-	// ------------------------------------------------------------------------
-	//  adding / removing metrics
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  adding / removing metrics
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Called when a new {@link Metric} was added.
-	 *
-	 * @param metric      the metric that was added
-	 * @param metricName  the name of the metric
-	 * @param group       the group that contains the metric
-	 */
-	void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group);
+    /**
+     * Called when a new {@link Metric} was added.
+     *
+     * @param metric the metric that was added
+     * @param metricName the name of the metric
+     * @param group the group that contains the metric
+     */
+    void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group);
 
-	/**
-	 * Called when a {@link Metric} was should be removed.
-	 *
-	 * @param metric      the metric that should be removed
-	 * @param metricName  the name of the metric
-	 * @param group       the group that contains the metric
-	 */
-	void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group);
+    /**
+     * Called when a {@link Metric} was removed.
+     *
+     * @param metric the metric that should be removed
+     * @param metricName the name of the metric
+     * @param group the group that contains the metric
+     */
+    void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group);
 }

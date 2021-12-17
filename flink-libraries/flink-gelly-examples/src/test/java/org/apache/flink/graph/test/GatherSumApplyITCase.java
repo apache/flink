@@ -41,86 +41,82 @@ import org.junit.runners.Parameterized;
 
 import java.util.List;
 
-/**
- * Tests for gather-sum-apply.
- */
+/** Tests for gather-sum-apply. */
 @RunWith(Parameterized.class)
 public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 
-	public GatherSumApplyITCase(TestExecutionMode mode) {
-		super(mode);
-	}
+    public GatherSumApplyITCase(TestExecutionMode mode) {
+        super(mode);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//  Connected Components Test
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //  Connected Components Test
+    // --------------------------------------------------------------------------------------------
 
-	private String expectedResultCC = "1,1\n" +
-		"2,1\n" +
-		"3,1\n" +
-		"4,1\n";
+    private String expectedResultCC = "1,1\n" + "2,1\n" + "3,1\n" + "4,1\n";
 
-	@Test
-	public void testConnectedComponentsWithObjectReuseDisabled() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().disableObjectReuse();
+    @Test
+    public void testConnectedComponentsWithObjectReuseDisabled() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.getConfig().disableObjectReuse();
 
-		Graph<Long, Long, NullValue> inputGraph = Graph.fromDataSet(
-			ConnectedComponentsDefaultData.getDefaultEdgeDataSet(env),
-			new IdentityMapper<>(), env);
+        Graph<Long, Long, NullValue> inputGraph =
+                Graph.fromDataSet(
+                        ConnectedComponentsDefaultData.getDefaultEdgeDataSet(env),
+                        new IdentityMapper<>(),
+                        env);
 
-		List<Vertex<Long, Long>> result = inputGraph.run(
-			new GSAConnectedComponents<>(16)).collect();
+        List<Vertex<Long, Long>> result =
+                inputGraph.run(new GSAConnectedComponents<>(16)).collect();
 
-		compareResultAsTuples(result, expectedResultCC);
-	}
+        compareResultAsTuples(result, expectedResultCC);
+    }
 
-	@Test
-	public void testConnectedComponentsWithObjectReuseEnabled() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().enableObjectReuse();
+    @Test
+    public void testConnectedComponentsWithObjectReuseEnabled() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.getConfig().enableObjectReuse();
 
-		DataSet<Edge<LongValue, NullValue>> edges = Translate.translateEdgeIds(
-			ConnectedComponentsDefaultData.getDefaultEdgeDataSet(env),
-			new LongToLongValue());
+        DataSet<Edge<LongValue, NullValue>> edges =
+                Translate.translateEdgeIds(
+                        ConnectedComponentsDefaultData.getDefaultEdgeDataSet(env),
+                        new LongToLongValue());
 
-		Graph<LongValue, LongValue, NullValue> inputGraph = Graph.fromDataSet(
-			edges, new IdentityMapper<>(), env);
+        Graph<LongValue, LongValue, NullValue> inputGraph =
+                Graph.fromDataSet(edges, new IdentityMapper<>(), env);
 
-		List<Vertex<LongValue, LongValue>> result = inputGraph.run(
-			new GSAConnectedComponents<>(16)).collect();
+        List<Vertex<LongValue, LongValue>> result =
+                inputGraph.run(new GSAConnectedComponents<>(16)).collect();
 
-		compareResultAsTuples(result, expectedResultCC);
-	}
+        compareResultAsTuples(result, expectedResultCC);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//  Single Source Shortest Path Test
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //  Single Source Shortest Path Test
+    // --------------------------------------------------------------------------------------------
 
-	@Test
-	public void testSingleSourceShortestPaths() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testSingleSourceShortestPaths() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		Graph<Long, NullValue, Double> inputGraph = Graph.fromDataSet(
-			SingleSourceShortestPathsData.getDefaultEdgeDataSet(env),
-			new InitMapperSSSP(), env);
+        Graph<Long, NullValue, Double> inputGraph =
+                Graph.fromDataSet(
+                        SingleSourceShortestPathsData.getDefaultEdgeDataSet(env),
+                        new InitMapperSSSP(),
+                        env);
 
-		List<Vertex<Long, Double>> result = inputGraph.run(
-			new GSASingleSourceShortestPaths<>(1L, 16)).collect();
+        List<Vertex<Long, Double>> result =
+                inputGraph.run(new GSASingleSourceShortestPaths<>(1L, 16)).collect();
 
-		String expectedResult = "1,0.0\n" +
-			"2,12.0\n" +
-			"3,13.0\n" +
-			"4,47.0\n" +
-			"5,48.0\n";
+        String expectedResult = "1,0.0\n" + "2,12.0\n" + "3,13.0\n" + "4,47.0\n" + "5,48.0\n";
 
-		compareResultAsTuples(result, expectedResult);
-	}
+        compareResultAsTuples(result, expectedResult);
+    }
 
-	@SuppressWarnings("serial")
-	private static final class InitMapperSSSP implements MapFunction<Long, NullValue> {
-		public NullValue map(Long value) {
-			return NullValue.getInstance();
-		}
-	}
+    @SuppressWarnings("serial")
+    private static final class InitMapperSSSP implements MapFunction<Long, NullValue> {
+        public NullValue map(Long value) {
+            return NullValue.getInstance();
+        }
+    }
 }

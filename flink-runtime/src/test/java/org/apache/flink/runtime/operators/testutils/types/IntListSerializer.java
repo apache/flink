@@ -18,108 +18,108 @@
 
 package org.apache.flink.runtime.operators.testutils.types;
 
-import java.io.IOException;
-import java.util.Arrays;
-
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+import java.util.Arrays;
+
 public class IntListSerializer extends TypeSerializer<IntList> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public IntListSerializer duplicate() {
-		return this;
-	}
-	
-	@Override
-	public IntList createInstance() {
-		return new IntList();
-	}
-	
-	@Override
-	public IntList copy(IntList from) {
-		return new IntList(from.getKey(), Arrays.copyOf(from.getValue(), from.getValue().length));
-	}
-	
-	@Override
-	public IntList copy(IntList from, IntList reuse) {
-		reuse.setKey(from.getKey());
-		reuse.setValue(Arrays.copyOf(from.getValue(), from.getValue().length));
-		return reuse;
-	}
-	
-	public IntList createCopy(IntList from) {
-		return new IntList(from.getKey(), from.getValue());
-	}
+    @Override
+    public IntListSerializer duplicate() {
+        return this;
+    }
 
-	public void copyTo(IntList from, IntList to) {
-		to.setKey(from.getKey());
-		to.setValue(from.getValue());
-	}
+    @Override
+    public IntList createInstance() {
+        return new IntList();
+    }
 
-	@Override
-	public int getLength() {
-		return -1;
-	}
+    @Override
+    public IntList copy(IntList from) {
+        return new IntList(from.getKey(), Arrays.copyOf(from.getValue(), from.getValue().length));
+    }
 
-	@Override
-	public void serialize(IntList record, DataOutputView target) throws IOException {
-		target.writeInt(record.getKey());
-		target.writeInt(record.getValue().length);
-		for (int i = 0; i < record.getValue().length; i++) {
-			target.writeInt(record.getValue()[i]);
-		}
-	}
+    @Override
+    public IntList copy(IntList from, IntList reuse) {
+        reuse.setKey(from.getKey());
+        reuse.setValue(Arrays.copyOf(from.getValue(), from.getValue().length));
+        return reuse;
+    }
 
-	@Override
-	public IntList deserialize(DataInputView source) throws IOException {
-		return deserialize(new IntList(), source);
-	}
-	
-	@Override
-	public IntList deserialize(IntList record, DataInputView source) throws IOException {
-		int key = source.readInt();
-		record.setKey(key);
-		int size = source.readInt();
-		int[] value = new int[size];
-		for (int i = 0; i < value.length; i++) {
-			value[i] = source.readInt();
-		}
-		record.setValue(value);
-		return record;
-	}
+    public IntList createCopy(IntList from) {
+        return new IntList(from.getKey(), from.getValue());
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.writeInt(source.readInt());
-		int len = source.readInt();
-		target.writeInt(len);
-		for (int i = 0; i < len; i++) {
-			target.writeInt(source.readInt());
-		}
-	}
+    public void copyTo(IntList from, IntList to) {
+        to.setKey(from.getKey());
+        to.setValue(from.getValue());
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		return obj instanceof IntListSerializer;
-	}
+    @Override
+    public int getLength() {
+        return -1;
+    }
 
-	@Override
-	public int hashCode() {
-		return IntListSerializer.class.hashCode();
-	}
+    @Override
+    public void serialize(IntList record, DataOutputView target) throws IOException {
+        target.writeInt(record.getKey());
+        target.writeInt(record.getValue().length);
+        for (int i = 0; i < record.getValue().length; i++) {
+            target.writeInt(record.getValue()[i]);
+        }
+    }
 
-	@Override
-	public TypeSerializerConfigSnapshot<IntList> snapshotConfiguration() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public IntList deserialize(DataInputView source) throws IOException {
+        return deserialize(new IntList(), source);
+    }
+
+    @Override
+    public IntList deserialize(IntList record, DataInputView source) throws IOException {
+        int key = source.readInt();
+        record.setKey(key);
+        int size = source.readInt();
+        int[] value = new int[size];
+        for (int i = 0; i < value.length; i++) {
+            value[i] = source.readInt();
+        }
+        record.setValue(value);
+        return record;
+    }
+
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        target.writeInt(source.readInt());
+        int len = source.readInt();
+        target.writeInt(len);
+        for (int i = 0; i < len; i++) {
+            target.writeInt(source.readInt());
+        }
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof IntListSerializer;
+    }
+
+    @Override
+    public int hashCode() {
+        return IntListSerializer.class.hashCode();
+    }
+
+    @Override
+    public TypeSerializerConfigSnapshot<IntList> snapshotConfiguration() {
+        throw new UnsupportedOperationException();
+    }
 }

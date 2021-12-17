@@ -28,48 +28,42 @@ import org.apache.flink.util.Preconditions;
 
 import java.net.InetSocketAddress;
 
-/**
- * {@link KvStateRegistryListener} implementation for the new RPC service.
- */
+/** {@link KvStateRegistryListener} implementation for the new RPC service. */
 public class RpcKvStateRegistryListener implements KvStateRegistryListener {
 
-	private final KvStateRegistryGateway kvStateRegistryGateway;
-	private final InetSocketAddress kvStateServerAddress;
+    private final KvStateRegistryGateway kvStateRegistryGateway;
+    private final InetSocketAddress kvStateServerAddress;
 
-	public RpcKvStateRegistryListener(
-			KvStateRegistryGateway kvStateRegistryGateway,
-			InetSocketAddress kvStateServerAddress) {
-		this.kvStateRegistryGateway = Preconditions.checkNotNull(kvStateRegistryGateway);
-		this.kvStateServerAddress = Preconditions.checkNotNull(kvStateServerAddress);
-	}
+    public RpcKvStateRegistryListener(
+            KvStateRegistryGateway kvStateRegistryGateway, InetSocketAddress kvStateServerAddress) {
+        this.kvStateRegistryGateway = Preconditions.checkNotNull(kvStateRegistryGateway);
+        this.kvStateServerAddress = Preconditions.checkNotNull(kvStateServerAddress);
+    }
 
-	@Override
-	public void notifyKvStateRegistered(
-			JobID jobId,
-			JobVertexID jobVertexId,
-			KeyGroupRange keyGroupRange,
-			String registrationName,
-			KvStateID kvStateId) {
-		kvStateRegistryGateway.notifyKvStateRegistered(
-			jobId,
-			jobVertexId,
-			keyGroupRange,
-			registrationName,
-			kvStateId,
-			kvStateServerAddress);
-	}
+    @Override
+    public void notifyKvStateRegistered(
+            JobID jobId,
+            JobVertexID jobVertexId,
+            KeyGroupRange keyGroupRange,
+            String registrationName,
+            KvStateID kvStateId) {
+        kvStateRegistryGateway.notifyKvStateRegistered(
+                jobId,
+                jobVertexId,
+                keyGroupRange,
+                registrationName,
+                kvStateId,
+                kvStateServerAddress);
+    }
 
-	@Override
-	public void notifyKvStateUnregistered(
-		JobID jobId,
-		JobVertexID jobVertexId,
-		KeyGroupRange keyGroupRange,
-		String registrationName) {
+    @Override
+    public void notifyKvStateUnregistered(
+            JobID jobId,
+            JobVertexID jobVertexId,
+            KeyGroupRange keyGroupRange,
+            String registrationName) {
 
-		kvStateRegistryGateway.notifyKvStateUnregistered(
-			jobId,
-			jobVertexId,
-			keyGroupRange,
-			registrationName);
-	}
+        kvStateRegistryGateway.notifyKvStateUnregistered(
+                jobId, jobVertexId, keyGroupRange, registrationName);
+    }
 }

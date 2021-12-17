@@ -28,8 +28,8 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
  */
 public class BlockingSink<IN> implements SinkFunction<IN> {
 
-	@Override
-	public void invoke(final IN value, final Context context) throws Exception {
-		Thread.currentThread().join();
-	}
+    @Override
+    public void invoke(final IN value, final Context context) throws Exception {
+        Thread.currentThread().join();
+    }
 }

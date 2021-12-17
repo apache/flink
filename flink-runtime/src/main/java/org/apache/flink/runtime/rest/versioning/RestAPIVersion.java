@@ -27,84 +27,83 @@ import java.util.Comparator;
  *
  * <p>REST API versions are global and thus apply to every REST component.
  *
- * <p>Changes that must result in an API version increment include but are not limited to:
- * - modification of a handler url
- * - addition of new mandatory parameters
- * - removal of a handler/request
- * - modifications to request/response bodies (excluding additions)
+ * <p>Changes that must result in an API version increment include but are not limited to: -
+ * modification of a handler url - addition of new mandatory parameters - removal of a
+ * handler/request - modifications to request/response bodies (excluding additions)
  */
 public enum RestAPIVersion {
-	V0(0, false, false), // strictly for testing purposes
-	V1(1, true, true);
+    V0(0, false, false), // strictly for testing purposes
+    V1(1, true, true);
 
-	private final int versionNumber;
+    private final int versionNumber;
 
-	private final boolean isDefaultVersion;
+    private final boolean isDefaultVersion;
 
-	private final boolean isStable;
+    private final boolean isStable;
 
-	RestAPIVersion(int versionNumber, boolean isDefaultVersion, boolean isStable) {
-		this.versionNumber = versionNumber;
-		this.isDefaultVersion = isDefaultVersion;
-		this.isStable = isStable;
-	}
+    RestAPIVersion(int versionNumber, boolean isDefaultVersion, boolean isStable) {
+        this.versionNumber = versionNumber;
+        this.isDefaultVersion = isDefaultVersion;
+        this.isStable = isStable;
+    }
 
-	/**
-	 * Returns the URL version prefix (e.g. "v1") for this version.
-	 *
-	 * @return URL version prefix
-	 */
-	public String getURLVersionPrefix() {
-		return name().toLowerCase();
-	}
+    /**
+     * Returns the URL version prefix (e.g. "v1") for this version.
+     *
+     * @return URL version prefix
+     */
+    public String getURLVersionPrefix() {
+        return name().toLowerCase();
+    }
 
-	/**
-	 * Returns whether this version is the default REST API version.
-	 *
-	 * @return whether this version is the default
-	 */
-	public boolean isDefaultVersion() {
-		return isDefaultVersion;
-	}
+    /**
+     * Returns whether this version is the default REST API version.
+     *
+     * @return whether this version is the default
+     */
+    public boolean isDefaultVersion() {
+        return isDefaultVersion;
+    }
 
-	/**
-	 * Returns whether this version is considered stable.
-	 *
-	 * @return whether this version is stable
-	 */
-	public boolean isStableVersion() {
-		return isStable;
-	}
+    /**
+     * Returns whether this version is considered stable.
+     *
+     * @return whether this version is stable
+     */
+    public boolean isStableVersion() {
+        return isStable;
+    }
 
-	/**
-	 * Converts the given URL version prefix (e.g "v1") to a {@link RestAPIVersion}.
-	 *
-	 * @param prefix prefix to converted
-	 * @return REST API version matching the prefix
-	 * @throws IllegalArgumentException if the prefix doesn't match any version
-	 */
-	public static RestAPIVersion fromURLVersionPrefix(String prefix) {
-		return valueOf(prefix.toUpperCase());
-	}
+    /**
+     * Converts the given URL version prefix (e.g "v1") to a {@link RestAPIVersion}.
+     *
+     * @param prefix prefix to converted
+     * @return REST API version matching the prefix
+     * @throws IllegalArgumentException if the prefix doesn't match any version
+     */
+    public static RestAPIVersion fromURLVersionPrefix(String prefix) {
+        return valueOf(prefix.toUpperCase());
+    }
 
-	/**
-	 * Returns the latest version from the given collection.
-	 *
-	 * @param versions possible candidates
-	 * @return latest version
-	 */
-	public static RestAPIVersion getLatestVersion(Collection<RestAPIVersion> versions) {
-		return Collections.max(versions, new RestAPIVersionComparator());
-	}
+    /**
+     * Returns the latest version from the given collection.
+     *
+     * @param versions possible candidates
+     * @return latest version
+     */
+    public static RestAPIVersion getLatestVersion(Collection<RestAPIVersion> versions) {
+        return Collections.max(versions, new RestAPIVersionComparator());
+    }
 
-	/**
-	 * Comparator for {@link RestAPIVersion} that sorts versions based on their version number, i.e. oldest to latest.
-	 */
-	public static class RestAPIVersionComparator implements Comparator<RestAPIVersion> {
+    /**
+     * Comparator for {@link RestAPIVersion} that sorts versions based on their version number, i.e.
+     * oldest to latest.
+     */
+    public static class RestAPIVersionComparator implements Comparator<RestAPIVersion> {
 
-		@Override
-		public int compare(RestAPIVersion o1, RestAPIVersion o2) {
-			return Integer.compare(o1.versionNumber, o2.versionNumber);
-		}
-	}
+        @Override
+        public int compare(RestAPIVersion o1, RestAPIVersion o2) {
+            return Integer.compare(o1.versionNumber, o2.versionNumber);
+        }
+    }
 }

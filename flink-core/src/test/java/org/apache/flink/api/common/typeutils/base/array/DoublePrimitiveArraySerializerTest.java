@@ -20,36 +20,58 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.array.DoublePrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 
 /**
- * A test for the {@link LongPrimitiveArraySerializer}.
+ * A test for the {@link
+ * org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer}.
  */
 public class DoublePrimitiveArraySerializerTest extends SerializerTestBase<double[]> {
 
-	@Override
-	protected TypeSerializer<double[]> createSerializer() {
-		return new DoublePrimitiveArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<double[]> createSerializer() {
+        return new DoublePrimitiveArraySerializer();
+    }
 
-	@Override
-	protected Class<double[]> getTypeClass() {
-		return double[].class;
-	}
-	
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected Class<double[]> getTypeClass() {
+        return double[].class;
+    }
 
-	@Override
-	protected double[][] getTestData() {
-		return new double[][] {
-			new double[] {0, 1, 2, 3, -1, -2, -3, Integer.MAX_VALUE, Integer.MIN_VALUE, Double.MAX_VALUE, Double.MIN_VALUE},
-			new double[] {Double.NEGATIVE_INFINITY},
-			new double[] {},
-			new double[] {-1, -2, 96769243, Double.NaN, Double.POSITIVE_INFINITY, 26782, Double.MIN_NORMAL, 0, 0, 0}
-		};
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
+
+    @Override
+    protected double[][] getTestData() {
+        return new double[][] {
+            new double[] {
+                0,
+                1,
+                2,
+                3,
+                -1,
+                -2,
+                -3,
+                Integer.MAX_VALUE,
+                Integer.MIN_VALUE,
+                Double.MAX_VALUE,
+                Double.MIN_VALUE
+            },
+            new double[] {Double.NEGATIVE_INFINITY},
+            new double[] {},
+            new double[] {
+                -1,
+                -2,
+                96769243,
+                Double.NaN,
+                Double.POSITIVE_INFINITY,
+                26782,
+                Double.MIN_NORMAL,
+                0,
+                0,
+                0
+            }
+        };
+    }
 }

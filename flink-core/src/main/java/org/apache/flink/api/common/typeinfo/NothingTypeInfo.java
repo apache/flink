@@ -1,4 +1,4 @@
- /*
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,79 +24,77 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.Nothing;
 
-/**
- * Placeholder type information for the {@link Nothing} type.
- */
+/** Placeholder type information for the {@link Nothing} type. */
 @Public
 public class NothingTypeInfo extends TypeInformation<Nothing> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	@PublicEvolving
-	public boolean isBasicType() {
-		return false;
-	}
+    @Override
+    @PublicEvolving
+    public boolean isBasicType() {
+        return false;
+    }
 
-	@Override
-	@PublicEvolving
-	public boolean isTupleType() {
-		return false;
-	}
+    @Override
+    @PublicEvolving
+    public boolean isTupleType() {
+        return false;
+    }
 
-	@Override
-	@PublicEvolving
-	public int getArity() {
-		return 0;
-	}
+    @Override
+    @PublicEvolving
+    public int getArity() {
+        return 0;
+    }
 
-	@Override
-	@PublicEvolving
-	public int getTotalFields() {
-		return 1;
-	}
+    @Override
+    @PublicEvolving
+    public int getTotalFields() {
+        return 1;
+    }
 
-	@Override
-	@PublicEvolving
-	public Class<Nothing> getTypeClass() {
-		return Nothing.class;
-	}
+    @Override
+    @PublicEvolving
+    public Class<Nothing> getTypeClass() {
+        return Nothing.class;
+    }
 
-	@Override
-	@PublicEvolving
-	public boolean isKeyType() {
-		return false;
-	}
+    @Override
+    @PublicEvolving
+    public boolean isKeyType() {
+        return false;
+    }
 
-	@Override
-	@PublicEvolving
-	public TypeSerializer<Nothing> createSerializer(ExecutionConfig executionConfig) {
-		throw new RuntimeException("The Nothing type cannot have a serializer.");
-	}
+    @Override
+    @PublicEvolving
+    public TypeSerializer<Nothing> createSerializer(ExecutionConfig executionConfig) {
+        throw new RuntimeException("The Nothing type cannot have a serializer.");
+    }
 
-	@Override
-	public String toString() {
-		return getClass().getSimpleName();
-	}
+    @Override
+    public String toString() {
+        return getClass().getSimpleName();
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof NothingTypeInfo) {
-			NothingTypeInfo nothingTypeInfo = (NothingTypeInfo) obj;
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof NothingTypeInfo) {
+            NothingTypeInfo nothingTypeInfo = (NothingTypeInfo) obj;
 
-			return nothingTypeInfo.canEqual(this);
-		} else {
-			return false;
-		}
-	}
+            return nothingTypeInfo.canEqual(this);
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public int hashCode() {
-		return NothingTypeInfo.class.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return NothingTypeInfo.class.hashCode();
+    }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof NothingTypeInfo;
-	}
+    @Override
+    public boolean canEqual(Object obj) {
+        return obj instanceof NothingTypeInfo;
+    }
 }

@@ -24,30 +24,30 @@ import com.codahale.metrics.Snapshot;
 
 /**
  * Wrapper to use a Flink {@link Histogram} as a Dropwizard {@link com.codahale.metrics.Histogram}.
- * This is necessary to report Flink's histograms via the Dropwizard
- * {@link com.codahale.metrics.Reporter}.
+ * This is necessary to report Flink's histograms via the Dropwizard {@link
+ * com.codahale.metrics.Reporter}.
  */
 public class FlinkHistogramWrapper extends com.codahale.metrics.Histogram {
 
-	private final Histogram histogram;
+    private final Histogram histogram;
 
-	public FlinkHistogramWrapper(Histogram histogram) {
-		super(null);
-		this.histogram = histogram;
-	}
+    public FlinkHistogramWrapper(Histogram histogram) {
+        super(null);
+        this.histogram = histogram;
+    }
 
-	@Override
-	public void update(long value) {
-		histogram.update(value);
-	}
+    @Override
+    public void update(long value) {
+        histogram.update(value);
+    }
 
-	@Override
-	public long getCount() {
-		return histogram.getCount();
-	}
+    @Override
+    public long getCount() {
+        return histogram.getCount();
+    }
 
-	@Override
-	public Snapshot getSnapshot() {
-		return new HistogramStatisticsWrapper(histogram.getStatistics());
-	}
+    @Override
+    public Snapshot getSnapshot() {
+        return new HistogramStatisticsWrapper(histogram.getStatistics());
+    }
 }

@@ -21,38 +21,32 @@ package org.apache.flink.runtime.rest.messages.job;
 import org.apache.flink.runtime.rest.messages.ConversionException;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 
-/**
- * Path parameter identifying subtask attempt.
- */
+/** Path parameter identifying subtask attempt. */
 public class SubtaskAttemptPathParameter extends MessagePathParameter<Integer> {
-	/**
-	 * The constant subtask attempt KEY.
-	 */
-	public static final String KEY = "attempt";
+    /** The constant subtask attempt KEY. */
+    public static final String KEY = "attempt";
 
-	/**
-	 * Instantiates a new Subtask attempt path parameter.
-	 */
-	protected SubtaskAttemptPathParameter() {
-		super(KEY);
-	}
+    /** Instantiates a new Subtask attempt path parameter. */
+    protected SubtaskAttemptPathParameter() {
+        super(KEY);
+    }
 
-	@Override
-	protected Integer convertFromString(String value) throws ConversionException {
-		try {
-			return Integer.parseInt(value);
-		} catch (NumberFormatException e) {
-			throw new ConversionException("Invalid attempt num " + value);
-		}
-	}
+    @Override
+    protected Integer convertFromString(String value) throws ConversionException {
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            throw new ConversionException("Invalid attempt num " + value);
+        }
+    }
 
-	@Override
-	protected String convertToString(Integer value) {
-		return value.toString();
-	}
+    @Override
+    protected String convertToString(Integer value) {
+        return value.toString();
+    }
 
-	@Override
-	public String getDescription() {
-		return "Positive integer value that identifies an execution attempt.";
-	}
+    @Override
+    public String getDescription() {
+        return "Positive integer value that identifies an execution attempt.";
+    }
 }

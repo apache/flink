@@ -18,11 +18,6 @@
 
 package org.apache.flink.optimizer.plan;
 
-import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
-import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.NOT_FOUND;
-
-import java.util.Collections;
-
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.optimizer.dag.DataSourceNode;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
@@ -30,83 +25,86 @@ import org.apache.flink.optimizer.dataproperties.LocalProperties;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.Visitor;
 
-/**
- * Plan candidate node for data flow sources that have no input and no special strategies.
- */
+import java.util.Collections;
+
+import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
+import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.NOT_FOUND;
+
+/** Plan candidate node for data flow sources that have no input and no special strategies. */
 public class SourcePlanNode extends PlanNode {
-	
-	private TypeSerializerFactory<?> serializer;
-	
-	/**
-	 * Constructs a new source candidate node that uses <i>NONE</i> as its local strategy.
-	 * 
-	 * @param template The template optimizer node that this candidate is created for.
-	 */
-	public SourcePlanNode(DataSourceNode template, String nodeName) {
-		this(template, nodeName, new GlobalProperties(), new LocalProperties());
-	}
 
-	public SourcePlanNode(DataSourceNode template, String nodeName, GlobalProperties gprops, LocalProperties lprops) {
-		super(template, nodeName, DriverStrategy.NONE);
+    private TypeSerializerFactory<?> serializer;
 
-		this.globalProps = gprops;
-		this.localProps = lprops;
-		updatePropertiesWithUniqueSets(template.getUniqueFields());
-	}
+    /**
+     * Constructs a new source candidate node that uses <i>NONE</i> as its local strategy.
+     *
+     * @param template The template optimizer node that this candidate is created for.
+     */
+    public SourcePlanNode(DataSourceNode template, String nodeName) {
+        this(template, nodeName, new GlobalProperties(), new LocalProperties());
+    }
 
-	// --------------------------------------------------------------------------------------------
-	
-	public DataSourceNode getDataSourceNode() {
-		return (DataSourceNode) this.template;
-	}
-	
-	/**
-	 * Gets the serializer from this PlanNode.
-	 *
-	 * @return The serializer.
-	 */
-	public TypeSerializerFactory<?> getSerializer() {
-		return serializer;
-	}
-	
-	/**
-	 * Sets the serializer for this PlanNode.
-	 *
-	 * @param serializer The serializer to set.
-	 */
-	public void setSerializer(TypeSerializerFactory<?> serializer) {
-		this.serializer = serializer;
-	}
+    public SourcePlanNode(
+            DataSourceNode template,
+            String nodeName,
+            GlobalProperties gprops,
+            LocalProperties lprops) {
+        super(template, nodeName, DriverStrategy.NONE);
 
-	// --------------------------------------------------------------------------------------------
-	
+        this.globalProps = gprops;
+        this.localProps = lprops;
+        updatePropertiesWithUniqueSets(template.getUniqueFields());
+    }
 
-	@Override
-	public void accept(Visitor<PlanNode> visitor) {
-		if (visitor.preVisit(this)) {
-			visitor.postVisit(this);
-		}
-	}
+    // --------------------------------------------------------------------------------------------
 
+    public DataSourceNode getDataSourceNode() {
+        return (DataSourceNode) this.template;
+    }
 
-	@Override
-	public Iterable<PlanNode> getPredecessors() {
-		return Collections.<PlanNode>emptyList();
-	}
+    /**
+     * Gets the serializer from this PlanNode.
+     *
+     * @return The serializer.
+     */
+    public TypeSerializerFactory<?> getSerializer() {
+        return serializer;
+    }
 
+    /**
+     * Sets the serializer for this PlanNode.
+     *
+     * @param serializer The serializer to set.
+     */
+    public void setSerializer(TypeSerializerFactory<?> serializer) {
+        this.serializer = serializer;
+    }
 
-	@Override
-	public Iterable<Channel> getInputs() {
-		return Collections.<Channel>emptyList();
-	}
+    // --------------------------------------------------------------------------------------------
 
+    @Override
+    public void accept(Visitor<PlanNode> visitor) {
+        if (visitor.preVisit(this)) {
+            visitor.postVisit(this);
+        }
+    }
 
-	@Override
-	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
-		if (source == this) {
-			return FOUND_SOURCE;
-		} else {
-			return NOT_FOUND;
-		}
-	}
+    @Override
+    public Iterable<PlanNode> getPredecessors() {
+        return Collections.<PlanNode>emptyList();
+    }
+
+    @Override
+    public Iterable<Channel> getInputs() {
+        return Collections.<Channel>emptyList();
+    }
+
+    @Override
+    public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
+        if (source == this) {
+            return FOUND_SOURCE;
+        } else {
+            return NOT_FOUND;
+        }
+    }
 }

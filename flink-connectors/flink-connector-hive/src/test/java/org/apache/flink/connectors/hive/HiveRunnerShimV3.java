@@ -23,17 +23,16 @@ import com.klarna.hiverunner.config.HiveRunnerConfig;
 
 import java.lang.reflect.Method;
 
-/**
- * Shim for hive runner 3.x.
- */
+/** Shim for hive runner 3.x. */
 public class HiveRunnerShimV3 implements HiveRunnerShim {
 
-	@Override
-	public void setCommandShellEmulation(HiveShellBuilder builder, HiveRunnerConfig config) throws Exception {
-		Method method = HiveRunnerConfig.class.getDeclaredMethod("getCommandShellEmulation");
-		Object emulation = method.invoke(config);
-		Class emulationClz = Class.forName("com.klarna.hiverunner.CommandShellEmulation");
-		method = HiveShellBuilder.class.getDeclaredMethod("setCommandShellEmulation", emulationClz);
-		method.invoke(builder, emulation);
-	}
+    @Override
+    public void setCommandShellEmulation(HiveShellBuilder builder, HiveRunnerConfig config)
+            throws Exception {
+        Method method = HiveRunnerConfig.class.getDeclaredMethod("getCommandShellEmulation");
+        Object emulation = method.invoke(config);
+        Class emulationClz = Class.forName("com.klarna.hiverunner.CommandShellEmulation");
+        method = HiveShellBuilder.class.getDeclaredMethod("setCommandShellEmulation", emulationClz);
+        method.invoke(builder, emulation);
+    }
 }

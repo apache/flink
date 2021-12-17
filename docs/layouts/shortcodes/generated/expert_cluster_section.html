@@ -1,0 +1,30 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>cluster.intercept-user-system-exit</h5></td>
+            <td style="word-wrap: break-word;">DISABLED</td>
+            <td><p>Enum</p></td>
+            <td>Flag to check user code exiting system by terminating JVM (e.g., System.exit()). Note that this configuration option can interfere with <code class="highlighter-rouge">cluster.processes.halt-on-fatal-error</code>: In intercepted user-code, a call to System.exit() will not cause the JVM to halt, when <code class="highlighter-rouge">THROW</code> is configured.<br /><br />Possible values:<ul><li>"DISABLED": Flink is not monitoring or intercepting calls to System.exit()</li><li>"LOG": Log exit attempt with stack trace but still allowing exit to be performed</li><li>"THROW": Throw exception when exit is attempted disallowing JVM termination</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>cluster.processes.halt-on-fatal-error</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether processes should halt on fatal errors instead of performing a graceful shutdown. In some environments (e.g. Java 8 with the G1 garbage collector), a regular graceful shutdown can lead to a JVM deadlock. See <a href="https://issues.apache.org/jira/browse/FLINK-16510">FLINK-16510</a> for details.</td>
+        </tr>
+        <tr>
+            <td><h5>cluster.uncaught-exception-handling</h5></td>
+            <td style="word-wrap: break-word;">LOG</td>
+            <td><p>Enum</p></td>
+            <td>Defines whether cluster will handle any uncaught exceptions by just logging them (LOG mode), or by failing job (FAIL mode)<br /><br />Possible values:<ul><li>"LOG"</li><li>"FAIL"</li></ul></td>
+        </tr>
+    </tbody>
+</table>

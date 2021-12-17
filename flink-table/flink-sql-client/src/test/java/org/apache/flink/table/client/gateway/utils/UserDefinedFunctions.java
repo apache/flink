@@ -26,78 +26,63 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.types.Row;
 
-/**
- * A bunch of UDFs for testing the SQL Client.
- */
+/** A bunch of UDFs for testing the SQL Client. */
 public class UserDefinedFunctions {
 
-	/**
-	 * The scalar function for SQL Client test.
-	 */
-	public static class ScalarUDF extends ScalarFunction {
+    public static final String GENERATED_UDF_CLASS = "LowerUDF";
 
-		private int offset;
+    public static final String GENERATED_UDF_CODE =
+            "public class "
+                    + GENERATED_UDF_CLASS
+                    + " extends org.apache.flink.table.functions.ScalarFunction {\n"
+                    + "  public String eval(String str) {\n"
+                    + "    return str.toLowerCase();\n"
+                    + "  }\n"
+                    + "}\n";
 
-		public ScalarUDF(Integer offset) {
-			this.offset = offset;
-		}
+    /** The scalar function for SQL Client test. */
+    public static class ScalarUDF extends ScalarFunction {
+        public String eval(Integer i, Integer offset) {
+            return String.valueOf(i + offset);
+        }
+    }
 
-		public String eval(Integer i) {
-			return String.valueOf(i + offset);
-		}
-	}
+    /** The aggregate function for SQL Client test. */
+    public static class AggregateUDF extends AggregateFunction<Long, Long> {
+        @Override
+        public Long createAccumulator() {
+            return 0L;
+        }
 
-	/**
-	 * The aggregate function for SQL Client test.
-	 */
-	public static class AggregateUDF extends AggregateFunction<Long, Long> {
+        @Override
+        public Long getValue(Long accumulator) {
+            return 100L;
+        }
 
-		public AggregateUDF(String name, Boolean flag, Integer value) {
-			// do nothing
-		}
+        public void accumulate(Long acc, Long value) {
+            // do nothing
+        }
 
-		@Override
-		public Long createAccumulator() {
-			return 0L;
-		}
+        @Override
+        public TypeInformation<Long> getResultType() {
+            return BasicTypeInfo.LONG_TYPE_INFO;
+        }
+    }
 
-		@Override
-		public Long getValue(Long accumulator) {
-			return 100L;
-		}
+    /** The table function for SQL Client test. */
+    public static class TableUDF extends TableFunction<Row> {
+        public void eval(String str, Long extra) {
+            for (String s : str.split(" ")) {
+                Row r = new Row(2);
+                r.setField(0, s);
+                r.setField(1, s.length() + extra);
+                collect(r);
+            }
+        }
 
-		public void accumulate(Long acc, Long value) {
-			// do nothing
-		}
-
-		@Override
-		public TypeInformation<Long> getResultType() {
-			return BasicTypeInfo.LONG_TYPE_INFO;
-		}
-	}
-
-	/**
-	 * The table function for SQL Client test.
-	 */
-	public static class TableUDF extends TableFunction<Row> {
-		private long extra;
-
-		public TableUDF(Long extra) {
-			this.extra = extra;
-		}
-
-		public void eval(String str) {
-			for (String s : str.split(" ")) {
-				Row r = new Row(2);
-				r.setField(0, s);
-				r.setField(1, s.length() + extra);
-				collect(r);
-			}
-		}
-
-		@Override
-		public TypeInformation<Row> getResultType() {
-			return Types.ROW(Types.STRING(), Types.LONG());
-		}
-	}
+        @Override
+        public TypeInformation<Row> getResultType() {
+            return Types.ROW(Types.STRING(), Types.LONG());
+        }
+    }
 }

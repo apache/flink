@@ -19,19 +19,29 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.streaming.api.operators.InputSelectable;
 
 import java.io.Closeable;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Interface for processing records by {@link org.apache.flink.streaming.runtime.tasks.StreamTask}.
  */
 @Internal
 public interface StreamInputProcessor extends AvailabilityProvider, Closeable {
-	/**
-	 * @return input status to estimate whether more records can be processed immediately or not.
-	 * If there are no more records available at the moment and the caller should check finished
-	 * state and/or {@link #getAvailableFuture()}.
-	 */
-	InputStatus processInput() throws Exception;
+    /**
+     * In case of two and more input processors this method must call {@link
+     * InputSelectable#nextSelection()} to choose which input to consume from next.
+     *
+     * @return input status to estimate whether more records can be processed immediately or not. If
+     *     there are no more records available at the moment and the caller should check finished
+     *     state and/or {@link #getAvailableFuture()}.
+     */
+    DataInputStatus processInput() throws Exception;
+
+    CompletableFuture<Void> prepareSnapshot(
+            ChannelStateWriter channelStateWriter, long checkpointId) throws CheckpointException;
 }

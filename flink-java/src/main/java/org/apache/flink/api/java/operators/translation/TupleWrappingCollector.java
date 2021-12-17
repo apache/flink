@@ -23,37 +23,37 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 
 /**
- * Needed to wrap tuples to {@code Tuple2<key, value>} pairs for combine method of group reduce with key selector function.
+ * Needed to wrap tuples to {@code Tuple2<key, value>} pairs for combine method of group reduce with
+ * key selector function.
  */
 @Internal
 public class TupleWrappingCollector<IN, K> implements Collector<IN>, java.io.Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final TupleUnwrappingIterator<IN, K> tui;
-	private final Tuple2<K, IN> outTuple;
+    private final TupleUnwrappingIterator<IN, K> tui;
+    private final Tuple2<K, IN> outTuple;
 
-	private Collector<Tuple2<K, IN>> wrappedCollector;
+    private Collector<Tuple2<K, IN>> wrappedCollector;
 
-	public TupleWrappingCollector(TupleUnwrappingIterator<IN, K> tui) {
-		this.tui = tui;
-		this.outTuple = new Tuple2<K, IN>();
-	}
+    public TupleWrappingCollector(TupleUnwrappingIterator<IN, K> tui) {
+        this.tui = tui;
+        this.outTuple = new Tuple2<K, IN>();
+    }
 
-	public void set(Collector<Tuple2<K, IN>> wrappedCollector) {
-			this.wrappedCollector = wrappedCollector;
-	}
+    public void set(Collector<Tuple2<K, IN>> wrappedCollector) {
+        this.wrappedCollector = wrappedCollector;
+    }
 
-	@Override
-	public void close() {
-		this.wrappedCollector.close();
-	}
+    @Override
+    public void close() {
+        this.wrappedCollector.close();
+    }
 
-	@Override
-	public void collect(IN record) {
-		this.outTuple.f0 = this.tui.getLastKey();
-		this.outTuple.f1 = record;
-		this.wrappedCollector.collect(outTuple);
-	}
-
+    @Override
+    public void collect(IN record) {
+        this.outTuple.f0 = this.tui.getLastKey();
+        this.outTuple.f1 = record;
+        this.wrappedCollector.collect(outTuple);
+    }
 }

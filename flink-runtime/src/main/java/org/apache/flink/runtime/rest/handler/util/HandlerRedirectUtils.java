@@ -44,28 +44,34 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class HandlerRedirectUtils {
 
-	public static final Charset ENCODING = ConfigConstants.DEFAULT_CHARSET;
+    public static final Charset ENCODING = ConfigConstants.DEFAULT_CHARSET;
 
-	public static HttpResponse getRedirectResponse(String redirectAddress, String path, HttpResponseStatus code) {
-		checkNotNull(redirectAddress, "Redirect address");
-		checkNotNull(path, "Path");
+    public static HttpResponse getRedirectResponse(
+            String redirectAddress, String path, HttpResponseStatus code) {
+        checkNotNull(redirectAddress, "Redirect address");
+        checkNotNull(path, "Path");
 
-		String newLocation = String.format("%s%s", redirectAddress, path);
+        String newLocation = String.format("%s%s", redirectAddress, path);
 
-		HttpResponse redirectResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, code);
-		redirectResponse.headers().set(HttpHeaders.Names.LOCATION, newLocation);
-		redirectResponse.headers().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
+        HttpResponse redirectResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, code);
+        redirectResponse.headers().set(HttpHeaders.Names.LOCATION, newLocation);
+        redirectResponse.headers().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
 
-		return redirectResponse;
-	}
+        return redirectResponse;
+    }
 
-	public static HttpResponse getResponse(HttpResponseStatus status, @Nullable String message) {
-		ByteBuf messageByteBuf = message == null ? Unpooled.buffer(0)
-			: Unpooled.wrappedBuffer(message.getBytes(ENCODING));
-		FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, messageByteBuf);
-		response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain; charset=" + ENCODING.name());
-		response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
+    public static HttpResponse getResponse(HttpResponseStatus status, @Nullable String message) {
+        ByteBuf messageByteBuf =
+                message == null
+                        ? Unpooled.buffer(0)
+                        : Unpooled.wrappedBuffer(message.getBytes(ENCODING));
+        FullHttpResponse response =
+                new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, messageByteBuf);
+        response.headers()
+                .set(HttpHeaders.Names.CONTENT_TYPE, "text/plain; charset=" + ENCODING.name());
+        response.headers()
+                .set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
 
-		return response;
-	}
+        return response;
+    }
 }

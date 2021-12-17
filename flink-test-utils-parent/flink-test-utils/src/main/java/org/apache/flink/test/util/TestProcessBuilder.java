@@ -23,6 +23,9 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils.PipeForwarder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
@@ -33,89 +36,113 @@ import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClass
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Utility class wrapping {@link ProcessBuilder} and pre-configuring it with common options.
- */
+/** Utility class wrapping {@link ProcessBuilder} and pre-configuring it with common options. */
 public class TestProcessBuilder {
-	private final String javaCommand = checkNotNull(getJavaCommandPath());
+    private static final Logger LOG = LoggerFactory.getLogger(TestProcessBuilder.class);
 
-	private final ArrayList<String> jvmArgs = new ArrayList<>();
-	private final ArrayList<String> mainClassArgs = new ArrayList<>();
+    private final String javaCommand = checkNotNull(getJavaCommandPath());
 
-	private final String mainClass;
+    private final ArrayList<String> jvmArgs = new ArrayList<>();
+    private final ArrayList<String> mainClassArgs = new ArrayList<>();
 
-	private MemorySize jvmMemory = MemorySize.parse("80mb");
+    private final String mainClass;
 
-	public TestProcessBuilder(String mainClass) throws IOException {
-		File tempLogFile = File.createTempFile(getClass().getSimpleName() + "-", "-log4j.properties");
-		tempLogFile.deleteOnExit();
-		CommonTestUtils.printLog4jDebugConfig(tempLogFile);
+    private MemorySize jvmMemory = MemorySize.parse("80mb");
 
-		jvmArgs.add("-Dlog.level=DEBUG");
-		jvmArgs.add("-Dlog4j.configuration=file:" + tempLogFile.getAbsolutePath());
-		jvmArgs.add("-classpath");
-		jvmArgs.add(getCurrentClasspath());
+    private boolean withCleanEnvironment = false;
 
-		this.mainClass = mainClass;
-	}
+    public TestProcessBuilder(String mainClass) throws IOException {
+        File tempLogFile =
+                File.createTempFile(getClass().getSimpleName() + "-", "-log4j.properties");
+        tempLogFile.deleteOnExit();
+        CommonTestUtils.printLog4jDebugConfig(tempLogFile);
 
-	public TestProcess start() throws IOException {
-		final ArrayList<String> commands = new ArrayList<>();
+        jvmArgs.add("-Dlog.level=DEBUG");
+        jvmArgs.add("-Dlog4j.configurationFile=file:" + tempLogFile.getAbsolutePath());
+        jvmArgs.add("-classpath");
+        jvmArgs.add(getCurrentClasspath());
 
-		commands.add(javaCommand);
-		commands.add(String.format("-Xms%dm", jvmMemory.getMebiBytes()));
-		commands.add(String.format("-Xmx%dm", jvmMemory.getMebiBytes()));
-		commands.addAll(jvmArgs);
-		commands.add(mainClass);
-		commands.addAll(mainClassArgs);
+        this.mainClass = mainClass;
+    }
 
-		StringWriter processOutput = new StringWriter();
-		Process process = new ProcessBuilder(commands).start();
-		new PipeForwarder(process.getErrorStream(), processOutput);
+    public TestProcess start() throws IOException {
+        final ArrayList<String> commands = new ArrayList<>();
 
-		return new TestProcess(process, processOutput);
-	}
+        commands.add(javaCommand);
+        commands.add(String.format("-Xms%dm", jvmMemory.getMebiBytes()));
+        commands.add(String.format("-Xmx%dm", jvmMemory.getMebiBytes()));
+        commands.addAll(jvmArgs);
+        commands.add(mainClass);
+        commands.addAll(mainClassArgs);
 
-	public TestProcessBuilder setJvmMemory(MemorySize jvmMemory) {
-		this.jvmMemory = jvmMemory;
-		return this;
-	}
+        StringWriter processOutput = new StringWriter();
+        StringWriter errorOutput = new StringWriter();
+        LOG.info("Starting process with commands {}", commands);
+        final ProcessBuilder processBuilder = new ProcessBuilder(commands);
+        if (withCleanEnvironment) {
+            processBuilder.environment().clear();
+        }
+        Process process = processBuilder.start();
+        new PipeForwarder(process.getInputStream(), processOutput);
+        new PipeForwarder(process.getErrorStream(), errorOutput);
 
-	public TestProcessBuilder addMainClassArg(String arg) {
-		mainClassArgs.add(arg);
-		return this;
-	}
+        return new TestProcess(process, processOutput, errorOutput);
+    }
 
-	public TestProcessBuilder addConfigAsMainClassArgs(Configuration config) {
-		for (Entry<String, String> keyValue: config.toMap().entrySet()) {
-			addMainClassArg("--" + keyValue.getKey());
-			addMainClassArg(keyValue.getValue());
-		}
-		return this;
-	}
+    public TestProcessBuilder setJvmMemory(MemorySize jvmMemory) {
+        this.jvmMemory = jvmMemory;
+        return this;
+    }
 
-	/**
-	 * {@link Process} with it's {@code processOutput}.
-	 */
-	public static class TestProcess {
-		private final Process process;
-		private final StringWriter processOutput;
+    public TestProcessBuilder addJvmArg(String arg) {
+        jvmArgs.add(arg);
+        return this;
+    }
 
-		public TestProcess(Process process, StringWriter processOutput) {
-			this.process = process;
-			this.processOutput = processOutput;
-		}
+    public TestProcessBuilder addMainClassArg(String arg) {
+        mainClassArgs.add(arg);
+        return this;
+    }
 
-		public Process getProcess() {
-			return process;
-		}
+    public TestProcessBuilder addConfigAsMainClassArgs(Configuration config) {
+        for (Entry<String, String> keyValue : config.toMap().entrySet()) {
+            addMainClassArg("--" + keyValue.getKey());
+            addMainClassArg(keyValue.getValue());
+        }
+        return this;
+    }
 
-		public StringWriter getOutput() {
-			return processOutput;
-		}
+    public TestProcessBuilder withCleanEnvironment() {
+        withCleanEnvironment = true;
+        return this;
+    }
 
-		public void destroy() {
-			process.destroy();
-		}
-	}
+    /** {@link Process} with it's {@code processOutput}. */
+    public static class TestProcess {
+        private final Process process;
+        private final StringWriter processOutput;
+        private final StringWriter errorOutput;
+
+        public TestProcess(Process process, StringWriter processOutput, StringWriter errorOutput) {
+            this.process = process;
+            this.processOutput = processOutput;
+            this.errorOutput = errorOutput;
+        }
+
+        public Process getProcess() {
+            return process;
+        }
+
+        public StringWriter getProcessOutput() {
+            return processOutput;
+        }
+
+        public StringWriter getErrorOutput() {
+            return errorOutput;
+        }
+
+        public void destroy() {
+            process.destroy();
+        }
+    }
 }

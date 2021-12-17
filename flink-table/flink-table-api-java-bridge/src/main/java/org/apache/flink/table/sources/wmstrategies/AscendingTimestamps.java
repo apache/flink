@@ -28,44 +28,44 @@ import java.util.Map;
 /**
  * A watermark strategy for ascending rowtime attributes.
  *
- * <p>Emits a watermark of the maximum observed timestamp so far minus 1.
- * Rows that have a timestamp equal to the max timestamp are not late.
+ * <p>Emits a watermark of the maximum observed timestamp so far minus 1. Rows that have a timestamp
+ * equal to the max timestamp are not late.
  */
 @PublicEvolving
 public final class AscendingTimestamps extends PeriodicWatermarkAssigner {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private long maxTimestamp = Long.MIN_VALUE + 1;
+    private long maxTimestamp = Long.MIN_VALUE + 1;
 
-	@Override
-	public void nextTimestamp(long timestamp) {
-		if (timestamp > maxTimestamp) {
-			maxTimestamp = timestamp;
-		}
-	}
+    @Override
+    public void nextTimestamp(long timestamp) {
+        if (timestamp > maxTimestamp) {
+            maxTimestamp = timestamp;
+        }
+    }
 
-	@Override
-	public Map<String, String> toProperties() {
-		Map<String, String> map = new HashMap<>();
-		map.put(
-				Rowtime.ROWTIME_WATERMARKS_TYPE,
-				Rowtime.ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING);
-		return map;
-	}
+    @Override
+    public Map<String, String> toProperties() {
+        Map<String, String> map = new HashMap<>();
+        map.put(
+                Rowtime.ROWTIME_WATERMARKS_TYPE,
+                Rowtime.ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING);
+        return map;
+    }
 
-	@Override
-	public int hashCode() {
-		return AscendingTimestamps.class.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return AscendingTimestamps.class.hashCode();
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		return obj instanceof AscendingTimestamps;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof AscendingTimestamps;
+    }
 
-	@Override
-	public Watermark getWatermark() {
-		return new Watermark(maxTimestamp - 1);
-	}
+    @Override
+    public Watermark getWatermark() {
+        return new Watermark(maxTimestamp - 1);
+    }
 }

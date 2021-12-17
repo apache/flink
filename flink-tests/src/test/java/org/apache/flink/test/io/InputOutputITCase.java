@@ -30,18 +30,18 @@ import static org.junit.Assert.fail;
  */
 public class InputOutputITCase extends JavaProgramTestBase {
 
-	@Override
-	protected void testProgram() throws Exception {
+    @Override
+    protected void testProgram() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TestNonRichOutputFormat output = new TestNonRichOutputFormat();
-		env.createInput(new TestNonRichInputFormat()).output(output);
-		try {
-			env.execute();
-		} catch (Exception e){
-			// we didn't break anything by making everything rich.
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        TestNonRichOutputFormat output = new TestNonRichOutputFormat();
+        env.createInput(new TestNonRichInputFormat()).output(output);
+        try {
+            env.execute();
+        } catch (Exception e) {
+            // we didn't break anything by making everything rich.
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

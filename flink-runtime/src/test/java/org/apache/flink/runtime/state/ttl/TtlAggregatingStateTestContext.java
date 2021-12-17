@@ -31,75 +31,77 @@ import java.util.Set;
 
 /** Test suite for {@link TtlAggregatingState}. */
 class TtlAggregatingStateTestContext
-	extends TtlMergingStateTestContext.TtlIntegerMergingStateTestContext<TtlAggregatingState<?, String, Integer, Long, String>, Integer, String> {
-	private static final long DEFAULT_ACCUMULATOR = 3L;
+        extends TtlMergingStateTestContext.TtlIntegerMergingStateTestContext<
+                TtlAggregatingState<?, String, Integer, Long, String>, Integer, String> {
+    private static final long DEFAULT_ACCUMULATOR = 3L;
 
-	@Override
-	void initTestValues() {
-		updateEmpty = 5;
-		updateUnexpired = 7;
-		updateExpired = 6;
+    @Override
+    void initTestValues() {
+        updateEmpty = 5;
+        updateUnexpired = 7;
+        updateExpired = 6;
 
-		getUpdateEmpty = "8";
-		getUnexpired = "15";
-		getUpdateExpired = "9";
-	}
+        getUpdateEmpty = "8";
+        getUnexpired = "15";
+        getUpdateExpired = "9";
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
-		return (StateDescriptor<US, SV>) new AggregatingStateDescriptor<>(
-			getName(), AGGREGATE, LongSerializer.INSTANCE);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
+        return (StateDescriptor<US, SV>)
+                new AggregatingStateDescriptor<>(getName(), AGGREGATE, LongSerializer.INSTANCE);
+    }
 
-	@Override
-	public void update(Integer value) throws Exception {
-		ttlState.add(value);
-	}
+    @Override
+    public void update(Integer value) throws Exception {
+        ttlState.add(value);
+    }
 
-	@Override
-	public String get() throws Exception {
-		return ttlState.get();
-	}
+    @Override
+    public String get() throws Exception {
+        return ttlState.get();
+    }
 
-	@Override
-	public Object getOriginal() throws Exception {
-		return ttlState.original.get();
-	}
+    @Override
+    public Object getOriginal() throws Exception {
+        return ttlState.original.get();
+    }
 
-	@Override
-	String getMergeResult(
-		List<Tuple2<String, Integer>> unexpiredUpdatesToMerge,
-		List<Tuple2<String, Integer>> finalUpdatesToMerge) {
-		Set<String> namespaces = new HashSet<>();
-		unexpiredUpdatesToMerge.forEach(t -> namespaces.add(t.f0));
-		finalUpdatesToMerge.forEach(t -> namespaces.add(t.f0));
-		return Integer.toString(getIntegerMergeResult(unexpiredUpdatesToMerge, finalUpdatesToMerge) +
-			namespaces.size() * (int) DEFAULT_ACCUMULATOR);
-	}
+    @Override
+    String getMergeResult(
+            List<Tuple2<String, Integer>> unexpiredUpdatesToMerge,
+            List<Tuple2<String, Integer>> finalUpdatesToMerge) {
+        Set<String> namespaces = new HashSet<>();
+        unexpiredUpdatesToMerge.forEach(t -> namespaces.add(t.f0));
+        finalUpdatesToMerge.forEach(t -> namespaces.add(t.f0));
+        return Integer.toString(
+                getIntegerMergeResult(unexpiredUpdatesToMerge, finalUpdatesToMerge)
+                        + namespaces.size() * (int) DEFAULT_ACCUMULATOR);
+    }
 
-	private static final AggregateFunction<Integer, Long, String> AGGREGATE =
-		new AggregateFunction<Integer, Long, String>() {
-			private static final long serialVersionUID = 815663074737539631L;
+    private static final AggregateFunction<Integer, Long, String> AGGREGATE =
+            new AggregateFunction<Integer, Long, String>() {
+                private static final long serialVersionUID = 815663074737539631L;
 
-			@Override
-			public Long createAccumulator() {
-				return DEFAULT_ACCUMULATOR;
-			}
+                @Override
+                public Long createAccumulator() {
+                    return DEFAULT_ACCUMULATOR;
+                }
 
-			@Override
-			public Long add(Integer value, Long accumulator) {
-				return accumulator + value;
-			}
+                @Override
+                public Long add(Integer value, Long accumulator) {
+                    return accumulator + value;
+                }
 
-			@Override
-			public String getResult(Long accumulator) {
-				return accumulator.toString();
-			}
+                @Override
+                public String getResult(Long accumulator) {
+                    return accumulator.toString();
+                }
 
-			@Override
-			public Long merge(Long a, Long b) {
-				return a + b;
-			}
-		};
+                @Override
+                public Long merge(Long a, Long b) {
+                    return a + b;
+                }
+            };
 }

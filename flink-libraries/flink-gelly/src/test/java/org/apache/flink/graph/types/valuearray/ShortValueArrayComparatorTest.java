@@ -24,32 +24,30 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.ShortValue;
 
-/**
- * Tests for {@link ShortValueArrayComparator}.
- */
+/** Tests for {@link ShortValueArrayComparator}. */
 public class ShortValueArrayComparatorTest extends ComparatorTestBase<ShortValueArray> {
 
-	@Override
-	protected TypeComparator<ShortValueArray> createComparator(boolean ascending) {
-		return new ShortValueArrayComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<ShortValueArray> createComparator(boolean ascending) {
+        return new ShortValueArrayComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<ShortValueArray> createSerializer() {
-		return new ShortValueArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<ShortValueArray> createSerializer() {
+        return new ShortValueArraySerializer();
+    }
 
-	@Override
-	protected ShortValueArray[] getSortedTestData() {
-		ShortValueArray lva0 = new ShortValueArray();
+    @Override
+    protected ShortValueArray[] getSortedTestData() {
+        ShortValueArray lva0 = new ShortValueArray();
 
-		ShortValueArray lva1 = new ShortValueArray();
-		lva1.add(new ShortValue((short) 5));
+        ShortValueArray lva1 = new ShortValueArray();
+        lva1.add(new ShortValue((short) 5));
 
-		ShortValueArray lva2 = new ShortValueArray();
-		lva2.add(new ShortValue((short) 5));
-		lva2.add(new ShortValue((short) 10));
+        ShortValueArray lva2 = new ShortValueArray();
+        lva2.add(new ShortValue((short) 5));
+        lva2.add(new ShortValue((short) 10));
 
-		return new ShortValueArray[]{ lva0, lva1 };
-	}
+        return new ShortValueArray[] {lva0, lva1};
+    }
 }

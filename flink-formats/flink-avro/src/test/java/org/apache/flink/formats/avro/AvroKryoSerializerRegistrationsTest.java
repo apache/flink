@@ -36,82 +36,85 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Tests that the set of Kryo registrations is the same across compatible
- * Flink versions.
+ * Tests that the set of Kryo registrations is the same across compatible Flink versions.
  *
- * <p>Special version of {@code KryoSerializerRegistrationsTest} that sits in the Avro module
- * and verifies that we correctly register Avro types at the {@link KryoSerializer} when
- * Avro is present.
+ * <p>Special version of {@code KryoSerializerRegistrationsTest} that sits in the Avro module and
+ * verifies that we correctly register Avro types at the {@link KryoSerializer} when Avro is
+ * present.
  */
 public class AvroKryoSerializerRegistrationsTest {
 
-	/**
-	 * Tests that the registered classes in Kryo did not change.
-	 *
-	 * <p>Once we have proper serializer versioning this test will become obsolete.
-	 * But currently a change in the serializers can break savepoint backwards
-	 * compatibility between Flink versions.
-	 */
-	@Test
-	public void testDefaultKryoRegisteredClassesDidNotChange() throws Exception {
-		final Kryo kryo = new KryoSerializer<>(Integer.class, new ExecutionConfig()).getKryo();
+    /**
+     * Tests that the registered classes in Kryo did not change.
+     *
+     * <p>Once we have proper serializer versioning this test will become obsolete. But currently a
+     * change in the serializers can break savepoint backwards compatibility between Flink versions.
+     */
+    @Test
+    public void testDefaultKryoRegisteredClassesDidNotChange() throws Exception {
+        final Kryo kryo = new KryoSerializer<>(Integer.class, new ExecutionConfig()).getKryo();
 
-		try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-				getClass().getClassLoader().getResourceAsStream("flink_11-kryo_registrations")))) {
+        try (BufferedReader reader =
+                new BufferedReader(
+                        new InputStreamReader(
+                                getClass()
+                                        .getClassLoader()
+                                        .getResourceAsStream("flink_11-kryo_registrations")))) {
 
-			String line;
-			while ((line = reader.readLine()) != null) {
-				String[] split = line.split(",");
-				final int tag = Integer.parseInt(split[0]);
-				final String registeredClass = split[1];
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] split = line.split(",");
+                final int tag = Integer.parseInt(split[0]);
+                final String registeredClass = split[1];
 
-				Registration registration = kryo.getRegistration(tag);
+                Registration registration = kryo.getRegistration(tag);
 
-				if (registration == null) {
-					fail(String.format("Registration for %d = %s got lost", tag, registeredClass));
-				}
-				else if (!registeredClass.equals(registration.getType().getName())) {
-					fail(String.format("Registration for %d = %s changed to %s",
-							tag, registeredClass, registration.getType().getName()));
-				}
-			}
-		}
-	}
+                if (registration == null) {
+                    fail(String.format("Registration for %d = %s got lost", tag, registeredClass));
+                } else if (!registeredClass.equals(registration.getType().getName())) {
+                    fail(
+                            String.format(
+                                    "Registration for %d = %s changed to %s",
+                                    tag, registeredClass, registration.getType().getName()));
+                }
+            }
+        }
+    }
 
-	/**
-	 * Creates a Kryo serializer and writes the default registrations out to a
-	 * comma separated file with one entry per line:
-	 *
-	 * <pre>
-	 * id,class
-	 * </pre>
-	 *
-	 * <p>The produced file is used to check that the registered IDs don't change
-	 * in future Flink versions.
-	 *
-	 * <p>This method is not used in the tests, but documents how the test file
-	 * has been created and can be used to re-create it if needed.
-	 *
-	 * @param filePath File path to write registrations to
-	 */
-	private void writeDefaultKryoRegistrations(String filePath) throws IOException {
-		final File file = new File(filePath);
-		if (file.exists()) {
-			assertTrue(file.delete());
-		}
+    /**
+     * Creates a Kryo serializer and writes the default registrations out to a comma separated file
+     * with one entry per line:
+     *
+     * <pre>
+     * id,class
+     * </pre>
+     *
+     * <p>The produced file is used to check that the registered IDs don't change in future Flink
+     * versions.
+     *
+     * <p>This method is not used in the tests, but documents how the test file has been created and
+     * can be used to re-create it if needed.
+     *
+     * @param filePath File path to write registrations to
+     */
+    private void writeDefaultKryoRegistrations(String filePath) throws IOException {
+        final File file = new File(filePath);
+        if (file.exists()) {
+            assertTrue(file.delete());
+        }
 
-		final Kryo kryo = new KryoSerializer<>(Integer.class, new ExecutionConfig()).getKryo();
-		final int nextId = kryo.getNextRegistrationId();
+        final Kryo kryo = new KryoSerializer<>(Integer.class, new ExecutionConfig()).getKryo();
+        final int nextId = kryo.getNextRegistrationId();
 
-		try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-			for (int i = 0; i < nextId; i++) {
-				Registration registration = kryo.getRegistration(i);
-				String str = registration.getId() + "," + registration.getType().getName();
-				writer.write(str, 0, str.length());
-				writer.newLine();
-			}
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+            for (int i = 0; i < nextId; i++) {
+                Registration registration = kryo.getRegistration(i);
+                String str = registration.getId() + "," + registration.getType().getName();
+                writer.write(str, 0, str.length());
+                writer.newLine();
+            }
 
-			System.out.println("Created file with registrations at " + file.getAbsolutePath());
-		}
-	}
+            System.out.println("Created file with registrations at " + file.getAbsolutePath());
+        }
+    }
 }

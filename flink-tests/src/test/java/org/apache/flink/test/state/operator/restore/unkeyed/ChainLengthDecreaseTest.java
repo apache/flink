@@ -30,28 +30,31 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createThirdStatefulMap;
 
 /**
- * Verifies that the state of all operators is restored if a topology change removes an operator from a chain.
+ * Verifies that the state of all operators is restored if a topology change removes an operator
+ * from a chain.
  */
 public class ChainLengthDecreaseTest extends AbstractNonKeyedOperatorRestoreTestBase {
 
-	public ChainLengthDecreaseTest(MigrationVersion migrationVersion) {
-		super(migrationVersion);
-	}
+    public ChainLengthDecreaseTest(MigrationVersion migrationVersion) {
+        super(migrationVersion);
+    }
 
-	@Override
-	public void createRestoredJob(StreamExecutionEnvironment env) {
-		/**
-		 * Original job: Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> Map -> StatefulMap3)
-		 * Modified job: Source -> StatefulMap1 -> CHAIN(Map -> StatefulMap3)
-		 */
-		DataStream<Integer> source = createSource(env, ExecutionMode.RESTORE);
+    @Override
+    public void createRestoredJob(StreamExecutionEnvironment env) {
+        /**
+         * Original job: Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> Map -> StatefulMap3)
+         * Modified job: Source -> StatefulMap1 -> CHAIN(Map -> StatefulMap3)
+         */
+        DataStream<Integer> source = createSource(env, ExecutionMode.RESTORE);
 
-		SingleOutputStreamOperator<Integer> first = createFirstStatefulMap(ExecutionMode.RESTORE, source);
-		first.startNewChain();
+        SingleOutputStreamOperator<Integer> first =
+                createFirstStatefulMap(ExecutionMode.RESTORE, source);
+        first.startNewChain();
 
-		SingleOutputStreamOperator<Integer> stateless = createStatelessMap(first);
-		stateless.startNewChain();
+        SingleOutputStreamOperator<Integer> stateless = createStatelessMap(first);
+        stateless.startNewChain();
 
-		SingleOutputStreamOperator<Integer> third = createThirdStatefulMap(ExecutionMode.RESTORE, stateless);
-	}
+        SingleOutputStreamOperator<Integer> third =
+                createThirdStatefulMap(ExecutionMode.RESTORE, stateless);
+    }
 }

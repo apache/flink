@@ -28,62 +28,61 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Assigns each InputSplit to each requesting parallel instance.
- * This causes the input to be fully replicated, i.e., each parallel instance consumes the full input.
+ * Assigns each InputSplit to each requesting parallel instance. This causes the input to be fully
+ * replicated, i.e., each parallel instance consumes the full input.
  */
 @Internal
 public class ReplicatingInputSplitAssigner implements InputSplitAssigner {
 
-	private InputSplit[] inputSplits;
+    private InputSplit[] inputSplits;
 
-	private int[] assignCounts;
+    private int[] assignCounts;
 
-	public ReplicatingInputSplitAssigner(Collection<InputSplit> splits) {
-		this.inputSplits = new InputSplit[splits.size()];
-		this.inputSplits = splits.toArray(this.inputSplits);
-		this.assignCounts = new int[32];
-		Arrays.fill(assignCounts, 0);
-	}
+    public ReplicatingInputSplitAssigner(Collection<InputSplit> splits) {
+        this.inputSplits = new InputSplit[splits.size()];
+        this.inputSplits = splits.toArray(this.inputSplits);
+        this.assignCounts = new int[32];
+        Arrays.fill(assignCounts, 0);
+    }
 
-	public ReplicatingInputSplitAssigner(InputSplit[] splits) {
-		this.inputSplits = splits;
-		this.assignCounts = new int[32];
-		Arrays.fill(assignCounts, 0);
-	}
+    public ReplicatingInputSplitAssigner(InputSplit[] splits) {
+        this.inputSplits = splits;
+        this.assignCounts = new int[32];
+        Arrays.fill(assignCounts, 0);
+    }
 
-	@Override
-	public InputSplit getNextInputSplit(String host, int taskId) {
+    @Override
+    public InputSplit getNextInputSplit(String host, int taskId) {
 
-		// get assignment count
-		Integer assignCnt;
-		if(taskId < this.assignCounts.length) {
-			assignCnt = this.assignCounts[taskId];
-		} else {
-			int newSize = this.assignCounts.length * 2;
-			if (taskId >= newSize) {
-				newSize = taskId;
-			}
-			int[] newAssignCounts = Arrays.copyOf(assignCounts, newSize);
-			Arrays.fill(newAssignCounts, assignCounts.length, newSize, 0);
+        // get assignment count
+        Integer assignCnt;
+        if (taskId < this.assignCounts.length) {
+            assignCnt = this.assignCounts[taskId];
+        } else {
+            int newSize = this.assignCounts.length * 2;
+            if (taskId >= newSize) {
+                newSize = taskId;
+            }
+            int[] newAssignCounts = Arrays.copyOf(assignCounts, newSize);
+            Arrays.fill(newAssignCounts, assignCounts.length, newSize, 0);
 
-			assignCnt = 0;
-		}
+            assignCnt = 0;
+        }
 
-		if(assignCnt >= inputSplits.length) {
-			// all splits for this task have been assigned
-			return null;
-		} else {
-			// return next splits
-			InputSplit is = inputSplits[assignCnt];
-			assignCounts[taskId] = assignCnt+1;
-			return is;
-		}
+        if (assignCnt >= inputSplits.length) {
+            // all splits for this task have been assigned
+            return null;
+        } else {
+            // return next splits
+            InputSplit is = inputSplits[assignCnt];
+            assignCounts[taskId] = assignCnt + 1;
+            return is;
+        }
+    }
 
-	}
-
-	@Override
-	public void returnInputSplit(List<InputSplit> splits, int taskId) {
-		Preconditions.checkArgument(taskId >=0 && taskId < assignCounts.length);
-		assignCounts[taskId] = 0;
-	}
+    @Override
+    public void returnInputSplit(List<InputSplit> splits, int taskId) {
+        Preconditions.checkArgument(taskId >= 0 && taskId < assignCounts.length);
+        assignCounts[taskId] = 0;
+    }
 }

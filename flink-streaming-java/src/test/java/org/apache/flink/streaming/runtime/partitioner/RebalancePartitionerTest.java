@@ -24,29 +24,27 @@ import org.junit.Test;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link RebalancePartitioner}.
- */
+/** Tests for {@link RebalancePartitioner}. */
 public class RebalancePartitionerTest extends StreamPartitionerTest {
 
-	@Override
-	public StreamPartitioner<Tuple> createPartitioner() {
-		StreamPartitioner<Tuple> partitioner = new RebalancePartitioner<>();
-		assertFalse(partitioner.isBroadcast());
-		return partitioner;
-	}
+    @Override
+    public StreamPartitioner<Tuple> createPartitioner() {
+        StreamPartitioner<Tuple> partitioner = new RebalancePartitioner<>();
+        assertFalse(partitioner.isBroadcast());
+        return partitioner;
+    }
 
-	@Test
-	public void testSelectChannelsInterval() {
-		final int numberOfChannels = 3;
-		streamPartitioner.setup(numberOfChannels);
+    @Test
+    public void testSelectChannelsInterval() {
+        final int numberOfChannels = 3;
+        streamPartitioner.setup(numberOfChannels);
 
-		int initialChannel = streamPartitioner.selectChannel(serializationDelegate);
-		assertTrue(0 <= initialChannel);
-		assertTrue(numberOfChannels > initialChannel);
+        int initialChannel = streamPartitioner.selectChannel(serializationDelegate);
+        assertTrue(0 <= initialChannel);
+        assertTrue(numberOfChannels > initialChannel);
 
-		for (int i = 1; i <= 3; i++) {
-			assertSelectedChannel((initialChannel + i) % numberOfChannels);
-		}
-	}
+        for (int i = 1; i <= 3; i++) {
+            assertSelectedChannel((initialChannel + i) % numberOfChannels);
+        }
+    }
 }

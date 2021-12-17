@@ -23,21 +23,22 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 
 public class SortMergeLeftOuterJoinDescriptor extends AbstractSortMergeJoinDescriptor {
 
-	public SortMergeLeftOuterJoinDescriptor(FieldList keys1, FieldList keys2) {
-		super(keys1, keys2, false, true, true);
-	}
+    public SortMergeLeftOuterJoinDescriptor(FieldList keys1, FieldList keys2) {
+        super(keys1, keys2, false, true, true);
+    }
 
-	public SortMergeLeftOuterJoinDescriptor(FieldList keys1, FieldList keys2, boolean broadcastAllowed) {
-		super(keys1, keys2, false, broadcastAllowed, true);
-	}
+    public SortMergeLeftOuterJoinDescriptor(
+            FieldList keys1, FieldList keys2, boolean broadcastAllowed) {
+        super(keys1, keys2, false, broadcastAllowed, true);
+    }
 
-	@Override
-	public DriverStrategy getStrategy() {
-		return DriverStrategy.LEFT_OUTER_MERGE;
-	}
+    @Override
+    public DriverStrategy getStrategy() {
+        return DriverStrategy.LEFT_OUTER_MERGE;
+    }
 
-	@Override
-	protected String getNodeName() {
-		return "LeftOuterJoin";
-	}
+    @Override
+    protected String getNodeName() {
+        return "LeftOuterJoin";
+    }
 }

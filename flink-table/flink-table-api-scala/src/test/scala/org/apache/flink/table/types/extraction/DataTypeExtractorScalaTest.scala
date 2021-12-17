@@ -21,16 +21,39 @@ package org.apache.flink.table.types.extraction
 import java.util
 
 import org.apache.flink.table.annotation.{DataTypeHint, HintFlag}
-import org.apache.flink.table.types.extraction.DataTypeExtractorScalaTest.{ScalaComplexPojo, ScalaPojoWithCustomFieldOrder, ScalaSimplePojo, ScalaSimplePojoWithManyAnnotations}
-import org.apache.flink.table.types.extraction.DataTypeExtractorTest._
-import org.junit.Test
+import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.types.extraction.DataTypeExtractorTest.{TestSpec, _}
+import org.junit.rules.ExpectedException
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
+import org.junit.runners.Parameterized.Parameters
+import org.junit.{Rule, Test}
+
+import scala.annotation.meta.getter
 
 /**
  * Scala tests for [[DataTypeExtractor]].
  */
-class DataTypeExtractorScalaTest {
+@RunWith(classOf[Parameterized])
+class DataTypeExtractorScalaTest(testSpec: DataTypeExtractorTest.TestSpec) {
 
-  val parameters: Seq[TestSpec] = Seq(
+  @(Rule @getter)
+  var thrown: ExpectedException = ExpectedException.none
+
+  @Test
+  def testScalaExtraction(): Unit = {
+    if (testSpec.hasErrorMessage) {
+      thrown.expect(classOf[ValidationException])
+      thrown.expectCause(errorMatcher(testSpec))
+    }
+    runExtraction(testSpec)
+  }
+}
+
+object DataTypeExtractorScalaTest {
+
+  @Parameters
+  def testData: Array[TestSpec] = Array(
     // simple structured type without RAW type
     TestSpec
       .forType(classOf[ScalaSimplePojo])
@@ -50,16 +73,24 @@ class DataTypeExtractorScalaTest {
     // many annotations that partially override each other
     TestSpec
         .forType(classOf[ScalaSimplePojoWithManyAnnotations])
-        .expectDataType(getSimplePojoDataType(classOf[ScalaSimplePojoWithManyAnnotations]))
+        .expectDataType(getSimplePojoDataType(classOf[ScalaSimplePojoWithManyAnnotations])),
+
+    // invalid Scala tuple
+    TestSpec
+        .forType(classOf[ScalaPojoWithInvalidTuple])
+        .expectErrorMessage("Scala tuples are not supported. " +
+          "Use case classes or 'org.apache.flink.types.Row' instead."),
+
+    // invalid Scala map
+    TestSpec
+        .forType(classOf[ScalaPojoWithInvalidMap])
+        .expectErrorMessage("Scala collections are not supported. " +
+          "See the documentation for supported classes or treat them as RAW types.")
   )
 
-  @Test
-  def testScalaExtraction(): Unit = {
-    parameters.foreach(runExtraction)
-  }
-}
-
-object DataTypeExtractorScalaTest {
+  // ----------------------------------------------------------------------------------------------
+  // Test classes for extraction
+  // ----------------------------------------------------------------------------------------------
 
   case class ScalaSimplePojo(
     intField: Integer,
@@ -88,4 +119,8 @@ object DataTypeExtractorScalaTest {
     @DataTypeHint(value = "INT NOT NULL", bridgedTo = classOf[Int]) var primitiveIntField: Any = _
     @DataTypeHint(forceRawPattern = Array()) var stringField: String = _
   }
+
+  case class ScalaPojoWithInvalidTuple(tuple: (Int, Int))
+
+  case class ScalaPojoWithInvalidMap(map: Map[Int, Int])
 }

@@ -24,26 +24,23 @@ import static org.junit.Assert.assertEquals;
 
 public class RestoredCheckpointStatsTest {
 
-	/**
-	 * Tests simple access to restore properties.
-	 */
-	@Test
-	public void testSimpleAccess() throws Exception {
-		long checkpointId = Integer.MAX_VALUE + 1L;
-		long triggerTimestamp = Integer.MAX_VALUE + 1L;
-		CheckpointProperties props = new CheckpointProperties(true, CheckpointType.SAVEPOINT, false, false, true, false, true);
-		long restoreTimestamp = Integer.MAX_VALUE + 1L;
-		String externalPath = "external-path";
+    /** Tests simple access to restore properties. */
+    @Test
+    public void testSimpleAccess() throws Exception {
+        long checkpointId = Integer.MAX_VALUE + 1L;
+        long triggerTimestamp = Integer.MAX_VALUE + 1L;
+        CheckpointProperties props =
+                new CheckpointProperties(
+                        true, CheckpointType.SAVEPOINT, false, false, true, false, true);
+        long restoreTimestamp = Integer.MAX_VALUE + 1L;
+        String externalPath = "external-path";
 
-		RestoredCheckpointStats restored = new RestoredCheckpointStats(
-				checkpointId,
-				props,
-				restoreTimestamp,
-			externalPath);
+        RestoredCheckpointStats restored =
+                new RestoredCheckpointStats(checkpointId, props, restoreTimestamp, externalPath);
 
-		assertEquals(checkpointId, restored.getCheckpointId());
-		assertEquals(props, restored.getProperties());
-		assertEquals(restoreTimestamp, restored.getRestoreTimestamp());
-		assertEquals(externalPath, restored.getExternalPath());
-	}
+        assertEquals(checkpointId, restored.getCheckpointId());
+        assertEquals(props, restored.getProperties());
+        assertEquals(restoreTimestamp, restored.getRestoreTimestamp());
+        assertEquals(externalPath, restored.getExternalPath());
+    }
 }

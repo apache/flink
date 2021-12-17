@@ -21,19 +21,19 @@ package org.apache.flink.metrics.influxdb;
 import java.util.Map;
 
 final class MeasurementInfo {
-	private final String name;
-	private final Map<String, String> tags;
+    private final String name;
+    private final Map<String, String> tags;
 
-	MeasurementInfo(String name, Map<String, String> tags) {
-		this.name = name;
-		this.tags = tags;
-	}
+    MeasurementInfo(String name, Map<String, String> tags) {
+        this.name = name;
+        this.tags = tags;
+    }
 
-	String getName() {
-		return name;
-	}
+    String getName() {
+        return name;
+    }
 
-	Map<String, String> getTags() {
-		return tags;
-	}
+    Map<String, String> getTags() {
+        return tags;
+    }
 }

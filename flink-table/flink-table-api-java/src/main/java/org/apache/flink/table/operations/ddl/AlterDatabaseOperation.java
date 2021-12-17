@@ -26,46 +26,39 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Operation to describe a ALTER DATABASE statement.
- */
+/** Operation to describe a ALTER DATABASE statement. */
 public class AlterDatabaseOperation implements AlterOperation {
-	private final String catalogName;
-	private final String databaseName;
-	private final CatalogDatabase catalogDatabase;
+    private final String catalogName;
+    private final String databaseName;
+    private final CatalogDatabase catalogDatabase;
 
-	public AlterDatabaseOperation(
-			String catalogName,
-			String databaseName,
-			CatalogDatabase catalogDatabase) {
-		this.catalogName = catalogName;
-		this.databaseName = databaseName;
-		this.catalogDatabase = catalogDatabase;
-	}
+    public AlterDatabaseOperation(
+            String catalogName, String databaseName, CatalogDatabase catalogDatabase) {
+        this.catalogName = catalogName;
+        this.databaseName = databaseName;
+        this.catalogDatabase = catalogDatabase;
+    }
 
-	public String getCatalogName() {
-		return catalogName;
-	}
+    public String getCatalogName() {
+        return catalogName;
+    }
 
-	public String getDatabaseName() {
-		return databaseName;
-	}
+    public String getDatabaseName() {
+        return databaseName;
+    }
 
-	public CatalogDatabase getCatalogDatabase() {
-		return catalogDatabase;
-	}
+    public CatalogDatabase getCatalogDatabase() {
+        return catalogDatabase;
+    }
 
-	@Override
-	public String asSummaryString() {
-		Map<String, Object> params = new LinkedHashMap<>();
-		params.put("alterDatabase", catalogDatabase.getProperties());
-		params.put("catalogName", catalogName);
-		params.put("databaseName", databaseName);
+    @Override
+    public String asSummaryString() {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("alterDatabase", catalogDatabase.getProperties());
+        params.put("catalogName", catalogName);
+        params.put("databaseName", databaseName);
 
-		return OperationUtils.formatWithChildren(
-			"ALTER DATABASE",
-			params,
-			Collections.emptyList(),
-			Operation::asSummaryString);
-	}
+        return OperationUtils.formatWithChildren(
+                "ALTER DATABASE", params, Collections.emptyList(), Operation::asSummaryString);
+    }
 }

@@ -20,21 +20,19 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.util.FlinkException;
 
-/**
- * Base class for {@link Dispatcher} related exceptions.
- */
+/** Base class for {@link Dispatcher} related exceptions. */
 public class DispatcherException extends FlinkException {
-	private static final long serialVersionUID = 3781733042984381286L;
+    private static final long serialVersionUID = 3781733042984381286L;
 
-	public DispatcherException(String message) {
-		super(message);
-	}
+    public DispatcherException(String message) {
+        super(message);
+    }
 
-	public DispatcherException(Throwable cause) {
-		super(cause);
-	}
+    public DispatcherException(Throwable cause) {
+        super(cause);
+    }
 
-	public DispatcherException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public DispatcherException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

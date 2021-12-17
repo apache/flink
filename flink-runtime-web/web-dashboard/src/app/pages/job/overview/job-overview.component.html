@@ -20,5 +20,15 @@
   <flink-dagre (nodeClick)="onNodeClick($event)" [xCenter]="4"></flink-dagre>
   <router-outlet></router-outlet>
 </div>
-<flink-job-overview-list (nodeClick)="onNodeClick($event)" [nodes]="nodes" [selectedNode]="selectedNode"></flink-job-overview-list>
-<flink-resize [(top)]="top" [mode]="'horizontal'" [baseElement]="elementRef" [resizeMin]="280" (resizeEnd)="onResizeEnd()"></flink-resize>
+<flink-job-overview-list
+  (nodeClick)="onNodeClick($event)"
+  [nodes]="nodes"
+  [selectedNode]="selectedNode"
+></flink-job-overview-list>
+<flink-resize
+  [(top)]="top"
+  [mode]="'horizontal'"
+  [baseElement]="elementRef"
+  [resizeMin]="280"
+  (resizeEnd)="onResizeEnd()"
+></flink-resize>

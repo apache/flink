@@ -17,9 +17,10 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { TaskManagerDetailInterface } from 'interfaces';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+
+import { TaskManagerDetail } from 'interfaces';
 import { TaskManagerService } from 'services';
 
 @Component({
@@ -29,19 +30,36 @@ import { TaskManagerService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerMetricsComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject();
-  taskManagerDetail: TaskManagerDetailInterface;
+  public taskManagerDetail: TaskManagerDetail;
+  public metrics: { [id: string]: number } = {};
 
-  constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
+  private readonly destroy$ = new Subject<void>();
 
-  ngOnInit(): void {
+  constructor(private readonly taskManagerService: TaskManagerService, private readonly cdr: ChangeDetectorRef) {}
+
+  public ngOnInit(): void {
     this.taskManagerService.taskManagerDetail$.pipe(takeUntil(this.destroy$)).subscribe(data => {
       this.taskManagerDetail = data;
+      this.taskManagerService
+        .getMetrics(data.id, [
+          'Status.JVM.Memory.Heap.Used',
+          'Status.JVM.Memory.Heap.Max',
+          'Status.Shuffle.Netty.UsedMemory',
+          'Status.Shuffle.Netty.TotalMemory',
+          'Status.Flink.Memory.Managed.Used',
+          'Status.Flink.Memory.Managed.Total',
+          'Status.JVM.Memory.Metaspace.Used',
+          'Status.JVM.Memory.Metaspace.Max'
+        ])
+        .subscribe(metrics => {
+          this.metrics = metrics;
+          this.cdr.markForCheck();
+        });
       this.cdr.markForCheck();
     });
   }
 
-  ngOnDestroy(): void {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

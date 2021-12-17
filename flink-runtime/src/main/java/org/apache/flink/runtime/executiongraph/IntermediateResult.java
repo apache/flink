@@ -19,168 +19,180 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.Offloaded;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class IntermediateResult {
 
-	private final IntermediateDataSetID id;
+    private final IntermediateDataSetID id;
 
-	private final ExecutionJobVertex producer;
+    private final ExecutionJobVertex producer;
 
-	private final IntermediateResultPartition[] partitions;
+    private final IntermediateResultPartition[] partitions;
 
-	/**
-	 * Maps intermediate result partition IDs to a partition index. This is
-	 * used for ID lookups of intermediate results. I didn't dare to change the
-	 * partition connect logic in other places that is tightly coupled to the
-	 * partitions being held as an array.
-	 */
-	private final HashMap<IntermediateResultPartitionID, Integer> partitionLookupHelper = new HashMap<>();
+    /**
+     * Maps intermediate result partition IDs to a partition index. This is used for ID lookups of
+     * intermediate results. I didn't dare to change the partition connect logic in other places
+     * that is tightly coupled to the partitions being held as an array.
+     */
+    private final HashMap<IntermediateResultPartitionID, Integer> partitionLookupHelper =
+            new HashMap<>();
 
-	private final int numParallelProducers;
+    private final int numParallelProducers;
 
-	private final AtomicInteger numberOfRunningProducers;
+    private int partitionsAssigned;
 
-	private int partitionsAssigned;
+    private final int connectionIndex;
 
-	private int numConsumers;
+    private final ResultPartitionType resultType;
 
-	private final int connectionIndex;
+    private final Map<ConsumedPartitionGroup, MaybeOffloaded<ShuffleDescriptor[]>>
+            shuffleDescriptorCache;
 
-	private final ResultPartitionType resultType;
+    public IntermediateResult(
+            IntermediateDataSetID id,
+            ExecutionJobVertex producer,
+            int numParallelProducers,
+            ResultPartitionType resultType) {
 
-	public IntermediateResult(
-			IntermediateDataSetID id,
-			ExecutionJobVertex producer,
-			int numParallelProducers,
-			ResultPartitionType resultType) {
+        this.id = checkNotNull(id);
+        this.producer = checkNotNull(producer);
 
-		this.id = checkNotNull(id);
-		this.producer = checkNotNull(producer);
+        checkArgument(numParallelProducers >= 1);
+        this.numParallelProducers = numParallelProducers;
 
-		checkArgument(numParallelProducers >= 1);
-		this.numParallelProducers = numParallelProducers;
+        this.partitions = new IntermediateResultPartition[numParallelProducers];
 
-		this.partitions = new IntermediateResultPartition[numParallelProducers];
+        // we do not set the intermediate result partitions here, because we let them be initialized
+        // by
+        // the execution vertex that produces them
 
-		this.numberOfRunningProducers = new AtomicInteger(numParallelProducers);
+        // assign a random connection index
+        this.connectionIndex = (int) (Math.random() * Integer.MAX_VALUE);
 
-		// we do not set the intermediate result partitions here, because we let them be initialized by
-		// the execution vertex that produces them
+        // The runtime type for this produced result
+        this.resultType = checkNotNull(resultType);
 
-		// assign a random connection index
-		this.connectionIndex = (int) (Math.random() * Integer.MAX_VALUE);
+        this.shuffleDescriptorCache = new HashMap<>();
+    }
 
-		// The runtime type for this produced result
-		this.resultType = checkNotNull(resultType);
-	}
+    public void setPartition(int partitionNumber, IntermediateResultPartition partition) {
+        if (partition == null || partitionNumber < 0 || partitionNumber >= numParallelProducers) {
+            throw new IllegalArgumentException();
+        }
 
-	public void setPartition(int partitionNumber, IntermediateResultPartition partition) {
-		if (partition == null || partitionNumber < 0 || partitionNumber >= numParallelProducers) {
-			throw new IllegalArgumentException();
-		}
+        if (partitions[partitionNumber] != null) {
+            throw new IllegalStateException(
+                    "Partition #" + partitionNumber + " has already been assigned.");
+        }
 
-		if (partitions[partitionNumber] != null) {
-			throw new IllegalStateException("Partition #" + partitionNumber + " has already been assigned.");
-		}
+        partitions[partitionNumber] = partition;
+        partitionLookupHelper.put(partition.getPartitionId(), partitionNumber);
+        partitionsAssigned++;
+    }
 
-		partitions[partitionNumber] = partition;
-		partitionLookupHelper.put(partition.getPartitionId(), partitionNumber);
-		partitionsAssigned++;
-	}
+    public IntermediateDataSetID getId() {
+        return id;
+    }
 
-	public IntermediateDataSetID getId() {
-		return id;
-	}
+    public ExecutionJobVertex getProducer() {
+        return producer;
+    }
 
-	public ExecutionJobVertex getProducer() {
-		return producer;
-	}
+    public IntermediateResultPartition[] getPartitions() {
+        return partitions;
+    }
 
-	public IntermediateResultPartition[] getPartitions() {
-		return partitions;
-	}
+    /**
+     * Returns the partition with the given ID.
+     *
+     * @param resultPartitionId ID of the partition to look up
+     * @throws NullPointerException If partition ID <code>null</code>
+     * @throws IllegalArgumentException Thrown if unknown partition ID
+     * @return Intermediate result partition with the given ID
+     */
+    public IntermediateResultPartition getPartitionById(
+            IntermediateResultPartitionID resultPartitionId) {
+        // Looks ups the partition number via the helper map and returns the
+        // partition. Currently, this happens infrequently enough that we could
+        // consider removing the map and scanning the partitions on every lookup.
+        // The lookup (currently) only happen when the producer of an intermediate
+        // result cannot be found via its registered execution.
+        Integer partitionNumber =
+                partitionLookupHelper.get(
+                        checkNotNull(resultPartitionId, "IntermediateResultPartitionID"));
+        if (partitionNumber != null) {
+            return partitions[partitionNumber];
+        } else {
+            throw new IllegalArgumentException(
+                    "Unknown intermediate result partition ID " + resultPartitionId);
+        }
+    }
 
-	/**
-	 * Returns the partition with the given ID.
-	 *
-	 * @param resultPartitionId ID of the partition to look up
-	 * @throws NullPointerException If partition ID <code>null</code>
-	 * @throws IllegalArgumentException Thrown if unknown partition ID
-	 * @return Intermediate result partition with the given ID
-	 */
-	public IntermediateResultPartition getPartitionById(IntermediateResultPartitionID resultPartitionId) {
-		// Looks ups the partition number via the helper map and returns the
-		// partition. Currently, this happens infrequently enough that we could
-		// consider removing the map and scanning the partitions on every lookup.
-		// The lookup (currently) only happen when the producer of an intermediate
-		// result cannot be found via its registered execution.
-		Integer partitionNumber = partitionLookupHelper.get(checkNotNull(resultPartitionId, "IntermediateResultPartitionID"));
-		if (partitionNumber != null) {
-			return partitions[partitionNumber];
-		} else {
-			throw new IllegalArgumentException("Unknown intermediate result partition ID " + resultPartitionId);
-		}
-	}
+    public int getNumberOfAssignedPartitions() {
+        return partitionsAssigned;
+    }
 
-	public int getNumberOfAssignedPartitions() {
-		return partitionsAssigned;
-	}
+    public ResultPartitionType getResultType() {
+        return resultType;
+    }
 
-	public ResultPartitionType getResultType() {
-		return resultType;
-	}
+    public int getConnectionIndex() {
+        return connectionIndex;
+    }
 
-	public int registerConsumer() {
-		final int index = numConsumers;
-		numConsumers++;
+    @VisibleForTesting
+    void resetForNewExecution() {
+        for (IntermediateResultPartition partition : partitions) {
+            partition.resetForNewExecution();
+        }
+    }
 
-		for (IntermediateResultPartition p : partitions) {
-			if (p.addConsumerGroup() != index) {
-				throw new RuntimeException("Inconsistent consumer mapping between intermediate result partitions.");
-			}
-		}
-		return index;
-	}
+    public MaybeOffloaded<ShuffleDescriptor[]> getCachedShuffleDescriptors(
+            ConsumedPartitionGroup consumedPartitionGroup) {
+        return shuffleDescriptorCache.get(consumedPartitionGroup);
+    }
 
-	public int getConnectionIndex() {
-		return connectionIndex;
-	}
+    public void cacheShuffleDescriptors(
+            ConsumedPartitionGroup consumedPartitionGroup,
+            MaybeOffloaded<ShuffleDescriptor[]> shuffleDescriptors) {
+        this.shuffleDescriptorCache.put(consumedPartitionGroup, shuffleDescriptors);
+    }
 
-	@VisibleForTesting
-	void resetForNewExecution() {
-		for (IntermediateResultPartition partition : partitions) {
-			partition.resetForNewExecution();
-		}
-	}
+    public void clearCachedInformationForPartitionGroup(
+            ConsumedPartitionGroup consumedPartitionGroup) {
+        // When a ConsumedPartitionGroup changes, the cache of ShuffleDescriptors for this
+        // partition group is no longer valid and needs to be removed.
+        //
+        // Currently, there are two scenarios:
+        // 1. The ConsumedPartitionGroup is released
+        // 2. Its producer encounters a failover
 
-	@VisibleForTesting
-	int getNumberOfRunningProducers() {
-		return numberOfRunningProducers.get();
-	}
+        // Remove the cache for the ConsumedPartitionGroup and notify the BLOB writer to delete the
+        // cache if it is offloaded
+        final MaybeOffloaded<ShuffleDescriptor[]> cache =
+                this.shuffleDescriptorCache.remove(consumedPartitionGroup);
+        if (cache instanceof Offloaded) {
+            PermanentBlobKey blobKey = ((Offloaded<ShuffleDescriptor[]>) cache).serializedValueKey;
+            this.producer.getGraph().deleteBlobs(Collections.singletonList(blobKey));
+        }
+    }
 
-	int incrementNumberOfRunningProducersAndGetRemaining() {
-		return numberOfRunningProducers.incrementAndGet();
-	}
-
-	int decrementNumberOfRunningProducersAndGetRemaining() {
-		return numberOfRunningProducers.decrementAndGet();
-	}
-
-	boolean areAllPartitionsFinished() {
-		return numberOfRunningProducers.get() == 0;
-	}
-
-	@Override
-	public String toString() {
-		return "IntermediateResult " + id.toString();
-	}
+    @Override
+    public String toString() {
+        return "IntermediateResult " + id.toString();
+    }
 }

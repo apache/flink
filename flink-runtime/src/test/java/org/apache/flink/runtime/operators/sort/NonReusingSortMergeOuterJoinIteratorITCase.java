@@ -26,58 +26,83 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.Test;
 
-public class NonReusingSortMergeOuterJoinIteratorITCase extends AbstractSortMergeOuterJoinIteratorITCase {
+public class NonReusingSortMergeOuterJoinIteratorITCase
+        extends AbstractSortMergeOuterJoinIteratorITCase {
 
-	@Override
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	protected <T1, T2, T3> AbstractMergeOuterJoinIterator createOuterJoinIterator(OuterJoinType outerJoinType, MutableObjectIterator<T1> input1,
-																			  MutableObjectIterator<T2> input2, TypeSerializer<T1> serializer1,
-																			  TypeComparator<T1> comparator1, TypeSerializer<T2> serializer2, TypeComparator<T2> comparator2,
-																			  TypePairComparator<T1, T2> pairComparator, MemoryManager memoryManager, IOManager ioManager,
-																			  int numMemoryPages, AbstractInvokable parentTask) throws Exception {
-		return new NonReusingMergeOuterJoinIterator(outerJoinType, input1, input2, serializer1, comparator1,
-				serializer2, comparator2, pairComparator, memoryManager, ioManager, numMemoryPages, parentTask);
-	}
+    @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    protected <T1, T2, T3> AbstractMergeOuterJoinIterator createOuterJoinIterator(
+            OuterJoinType outerJoinType,
+            MutableObjectIterator<T1> input1,
+            MutableObjectIterator<T2> input2,
+            TypeSerializer<T1> serializer1,
+            TypeComparator<T1> comparator1,
+            TypeSerializer<T2> serializer2,
+            TypeComparator<T2> comparator2,
+            TypePairComparator<T1, T2> pairComparator,
+            MemoryManager memoryManager,
+            IOManager ioManager,
+            int numMemoryPages,
+            AbstractInvokable parentTask)
+            throws Exception {
+        return new NonReusingMergeOuterJoinIterator(
+                outerJoinType,
+                input1,
+                input2,
+                serializer1,
+                comparator1,
+                serializer2,
+                comparator2,
+                pairComparator,
+                memoryManager,
+                ioManager,
+                numMemoryPages,
+                parentTask);
+    }
 
-	@Test
-	public void testFullOuterWithSample() throws Exception {
-		super.testFullOuterWithSample();
-	}
+    @Test
+    public void testFullOuterWithSample() throws Exception {
+        super.testFullOuterWithSample();
+    }
 
-	@Test
-	public void testLeftOuterWithSample() throws Exception {
-		super.testLeftOuterWithSample();
-	}
+    @Test
+    public void testLeftOuterWithSample() throws Exception {
+        super.testLeftOuterWithSample();
+    }
 
-	@Test
-	public void testRightOuterWithSample() throws Exception {
-		super.testRightOuterWithSample();
-	}
+    @Test
+    public void testRightOuterWithSample() throws Exception {
+        super.testRightOuterWithSample();
+    }
 
-	@Test
-	public void testRightSideEmpty() throws Exception {
-		super.testRightSideEmpty();
-	}
+    @Test
+    public void testRightSideEmpty() throws Exception {
+        super.testRightSideEmpty();
+    }
 
-	@Test
-	public void testLeftSideEmpty() throws Exception {
-		super.testLeftSideEmpty();
-	}
+    @Test
+    public void testLeftSideEmpty() throws Exception {
+        super.testLeftSideEmpty();
+    }
 
-	@Test
-	public void testFullOuterJoinWithHighNumberOfCommonKeys() {
-		testOuterJoinWithHighNumberOfCommonKeys(OuterJoinType.FULL, 200, 500, 2048, 0.02f, 200, 500, 2048, 0.02f);
-	}
+    @Test
+    public void testFullOuterJoinWithHighNumberOfCommonKeys() {
+        testOuterJoinWithHighNumberOfCommonKeys(
+                OuterJoinType.FULL, 200, 500, 2048, 0.02f, 200, 500, 2048, 0.02f);
+    }
 
-	@Test
-	public void testLeftOuterJoinWithHighNumberOfCommonKeys() {
-		testOuterJoinWithHighNumberOfCommonKeys(OuterJoinType.LEFT, 200, 10, 4096, 0.02f, 100, 4000, 2048, 0.02f);
-	}
+    @Test
+    public void testLeftOuterJoinWithHighNumberOfCommonKeys() {
+        testOuterJoinWithHighNumberOfCommonKeys(
+                OuterJoinType.LEFT, 200, 10, 4096, 0.02f, 100, 4000, 2048, 0.02f);
+    }
 
-	@Test
-	public void testRightOuterJoinWithHighNumberOfCommonKeys() {
-		testOuterJoinWithHighNumberOfCommonKeys(OuterJoinType.RIGHT, 100, 10, 2048, 0.02f, 200, 4000, 4096, 0.02f);
-	}
+    @Test
+    public void testRightOuterJoinWithHighNumberOfCommonKeys() {
+        testOuterJoinWithHighNumberOfCommonKeys(
+                OuterJoinType.RIGHT, 100, 10, 2048, 0.02f, 200, 4000, 4096, 0.02f);
+    }
 }

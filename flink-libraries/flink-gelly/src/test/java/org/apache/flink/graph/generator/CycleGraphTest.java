@@ -27,55 +27,51 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link CycleGraph}.
- */
+/** Tests for {@link CycleGraph}. */
 public class CycleGraphTest extends GraphGeneratorTestBase {
 
-	@Test
-	public void testGraph() throws Exception {
-		Graph<LongValue, NullValue, NullValue> graph = new CycleGraph(env, 10)
-			.generate();
+    @Test
+    public void testGraph() throws Exception {
+        Graph<LongValue, NullValue, NullValue> graph = new CycleGraph(env, 10).generate();
 
-		String vertices = "0; 1; 2; 3; 4; 5; 6; 7; 8; 9";
-		String edges = "0,1; 1,0; 1,2; 2,1; 2,3; 3,2; 3,4; 4,3; 4,5; 5,4;" +
-			"5,6; 6,5; 6,7; 7,6; 7,8; 8,7; 8,9; 9,8; 9,0; 0,9";
+        String vertices = "0; 1; 2; 3; 4; 5; 6; 7; 8; 9";
+        String edges =
+                "0,1; 1,0; 1,2; 2,1; 2,3; 3,2; 3,4; 4,3; 4,5; 5,4;"
+                        + "5,6; 6,5; 6,7; 7,6; 7,8; 8,7; 8,9; 9,8; 9,0; 0,9";
 
-		TestUtils.compareGraph(graph, vertices, edges);
-	}
+        TestUtils.compareGraph(graph, vertices, edges);
+    }
 
-	@Test
-	public void testGraphMetrics() throws Exception {
-		int vertexCount = 100;
+    @Test
+    public void testGraphMetrics() throws Exception {
+        int vertexCount = 100;
 
-		Graph<LongValue, NullValue, NullValue> graph = new CycleGraph(env, vertexCount)
-			.generate();
+        Graph<LongValue, NullValue, NullValue> graph = new CycleGraph(env, vertexCount).generate();
 
-		assertEquals(vertexCount, graph.numberOfVertices());
-		assertEquals(2 * vertexCount, graph.numberOfEdges());
+        assertEquals(vertexCount, graph.numberOfVertices());
+        assertEquals(2 * vertexCount, graph.numberOfEdges());
 
-		long minInDegree = graph.inDegrees().min(1).collect().get(0).f1.getValue();
-		long minOutDegree = graph.outDegrees().min(1).collect().get(0).f1.getValue();
-		long maxInDegree = graph.inDegrees().max(1).collect().get(0).f1.getValue();
-		long maxOutDegree = graph.outDegrees().max(1).collect().get(0).f1.getValue();
+        long minInDegree = graph.inDegrees().min(1).collect().get(0).f1.getValue();
+        long minOutDegree = graph.outDegrees().min(1).collect().get(0).f1.getValue();
+        long maxInDegree = graph.inDegrees().max(1).collect().get(0).f1.getValue();
+        long maxOutDegree = graph.outDegrees().max(1).collect().get(0).f1.getValue();
 
-		assertEquals(2, minInDegree);
-		assertEquals(2, minOutDegree);
-		assertEquals(2, maxInDegree);
-		assertEquals(2, maxOutDegree);
-	}
+        assertEquals(2, minInDegree);
+        assertEquals(2, minOutDegree);
+        assertEquals(2, maxInDegree);
+        assertEquals(2, maxOutDegree);
+    }
 
-	@Test
-	public void testParallelism() throws Exception {
-		int parallelism = 2;
+    @Test
+    public void testParallelism() throws Exception {
+        int parallelism = 2;
 
-		Graph<LongValue, NullValue, NullValue> graph = new CycleGraph(env, 100)
-			.setParallelism(parallelism)
-			.generate();
+        Graph<LongValue, NullValue, NullValue> graph =
+                new CycleGraph(env, 100).setParallelism(parallelism).generate();
 
-		graph.getVertices().output(new DiscardingOutputFormat<>());
-		graph.getEdges().output(new DiscardingOutputFormat<>());
+        graph.getVertices().output(new DiscardingOutputFormat<>());
+        graph.getEdges().output(new DiscardingOutputFormat<>());
 
-		TestUtils.verifyParallelism(env, parallelism);
-	}
+        TestUtils.verifyParallelism(env, parallelism);
+    }
 }

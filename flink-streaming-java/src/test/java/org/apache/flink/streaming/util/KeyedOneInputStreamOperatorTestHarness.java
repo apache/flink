@@ -27,65 +27,94 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
 /**
- * Extension of {@link OneInputStreamOperatorTestHarness} that allows the operator to get
- * a {@link KeyedStateBackend}.
+ * Extension of {@link OneInputStreamOperatorTestHarness} that allows the operator to get a {@link
+ * KeyedStateBackend}.
  */
 public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
-		extends OneInputStreamOperatorTestHarness<IN, OUT> {
+        extends OneInputStreamOperatorTestHarness<IN, OUT> {
 
-	public KeyedOneInputStreamOperatorTestHarness(
-			OneInputStreamOperator<IN, OUT> operator,
-			final KeySelector<IN, K> keySelector,
-			TypeInformation<K> keyType,
-			int maxParallelism,
-			int numSubtasks,
-			int subtaskIndex) throws Exception {
-		super(operator, maxParallelism, numSubtasks, subtaskIndex);
+    public KeyedOneInputStreamOperatorTestHarness(
+            OneInputStreamOperator<IN, OUT> operator,
+            final KeySelector<IN, K> keySelector,
+            TypeInformation<K> keyType,
+            int maxParallelism,
+            int numSubtasks,
+            int subtaskIndex)
+            throws Exception {
+        this(
+                SimpleOperatorFactory.of(operator),
+                keySelector,
+                keyType,
+                maxParallelism,
+                numSubtasks,
+                subtaskIndex);
+    }
 
-		ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
-		config.setStatePartitioner(0, keySelector);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
-	}
+    public KeyedOneInputStreamOperatorTestHarness(
+            StreamOperatorFactory<OUT> operatorFactory,
+            final KeySelector<IN, K> keySelector,
+            TypeInformation<K> keyType,
+            int maxParallelism,
+            int numSubtasks,
+            int subtaskIndex)
+            throws Exception {
+        super(operatorFactory, maxParallelism, numSubtasks, subtaskIndex);
 
-	public KeyedOneInputStreamOperatorTestHarness(
-			OneInputStreamOperator<IN, OUT> operator,
-			final KeySelector<IN, K> keySelector,
-			TypeInformation<K> keyType) throws Exception {
-		this(operator, keySelector, keyType, 1, 1, 0);
-	}
+        ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
+        config.setStatePartitioner(0, keySelector);
+        config.setStateKeySerializer(keyType.createSerializer(executionConfig));
+    }
 
-	public KeyedOneInputStreamOperatorTestHarness(
-			final OneInputStreamOperator<IN, OUT> operator,
-			final  KeySelector<IN, K> keySelector,
-			final TypeInformation<K> keyType,
-			final MockEnvironment environment) throws Exception {
+    public KeyedOneInputStreamOperatorTestHarness(
+            StreamOperatorFactory<OUT> operatorFactory,
+            final KeySelector<IN, K> keySelector,
+            TypeInformation<K> keyType)
+            throws Exception {
+        this(operatorFactory, keySelector, keyType, 1, 1, 0);
+    }
 
-		super(operator, environment);
+    public KeyedOneInputStreamOperatorTestHarness(
+            OneInputStreamOperator<IN, OUT> operator,
+            final KeySelector<IN, K> keySelector,
+            TypeInformation<K> keyType)
+            throws Exception {
+        this(operator, keySelector, keyType, 1, 1, 0);
+    }
 
-		ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
-		config.setStatePartitioner(0, keySelector);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
-	}
+    public KeyedOneInputStreamOperatorTestHarness(
+            final OneInputStreamOperator<IN, OUT> operator,
+            final KeySelector<IN, K> keySelector,
+            final TypeInformation<K> keyType,
+            final MockEnvironment environment)
+            throws Exception {
+        super(operator, environment);
 
-	public int numKeyedStateEntries() {
-		AbstractStreamOperator<?> abstractStreamOperator = (AbstractStreamOperator<?>) operator;
-		KeyedStateBackend<Object> keyedStateBackend = abstractStreamOperator.getKeyedStateBackend();
-		if (keyedStateBackend instanceof HeapKeyedStateBackend) {
-			return ((HeapKeyedStateBackend) keyedStateBackend).numKeyValueStateEntries();
-		} else {
-			throw new UnsupportedOperationException();
-		}
-	}
+        ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
+        config.setStatePartitioner(0, keySelector);
+        config.setStateKeySerializer(keyType.createSerializer(executionConfig));
+    }
 
-	public <N> int numKeyedStateEntries(N namespace) {
-		AbstractStreamOperator<?> abstractStreamOperator = (AbstractStreamOperator<?>) operator;
-		KeyedStateBackend<Object> keyedStateBackend = abstractStreamOperator.getKeyedStateBackend();
-		if (keyedStateBackend instanceof HeapKeyedStateBackend) {
-			return ((HeapKeyedStateBackend) keyedStateBackend).numKeyValueStateEntries(namespace);
-		} else {
-			throw new UnsupportedOperationException();
-		}
-	}
+    public int numKeyedStateEntries() {
+        AbstractStreamOperator<?> abstractStreamOperator = (AbstractStreamOperator<?>) operator;
+        KeyedStateBackend<Object> keyedStateBackend = abstractStreamOperator.getKeyedStateBackend();
+        if (keyedStateBackend instanceof HeapKeyedStateBackend) {
+            return ((HeapKeyedStateBackend) keyedStateBackend).numKeyValueStateEntries();
+        } else {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    public <N> int numKeyedStateEntries(N namespace) {
+        AbstractStreamOperator<?> abstractStreamOperator = (AbstractStreamOperator<?>) operator;
+        KeyedStateBackend<Object> keyedStateBackend = abstractStreamOperator.getKeyedStateBackend();
+        if (keyedStateBackend instanceof HeapKeyedStateBackend) {
+            return ((HeapKeyedStateBackend) keyedStateBackend).numKeyValueStateEntries(namespace);
+        } else {
+            throw new UnsupportedOperationException();
+        }
+    }
 }

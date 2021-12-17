@@ -15,12 +15,14 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from enum import Enum
+
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['CheckpointingMode']
 
 
-class CheckpointingMode(object):
+class CheckpointingMode(Enum):
     """
     The checkpointing mode defines what consistency guarantees the system gives in the presence of
     failures.
@@ -77,27 +79,11 @@ class CheckpointingMode(object):
     AT_LEAST_ONCE = 1
 
     @staticmethod
-    def _from_j_checkpointing_mode(j_checkpointing_mode):
-        gateway = get_gateway()
-        JCheckpointingMode = \
-            gateway.jvm.org.apache.flink.streaming.api.CheckpointingMode
-        if j_checkpointing_mode == JCheckpointingMode.EXACTLY_ONCE:
-            return CheckpointingMode.EXACTLY_ONCE
-        elif j_checkpointing_mode == JCheckpointingMode.AT_LEAST_ONCE:
-            return CheckpointingMode.AT_LEAST_ONCE
-        else:
-            raise Exception("Unsupported java checkpointing mode: %s" % j_checkpointing_mode)
+    def _from_j_checkpointing_mode(j_checkpointing_mode) -> 'CheckpointingMode':
+        return CheckpointingMode[j_checkpointing_mode.name()]
 
-    @staticmethod
-    def _to_j_checkpointing_mode(checkpointing_mode):
+    def _to_j_checkpointing_mode(self):
         gateway = get_gateway()
         JCheckpointingMode = \
             gateway.jvm.org.apache.flink.streaming.api.CheckpointingMode
-        if checkpointing_mode == CheckpointingMode.AT_LEAST_ONCE:
-            return JCheckpointingMode.AT_LEAST_ONCE
-        elif checkpointing_mode == CheckpointingMode.EXACTLY_ONCE:
-            return JCheckpointingMode.EXACTLY_ONCE
-        else:
-            raise TypeError("Unsupported checkpointing mode: %s, supported checkpointing modes are:"
-                            "CheckpointingMode.AT_LEAST_ONCE and "
-                            "CheckpointingMode.EXACTLY_ONCE." % checkpointing_mode)
+        return getattr(JCheckpointingMode, self.name)

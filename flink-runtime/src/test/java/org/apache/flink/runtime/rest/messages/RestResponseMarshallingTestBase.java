@@ -31,61 +31,62 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * Test base for verifying that marshalling / unmarshalling REST {@link ResponseBody}s work properly.
+ * Test base for verifying that marshalling / unmarshalling REST {@link ResponseBody}s work
+ * properly.
  */
 public abstract class RestResponseMarshallingTestBase<R extends ResponseBody> extends TestLogger {
 
-	/**
-	 * Returns the class of the test response.
-	 *
-	 * @return class of the test response type
-	 */
-	protected abstract Class<R> getTestResponseClass();
+    /**
+     * Returns the class of the test response.
+     *
+     * @return class of the test response type
+     */
+    protected abstract Class<R> getTestResponseClass();
 
-	protected Collection<Class<?>> getTypeParameters() {
-		return Collections.emptyList();
-	}
+    protected Collection<Class<?>> getTypeParameters() {
+        return Collections.emptyList();
+    }
 
-	/**
-	 * Returns an instance of a response to be tested.
-	 *
-	 * @return instance of the expected test response
-	 */
-	protected abstract R getTestResponseInstance() throws Exception;
+    /**
+     * Returns an instance of a response to be tested.
+     *
+     * @return instance of the expected test response
+     */
+    protected abstract R getTestResponseInstance() throws Exception;
 
-	/**
-	 * Tests that we can marshal and unmarshal the response.
-	 */
-	@Test
-	public void testJsonMarshalling() throws Exception {
-		final R expected = getTestResponseInstance();
+    /** Tests that we can marshal and unmarshal the response. */
+    @Test
+    public void testJsonMarshalling() throws Exception {
+        final R expected = getTestResponseInstance();
 
-		ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
-		final String marshalled = objectMapper.writeValueAsString(expected);
+        ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
+        final String marshalled = objectMapper.writeValueAsString(expected);
 
-		final Collection<Class<?>> typeParameters = getTypeParameters();
-		final JavaType type;
+        final Collection<Class<?>> typeParameters = getTypeParameters();
+        final JavaType type;
 
-		if (typeParameters.isEmpty()) {
-			type = objectMapper.getTypeFactory().constructType(getTestResponseClass());
-		} else {
-			type = objectMapper.getTypeFactory().constructParametricType(
-				getTestResponseClass(),
-				typeParameters.toArray(new Class<?>[typeParameters.size()]));
-		}
+        if (typeParameters.isEmpty()) {
+            type = objectMapper.getTypeFactory().constructType(getTestResponseClass());
+        } else {
+            type =
+                    objectMapper
+                            .getTypeFactory()
+                            .constructParametricType(
+                                    getTestResponseClass(),
+                                    typeParameters.toArray(new Class<?>[typeParameters.size()]));
+        }
 
-		final R unmarshalled = objectMapper.readValue(marshalled, type);
-		assertOriginalEqualsToUnmarshalled(expected, unmarshalled);
-	}
+        final R unmarshalled = objectMapper.readValue(marshalled, type);
+        assertOriginalEqualsToUnmarshalled(expected, unmarshalled);
+    }
 
-	/**
-	 * Asserts that two objects are equal. If they are not, an {@link AssertionError} is thrown.
-	 *
-	 * @param expected expected value
-	 * @param actual   the value to check against expected
-	 */
-	protected void assertOriginalEqualsToUnmarshalled(R expected, R actual) {
-		Assert.assertEquals(expected, actual);
-	}
-
+    /**
+     * Asserts that two objects are equal. If they are not, an {@link AssertionError} is thrown.
+     *
+     * @param expected expected value
+     * @param actual the value to check against expected
+     */
+    protected void assertOriginalEqualsToUnmarshalled(R expected, R actual) {
+        Assert.assertEquals(expected, actual);
+    }
 }

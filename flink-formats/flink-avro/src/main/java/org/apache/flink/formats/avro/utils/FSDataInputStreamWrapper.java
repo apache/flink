@@ -32,36 +32,36 @@ import java.io.IOException;
  */
 public class FSDataInputStreamWrapper implements Closeable, SeekableInput {
 
-	private final FSDataInputStream stream;
-	private final long len;
+    private final FSDataInputStream stream;
+    private final long len;
 
-	public FSDataInputStreamWrapper(FSDataInputStream stream, long len) {
-		this.stream = stream;
-		this.len = len;
-	}
+    public FSDataInputStreamWrapper(FSDataInputStream stream, long len) {
+        this.stream = stream;
+        this.len = len;
+    }
 
-	@Override
-	public long length() throws IOException {
-		return this.len;
-	}
+    @Override
+    public long length() throws IOException {
+        return this.len;
+    }
 
-	@Override
-	public int read(byte[] b, int off, int len) throws IOException {
-		return stream.read(b, off, len);
-	}
+    @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+        return stream.read(b, off, len);
+    }
 
-	@Override
-	public void seek(long p) throws IOException {
-		stream.seek(p);
-	}
+    @Override
+    public void seek(long p) throws IOException {
+        stream.seek(p);
+    }
 
-	@Override
-	public long tell() throws IOException {
-		return stream.getPos();
-	}
+    @Override
+    public long tell() throws IOException {
+        return stream.getPos();
+    }
 
-	@Override
-	public void close() throws IOException {
-		stream.close();
-	}
+    @Override
+    public void close() throws IOException {
+        stream.close();
+    }
 }

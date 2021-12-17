@@ -18,45 +18,44 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.FloatComparator;
-import org.apache.flink.api.common.typeutils.base.FloatSerializer;
+
+import java.util.Random;
 
 public class FloatComparatorTest extends ComparatorTestBase<Float> {
 
-	@Override
-	protected TypeComparator<Float> createComparator(boolean ascending) {
-		return new FloatComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<Float> createComparator(boolean ascending) {
+        return new FloatComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<Float> createSerializer() {
-		return new FloatSerializer();
-	}
+    @Override
+    protected TypeSerializer<Float> createSerializer() {
+        return new FloatSerializer();
+    }
 
-	@Override
-	protected Float[] getSortedTestData() {
-		Random rnd = new Random(874597969123412338L);
-		float rndFloat = rnd.nextFloat();
-		if (rndFloat < 0) {
-			rndFloat = -rndFloat;
-		}
-		if (rndFloat == Float.MAX_VALUE) {
-			rndFloat -= 3;
-		}
-		if (rndFloat <= 2) {
-			rndFloat += 3;
-		}
-		return new Float[]{
-			Float.valueOf(-rndFloat),
-			Float.valueOf(-1.0F),
-			Float.valueOf(0.0F),
-			Float.valueOf(2.0F),
-			Float.valueOf(rndFloat),
-			Float.valueOf(Float.MAX_VALUE)};
-	}
+    @Override
+    protected Float[] getSortedTestData() {
+        Random rnd = new Random(874597969123412338L);
+        float rndFloat = rnd.nextFloat();
+        if (rndFloat < 0) {
+            rndFloat = -rndFloat;
+        }
+        if (rndFloat == Float.MAX_VALUE) {
+            rndFloat -= 3;
+        }
+        if (rndFloat <= 2) {
+            rndFloat += 3;
+        }
+        return new Float[] {
+            Float.valueOf(-rndFloat),
+            Float.valueOf(-1.0F),
+            Float.valueOf(0.0F),
+            Float.valueOf(2.0F),
+            Float.valueOf(rndFloat),
+            Float.valueOf(Float.MAX_VALUE)
+        };
+    }
 }

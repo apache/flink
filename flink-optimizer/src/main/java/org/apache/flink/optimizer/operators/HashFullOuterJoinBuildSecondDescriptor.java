@@ -29,36 +29,42 @@ import java.util.Collections;
 import java.util.List;
 
 public class HashFullOuterJoinBuildSecondDescriptor extends AbstractJoinDescriptor {
-	public HashFullOuterJoinBuildSecondDescriptor(FieldList keys1, FieldList keys2) {
-		super(keys1, keys2, false, false, true);
-	}
+    public HashFullOuterJoinBuildSecondDescriptor(FieldList keys1, FieldList keys2) {
+        super(keys1, keys2, false, false, true);
+    }
 
-	@Override
-	public DriverStrategy getStrategy() {
-		return DriverStrategy.FULL_OUTER_HYBRIDHASH_BUILD_SECOND;
-	}
+    @Override
+    public DriverStrategy getStrategy() {
+        return DriverStrategy.FULL_OUTER_HYBRIDHASH_BUILD_SECOND;
+    }
 
-	@Override
-	protected List<LocalPropertiesPair> createPossibleLocalProperties() {
-		// all properties are possible
-		return Collections.singletonList(new LocalPropertiesPair(new RequestedLocalProperties(), new RequestedLocalProperties()));
-	}
+    @Override
+    protected List<LocalPropertiesPair> createPossibleLocalProperties() {
+        // all properties are possible
+        return Collections.singletonList(
+                new LocalPropertiesPair(
+                        new RequestedLocalProperties(), new RequestedLocalProperties()));
+    }
 
-	@Override
-	public boolean areCoFulfilled(RequestedLocalProperties requested1, RequestedLocalProperties requested2,
-		LocalProperties produced1, LocalProperties produced2) {
-		return true;
-	}
+    @Override
+    public boolean areCoFulfilled(
+            RequestedLocalProperties requested1,
+            RequestedLocalProperties requested2,
+            LocalProperties produced1,
+            LocalProperties produced2) {
+        return true;
+    }
 
-	@Override
-	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
+    @Override
+    public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
 
-		String nodeName = "FullOuterJoin ("+node.getOperator().getName()+")";
-		return new DualInputPlanNode(node, nodeName, in1, in2, getStrategy(), this.keys1, this.keys2);
-	}
+        String nodeName = "FullOuterJoin (" + node.getOperator().getName() + ")";
+        return new DualInputPlanNode(
+                node, nodeName, in1, in2, getStrategy(), this.keys1, this.keys2);
+    }
 
-	@Override
-	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
-		return new LocalProperties();
-	}
+    @Override
+    public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
+        return new LocalProperties();
+    }
 }

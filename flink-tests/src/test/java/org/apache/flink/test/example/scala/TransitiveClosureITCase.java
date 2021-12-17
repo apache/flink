@@ -26,39 +26,42 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.io.BufferedReader;
 
-/**
- * Test for {@link TransitiveClosureNaive}.
- */
+/** Test for {@link TransitiveClosureNaive}. */
 public class TransitiveClosureITCase extends JavaProgramTestBase {
 
-	private static final long SEED = 0xBADC0FFEEBEEFL;
+    private static final long SEED = 0xBADC0FFEEBEEFL;
 
-	private static final int NUM_VERTICES = 100;
+    private static final int NUM_VERTICES = 100;
 
-	private static final int NUM_EDGES = 500;
+    private static final int NUM_EDGES = 500;
 
-	private String edgesPath;
-	private String resultPath;
+    private String edgesPath;
+    private String resultPath;
 
-	@Override
-	protected void preSubmit() throws Exception {
-		edgesPath = createTempFile("edges.txt", ConnectedComponentsData.getRandomOddEvenEdges(NUM_EDGES, NUM_VERTICES, SEED));
-		resultPath = getTempFilePath("results");
-	}
+    @Override
+    protected void preSubmit() throws Exception {
+        edgesPath =
+                createTempFile(
+                        "edges.txt",
+                        ConnectedComponentsData.getRandomOddEvenEdges(
+                                NUM_EDGES, NUM_VERTICES, SEED));
+        resultPath = getTempFilePath("results");
+    }
 
-	@Override
-	protected void testProgram() throws Exception {
-		TransitiveClosureNaive.main(new String [] {
-				"--edges", edgesPath,
-				"--output", resultPath,
-				"--iterations", "5"});
-	}
+    @Override
+    protected void testProgram() throws Exception {
+        TransitiveClosureNaive.main(
+                new String[] {
+                    "--edges", edgesPath,
+                    "--output", resultPath,
+                    "--iterations", "5"
+                });
+    }
 
-	@Override
-	protected void postSubmit() throws Exception {
-		for (BufferedReader reader : getResultReader(resultPath)) {
-			TransitiveClosureData.checkOddEvenResult(reader);
-		}
-	}
+    @Override
+    protected void postSubmit() throws Exception {
+        for (BufferedReader reader : getResultReader(resultPath)) {
+            TransitiveClosureData.checkOddEvenResult(reader);
+        }
+    }
 }
-

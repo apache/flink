@@ -33,34 +33,36 @@ import java.util.UUID;
  */
 public class StandaloneLeaderElectionService implements LeaderElectionService {
 
-	private LeaderContender contender = null;
+    private LeaderContender contender = null;
 
-	@Override
-	public void start(LeaderContender newContender) throws Exception {
-		if (contender != null) {
-			// Service was already started
-			throw new IllegalArgumentException("Leader election service cannot be started multiple times.");
-		}
+    @Override
+    public void start(LeaderContender newContender) throws Exception {
+        if (contender != null) {
+            // Service was already started
+            throw new IllegalArgumentException(
+                    "Leader election service cannot be started multiple times.");
+        }
 
-		contender = Preconditions.checkNotNull(newContender);
+        contender = Preconditions.checkNotNull(newContender);
 
-		// directly grant leadership to the given contender
-		contender.grantLeadership(HighAvailabilityServices.DEFAULT_LEADER_ID);
-	}
+        // directly grant leadership to the given contender
+        contender.grantLeadership(HighAvailabilityServices.DEFAULT_LEADER_ID);
+    }
 
-	@Override
-	public void stop() {
-		if (contender != null) {
-			contender.revokeLeadership();
-			contender = null;
-		}
-	}
+    @Override
+    public void stop() {
+        if (contender != null) {
+            contender.revokeLeadership();
+            contender = null;
+        }
+    }
 
-	@Override
-	public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {}
+    @Override
+    public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {}
 
-	@Override
-	public boolean hasLeadership(@Nonnull UUID leaderSessionId) {
-		return (contender != null && HighAvailabilityServices.DEFAULT_LEADER_ID.equals(leaderSessionId));
-	}
+    @Override
+    public boolean hasLeadership(@Nonnull UUID leaderSessionId) {
+        return (contender != null
+                && HighAvailabilityServices.DEFAULT_LEADER_ID.equals(leaderSessionId));
+    }
 }

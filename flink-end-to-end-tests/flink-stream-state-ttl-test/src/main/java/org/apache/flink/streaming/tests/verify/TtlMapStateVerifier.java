@@ -36,59 +36,72 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
-class TtlMapStateVerifier extends AbstractTtlStateVerifier<
-	MapStateDescriptor<String, String>, MapState<String, String>,
-	Map<String, String>, Tuple2<String, String>, Map<String, String>> {
-	private static final List<String> KEYS = new ArrayList<>();
-	static {
-		IntStream.range(0, RANDOM.nextInt(5) + 5).forEach(i -> KEYS.add(randomString()));
-	}
+class TtlMapStateVerifier
+        extends AbstractTtlStateVerifier<
+                MapStateDescriptor<String, String>,
+                MapState<String, String>,
+                Map<String, String>,
+                Tuple2<String, String>,
+                Map<String, String>> {
+    private static final List<String> KEYS = new ArrayList<>();
 
-	TtlMapStateVerifier() {
-		super(new MapStateDescriptor<>(TtlMapStateVerifier.class.getSimpleName(), StringSerializer.INSTANCE, StringSerializer.INSTANCE));
-	}
+    static {
+        IntStream.range(0, RANDOM.nextInt(5) + 5).forEach(i -> KEYS.add(randomString()));
+    }
 
-	@Override
-	@Nonnull
-	State createState(@Nonnull FunctionInitializationContext context) {
-		return context.getKeyedStateStore().getMapState(stateDesc);
-	}
+    TtlMapStateVerifier() {
+        super(
+                new MapStateDescriptor<>(
+                        TtlMapStateVerifier.class.getSimpleName(),
+                        StringSerializer.INSTANCE,
+                        StringSerializer.INSTANCE));
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	@Nonnull
-	public TypeSerializer<Tuple2<String, String>> getUpdateSerializer() {
-		return new TupleSerializer(
-			Tuple2.class, new TypeSerializer[] {StringSerializer.INSTANCE, StringSerializer.INSTANCE});
-	}
+    @Override
+    @Nonnull
+    State createState(@Nonnull FunctionInitializationContext context) {
+        return context.getKeyedStateStore().getMapState(stateDesc);
+    }
 
-	@Override
-	@Nonnull
-	public Tuple2<String, String> generateRandomUpdate() {
-		return Tuple2.of(KEYS.get(RANDOM.nextInt(KEYS.size())), randomString());
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    @Nonnull
+    public TypeSerializer<Tuple2<String, String>> getUpdateSerializer() {
+        return new TupleSerializer(
+                Tuple2.class,
+                new TypeSerializer[] {StringSerializer.INSTANCE, StringSerializer.INSTANCE});
+    }
 
-	@Override
-	@Nonnull
-	Map<String, String> getInternal(@Nonnull MapState<String, String> state) throws Exception {
-		return StreamSupport.stream(state.entries().spliterator(), false)
-			.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-	}
+    @Override
+    @Nonnull
+    public Tuple2<String, String> generateRandomUpdate() {
+        return Tuple2.of(KEYS.get(RANDOM.nextInt(KEYS.size())), randomString());
+    }
 
-	@Override
-	void updateInternal(@Nonnull MapState<String, String> state, Tuple2<String, String> update) throws Exception {
-		state.put(update.f0, update.f1);
-	}
+    @Override
+    @Nonnull
+    Map<String, String> getInternal(@Nonnull MapState<String, String> state) throws Exception {
+        return StreamSupport.stream(state.entries().spliterator(), false)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
 
-	@Override
-	@Nonnull
-	Map<String, String> expected(@Nonnull List<ValueWithTs<Tuple2<String, String>>> updates, long currentTimestamp) {
-		return updates.stream()
-			.collect(Collectors.groupingBy(u -> u.getValue().f0))
-			.entrySet().stream()
-			.map(e -> e.getValue().get(e.getValue().size() - 1))
-			.filter(u -> !expired(u.getTimestamp(), currentTimestamp))
-			.map(ValueWithTs::getValue)
-			.collect(Collectors.toMap(u -> u.f0, u -> u.f1));
-	}
+    @Override
+    void updateInternal(@Nonnull MapState<String, String> state, Tuple2<String, String> update)
+            throws Exception {
+        state.put(update.f0, update.f1);
+    }
+
+    @Override
+    @Nonnull
+    Map<String, String> expected(
+            @Nonnull List<ValueWithTs<Tuple2<String, String>>> updates, long currentTimestamp) {
+        return updates.stream()
+                .collect(Collectors.groupingBy(u -> u.getValue().f0))
+                .entrySet()
+                .stream()
+                .map(e -> e.getValue().get(e.getValue().size() - 1))
+                .filter(u -> !expired(u.getTimestamp(), currentTimestamp))
+                .map(ValueWithTs::getValue)
+                .collect(Collectors.toMap(u -> u.f0, u -> u.f1));
+    }
 }

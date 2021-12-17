@@ -33,46 +33,44 @@ import java.util.Map;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Adapter that expresses combination of {@link PatternSelectFunction} and {@link PatternTimeoutFlatSelectAdapter}
- * with {@link PatternProcessFunction}.
+ * Adapter that expresses combination of {@link PatternSelectFunction} and {@link
+ * PatternTimeoutFlatSelectAdapter} with {@link PatternProcessFunction}.
  */
 @Internal
-public class PatternTimeoutSelectAdapter<IN, OUT, T>
-		extends PatternSelectAdapter<IN, OUT>
-		implements TimedOutPartialMatchHandler<IN> {
+public class PatternTimeoutSelectAdapter<IN, OUT, T> extends PatternSelectAdapter<IN, OUT>
+        implements TimedOutPartialMatchHandler<IN> {
 
-	private final PatternTimeoutFunction<IN, T> timeoutFunction;
-	private final OutputTag<T> timedOutPartialMatchesTag;
+    private final PatternTimeoutFunction<IN, T> timeoutFunction;
+    private final OutputTag<T> timedOutPartialMatchesTag;
 
-	public PatternTimeoutSelectAdapter(
-			final PatternSelectFunction<IN, OUT> selectFunction,
-			final PatternTimeoutFunction<IN, T> timeoutFunction,
-			final OutputTag<T> timedOutPartialMatchesTag) {
-		super(selectFunction);
-		this.timeoutFunction = checkNotNull(timeoutFunction);
-		this.timedOutPartialMatchesTag = checkNotNull(timedOutPartialMatchesTag);
-	}
+    public PatternTimeoutSelectAdapter(
+            final PatternSelectFunction<IN, OUT> selectFunction,
+            final PatternTimeoutFunction<IN, T> timeoutFunction,
+            final OutputTag<T> timedOutPartialMatchesTag) {
+        super(selectFunction);
+        this.timeoutFunction = checkNotNull(timeoutFunction);
+        this.timedOutPartialMatchesTag = checkNotNull(timedOutPartialMatchesTag);
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		FunctionUtils.setFunctionRuntimeContext(timeoutFunction, getRuntimeContext());
-		FunctionUtils.openFunction(timeoutFunction, parameters);
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
+        FunctionUtils.setFunctionRuntimeContext(timeoutFunction, getRuntimeContext());
+        FunctionUtils.openFunction(timeoutFunction, parameters);
+    }
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-		FunctionUtils.closeFunction(timeoutFunction);
-	}
+    @Override
+    public void close() throws Exception {
+        super.close();
+        FunctionUtils.closeFunction(timeoutFunction);
+    }
 
-	@Override
-	public void processTimedOutMatch(
-			final Map<String, List<IN>> match,
-			final Context ctx) throws Exception {
+    @Override
+    public void processTimedOutMatch(final Map<String, List<IN>> match, final Context ctx)
+            throws Exception {
 
-		final T timedOutPatternResult = timeoutFunction.timeout(match, ctx.timestamp());
+        final T timedOutPatternResult = timeoutFunction.timeout(match, ctx.timestamp());
 
-		ctx.output(timedOutPartialMatchesTag, timedOutPatternResult);
-	}
+        ctx.output(timedOutPartialMatchesTag, timedOutPatternResult);
+    }
 }

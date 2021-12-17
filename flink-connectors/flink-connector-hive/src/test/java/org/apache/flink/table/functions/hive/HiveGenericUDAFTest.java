@@ -34,110 +34,95 @@ import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test for {@link HiveGenericUDAF}.
- */
+/** Test for {@link HiveGenericUDAF}. */
 public class HiveGenericUDAFTest {
-	@Test
-	public void testUDAFMin() throws Exception {
-		Object[] constantArgs = new Object[] {
-			null
-		};
+    @Test
+    public void testUDAFMin() throws Exception {
+        Object[] constantArgs = new Object[] {null};
 
-		DataType[] argTypes = new DataType[] {
-			DataTypes.BIGINT()
-		};
+        DataType[] argTypes = new DataType[] {DataTypes.BIGINT()};
 
-		HiveGenericUDAF udf = init(GenericUDAFMin.class, constantArgs, argTypes);
+        HiveGenericUDAF udf = init(GenericUDAFMin.class, constantArgs, argTypes);
 
-		GenericUDAFEvaluator.AggregationBuffer acc = udf.createAccumulator();
+        GenericUDAFEvaluator.AggregationBuffer acc = udf.createAccumulator();
 
-		udf.accumulate(acc, 2L);
-		udf.accumulate(acc, 3L);
-		udf.accumulate(acc, 1L);
+        udf.accumulate(acc, 2L);
+        udf.accumulate(acc, 3L);
+        udf.accumulate(acc, 1L);
 
-		udf.merge(acc, Arrays.asList());
+        udf.merge(acc, Arrays.asList());
 
-		assertEquals(1L, udf.getValue(acc));
-	}
+        assertEquals(1L, udf.getValue(acc));
+    }
 
-	@Test
-	public void testUDAFSum() throws Exception {
-		Object[] constantArgs = new Object[] {
-			null
-		};
+    @Test
+    public void testUDAFSum() throws Exception {
+        Object[] constantArgs = new Object[] {null};
 
-		DataType[] argTypes = new DataType[] {
-			DataTypes.DOUBLE()
-		};
+        DataType[] argTypes = new DataType[] {DataTypes.DOUBLE()};
 
-		HiveGenericUDAF udf = init(GenericUDAFSum.class, constantArgs, argTypes);
+        HiveGenericUDAF udf = init(GenericUDAFSum.class, constantArgs, argTypes);
 
-		GenericUDAFEvaluator.AggregationBuffer acc = udf.createAccumulator();
+        GenericUDAFEvaluator.AggregationBuffer acc = udf.createAccumulator();
 
-		udf.accumulate(acc, 0.5d);
-		udf.accumulate(acc, 0.3d);
-		udf.accumulate(acc, 5.3d);
+        udf.accumulate(acc, 0.5d);
+        udf.accumulate(acc, 0.3d);
+        udf.accumulate(acc, 5.3d);
 
-		udf.merge(acc, Arrays.asList());
+        udf.merge(acc, Arrays.asList());
 
-		assertEquals(6.1d, udf.getValue(acc));
+        assertEquals(6.1d, udf.getValue(acc));
 
-		constantArgs = new Object[] {
-			null
-		};
+        constantArgs = new Object[] {null};
 
-		argTypes = new DataType[] {
-			DataTypes.DECIMAL(5, 3)
-		};
+        argTypes = new DataType[] {DataTypes.DECIMAL(5, 3)};
 
-		udf = init(GenericUDAFSum.class, constantArgs, argTypes);
+        udf = init(GenericUDAFSum.class, constantArgs, argTypes);
 
-		acc = udf.createAccumulator();
+        acc = udf.createAccumulator();
 
-		udf.accumulate(acc, BigDecimal.valueOf(10.111));
-		udf.accumulate(acc, BigDecimal.valueOf(3.222));
-		udf.accumulate(acc, BigDecimal.valueOf(5.333));
+        udf.accumulate(acc, BigDecimal.valueOf(10.111));
+        udf.accumulate(acc, BigDecimal.valueOf(3.222));
+        udf.accumulate(acc, BigDecimal.valueOf(5.333));
 
-		udf.merge(acc, Arrays.asList());
+        udf.merge(acc, Arrays.asList());
 
-		assertEquals(BigDecimal.valueOf(18.666), udf.getValue(acc));
-	}
+        assertEquals(BigDecimal.valueOf(18.666), udf.getValue(acc));
+    }
 
-	@Test
-	public void testUDAFCount() throws Exception {
-		Object[] constantArgs = new Object[] {
-			null
-		};
+    @Test
+    public void testUDAFCount() throws Exception {
+        Object[] constantArgs = new Object[] {null};
 
-		DataType[] argTypes = new DataType[] {
-			DataTypes.DOUBLE()
-		};
+        DataType[] argTypes = new DataType[] {DataTypes.DOUBLE()};
 
-		HiveGenericUDAF udf = init(GenericUDAFCount.class, constantArgs, argTypes);
+        HiveGenericUDAF udf = init(GenericUDAFCount.class, constantArgs, argTypes);
 
-		GenericUDAFEvaluator.AggregationBuffer acc = udf.createAccumulator();
+        GenericUDAFEvaluator.AggregationBuffer acc = udf.createAccumulator();
 
-		udf.accumulate(acc, 0.5d);
-		udf.accumulate(acc, 0.3d);
-		udf.accumulate(acc, 5.3d);
+        udf.accumulate(acc, 0.5d);
+        udf.accumulate(acc, 0.3d);
+        udf.accumulate(acc, 5.3d);
 
-		udf.merge(acc, Arrays.asList());
+        udf.merge(acc, Arrays.asList());
 
-		assertEquals(3L, udf.getValue(acc));
-	}
+        assertEquals(3L, udf.getValue(acc));
+    }
 
-	private static HiveGenericUDAF init(Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) throws Exception {
-		HiveFunctionWrapper<GenericUDAFResolver2> wrapper = new HiveFunctionWrapper(hiveUdfClass.getName());
+    private static HiveGenericUDAF init(
+            Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) throws Exception {
+        HiveFunctionWrapper<GenericUDAFResolver2> wrapper =
+                new HiveFunctionWrapper(hiveUdfClass.getName());
 
-		HiveGenericUDAF udf = new HiveGenericUDAF(wrapper, HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion()));
+        HiveGenericUDAF udf =
+                new HiveGenericUDAF(
+                        wrapper, HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion()));
 
-		udf.setArgumentTypesAndConstants(constantArgs, argTypes);
-		udf.getHiveResultType(constantArgs, argTypes);
+        udf.setArgumentTypesAndConstants(constantArgs, argTypes);
+        udf.getHiveResultType(constantArgs, argTypes);
 
-		udf.open(null);
+        udf.open(null);
 
-		return udf;
-	}
-
+        return udf;
+    }
 }

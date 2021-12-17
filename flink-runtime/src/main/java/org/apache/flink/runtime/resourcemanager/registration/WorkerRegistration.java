@@ -19,43 +19,76 @@
 package org.apache.flink.runtime.resourcemanager.registration;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.util.Preconditions;
 
-/**
- * This class extends the {@link TaskExecutorConnection}, adding the worker information.
- */
-public class WorkerRegistration<WorkerType extends ResourceIDRetrievable> extends TaskExecutorConnection {
+/** This class extends the {@link TaskExecutorConnection}, adding the worker information. */
+public class WorkerRegistration<WorkerType extends ResourceIDRetrievable>
+        extends TaskExecutorConnection {
 
-	private final WorkerType worker;
+    private final WorkerType worker;
 
-	private final int dataPort;
+    private final int dataPort;
 
-	private final HardwareDescription hardwareDescription;
+    private final int jmxPort;
 
-	public WorkerRegistration(
-			TaskExecutorGateway taskExecutorGateway,
-			WorkerType worker,
-			int dataPort,
-			HardwareDescription hardwareDescription) {
+    private final HardwareDescription hardwareDescription;
 
-		super(worker.getResourceID(), taskExecutorGateway);
+    private final TaskExecutorMemoryConfiguration memoryConfiguration;
 
-		this.worker = Preconditions.checkNotNull(worker);
-		this.dataPort = dataPort;
-		this.hardwareDescription = Preconditions.checkNotNull(hardwareDescription);
-	}
+    private final ResourceProfile totalResourceProfile;
 
-	public WorkerType getWorker() {
-		return worker;
-	}
+    private final ResourceProfile defaultSlotResourceProfile;
 
-	public int getDataPort() {
-		return dataPort;
-	}
+    public WorkerRegistration(
+            TaskExecutorGateway taskExecutorGateway,
+            WorkerType worker,
+            int dataPort,
+            int jmxPort,
+            HardwareDescription hardwareDescription,
+            TaskExecutorMemoryConfiguration memoryConfiguration,
+            ResourceProfile totalResourceProfile,
+            ResourceProfile defaultSlotResourceProfile) {
 
-	public HardwareDescription getHardwareDescription() {
-		return hardwareDescription;
-	}
+        super(worker.getResourceID(), taskExecutorGateway);
+
+        this.worker = Preconditions.checkNotNull(worker);
+        this.dataPort = dataPort;
+        this.jmxPort = jmxPort;
+        this.hardwareDescription = Preconditions.checkNotNull(hardwareDescription);
+        this.memoryConfiguration = Preconditions.checkNotNull(memoryConfiguration);
+        this.totalResourceProfile = Preconditions.checkNotNull(totalResourceProfile);
+        this.defaultSlotResourceProfile = Preconditions.checkNotNull(defaultSlotResourceProfile);
+    }
+
+    public WorkerType getWorker() {
+        return worker;
+    }
+
+    public int getDataPort() {
+        return dataPort;
+    }
+
+    public int getJmxPort() {
+        return jmxPort;
+    }
+
+    public HardwareDescription getHardwareDescription() {
+        return hardwareDescription;
+    }
+
+    public TaskExecutorMemoryConfiguration getMemoryConfiguration() {
+        return memoryConfiguration;
+    }
+
+    public ResourceProfile getDefaultSlotResourceProfile() {
+        return defaultSlotResourceProfile;
+    }
+
+    public ResourceProfile getTotalResourceProfile() {
+        return totalResourceProfile;
+    }
 }

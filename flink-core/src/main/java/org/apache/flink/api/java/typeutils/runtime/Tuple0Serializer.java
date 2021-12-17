@@ -3,9 +3,9 @@
  * file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the
  * License. You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
@@ -27,105 +27,107 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 @Internal
-public class Tuple0Serializer extends TupleSerializer<Tuple0> implements SelfResolvingTypeSerializer<Tuple0> {
-	
-	private static final long serialVersionUID = 1278813169022975971L;
+public class Tuple0Serializer extends TupleSerializer<Tuple0>
+        implements SelfResolvingTypeSerializer<Tuple0> {
 
-	public static final Tuple0Serializer INSTANCE = new Tuple0Serializer();
+    private static final long serialVersionUID = 1278813169022975971L;
 
-	// ------------------------------------------------------------------------
-	
-	private Tuple0Serializer() {
-		super(Tuple0.class, new TypeSerializer<?>[0]);
-	}
+    public static final Tuple0Serializer INSTANCE = new Tuple0Serializer();
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public Tuple0Serializer duplicate() {
-		return this;
-	}
+    private Tuple0Serializer() {
+        super(Tuple0.class, new TypeSerializer<?>[0]);
+    }
 
-	@Override
-	public Tuple0 createInstance() {
-		return Tuple0.INSTANCE;
-	}
+    // ------------------------------------------------------------------------
 
-	@Override
-	public Tuple0 createInstance(Object[] fields) {
-		if (fields == null || fields.length == 0) {
-			return Tuple0.INSTANCE;
-		}
+    @Override
+    public Tuple0Serializer duplicate() {
+        return this;
+    }
 
-		throw new UnsupportedOperationException(
-				"Tuple0 cannot take any data, as it has zero fields.");
-	}
+    @Override
+    public Tuple0 createInstance() {
+        return Tuple0.INSTANCE;
+    }
 
-	@Override
-	public Tuple0 copy(Tuple0 from) {
-		return from;
-	}
+    @Override
+    public Tuple0 createInstance(Object[] fields) {
+        if (fields == null || fields.length == 0) {
+            return Tuple0.INSTANCE;
+        }
 
-	@Override
-	public Tuple0 copy(Tuple0 from, Tuple0 reuse) {
-		return reuse;
-	}
+        throw new UnsupportedOperationException(
+                "Tuple0 cannot take any data, as it has zero fields.");
+    }
 
-	@Override
-	public int getLength() {
-		return 1;
-	}
+    @Override
+    public Tuple0 copy(Tuple0 from) {
+        return from;
+    }
 
-	@Override
-	public void serialize(Tuple0 record, DataOutputView target) throws IOException {
-		Preconditions.checkNotNull(record);
-		target.writeByte(42);
-	}
+    @Override
+    public Tuple0 copy(Tuple0 from, Tuple0 reuse) {
+        return reuse;
+    }
 
-	@Override
-	public Tuple0 deserialize(DataInputView source) throws IOException {
-		source.readByte();
-		return Tuple0.INSTANCE;
-	}
+    @Override
+    public int getLength() {
+        return 1;
+    }
 
-	@Override
-	public Tuple0 deserialize(Tuple0 reuse, DataInputView source) throws IOException {
-		source.readByte();
-		return reuse;
-	}
+    @Override
+    public void serialize(Tuple0 record, DataOutputView target) throws IOException {
+        Preconditions.checkNotNull(record);
+        target.writeByte(42);
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.writeByte(source.readByte());
-	}
+    @Override
+    public Tuple0 deserialize(DataInputView source) throws IOException {
+        source.readByte();
+        return Tuple0.INSTANCE;
+    }
 
-	@Override
-	public TypeSerializerSnapshot<Tuple0> snapshotConfiguration() {
-		return new Tuple0SerializerSnapshot();
-	}
+    @Override
+    public Tuple0 deserialize(Tuple0 reuse, DataInputView source) throws IOException {
+        source.readByte();
+        return reuse;
+    }
 
-	// ------------------------------------------------------------------------
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        target.writeByte(source.readByte());
+    }
 
-	@Override
-	public int hashCode() {
-		return Tuple0Serializer.class.hashCode();
-	}
+    @Override
+    public TypeSerializerSnapshot<Tuple0> snapshotConfiguration() {
+        return new Tuple0SerializerSnapshot();
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		return obj instanceof Tuple0Serializer;
-	}
+    // ------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return "Tuple0Serializer";
-	}
+    @Override
+    public int hashCode() {
+        return Tuple0Serializer.class.hashCode();
+    }
 
-	@Override
-	public TypeSerializerSchemaCompatibility<Tuple0> resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(
-			TypeSerializerConfigSnapshot<Tuple0> deprecatedConfigSnapshot) {
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof Tuple0Serializer;
+    }
 
-		Tuple0SerializerSnapshot snapshot = new Tuple0SerializerSnapshot();
-		return snapshot.resolveSchemaCompatibility(this);
-	}
+    @Override
+    public String toString() {
+        return "Tuple0Serializer";
+    }
+
+    @Override
+    public TypeSerializerSchemaCompatibility<Tuple0>
+            resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(
+                    TypeSerializerConfigSnapshot<Tuple0> deprecatedConfigSnapshot) {
+
+        Tuple0SerializerSnapshot snapshot = new Tuple0SerializerSnapshot();
+        return snapshot.resolveSchemaCompatibility(this);
+    }
 }

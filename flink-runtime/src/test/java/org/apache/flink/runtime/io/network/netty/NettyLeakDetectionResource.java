@@ -41,71 +41,75 @@ import static org.junit.Assert.fail;
  * }</pre>
  */
 public class NettyLeakDetectionResource extends ExternalResource {
-	@GuardedBy("refCountLock")
-	private static ResourceLeakDetectorFactory previousLeakDetector;
+    @GuardedBy("refCountLock")
+    private static ResourceLeakDetectorFactory previousLeakDetector;
 
-	@GuardedBy("refCountLock")
-	private static ResourceLeakDetector.Level previousLeakDetectorLevel;
+    @GuardedBy("refCountLock")
+    private static ResourceLeakDetector.Level previousLeakDetectorLevel;
 
-	private static final Object refCountLock = new Object();
-	private static int refCount = 0;
+    private static final Object refCountLock = new Object();
+    private static int refCount = 0;
 
-	public NettyLeakDetectionResource() {
-		Assert.assertTrue(
-			"Error logging must be enabled for the ResourceLeakDetector.",
-			LoggerFactory.getLogger(ResourceLeakDetector.class).isErrorEnabled());
-	}
+    public NettyLeakDetectionResource() {
+        Assert.assertTrue(
+                "Error logging must be enabled for the ResourceLeakDetector.",
+                LoggerFactory.getLogger(ResourceLeakDetector.class).isErrorEnabled());
+    }
 
-	@Override
-	protected void before() {
-		synchronized (refCountLock) {
-			if (refCount == 0) {
-				previousLeakDetector = ResourceLeakDetectorFactory.instance();
-				previousLeakDetectorLevel = ResourceLeakDetector.getLevel();
+    @Override
+    protected void before() {
+        synchronized (refCountLock) {
+            if (refCount == 0) {
+                previousLeakDetector = ResourceLeakDetectorFactory.instance();
+                previousLeakDetectorLevel = ResourceLeakDetector.getLevel();
 
-				++refCount;
-				ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
-				ResourceLeakDetectorFactory
-					.setResourceLeakDetectorFactory(new FailingResourceLeakDetectorFactory());
-			}
-		}
-	}
+                ++refCount;
+                ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
+                ResourceLeakDetectorFactory.setResourceLeakDetectorFactory(
+                        new FailingResourceLeakDetectorFactory());
+            }
+        }
+    }
 
-	@Override
-	protected synchronized void after() {
-		synchronized (refCountLock) {
-			--refCount;
-			if (refCount == 0) {
-				ResourceLeakDetectorFactory.setResourceLeakDetectorFactory(previousLeakDetector);
-				ResourceLeakDetector.setLevel(previousLeakDetectorLevel);
-			}
-		}
-	}
+    @Override
+    protected synchronized void after() {
+        synchronized (refCountLock) {
+            --refCount;
+            if (refCount == 0) {
+                ResourceLeakDetectorFactory.setResourceLeakDetectorFactory(previousLeakDetector);
+                ResourceLeakDetector.setLevel(previousLeakDetectorLevel);
+            }
+        }
+    }
 
-	private static class FailingResourceLeakDetectorFactory extends ResourceLeakDetectorFactory {
-		public <T> ResourceLeakDetector<T> newResourceLeakDetector(
-			Class<T> resource, int samplingInterval, long maxActive) {
-			return new FailingResourceLeakDetector<T>(resource, samplingInterval, maxActive);
-		}
-	}
+    private static class FailingResourceLeakDetectorFactory extends ResourceLeakDetectorFactory {
+        public <T> ResourceLeakDetector<T> newResourceLeakDetector(
+                Class<T> resource, int samplingInterval, long maxActive) {
+            return new FailingResourceLeakDetector<T>(resource, samplingInterval, maxActive);
+        }
+    }
 
-	private static class FailingResourceLeakDetector<T> extends ResourceLeakDetector<T> {
-		FailingResourceLeakDetector(Class<?> resourceType, int samplingInterval, long maxActive) {
-			super(resourceType, samplingInterval, maxActive);
-		}
+    private static class FailingResourceLeakDetector<T> extends ResourceLeakDetector<T> {
+        FailingResourceLeakDetector(Class<?> resourceType, int samplingInterval, long maxActive) {
+            super(resourceType, samplingInterval, maxActive);
+        }
 
-		@Override
-		protected void reportTracedLeak(String resourceType, String records) {
-			super.reportTracedLeak(resourceType, records);
-			fail(String.format("LEAK: %s.release() was not called before it's garbage-collected.%s",
-				resourceType, records));
-		}
+        @Override
+        protected void reportTracedLeak(String resourceType, String records) {
+            super.reportTracedLeak(resourceType, records);
+            fail(
+                    String.format(
+                            "LEAK: %s.release() was not called before it's garbage-collected.%s",
+                            resourceType, records));
+        }
 
-		@Override
-		protected void reportUntracedLeak(String resourceType) {
-			super.reportUntracedLeak(resourceType);
-			fail(String.format("LEAK: %s.release() was not called before it's garbage-collected.",
-				resourceType));
-		}
-	}
+        @Override
+        protected void reportUntracedLeak(String resourceType) {
+            super.reportUntracedLeak(resourceType);
+            fail(
+                    String.format(
+                            "LEAK: %s.release() was not called before it's garbage-collected.",
+                            resourceType));
+        }
+    }
 }

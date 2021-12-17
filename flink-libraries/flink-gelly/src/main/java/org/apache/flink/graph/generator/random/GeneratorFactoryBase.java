@@ -24,49 +24,54 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * This base class handles the task of dividing the requested work into the
- * appropriate number of blocks of near-equal size.
+ * This base class handles the task of dividing the requested work into the appropriate number of
+ * blocks of near-equal size.
  *
  * @param <T> the type of the {@code RandomGenerator}
  */
 public abstract class GeneratorFactoryBase<T extends RandomGenerator>
-implements RandomGenerableFactory<T> {
+        implements RandomGenerableFactory<T> {
 
-	// A large computation will run in parallel but blocks are generated on
-	// and distributed from a single node. This limit should be greater
-	// than the maximum expected parallelism.
-	public static final int MAXIMUM_BLOCK_COUNT = 1 << 15;
+    // A large computation will run in parallel but blocks are generated on
+    // and distributed from a single node. This limit should be greater
+    // than the maximum expected parallelism.
+    public static final int MAXIMUM_BLOCK_COUNT = 1 << 15;
 
-	// This should be sufficiently large relative to the cost of instantiating
-	// and initializing the random generator and sufficiently small relative to
-	// the cost of generating random values.
-	protected abstract int getMinimumCyclesPerBlock();
+    // This should be sufficiently large relative to the cost of instantiating
+    // and initializing the random generator and sufficiently small relative to
+    // the cost of generating random values.
+    protected abstract int getMinimumCyclesPerBlock();
 
-	protected abstract RandomGenerable<T> next();
+    protected abstract RandomGenerable<T> next();
 
-	@Override
-	public List<BlockInfo<T>> getRandomGenerables(long elementCount, int cyclesPerElement) {
-		long cycles = elementCount * cyclesPerElement;
-		int blockCount = Math.min((int) Math.ceil(cycles / (float) getMinimumCyclesPerBlock()), MAXIMUM_BLOCK_COUNT);
+    @Override
+    public List<BlockInfo<T>> getRandomGenerables(long elementCount, int cyclesPerElement) {
+        long cycles = elementCount * cyclesPerElement;
+        int blockCount =
+                Math.min(
+                        (int) Math.ceil(cycles / (float) getMinimumCyclesPerBlock()),
+                        MAXIMUM_BLOCK_COUNT);
 
-		long elementsPerBlock = elementCount / blockCount;
-		long elementRemainder = elementCount % blockCount;
+        long elementsPerBlock = elementCount / blockCount;
+        long elementRemainder = elementCount % blockCount;
 
-		List<BlockInfo<T>> blocks = new ArrayList<>(blockCount);
-		long blockStart = 0;
+        List<BlockInfo<T>> blocks = new ArrayList<>(blockCount);
+        long blockStart = 0;
 
-		for (int blockIndex = 0; blockIndex < blockCount; blockIndex++) {
-			if (blockIndex == blockCount - elementRemainder) {
-				elementsPerBlock++;
-			}
+        for (int blockIndex = 0; blockIndex < blockCount; blockIndex++) {
+            if (blockIndex == blockCount - elementRemainder) {
+                elementsPerBlock++;
+            }
 
-			RandomGenerable<T> randomGenerable = next();
+            RandomGenerable<T> randomGenerable = next();
 
-			blocks.add(new BlockInfo<>(randomGenerable, blockIndex, blockCount, blockStart, elementsPerBlock));
+            blocks.add(
+                    new BlockInfo<>(
+                            randomGenerable, blockIndex, blockCount, blockStart, elementsPerBlock));
 
-			blockStart += elementsPerBlock;
-		}
+            blockStart += elementsPerBlock;
+        }
 
-		return blocks;
-	}
+        return blocks;
+    }
 }

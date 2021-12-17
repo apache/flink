@@ -27,55 +27,62 @@ import org.apache.flink.util.Preconditions;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Optional;
 
 /**
- * Wrapper around a {@link StreamStateHandle} to make the referenced state object retrievable trough a simple get call.
- * This implementation expects that the object was serialized through default serialization of Java's
- * {@link java.io.ObjectOutputStream}.
+ * Wrapper around a {@link StreamStateHandle} to make the referenced state object retrievable trough
+ * a simple get call. This implementation expects that the object was serialized through default
+ * serialization of Java's {@link java.io.ObjectOutputStream}.
  *
  * @param <T> type of the retrievable object which is stored under the wrapped stream handle
  */
-public class RetrievableStreamStateHandle<T extends Serializable> implements
-		StreamStateHandle, RetrievableStateHandle<T>, Closeable {
+public class RetrievableStreamStateHandle<T extends Serializable>
+        implements StreamStateHandle, RetrievableStateHandle<T>, Closeable {
 
-	private static final long serialVersionUID = 314567453677355L;
+    private static final long serialVersionUID = 314567453677355L;
 
-	/** wrapped inner stream state handle from which we deserialize on retrieval */
-	private final StreamStateHandle wrappedStreamStateHandle;
+    /** wrapped inner stream state handle from which we deserialize on retrieval */
+    private final StreamStateHandle wrappedStreamStateHandle;
 
-	public RetrievableStreamStateHandle(StreamStateHandle streamStateHandle) {
-		this.wrappedStreamStateHandle = Preconditions.checkNotNull(streamStateHandle);
-	}
+    public RetrievableStreamStateHandle(StreamStateHandle streamStateHandle) {
+        this.wrappedStreamStateHandle = Preconditions.checkNotNull(streamStateHandle);
+    }
 
-	public RetrievableStreamStateHandle(Path filePath, long stateSize) {
-		Preconditions.checkNotNull(filePath);
-		this.wrappedStreamStateHandle = new FileStateHandle(filePath, stateSize);
-	}
+    public RetrievableStreamStateHandle(Path filePath, long stateSize) {
+        Preconditions.checkNotNull(filePath);
+        this.wrappedStreamStateHandle = new FileStateHandle(filePath, stateSize);
+    }
 
-	@Override
-	public T retrieveState() throws IOException, ClassNotFoundException {
-		try (FSDataInputStream in = openInputStream()) {
-			return InstantiationUtil.deserializeObject(in, Thread.currentThread().getContextClassLoader());
-		}
-	}
+    @Override
+    public T retrieveState() throws IOException, ClassNotFoundException {
+        try (FSDataInputStream in = openInputStream()) {
+            return InstantiationUtil.deserializeObject(
+                    in, Thread.currentThread().getContextClassLoader());
+        }
+    }
 
-	@Override
-	public FSDataInputStream openInputStream() throws IOException {
-		return wrappedStreamStateHandle.openInputStream();
-	}
+    @Override
+    public FSDataInputStream openInputStream() throws IOException {
+        return wrappedStreamStateHandle.openInputStream();
+    }
 
-	@Override
-	public void discardState() throws Exception {
-		wrappedStreamStateHandle.discardState();
-	}
+    @Override
+    public Optional<byte[]> asBytesIfInMemory() {
+        return wrappedStreamStateHandle.asBytesIfInMemory();
+    }
 
-	@Override
-	public long getStateSize() {
-		return wrappedStreamStateHandle.getStateSize();
-	}
+    @Override
+    public void discardState() throws Exception {
+        wrappedStreamStateHandle.discardState();
+    }
 
-	@Override
-	public void close() throws IOException {
-//		wrappedStreamStateHandle.close();
-	}
+    @Override
+    public long getStateSize() {
+        return wrappedStreamStateHandle.getStateSize();
+    }
+
+    @Override
+    public void close() throws IOException {
+        //		wrappedStreamStateHandle.close();
+    }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,17 +32,17 @@ import static org.junit.Assert.assertTrue;
  * @param <T> element type
  */
 public final class ReceiveCheckNoOpSink<T> extends RichSinkFunction<T> {
-	private List<T> received;
+    private List<T> received;
 
-	public void invoke(T tuple) {
-		received.add(tuple);
-	}
+    public void invoke(T tuple) {
+        received.add(tuple);
+    }
 
-	public void open(Configuration conf) {
-		received = new ArrayList<T>();
-	}
+    public void open(Configuration conf) {
+        received = new ArrayList<T>();
+    }
 
-	public void close() {
-		assertTrue(received.size() > 0);
-	}
+    public void close() {
+        assertTrue(received.size() > 0);
+    }
 }

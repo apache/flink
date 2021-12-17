@@ -18,10 +18,6 @@
 
 package org.apache.flink.optimizer.custompartition;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.java.DataSet;
@@ -36,61 +32,70 @@ import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.testfunctions.IdentityGroupReducerCombinable;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class CustomPartitioningGlobalOptimizationTest extends CompilerTestBase {
 
-	@Test
-	public void testJoinReduceCombination() {
-		try {
-			final Partitioner<Long> partitioner = new TestPartitionerLong();
-			
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			
-			DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(0L, 0L));
-			DataSet<Tuple3<Long, Long, Long>> input2 = env.fromElements(new Tuple3<Long, Long, Long>(0L, 0L, 0L));
+    @Test
+    public void testJoinReduceCombination() {
+        try {
+            final Partitioner<Long> partitioner = new TestPartitionerLong();
 
-			DataSet<Tuple3<Long, Long, Long>> joined = input1.join(input2)
-				.where(1).equalTo(0)
-				.projectFirst(0, 1)
-				.<Tuple3<Long, Long, Long>>projectSecond(2)
-				.withPartitioner(partitioner);
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-			joined.groupBy(1).withPartitioner(partitioner)
-					.reduceGroup(new IdentityGroupReducerCombinable<Tuple3<Long,Long,Long>>())
-				.output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
+            DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(0L, 0L));
+            DataSet<Tuple3<Long, Long, Long>> input2 =
+                    env.fromElements(new Tuple3<Long, Long, Long>(0L, 0L, 0L));
 
-			Plan p = env.createProgramPlan();
-			OptimizedPlan op = compileNoStats(p);
-			
-			SinkPlanNode sink = op.getDataSinks().iterator().next();
-			SingleInputPlanNode reducer = (SingleInputPlanNode) sink.getInput().getSource();
-			
-			assertTrue("Reduce is not chained, property reuse does not happen", 
-					reducer.getInput().getSource() instanceof DualInputPlanNode);
-			
-			DualInputPlanNode join = (DualInputPlanNode) reducer.getInput().getSource();
-			
-			assertEquals(ShipStrategyType.PARTITION_CUSTOM, join.getInput1().getShipStrategy());
-			assertEquals(ShipStrategyType.PARTITION_CUSTOM, join.getInput2().getShipStrategy());
-			assertEquals(partitioner, join.getInput1().getPartitioner());
-			assertEquals(partitioner, join.getInput2().getPartitioner());
-			
-			assertEquals(ShipStrategyType.FORWARD, reducer.getInput().getShipStrategy());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	private static class TestPartitionerLong implements Partitioner<Long> {
-		@Override
-		public int partition(Long key, int numPartitions) {
-			return 0;
-		}
-	}
+            DataSet<Tuple3<Long, Long, Long>> joined =
+                    input1.join(input2)
+                            .where(1)
+                            .equalTo(0)
+                            .projectFirst(0, 1)
+                            .<Tuple3<Long, Long, Long>>projectSecond(2)
+                            .withPartitioner(partitioner);
+
+            joined.groupBy(1)
+                    .withPartitioner(partitioner)
+                    .reduceGroup(new IdentityGroupReducerCombinable<Tuple3<Long, Long, Long>>())
+                    .output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
+
+            Plan p = env.createProgramPlan();
+            OptimizedPlan op = compileNoStats(p);
+
+            SinkPlanNode sink = op.getDataSinks().iterator().next();
+            SingleInputPlanNode reducer = (SingleInputPlanNode) sink.getInput().getSource();
+
+            assertTrue(
+                    "Reduce is not chained, property reuse does not happen",
+                    reducer.getInput().getSource() instanceof DualInputPlanNode);
+
+            DualInputPlanNode join = (DualInputPlanNode) reducer.getInput().getSource();
+
+            assertEquals(ShipStrategyType.PARTITION_CUSTOM, join.getInput1().getShipStrategy());
+            assertEquals(ShipStrategyType.PARTITION_CUSTOM, join.getInput2().getShipStrategy());
+            assertEquals(partitioner, join.getInput1().getPartitioner());
+            assertEquals(partitioner, join.getInput2().getPartitioner());
+
+            assertEquals(ShipStrategyType.FORWARD, reducer.getInput().getShipStrategy());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    private static class TestPartitionerLong implements Partitioner<Long> {
+        @Override
+        public int partition(Long key, int numPartitions) {
+            return 0;
+        }
+    }
 }

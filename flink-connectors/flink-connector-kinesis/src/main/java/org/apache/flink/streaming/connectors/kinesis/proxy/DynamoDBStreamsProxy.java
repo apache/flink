@@ -44,94 +44,91 @@ import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigCons
 import static org.apache.flink.streaming.connectors.kinesis.util.AWSUtil.getCredentialsProvider;
 import static org.apache.flink.streaming.connectors.kinesis.util.AWSUtil.setAwsClientConfigProperties;
 
-/**
- * DynamoDB streams proxy: interface interacting with the DynamoDB streams.
- */
+/** DynamoDB streams proxy: interface interacting with the DynamoDB streams. */
 public class DynamoDBStreamsProxy extends KinesisProxy {
-	private static final Logger LOG = LoggerFactory.getLogger(DynamoDBStreamsProxy.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DynamoDBStreamsProxy.class);
 
-	/** Used for formatting Flink-specific user agent string when creating Kinesis client. */
-	private static final String USER_AGENT_FORMAT = "Apache Flink %s (%s) DynamoDB Streams Connector";
+    /** Used for formatting Flink-specific user agent string when creating Kinesis client. */
+    private static final String USER_AGENT_FORMAT =
+            "Apache Flink %s (%s) DynamoDB Streams Connector";
 
-	protected DynamoDBStreamsProxy(Properties configProps) {
-		super(configProps);
-	}
+    protected DynamoDBStreamsProxy(Properties configProps) {
+        super(configProps);
+    }
 
-	/**
-	 * Creates a DynamoDB streams proxy.
-	 *
-	 * @param configProps configuration properties
-	 * @return the created DynamoDB streams proxy
-	 */
-	public static KinesisProxyInterface create(Properties configProps) {
-		return new DynamoDBStreamsProxy(configProps);
-	}
+    /**
+     * Creates a DynamoDB streams proxy.
+     *
+     * @param configProps configuration properties
+     * @return the created DynamoDB streams proxy
+     */
+    public static KinesisProxyInterface create(Properties configProps) {
+        return new DynamoDBStreamsProxy(configProps);
+    }
 
-	/**
-	 * Creates an AmazonDynamoDBStreamsAdapterClient.
-	 * Uses it as the internal client interacting with the DynamoDB streams.
-	 *
-	 * @param configProps configuration properties
-	 * @return an AWS DynamoDB streams adapter client
-	 */
-	@Override
-	protected AmazonKinesis createKinesisClient(Properties configProps) {
-		ClientConfiguration awsClientConfig = new ClientConfigurationFactory().getConfig();
-		setAwsClientConfigProperties(awsClientConfig, configProps);
+    /**
+     * Creates an AmazonDynamoDBStreamsAdapterClient. Uses it as the internal client interacting
+     * with the DynamoDB streams.
+     *
+     * @param configProps configuration properties
+     * @return an AWS DynamoDB streams adapter client
+     */
+    @Override
+    protected AmazonKinesis createKinesisClient(Properties configProps) {
+        ClientConfiguration awsClientConfig = new ClientConfigurationFactory().getConfig();
+        setAwsClientConfigProperties(awsClientConfig, configProps);
 
-		AWSCredentialsProvider credentials = getCredentialsProvider(configProps);
-		awsClientConfig.setUserAgentPrefix(
-				String.format(
-						USER_AGENT_FORMAT,
-						EnvironmentInformation.getVersion(),
-						EnvironmentInformation.getRevisionInformation().commitId));
+        AWSCredentialsProvider credentials = getCredentialsProvider(configProps);
+        awsClientConfig.setUserAgentPrefix(
+                String.format(
+                        USER_AGENT_FORMAT,
+                        EnvironmentInformation.getVersion(),
+                        EnvironmentInformation.getRevisionInformation().commitId));
 
-		AmazonDynamoDBStreamsAdapterClient adapterClient =
-				new AmazonDynamoDBStreamsAdapterClient(credentials, awsClientConfig);
+        AmazonDynamoDBStreamsAdapterClient adapterClient =
+                new AmazonDynamoDBStreamsAdapterClient(credentials, awsClientConfig);
 
-		if (configProps.containsKey(AWS_ENDPOINT)) {
-			adapterClient.setEndpoint(configProps.getProperty(AWS_ENDPOINT));
-		} else {
-			adapterClient.setRegion(Region.getRegion(
-					Regions.fromName(configProps.getProperty(AWS_REGION))));
-		}
+        if (configProps.containsKey(AWS_ENDPOINT)) {
+            adapterClient.setEndpoint(configProps.getProperty(AWS_ENDPOINT));
+        } else {
+            adapterClient.setRegion(
+                    Region.getRegion(Regions.fromName(configProps.getProperty(AWS_REGION))));
+        }
 
-		return adapterClient;
-	}
+        return adapterClient;
+    }
 
-	@Override
-	public GetShardListResult getShardList(
-			Map<String, String> streamNamesWithLastSeenShardIds) throws InterruptedException {
-		GetShardListResult result = new GetShardListResult();
+    @Override
+    public GetShardListResult getShardList(Map<String, String> streamNamesWithLastSeenShardIds)
+            throws InterruptedException {
+        GetShardListResult result = new GetShardListResult();
 
-		for (Map.Entry<String, String> streamNameWithLastSeenShardId :
-				streamNamesWithLastSeenShardIds.entrySet()) {
-			String stream = streamNameWithLastSeenShardId.getKey();
-			String lastSeenShardId = streamNameWithLastSeenShardId.getValue();
-			result.addRetrievedShardsToStream(stream, getShardsOfStream(stream, lastSeenShardId));
-		}
-		return result;
-	}
+        for (Map.Entry<String, String> streamNameWithLastSeenShardId :
+                streamNamesWithLastSeenShardIds.entrySet()) {
+            String stream = streamNameWithLastSeenShardId.getKey();
+            String lastSeenShardId = streamNameWithLastSeenShardId.getValue();
+            result.addRetrievedShardsToStream(stream, getShardsOfStream(stream, lastSeenShardId));
+        }
+        return result;
+    }
 
-	private List<StreamShardHandle> getShardsOfStream(
-			String streamName,
-			@Nullable String lastSeenShardId)
-			throws InterruptedException {
-		List<StreamShardHandle> shardsOfStream = new ArrayList<>();
+    private List<StreamShardHandle> getShardsOfStream(
+            String streamName, @Nullable String lastSeenShardId) throws InterruptedException {
+        List<StreamShardHandle> shardsOfStream = new ArrayList<>();
 
-		DescribeStreamResult describeStreamResult;
-		do {
-			describeStreamResult = describeStream(streamName, lastSeenShardId);
-			List<Shard> shards = describeStreamResult.getStreamDescription().getShards();
-			for (Shard shard : shards) {
-				shardsOfStream.add(new StreamShardHandle(streamName, shard));
-			}
+        DescribeStreamResult describeStreamResult;
+        do {
+            describeStreamResult = describeStream(streamName, lastSeenShardId);
+            List<Shard> shards = describeStreamResult.getStreamDescription().getShards();
+            for (Shard shard : shards) {
+                shardsOfStream.add(new StreamShardHandle(streamName, shard));
+            }
 
-			if (shards.size() != 0) {
-				lastSeenShardId = shards.get(shards.size() - 1).getShardId();
-			}
-		} while (describeStreamResult.getStreamDescription().isHasMoreShards());
+            if (shards.size() != 0) {
+                lastSeenShardId = shards.get(shards.size() - 1).getShardId();
+            }
+        } while (describeStreamResult.getStreamDescription().isHasMoreShards());
 
-		return shardsOfStream;
-	}
+        return shardsOfStream;
+    }
 }

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.messages;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -37,87 +36,105 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.Optional;
+import java.util.Random;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.generateKeyGroupState;
+import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.generatePartitionableStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for checkpoint messages.
- */
+/** Tests for checkpoint messages. */
 public class CheckpointMessagesTest {
 
-	@Test
-	public void testConfirmTaskCheckpointed() {
-		try {
-			AcknowledgeCheckpoint noState = new AcknowledgeCheckpoint(
-					new JobID(), new ExecutionAttemptID(), 569345L);
+    @Test
+    public void testConfirmTaskCheckpointed() {
+        final Random rnd = new Random();
+        try {
+            AcknowledgeCheckpoint noState =
+                    new AcknowledgeCheckpoint(new JobID(), new ExecutionAttemptID(), 569345L);
 
-			KeyGroupRange keyGroupRange = KeyGroupRange.of(42, 42);
+            KeyGroupRange keyGroupRange = KeyGroupRange.of(42, 42);
 
-			TaskStateSnapshot checkpointStateHandles = new TaskStateSnapshot();
-			checkpointStateHandles.putSubtaskStateByOperatorID(
-				new OperatorID(),
-				new OperatorSubtaskState(
-					CheckpointCoordinatorTestingUtils.generatePartitionableStateHandle(new JobVertexID(), 0, 2, 8, false),
-					null,
-					CheckpointCoordinatorTestingUtils.generateKeyGroupState(keyGroupRange, Collections.singletonList(new MyHandle())),
-					null
-				)
-			);
+            TaskStateSnapshot checkpointStateHandles = new TaskStateSnapshot();
+            OperatorSubtaskState subtaskState =
+                    OperatorSubtaskState.builder()
+                            .setManagedOperatorState(
+                                    generatePartitionableStateHandle(
+                                            new JobVertexID(), 0, 2, 8, false))
+                            .setManagedKeyedState(
+                                    generateKeyGroupState(
+                                            keyGroupRange,
+                                            Collections.singletonList(new MyHandle())))
+                            .setInputChannelState(
+                                    singleton(createNewInputChannelStateHandle(10, rnd)))
+                            .setResultSubpartitionState(
+                                    singleton(createNewResultSubpartitionStateHandle(10, rnd)))
+                            .build();
+            checkpointStateHandles.putSubtaskStateByOperatorID(new OperatorID(), subtaskState);
 
-			AcknowledgeCheckpoint withState = new AcknowledgeCheckpoint(
-					new JobID(),
-					new ExecutionAttemptID(),
-					87658976143L,
-					new CheckpointMetrics(),
-					checkpointStateHandles);
+            AcknowledgeCheckpoint withState =
+                    new AcknowledgeCheckpoint(
+                            new JobID(),
+                            new ExecutionAttemptID(),
+                            87658976143L,
+                            new CheckpointMetrics(),
+                            checkpointStateHandles);
 
-			testSerializabilityEqualsHashCode(noState);
-			testSerializabilityEqualsHashCode(withState);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            testSerializabilityEqualsHashCode(noState);
+            testSerializabilityEqualsHashCode(withState);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	private static void testSerializabilityEqualsHashCode(Serializable o) throws IOException {
-		Object copy = CommonTestUtils.createCopySerializable(o);
-		assertEquals(o, copy);
-		assertEquals(o.hashCode(), copy.hashCode());
-		assertNotNull(o.toString());
-		assertNotNull(copy.toString());
-	}
+    private static void testSerializabilityEqualsHashCode(Serializable o) throws IOException {
+        Object copy = CommonTestUtils.createCopySerializable(o);
+        assertEquals(o, copy);
+        assertEquals(o.hashCode(), copy.hashCode());
+        assertNotNull(o.toString());
+        assertNotNull(copy.toString());
+    }
 
-	private static class MyHandle implements StreamStateHandle {
+    private static class MyHandle implements StreamStateHandle {
 
-		private static final long serialVersionUID = 8128146204128728332L;
+        private static final long serialVersionUID = 8128146204128728332L;
 
-		public Serializable get(ClassLoader userCodeClassLoader) {
-			return null;
-		}
+        public Serializable get(ClassLoader userCodeClassLoader) {
+            return null;
+        }
 
-		@Override
-		public boolean equals(Object obj) {
-			return obj.getClass() == this.getClass();
-		}
+        @Override
+        public boolean equals(Object obj) {
+            return obj.getClass() == this.getClass();
+        }
 
-		@Override
-		public int hashCode() {
-			return getClass().hashCode();
-		}
+        @Override
+        public int hashCode() {
+            return getClass().hashCode();
+        }
 
-		@Override
-		public void discardState() throws Exception {}
+        @Override
+        public void discardState() throws Exception {}
 
-		@Override
-		public long getStateSize() {
-			return 0;
-		}
+        @Override
+        public long getStateSize() {
+            return 0;
+        }
 
-		@Override
-		public FSDataInputStream openInputStream() throws IOException {
-			return null;
-		}
-	}
+        @Override
+        public FSDataInputStream openInputStream() throws IOException {
+            return null;
+        }
+
+        @Override
+        public Optional<byte[]> asBytesIfInMemory() {
+            return Optional.empty();
+        }
+    }
 }

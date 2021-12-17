@@ -23,53 +23,48 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
 
 /**
- * A {@code DataSetAnalytic} is similar to a {@link CustomUnaryOperation} but
- * is terminal and results are retrieved via accumulators. A Flink program has
- * a single point of execution. A {@code DataSetAnalytic} defers execution to
- * the user to allow composing multiple analytics and algorithms into a single
- * program.
+ * A {@code DataSetAnalytic} is similar to a {@link CustomUnaryOperation} but is terminal and
+ * results are retrieved via accumulators. A Flink program has a single point of execution. A {@code
+ * DataSetAnalytic} defers execution to the user to allow composing multiple analytics and
+ * algorithms into a single program.
  *
  * @param <T> element type
  * @param <R> the return type
  */
 public interface DataSetAnalytic<T, R> {
 
-	/**
-	 * All {@code DataSetAnalytic} processing must be terminated by an
-	 * {@link OutputFormat} and obtained via accumulators rather than
-	 * returned by a {@link DataSet}.
-	 *
-	 * @param input input dataset
-	 * @return this
-	 * @throws Exception
-	 */
+    /**
+     * All {@code DataSetAnalytic} processing must be terminated by an {@link OutputFormat} and
+     * obtained via accumulators rather than returned by a {@link DataSet}.
+     *
+     * @param input input dataset
+     * @return this
+     * @throws Exception
+     */
+    DataSetAnalytic<T, R> run(DataSet<T> input) throws Exception;
 
-	DataSetAnalytic<T, R> run(DataSet<T> input) throws Exception;
+    /**
+     * Execute the program and return the result.
+     *
+     * @return the result
+     * @throws Exception
+     */
+    R execute() throws Exception;
 
-	/**
-	 * Execute the program and return the result.
-	 *
-	 * @return the result
-	 * @throws Exception
-	 */
-	R execute() throws Exception;
+    /**
+     * Execute the program and return the result.
+     *
+     * @param jobName the name to assign to the job
+     * @return the result
+     * @throws Exception
+     */
+    R execute(String jobName) throws Exception;
 
-	/**
-	 * Execute the program and return the result.
-	 *
-	 * @param jobName the name to assign to the job
-	 * @return the result
-	 * @throws Exception
-	 */
-	R execute(String jobName) throws Exception;
-
-	/**
-	 * This method must be called after the program has executed.
-	 *  1) "run" analytics and algorithms
-	 *  2) call ExecutionEnvironment.execute()
-	 *  3) get analytic results
-	 *
-	 * @return the result
-	 */
-	R getResult();
+    /**
+     * This method must be called after the program has executed. 1) "run" analytics and algorithms
+     * 2) call ExecutionEnvironment.execute() 3) get analytic results
+     *
+     * @return the result
+     */
+    R getResult();
 }

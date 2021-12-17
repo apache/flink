@@ -35,135 +35,131 @@ import org.junit.Before;
 import java.util.LinkedList;
 import java.util.List;
 
-/**
- * Simple graphs for testing graph assembly functions.
- */
+/** Simple graphs for testing graph assembly functions. */
 public class AsmTestBase {
 
-	protected ExecutionEnvironment env;
+    protected ExecutionEnvironment env;
 
-	protected static final double ACCURACY = 0.000001;
+    protected static final double ACCURACY = 0.000001;
 
-	// simple graph
-	protected Graph<IntValue, NullValue, NullValue> directedSimpleGraph;
+    // simple graph
+    protected Graph<IntValue, NullValue, NullValue> directedSimpleGraph;
 
-	protected Graph<IntValue, NullValue, NullValue> undirectedSimpleGraph;
+    protected Graph<IntValue, NullValue, NullValue> undirectedSimpleGraph;
 
-	// complete graph
-	protected final long completeGraphVertexCount = 47;
+    // complete graph
+    protected final long completeGraphVertexCount = 47;
 
-	protected Graph<LongValue, NullValue, NullValue> completeGraph;
+    protected Graph<LongValue, NullValue, NullValue> completeGraph;
 
-	// empty graph
-	protected final long emptyGraphVertexCount = 3;
+    // empty graph
+    protected final long emptyGraphVertexCount = 3;
 
-	protected Graph<LongValue, NullValue, NullValue> emptyGraphWithVertices;
+    protected Graph<LongValue, NullValue, NullValue> emptyGraphWithVertices;
 
-	protected Graph<LongValue, NullValue, NullValue> emptyGraphWithoutVertices;
+    protected Graph<LongValue, NullValue, NullValue> emptyGraphWithoutVertices;
 
-	// star graph
-	protected final long starGraphVertexCount = 29;
+    // star graph
+    protected final long starGraphVertexCount = 29;
 
-	protected Graph<LongValue, NullValue, NullValue> starGraph;
+    protected Graph<LongValue, NullValue, NullValue> starGraph;
 
-	@Before
-	public void setup() throws Exception {
-		env = ExecutionEnvironment.createCollectionsEnvironment();
-		env.getConfig().enableObjectReuse();
+    @Before
+    public void setup() throws Exception {
+        env = ExecutionEnvironment.createCollectionsEnvironment();
+        env.getConfig().enableObjectReuse();
 
-		// a "fish" graph
-		Object[][] edges = new Object[][]{
-			new Object[]{0, 1},
-			new Object[]{0, 2},
-			new Object[]{2, 1},
-			new Object[]{2, 3},
-			new Object[]{3, 1},
-			new Object[]{3, 4},
-			new Object[]{5, 3},
-		};
+        // a "fish" graph
+        Object[][] edges =
+                new Object[][] {
+                    new Object[] {0, 1},
+                    new Object[] {0, 2},
+                    new Object[] {2, 1},
+                    new Object[] {2, 3},
+                    new Object[] {3, 1},
+                    new Object[] {3, 4},
+                    new Object[] {5, 3},
+                };
 
-		List<Edge<IntValue, NullValue>> directedEdgeList = new LinkedList<>();
+        List<Edge<IntValue, NullValue>> directedEdgeList = new LinkedList<>();
 
-		for (Object[] edge : edges) {
-			directedEdgeList.add(new Edge<>(new IntValue((int) edge[0]), new IntValue((int) edge[1]), NullValue.getInstance()));
-		}
+        for (Object[] edge : edges) {
+            directedEdgeList.add(
+                    new Edge<>(
+                            new IntValue((int) edge[0]),
+                            new IntValue((int) edge[1]),
+                            NullValue.getInstance()));
+        }
 
-		directedSimpleGraph = Graph.fromCollection(directedEdgeList, env);
-		undirectedSimpleGraph = directedSimpleGraph
-			.getUndirected();
+        directedSimpleGraph = Graph.fromCollection(directedEdgeList, env);
+        undirectedSimpleGraph = directedSimpleGraph.getUndirected();
 
-		// complete graph
-		completeGraph = new CompleteGraph(env, completeGraphVertexCount)
-			.generate();
+        // complete graph
+        completeGraph = new CompleteGraph(env, completeGraphVertexCount).generate();
 
-		// empty graph with vertices but no edges
-		emptyGraphWithVertices = new EmptyGraph(env, emptyGraphVertexCount)
-			.generate();
+        // empty graph with vertices but no edges
+        emptyGraphWithVertices = new EmptyGraph(env, emptyGraphVertexCount).generate();
 
-		// empty graph with no vertices or edges
-		emptyGraphWithoutVertices = new EmptyGraph(env, 0)
-			.generate();
+        // empty graph with no vertices or edges
+        emptyGraphWithoutVertices = new EmptyGraph(env, 0).generate();
 
-		// star graph
-		starGraph = new StarGraph(env, starGraphVertexCount)
-			.generate();
-	}
+        // star graph
+        starGraph = new StarGraph(env, starGraphVertexCount).generate();
+    }
 
-	/**
-	 * Generate a directed RMat graph. Tests are usually run on a graph with
-	 * scale=10 and edgeFactor=16 but algorithms generating very large DataSets
-	 * require smaller input graphs.
-	 *
-	 * <p>The examples program can write this graph as a CSV file for verifying
-	 * algorithm results with external libraries:
-	 *
-	 * <pre>
-	 * ./bin/flink run examples/flink-gelly-examples_*.jar --algorithm EdgeList \
-	 *     --input RMatGraph --type long --simplify directed --scale $SCALE --edge_factor $EDGE_FACTOR \
-	 *     --output csv --filename directedRMatGraph.csv
-	 * </pre>
-	 *
-	 * @param scale vertices are generated in the range [0, 2<sup>scale</sup>)
-	 * @param edgeFactor the edge count is {@code edgeFactor} * 2<sup>scale</sup>
-	 * @return directed RMat graph
-	 * @throws Exception on error
-	 */
-	protected Graph<LongValue, NullValue, NullValue> directedRMatGraph(int scale, int edgeFactor)
-			throws Exception {
-		long vertexCount = 1L << scale;
-		long edgeCount = edgeFactor * vertexCount;
+    /**
+     * Generate a directed RMat graph. Tests are usually run on a graph with scale=10 and
+     * edgeFactor=16 but algorithms generating very large DataSets require smaller input graphs.
+     *
+     * <p>The examples program can write this graph as a CSV file for verifying algorithm results
+     * with external libraries:
+     *
+     * <pre>
+     * ./bin/flink run examples/flink-gelly-examples_*.jar --algorithm EdgeList \
+     *     --input RMatGraph --type long --simplify directed --scale $SCALE --edge_factor $EDGE_FACTOR \
+     *     --output csv --filename directedRMatGraph.csv
+     * </pre>
+     *
+     * @param scale vertices are generated in the range [0, 2<sup>scale</sup>)
+     * @param edgeFactor the edge count is {@code edgeFactor} * 2<sup>scale</sup>
+     * @return directed RMat graph
+     * @throws Exception on error
+     */
+    protected Graph<LongValue, NullValue, NullValue> directedRMatGraph(int scale, int edgeFactor)
+            throws Exception {
+        long vertexCount = 1L << scale;
+        long edgeCount = edgeFactor * vertexCount;
 
-		return new RMatGraph<>(env, new JDKRandomGeneratorFactory(), vertexCount, edgeCount)
-			.generate()
-			.run(new org.apache.flink.graph.asm.simple.directed.Simplify<>());
-	}
+        return new RMatGraph<>(env, new JDKRandomGeneratorFactory(), vertexCount, edgeCount)
+                .generate()
+                .run(new org.apache.flink.graph.asm.simple.directed.Simplify<>());
+    }
 
-	/**
-	 * Generate an undirected RMat graph. Tests are usually run on a graph with
-	 * scale=10 and edgeFactor=16 but algorithms generating very large DataSets
-	 * require smaller input graphs.
-	 *
-	 * <p>The examples program can write this graph as a CSV file for verifying
-	 * algorithm results with external libraries:
-	 *
-	 * <pre>
-	 * ./bin/flink run examples/flink-gelly-examples_*.jar --algorithm EdgeList \
-	 *     --input RMatGraph --type long --simplify undirected --scale $SCALE --edge_factor $EDGE_FACTOR \
-	 *     --output csv --filename undirectedRMatGraph.csv
-	 * </pre>
-	 *
-	 * @param scale vertices are generated in the range [0, 2<sup>scale</sup>)
-	 * @param edgeFactor the edge count is {@code edgeFactor} * 2<sup>scale</sup>
-	 * @return undirected RMat graph
-	 * @throws Exception on error
-	 */
-	protected Graph<LongValue, NullValue, NullValue> undirectedRMatGraph(int scale, int edgeFactor)
-			throws Exception {
-		long vertexCount = 1L << scale;
-		long edgeCount = edgeFactor * vertexCount;
+    /**
+     * Generate an undirected RMat graph. Tests are usually run on a graph with scale=10 and
+     * edgeFactor=16 but algorithms generating very large DataSets require smaller input graphs.
+     *
+     * <p>The examples program can write this graph as a CSV file for verifying algorithm results
+     * with external libraries:
+     *
+     * <pre>
+     * ./bin/flink run examples/flink-gelly-examples_*.jar --algorithm EdgeList \
+     *     --input RMatGraph --type long --simplify undirected --scale $SCALE --edge_factor $EDGE_FACTOR \
+     *     --output csv --filename undirectedRMatGraph.csv
+     * </pre>
+     *
+     * @param scale vertices are generated in the range [0, 2<sup>scale</sup>)
+     * @param edgeFactor the edge count is {@code edgeFactor} * 2<sup>scale</sup>
+     * @return undirected RMat graph
+     * @throws Exception on error
+     */
+    protected Graph<LongValue, NullValue, NullValue> undirectedRMatGraph(int scale, int edgeFactor)
+            throws Exception {
+        long vertexCount = 1L << scale;
+        long edgeCount = edgeFactor * vertexCount;
 
-		return new RMatGraph<>(env, new JDKRandomGeneratorFactory(), vertexCount, edgeCount)
-			.generate()
-			.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<>(false));
-	}
+        return new RMatGraph<>(env, new JDKRandomGeneratorFactory(), vertexCount, edgeCount)
+                .generate()
+                .run(new org.apache.flink.graph.asm.simple.undirected.Simplify<>(false));
+    }
 }

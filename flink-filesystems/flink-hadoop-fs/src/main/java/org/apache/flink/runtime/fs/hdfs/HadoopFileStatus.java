@@ -22,65 +22,73 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
 
 /**
- * Concrete implementation of the {@link FileStatus} interface for the
- * Hadoop Distribution File System.
+ * Concrete implementation of the {@link FileStatus} interface for the Hadoop Distributed File
+ * System.
  */
-public final class HadoopFileStatus implements FileStatus {
+public class HadoopFileStatus implements FileStatus {
 
-	private org.apache.hadoop.fs.FileStatus fileStatus;
+    private final org.apache.hadoop.fs.FileStatus fileStatus;
 
-	/**
-	 * Creates a new file status from an HDFS file status.
-	 *
-	 * @param fileStatus
-	 *        the HDFS file status
-	 */
-	public HadoopFileStatus(org.apache.hadoop.fs.FileStatus fileStatus) {
-		this.fileStatus = fileStatus;
-	}
+    /**
+     * Creates a new file status from an HDFS file status.
+     *
+     * @param fileStatus the HDFS file status
+     */
+    public HadoopFileStatus(org.apache.hadoop.fs.FileStatus fileStatus) {
+        this.fileStatus = fileStatus;
+    }
 
-	@Override
-	public long getLen() {
-		return fileStatus.getLen();
-	}
+    @Override
+    public long getLen() {
+        return fileStatus.getLen();
+    }
 
-	@Override
-	public long getBlockSize() {
-		long blocksize = fileStatus.getBlockSize();
-		if (blocksize > fileStatus.getLen()) {
-			return fileStatus.getLen();
-		}
+    @Override
+    public long getBlockSize() {
+        return Math.min(fileStatus.getBlockSize(), fileStatus.getLen());
+    }
 
-		return blocksize;
-	}
+    @Override
+    public long getAccessTime() {
+        return fileStatus.getAccessTime();
+    }
 
-	@Override
-	public long getAccessTime() {
-		return fileStatus.getAccessTime();
-	}
+    @Override
+    public long getModificationTime() {
+        return fileStatus.getModificationTime();
+    }
 
-	@Override
-	public long getModificationTime() {
-		return fileStatus.getModificationTime();
-	}
+    @Override
+    public short getReplication() {
+        return fileStatus.getReplication();
+    }
 
-	@Override
-	public short getReplication() {
-		return fileStatus.getReplication();
-	}
+    @Override
+    public Path getPath() {
+        return new Path(fileStatus.getPath().toUri());
+    }
 
-	public org.apache.hadoop.fs.FileStatus getInternalFileStatus() {
-		return this.fileStatus;
-	}
+    @Override
+    public boolean isDir() {
+        return fileStatus.isDirectory();
+    }
 
-	@Override
-	public Path getPath() {
-		return new Path(fileStatus.getPath().toUri());
-	}
+    public org.apache.hadoop.fs.FileStatus getInternalFileStatus() {
+        return this.fileStatus;
+    }
 
-	@SuppressWarnings("deprecation")
-	@Override
-	public boolean isDir() {
-		return fileStatus.isDir();
-	}
+    // ------------------------------------------------------------------------
+
+    /**
+     * Creates a new {@code HadoopFileStatus} from Hadoop's {@link org.apache.hadoop.fs.FileStatus}.
+     * If Hadoop's file status is <i>located</i>, i.e., it contains block information, then this
+     * method returns an implementation of Flink's {@link
+     * org.apache.flink.core.fs.LocatedFileStatus}.
+     */
+    public static HadoopFileStatus fromHadoopStatus(
+            final org.apache.hadoop.fs.FileStatus fileStatus) {
+        return fileStatus instanceof org.apache.hadoop.fs.LocatedFileStatus
+                ? new LocatedHadoopFileStatus((org.apache.hadoop.fs.LocatedFileStatus) fileStatus)
+                : new HadoopFileStatus(fileStatus);
+    }
 }

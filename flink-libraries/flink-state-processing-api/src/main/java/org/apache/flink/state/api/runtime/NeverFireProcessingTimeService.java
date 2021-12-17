@@ -22,57 +22,58 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.util.concurrent.NeverCompleteFuture;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * A processing time service whose timers never fire so all timers are included in savepoints.
- */
+/** A processing time service whose timers never fire so all timers are included in savepoints. */
 @Internal
 public final class NeverFireProcessingTimeService implements TimerService {
-	private static final NeverCompleteFuture FUTURE = new NeverCompleteFuture(Long.MAX_VALUE);
+    private static final NeverCompleteFuture FUTURE = new NeverCompleteFuture(Long.MAX_VALUE);
 
-	private AtomicBoolean shutdown = new AtomicBoolean(true);
+    private AtomicBoolean shutdown = new AtomicBoolean(true);
 
-	@Override
-	public long getCurrentProcessingTime() {
-		return System.currentTimeMillis();
-	}
+    @Override
+    public long getCurrentProcessingTime() {
+        return System.currentTimeMillis();
+    }
 
-	@Override
-	public ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target) {
-		return FUTURE;
-	}
+    @Override
+    public ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target) {
+        return FUTURE;
+    }
 
-	@Override
-	public ScheduledFuture<?> scheduleAtFixedRate(
-		ProcessingTimeCallback callback, long initialDelay, long period) {
-		return FUTURE;
-	}
+    @Override
+    public ScheduledFuture<?> scheduleAtFixedRate(
+            ProcessingTimeCallback callback, long initialDelay, long period) {
+        return FUTURE;
+    }
 
-	@Override
-	public boolean isTerminated() {
-		return shutdown.get();
-	}
+    @Override
+    public ScheduledFuture<?> scheduleWithFixedDelay(
+            ProcessingTimeCallback callback, long initialDelay, long period) {
+        return FUTURE;
+    }
 
-	@Override
-	public void quiesce() throws InterruptedException {
-		shutdown.set(true);
-	}
+    @Override
+    public boolean isTerminated() {
+        return shutdown.get();
+    }
 
-	@Override
-	public void awaitPendingAfterQuiesce() throws InterruptedException {
-		shutdown.set(true);
-	}
+    @Override
+    public CompletableFuture<Void> quiesce() {
+        shutdown.set(true);
+        return CompletableFuture.completedFuture(null);
+    }
 
-	@Override
-	public void shutdownService() {
-		shutdown.set(true);
-	}
+    @Override
+    public void shutdownService() {
+        shutdown.set(true);
+    }
 
-	@Override
-	public boolean shutdownServiceUninterruptible(long timeoutMs) {
-		shutdown.set(true);
-		return shutdown.get();
-	}
+    @Override
+    public boolean shutdownServiceUninterruptible(long timeoutMs) {
+        shutdown.set(true);
+        return shutdown.get();
+    }
 }

@@ -20,13 +20,10 @@ package org.apache.flink.optimizer.plandump;
 
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
-
-/**
- *
- */
+/** */
 public interface DumpableConnection<T extends DumpableNode<T>> {
 
-	public DumpableNode<T> getSource();
-	
-	public ShipStrategyType getShipStrategy();
+    public DumpableNode<T> getSource();
+
+    public ShipStrategyType getShipStrategy();
 }

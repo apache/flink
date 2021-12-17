@@ -77,10 +77,11 @@ function _set_conf_ssl_helper {
         # -> we need to build it ourselves
         FLINK_SHADED_VERSION=$(cat ${END_TO_END_DIR}/../pom.xml | sed -n 's/.*<flink.shaded.version>\(.*\)<\/flink.shaded.version>/\1/p')
         echo "BUILDING flink-shaded-netty-tcnative-static"
-        git clone https://github.com/apache/flink-shaded.git
+        # Adding retry to git clone, due to FLINK-24971
+        retry_times_with_exponential_backoff 5 git clone https://github.com/apache/flink-shaded.git
         cd flink-shaded
         git checkout "release-${FLINK_SHADED_VERSION}"
-        mvn clean package -Pinclude-netty-tcnative-static -pl flink-shaded-netty-tcnative-static
+        run_mvn clean package -Pinclude-netty-tcnative-static -pl flink-shaded-netty-tcnative-static
         cp flink-shaded-netty-tcnative-static/target/flink-shaded-netty-tcnative-static-*.jar $FLINK_DIR/lib/
         cd ..
         rm -rf flink-shaded

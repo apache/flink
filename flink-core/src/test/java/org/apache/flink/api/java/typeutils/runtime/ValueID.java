@@ -26,47 +26,47 @@ import java.io.IOException;
 import java.util.UUID;
 
 public class ValueID implements Value, Comparable<ValueID> {
-	private static final long serialVersionUID = -562791433077971752L;
+    private static final long serialVersionUID = -562791433077971752L;
 
-	private UUID id;
+    private UUID id;
 
-	public ValueID() {
-		id = UUID.randomUUID();
-	}
+    public ValueID() {
+        id = UUID.randomUUID();
+    }
 
-	public ValueID(UUID id) {
-		this.id = id;
-	}
+    public ValueID(UUID id) {
+        this.id = id;
+    }
 
-	@Override
-	public int compareTo(ValueID o) {
-		return id.compareTo(o.id);
-	}
+    @Override
+    public int compareTo(ValueID o) {
+        return id.compareTo(o.id);
+    }
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeLong(id.getMostSignificantBits());
-		out.writeLong(id.getLeastSignificantBits());
-	}
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        out.writeLong(id.getMostSignificantBits());
+        out.writeLong(id.getLeastSignificantBits());
+    }
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-		id = new UUID(in.readLong(), in.readLong());
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {
+        id = new UUID(in.readLong(), in.readLong());
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof ValueID) {
-			ValueID other = (ValueID) obj;
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof ValueID) {
+            ValueID other = (ValueID) obj;
 
-			return id.equals(other.id);
-		} else {
-			return false;
-		}
-	}
+            return id.equals(other.id);
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public int hashCode() {
-		return id.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
 }

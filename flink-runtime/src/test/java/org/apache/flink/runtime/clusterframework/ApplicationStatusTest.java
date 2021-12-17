@@ -32,45 +32,42 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link ApplicationStatus}.
- */
+/** Tests for the {@link ApplicationStatus}. */
 public class ApplicationStatusTest extends TestLogger {
 
-	private static final int SUCCESS_EXIT_CODE = 0;
+    private static final int SUCCESS_EXIT_CODE = 0;
 
-	@Test
-	public void succeededStatusMapsToSuccessExitCode() {
-		int exitCode = ApplicationStatus.SUCCEEDED.processExitCode();
-		assertThat(exitCode, is(equalTo(SUCCESS_EXIT_CODE)));
-	}
+    @Test
+    public void succeededStatusMapsToSuccessExitCode() {
+        int exitCode = ApplicationStatus.SUCCEEDED.processExitCode();
+        assertThat(exitCode, is(equalTo(SUCCESS_EXIT_CODE)));
+    }
 
-	@Test
-	public void cancelledStatusMapsToSuccessExitCode() {
-		int exitCode = ApplicationStatus.CANCELED.processExitCode();
-		assertThat(exitCode, is(equalTo(SUCCESS_EXIT_CODE)));
-	}
+    @Test
+    public void cancelledStatusMapsToSuccessExitCode() {
+        int exitCode = ApplicationStatus.CANCELED.processExitCode();
+        assertThat(exitCode, is(equalTo(SUCCESS_EXIT_CODE)));
+    }
 
-	@Test
-	public void notSucceededNorCancelledStatusMapsToNonSuccessExitCode() {
-		Iterable<Integer> exitCodes = exitCodes(notSucceededNorCancelledStatus());
-		assertThat(exitCodes, not(contains(SUCCESS_EXIT_CODE)));
-	}
+    @Test
+    public void notSucceededNorCancelledStatusMapsToNonSuccessExitCode() {
+        Iterable<Integer> exitCodes = exitCodes(notSucceededNorCancelledStatus());
+        assertThat(exitCodes, not(contains(SUCCESS_EXIT_CODE)));
+    }
 
-	private static Iterable<Integer> exitCodes(Iterable<ApplicationStatus> statuses) {
-		return StreamSupport.stream(statuses.spliterator(), false)
-			.map(ApplicationStatus::processExitCode)
-			.collect(Collectors.toList());
-	}
+    private static Iterable<Integer> exitCodes(Iterable<ApplicationStatus> statuses) {
+        return StreamSupport.stream(statuses.spliterator(), false)
+                .map(ApplicationStatus::processExitCode)
+                .collect(Collectors.toList());
+    }
 
-	private static Iterable<ApplicationStatus> notSucceededNorCancelledStatus() {
-		return Arrays.stream(ApplicationStatus.values())
-			.filter(ApplicationStatusTest::isNotSucceededNorCancelled)
-			.collect(Collectors.toList());
-	}
+    private static Iterable<ApplicationStatus> notSucceededNorCancelledStatus() {
+        return Arrays.stream(ApplicationStatus.values())
+                .filter(ApplicationStatusTest::isNotSucceededNorCancelled)
+                .collect(Collectors.toList());
+    }
 
-	private static boolean isNotSucceededNorCancelled(ApplicationStatus status) {
-		return status != ApplicationStatus.SUCCEEDED && status != ApplicationStatus.CANCELED;
-	}
-
+    private static boolean isNotSucceededNorCancelled(ApplicationStatus status) {
+        return status != ApplicationStatus.SUCCEEDED && status != ApplicationStatus.CANCELED;
+    }
 }

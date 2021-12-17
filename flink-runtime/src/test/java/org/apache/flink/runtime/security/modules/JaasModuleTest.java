@@ -29,60 +29,104 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.apache.flink.runtime.security.modules.JaasModule.JAVA_SECURITY_AUTH_LOGIN_CONFIG;
+import static org.hamcrest.core.StringStartsWith.startsWith;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Test for {@link JaasModule}.
- */
+/** Test for {@link JaasModule}. */
 public class JaasModuleTest {
-	@Rule
-	public TemporaryFolder folder = new TemporaryFolder();
+    @Rule public TemporaryFolder folder = new TemporaryFolder();
 
-	@Before
-	public void setUp() throws IOException {
-		// clear the property
-		System.getProperties().remove(JAVA_SECURITY_AUTH_LOGIN_CONFIG);
-		folder.create();
-	}
+    @Before
+    public void setUp() throws IOException {
+        // clear the property
+        System.getProperties().remove(JAVA_SECURITY_AUTH_LOGIN_CONFIG);
+        folder.create();
+    }
 
-	/**
-	 * Test that the jaas config file is created in the working directory.
-	 */
-	@Test
-	public void testJaasModuleFilePath() throws IOException {
-		File file = folder.newFolder();
-		String workingDir = file.toPath().toString();
+    @Test
+    public void testJaasModuleFilePathIfWorkingDirPresent() throws IOException {
+        File file = folder.newFolder();
+        testJaasModuleFilePath(file.toPath().toString());
+    }
 
-		Configuration configuration = new Configuration();
-		// set the string for CoreOptions.TMP_DIRS to mock the working directory.
-		configuration.setString(CoreOptions.TMP_DIRS, workingDir);
-		SecurityConfiguration sc = new SecurityConfiguration(configuration);
-		JaasModule module = new JaasModule(sc);
+    @Test
+    public void testJaasModuleFilePathIfWorkingDirNotPresent() throws IOException {
+        File file = folder.newFolder();
+        testJaasModuleFilePath(file.toPath().toString() + "/tmp");
+    }
 
-		module.install();
+    @Test
+    public void testJaasModuleFilePathIfWorkingDirIsSymLink() throws IOException {
+        Path symlink = createSymLinkFolderStructure();
+        testJaasModuleFilePath(symlink.toString());
+    }
 
-		assertJaasFileLocateInRightDirectory(workingDir);
-	}
+    @Test
+    public void testJaasModuleFilePathIfWorkingDirNoPresentAndPathContainsSymLink()
+            throws IOException {
+        Path symlink = createSymLinkFolderStructure();
+        testJaasModuleFilePath(symlink.toString() + "/tmp");
+    }
 
-	/**
-	 * Test that the jaas file will be created in the directory specified by {@link CoreOptions#TMP_DIRS}'s default value
-	 * if we do not manually specify it.
-	 */
-	@Test
-	public void testCreateJaasModuleFileInTemporary() {
-		Configuration configuration = new Configuration();
-		SecurityConfiguration sc = new SecurityConfiguration(configuration);
-		JaasModule module = new JaasModule(sc);
+    private Path createSymLinkFolderStructure() throws IOException {
+        File baseFolder = folder.newFolder();
+        File actualFolder = new File(baseFolder, "actual_folder");
+        assertTrue(actualFolder.mkdirs());
 
-		module.install();
+        Path symlink = new File(baseFolder, "symlink").toPath();
+        Files.createSymbolicLink(symlink, actualFolder.toPath());
 
-		assertJaasFileLocateInRightDirectory(CoreOptions.TMP_DIRS.defaultValue());
-	}
+        return symlink;
+    }
 
-	private void assertJaasFileLocateInRightDirectory(String directory) {
-		assertTrue(System.getProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG).startsWith(directory));
-	}
+    /** Test that the jaas config file is created in the working directory. */
+    private void testJaasModuleFilePath(String workingDir) throws IOException {
+        Configuration configuration = new Configuration();
+        // set the string for CoreOptions.TMP_DIRS to mock the working directory.
+        configuration.setString(CoreOptions.TMP_DIRS, workingDir);
+        SecurityConfiguration sc = new SecurityConfiguration(configuration);
+        JaasModule module = new JaasModule(sc);
+
+        module.install();
+
+        assertJaasFileLocateInRightDirectory(workingDir);
+    }
+
+    /**
+     * Test that the jaas file will be created in the directory specified by {@link
+     * CoreOptions#TMP_DIRS}'s default value if we do not manually specify it.
+     */
+    @Test
+    public void testCreateJaasModuleFileInTemporary() throws IOException {
+        Configuration configuration = new Configuration();
+        SecurityConfiguration sc = new SecurityConfiguration(configuration);
+        JaasModule module = new JaasModule(sc);
+
+        module.install();
+
+        assertJaasFileLocateInRightDirectory(CoreOptions.TMP_DIRS.defaultValue());
+    }
+
+    private void assertJaasFileLocateInRightDirectory(String directory) throws IOException {
+        String resolvedExpectedPath = new File(directory).toPath().toRealPath().toString();
+        String resolvedActualPathWithFile =
+                new File(System.getProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG))
+                        .toPath()
+                        .toRealPath()
+                        .toString();
+        assertThat(
+                "The resolved configured directory does not match the expected resolved one.",
+                resolvedActualPathWithFile,
+                startsWith(resolvedExpectedPath));
+
+        assertThat(
+                "The configured directory does not match the expected one.",
+                System.getProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG),
+                startsWith(directory));
+    }
 }
-

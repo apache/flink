@@ -22,15 +22,15 @@ import org.apache.flink.runtime.state.KeyGroupPartitioner;
 import org.apache.flink.runtime.state.KeyGroupPartitionerTestBase;
 import org.apache.flink.runtime.state.VoidNamespace;
 
-/**
- * Test of {@link KeyGroupPartitioner} for timers.
- */
+/** Test of {@link KeyGroupPartitioner} for timers. */
 public class KeyGroupPartitionerForTimersTest
-	extends KeyGroupPartitionerTestBase<TimerHeapInternalTimer<Integer, VoidNamespace>> {
+        extends KeyGroupPartitionerTestBase<TimerHeapInternalTimer<Integer, VoidNamespace>> {
 
-	public KeyGroupPartitionerForTimersTest() {
-		super(
-			(random -> new TimerHeapInternalTimer<>(42L, random.nextInt() & Integer.MAX_VALUE, VoidNamespace.INSTANCE)),
-			TimerHeapInternalTimer::getKey);
-	}
+    public KeyGroupPartitionerForTimersTest() {
+        super(
+                (random ->
+                        new TimerHeapInternalTimer<>(
+                                42L, random.nextInt() & Integer.MAX_VALUE, VoidNamespace.INSTANCE)),
+                TimerHeapInternalTimer::getKey);
+    }
 }

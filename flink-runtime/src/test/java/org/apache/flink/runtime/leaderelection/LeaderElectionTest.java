@@ -21,14 +21,17 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedLeaderService;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -41,205 +44,212 @@ import java.util.concurrent.ArrayBlockingQueue;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for leader election.
- */
+/** Tests for leader election. */
 @RunWith(Parameterized.class)
 public class LeaderElectionTest extends TestLogger {
 
-	enum LeaderElectionType {
-		ZooKeeper,
-		Embedded,
-		Standalone
-	}
+    @Rule
+    public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource =
+            new TestingFatalErrorHandlerResource();
 
-	@Parameterized.Parameters(name = "Leader election: {0}")
-	public static Collection<LeaderElectionType> parameters () {
-		return Arrays.asList(LeaderElectionType.values());
-	}
+    enum LeaderElectionType {
+        ZooKeeper,
+        Embedded,
+        Standalone
+    }
 
-	private final ServiceClass serviceClass;
+    @Parameterized.Parameters(name = "Leader election: {0}")
+    public static Collection<LeaderElectionType> parameters() {
+        return Arrays.asList(LeaderElectionType.values());
+    }
 
-	public LeaderElectionTest(LeaderElectionType leaderElectionType) {
-		switch(leaderElectionType) {
-			case ZooKeeper:
-				serviceClass = new ZooKeeperServiceClass();
-				break;
-			case Embedded:
-				serviceClass = new EmbeddedServiceClass();
-				break;
-			case Standalone:
-				serviceClass = new StandaloneServiceClass();
-				break;
-			default:
-				throw new IllegalArgumentException(String.format("Unknown leader election type: %s.", leaderElectionType));
-		}
-	}
+    private final ServiceClass serviceClass;
 
-	@Before
-	public void setup() throws Exception {
-		serviceClass.setup();
-	}
+    public LeaderElectionTest(LeaderElectionType leaderElectionType) {
+        switch (leaderElectionType) {
+            case ZooKeeper:
+                serviceClass = new ZooKeeperServiceClass();
+                break;
+            case Embedded:
+                serviceClass = new EmbeddedServiceClass();
+                break;
+            case Standalone:
+                serviceClass = new StandaloneServiceClass();
+                break;
+            default:
+                throw new IllegalArgumentException(
+                        String.format("Unknown leader election type: %s.", leaderElectionType));
+        }
+    }
 
-	@After
-	public void teardown() throws Exception {
-		serviceClass.teardown();
-	}
+    @Before
+    public void setup() throws Exception {
+        serviceClass.setup(testingFatalErrorHandlerResource.getFatalErrorHandler());
+    }
 
-	@Test
-	public void testHasLeadership() throws Exception {
-		final LeaderElectionService leaderElectionService = serviceClass.createLeaderElectionService();
-		final ManualLeaderContender manualLeaderContender = new ManualLeaderContender();
+    @After
+    public void teardown() throws Exception {
+        serviceClass.teardown();
+    }
 
-		try {
-			assertThat(leaderElectionService.hasLeadership(UUID.randomUUID()), is(false));
+    @Test
+    public void testHasLeadership() throws Exception {
+        final LeaderElectionService leaderElectionService =
+                serviceClass.createLeaderElectionService();
+        final ManualLeaderContender manualLeaderContender = new ManualLeaderContender();
 
-			leaderElectionService.start(manualLeaderContender);
+        try {
+            assertThat(leaderElectionService.hasLeadership(UUID.randomUUID()), is(false));
 
-			final UUID leaderSessionId = manualLeaderContender.waitForLeaderSessionId();
+            leaderElectionService.start(manualLeaderContender);
 
-			assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(true));
-			assertThat(leaderElectionService.hasLeadership(UUID.randomUUID()), is(false));
+            final UUID leaderSessionId = manualLeaderContender.waitForLeaderSessionId();
 
-			leaderElectionService.confirmLeadership(leaderSessionId, "foobar");
+            assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(true));
+            assertThat(leaderElectionService.hasLeadership(UUID.randomUUID()), is(false));
 
-			assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(true));
+            leaderElectionService.confirmLeadership(leaderSessionId, "foobar");
 
-			leaderElectionService.stop();
+            assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(true));
 
-			assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(false));
-		} finally {
-			manualLeaderContender.rethrowError();
-		}
-	}
+            leaderElectionService.stop();
 
-	private static final class ManualLeaderContender implements LeaderContender {
+            assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(false));
+        } finally {
+            manualLeaderContender.rethrowError();
+        }
+    }
 
-		private static final UUID NULL_LEADER_SESSION_ID = new UUID(0L, 0L);
+    private static final class ManualLeaderContender implements LeaderContender {
 
-		private final ArrayBlockingQueue<UUID> leaderSessionIds = new ArrayBlockingQueue<>(10);
+        private static final UUID NULL_LEADER_SESSION_ID = new UUID(0L, 0L);
 
-		private volatile Exception exception;
+        private final ArrayBlockingQueue<UUID> leaderSessionIds = new ArrayBlockingQueue<>(10);
 
-		@Override
-		public void grantLeadership(UUID leaderSessionID) {
-			leaderSessionIds.offer(leaderSessionID);
-		}
+        private volatile Exception exception;
 
-		@Override
-		public void revokeLeadership() {
-			leaderSessionIds.offer(NULL_LEADER_SESSION_ID);
-		}
+        @Override
+        public void grantLeadership(UUID leaderSessionID) {
+            leaderSessionIds.offer(leaderSessionID);
+        }
 
-		@Override
-		public String getDescription() {
-			return "foobar";
-		}
+        @Override
+        public void revokeLeadership() {
+            leaderSessionIds.offer(NULL_LEADER_SESSION_ID);
+        }
 
-		@Override
-		public void handleError(Exception exception) {
-			this.exception = exception;
-		}
+        @Override
+        public String getDescription() {
+            return "foobar";
+        }
 
-		void rethrowError() throws Exception {
-			if (exception != null) {
-				throw exception;
-			}
-		}
+        @Override
+        public void handleError(Exception exception) {
+            this.exception = exception;
+        }
 
-		UUID waitForLeaderSessionId() throws InterruptedException {
-			return leaderSessionIds.take();
-		}
-	}
+        void rethrowError() throws Exception {
+            if (exception != null) {
+                throw exception;
+            }
+        }
 
-	private interface ServiceClass {
-		void setup() throws Exception;
+        UUID waitForLeaderSessionId() throws InterruptedException {
+            return leaderSessionIds.take();
+        }
+    }
 
-		void teardown() throws Exception;
+    private interface ServiceClass {
+        void setup(FatalErrorHandler fatalErrorHandler) throws Exception;
 
-		LeaderElectionService createLeaderElectionService() throws Exception;
-	}
+        void teardown() throws Exception;
 
-	private static final class ZooKeeperServiceClass implements ServiceClass {
+        LeaderElectionService createLeaderElectionService() throws Exception;
+    }
 
-		private TestingServer testingServer;
+    private static final class ZooKeeperServiceClass implements ServiceClass {
 
-		private CuratorFramework client;
+        private TestingServer testingServer;
 
-		private Configuration configuration;
+        private CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper;
 
-		@Override
-		public void setup() throws Exception {
-			try {
-				testingServer = new TestingServer();
-			} catch (Exception e) {
-				throw new RuntimeException("Could not start ZooKeeper testing cluster.", e);
-			}
+        private Configuration configuration;
 
-			configuration = new Configuration();
+        @Override
+        public void setup(FatalErrorHandler fatalErrorHandler) throws Exception {
+            try {
+                testingServer = new TestingServer();
+            } catch (Exception e) {
+                throw new RuntimeException("Could not start ZooKeeper testing cluster.", e);
+            }
 
-			configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
-			configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+            configuration = new Configuration();
 
-			client = ZooKeeperUtils.startCuratorFramework(configuration);
-		}
+            configuration.setString(
+                    HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
+            configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 
-		@Override
-		public void teardown() throws Exception {
-			if (client != null) {
-				client.close();
-				client = null;
-			}
+            curatorFrameworkWrapper =
+                    ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler);
+        }
 
-			if (testingServer != null) {
-				testingServer.stop();
-				testingServer = null;
-			}
-		}
+        @Override
+        public void teardown() throws Exception {
+            if (curatorFrameworkWrapper != null) {
+                curatorFrameworkWrapper.close();
+                curatorFrameworkWrapper = null;
+            }
 
-		@Override
-		public LeaderElectionService createLeaderElectionService() throws Exception {
-			return ZooKeeperUtils.createLeaderElectionService(client, configuration);
-		}
-	}
+            if (testingServer != null) {
+                testingServer.stop();
+                testingServer = null;
+            }
+        }
 
-	private static final class EmbeddedServiceClass implements ServiceClass {
-		private EmbeddedLeaderService embeddedLeaderService;
+        @Override
+        public LeaderElectionService createLeaderElectionService() throws Exception {
+            return ZooKeeperUtils.createLeaderElectionService(
+                    curatorFrameworkWrapper.asCuratorFramework());
+        }
+    }
 
-		@Override
-		public void setup() {
-			embeddedLeaderService = new EmbeddedLeaderService(TestingUtils.defaultExecutionContext());
-		}
+    private static final class EmbeddedServiceClass implements ServiceClass {
+        private EmbeddedLeaderService embeddedLeaderService;
 
-		@Override
-		public void teardown() {
-			if (embeddedLeaderService != null) {
-				embeddedLeaderService.shutdown();
-				embeddedLeaderService = null;
-			}
-		}
+        @Override
+        public void setup(FatalErrorHandler fatalErrorHandler) {
+            embeddedLeaderService = new EmbeddedLeaderService(TestingUtils.defaultExecutor());
+        }
 
-		@Override
-		public LeaderElectionService createLeaderElectionService() throws Exception {
-			return embeddedLeaderService.createLeaderElectionService();
-		}
-	}
+        @Override
+        public void teardown() {
+            if (embeddedLeaderService != null) {
+                embeddedLeaderService.shutdown();
+                embeddedLeaderService = null;
+            }
+        }
 
-	private static final class StandaloneServiceClass implements ServiceClass {
+        @Override
+        public LeaderElectionService createLeaderElectionService() throws Exception {
+            return embeddedLeaderService.createLeaderElectionService();
+        }
+    }
 
-		@Override
-		public void setup() throws Exception {
-			// noop
-		}
+    private static final class StandaloneServiceClass implements ServiceClass {
 
-		@Override
-		public void teardown() throws Exception {
-			// noop
-		}
+        @Override
+        public void setup(FatalErrorHandler fatalErrorHandler) throws Exception {
+            // noop
+        }
 
-		@Override
-		public LeaderElectionService createLeaderElectionService() throws Exception {
-			return new StandaloneLeaderElectionService();
-		}
-	}
+        @Override
+        public void teardown() throws Exception {
+            // noop
+        }
+
+        @Override
+        public LeaderElectionService createLeaderElectionService() throws Exception {
+            return new StandaloneLeaderElectionService();
+        }
+    }
 }

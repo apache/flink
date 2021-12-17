@@ -18,16 +18,44 @@
 
 package org.apache.flink.kubernetes.kubeclient.resources;
 
-import org.apache.flink.configuration.Configuration;
-
 import io.fabric8.kubernetes.api.model.ConfigMap;
 
-/**
- * Represent KubernetesConfigMap resource in kubernetes.
- */
+import java.util.HashMap;
+import java.util.Map;
+
+/** Represent {@link ConfigMap} resource in kubernetes. */
 public class KubernetesConfigMap extends KubernetesResource<ConfigMap> {
 
-	public KubernetesConfigMap(Configuration flinkConfig) {
-		super(flinkConfig, new ConfigMap());
-	}
+    public KubernetesConfigMap(ConfigMap configMap) {
+        super(configMap);
+    }
+
+    public String getName() {
+        return this.getInternalResource().getMetadata().getName();
+    }
+
+    public String getResourceVersion() {
+        return this.getInternalResource().getMetadata().getResourceVersion();
+    }
+
+    public Map<String, String> getAnnotations() {
+        if (this.getInternalResource().getMetadata().getAnnotations() == null) {
+            this.getInternalResource().getMetadata().setAnnotations(new HashMap<>());
+        }
+        return this.getInternalResource().getMetadata().getAnnotations();
+    }
+
+    public Map<String, String> getData() {
+        if (this.getInternalResource().getData() == null) {
+            this.getInternalResource().setData(new HashMap<>());
+        }
+        return this.getInternalResource().getData();
+    }
+
+    public Map<String, String> getLabels() {
+        if (this.getInternalResource().getMetadata().getLabels() == null) {
+            this.getInternalResource().getMetadata().setLabels(new HashMap<>());
+        }
+        return this.getInternalResource().getMetadata().getLabels();
+    }
 }

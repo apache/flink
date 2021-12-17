@@ -20,85 +20,77 @@ package org.apache.flink.queryablestate.network.stats;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Atomic {@link KvStateRequestStats} implementation.
- */
+/** Atomic {@link KvStateRequestStats} implementation. */
 public class AtomicKvStateRequestStats implements KvStateRequestStats {
 
-	/**
-	 * Number of active connections.
-	 */
-	private final AtomicLong numConnections = new AtomicLong();
+    /** Number of active connections. */
+    private final AtomicLong numConnections = new AtomicLong();
 
-	/**
-	 * Total number of reported requests.
-	 */
-	private final AtomicLong numRequests = new AtomicLong();
+    /** Total number of reported requests. */
+    private final AtomicLong numRequests = new AtomicLong();
 
-	/**
-	 * Total number of successful requests (<= reported requests).
-	 */
-	private final AtomicLong numSuccessful = new AtomicLong();
+    /** Total number of successful requests (<= reported requests). */
+    private final AtomicLong numSuccessful = new AtomicLong();
 
-	/**
-	 * Total duration of all successful requests.
-	 */
-	private final AtomicLong successfulDuration = new AtomicLong();
+    /** Total duration of all successful requests. */
+    private final AtomicLong successfulDuration = new AtomicLong();
 
-	/**
-	 * Total number of failed requests (<= reported requests).
-	 */
-	private final AtomicLong numFailed = new AtomicLong();
+    /** Total number of failed requests (<= reported requests). */
+    private final AtomicLong numFailed = new AtomicLong();
 
-	@Override
-	public void reportActiveConnection() {
-		numConnections.incrementAndGet();
-	}
+    @Override
+    public void reportActiveConnection() {
+        numConnections.incrementAndGet();
+    }
 
-	@Override
-	public void reportInactiveConnection() {
-		numConnections.decrementAndGet();
-	}
+    @Override
+    public void reportInactiveConnection() {
+        numConnections.decrementAndGet();
+    }
 
-	@Override
-	public void reportRequest() {
-		numRequests.incrementAndGet();
-	}
+    @Override
+    public void reportRequest() {
+        numRequests.incrementAndGet();
+    }
 
-	@Override
-	public void reportSuccessfulRequest(long durationTotalMillis) {
-		numSuccessful.incrementAndGet();
-		successfulDuration.addAndGet(durationTotalMillis);
-	}
+    @Override
+    public void reportSuccessfulRequest(long durationTotalMillis) {
+        numSuccessful.incrementAndGet();
+        successfulDuration.addAndGet(durationTotalMillis);
+    }
 
-	@Override
-	public void reportFailedRequest() {
-		numFailed.incrementAndGet();
-	}
+    @Override
+    public void reportFailedRequest() {
+        numFailed.incrementAndGet();
+    }
 
-	public long getNumConnections() {
-		return numConnections.get();
-	}
+    public long getNumConnections() {
+        return numConnections.get();
+    }
 
-	public long getNumRequests() {
-		return numRequests.get();
-	}
+    public long getNumRequests() {
+        return numRequests.get();
+    }
 
-	public long getNumSuccessful() {
-		return numSuccessful.get();
-	}
+    public long getNumSuccessful() {
+        return numSuccessful.get();
+    }
 
-	public long getNumFailed() {
-		return numFailed.get();
-	}
+    public long getNumFailed() {
+        return numFailed.get();
+    }
 
-	@Override
-	public String toString() {
-		return "AtomicKvStateRequestStats{" +
-				"numConnections=" + numConnections +
-				", numRequests=" + numRequests +
-				", numSuccessful=" + numSuccessful +
-				", numFailed=" + numFailed +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "AtomicKvStateRequestStats{"
+                + "numConnections="
+                + numConnections
+                + ", numRequests="
+                + numRequests
+                + ", numSuccessful="
+                + numSuccessful
+                + ", numFailed="
+                + numFailed
+                + '}';
+    }
 }

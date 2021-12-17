@@ -22,56 +22,67 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.topology.VertexID;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Id identifying {@link ExecutionVertex}.
- */
+/** Id identifying {@link ExecutionVertex}. */
 public class ExecutionVertexID implements VertexID {
-	private final JobVertexID jobVertexId;
+    private final JobVertexID jobVertexId;
 
-	private final int subtaskIndex;
+    private final int subtaskIndex;
 
-	public ExecutionVertexID(JobVertexID jobVertexId, int subtaskIndex) {
-		checkArgument(subtaskIndex >= 0, "subtaskIndex must be greater than or equal to 0");
+    public ExecutionVertexID(JobVertexID jobVertexId, int subtaskIndex) {
+        checkArgument(subtaskIndex >= 0, "subtaskIndex must be greater than or equal to 0");
 
-		this.jobVertexId = checkNotNull(jobVertexId);
-		this.subtaskIndex = subtaskIndex;
-	}
+        this.jobVertexId = checkNotNull(jobVertexId);
+        this.subtaskIndex = subtaskIndex;
+    }
 
-	public JobVertexID getJobVertexId() {
-		return jobVertexId;
-	}
+    public JobVertexID getJobVertexId() {
+        return jobVertexId;
+    }
 
-	public int getSubtaskIndex() {
-		return subtaskIndex;
-	}
+    public int getSubtaskIndex() {
+        return subtaskIndex;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
+    public void writeTo(ByteBuf buf) {
+        jobVertexId.writeTo(buf);
+        buf.writeInt(subtaskIndex);
+    }
 
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
+    public static ExecutionVertexID fromByteBuf(ByteBuf buf) {
+        final JobVertexID jobVertexID = JobVertexID.fromByteBuf(buf);
+        final int subtaskIndex = buf.readInt();
+        return new ExecutionVertexID(jobVertexID, subtaskIndex);
+    }
 
-		ExecutionVertexID that = (ExecutionVertexID) o;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
 
-		return subtaskIndex == that.subtaskIndex && jobVertexId.equals(that.jobVertexId);
-	}
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-	@Override
-	public int hashCode() {
-		int result = jobVertexId.hashCode();
-		result = 31 * result + subtaskIndex;
-		return result;
-	}
+        ExecutionVertexID that = (ExecutionVertexID) o;
 
-	@Override
-	public String toString() {
-		return jobVertexId + "_" + subtaskIndex;
-	}
+        return subtaskIndex == that.subtaskIndex && jobVertexId.equals(that.jobVertexId);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = jobVertexId.hashCode();
+        result = 31 * result + subtaskIndex;
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return jobVertexId + "_" + subtaskIndex;
+    }
 }

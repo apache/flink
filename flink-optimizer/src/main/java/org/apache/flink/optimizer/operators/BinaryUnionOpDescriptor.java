@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.operators;
-
-import java.util.Collections;
-import java.util.List;
 
 import org.apache.flink.optimizer.dag.BinaryUnionNode;
 import org.apache.flink.optimizer.dag.TwoInputNode;
@@ -34,92 +30,93 @@ import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
-/**
- *
- */
+import java.util.Collections;
+import java.util.List;
+
+/** */
 public class BinaryUnionOpDescriptor extends OperatorDescriptorDual {
-	
-	public BinaryUnionOpDescriptor() {
-		super();
-	}
 
-	@Override
-	public DriverStrategy getStrategy() {
-		return DriverStrategy.UNION;
-	}
+    public BinaryUnionOpDescriptor() {
+        super();
+    }
 
-	@Override
-	protected List<GlobalPropertiesPair> createPossibleGlobalProperties() {
-		return Collections.emptyList();
-	}
-	
-	@Override
-	protected List<LocalPropertiesPair> createPossibleLocalProperties() {
-		return Collections.emptyList();
-	}
+    @Override
+    public DriverStrategy getStrategy() {
+        return DriverStrategy.UNION;
+    }
 
-	@Override
-	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
-		return new BinaryUnionPlanNode((BinaryUnionNode) node, in1, in2);
-	}
+    @Override
+    protected List<GlobalPropertiesPair> createPossibleGlobalProperties() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public GlobalProperties computeGlobalProperties(GlobalProperties in1, GlobalProperties in2) {
-		GlobalProperties newProps = new GlobalProperties();
-		
-		if (in1.getPartitioning() == PartitioningProperty.HASH_PARTITIONED &&
-			in2.getPartitioning() == PartitioningProperty.HASH_PARTITIONED &&
-			in1.getPartitioningFields().equals(in2.getPartitioningFields())) {
-			newProps.setHashPartitioned(in1.getPartitioningFields());
-		}
-		else if (in1.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED &&
-					in2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED &&
-					in1.getPartitioningOrdering().equals(in2.getPartitioningOrdering()) &&
-					(
-						in1.getDataDistribution() == null && in2.getDataDistribution() == null ||
-						in1.getDataDistribution() != null && in1.getDataDistribution().equals(in2.getDataDistribution())
-					)
-				) {
-			if (in1.getDataDistribution() == null) {
-				newProps.setRangePartitioned(in1.getPartitioningOrdering());
-			}
-			else {
-				newProps.setRangePartitioned(in1.getPartitioningOrdering(), in1.getDataDistribution());
-			}
-		}
-		else if (in1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING &&
-					in2.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING &&
-					in1.getPartitioningFields().equals(in2.getPartitioningFields()) &&
-					in1.getCustomPartitioner().equals(in2.getCustomPartitioner())) {
-			newProps.setCustomPartitioned(in1.getPartitioningFields(), in1.getCustomPartitioner());
-		}
-		else if (in1.getPartitioning() == PartitioningProperty.FORCED_REBALANCED &&
-					in2.getPartitioning() == PartitioningProperty.FORCED_REBALANCED) {
-			newProps.setForcedRebalanced();
-		}
-		else if (in1.getPartitioning() == PartitioningProperty.FULL_REPLICATION &&
-			in2.getPartitioning() == PartitioningProperty.FULL_REPLICATION) {
-			newProps.setFullyReplicated();
-		}
+    @Override
+    protected List<LocalPropertiesPair> createPossibleLocalProperties() {
+        return Collections.emptyList();
+    }
 
-		return newProps;
-	}
-	
-	@Override
-	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
-		// all local properties are destroyed
-		return new LocalProperties();
-	}
+    @Override
+    public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
+        return new BinaryUnionPlanNode((BinaryUnionNode) node, in1, in2);
+    }
 
-	@Override
-	public boolean areCoFulfilled(RequestedLocalProperties requested1, RequestedLocalProperties requested2,
-			LocalProperties produced1, LocalProperties produced2) {
-		return true;
-	}
-	
-	@Override
-	public boolean areCompatible(RequestedGlobalProperties requested1, RequestedGlobalProperties requested2,
-			GlobalProperties produced1, GlobalProperties produced2) {
-		return true;
-	}
+    @Override
+    public GlobalProperties computeGlobalProperties(GlobalProperties in1, GlobalProperties in2) {
+        GlobalProperties newProps = new GlobalProperties();
+
+        if (in1.getPartitioning() == PartitioningProperty.HASH_PARTITIONED
+                && in2.getPartitioning() == PartitioningProperty.HASH_PARTITIONED
+                && in1.getPartitioningFields().equals(in2.getPartitioningFields())) {
+            newProps.setHashPartitioned(in1.getPartitioningFields());
+        } else if (in1.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED
+                && in2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED
+                && in1.getPartitioningOrdering().equals(in2.getPartitioningOrdering())
+                && (in1.getDataDistribution() == null && in2.getDataDistribution() == null
+                        || in1.getDataDistribution() != null
+                                && in1.getDataDistribution().equals(in2.getDataDistribution()))) {
+            if (in1.getDataDistribution() == null) {
+                newProps.setRangePartitioned(in1.getPartitioningOrdering());
+            } else {
+                newProps.setRangePartitioned(
+                        in1.getPartitioningOrdering(), in1.getDataDistribution());
+            }
+        } else if (in1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING
+                && in2.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING
+                && in1.getPartitioningFields().equals(in2.getPartitioningFields())
+                && in1.getCustomPartitioner().equals(in2.getCustomPartitioner())) {
+            newProps.setCustomPartitioned(in1.getPartitioningFields(), in1.getCustomPartitioner());
+        } else if (in1.getPartitioning() == PartitioningProperty.FORCED_REBALANCED
+                && in2.getPartitioning() == PartitioningProperty.FORCED_REBALANCED) {
+            newProps.setForcedRebalanced();
+        } else if (in1.getPartitioning() == PartitioningProperty.FULL_REPLICATION
+                && in2.getPartitioning() == PartitioningProperty.FULL_REPLICATION) {
+            newProps.setFullyReplicated();
+        }
+
+        return newProps;
+    }
+
+    @Override
+    public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
+        // all local properties are destroyed
+        return new LocalProperties();
+    }
+
+    @Override
+    public boolean areCoFulfilled(
+            RequestedLocalProperties requested1,
+            RequestedLocalProperties requested2,
+            LocalProperties produced1,
+            LocalProperties produced2) {
+        return true;
+    }
+
+    @Override
+    public boolean areCompatible(
+            RequestedGlobalProperties requested1,
+            RequestedGlobalProperties requested2,
+            GlobalProperties produced1,
+            GlobalProperties produced2) {
+        return true;
+    }
 }

@@ -18,8 +18,9 @@
 @import "theme";
 
 :host {
-  display: block;
   position: relative;
+  display: flex;
+  flex: 1;
 }
 
 .name {
@@ -27,29 +28,24 @@
 
   a {
     position: absolute;
-    display: inline-block;
-    width: calc(~"100% - 12px");
-    line-height: 34px;
     top: 0;
     left: 8px;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+    display: inline-block;
     overflow: hidden;
+    width: calc(~"100% - 12px");
+    line-height: 34px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
 .selected {
-  background: @primary-color;
-  color: #ffffff;
-
-  a {
-    color: #ffffff;
-  }
+  background: @select-item-selected-bg;
+  color: @text-color;
 
   &:hover {
     td {
-      background: @primary-color;
+      background: @select-item-selected-bg;
     }
   }
 }
-

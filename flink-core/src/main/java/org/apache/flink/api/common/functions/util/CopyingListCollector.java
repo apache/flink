@@ -32,19 +32,19 @@ import java.util.List;
 @Internal
 public class CopyingListCollector<T> implements Collector<T> {
 
-	private final List<T> list;
-	private final TypeSerializer<T> serializer;
+    private final List<T> list;
+    private final TypeSerializer<T> serializer;
 
-	public CopyingListCollector(List<T> list, TypeSerializer<T> serializer) {
-		this.list = list;
-		this.serializer = serializer;
-	}
+    public CopyingListCollector(List<T> list, TypeSerializer<T> serializer) {
+        this.list = list;
+        this.serializer = serializer;
+    }
 
-	@Override
-	public void collect(T record) {
-		list.add(serializer.copy(record));
-	}
+    @Override
+    public void collect(T record) {
+        list.add(serializer.copy(record));
+    }
 
-	@Override
-	public void close() {}
+    @Override
+    public void close() {}
 }

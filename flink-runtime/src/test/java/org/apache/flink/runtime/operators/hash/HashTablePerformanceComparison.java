@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.operators.hash;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -38,258 +35,282 @@ import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.junit.Assert.*;
 
 public class HashTablePerformanceComparison {
-		
-	private static final int PAGE_SIZE = 16 * 1024;
-	
-	private final int NUM_PAIRS = 20000000;
-	
-	private final int SIZE = 36;
-		
-	private final TypeSerializer<IntPair> serializer = new IntPairSerializer();
-	
-	private final TypeComparator<IntPair> comparator = new IntPairComparator();
-	
-	private final TypePairComparator<IntPair, IntPair> pairComparator = new IntPairPairComparator();
-	
-	@Test
-	public void testCompactingHashMapPerformance() {
-		
-		try {
-			final int NUM_MEM_PAGES = SIZE * NUM_PAIRS / PAGE_SIZE;
-			
-			MutableObjectIterator<IntPair> buildInput = new UniformIntPairGenerator(NUM_PAIRS, 1, false);
-			
-			MutableObjectIterator<IntPair> probeTester = new UniformIntPairGenerator(NUM_PAIRS, 1, false);
-			
-			MutableObjectIterator<IntPair> updater = new UniformIntPairGenerator(NUM_PAIRS, 1, false);
 
-			MutableObjectIterator<IntPair> updateTester = new UniformIntPairGenerator(NUM_PAIRS, 1, false);
-			
-			long start;
-			long end;
-			
-			long first = System.currentTimeMillis();
-			
-			System.out.println("Creating and filling CompactingHashMap...");
-			start = System.currentTimeMillis();
-			AbstractMutableHashTable<IntPair> table = new CompactingHashTable<IntPair>(serializer, comparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
-			table.open();
-			
-			IntPair target = new IntPair();
-			while(buildInput.next(target) != null) {
-				table.insert(target);
-			}
-			end = System.currentTimeMillis();
-			System.out.println("HashMap ready. Time: " + (end-start) + " ms");
-			
-			System.out.println("Starting first probing run...");
-			start = System.currentTimeMillis();
-			
-			AbstractHashTableProber<IntPair, IntPair> prober = table.getProber(comparator, pairComparator);
-			IntPair temp = new IntPair();
-			while(probeTester.next(target) != null) {
-				assertNotNull(prober.getMatchFor(target, temp));
-				assertEquals(temp.getValue(), target.getValue());
-			}
-			end = System.currentTimeMillis();
-			System.out.println("Probing done. Time: " + (end-start) + " ms");
-			
-			System.out.println("Starting update...");
-			start = System.currentTimeMillis();
-			while(updater.next(target) != null) {
-				target.setValue(target.getValue() + 1);
-				table.insertOrReplaceRecord(target);
-			}
-			end = System.currentTimeMillis();
-			System.out.println("Update done. Time: " + (end-start) + " ms");
-			
-			System.out.println("Starting second probing run...");
-			start = System.currentTimeMillis();
-			while (updateTester.next(target) != null) {
-				assertNotNull(prober.getMatchFor(target, temp));
-				assertEquals(target.getValue() + 1, temp.getValue());
-			}
-			end = System.currentTimeMillis();
-			System.out.println("Probing done. Time: " + (end-start) + " ms");
-			
-			table.close();
-			
-			end = System.currentTimeMillis();
-			System.out.println("Overall time: " + (end-first) + " ms");
-			
-			assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Error: " + e.getMessage());
-		}
-	}
-	
-	@Test
-	public void testMutableHashMapPerformance() {
-		try (IOManager ioManager = new IOManagerAsync()) {
-			final int NUM_MEM_PAGES = SIZE * NUM_PAIRS / PAGE_SIZE;
-			
-			MutableObjectIterator<IntPair> buildInput = new UniformIntPairGenerator(NUM_PAIRS, 1, false);
+    private static final int PAGE_SIZE = 16 * 1024;
 
-			MutableObjectIterator<IntPair> probeInput = new UniformIntPairGenerator(0, 1, false);
-			
-			MutableObjectIterator<IntPair> probeTester = new UniformIntPairGenerator(NUM_PAIRS, 1, false);
-			
-			MutableObjectIterator<IntPair> updater = new UniformIntPairGenerator(NUM_PAIRS, 1, false);
+    private final int NUM_PAIRS = 20000000;
 
-			MutableObjectIterator<IntPair> updateTester = new UniformIntPairGenerator(NUM_PAIRS, 1, false);
-			
-			long start;
-			long end;
-			
-			long first = System.currentTimeMillis();
-			
-			System.out.println("Creating and filling MutableHashMap...");
-			start = System.currentTimeMillis();
-			MutableHashTable<IntPair, IntPair> table = new MutableHashTable<IntPair, IntPair>(serializer, serializer, comparator, comparator, pairComparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE), ioManager);				
-			table.open(buildInput, probeInput);
-			end = System.currentTimeMillis();
-			System.out.println("HashMap ready. Time: " + (end-start) + " ms");
-			
-			System.out.println("Starting first probing run...");
-			start = System.currentTimeMillis();
-			IntPair compare = new IntPair();
-			HashBucketIterator<IntPair, IntPair> iter;
-			IntPair target = new IntPair(); 
-			while(probeTester.next(compare) != null) {
-				iter = table.getMatchesFor(compare);
-				iter.next(target);
-				assertEquals(target.getKey(), compare.getKey());
-				assertEquals(target.getValue(), compare.getValue());
-				assertTrue(iter.next(target) == null);
-			}
-			end = System.currentTimeMillis();
-			System.out.println("Probing done. Time: " + (end-start) + " ms");
-	
-			System.out.println("Starting update...");
-			start = System.currentTimeMillis();
-			while(updater.next(compare) != null) {
-				compare.setValue(compare.getValue() + 1);
-				iter = table.getMatchesFor(compare);
-				iter.next(target);
-				iter.writeBack(compare);
-				//assertFalse(iter.next(target));
-			}
-			end = System.currentTimeMillis();
-			System.out.println("Update done. Time: " + (end-start) + " ms");
-			
-			System.out.println("Starting second probing run...");
-			start = System.currentTimeMillis();
-			while(updateTester.next(compare) != null) {
-				compare.setValue(compare.getValue() + 1);
-				iter = table.getMatchesFor(compare);
-				iter.next(target);
-				assertEquals(target.getKey(), compare.getKey());
-				assertEquals(target.getValue(), compare.getValue());
-				assertTrue(iter.next(target) == null);
-			}
-			end = System.currentTimeMillis();
-			System.out.println("Probing done. Time: " + (end-start) + " ms");
-			
-			table.close();
-			
-			end = System.currentTimeMillis();
-			System.out.println("Overall time: " + (end-first) + " ms");
-			
-			assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreedMemory().size());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Error: " + e.getMessage());
-		}
-	}
+    private final int SIZE = 36;
 
-	@Test
-	public void testInPlaceMutableHashTablePerformance() {
-		try {
-			final int NUM_MEM_PAGES = SIZE * NUM_PAIRS / PAGE_SIZE;
+    private final TypeSerializer<IntPair> serializer = new IntPairSerializer();
 
-			MutableObjectIterator<IntPair> buildInput = new UniformIntPairGenerator(NUM_PAIRS, 1, false);
+    private final TypeComparator<IntPair> comparator = new IntPairComparator();
 
-			MutableObjectIterator<IntPair> probeTester = new UniformIntPairGenerator(NUM_PAIRS, 1, false);
+    private final TypePairComparator<IntPair, IntPair> pairComparator = new IntPairPairComparator();
 
-			MutableObjectIterator<IntPair> updater = new UniformIntPairGenerator(NUM_PAIRS, 1, false);
+    @Test
+    public void testCompactingHashMapPerformance() {
 
-			MutableObjectIterator<IntPair> updateTester = new UniformIntPairGenerator(NUM_PAIRS, 1, false);
+        try {
+            final int NUM_MEM_PAGES = SIZE * NUM_PAIRS / PAGE_SIZE;
 
-			long start;
-			long end;
+            MutableObjectIterator<IntPair> buildInput =
+                    new UniformIntPairGenerator(NUM_PAIRS, 1, false);
 
-			long first = System.currentTimeMillis();
+            MutableObjectIterator<IntPair> probeTester =
+                    new UniformIntPairGenerator(NUM_PAIRS, 1, false);
 
-			System.out.println("Creating and filling InPlaceMutableHashTable...");
-			start = System.currentTimeMillis();
-			InPlaceMutableHashTable<IntPair> table = new InPlaceMutableHashTable<>(serializer, comparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
-			table.open();
+            MutableObjectIterator<IntPair> updater =
+                    new UniformIntPairGenerator(NUM_PAIRS, 1, false);
 
-			IntPair target = new IntPair();
-			while(buildInput.next(target) != null) {
-				table.insert(target);
-			}
-			end = System.currentTimeMillis();
-			System.out.println("HashMap ready. Time: " + (end-start) + " ms");
+            MutableObjectIterator<IntPair> updateTester =
+                    new UniformIntPairGenerator(NUM_PAIRS, 1, false);
 
-			System.out.println("Starting first probing run...");
-			start = System.currentTimeMillis();
+            long start;
+            long end;
 
-			AbstractHashTableProber<IntPair, IntPair> prober = table.getProber(comparator, pairComparator);
-			IntPair temp = new IntPair();
-			while(probeTester.next(target) != null) {
-				assertNotNull(prober.getMatchFor(target, temp));
-				assertEquals(temp.getValue(), target.getValue());
-			}
-			end = System.currentTimeMillis();
-			System.out.println("Probing done. Time: " + (end-start) + " ms");
+            long first = System.currentTimeMillis();
 
-			System.out.println("Starting update...");
-			start = System.currentTimeMillis();
-			while(updater.next(target) != null) {
-				target.setValue(target.getValue() + 1);
-				table.insertOrReplaceRecord(target);
-			}
-			end = System.currentTimeMillis();
-			System.out.println("Update done. Time: " + (end-start) + " ms");
+            System.out.println("Creating and filling CompactingHashMap...");
+            start = System.currentTimeMillis();
+            AbstractMutableHashTable<IntPair> table =
+                    new CompactingHashTable<IntPair>(
+                            serializer, comparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+            table.open();
 
-			System.out.println("Starting second probing run...");
-			start = System.currentTimeMillis();
-			while (updateTester.next(target) != null) {
-				assertNotNull(prober.getMatchFor(target, temp));
-				assertEquals(target.getValue() + 1, temp.getValue());
-			}
-			end = System.currentTimeMillis();
-			System.out.println("Probing done. Time: " + (end-start) + " ms");
+            IntPair target = new IntPair();
+            while (buildInput.next(target) != null) {
+                table.insert(target);
+            }
+            end = System.currentTimeMillis();
+            System.out.println("HashMap ready. Time: " + (end - start) + " ms");
 
-			table.close();
+            System.out.println("Starting first probing run...");
+            start = System.currentTimeMillis();
 
-			end = System.currentTimeMillis();
-			System.out.println("Overall time: " + (end-first) + " ms");
+            AbstractHashTableProber<IntPair, IntPair> prober =
+                    table.getProber(comparator, pairComparator);
+            IntPair temp = new IntPair();
+            while (probeTester.next(target) != null) {
+                assertNotNull(prober.getMatchFor(target, temp));
+                assertEquals(temp.getValue(), target.getValue());
+            }
+            end = System.currentTimeMillis();
+            System.out.println("Probing done. Time: " + (end - start) + " ms");
 
-			assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Error: " + e.getMessage());
-		}
-	}
+            System.out.println("Starting update...");
+            start = System.currentTimeMillis();
+            while (updater.next(target) != null) {
+                target.setValue(target.getValue() + 1);
+                table.insertOrReplaceRecord(target);
+            }
+            end = System.currentTimeMillis();
+            System.out.println("Update done. Time: " + (end - start) + " ms");
 
-	
-	private static List<MemorySegment> getMemory(int numPages, int pageSize) {
-		List<MemorySegment> memory = new ArrayList<MemorySegment>();
-		
-		for (int i = 0; i < numPages; i++) {
-			memory.add(MemorySegmentFactory.allocateUnpooledSegment(pageSize));
-		}
-		
-		return memory;
-	}
+            System.out.println("Starting second probing run...");
+            start = System.currentTimeMillis();
+            while (updateTester.next(target) != null) {
+                assertNotNull(prober.getMatchFor(target, temp));
+                assertEquals(target.getValue() + 1, temp.getValue());
+            }
+            end = System.currentTimeMillis();
+            System.out.println("Probing done. Time: " + (end - start) + " ms");
 
+            table.close();
+
+            end = System.currentTimeMillis();
+            System.out.println("Overall time: " + (end - first) + " ms");
+
+            assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail("Error: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void testMutableHashMapPerformance() {
+        try (IOManager ioManager = new IOManagerAsync()) {
+            final int NUM_MEM_PAGES = SIZE * NUM_PAIRS / PAGE_SIZE;
+
+            MutableObjectIterator<IntPair> buildInput =
+                    new UniformIntPairGenerator(NUM_PAIRS, 1, false);
+
+            MutableObjectIterator<IntPair> probeInput = new UniformIntPairGenerator(0, 1, false);
+
+            MutableObjectIterator<IntPair> probeTester =
+                    new UniformIntPairGenerator(NUM_PAIRS, 1, false);
+
+            MutableObjectIterator<IntPair> updater =
+                    new UniformIntPairGenerator(NUM_PAIRS, 1, false);
+
+            MutableObjectIterator<IntPair> updateTester =
+                    new UniformIntPairGenerator(NUM_PAIRS, 1, false);
+
+            long start;
+            long end;
+
+            long first = System.currentTimeMillis();
+
+            System.out.println("Creating and filling MutableHashMap...");
+            start = System.currentTimeMillis();
+            MutableHashTable<IntPair, IntPair> table =
+                    new MutableHashTable<IntPair, IntPair>(
+                            serializer,
+                            serializer,
+                            comparator,
+                            comparator,
+                            pairComparator,
+                            getMemory(NUM_MEM_PAGES, PAGE_SIZE),
+                            ioManager);
+            table.open(buildInput, probeInput);
+            end = System.currentTimeMillis();
+            System.out.println("HashMap ready. Time: " + (end - start) + " ms");
+
+            System.out.println("Starting first probing run...");
+            start = System.currentTimeMillis();
+            IntPair compare = new IntPair();
+            HashBucketIterator<IntPair, IntPair> iter;
+            IntPair target = new IntPair();
+            while (probeTester.next(compare) != null) {
+                iter = table.getMatchesFor(compare);
+                iter.next(target);
+                assertEquals(target.getKey(), compare.getKey());
+                assertEquals(target.getValue(), compare.getValue());
+                assertTrue(iter.next(target) == null);
+            }
+            end = System.currentTimeMillis();
+            System.out.println("Probing done. Time: " + (end - start) + " ms");
+
+            System.out.println("Starting update...");
+            start = System.currentTimeMillis();
+            while (updater.next(compare) != null) {
+                compare.setValue(compare.getValue() + 1);
+                iter = table.getMatchesFor(compare);
+                iter.next(target);
+                iter.writeBack(compare);
+                // assertFalse(iter.next(target));
+            }
+            end = System.currentTimeMillis();
+            System.out.println("Update done. Time: " + (end - start) + " ms");
+
+            System.out.println("Starting second probing run...");
+            start = System.currentTimeMillis();
+            while (updateTester.next(compare) != null) {
+                compare.setValue(compare.getValue() + 1);
+                iter = table.getMatchesFor(compare);
+                iter.next(target);
+                assertEquals(target.getKey(), compare.getKey());
+                assertEquals(target.getValue(), compare.getValue());
+                assertTrue(iter.next(target) == null);
+            }
+            end = System.currentTimeMillis();
+            System.out.println("Probing done. Time: " + (end - start) + " ms");
+
+            table.close();
+
+            end = System.currentTimeMillis();
+            System.out.println("Overall time: " + (end - first) + " ms");
+
+            assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreedMemory().size());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail("Error: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void testInPlaceMutableHashTablePerformance() {
+        try {
+            final int NUM_MEM_PAGES = SIZE * NUM_PAIRS / PAGE_SIZE;
+
+            MutableObjectIterator<IntPair> buildInput =
+                    new UniformIntPairGenerator(NUM_PAIRS, 1, false);
+
+            MutableObjectIterator<IntPair> probeTester =
+                    new UniformIntPairGenerator(NUM_PAIRS, 1, false);
+
+            MutableObjectIterator<IntPair> updater =
+                    new UniformIntPairGenerator(NUM_PAIRS, 1, false);
+
+            MutableObjectIterator<IntPair> updateTester =
+                    new UniformIntPairGenerator(NUM_PAIRS, 1, false);
+
+            long start;
+            long end;
+
+            long first = System.currentTimeMillis();
+
+            System.out.println("Creating and filling InPlaceMutableHashTable...");
+            start = System.currentTimeMillis();
+            InPlaceMutableHashTable<IntPair> table =
+                    new InPlaceMutableHashTable<>(
+                            serializer, comparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+            table.open();
+
+            IntPair target = new IntPair();
+            while (buildInput.next(target) != null) {
+                table.insert(target);
+            }
+            end = System.currentTimeMillis();
+            System.out.println("HashMap ready. Time: " + (end - start) + " ms");
+
+            System.out.println("Starting first probing run...");
+            start = System.currentTimeMillis();
+
+            AbstractHashTableProber<IntPair, IntPair> prober =
+                    table.getProber(comparator, pairComparator);
+            IntPair temp = new IntPair();
+            while (probeTester.next(target) != null) {
+                assertNotNull(prober.getMatchFor(target, temp));
+                assertEquals(temp.getValue(), target.getValue());
+            }
+            end = System.currentTimeMillis();
+            System.out.println("Probing done. Time: " + (end - start) + " ms");
+
+            System.out.println("Starting update...");
+            start = System.currentTimeMillis();
+            while (updater.next(target) != null) {
+                target.setValue(target.getValue() + 1);
+                table.insertOrReplaceRecord(target);
+            }
+            end = System.currentTimeMillis();
+            System.out.println("Update done. Time: " + (end - start) + " ms");
+
+            System.out.println("Starting second probing run...");
+            start = System.currentTimeMillis();
+            while (updateTester.next(target) != null) {
+                assertNotNull(prober.getMatchFor(target, temp));
+                assertEquals(target.getValue() + 1, temp.getValue());
+            }
+            end = System.currentTimeMillis();
+            System.out.println("Probing done. Time: " + (end - start) + " ms");
+
+            table.close();
+
+            end = System.currentTimeMillis();
+            System.out.println("Overall time: " + (end - first) + " ms");
+
+            assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail("Error: " + e.getMessage());
+        }
+    }
+
+    private static List<MemorySegment> getMemory(int numPages, int pageSize) {
+        List<MemorySegment> memory = new ArrayList<MemorySegment>();
+
+        for (int i = 0; i < numPages; i++) {
+            memory.add(MemorySegmentFactory.allocateUnpooledSegment(pageSize));
+        }
+
+        return memory;
+    }
 }

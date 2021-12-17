@@ -33,112 +33,110 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotatio
 import java.util.Collection;
 import java.util.Objects;
 
-/**
- * Response type of the {@link SubtasksAllAccumulatorsHandler}.
- */
+/** Response type of the {@link SubtasksAllAccumulatorsHandler}. */
 public class SubtasksAllAccumulatorsInfo implements ResponseBody {
 
-	public static final String FIELD_NAME_JOB_VERTEX_ID = "id";
-	public static final String FIELD_NAME_PARALLELISM = "parallelism";
-	public static final String FIELD_NAME_SUBTASKS = "subtasks";
+    public static final String FIELD_NAME_JOB_VERTEX_ID = "id";
+    public static final String FIELD_NAME_PARALLELISM = "parallelism";
+    public static final String FIELD_NAME_SUBTASKS = "subtasks";
 
-	@JsonProperty(FIELD_NAME_JOB_VERTEX_ID)
-	@JsonSerialize(using = JobVertexIDSerializer.class)
-	private final JobVertexID jobVertexId;
+    @JsonProperty(FIELD_NAME_JOB_VERTEX_ID)
+    @JsonSerialize(using = JobVertexIDSerializer.class)
+    private final JobVertexID jobVertexId;
 
-	@JsonProperty(FIELD_NAME_PARALLELISM)
-	private final int parallelism;
+    @JsonProperty(FIELD_NAME_PARALLELISM)
+    private final int parallelism;
 
-	@JsonProperty(FIELD_NAME_SUBTASKS)
-	private final Collection<SubtaskAccumulatorsInfo> subtaskAccumulatorsInfos;
+    @JsonProperty(FIELD_NAME_SUBTASKS)
+    private final Collection<SubtaskAccumulatorsInfo> subtaskAccumulatorsInfos;
 
-	@JsonCreator
-	public SubtasksAllAccumulatorsInfo(
-		@JsonDeserialize(using = JobVertexIDDeserializer.class) @JsonProperty(FIELD_NAME_JOB_VERTEX_ID) JobVertexID jobVertexId,
-		@JsonProperty(FIELD_NAME_PARALLELISM) int parallelism,
-		@JsonProperty(FIELD_NAME_SUBTASKS) Collection<SubtaskAccumulatorsInfo> subtaskAccumulatorsInfos) {
-		this.jobVertexId = Preconditions.checkNotNull(jobVertexId);
-		this.parallelism = parallelism;
-		this.subtaskAccumulatorsInfos = Preconditions.checkNotNull(subtaskAccumulatorsInfos);
-	}
+    @JsonCreator
+    public SubtasksAllAccumulatorsInfo(
+            @JsonDeserialize(using = JobVertexIDDeserializer.class)
+                    @JsonProperty(FIELD_NAME_JOB_VERTEX_ID)
+                    JobVertexID jobVertexId,
+            @JsonProperty(FIELD_NAME_PARALLELISM) int parallelism,
+            @JsonProperty(FIELD_NAME_SUBTASKS)
+                    Collection<SubtaskAccumulatorsInfo> subtaskAccumulatorsInfos) {
+        this.jobVertexId = Preconditions.checkNotNull(jobVertexId);
+        this.parallelism = parallelism;
+        this.subtaskAccumulatorsInfos = Preconditions.checkNotNull(subtaskAccumulatorsInfos);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		SubtasksAllAccumulatorsInfo that = (SubtasksAllAccumulatorsInfo) o;
-		return Objects.equals(jobVertexId, that.jobVertexId) &&
-			parallelism == that.parallelism &&
-			Objects.equals(subtaskAccumulatorsInfos, that.subtaskAccumulatorsInfos);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        SubtasksAllAccumulatorsInfo that = (SubtasksAllAccumulatorsInfo) o;
+        return Objects.equals(jobVertexId, that.jobVertexId)
+                && parallelism == that.parallelism
+                && Objects.equals(subtaskAccumulatorsInfos, that.subtaskAccumulatorsInfos);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(jobVertexId, parallelism, subtaskAccumulatorsInfos);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(jobVertexId, parallelism, subtaskAccumulatorsInfos);
+    }
 
-	// ---------------------------------------------------
-	// Static inner classes
-	// ---------------------------------------------------
+    // ---------------------------------------------------
+    // Static inner classes
+    // ---------------------------------------------------
 
-	/**
-	 * Detailed information about subtask accumulators.
-	 */
-	public static class SubtaskAccumulatorsInfo {
-		public static final String FIELD_NAME_SUBTASK_INDEX = "subtask";
-		public static final String FIELD_NAME_ATTEMPT_NUM = "attempt";
-		public static final String FIELD_NAME_HOST = "host";
-		public static final String FIELD_NAME_USER_ACCUMULATORS = "user-accumulators";
+    /** Detailed information about subtask accumulators. */
+    public static class SubtaskAccumulatorsInfo {
+        public static final String FIELD_NAME_SUBTASK_INDEX = "subtask";
+        public static final String FIELD_NAME_ATTEMPT_NUM = "attempt";
+        public static final String FIELD_NAME_HOST = "host";
+        public static final String FIELD_NAME_USER_ACCUMULATORS = "user-accumulators";
 
+        @JsonProperty(FIELD_NAME_SUBTASK_INDEX)
+        private final int subtaskIndex;
 
-		@JsonProperty(FIELD_NAME_SUBTASK_INDEX)
-		private final int subtaskIndex;
+        @JsonProperty(FIELD_NAME_ATTEMPT_NUM)
+        private final int attemptNum;
 
-		@JsonProperty(FIELD_NAME_ATTEMPT_NUM)
-		private final int attemptNum;
+        @JsonProperty(FIELD_NAME_HOST)
+        private final String host;
 
-		@JsonProperty(FIELD_NAME_HOST)
-		private final String host;
+        @JsonProperty(FIELD_NAME_USER_ACCUMULATORS)
+        private final Collection<UserAccumulator> userAccumulators;
 
-		@JsonProperty(FIELD_NAME_USER_ACCUMULATORS)
-		private final Collection<UserAccumulator> userAccumulators;
+        @JsonCreator
+        public SubtaskAccumulatorsInfo(
+                @JsonProperty(FIELD_NAME_SUBTASK_INDEX) int subtaskIndex,
+                @JsonProperty(FIELD_NAME_ATTEMPT_NUM) int attemptNum,
+                @JsonProperty(FIELD_NAME_HOST) String host,
+                @JsonProperty(FIELD_NAME_USER_ACCUMULATORS)
+                        Collection<UserAccumulator> userAccumulators) {
 
-		@JsonCreator
-		public SubtaskAccumulatorsInfo(
-			@JsonProperty(FIELD_NAME_SUBTASK_INDEX) int subtaskIndex,
-			@JsonProperty(FIELD_NAME_ATTEMPT_NUM) int attemptNum,
-			@JsonProperty(FIELD_NAME_HOST) String host,
-			@JsonProperty(FIELD_NAME_USER_ACCUMULATORS) Collection<UserAccumulator> userAccumulators) {
+            this.subtaskIndex = subtaskIndex;
+            this.attemptNum = attemptNum;
+            this.host = Preconditions.checkNotNull(host);
+            this.userAccumulators = Preconditions.checkNotNull(userAccumulators);
+        }
 
-			this.subtaskIndex = subtaskIndex;
-			this.attemptNum = attemptNum;
-			this.host = Preconditions.checkNotNull(host);
-			this.userAccumulators = Preconditions.checkNotNull(userAccumulators);
-		}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            SubtaskAccumulatorsInfo that = (SubtaskAccumulatorsInfo) o;
+            return subtaskIndex == that.subtaskIndex
+                    && attemptNum == that.attemptNum
+                    && Objects.equals(host, that.host)
+                    && Objects.equals(userAccumulators, that.userAccumulators);
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			SubtaskAccumulatorsInfo that = (SubtaskAccumulatorsInfo) o;
-			return subtaskIndex == that.subtaskIndex &&
-				attemptNum == that.attemptNum &&
-				Objects.equals(host, that.host) &&
-				Objects.equals(userAccumulators, that.userAccumulators);
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(subtaskIndex, attemptNum, host, userAccumulators);
-		}
-
-	}
+        @Override
+        public int hashCode() {
+            return Objects.hash(subtaskIndex, attemptNum, host, userAccumulators);
+        }
+    }
 }

@@ -34,74 +34,76 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
  */
 public class AcknowledgeCheckpoint extends AbstractCheckpointMessage {
 
-	private static final long serialVersionUID = -7606214777192401493L;
+    private static final long serialVersionUID = -7606214777192401493L;
 
-	private final TaskStateSnapshot subtaskState;
+    private final TaskStateSnapshot subtaskState;
 
-	private final CheckpointMetrics checkpointMetrics;
+    private final CheckpointMetrics checkpointMetrics;
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	public AcknowledgeCheckpoint(
-			JobID job,
-			ExecutionAttemptID taskExecutionId,
-			long checkpointId,
-			CheckpointMetrics checkpointMetrics,
-			TaskStateSnapshot subtaskState) {
+    public AcknowledgeCheckpoint(
+            JobID job,
+            ExecutionAttemptID taskExecutionId,
+            long checkpointId,
+            CheckpointMetrics checkpointMetrics,
+            TaskStateSnapshot subtaskState) {
 
-		super(job, taskExecutionId, checkpointId);
+        super(job, taskExecutionId, checkpointId);
 
-		this.subtaskState = subtaskState;
-		this.checkpointMetrics = checkpointMetrics;
-	}
+        this.subtaskState = subtaskState;
+        this.checkpointMetrics = checkpointMetrics;
+    }
 
-	@VisibleForTesting
-	public AcknowledgeCheckpoint(JobID jobId, ExecutionAttemptID taskExecutionId, long checkpointId) {
-		this(jobId, taskExecutionId, checkpointId, new CheckpointMetrics(), null);
-	}
+    @VisibleForTesting
+    public AcknowledgeCheckpoint(
+            JobID jobId, ExecutionAttemptID taskExecutionId, long checkpointId) {
+        this(jobId, taskExecutionId, checkpointId, new CheckpointMetrics(), null);
+    }
 
-	// ------------------------------------------------------------------------
-	//  properties
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  properties
+    // ------------------------------------------------------------------------
 
-	public TaskStateSnapshot getSubtaskState() {
-		return subtaskState;
-	}
+    public TaskStateSnapshot getSubtaskState() {
+        return subtaskState;
+    }
 
-	public CheckpointMetrics getCheckpointMetrics() {
-		return checkpointMetrics;
-	}
+    public CheckpointMetrics getCheckpointMetrics() {
+        return checkpointMetrics;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (!(o instanceof AcknowledgeCheckpoint)) {
-			return false;
-		}
-		if (!super.equals(o)) {
-			return false;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof AcknowledgeCheckpoint)) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
 
-		AcknowledgeCheckpoint that = (AcknowledgeCheckpoint) o;
-		return subtaskState != null ?
-				subtaskState.equals(that.subtaskState) : that.subtaskState == null;
+        AcknowledgeCheckpoint that = (AcknowledgeCheckpoint) o;
+        return subtaskState != null
+                ? subtaskState.equals(that.subtaskState)
+                : that.subtaskState == null;
+    }
 
-	}
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + (subtaskState != null ? subtaskState.hashCode() : 0);
+        return result;
+    }
 
-	@Override
-	public int hashCode() {
-		int result = super.hashCode();
-		result = 31 * result + (subtaskState != null ? subtaskState.hashCode() : 0);
-		return result;
-	}
-
-	@Override
-	public String toString() {
-		return String.format("Confirm Task Checkpoint %d for (%s/%s) - state=%s",
-				getCheckpointId(), getJob(), getTaskExecutionId(), subtaskState);
-	}
+    @Override
+    public String toString() {
+        return String.format(
+                "Confirm Task Checkpoint %d for (%s/%s) - state=%s",
+                getCheckpointId(), getJob(), getTaskExecutionId(), subtaskState);
+    }
 }

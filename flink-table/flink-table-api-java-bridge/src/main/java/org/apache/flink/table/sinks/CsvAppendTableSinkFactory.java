@@ -18,31 +18,36 @@
 
 package org.apache.flink.table.sinks;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.types.Row;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
-import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
-
 /**
  * Factory base for creating configured instances of {@link CsvTableSink} in a stream environment.
+ *
+ * @deprecated The legacy CSV connector has been replaced by {@code FileSink}. It is kept only to
+ *     support tests for the legacy connector stack.
  */
-@PublicEvolving
-public class CsvAppendTableSinkFactory extends CsvTableSinkFactoryBase implements StreamTableSinkFactory<Row> {
+@Internal
+@Deprecated
+public class CsvAppendTableSinkFactory extends CsvTableSinkFactoryBase
+        implements StreamTableSinkFactory<Row> {
 
-	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>(super.requiredContext());
-		context.put(UPDATE_MODE, UPDATE_MODE_VALUE_APPEND);
-		return context;
-	}
+    private static final String UPDATE_MODE = "update-mode";
+    private static final String UPDATE_MODE_VALUE_APPEND = "append";
 
-	@Override
-	public StreamTableSink<Row> createStreamTableSink(Map<String, String> properties) {
-		return createTableSink(true, properties);
-	}
+    @Override
+    public Map<String, String> requiredContext() {
+        Map<String, String> context = new HashMap<>(super.requiredContext());
+        context.put(UPDATE_MODE, UPDATE_MODE_VALUE_APPEND);
+        return context;
+    }
+
+    @Override
+    public StreamTableSink<Row> createStreamTableSink(Map<String, String> properties) {
+        return createTableSink(true, properties);
+    }
 }

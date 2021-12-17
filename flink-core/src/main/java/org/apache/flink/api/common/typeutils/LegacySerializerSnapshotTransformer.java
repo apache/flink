@@ -21,19 +21,20 @@ package org.apache.flink.api.common.typeutils;
 import org.apache.flink.annotation.Internal;
 
 /**
- * This interface provides a way for {@link TypeSerializer}s to transform a legacy {@link TypeSerializerSnapshot}
- * used in versions before Flink 1.7 during deserialization.
+ * This interface provides a way for {@link TypeSerializer}s to transform a legacy {@link
+ * TypeSerializerSnapshot} used in versions before Flink 1.7 during deserialization.
  */
 @Internal
 public interface LegacySerializerSnapshotTransformer<T> {
 
-	/**
-	 * Transform a {@link TypeSerializerSnapshot} that was previously associated with {@code this} {@link TypeSerializer}.
-	 *
-	 * @param legacySnapshot the snapshot to transform.
-	 * @param <U> the legacy snapshot's serializer data type.
-	 *
-	 * @return a possibly transformed snapshot.
-	 */
-	<U> TypeSerializerSnapshot<T> transformLegacySerializerSnapshot(TypeSerializerSnapshot<U> legacySnapshot);
+    /**
+     * Transform a {@link TypeSerializerSnapshot} that was previously associated with {@code this}
+     * {@link TypeSerializer}.
+     *
+     * @param legacySnapshot the snapshot to transform.
+     * @param <U> the legacy snapshot's serializer data type.
+     * @return a possibly transformed snapshot.
+     */
+    <U> TypeSerializerSnapshot<T> transformLegacySerializerSnapshot(
+            TypeSerializerSnapshot<U> legacySnapshot);
 }

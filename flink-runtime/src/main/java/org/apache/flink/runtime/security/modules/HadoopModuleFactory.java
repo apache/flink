@@ -26,32 +26,34 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link SecurityModuleFactory} for {@link HadoopModule}. This checks if Hadoop dependencies
- * are available before creating a {@link HadoopModule}.
+ * A {@link SecurityModuleFactory} for {@link HadoopModule}. This checks if Hadoop dependencies are
+ * available before creating a {@link HadoopModule}.
  */
 public class HadoopModuleFactory implements SecurityModuleFactory {
 
-	private static final Logger LOG = LoggerFactory.getLogger(HadoopModuleFactory.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HadoopModuleFactory.class);
 
-	@Override
-	public SecurityModule createModule(SecurityConfiguration securityConfig) {
-		// First check if we have Hadoop in the ClassPath. If not, we simply don't do anything.
-		try {
-			Class.forName(
-				"org.apache.hadoop.conf.Configuration",
-				false,
-				HadoopModule.class.getClassLoader());
-		} catch (ClassNotFoundException e) {
-			LOG.info("Cannot create Hadoop Security Module because Hadoop cannot be found in the Classpath.");
-			return null;
-		}
+    @Override
+    public SecurityModule createModule(SecurityConfiguration securityConfig) {
+        // First check if we have Hadoop in the ClassPath. If not, we simply don't do anything.
+        try {
+            Class.forName(
+                    "org.apache.hadoop.conf.Configuration",
+                    false,
+                    HadoopModule.class.getClassLoader());
+        } catch (ClassNotFoundException e) {
+            LOG.info(
+                    "Cannot create Hadoop Security Module because Hadoop cannot be found in the Classpath.");
+            return null;
+        }
 
-		try {
-			Configuration hadoopConfiguration = HadoopUtils.getHadoopConfiguration(securityConfig.getFlinkConfig());
-			return new HadoopModule(securityConfig, hadoopConfiguration);
-		} catch (LinkageError e) {
-			LOG.error("Cannot create Hadoop Security Module.", e);
-			return null;
-		}
-	}
+        try {
+            Configuration hadoopConfiguration =
+                    HadoopUtils.getHadoopConfiguration(securityConfig.getFlinkConfig());
+            return new HadoopModule(securityConfig, hadoopConfiguration);
+        } catch (LinkageError e) {
+            LOG.error("Cannot create Hadoop Security Module.", e);
+            return null;
+        }
+    }
 }

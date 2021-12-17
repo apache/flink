@@ -28,68 +28,72 @@ import org.apache.flink.util.Preconditions;
 import java.util.Map;
 
 /**
- * Listener for {@link WorkerDoneEvent} which also aggregates all aggregators
- * from iteration tasks and signals the end of the superstep.
+ * Listener for {@link WorkerDoneEvent} which also aggregates all aggregators from iteration tasks
+ * and signals the end of the superstep.
  */
 public class SyncEventHandler implements EventListener<TaskEvent> {
 
-	private final ClassLoader userCodeClassLoader;
+    private final ClassLoader userCodeClassLoader;
 
-	private final Map<String, Aggregator<?>> aggregators;
+    private final Map<String, Aggregator<?>> aggregators;
 
-	private final int numberOfEventsUntilEndOfSuperstep;
+    private final int numberOfEventsUntilEndOfSuperstep;
 
-	private int workerDoneEventCounter;
+    private int workerDoneEventCounter;
 
-	private boolean endOfSuperstep;
+    private boolean endOfSuperstep;
 
-	public SyncEventHandler(int numberOfEventsUntilEndOfSuperstep, Map<String, Aggregator<?>> aggregators, ClassLoader userCodeClassLoader) {
-		Preconditions.checkArgument(numberOfEventsUntilEndOfSuperstep > 0);
-		this.userCodeClassLoader = userCodeClassLoader;
-		this.numberOfEventsUntilEndOfSuperstep = numberOfEventsUntilEndOfSuperstep;
-		this.aggregators = aggregators;
-	}
+    public SyncEventHandler(
+            int numberOfEventsUntilEndOfSuperstep,
+            Map<String, Aggregator<?>> aggregators,
+            ClassLoader userCodeClassLoader) {
+        Preconditions.checkArgument(numberOfEventsUntilEndOfSuperstep > 0);
+        this.userCodeClassLoader = userCodeClassLoader;
+        this.numberOfEventsUntilEndOfSuperstep = numberOfEventsUntilEndOfSuperstep;
+        this.aggregators = aggregators;
+    }
 
-	@Override
-	public void onEvent(TaskEvent event) {
-		if (WorkerDoneEvent.class.equals(event.getClass())) {
-			onWorkerDoneEvent((WorkerDoneEvent) event);
-			return;
-		}
-		throw new IllegalStateException("Unable to handle event " + event.getClass().getName());
-	}
+    @Override
+    public void onEvent(TaskEvent event) {
+        if (WorkerDoneEvent.class.equals(event.getClass())) {
+            onWorkerDoneEvent((WorkerDoneEvent) event);
+            return;
+        }
+        throw new IllegalStateException("Unable to handle event " + event.getClass().getName());
+    }
 
-	private void onWorkerDoneEvent(WorkerDoneEvent workerDoneEvent) {
-		if (this.endOfSuperstep) {
-			throw new RuntimeException("Encountered WorderDoneEvent when still in End-of-Superstep status.");
-		}
+    private void onWorkerDoneEvent(WorkerDoneEvent workerDoneEvent) {
+        if (this.endOfSuperstep) {
+            throw new RuntimeException(
+                    "Encountered WorderDoneEvent when still in End-of-Superstep status.");
+        }
 
-		workerDoneEventCounter++;
+        workerDoneEventCounter++;
 
-		String[] aggNames = workerDoneEvent.getAggregatorNames();
-		Value[] aggregates = workerDoneEvent.getAggregates(userCodeClassLoader);
+        String[] aggNames = workerDoneEvent.getAggregatorNames();
+        Value[] aggregates = workerDoneEvent.getAggregates(userCodeClassLoader);
 
-		if (aggNames.length != aggregates.length) {
-			throw new RuntimeException("Inconsistent WorkerDoneEvent received!");
-		}
+        if (aggNames.length != aggregates.length) {
+            throw new RuntimeException("Inconsistent WorkerDoneEvent received!");
+        }
 
-		for (int i = 0; i < aggNames.length; i++) {
-			@SuppressWarnings("unchecked")
-			Aggregator<Value> aggregator = (Aggregator<Value>) this.aggregators.get(aggNames[i]);
-			aggregator.aggregate(aggregates[i]);
-		}
+        for (int i = 0; i < aggNames.length; i++) {
+            @SuppressWarnings("unchecked")
+            Aggregator<Value> aggregator = (Aggregator<Value>) this.aggregators.get(aggNames[i]);
+            aggregator.aggregate(aggregates[i]);
+        }
 
-		if (workerDoneEventCounter % numberOfEventsUntilEndOfSuperstep == 0) {
-			endOfSuperstep = true;
-			Thread.currentThread().interrupt();
-		}
-	}
+        if (workerDoneEventCounter % numberOfEventsUntilEndOfSuperstep == 0) {
+            endOfSuperstep = true;
+            Thread.currentThread().interrupt();
+        }
+    }
 
-	public boolean isEndOfSuperstep() {
-		return this.endOfSuperstep;
-	}
+    public boolean isEndOfSuperstep() {
+        return this.endOfSuperstep;
+    }
 
-	public void resetEndOfSuperstep() {
-		this.endOfSuperstep = false;
-	}
+    public void resetEndOfSuperstep() {
+        this.endOfSuperstep = false;
+    }
 }

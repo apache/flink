@@ -18,20 +18,12 @@
 
 package org.apache.flink.kubernetes.kubeclient.resources;
 
-import org.apache.flink.configuration.Configuration;
-
 import io.fabric8.kubernetes.api.model.Service;
 
-/**
- * Represent Service resource in kubernetes.
- */
+/** Represent Service resource in kubernetes. */
 public class KubernetesService extends KubernetesResource<Service> {
 
-	public KubernetesService(Configuration flinkConfig) {
-		super(flinkConfig, new Service());
-	}
-
-	public KubernetesService(Configuration flinkConfig, Service service) {
-		super(flinkConfig, service);
-	}
+    public KubernetesService(Service internalResource) {
+        super(internalResource);
+    }
 }

@@ -27,27 +27,24 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link MetricsFilterParameter}.
- */
+/** Tests for {@link MetricsFilterParameter}. */
 public class MetricsFilterParameterTest extends TestLogger {
 
-	private MetricsFilterParameter metricsFilterParameter;
+    private MetricsFilterParameter metricsFilterParameter;
 
-	@Before
-	public void setUp() {
-		metricsFilterParameter = new MetricsFilterParameter();
-	}
+    @Before
+    public void setUp() {
+        metricsFilterParameter = new MetricsFilterParameter();
+    }
 
-	@Test
-	public void testIsOptionalParameter() {
-		assertFalse(metricsFilterParameter.isMandatory());
-	}
+    @Test
+    public void testIsOptionalParameter() {
+        assertFalse(metricsFilterParameter.isMandatory());
+    }
 
-	@Test
-	public void testConversions() {
-		assertThat(metricsFilterParameter.convertValueToString("test"), equalTo("test"));
-		assertThat(metricsFilterParameter.convertStringToValue("test"), equalTo("test"));
-	}
-
+    @Test
+    public void testConversions() {
+        assertThat(metricsFilterParameter.convertValueToString("test"), equalTo("test"));
+        assertThat(metricsFilterParameter.convertStringToValue("test"), equalTo("test"));
+    }
 }

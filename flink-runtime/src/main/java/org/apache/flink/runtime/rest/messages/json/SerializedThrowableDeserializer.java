@@ -30,29 +30,27 @@ import java.io.IOException;
 
 import static org.apache.flink.runtime.rest.messages.json.SerializedThrowableSerializer.FIELD_NAME_SERIALIZED_THROWABLE;
 
-/**
- * JSON deserializer for {@link SerializedThrowable}.
- */
+/** JSON deserializer for {@link SerializedThrowable}. */
 public class SerializedThrowableDeserializer extends StdDeserializer<SerializedThrowable> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public SerializedThrowableDeserializer() {
-		super(SerializedThrowable.class);
-	}
+    public SerializedThrowableDeserializer() {
+        super(SerializedThrowable.class);
+    }
 
-	@Override
-	public SerializedThrowable deserialize(
-			final JsonParser p,
-			final DeserializationContext ctxt) throws IOException {
-		final JsonNode root = p.readValueAsTree();
+    @Override
+    public SerializedThrowable deserialize(final JsonParser p, final DeserializationContext ctxt)
+            throws IOException {
+        final JsonNode root = p.readValueAsTree();
 
-		final byte[] serializedException = root.get(FIELD_NAME_SERIALIZED_THROWABLE).binaryValue();
-		try {
-			return InstantiationUtil.deserializeObject(serializedException, ClassLoader.getSystemClassLoader());
-		} catch (ClassNotFoundException e) {
-			throw new IOException("Failed to deserialize " + SerializedThrowable.class.getCanonicalName(), e);
-		}
-	}
-
+        final byte[] serializedException = root.get(FIELD_NAME_SERIALIZED_THROWABLE).binaryValue();
+        try {
+            return InstantiationUtil.deserializeObject(
+                    serializedException, ClassLoader.getSystemClassLoader());
+        } catch (ClassNotFoundException e) {
+            throw new IOException(
+                    "Failed to deserialize " + SerializedThrowable.class.getCanonicalName(), e);
+        }
+    }
 }

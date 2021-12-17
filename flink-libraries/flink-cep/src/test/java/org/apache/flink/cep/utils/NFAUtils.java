@@ -24,24 +24,21 @@ import org.apache.flink.cep.pattern.Pattern;
 
 import static org.apache.flink.cep.nfa.compiler.NFACompiler.compileFactory;
 
-/**
- * Utility methods for constructing NFA.
- */
+/** Utility methods for constructing NFA. */
 public class NFAUtils {
 
-	/**
-	 * Compiles the given pattern into a {@link NFA}.
-	 *
-	 * @param pattern         Definition of sequence pattern
-	 * @param timeoutHandling True if the NFA shall return timed out event patterns
-	 * @param <T>             Type of the input events
-	 * @return Non-deterministic finite automaton representing the given pattern
-	 */
-	public static <T> NFA<T> compile(Pattern<T, ?> pattern, boolean timeoutHandling) {
-		NFACompiler.NFAFactory<T> factory = compileFactory(pattern, timeoutHandling);
-		return factory.createNFA();
-	}
+    /**
+     * Compiles the given pattern into a {@link NFA}.
+     *
+     * @param pattern Definition of sequence pattern
+     * @param timeoutHandling True if the NFA shall return timed out event patterns
+     * @param <T> Type of the input events
+     * @return Non-deterministic finite automaton representing the given pattern
+     */
+    public static <T> NFA<T> compile(Pattern<T, ?> pattern, boolean timeoutHandling) {
+        NFACompiler.NFAFactory<T> factory = compileFactory(pattern, timeoutHandling);
+        return factory.createNFA();
+    }
 
-	private NFAUtils() {
-	}
+    private NFAUtils() {}
 }

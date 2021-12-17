@@ -31,13 +31,12 @@ import java.util.Map;
 @PublicEvolving
 public interface SerializationSchemaFactory<T> extends TableFormatFactory<T> {
 
-	/**
-	 * Creates and configures a [[SerializationSchema]] using the given properties.
-	 *
-	 * @param properties normalized properties describing the format
-	 * @return the configured serialization schema or null if the factory cannot provide an
-	 *         instance of this class
-	 */
-	SerializationSchema<T> createSerializationSchema(Map<String, String> properties);
-
+    /**
+     * Creates and configures a [[SerializationSchema]] using the given properties.
+     *
+     * @param properties normalized properties describing the format
+     * @return the configured serialization schema or null if the factory cannot provide an instance
+     *     of this class
+     */
+    SerializationSchema<T> createSerializationSchema(Map<String, String> properties);
 }

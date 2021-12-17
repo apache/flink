@@ -20,18 +20,18 @@ package org.apache.flink.table.functions.hive.conversion;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * Conversion that return the same object.
- */
+/** Conversion that return the same object. */
 @Internal
 public class IdentityConversion implements HiveObjectConversion {
 
-	public static final IdentityConversion INSTANCE = new IdentityConversion();
+    private static final long serialVersionUID = 1L;
 
-	private IdentityConversion() {}
+    public static final IdentityConversion INSTANCE = new IdentityConversion();
 
-	@Override
-	public Object toHiveObject(Object o) {
-		return o;
-	}
+    private IdentityConversion() {}
+
+    @Override
+    public Object toHiveObject(Object o) {
+        return o;
+    }
 }

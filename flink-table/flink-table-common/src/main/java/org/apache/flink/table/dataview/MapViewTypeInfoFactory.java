@@ -27,28 +27,28 @@ import org.apache.flink.table.api.dataview.MapView;
 import java.lang.reflect.Type;
 import java.util.Map;
 
-/**
- * TypeInformation factory for {@link MapView}.
- */
+/** TypeInformation factory for {@link MapView}. */
 @Internal
+@Deprecated
 public class MapViewTypeInfoFactory<K, V> extends TypeInfoFactory<MapView<K, V>> {
 
-	@Override
-	public TypeInformation<MapView<K, V>> createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParameters) {
-		TypeInformation<?> keyType = genericParameters.get("K");
-		TypeInformation<?> valueType = genericParameters.get("V");
+    @Override
+    public TypeInformation<MapView<K, V>> createTypeInfo(
+            Type t, Map<String, TypeInformation<?>> genericParameters) {
+        TypeInformation<?> keyType = genericParameters.get("K");
+        TypeInformation<?> valueType = genericParameters.get("V");
 
-		if (keyType == null) {
-			// we might can get the keyType later from the MapView constructor
-			keyType = new GenericTypeInfo<>(Object.class);
-		}
+        if (keyType == null) {
+            // we might can get the keyType later from the MapView constructor
+            keyType = new GenericTypeInfo<>(Object.class);
+        }
 
-		if (valueType == null) {
-			// we might can get the keyType later from the MapView constructor
-			valueType = new GenericTypeInfo<>(Object.class);
-		}
+        if (valueType == null) {
+            // we might can get the keyType later from the MapView constructor
+            valueType = new GenericTypeInfo<>(Object.class);
+        }
 
-		//noinspection unchecked
-		return new MapViewTypeInfo<>((TypeInformation<K>) keyType, (TypeInformation<V>) valueType);
-	}
+        //noinspection unchecked
+        return new MapViewTypeInfo<>((TypeInformation<K>) keyType, (TypeInformation<V>) valueType);
+    }
 }

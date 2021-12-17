@@ -19,53 +19,52 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Describes a relational operation that was created from a lookup to a catalog.
- */
+/** Describes a relational operation that was created from a lookup to a catalog. */
 @Internal
 public class CatalogQueryOperation implements QueryOperation {
 
-	private final ObjectIdentifier tableIdentifier;
-	private final TableSchema tableSchema;
+    private final ObjectIdentifier tableIdentifier;
+    private final ResolvedSchema resolvedSchema;
 
-	public CatalogQueryOperation(ObjectIdentifier tableIdentifier, TableSchema tableSchema) {
-		this.tableIdentifier = tableIdentifier;
-		this.tableSchema = tableSchema;
-	}
+    public CatalogQueryOperation(ObjectIdentifier tableIdentifier, ResolvedSchema resolvedSchema) {
+        this.tableIdentifier = tableIdentifier;
+        this.resolvedSchema = resolvedSchema;
+    }
 
-	public ObjectIdentifier getTableIdentifier() {
-		return tableIdentifier;
-	}
+    public ObjectIdentifier getTableIdentifier() {
+        return tableIdentifier;
+    }
 
-	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
+    @Override
+    public ResolvedSchema getResolvedSchema() {
+        return resolvedSchema;
+    }
 
-	@Override
-	public String asSummaryString() {
-		Map<String, Object> args = new LinkedHashMap<>();
-		args.put("identifier", tableIdentifier);
-		args.put("fields", tableSchema.getFieldNames());
+    @Override
+    public String asSummaryString() {
+        Map<String, Object> args = new LinkedHashMap<>();
+        args.put("identifier", tableIdentifier);
+        args.put("fields", resolvedSchema.getColumnNames());
 
-		return OperationUtils.formatWithChildren("CatalogTable", args, getChildren(), Operation::asSummaryString);
-	}
+        return OperationUtils.formatWithChildren(
+                "CatalogTable", args, getChildren(), Operation::asSummaryString);
+    }
 
-	@Override
-	public List<QueryOperation> getChildren() {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<QueryOperation> getChildren() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public <T> T accept(QueryOperationVisitor<T> visitor) {
-		return visitor.visit(this);
-	}
+    @Override
+    public <T> T accept(QueryOperationVisitor<T> visitor) {
+        return visitor.visit(this);
+    }
 }

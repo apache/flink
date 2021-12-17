@@ -17,8 +17,9 @@
  */
 
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+
 import { COLOR_MAP } from 'config';
-import { TaskStatusInterface } from 'interfaces';
+import { TaskStatus } from 'interfaces';
 
 @Component({
   selector: 'flink-task-badge',
@@ -27,9 +28,10 @@ import { TaskStatusInterface } from 'interfaces';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskBadgeComponent {
-  @Input() tasks: TaskStatusInterface;
+  @Input() tasks: TaskStatus;
   statusList = Object.keys(COLOR_MAP);
 
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   get colorMap() {
     return COLOR_MAP;
   }

@@ -25,9 +25,9 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 
 /**
  * Rich variant of the {@link WindowFunction}. As a {@link RichFunction}, it gives access to the
- * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and tear-down methods:
- * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
- * {@link RichFunction#close()}.
+ * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and tear-down
+ * methods: {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
+ * RichFunction#close()}.
  *
  * @param <IN> The type of the input value.
  * @param <OUT> The type of the output value.
@@ -35,7 +35,8 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
  * @param <W> The type of {@code Window} that this window function can be applied on.
  */
 @Public
-public abstract class RichWindowFunction<IN, OUT, KEY, W extends Window> extends AbstractRichFunction implements WindowFunction<IN, OUT, KEY, W> {
+public abstract class RichWindowFunction<IN, OUT, KEY, W extends Window>
+        extends AbstractRichFunction implements WindowFunction<IN, OUT, KEY, W> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 }

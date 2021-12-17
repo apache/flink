@@ -32,88 +32,92 @@ import java.util.Optional;
 
 /** State snapshot filter of expired values with TTL. */
 abstract class TtlStateSnapshotTransformer<T> implements CollectionStateSnapshotTransformer<T> {
-	private final TtlTimeProvider ttlTimeProvider;
-	final long ttl;
-	private final DataInputDeserializer div;
+    private final TtlTimeProvider ttlTimeProvider;
+    final long ttl;
+    private final DataInputDeserializer div;
 
-	TtlStateSnapshotTransformer(@Nonnull TtlTimeProvider ttlTimeProvider, long ttl) {
-		this.ttlTimeProvider = ttlTimeProvider;
-		this.ttl = ttl;
-		this.div = new DataInputDeserializer();
-	}
+    TtlStateSnapshotTransformer(@Nonnull TtlTimeProvider ttlTimeProvider, long ttl) {
+        this.ttlTimeProvider = ttlTimeProvider;
+        this.ttl = ttl;
+        this.div = new DataInputDeserializer();
+    }
 
-	<V> TtlValue<V> filterTtlValue(TtlValue<V> value) {
-		return expired(value) ? null : value;
-	}
+    <V> TtlValue<V> filterTtlValue(TtlValue<V> value) {
+        return expired(value) ? null : value;
+    }
 
-	private boolean expired(TtlValue<?> ttlValue) {
-		return expired(ttlValue.getLastAccessTimestamp());
-	}
+    private boolean expired(TtlValue<?> ttlValue) {
+        return expired(ttlValue.getLastAccessTimestamp());
+    }
 
-	boolean expired(long ts) {
-		return TtlUtils.expired(ts, ttl, ttlTimeProvider);
-	}
+    boolean expired(long ts) {
+        return TtlUtils.expired(ts, ttl, ttlTimeProvider);
+    }
 
-	long deserializeTs(byte[] value) throws IOException {
-		div.setBuffer(value, 0, Long.BYTES);
-		return LongSerializer.INSTANCE.deserialize(div);
-	}
+    long deserializeTs(byte[] value) throws IOException {
+        div.setBuffer(value, 0, Long.BYTES);
+        return LongSerializer.INSTANCE.deserialize(div);
+    }
 
-	@Override
-	public TransformStrategy getFilterStrategy() {
-		return TransformStrategy.STOP_ON_FIRST_INCLUDED;
-	}
+    @Override
+    public TransformStrategy getFilterStrategy() {
+        return TransformStrategy.STOP_ON_FIRST_INCLUDED;
+    }
 
-	static class TtlDeserializedValueStateSnapshotTransformer<T> extends TtlStateSnapshotTransformer<TtlValue<T>> {
-		TtlDeserializedValueStateSnapshotTransformer(TtlTimeProvider ttlTimeProvider, long ttl) {
-			super(ttlTimeProvider, ttl);
-		}
+    static class TtlDeserializedValueStateSnapshotTransformer<T>
+            extends TtlStateSnapshotTransformer<TtlValue<T>> {
+        TtlDeserializedValueStateSnapshotTransformer(TtlTimeProvider ttlTimeProvider, long ttl) {
+            super(ttlTimeProvider, ttl);
+        }
 
-		@Override
-		@Nullable
-		public TtlValue<T> filterOrTransform(@Nullable TtlValue<T> value) {
-			return filterTtlValue(value);
-		}
-	}
+        @Override
+        @Nullable
+        public TtlValue<T> filterOrTransform(@Nullable TtlValue<T> value) {
+            return filterTtlValue(value);
+        }
+    }
 
-	static class TtlSerializedValueStateSnapshotTransformer extends TtlStateSnapshotTransformer<byte[]> {
-		TtlSerializedValueStateSnapshotTransformer(TtlTimeProvider ttlTimeProvider, long ttl) {
-			super(ttlTimeProvider, ttl);
-		}
+    static class TtlSerializedValueStateSnapshotTransformer
+            extends TtlStateSnapshotTransformer<byte[]> {
+        TtlSerializedValueStateSnapshotTransformer(TtlTimeProvider ttlTimeProvider, long ttl) {
+            super(ttlTimeProvider, ttl);
+        }
 
-		@Override
-		@Nullable
-		public byte[] filterOrTransform(@Nullable byte[] value) {
-			if (value == null) {
-				return null;
-			}
-			long ts;
-			try {
-				ts = deserializeTs(value);
-			} catch (IOException e) {
-				throw new FlinkRuntimeException("Unexpected timestamp deserialization failure", e);
-			}
-			return expired(ts) ? null : value;
-		}
-	}
+        @Override
+        @Nullable
+        public byte[] filterOrTransform(@Nullable byte[] value) {
+            if (value == null) {
+                return null;
+            }
+            long ts;
+            try {
+                ts = deserializeTs(value);
+            } catch (IOException e) {
+                throw new FlinkRuntimeException("Unexpected timestamp deserialization failure", e);
+            }
+            return expired(ts) ? null : value;
+        }
+    }
 
-	static class Factory<T> implements StateSnapshotTransformFactory<TtlValue<T>> {
-		private final TtlTimeProvider ttlTimeProvider;
-		private final long ttl;
+    static class Factory<T> implements StateSnapshotTransformFactory<TtlValue<T>> {
+        private final TtlTimeProvider ttlTimeProvider;
+        private final long ttl;
 
-		Factory(@Nonnull TtlTimeProvider ttlTimeProvider, long ttl) {
-			this.ttlTimeProvider = ttlTimeProvider;
-			this.ttl = ttl;
-		}
+        Factory(@Nonnull TtlTimeProvider ttlTimeProvider, long ttl) {
+            this.ttlTimeProvider = ttlTimeProvider;
+            this.ttl = ttl;
+        }
 
-		@Override
-		public Optional<StateSnapshotTransformer<TtlValue<T>>> createForDeserializedState() {
-			return Optional.of(new TtlDeserializedValueStateSnapshotTransformer<>(ttlTimeProvider, ttl));
-		}
+        @Override
+        public Optional<StateSnapshotTransformer<TtlValue<T>>> createForDeserializedState() {
+            return Optional.of(
+                    new TtlDeserializedValueStateSnapshotTransformer<>(ttlTimeProvider, ttl));
+        }
 
-		@Override
-		public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
-			return Optional.of(new TtlSerializedValueStateSnapshotTransformer(ttlTimeProvider, ttl));
-		}
-	}
+        @Override
+        public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
+            return Optional.of(
+                    new TtlSerializedValueStateSnapshotTransformer(ttlTimeProvider, ttl));
+        }
+    }
 }

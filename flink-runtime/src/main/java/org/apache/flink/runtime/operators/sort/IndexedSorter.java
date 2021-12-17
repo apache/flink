@@ -16,22 +16,19 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.sort;
 
 public interface IndexedSorter {
 
-	/**
-	 * Sort the items accessed through the given IndexedSortable over the given
-	 * range of logical indices. From the perspective of the sort algorithm,
-	 * each index between l (inclusive) and r (exclusive) is an addressable
-	 * entry.
-	 * 
-	 * @see IndexedSortable#compare
-	 * @see IndexedSortable#swap
-	 */
-	void sort(IndexedSortable s, int l, int r);
+    /**
+     * Sort the items accessed through the given IndexedSortable over the given range of logical
+     * indices. From the perspective of the sort algorithm, each index between l (inclusive) and r
+     * (exclusive) is an addressable entry.
+     *
+     * @see IndexedSortable#compare
+     * @see IndexedSortable#swap
+     */
+    void sort(IndexedSortable s, int l, int r);
 
-	void sort(IndexedSortable s);
-
+    void sort(IndexedSortable s);
 }

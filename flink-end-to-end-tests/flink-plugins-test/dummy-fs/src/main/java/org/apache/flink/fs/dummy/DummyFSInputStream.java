@@ -24,28 +24,28 @@ import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import java.io.IOException;
 
 class DummyFSInputStream extends FSDataInputStream {
-	private final ByteArrayInputStreamWithPos stream;
+    private final ByteArrayInputStreamWithPos stream;
 
-	private DummyFSInputStream(ByteArrayInputStreamWithPos stream) {
-		this.stream = stream;
-	}
+    private DummyFSInputStream(ByteArrayInputStreamWithPos stream) {
+        this.stream = stream;
+    }
 
-	static DummyFSInputStream create(byte[] buffer) {
-		return new DummyFSInputStream(new ByteArrayInputStreamWithPos(buffer));
-	}
+    static DummyFSInputStream create(byte[] buffer) {
+        return new DummyFSInputStream(new ByteArrayInputStreamWithPos(buffer));
+    }
 
-	@Override
-	public void seek(long desired) throws IOException {
-		stream.setPosition((int) desired);
-	}
+    @Override
+    public void seek(long desired) throws IOException {
+        stream.setPosition((int) desired);
+    }
 
-	@Override
-	public long getPos() throws IOException {
-		return stream.getPosition();
-	}
+    @Override
+    public long getPos() throws IOException {
+        return stream.getPosition();
+    }
 
-	@Override
-	public int read() throws IOException {
-		return stream.read();
-	}
+    @Override
+    public int read() throws IOException {
+        return stream.read();
+    }
 }

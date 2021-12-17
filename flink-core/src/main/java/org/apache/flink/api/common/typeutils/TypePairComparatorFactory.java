@@ -16,18 +16,16 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * 
- */
+/** */
 @Internal
-public interface TypePairComparatorFactory<T1, T2>
-{
-	TypePairComparator<T1, T2> createComparator12(TypeComparator<T1> comparator1, TypeComparator<T2> comparator2);
-	
-	TypePairComparator<T2, T1> createComparator21(TypeComparator<T1> comparator1, TypeComparator<T2> comparator2);
+public interface TypePairComparatorFactory<T1, T2> {
+    TypePairComparator<T1, T2> createComparator12(
+            TypeComparator<T1> comparator1, TypeComparator<T2> comparator2);
+
+    TypePairComparator<T2, T1> createComparator21(
+            TypeComparator<T1> comparator1, TypeComparator<T2> comparator2);
 }

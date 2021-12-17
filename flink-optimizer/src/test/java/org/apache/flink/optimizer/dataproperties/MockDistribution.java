@@ -29,28 +29,24 @@ import java.io.IOException;
 @SuppressWarnings("serial")
 public class MockDistribution implements DataDistribution {
 
-	@Override
-	public Object[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
-		return new Object[0];
-	}
+    @Override
+    public Object[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
+        return new Object[0];
+    }
 
-	@Override
-	public int getNumberOfFields() {
-		return 0;
-	}
+    @Override
+    public int getNumberOfFields() {
+        return 0;
+    }
 
-	@Override
-	public TypeInformation[] getKeyTypes() {
-		return new TypeInformation[]{BasicTypeInfo.INT_TYPE_INFO};
-	}
+    @Override
+    public TypeInformation[] getKeyTypes() {
+        return new TypeInformation[] {BasicTypeInfo.INT_TYPE_INFO};
+    }
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
+    @Override
+    public void write(DataOutputView out) throws IOException {}
 
-	}
-
-	@Override
-	public void read(DataInputView in) throws IOException {
-
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {}
 }

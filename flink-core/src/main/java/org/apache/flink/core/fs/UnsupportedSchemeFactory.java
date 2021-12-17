@@ -27,38 +27,34 @@ import java.net.URI;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A file system factory to throw an UnsupportedFileSystemSchemeException when called.
- */
+/** A file system factory to throw an UnsupportedFileSystemSchemeException when called. */
 @Internal
 class UnsupportedSchemeFactory implements FileSystemFactory {
 
-	private final String exceptionMessage;
+    private final String exceptionMessage;
 
-	@Nullable
-	private final Throwable exceptionCause;
+    @Nullable private final Throwable exceptionCause;
 
-	public UnsupportedSchemeFactory(String exceptionMessage) {
-		this(exceptionMessage, null);
-	}
+    public UnsupportedSchemeFactory(String exceptionMessage) {
+        this(exceptionMessage, null);
+    }
 
-	public UnsupportedSchemeFactory(String exceptionMessage, @Nullable Throwable exceptionCause) {
-		this.exceptionMessage = checkNotNull(exceptionMessage);
-		this.exceptionCause = exceptionCause;
-	}
+    public UnsupportedSchemeFactory(String exceptionMessage, @Nullable Throwable exceptionCause) {
+        this.exceptionMessage = checkNotNull(exceptionMessage);
+        this.exceptionCause = exceptionCause;
+    }
 
-	@Override
-	public String getScheme() {
-		return "n/a";
-	}
+    @Override
+    public String getScheme() {
+        return "n/a";
+    }
 
-	@Override
-	public FileSystem create(URI fsUri) throws IOException {
-		if (exceptionCause == null) {
-			throw new UnsupportedFileSystemSchemeException(exceptionMessage);
-		}
-		else {
-			throw new UnsupportedFileSystemSchemeException(exceptionMessage, exceptionCause);
-		}
-	}
+    @Override
+    public FileSystem create(URI fsUri) throws IOException {
+        if (exceptionCause == null) {
+            throw new UnsupportedFileSystemSchemeException(exceptionMessage);
+        } else {
+            throw new UnsupportedFileSystemSchemeException(exceptionMessage, exceptionCause);
+        }
+    }
 }

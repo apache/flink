@@ -24,55 +24,54 @@ import org.apache.flink.util.WrappingProxy;
 
 import java.io.IOException;
 
-/**
- * Simple forwarding wrapper around {@link FSDataInputStream}.
- */
+/** Simple forwarding wrapper around {@link FSDataInputStream}. */
 @Internal
-public class FSDataOutputStreamWrapper extends FSDataOutputStream implements WrappingProxy<FSDataOutputStream> {
+public class FSDataOutputStreamWrapper extends FSDataOutputStream
+        implements WrappingProxy<FSDataOutputStream> {
 
-	protected final FSDataOutputStream outputStream;
+    protected final FSDataOutputStream outputStream;
 
-	public FSDataOutputStreamWrapper(FSDataOutputStream outputStream) {
-		this.outputStream = Preconditions.checkNotNull(outputStream);
-	}
+    public FSDataOutputStreamWrapper(FSDataOutputStream outputStream) {
+        this.outputStream = Preconditions.checkNotNull(outputStream);
+    }
 
-	@Override
-	public long getPos() throws IOException {
-		return outputStream.getPos();
-	}
+    @Override
+    public long getPos() throws IOException {
+        return outputStream.getPos();
+    }
 
-	@Override
-	public void flush() throws IOException {
-		outputStream.flush();
-	}
+    @Override
+    public void flush() throws IOException {
+        outputStream.flush();
+    }
 
-	@Override
-	public void sync() throws IOException {
-		outputStream.sync();
-	}
+    @Override
+    public void sync() throws IOException {
+        outputStream.sync();
+    }
 
-	@Override
-	public void write(int b) throws IOException {
-		outputStream.write(b);
-	}
+    @Override
+    public void write(int b) throws IOException {
+        outputStream.write(b);
+    }
 
-	@Override
-	public void write(byte[] b) throws IOException {
-		outputStream.write(b);
-	}
+    @Override
+    public void write(byte[] b) throws IOException {
+        outputStream.write(b);
+    }
 
-	@Override
-	public void write(byte[] b, int off, int len) throws IOException {
-		outputStream.write(b, off, len);
-	}
+    @Override
+    public void write(byte[] b, int off, int len) throws IOException {
+        outputStream.write(b, off, len);
+    }
 
-	@Override
-	public void close() throws IOException {
-		outputStream.close();
-	}
+    @Override
+    public void close() throws IOException {
+        outputStream.close();
+    }
 
-	@Override
-	public FSDataOutputStream getWrappedDelegate() {
-		return outputStream;
-	}
+    @Override
+    public FSDataOutputStream getWrappedDelegate() {
+        return outputStream;
+    }
 }

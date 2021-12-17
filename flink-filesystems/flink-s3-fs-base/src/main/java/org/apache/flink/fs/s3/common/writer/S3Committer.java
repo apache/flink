@@ -33,83 +33,107 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Data object to commit an S3 MultiPartUpload.
- */
+/** Data object to commit an S3 MultiPartUpload. */
 public final class S3Committer implements RecoverableFsDataOutputStream.Committer {
 
-	private static final Logger LOG = LoggerFactory.getLogger(S3Committer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(S3Committer.class);
 
-	private final S3AccessHelper s3AccessHelper;
+    private final S3AccessHelper s3AccessHelper;
 
-	private final String uploadId;
+    private final String uploadId;
 
-	private final String objectName;
+    private final String objectName;
 
-	private final List<PartETag> parts;
+    private final List<PartETag> parts;
 
-	private final long totalLength;
+    private final long totalLength;
 
-	S3Committer(S3AccessHelper s3AccessHelper, String objectName, String uploadId, List<PartETag> parts, long totalLength) {
-		this.s3AccessHelper = checkNotNull(s3AccessHelper);
-		this.objectName = checkNotNull(objectName);
-		this.uploadId = checkNotNull(uploadId);
-		this.parts = checkNotNull(parts);
-		this.totalLength = totalLength;
-	}
+    S3Committer(
+            S3AccessHelper s3AccessHelper,
+            String objectName,
+            String uploadId,
+            List<PartETag> parts,
+            long totalLength) {
+        this.s3AccessHelper = checkNotNull(s3AccessHelper);
+        this.objectName = checkNotNull(objectName);
+        this.uploadId = checkNotNull(uploadId);
+        this.parts = checkNotNull(parts);
+        this.totalLength = totalLength;
+    }
 
-	@Override
-	public void commit() throws IOException {
-		if (totalLength > 0L) {
-			LOG.info("Committing {} with MPU ID {}", objectName, uploadId);
+    @Override
+    public void commit() throws IOException {
+        if (totalLength > 0L) {
+            LOG.info("Committing {} with MPU ID {}", objectName, uploadId);
 
-			final AtomicInteger errorCount = new AtomicInteger();
-			s3AccessHelper.commitMultiPartUpload(objectName, uploadId, parts, totalLength, errorCount);
+            final AtomicInteger errorCount = new AtomicInteger();
+            s3AccessHelper.commitMultiPartUpload(
+                    objectName, uploadId, parts, totalLength, errorCount);
 
-			if (errorCount.get() == 0) {
-				LOG.debug("Successfully committed {} with MPU ID {}", objectName, uploadId);
-			} else {
-				LOG.debug("Successfully committed {} with MPU ID {} after {} retries.", objectName, uploadId, errorCount.get());
-			}
-		} else {
-			LOG.debug("No data to commit for file: {}", objectName);
-		}
-	}
+            if (errorCount.get() == 0) {
+                LOG.debug("Successfully committed {} with MPU ID {}", objectName, uploadId);
+            } else {
+                LOG.debug(
+                        "Successfully committed {} with MPU ID {} after {} retries.",
+                        objectName,
+                        uploadId,
+                        errorCount.get());
+            }
+        } else {
+            LOG.debug("No data to commit for file: {}", objectName);
+        }
+    }
 
-	@Override
-	public void commitAfterRecovery() throws IOException {
-		if (totalLength > 0L) {
-			LOG.info("Trying to commit after recovery {} with MPU ID {}", objectName, uploadId);
+    @Override
+    public void commitAfterRecovery() throws IOException {
+        if (totalLength > 0L) {
+            LOG.info("Trying to commit after recovery {} with MPU ID {}", objectName, uploadId);
 
-			try {
-				s3AccessHelper.commitMultiPartUpload(objectName, uploadId, parts, totalLength, new AtomicInteger());
-			} catch (IOException e) {
-				LOG.info("Failed to commit after recovery {} with MPU ID {}. " +
-						"Checking if file was committed before...", objectName, uploadId);
-				LOG.trace("Exception when committing:", e);
+            try {
+                s3AccessHelper.commitMultiPartUpload(
+                        objectName, uploadId, parts, totalLength, new AtomicInteger());
+            } catch (IOException e) {
+                LOG.info(
+                        "Failed to commit after recovery {} with MPU ID {}. "
+                                + "Checking if file was committed before...",
+                        objectName,
+                        uploadId);
+                LOG.trace("Exception when committing:", e);
 
-				try {
-					ObjectMetadata metadata = s3AccessHelper.getObjectMetadata(objectName);
-					if (totalLength != metadata.getContentLength()) {
-						String message = String.format("Inconsistent result for object %s: conflicting lengths. " +
-										"Recovered committer for upload %s indicates %s bytes, present object is %s bytes",
-								objectName, uploadId, totalLength, metadata.getContentLength());
-						LOG.warn(message);
-						throw new IOException(message, e);
-					}
-				} catch (FileNotFoundException fnf) {
-					LOG.warn("Object {} not existing after failed recovery commit with MPU ID {}", objectName, uploadId);
-					throw new IOException(String.format("Recovering commit failed for object %s. " +
-							"Object does not exist and MultiPart Upload %s is not valid.", objectName, uploadId), e);
-				}
-			}
-		} else {
-			LOG.debug("No data to commit for file: {}", objectName);
-		}
-	}
+                try {
+                    ObjectMetadata metadata = s3AccessHelper.getObjectMetadata(objectName);
+                    if (totalLength != metadata.getContentLength()) {
+                        String message =
+                                String.format(
+                                        "Inconsistent result for object %s: conflicting lengths. "
+                                                + "Recovered committer for upload %s indicates %s bytes, present object is %s bytes",
+                                        objectName,
+                                        uploadId,
+                                        totalLength,
+                                        metadata.getContentLength());
+                        LOG.warn(message);
+                        throw new IOException(message, e);
+                    }
+                } catch (FileNotFoundException fnf) {
+                    LOG.warn(
+                            "Object {} not existing after failed recovery commit with MPU ID {}",
+                            objectName,
+                            uploadId);
+                    throw new IOException(
+                            String.format(
+                                    "Recovering commit failed for object %s. "
+                                            + "Object does not exist and MultiPart Upload %s is not valid.",
+                                    objectName, uploadId),
+                            e);
+                }
+            }
+        } else {
+            LOG.debug("No data to commit for file: {}", objectName);
+        }
+    }
 
-	@Override
-	public RecoverableWriter.CommitRecoverable getRecoverable() {
-		return new S3Recoverable(objectName, uploadId, parts, totalLength);
-	}
+    @Override
+    public RecoverableWriter.CommitRecoverable getRecoverable() {
+        return new S3Recoverable(objectName, uploadId, parts, totalLength);
+    }
 }

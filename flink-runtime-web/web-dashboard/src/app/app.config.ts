@@ -17,7 +17,24 @@
  */
 
 export const BASE_URL = '.';
-export const COLOR_MAP = {
+
+export type ColorKey =
+  | 'TOTAL'
+  | 'RUNNING'
+  | 'FAILED'
+  | 'FINISHED'
+  | 'CANCELED'
+  | 'CANCELING'
+  | 'CREATED'
+  | 'DEPLOYING'
+  | 'RECONCILING'
+  | 'IN_PROGRESS'
+  | 'SCHEDULED'
+  | 'COMPLETED'
+  | 'RESTARTING'
+  | 'INITIALIZING';
+
+export const COLOR_MAP: Record<ColorKey, string> = {
   TOTAL: '#112641',
   RUNNING: '#52c41a',
   FAILED: '#f5222d',
@@ -29,6 +46,9 @@ export const COLOR_MAP = {
   RECONCILING: '#eb2f96',
   IN_PROGRESS: '#faad14',
   SCHEDULED: '#722ed1',
-  COMPLETED  : '#1890ff'
+  COMPLETED: '#1890ff',
+  RESTARTING: '#13c2c2',
+  INITIALIZING: '#738df8'
 };
+
 export const LONG_MIN_VALUE = -9223372036854776000;

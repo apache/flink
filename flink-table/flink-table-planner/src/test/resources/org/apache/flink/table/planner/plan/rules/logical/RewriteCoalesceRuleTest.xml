@@ -1,0 +1,164 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testCalcite1018">
+    <Resource name="sql">
+      <![CDATA[
+select * from (select * from scott_emp) e left join (
+    select * from scott_dept d) using (deptno)
+    order by empno limit 10
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[10])
++- LogicalProject(deptno=[COALESCE($7, $8)], empno=[$0], ename=[$1], job=[$2], mgr=[$3], hiredate=[$4], sal=[$5], comm=[$6], dname=[$9], loc=[$10])
+   +- LogicalJoin(condition=[=($7, $8)], joinType=[left])
+      :- LogicalProject(empno=[$0], ename=[$1], job=[$2], mgr=[$3], hiredate=[$4], sal=[$5], comm=[$6], deptno=[$7])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
+      +- LogicalProject(deptno=[$0], dname=[$1], loc=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, scott_dept, source: [TestTableSource(deptno, dname, loc)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[10])
++- LogicalProject($f0=[CASE(IS NOT NULL($7), $7, $8)], empno=[$0], ename=[$1], job=[$2], mgr=[$3], hiredate=[$4], sal=[$5], comm=[$6], dname=[$9], loc=[$10])
+   +- LogicalJoin(condition=[=($7, $8)], joinType=[left])
+      :- LogicalProject(empno=[$0], ename=[$1], job=[$2], mgr=[$3], hiredate=[$4], sal=[$5], comm=[$6], deptno=[$7])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
+      +- LogicalProject(deptno=[$0], dname=[$1], loc=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, scott_dept, source: [TestTableSource(deptno, dname, loc)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCoalesceConstantReduce">
+    <Resource name="sql">
+      <![CDATA[
+select * from lateral (select * from scott_emp) as e
+    join (table scott_dept) using (deptno)
+    where e.deptno = 10
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(deptno=[COALESCE($7, $8)], empno=[$0], ename=[$1], job=[$2], mgr=[$3], hiredate=[$4], sal=[$5], comm=[$6], dname=[$9], loc=[$10])
++- LogicalFilter(condition=[=($7, 10)])
+   +- LogicalJoin(condition=[=($7, $8)], joinType=[inner])
+      :- LogicalProject(empno=[$0], ename=[$1], job=[$2], mgr=[$3], hiredate=[$4], sal=[$5], comm=[$6], deptno=[$7])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
+      +- LogicalProject(deptno=[$0], dname=[$1], loc=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, scott_dept, source: [TestTableSource(deptno, dname, loc)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject($f0=[CAST(10):INTEGER], empno=[$0], ename=[$1], job=[$2], mgr=[$3], hiredate=[$4], sal=[$5], comm=[$6], dname=[$9], loc=[$10])
++- LogicalFilter(condition=[=($7, 10)])
+   +- LogicalJoin(condition=[=($7, $8)], joinType=[inner])
+      :- LogicalProject(empno=[$0], ename=[$1], job=[$2], mgr=[$3], hiredate=[$4], sal=[$5], comm=[$6], deptno=[$7])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
+      +- LogicalProject(deptno=[$0], dname=[$1], loc=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, scott_dept, source: [TestTableSource(deptno, dname, loc)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNaturalJoinLeftOuter">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM scott_dept
+    natural left join scott_emp
+    order by scott_dept.deptno, scott_emp.deptno
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(deptno=[$0], dname=[$1], loc=[$2], empno=[$3], ename=[$4], job=[$5], mgr=[$6], hiredate=[$7], sal=[$8], comm=[$9])
++- LogicalSort(sort0=[$10], sort1=[$11], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
+   +- LogicalProject(deptno=[COALESCE($0, $10)], dname=[$1], loc=[$2], empno=[$3], ename=[$4], job=[$5], mgr=[$6], hiredate=[$7], sal=[$8], comm=[$9], deptno0=[$0], deptno1=[$10])
+      +- LogicalJoin(condition=[=($0, $10)], joinType=[left])
+         :- LogicalTableScan(table=[[default_catalog, default_database, scott_dept, source: [TestTableSource(deptno, dname, loc)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(deptno=[$0], dname=[$1], loc=[$2], empno=[$3], ename=[$4], job=[$5], mgr=[$6], hiredate=[$7], sal=[$8], comm=[$9])
++- LogicalSort(sort0=[$10], sort1=[$11], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
+   +- LogicalProject($f0=[CASE(IS NOT NULL($0), $0, $10)], dname=[$1], loc=[$2], empno=[$3], ename=[$4], job=[$5], mgr=[$6], hiredate=[$7], sal=[$8], comm=[$9], deptno=[$0], deptno0=[$10])
+      +- LogicalJoin(condition=[=($0, $10)], joinType=[left])
+         :- LogicalTableScan(table=[[default_catalog, default_database, scott_dept, source: [TestTableSource(deptno, dname, loc)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNaturalJoinRightOuter">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM scott_dept
+    natural right join scott_emp
+    order by scott_dept.deptno, scott_emp.deptno
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(deptno=[$0], dname=[$1], loc=[$2], empno=[$3], ename=[$4], job=[$5], mgr=[$6], hiredate=[$7], sal=[$8], comm=[$9])
++- LogicalSort(sort0=[$10], sort1=[$11], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
+   +- LogicalProject(deptno=[COALESCE($0, $10)], dname=[$1], loc=[$2], empno=[$3], ename=[$4], job=[$5], mgr=[$6], hiredate=[$7], sal=[$8], comm=[$9], deptno0=[$0], deptno1=[$10])
+      +- LogicalJoin(condition=[=($0, $10)], joinType=[right])
+         :- LogicalTableScan(table=[[default_catalog, default_database, scott_dept, source: [TestTableSource(deptno, dname, loc)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(deptno=[$0], dname=[$1], loc=[$2], empno=[$3], ename=[$4], job=[$5], mgr=[$6], hiredate=[$7], sal=[$8], comm=[$9])
++- LogicalSort(sort0=[$10], sort1=[$11], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
+   +- LogicalProject($f0=[CASE(IS NOT NULL($0), $0, $10)], dname=[$1], loc=[$2], empno=[$3], ename=[$4], job=[$5], mgr=[$6], hiredate=[$7], sal=[$8], comm=[$9], deptno=[$0], deptno0=[$10])
+      +- LogicalJoin(condition=[=($0, $10)], joinType=[right])
+         :- LogicalTableScan(table=[[default_catalog, default_database, scott_dept, source: [TestTableSource(deptno, dname, loc)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNaturalJoinWithPredicates">
+    <Resource name="sql">
+      <![CDATA[
+select * from scott_dept natural join scott_emp where empno = 1
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(deptno=[COALESCE($0, $10)], dname=[$1], loc=[$2], empno=[$3], ename=[$4], job=[$5], mgr=[$6], hiredate=[$7], sal=[$8], comm=[$9])
++- LogicalFilter(condition=[=($3, 1)])
+   +- LogicalJoin(condition=[=($0, $10)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, scott_dept, source: [TestTableSource(deptno, dname, loc)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject($f0=[CASE(IS NOT NULL($0), $0, $10)], dname=[$1], loc=[$2], empno=[CAST(1):INTEGER], ename=[$4], job=[$5], mgr=[$6], hiredate=[$7], sal=[$8], comm=[$9])
++- LogicalFilter(condition=[=($3, 1)])
+   +- LogicalJoin(condition=[=($0, $10)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, scott_dept, source: [TestTableSource(deptno, dname, loc)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

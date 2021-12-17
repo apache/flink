@@ -27,35 +27,41 @@ import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.io.IOException;
 
-/**
- * IT case for reading state.
- */
+/** IT case for reading state. */
 public class SavepointReaderCustomSerializerITCase extends SavepointReaderITTestBase {
-	private static ListStateDescriptor<Integer> list = new ListStateDescriptor<>(
-		LIST_NAME, CustomIntSerializer.INSTANCE);
+    private static ListStateDescriptor<Integer> list =
+            new ListStateDescriptor<>(LIST_NAME, CustomIntSerializer.INSTANCE);
 
-	private static ListStateDescriptor<Integer> union = new ListStateDescriptor<>(
-		UNION_NAME, CustomIntSerializer.INSTANCE);
+    private static ListStateDescriptor<Integer> union =
+            new ListStateDescriptor<>(UNION_NAME, CustomIntSerializer.INSTANCE);
 
-	private static MapStateDescriptor<Integer, String> broadcast = new MapStateDescriptor<>(
-		BROADCAST_NAME, CustomIntSerializer.INSTANCE, StringSerializer.INSTANCE);
+    private static MapStateDescriptor<Integer, String> broadcast =
+            new MapStateDescriptor<>(
+                    BROADCAST_NAME, CustomIntSerializer.INSTANCE, StringSerializer.INSTANCE);
 
-	public SavepointReaderCustomSerializerITCase() {
-		super(list, union, broadcast);
-	}
+    public SavepointReaderCustomSerializerITCase() {
+        super(list, union, broadcast);
+    }
 
-	@Override
-	public DataSet<Integer> readListState(ExistingSavepoint savepoint) throws IOException {
-		return savepoint.readListState(UID, LIST_NAME, Types.INT, CustomIntSerializer.INSTANCE);
-	}
+    @Override
+    public DataSet<Integer> readListState(ExistingSavepoint savepoint) throws IOException {
+        return savepoint.readListState(UID, LIST_NAME, Types.INT, CustomIntSerializer.INSTANCE);
+    }
 
-	@Override
-	public DataSet<Integer> readUnionState(ExistingSavepoint savepoint) throws IOException {
-		return savepoint.readUnionState(UID, UNION_NAME, Types.INT, CustomIntSerializer.INSTANCE);
-	}
+    @Override
+    public DataSet<Integer> readUnionState(ExistingSavepoint savepoint) throws IOException {
+        return savepoint.readUnionState(UID, UNION_NAME, Types.INT, CustomIntSerializer.INSTANCE);
+    }
 
-	@Override
-	public DataSet<Tuple2<Integer, String>> readBroadcastState(ExistingSavepoint savepoint) throws IOException {
-		return savepoint.readBroadcastState(UID, BROADCAST_NAME, Types.INT, Types.STRING, CustomIntSerializer.INSTANCE, StringSerializer.INSTANCE);
-	}
+    @Override
+    public DataSet<Tuple2<Integer, String>> readBroadcastState(ExistingSavepoint savepoint)
+            throws IOException {
+        return savepoint.readBroadcastState(
+                UID,
+                BROADCAST_NAME,
+                Types.INT,
+                Types.STRING,
+                CustomIntSerializer.INSTANCE,
+                StringSerializer.INSTANCE);
+    }
 }

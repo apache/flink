@@ -36,122 +36,126 @@ import java.io.IOException;
 @Internal
 public class CharValueArrayComparator extends TypeComparator<CharValueArray> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final boolean ascendingComparison;
+    private final boolean ascendingComparison;
 
-	private final CharValueArray reference = new CharValueArray();
+    private final CharValueArray reference = new CharValueArray();
 
-	private final TypeComparator<?>[] comparators = new TypeComparator[] {this};
+    private final TypeComparator<?>[] comparators = new TypeComparator[] {this};
 
-	public CharValueArrayComparator(boolean ascending) {
-		this.ascendingComparison = ascending;
-	}
+    public CharValueArrayComparator(boolean ascending) {
+        this.ascendingComparison = ascending;
+    }
 
-	@Override
-	public int hash(CharValueArray record) {
-		return record.hashCode();
-	}
+    @Override
+    public int hash(CharValueArray record) {
+        return record.hashCode();
+    }
 
-	@Override
-	public void setReference(CharValueArray toCompare) {
-		toCompare.copyTo(reference);
-	}
+    @Override
+    public void setReference(CharValueArray toCompare) {
+        toCompare.copyTo(reference);
+    }
 
-	@Override
-	public boolean equalToReference(CharValueArray candidate) {
-		return candidate.equals(this.reference);
-	}
+    @Override
+    public boolean equalToReference(CharValueArray candidate) {
+        return candidate.equals(this.reference);
+    }
 
-	@Override
-	public int compareToReference(TypeComparator<CharValueArray> referencedComparator) {
-		int comp = ((CharValueArrayComparator) referencedComparator).reference.compareTo(reference);
-		return ascendingComparison ? comp : -comp;
-	}
+    @Override
+    public int compareToReference(TypeComparator<CharValueArray> referencedComparator) {
+        int comp = ((CharValueArrayComparator) referencedComparator).reference.compareTo(reference);
+        return ascendingComparison ? comp : -comp;
+    }
 
-	@Override
-	public int compare(CharValueArray first, CharValueArray second) {
-		int comp = first.compareTo(second);
-		return ascendingComparison ? comp : -comp;
-	}
+    @Override
+    public int compare(CharValueArray first, CharValueArray second) {
+        int comp = first.compareTo(second);
+        return ascendingComparison ? comp : -comp;
+    }
 
-	@Override
-	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		int firstCount = firstSource.readInt();
-		int secondCount = secondSource.readInt();
+    @Override
+    public int compareSerialized(DataInputView firstSource, DataInputView secondSource)
+            throws IOException {
+        int firstCount = firstSource.readInt();
+        int secondCount = secondSource.readInt();
 
-		int minCount = Math.min(firstCount, secondCount);
-		while (minCount-- > 0) {
-			char firstValue = firstSource.readChar();
-			char secondValue = secondSource.readChar();
+        int minCount = Math.min(firstCount, secondCount);
+        while (minCount-- > 0) {
+            char firstValue = firstSource.readChar();
+            char secondValue = secondSource.readChar();
 
-			int cmp = Character.compare(firstValue, secondValue);
-			if (cmp != 0) {
-				return ascendingComparison ? cmp : -cmp;
-			}
-		}
+            int cmp = Character.compare(firstValue, secondValue);
+            if (cmp != 0) {
+                return ascendingComparison ? cmp : -cmp;
+            }
+        }
 
-		int cmp = Integer.compare(firstCount, secondCount);
-		return ascendingComparison ? cmp : -cmp;
-	}
+        int cmp = Integer.compare(firstCount, secondCount);
+        return ascendingComparison ? cmp : -cmp;
+    }
 
-	@Override
-	public boolean supportsNormalizedKey() {
-		return NormalizableKey.class.isAssignableFrom(CharValueArray.class);
-	}
+    @Override
+    public boolean supportsNormalizedKey() {
+        return NormalizableKey.class.isAssignableFrom(CharValueArray.class);
+    }
 
-	@Override
-	public int getNormalizeKeyLen() {
-		return reference.getMaxNormalizedKeyLen();
-	}
+    @Override
+    public int getNormalizeKeyLen() {
+        return reference.getMaxNormalizedKeyLen();
+    }
 
-	@Override
-	public boolean isNormalizedKeyPrefixOnly(int keyChars) {
-		return keyChars < getNormalizeKeyLen();
-	}
+    @Override
+    public boolean isNormalizedKeyPrefixOnly(int keyChars) {
+        return keyChars < getNormalizeKeyLen();
+    }
 
-	@Override
-	public void putNormalizedKey(CharValueArray record, MemorySegment target, int offset, int numChars) {
-		record.copyNormalizedKey(target, offset, numChars);
-	}
+    @Override
+    public void putNormalizedKey(
+            CharValueArray record, MemorySegment target, int offset, int numChars) {
+        record.copyNormalizedKey(target, offset, numChars);
+    }
 
-	@Override
-	public boolean invertNormalizedKey() {
-		return !ascendingComparison;
-	}
+    @Override
+    public boolean invertNormalizedKey() {
+        return !ascendingComparison;
+    }
 
-	@Override
-	public TypeComparator<CharValueArray> duplicate() {
-		return new CharValueArrayComparator(ascendingComparison);
-	}
+    @Override
+    public TypeComparator<CharValueArray> duplicate() {
+        return new CharValueArrayComparator(ascendingComparison);
+    }
 
-	@Override
-	public int extractKeys(Object record, Object[] target, int index) {
-		target[index] = record;
-		return 1;
-	}
+    @Override
+    public int extractKeys(Object record, Object[] target, int index) {
+        target[index] = record;
+        return 1;
+    }
 
-	@Override
-	public TypeComparator<?>[] getFlatComparators() {
-		return comparators;
-	}
+    @Override
+    public TypeComparator<?>[] getFlatComparators() {
+        return comparators;
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// unsupported normalization
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // unsupported normalization
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public boolean supportsSerializationWithKeyNormalization() {
-		return false;
-	}
+    @Override
+    public boolean supportsSerializationWithKeyNormalization() {
+        return false;
+    }
 
-	@Override
-	public void writeWithKeyNormalization(CharValueArray record, DataOutputView target) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void writeWithKeyNormalization(CharValueArray record, DataOutputView target)
+            throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public CharValueArray readWithKeyDenormalization(CharValueArray reuse, DataInputView source) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public CharValueArray readWithKeyDenormalization(CharValueArray reuse, DataInputView source)
+            throws IOException {
+        throw new UnsupportedOperationException();
+    }
 }

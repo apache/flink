@@ -26,7 +26,7 @@
 # is only used in Standalone mode and may be overwritten on the JobManager side
 # by specifying the --host <hostname> parameter of the bin/jobmanager.sh executable.
 # In high availability mode, if you use the bin/start-cluster.sh script and setup
-# the conf/masters file, this will be taken care of automatically. Yarn/Mesos
+# the conf/masters file, this will be taken care of automatically. Yarn
 # automatically configure the host name based on the hostname of the node where the
 # JobManager runs.
 
@@ -37,15 +37,23 @@ jobmanager.rpc.address: localhost
 jobmanager.rpc.port: 6123
 
 
-# The heap size for the JobManager JVM
+# The total process memory size for the JobManager.
+#
+# Note this accounts for all memory usage within the JobManager process, including JVM metaspace and other overhead.
 
-jobmanager.heap.size: 1024m
+jobmanager.memory.process.size: 1600m
 
 
-# The heap size for the TaskManager JVM
+# The total process memory size for the TaskManager.
+#
+# Note this accounts for all memory usage within the TaskManager process, including JVM metaspace and other overhead.
 
-taskmanager.memory.total-process.size: 1024m
+taskmanager.memory.process.size: 1728m
 
+# To exclude JVM metaspace and overhead, please, use total Flink memory size instead of 'taskmanager.memory.process.size'.
+# It is not recommended to set both 'taskmanager.memory.process.size' and Flink memory.
+#
+# taskmanager.memory.flink.size: 1280m
 
 # The number of task slots that each TaskManager offers. Each slot runs one parallel pipeline.
 
@@ -99,7 +107,18 @@ parallelism.default: 1
 #==============================================================================
 
 # The backend that will be used to store operator state checkpoints if
-# checkpointing is enabled.
+# checkpointing is enabled. Checkpointing is enabled when execution.checkpointing.interval > 0.
+#
+# Execution checkpointing related parameters. Please refer to CheckpointConfig and ExecutionCheckpointingOptions for more details.
+#
+# execution.checkpointing.interval: 3min
+# execution.checkpointing.externalized-checkpoint-retention: [DELETE_ON_CANCELLATION, RETAIN_ON_CANCELLATION]
+# execution.checkpointing.max-concurrent-checkpoints: 1
+# execution.checkpointing.min-pause: 0
+# execution.checkpointing.mode: [EXACTLY_ONCE, AT_LEAST_ONCE]
+# execution.checkpointing.timeout: 10min
+# execution.checkpointing.tolerable-failed-checkpoints: 0
+# execution.checkpointing.unaligned: false
 #
 # Supported backends are 'jobmanager', 'filesystem', 'rocksdb', or the
 # <class-name-of-factory>.
@@ -113,7 +132,7 @@ parallelism.default: 1
 
 # Default target directory for savepoints, optional.
 #
-# state.savepoints.dir: hdfs://namenode-host:port/flink-checkpoints
+# state.savepoints.dir: hdfs://namenode-host:port/flink-savepoints
 
 # Flag to enable/disable incremental checkpoints for backends that
 # support incremental checkpoints (like the RocksDB state backend). 
@@ -152,6 +171,11 @@ jobmanager.execution.failover-strategy: region
 
 #web.submit.enable: false
 
+# Flag to specify whether job cancellation is enabled from the web-based
+# runtime monitor. Uncomment to disable.
+
+#web.cancel.enable: false
+
 #==============================================================================
 # Advanced
 #==============================================================================
@@ -159,7 +183,7 @@ jobmanager.execution.failover-strategy: region
 # Override the directories for temporary files. If not specified, the
 # system-specific Java temporary directory (java.io.tmpdir property) is taken.
 #
-# For framework setups on Yarn or Mesos, Flink will automatically pick up the
+# For framework setups on Yarn, Flink will automatically pick up the
 # containers' temp directories without any need for configuration.
 #
 # Add a delimited list for multiple directories, using the system directory
@@ -186,9 +210,9 @@ jobmanager.execution.failover-strategy: region
 # no tuning. Adjusting them may be necessary in case of an "Insufficient number
 # of network buffers" error. The default min is 64MB, the default max is 1GB.
 # 
-# taskmanager.memory.shuffle.fraction: 0.1
-# taskmanager.memory.shuffle.min: 64mb
-# taskmanager.memory.shuffle.max: 1gb
+# taskmanager.memory.network.fraction: 0.1
+# taskmanager.memory.network.min: 64mb
+# taskmanager.memory.network.max: 1gb
 
 #==============================================================================
 # Flink Cluster Security Configuration

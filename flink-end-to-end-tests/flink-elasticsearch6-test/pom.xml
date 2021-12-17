@@ -26,24 +26,24 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-end-to-end-tests</artifactId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.15-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-elasticsearch6-test</artifactId>
-	<name>flink-elasticsearch6-test</name>
+	<name>Flink : E2E Tests : Elasticsearch 6</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-elasticsearch6_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-elasticsearch6</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>

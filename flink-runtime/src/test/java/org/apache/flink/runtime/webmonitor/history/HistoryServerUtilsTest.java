@@ -34,81 +34,81 @@ import java.util.Optional;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link HistoryServerUtils}.
- */
+/** Tests for the {@link HistoryServerUtils}. */
 public class HistoryServerUtilsTest extends TestLogger {
 
-	private static final String HOSTNAME = "foobar";
-	private static final int PORT = 1234;
+    private static final String HOSTNAME = "foobar";
+    private static final int PORT = 1234;
 
-	@Test
-	public void testIsSSLEnabledDefault() {
-		final Configuration configuration = new Configuration();
+    @Test
+    public void testIsSSLEnabledDefault() {
+        final Configuration configuration = new Configuration();
 
-		assertThat(HistoryServerUtils.isSSLEnabled(configuration), is(false));
-	}
+        assertThat(HistoryServerUtils.isSSLEnabled(configuration), is(false));
+    }
 
-	@Test
-	public void testIsSSLEnabledWithoutRestSSL() {
-		final Configuration configuration = new Configuration();
-		configuration.setBoolean(HistoryServerOptions.HISTORY_SERVER_WEB_SSL_ENABLED, true);
+    @Test
+    public void testIsSSLEnabledWithoutRestSSL() {
+        final Configuration configuration = new Configuration();
+        configuration.setBoolean(HistoryServerOptions.HISTORY_SERVER_WEB_SSL_ENABLED, true);
 
-		assertThat(HistoryServerUtils.isSSLEnabled(configuration), is(false));
-	}
+        assertThat(HistoryServerUtils.isSSLEnabled(configuration), is(false));
+    }
 
-	@Test
-	public void testIsSSLEnabledOnlyRestSSL() {
-		final Configuration configuration = new Configuration();
-		configuration.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+    @Test
+    public void testIsSSLEnabledOnlyRestSSL() {
+        final Configuration configuration = new Configuration();
+        configuration.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
 
-		assertThat(HistoryServerUtils.isSSLEnabled(configuration), is(false));
-	}
+        assertThat(HistoryServerUtils.isSSLEnabled(configuration), is(false));
+    }
 
-	@Test
-	public void testIsSSLEnabled() {
-		final Configuration configuration = new Configuration();
-		enableSSL(configuration);
+    @Test
+    public void testIsSSLEnabled() {
+        final Configuration configuration = new Configuration();
+        enableSSL(configuration);
 
-		assertThat(HistoryServerUtils.isSSLEnabled(configuration), is(true));
-	}
+        assertThat(HistoryServerUtils.isSSLEnabled(configuration), is(true));
+    }
 
-	private void enableSSL(Configuration configuration) {
-		configuration.setBoolean(HistoryServerOptions.HISTORY_SERVER_WEB_SSL_ENABLED, true);
-		configuration.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
-	}
+    private void enableSSL(Configuration configuration) {
+        configuration.setBoolean(HistoryServerOptions.HISTORY_SERVER_WEB_SSL_ENABLED, true);
+        configuration.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+    }
 
-	@Test
-	public void testGetHistoryServerURL() throws MalformedURLException {
-		final Configuration configuration = createDefaultConfiguration();
+    @Test
+    public void testGetHistoryServerURL() throws MalformedURLException {
+        final Configuration configuration = createDefaultConfiguration();
 
-		final Optional<URL> historyServerURL = HistoryServerUtils.getHistoryServerURL(configuration);
+        final Optional<URL> historyServerURL =
+                HistoryServerUtils.getHistoryServerURL(configuration);
 
-		assertThat(historyServerURL.get(), is(new URL("http", HOSTNAME, PORT, "")));
-	}
+        assertThat(historyServerURL.get(), is(new URL("http", HOSTNAME, PORT, "")));
+    }
 
-	@Test
-	public void testGetHistoryServerURLWithSSL() throws MalformedURLException {
-		final Configuration configuration = createDefaultConfiguration();
-		enableSSL(configuration);
+    @Test
+    public void testGetHistoryServerURLWithSSL() throws MalformedURLException {
+        final Configuration configuration = createDefaultConfiguration();
+        enableSSL(configuration);
 
-		final Optional<URL> historyServerURL = HistoryServerUtils.getHistoryServerURL(configuration);
+        final Optional<URL> historyServerURL =
+                HistoryServerUtils.getHistoryServerURL(configuration);
 
-		assertThat(historyServerURL.get(), is(new URL("https", HOSTNAME, PORT, "")));
-	}
+        assertThat(historyServerURL.get(), is(new URL("https", HOSTNAME, PORT, "")));
+    }
 
-	@Test
-	public void testGetHistoryServerURLWithoutHS() {
-		final Configuration configuration = new Configuration();
+    @Test
+    public void testGetHistoryServerURLWithoutHS() {
+        final Configuration configuration = new Configuration();
 
-		assertThat(HistoryServerUtils.getHistoryServerURL(configuration).isPresent(), is(false));
-	}
+        assertThat(HistoryServerUtils.getHistoryServerURL(configuration).isPresent(), is(false));
+    }
 
-	@Nonnull
-	private Configuration createDefaultConfiguration() {
-		final Configuration configuration = new Configuration();
-		configuration.setString(HistoryServerOptions.HISTORY_SERVER_WEB_ADDRESS, HOSTNAME);
-		configuration.setInteger(HistoryServerOptions.HISTORY_SERVER_WEB_PORT, PORT);
-		return configuration;
-	}
+    @Nonnull
+    private Configuration createDefaultConfiguration() {
+        final Configuration configuration = new Configuration();
+        configuration.setString(HistoryServerOptions.HISTORY_SERVER_WEB_ADDRESS, HOSTNAME);
+        configuration.setInteger(HistoryServerOptions.HISTORY_SERVER_WEB_PORT, PORT);
+        return configuration;
+    }
 }

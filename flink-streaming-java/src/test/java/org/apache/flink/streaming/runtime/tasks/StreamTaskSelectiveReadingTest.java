@@ -43,274 +43,297 @@ import java.util.concurrent.LinkedBlockingQueue;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.fail;
 
-/**
- * Test selective reading.
- */
+/** Test selective reading. */
 public class StreamTaskSelectiveReadingTest {
 
-	@Test
-	public void testAnyOrderedReading() throws Exception {
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-1"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 1"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-2"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 2"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-3"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 3"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 4"));
+    private static String elementToString(Object record) {
+        return record instanceof StreamRecord
+                ? ((StreamRecord) record).getValue().toString()
+                : record.toString();
+    }
 
-		testBase(new TestAnyModeReadingStreamOperator("Operator0"), true, expectedOutput, true);
-	}
+    @Test
+    public void testAnyOrderedReading() throws Exception {
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-1"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-2]: 1"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-2"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-2]: 2"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-3"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-2]: 3"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-2]: 4"));
 
-	@Test
-	public void testAnyUnorderedReading() throws Exception {
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-1"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 1"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-2"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 2"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-3"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 3"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 4"));
+        testBase(new TestAnyModeReadingStreamOperator("Operator0"), true, expectedOutput, true);
+    }
 
-		testBase(new TestAnyModeReadingStreamOperator("Operator0"), false, expectedOutput, false);
-	}
+    @Test
+    public void testAnyUnorderedReading() throws Exception {
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-1"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-2]: 1"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-2"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-2]: 2"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-3"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-2]: 3"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-2]: 4"));
 
-	@Test
-	public void testSequentialReading() throws Exception {
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-1"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-2"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-3"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 1"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 2"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 3"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 4"));
+        testBase(new TestAnyModeReadingStreamOperator("Operator0"), false, expectedOutput, false);
+    }
 
-		testBase(new TestSequentialReadingStreamOperator("Operator0"), false, expectedOutput, true);
-	}
+    @Test
+    public void testSequentialReading() throws Exception {
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-1"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-2"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-3"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-2]: 1"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-2]: 2"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-2]: 3"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-2]: 4"));
 
-	@Test
-	public void testSpecialRuleReading() throws Exception {
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-1"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-2"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 1"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 2"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-3"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 3"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 4"));
+        testBase(new TestSequentialReadingStreamOperator("Operator0"), false, expectedOutput, true);
+    }
 
-		testBase(new SpecialRuleReadingStreamOperator("Operator0", 3, 4, 2), false, expectedOutput, true);
-	}
+    @Test
+    public void testSpecialRuleReading() throws Exception {
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-1"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-2"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-2]: 1"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-2]: 2"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-3"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-2]: 3"));
+        expectedOutput.add(new StreamRecord<>("[Operator0-2]: 4"));
 
-	@Test
-	public void testReadFinishedInput() throws Exception {
-		try {
-			testBase(new TestReadFinishedInputStreamOperator(), false, new ConcurrentLinkedQueue<>(), true);
-			fail("should throw an IOException");
-		} catch (Exception t) {
-			if (!ExceptionUtils.findThrowableWithMessage(t, "only first input is selected but it is already finished").isPresent()) {
-				throw t;
-			}
-		}
-	}
+        testBase(
+                new SpecialRuleReadingStreamOperator("Operator0", 3, 4, 2),
+                false,
+                expectedOutput,
+                true);
+    }
 
-	private void testBase(
-		TwoInputStreamOperator<String, Integer, String> streamOperator,
-		boolean prepareDataBeforeProcessing,
-		ConcurrentLinkedQueue<Object> expectedOutput,
-		boolean orderedCheck) throws Exception {
+    @Test
+    public void testReadFinishedInput() throws Exception {
+        try {
+            testBase(
+                    new TestReadFinishedInputStreamOperator(),
+                    false,
+                    new ConcurrentLinkedQueue<>(),
+                    true);
+            fail("should throw an IOException");
+        } catch (Exception t) {
+            if (!ExceptionUtils.findThrowableWithMessage(
+                            t, "all selected inputs are already finished")
+                    .isPresent()) {
+                throw t;
+            }
+        }
+    }
 
-		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness = new TwoInputStreamTaskTestHarness<>(
-			TestSelectiveReadingTask::new,
-			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+    private void testBase(
+            TwoInputStreamOperator<String, Integer, String> streamOperator,
+            boolean prepareDataBeforeProcessing,
+            ConcurrentLinkedQueue<Object> expectedOutput,
+            boolean orderedCheck)
+            throws Exception {
 
-		testHarness.setupOutputForSingletonOperatorChain();
-		StreamConfig streamConfig = testHarness.getStreamConfig();
-		streamConfig.setStreamOperator(streamOperator);
-		streamConfig.setOperatorID(new OperatorID());
+        final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
+                new TwoInputStreamTaskTestHarness<>(
+                        TestSelectiveReadingTask::new,
+                        BasicTypeInfo.STRING_TYPE_INFO,
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        BasicTypeInfo.STRING_TYPE_INFO);
 
-		testHarness.invoke();
-		testHarness.waitForTaskRunning();
+        testHarness.setupOutputForSingletonOperatorChain();
+        StreamConfig streamConfig = testHarness.getStreamConfig();
+        streamConfig.setStreamOperator(streamOperator);
+        streamConfig.setOperatorID(new OperatorID());
 
-		boolean isProcessing = false;
-		if (!prepareDataBeforeProcessing) {
-			((TestSelectiveReadingTask) testHarness.getTask()).startProcessing();
-			isProcessing = true;
-		}
+        testHarness.invoke();
+        testHarness.waitForTaskRunning();
 
-		testHarness.processElement(new StreamRecord<>("Hello-1"), 0, 0);
+        boolean isProcessing = false;
+        if (!prepareDataBeforeProcessing) {
+            ((TestSelectiveReadingTask) testHarness.getTask()).startProcessing();
+            isProcessing = true;
+        }
 
-		// wait until the input is processed to test the listening and blocking logic
-		if (!prepareDataBeforeProcessing) {
-			testHarness.waitForInputProcessing();
-		}
+        testHarness.processElement(new StreamRecord<>("Hello-1"), 0, 0);
 
-		testHarness.processElement(new StreamRecord<>("Hello-2"), 0, 0);
-		testHarness.processElement(new StreamRecord<>("Hello-3"), 0, 0);
+        // wait until the input is processed to test the listening and blocking logic
+        if (!prepareDataBeforeProcessing) {
+            testHarness.waitForInputProcessing();
+        }
 
-		testHarness.processElement(new StreamRecord<>(1), 1, 0);
-		testHarness.processElement(new StreamRecord<>(2), 1, 0);
-		testHarness.processElement(new StreamRecord<>(3), 1, 0);
-		testHarness.processElement(new StreamRecord<>(4), 1, 0);
+        testHarness.processElement(new StreamRecord<>("Hello-2"), 0, 0);
+        testHarness.processElement(new StreamRecord<>("Hello-3"), 0, 0);
 
-		testHarness.endInput();
+        testHarness.processElement(new StreamRecord<>(1), 1, 0);
+        testHarness.processElement(new StreamRecord<>(2), 1, 0);
+        testHarness.processElement(new StreamRecord<>(3), 1, 0);
+        testHarness.processElement(new StreamRecord<>(4), 1, 0);
 
-		if (!isProcessing) {
-			((TestSelectiveReadingTask) testHarness.getTask()).startProcessing();
-		}
-		testHarness.waitForTaskCompletion(10_000L);
+        testHarness.endInput();
 
-		LinkedBlockingQueue<Object> output = testHarness.getOutput();
-		if (orderedCheck) {
-			TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, output);
-		} else {
-			String[] expectedResult = expectedOutput.stream()
-				.map(record -> ((StreamRecord) record).getValue().toString())
-				.toArray(String[]::new);
-			Arrays.sort(expectedResult);
+        if (!isProcessing) {
+            ((TestSelectiveReadingTask) testHarness.getTask()).startProcessing();
+        }
+        testHarness.waitForTaskCompletion(10_000L);
 
-			String[] result = output.stream()
-				.map(record -> ((StreamRecord) record).getValue().toString())
-				.toArray(String[]::new);
-			Arrays.sort(result);
+        LinkedBlockingQueue<Object> output = testHarness.getOutput();
+        if (orderedCheck) {
+            TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, output);
+        } else {
+            String[] expectedResult =
+                    expectedOutput.stream()
+                            .map(StreamTaskSelectiveReadingTest::elementToString)
+                            .toArray(String[]::new);
+            Arrays.sort(expectedResult);
 
-			assertArrayEquals("Output was not correct.", expectedResult, result);
-		}
-	}
+            String[] result =
+                    output.stream()
+                            .map(StreamTaskSelectiveReadingTest::elementToString)
+                            .toArray(String[]::new);
+            Arrays.sort(result);
 
-	// ------------------------------------------------------------------------
-	// Utilities
-	// ------------------------------------------------------------------------
+            assertArrayEquals("Output was not correct.", expectedResult, result);
+        }
+    }
 
-	private static class TestSelectiveReadingTask<IN1, IN2, OUT> extends TwoInputStreamTask<IN1, IN2, OUT> {
+    // ------------------------------------------------------------------------
+    // Utilities
+    // ------------------------------------------------------------------------
 
-		private volatile boolean started;
+    private static class TestSelectiveReadingTask<IN1, IN2, OUT>
+            extends TwoInputStreamTask<IN1, IN2, OUT> {
 
-		TestSelectiveReadingTask(Environment env) {
-			super(env);
-			started = false;
-		}
+        private volatile boolean started;
 
-		@Override
-		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
-			if (!started) {
-				synchronized (this) {
-					this.wait();
-				}
-			}
+        TestSelectiveReadingTask(Environment env) throws Exception {
+            super(env);
+            started = false;
+        }
 
-			super.processInput(controller);
-		}
+        @Override
+        protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
+            if (!started) {
+                synchronized (this) {
+                    this.wait();
+                }
+            }
 
-		public void startProcessing() {
-			started = true;
-			synchronized (this) {
-				this.notifyAll();
-			}
-		}
-	}
+            super.processInput(controller);
+        }
 
-	private static class SpecialRuleReadingStreamOperator extends AbstractStreamOperator<String>
-		implements TwoInputStreamOperator<String, Integer, String>, InputSelectable, BoundedMultiInput {
+        public void startProcessing() {
+            started = true;
+            synchronized (this) {
+                this.notifyAll();
+            }
+        }
+    }
 
-		private final String name;
+    private static class SpecialRuleReadingStreamOperator extends AbstractStreamOperator<String>
+            implements TwoInputStreamOperator<String, Integer, String>,
+                    InputSelectable,
+                    BoundedMultiInput {
 
-		private final int input1Records;
-		private final int input2Records;
+        private final String name;
 
-		private final int maxContinuousReadingRecords;
+        private final int input1Records;
+        private final int input2Records;
 
-		private int input1ReadingRecords;
-		private int input2ReadingRecords;
+        private final int maxContinuousReadingRecords;
 
-		private int continuousReadingRecords;
-		private InputSelection inputSelection;
+        private int input1ReadingRecords;
+        private int input2ReadingRecords;
 
-		SpecialRuleReadingStreamOperator(String name, int input1Records, int input2Records, int maxContinuousReadingRecords) {
-			super();
+        private int continuousReadingRecords;
+        private InputSelection inputSelection;
 
-			this.name = name;
-			this.input1Records = input1Records;
-			this.input2Records = input2Records;
-			this.maxContinuousReadingRecords = maxContinuousReadingRecords;
+        SpecialRuleReadingStreamOperator(
+                String name,
+                int input1Records,
+                int input2Records,
+                int maxContinuousReadingRecords) {
+            super();
 
-			this.input1ReadingRecords = 0;
-			this.input2ReadingRecords = 0;
-			this.continuousReadingRecords = 0;
-			this.inputSelection = InputSelection.FIRST;
-		}
+            this.name = name;
+            this.input1Records = input1Records;
+            this.input2Records = input2Records;
+            this.maxContinuousReadingRecords = maxContinuousReadingRecords;
 
-		@Override
-		public InputSelection nextSelection() {
-			return inputSelection;
-		}
+            this.input1ReadingRecords = 0;
+            this.input2ReadingRecords = 0;
+            this.continuousReadingRecords = 0;
+            this.inputSelection = InputSelection.FIRST;
+        }
 
-		@Override
-		public void processElement1(StreamRecord<String> element) {
-			output.collect(element.replace("[" + name + "-1]: " + element.getValue()));
+        @Override
+        public InputSelection nextSelection() {
+            return inputSelection;
+        }
 
-			input1ReadingRecords++;
-			continuousReadingRecords++;
-			if (continuousReadingRecords == maxContinuousReadingRecords) {
-				continuousReadingRecords = 0;
-				if (input2ReadingRecords < input2Records) {
-					inputSelection = InputSelection.SECOND;
-					return;
-				}
-			}
+        @Override
+        public void processElement1(StreamRecord<String> element) {
+            output.collect(element.replace("[" + name + "-1]: " + element.getValue()));
 
-			inputSelection = InputSelection.FIRST;
-		}
+            input1ReadingRecords++;
+            continuousReadingRecords++;
+            if (continuousReadingRecords == maxContinuousReadingRecords) {
+                continuousReadingRecords = 0;
+                if (input2ReadingRecords < input2Records) {
+                    inputSelection = InputSelection.SECOND;
+                    return;
+                }
+            }
 
-		@Override
-		public void processElement2(StreamRecord<Integer> element) {
-			output.collect(element.replace("[" + name + "-2]: " + element.getValue()));
+            inputSelection = InputSelection.FIRST;
+        }
 
-			input2ReadingRecords++;
-			continuousReadingRecords++;
-			if (continuousReadingRecords == maxContinuousReadingRecords) {
-				continuousReadingRecords = 0;
-				if (input1ReadingRecords < input1Records) {
-					inputSelection = InputSelection.FIRST;
-					return;
-				}
-			}
+        @Override
+        public void processElement2(StreamRecord<Integer> element) {
+            output.collect(element.replace("[" + name + "-2]: " + element.getValue()));
 
-			inputSelection = InputSelection.SECOND;
-		}
+            input2ReadingRecords++;
+            continuousReadingRecords++;
+            if (continuousReadingRecords == maxContinuousReadingRecords) {
+                continuousReadingRecords = 0;
+                if (input1ReadingRecords < input1Records) {
+                    inputSelection = InputSelection.FIRST;
+                    return;
+                }
+            }
 
-		@Override
-		public void endInput(int inputId) {
-			inputSelection = (inputId == 1) ? InputSelection.SECOND : InputSelection.FIRST;
-		}
-	}
+            inputSelection = InputSelection.SECOND;
+        }
 
-	private static class TestReadFinishedInputStreamOperator extends AbstractStreamOperator<String>
-		implements TwoInputStreamOperator<String, Integer, String>, InputSelectable {
+        @Override
+        public void endInput(int inputId) {
+            inputSelection = (inputId == 1) ? InputSelection.SECOND : InputSelection.FIRST;
+        }
+    }
 
-		private InputSelection inputSelection;
+    private static class TestReadFinishedInputStreamOperator extends AbstractStreamOperator<String>
+            implements TwoInputStreamOperator<String, Integer, String>, InputSelectable {
 
-		TestReadFinishedInputStreamOperator() {
-			super();
+        private InputSelection inputSelection;
 
-			this.inputSelection = InputSelection.FIRST;
-		}
+        TestReadFinishedInputStreamOperator() {
+            super();
 
-		@Override
-		public InputSelection nextSelection() {
-			return inputSelection;
-		}
+            this.inputSelection = InputSelection.FIRST;
+        }
 
-		@Override
-		public void processElement1(StreamRecord<String> element) {
+        @Override
+        public InputSelection nextSelection() {
+            return inputSelection;
+        }
 
-		}
+        @Override
+        public void processElement1(StreamRecord<String> element) {}
 
-		@Override
-		public void processElement2(StreamRecord<Integer> element) {
-
-		}
-	}
+        @Override
+        public void processElement2(StreamRecord<Integer> element) {}
+    }
 }

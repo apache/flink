@@ -34,65 +34,67 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * Test {@link BroadcastVariableInitializer}.
- */
+/** Test {@link BroadcastVariableInitializer}. */
 @SuppressWarnings("serial")
 public class BroadcastVarInitializationITCase extends JavaProgramTestBase {
 
-	@Override
-	protected void testProgram() throws Exception {
+    @Override
+    protected void testProgram() throws Exception {
 
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(4);
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
 
-		DataSet<Integer> data = env.fromElements(1, 2, 3, 4, 5, 6, 7, 8);
+        DataSet<Integer> data = env.fromElements(1, 2, 3, 4, 5, 6, 7, 8);
 
-		IterativeDataSet<Integer> iteration = data.iterate(10);
+        IterativeDataSet<Integer> iteration = data.iterate(10);
 
-		DataSet<Integer> result = data.reduceGroup(new PickOneAllReduce()).withBroadcastSet(iteration, "bc");
+        DataSet<Integer> result =
+                data.reduceGroup(new PickOneAllReduce()).withBroadcastSet(iteration, "bc");
 
-		final List<Integer> resultList = new ArrayList<Integer>();
-		iteration.closeWith(result).output(new LocalCollectionOutputFormat<Integer>(resultList));
+        final List<Integer> resultList = new ArrayList<Integer>();
+        iteration.closeWith(result).output(new LocalCollectionOutputFormat<Integer>(resultList));
 
-		env.execute();
+        env.execute();
 
-		Assert.assertEquals(8, resultList.get(0).intValue());
-	}
+        Assert.assertEquals(8, resultList.get(0).intValue());
+    }
 
-	private static class PickOneAllReduce extends RichGroupReduceFunction<Integer, Integer> {
+    private static class PickOneAllReduce extends RichGroupReduceFunction<Integer, Integer> {
 
-		private Integer bcValue;
+        private Integer bcValue;
 
-		@Override
-		public void open(Configuration parameters) {
-			this.bcValue = getRuntimeContext().getBroadcastVariableWithInitializer("bc", new PickFirstInitializer());
-		}
+        @Override
+        public void open(Configuration parameters) {
+            this.bcValue =
+                    getRuntimeContext()
+                            .getBroadcastVariableWithInitializer("bc", new PickFirstInitializer());
+        }
 
-		@Override
-		public void reduce(Iterable<Integer> records, Collector<Integer> out) {
-			if (bcValue == null) {
-				return;
-			}
-			final int x = bcValue;
+        @Override
+        public void reduce(Iterable<Integer> records, Collector<Integer> out) {
+            if (bcValue == null) {
+                return;
+            }
+            final int x = bcValue;
 
-			for (Integer y : records) {
-				if (y > x) {
-					out.collect(y);
-					return;
-				}
-			}
+            for (Integer y : records) {
+                if (y > x) {
+                    out.collect(y);
+                    return;
+                }
+            }
 
-			out.collect(bcValue);
-		}
-	}
+            out.collect(bcValue);
+        }
+    }
 
-	private static class PickFirstInitializer implements BroadcastVariableInitializer<Integer, Integer> {
+    private static class PickFirstInitializer
+            implements BroadcastVariableInitializer<Integer, Integer> {
 
-		@Override
-		public Integer initializeBroadcastVariable(Iterable<Integer> data) {
-			Iterator<Integer> iter = data.iterator();
-			return iter.hasNext() ? iter.next() : null;
-		}
-	}
+        @Override
+        public Integer initializeBroadcastVariable(Iterable<Integer> data) {
+            Iterator<Integer> iter = data.iterator();
+            return iter.hasNext() ? iter.next() : null;
+        }
+    }
 }

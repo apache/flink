@@ -1,0 +1,539 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testPartialInsertWithComplexReorder[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink (b,e,a,g,f,c,d) SELECT b,e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c, d, e, f, g])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[123:BIGINT], g=[456])
+   +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, c, d, e, f, g])
++- Calc(select=[a, b, c, d, e, 123:BIGINT AS f, 456 AS g])
+   +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+      +- Exchange(distribution=[hash[a, b, c, d, e]])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithComplexReorder[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink (b,e,a,g,f,c,d) SELECT b,e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c, d, e, f, g])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[123:BIGINT], g=[456])
+   +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, c, d, e, f, g])
++- Calc(select=[a, b, c, d, e, 123:BIGINT AS f, 456 AS g])
+   +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+      +- Exchange(distribution=[hash[a, b, c, d, e]])
+         +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithComplexReorderAndComputedColumn[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], f=[123:BIGINT], g=[456])
+   +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- Calc(select=[a, c, d, e, 123:BIGINT AS f, 456 AS g])
+   +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+      +- Exchange(distribution=[hash[a, b, c, d, e]])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithComplexReorderAndComputedColumn[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], f=[123:BIGINT], g=[456])
+   +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- Sort(orderBy=[c ASC, d ASC])
+   +- Calc(select=[a, c, d, e, 123:BIGINT AS f, 456 AS g])
+      +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+         +- Exchange(distribution=[hash[a, b, c, d, e]])
+            +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithExceptAll[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e EXCEPT ALL SELECT e,a,789,456,c,d FROM MyTable GROUP BY a,b,c,d,e ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
+   +- LogicalMinus(all=[true])
+      :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+         +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- Calc(select=[a0 AS a, c0 AS c, d0 AS d, e0 AS e, f0 AS f, g0 AS g])
+   +- Correlate(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$9ac09a0a3aed959a450e9fbe5b75ac6b($0, $1, $2, $3, $4, $5, $6)], correlate=[table(ReplicateRows(sum_vcol_marker,a,c,d,e,f,g))], select=[sum_vcol_marker,a,c,d,e,f,g,a0,c0,d0,e0,f0,g0], rowType=[RecordType(BIGINT sum_vcol_marker, INTEGER a, VARCHAR(2147483647) c, VARCHAR(2147483647) d, DOUBLE e, BIGINT f, INTEGER g, INTEGER a0, VARCHAR(2147483647) c0, VARCHAR(2147483647) d0, DOUBLE e0, BIGINT f0, INTEGER g0)], joinType=[INNER])
+      +- Calc(select=[sum_vcol_marker, a, c, d, e, f, g], where=[>(sum_vcol_marker, 0)])
+         +- GroupAggregate(groupBy=[a, c, d, e, f, g], select=[a, c, d, e, f, g, SUM_RETRACT(vcol_marker) AS sum_vcol_marker])
+            +- Exchange(distribution=[hash[a, c, d, e, f, g]])
+               +- Union(all=[true], union=[a, c, d, e, f, g, vcol_marker])
+                  :- Calc(select=[a, c, d, e, CAST(123:BIGINT) AS f, CAST(456) AS g, 1:BIGINT AS vcol_marker])
+                  :  +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                  :     +- Exchange(distribution=[hash[a, b, c, d, e]])
+                  :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                  +- Calc(select=[a, c, d, e, CAST(123:BIGINT) AS f, CAST(456) AS g, -1:BIGINT AS vcol_marker])
+                     +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                        +- Exchange(distribution=[hash[a, b, c, d, e]])
+                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithExceptAll[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e EXCEPT ALL SELECT e,a,789,456,c,d FROM MyTable GROUP BY a,b,c,d,e ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
+   +- LogicalMinus(all=[true])
+      :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+         +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- Sort(orderBy=[c ASC, d ASC])
+   +- Calc(select=[a0 AS a, c0 AS c, d0 AS d, e0 AS e, f0 AS f, g0 AS g])
+      +- Correlate(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$9ac09a0a3aed959a450e9fbe5b75ac6b($0, $1, $2, $3, $4, $5, $6)], correlate=[table(ReplicateRows(sum_vcol_marker,a,c,d,e,f,g))], select=[sum_vcol_marker,a,c,d,e,f,g,a0,c0,d0,e0,f0,g0], rowType=[RecordType(BIGINT sum_vcol_marker, INTEGER a, VARCHAR(2147483647) c, VARCHAR(2147483647) d, DOUBLE e, BIGINT f, INTEGER g, INTEGER a0, VARCHAR(2147483647) c0, VARCHAR(2147483647) d0, DOUBLE e0, BIGINT f0, INTEGER g0)], joinType=[INNER])
+         +- Calc(select=[sum_vcol_marker, a, c, d, e, f, g], where=[>(sum_vcol_marker, 0)])
+            +- HashAggregate(isMerge=[true], groupBy=[a, c, d, e, f, g], select=[a, c, d, e, f, g, Final_SUM(sum$0) AS sum_vcol_marker])
+               +- Exchange(distribution=[hash[a, c, d, e, f, g]])
+                  +- LocalHashAggregate(groupBy=[a, c, d, e, f, g], select=[a, c, d, e, f, g, Partial_SUM(vcol_marker) AS sum$0])
+                     +- Union(all=[true], union=[a, c, d, e, f, g, vcol_marker])
+                        :- Calc(select=[a, c, d, e, CAST(123:BIGINT) AS f, CAST(456) AS g, 1:BIGINT AS vcol_marker])
+                        :  +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                        :     +- Exchange(distribution=[hash[a, b, c, d, e]])
+                        :        +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                        :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                        +- Calc(select=[a, c, d, e, CAST(123:BIGINT) AS f, CAST(456) AS g, -1:BIGINT AS vcol_marker])
+                           +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                              +- Exchange(distribution=[hash[a, b, c, d, e]])
+                                 +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithIntersectAll[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e INTERSECT ALL SELECT e,a,789,456,c,d FROM MyTable GROUP BY a,b,c,d,e ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
+   +- LogicalIntersect(all=[true])
+      :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+         +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- Calc(select=[a0 AS a, c0 AS c, d0 AS d, e0 AS e, f0 AS f, g0 AS g])
+   +- Correlate(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$9ac09a0a3aed959a450e9fbe5b75ac6b($0, $1, $2, $3, $4, $5, $6)], correlate=[table(ReplicateRows($f0,a,c,d,e,f,g))], select=[$f0,a,c,d,e,f,g,a0,c0,d0,e0,f0,g0], rowType=[RecordType(BIGINT $f0, INTEGER a, VARCHAR(2147483647) c, VARCHAR(2147483647) d, DOUBLE e, BIGINT f, INTEGER g, INTEGER a0, VARCHAR(2147483647) c0, VARCHAR(2147483647) d0, DOUBLE e0, BIGINT f0, INTEGER g0)], joinType=[INNER])
+      +- Calc(select=[IF(>(vcol_left_cnt, vcol_right_cnt), vcol_right_cnt, vcol_left_cnt) AS $f0, a, c, d, e, f, g], where=[AND(>=(vcol_left_cnt, 1), >=(vcol_right_cnt, 1))])
+         +- GroupAggregate(groupBy=[a, c, d, e, f, g], select=[a, c, d, e, f, g, COUNT_RETRACT(vcol_left_marker) AS vcol_left_cnt, COUNT_RETRACT(vcol_right_marker) AS vcol_right_cnt])
+            +- Exchange(distribution=[hash[a, c, d, e, f, g]])
+               +- Union(all=[true], union=[a, c, d, e, f, g, vcol_left_marker, vcol_right_marker])
+                  :- Calc(select=[a, c, d, e, CAST(123:BIGINT) AS f, CAST(456) AS g, true AS vcol_left_marker, null:BOOLEAN AS vcol_right_marker])
+                  :  +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                  :     +- Exchange(distribution=[hash[a, b, c, d, e]])
+                  :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                  +- Calc(select=[a, c, d, e, CAST(456:BIGINT) AS f, CAST(789) AS g, null:BOOLEAN AS vcol_left_marker, true AS vcol_right_marker])
+                     +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                        +- Exchange(distribution=[hash[a, b, c, d, e]])
+                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithIntersectAll[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e INTERSECT ALL SELECT e,a,789,456,c,d FROM MyTable GROUP BY a,b,c,d,e ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
+   +- LogicalIntersect(all=[true])
+      :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+         +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- Sort(orderBy=[c ASC, d ASC])
+   +- Calc(select=[a0 AS a, c0 AS c, d0 AS d, e0 AS e, f0 AS f, g0 AS g])
+      +- Correlate(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$9ac09a0a3aed959a450e9fbe5b75ac6b($0, $1, $2, $3, $4, $5, $6)], correlate=[table(ReplicateRows($f0,a,c,d,e,f,g))], select=[$f0,a,c,d,e,f,g,a0,c0,d0,e0,f0,g0], rowType=[RecordType(BIGINT $f0, INTEGER a, VARCHAR(2147483647) c, VARCHAR(2147483647) d, DOUBLE e, BIGINT f, INTEGER g, INTEGER a0, VARCHAR(2147483647) c0, VARCHAR(2147483647) d0, DOUBLE e0, BIGINT f0, INTEGER g0)], joinType=[INNER])
+         +- Calc(select=[IF(>(vcol_left_cnt, vcol_right_cnt), vcol_right_cnt, vcol_left_cnt) AS $f0, a, c, d, e, f, g], where=[AND(>=(vcol_left_cnt, 1), >=(vcol_right_cnt, 1))])
+            +- HashAggregate(isMerge=[true], groupBy=[a, c, d, e, f, g], select=[a, c, d, e, f, g, Final_COUNT(count$0) AS vcol_left_cnt, Final_COUNT(count$1) AS vcol_right_cnt])
+               +- Exchange(distribution=[hash[a, c, d, e, f, g]])
+                  +- LocalHashAggregate(groupBy=[a, c, d, e, f, g], select=[a, c, d, e, f, g, Partial_COUNT(vcol_left_marker) AS count$0, Partial_COUNT(vcol_right_marker) AS count$1])
+                     +- Union(all=[true], union=[a, c, d, e, f, g, vcol_left_marker, vcol_right_marker])
+                        :- Calc(select=[a, c, d, e, CAST(123:BIGINT) AS f, CAST(456) AS g, true AS vcol_left_marker, null:BOOLEAN AS vcol_right_marker])
+                        :  +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                        :     +- Exchange(distribution=[hash[a, b, c, d, e]])
+                        :        +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                        :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                        +- Calc(select=[a, c, d, e, CAST(456:BIGINT) AS f, CAST(789) AS g, null:BOOLEAN AS vcol_left_marker, true AS vcol_right_marker])
+                           +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                              +- Exchange(distribution=[hash[a, b, c, d, e]])
+                                 +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithOrderBy[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable ORDER BY a,e,c,d]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
+   +- LogicalSort(sort0=[$0], sort1=[$3], sort2=[$1], sort3=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], dir2=[ASC-nulls-first], dir3=[ASC-nulls-first])
+      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- Calc(select=[a, c, d, e, CAST(123:BIGINT) AS f, CAST(456) AS g])
+   +- Sort(orderBy=[a ASC, e ASC, c ASC, d ASC])
+      +- Exchange(distribution=[single])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithOrderBy[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable ORDER BY a,e,c,d]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
+   +- LogicalSort(sort0=[$0], sort1=[$3], sort2=[$1], sort3=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], dir2=[ASC-nulls-first], dir3=[ASC-nulls-first])
+      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- Calc(select=[a, c, d, e, CAST(123:BIGINT) AS f, CAST(456) AS g])
+   +- Sort(orderBy=[a ASC, e ASC, c ASC, d ASC])
+      +- Exchange(distribution=[single])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithUnion[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e UNION SELECT e,a,789,456,c,d FROM MyTable GROUP BY a,b,c,d,e ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
+   +- LogicalUnion(all=[false])
+      :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+         +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- Calc(select=[a, c, d, e, CAST(EXPR$4) AS f, CAST(EXPR$5) AS g])
+   +- GroupAggregate(groupBy=[a, c, d, e, EXPR$4, EXPR$5], select=[a, c, d, e, EXPR$4, EXPR$5])
+      +- Exchange(distribution=[hash[a, c, d, e, EXPR$4, EXPR$5]])
+         +- Union(all=[true], union=[a, c, d, e, EXPR$4, EXPR$5])
+            :- Calc(select=[a, c, d, e, 123 AS EXPR$4, 456 AS EXPR$5])
+            :  +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+            :     +- Exchange(distribution=[hash[a, b, c, d, e]])
+            :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+            +- Calc(select=[a, c, d, e, 456 AS EXPR$4, 789 AS EXPR$5])
+               +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                  +- Exchange(distribution=[hash[a, b, c, d, e]])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithUnion[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e UNION SELECT e,a,789,456,c,d FROM MyTable GROUP BY a,b,c,d,e ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
+   +- LogicalUnion(all=[false])
+      :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+         +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- Sort(orderBy=[c ASC, d ASC])
+   +- Calc(select=[a, c, d, e, CAST(EXPR$4) AS f, CAST(EXPR$5) AS g])
+      +- HashAggregate(isMerge=[true], groupBy=[a, c, d, e, EXPR$4, EXPR$5], select=[a, c, d, e, EXPR$4, EXPR$5])
+         +- Exchange(distribution=[hash[a, c, d, e, EXPR$4, EXPR$5]])
+            +- LocalHashAggregate(groupBy=[a, c, d, e, EXPR$4, EXPR$5], select=[a, c, d, e, EXPR$4, EXPR$5])
+               +- Union(all=[true], union=[a, c, d, e, EXPR$4, EXPR$5])
+                  :- Calc(select=[a, c, d, e, 123 AS EXPR$4, 456 AS EXPR$5])
+                  :  +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                  :     +- Exchange(distribution=[hash[a, b, c, d, e]])
+                  :        +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                  :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                  +- Calc(select=[a, c, d, e, 456 AS EXPR$4, 789 AS EXPR$5])
+                     +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                        +- Exchange(distribution=[hash[a, b, c, d, e]])
+                           +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithUnionAll[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e UNION ALL SELECT e,a,789,456,c,d FROM MyTable GROUP BY a,b,c,d,e ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
+   +- LogicalUnion(all=[true])
+      :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+         +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- Union(all=[true], union=[a, c, d, e, f, g])
+   :- Calc(select=[a, c, d, e, CAST(123:BIGINT) AS f, CAST(456) AS g])
+   :  +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+   :     +- Exchange(distribution=[hash[a, b, c, d, e]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+   +- Calc(select=[a, c, d, e, CAST(456:BIGINT) AS f, CAST(789) AS g])
+      +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+         +- Exchange(distribution=[hash[a, b, c, d, e]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithUnionAll[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e UNION ALL SELECT e,a,789,456,c,d FROM MyTable GROUP BY a,b,c,d,e ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
+   +- LogicalUnion(all=[true])
+      :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+         +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- Sort(orderBy=[c ASC, d ASC])
+   +- Union(all=[true], union=[a, c, d, e, f, g])
+      :- Calc(select=[a, c, d, e, CAST(123:BIGINT) AS f, CAST(456) AS g])
+      :  +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+      :     +- Exchange(distribution=[hash[a, b, c, d, e]])
+      :        +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+      :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+      +- Calc(select=[a, c, d, e, CAST(456:BIGINT) AS f, CAST(789) AS g])
+         +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+            +- Exchange(distribution=[hash[a, b, c, d, e]])
+               +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithUnionAllNested[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e UNION ALL SELECT e,a,789,456,c,d FROM MyTable GROUP BY a,b,c,d,e UNION ALL SELECT e,a,123,456,c,d FROM MyTable GROUP BY a,b,c,d,e ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
+   +- LogicalUnion(all=[true])
+      :- LogicalUnion(all=[true])
+      :  :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :  :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      :  :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      :  +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+      :     +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[123])
+         +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- Sort(orderBy=[c ASC, d ASC])
+   +- Union(all=[true], union=[a, c, d, e, f, g])
+      :- Union(all=[true], union=[a, c, d, e, f, g])
+      :  :- Calc(select=[a, c, d, e, CAST(123:BIGINT) AS f, CAST(456) AS g])
+      :  :  +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+      :  :     +- Exchange(distribution=[hash[a, b, c, d, e]])
+      :  :        +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+      :  :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+      :  +- Calc(select=[a, c, d, e, CAST(456:BIGINT) AS f, CAST(789) AS g])
+      :     +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+      :        +- Exchange(distribution=[hash[a, b, c, d, e]])
+      :           +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+      :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+      +- Calc(select=[a, c, d, e, CAST(456:BIGINT) AS f, CAST(123) AS g])
+         +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+            +- Exchange(distribution=[hash[a, b, c, d, e]])
+               +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithUnionAllNested[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e UNION ALL SELECT e,a,789,456,c,d FROM MyTable GROUP BY a,b,c,d,e UNION ALL SELECT e,a,123,456,c,d FROM MyTable GROUP BY a,b,c,d,e ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
+   +- LogicalUnion(all=[true])
+      :- LogicalUnion(all=[true])
+      :  :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :  :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      :  :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      :  +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+      :     +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[123])
+         +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- Union(all=[true], union=[a, c, d, e, f, g])
+   :- Union(all=[true], union=[a, c, d, e, f, g])
+   :  :- Calc(select=[a, c, d, e, CAST(123:BIGINT) AS f, CAST(456) AS g])
+   :  :  +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+   :  :     +- Exchange(distribution=[hash[a, b, c, d, e]])
+   :  :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+   :  +- Calc(select=[a, c, d, e, CAST(456:BIGINT) AS f, CAST(789) AS g])
+   :     +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+   :        +- Exchange(distribution=[hash[a, b, c, d, e]])
+   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+   +- Calc(select=[a, c, d, e, CAST(456:BIGINT) AS f, CAST(123) AS g])
+      +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+         +- Exchange(distribution=[hash[a, b, c, d, e]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

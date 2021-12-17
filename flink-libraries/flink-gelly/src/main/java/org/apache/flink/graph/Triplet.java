@@ -21,57 +21,58 @@ package org.apache.flink.graph;
 import org.apache.flink.api.java.tuple.Tuple5;
 
 /**
- * A Triplet stores and retrieves the edges along with their corresponding source and target vertices.
- * Triplets can be obtained from the input graph via the {@link org.apache.flink.graph.Graph#getTriplets()} method.
+ * A Triplet stores and retrieves the edges along with their corresponding source and target
+ * vertices. Triplets can be obtained from the input graph via the {@link
+ * org.apache.flink.graph.Graph#getTriplets()} method.
  *
  * @param <K> the vertex key type
  * @param <VV> the vertex value type
  * @param <EV> the edge value type
  */
-public class Triplet <K, VV, EV> extends Tuple5<K, K, VV, VV, EV> {
+public class Triplet<K, VV, EV> extends Tuple5<K, K, VV, VV, EV> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public Triplet() {}
+    public Triplet() {}
 
-	/**
-	 * Constructs a Triplet from a given source vertex, target vertex, and edge.
-	 *
-	 * @param srcVertex
-	 * @param trgVertex
-	 * @param edge
-	 */
-	public Triplet(Vertex<K, VV> srcVertex, Vertex<K, VV> trgVertex, Edge<K, EV> edge) {
-		this.f0 = srcVertex.f0;
-		this.f2 = srcVertex.f1;
-		this.f1 = trgVertex.f0;
-		this.f3 = trgVertex.f1;
-		this.f4 = edge.f2;
-	}
+    /**
+     * Constructs a Triplet from a given source vertex, target vertex, and edge.
+     *
+     * @param srcVertex
+     * @param trgVertex
+     * @param edge
+     */
+    public Triplet(Vertex<K, VV> srcVertex, Vertex<K, VV> trgVertex, Edge<K, EV> edge) {
+        this.f0 = srcVertex.f0;
+        this.f2 = srcVertex.f1;
+        this.f1 = trgVertex.f0;
+        this.f3 = trgVertex.f1;
+        this.f4 = edge.f2;
+    }
 
-	/**
-	 * Constructs a Triplet from its src vertex id, src target id, src vertex value,
-	 * src target value and edge value respectively.
-	 *
-	 * @param srcId
-	 * @param trgId
-	 * @param srcVal
-	 * @param trgVal
-	 * @param edgeVal
-	 */
-	public Triplet(K srcId, K trgId, VV srcVal, VV trgVal, EV edgeVal) {
-		super(srcId, trgId, srcVal, trgVal, edgeVal);
-	}
+    /**
+     * Constructs a Triplet from its src vertex id, src target id, src vertex value, src target
+     * value and edge value respectively.
+     *
+     * @param srcId
+     * @param trgId
+     * @param srcVal
+     * @param trgVal
+     * @param edgeVal
+     */
+    public Triplet(K srcId, K trgId, VV srcVal, VV trgVal, EV edgeVal) {
+        super(srcId, trgId, srcVal, trgVal, edgeVal);
+    }
 
-	public Vertex<K, VV> getSrcVertex() {
-		return new Vertex<>(this.f0, this.f2);
-	}
+    public Vertex<K, VV> getSrcVertex() {
+        return new Vertex<>(this.f0, this.f2);
+    }
 
-	public Vertex<K, VV> getTrgVertex() {
-		return new Vertex<>(this.f1, this.f3);
-	}
+    public Vertex<K, VV> getTrgVertex() {
+        return new Vertex<>(this.f1, this.f3);
+    }
 
-	public Edge<K, EV> getEdge() {
-		return new Edge<>(this.f0, this.f1, this.f4);
-	}
+    public Edge<K, EV> getEdge() {
+        return new Edge<>(this.f0, this.f1, this.f4);
+    }
 }

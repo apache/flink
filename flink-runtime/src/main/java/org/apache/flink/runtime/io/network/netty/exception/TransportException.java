@@ -23,21 +23,21 @@ import java.net.SocketAddress;
 
 public abstract class TransportException extends IOException {
 
-	private static final long serialVersionUID = 3637820720589866570L;
+    private static final long serialVersionUID = 3637820720589866570L;
 
-	private final SocketAddress address;
+    private final SocketAddress address;
 
-	public TransportException(String message, SocketAddress address) {
-		this(message, address, null);
-	}
+    public TransportException(String message, SocketAddress address) {
+        this(message, address, null);
+    }
 
-	public TransportException(String message, SocketAddress address, Throwable cause) {
-		super(message, cause);
+    public TransportException(String message, SocketAddress address, Throwable cause) {
+        super(message, cause);
 
-		this.address = address;
-	}
+        this.address = address;
+    }
 
-	public SocketAddress getAddress() {
-		return address;
-	}
+    public SocketAddress getAddress() {
+        return address;
+    }
 }

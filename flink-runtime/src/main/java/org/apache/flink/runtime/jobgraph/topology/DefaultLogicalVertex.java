@@ -24,48 +24,57 @@ import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
+import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Default implementation of {@link LogicalVertex}.
- * It is an adapter of {@link JobVertex}.
- */
-public class DefaultLogicalVertex implements LogicalVertex<DefaultLogicalVertex, DefaultLogicalResult> {
+/** Default implementation of {@link LogicalVertex}. It is an adapter of {@link JobVertex}. */
+public class DefaultLogicalVertex implements LogicalVertex {
 
-	private final JobVertex jobVertex;
+    private final JobVertex jobVertex;
 
-	private final Function<IntermediateDataSetID, DefaultLogicalResult> resultRetriever;
+    private final Function<IntermediateDataSetID, DefaultLogicalResult> resultRetriever;
 
-	DefaultLogicalVertex(
-			final JobVertex jobVertex,
-			final Function<IntermediateDataSetID, DefaultLogicalResult> resultRetriever) {
+    private final List<LogicalEdge> inputEdges;
 
-		this.jobVertex = checkNotNull(jobVertex);
-		this.resultRetriever = checkNotNull(resultRetriever);
-	}
+    DefaultLogicalVertex(
+            final JobVertex jobVertex,
+            final Function<IntermediateDataSetID, DefaultLogicalResult> resultRetriever) {
 
-	@Override
-	public JobVertexID getId() {
-		return jobVertex.getID();
-	}
+        this.jobVertex = checkNotNull(jobVertex);
+        this.resultRetriever = checkNotNull(resultRetriever);
+        this.inputEdges =
+                jobVertex.getInputs().stream()
+                        .map(DefaultLogicalEdge::new)
+                        .collect(Collectors.toList());
+    }
 
-	@Override
-	public Iterable<DefaultLogicalResult> getConsumedResults() {
-		return jobVertex.getInputs().stream()
-			.map(JobEdge::getSource)
-			.map(IntermediateDataSet::getId)
-			.map(resultRetriever)
-			.collect(Collectors.toList());
-	}
+    @Override
+    public JobVertexID getId() {
+        return jobVertex.getID();
+    }
 
-	@Override
-	public Iterable<DefaultLogicalResult> getProducedResults() {
-		return jobVertex.getProducedDataSets().stream()
-			.map(IntermediateDataSet::getId)
-			.map(resultRetriever)
-			.collect(Collectors.toList());
-	}
+    @Override
+    public Iterable<DefaultLogicalResult> getConsumedResults() {
+        return jobVertex.getInputs().stream()
+                .map(JobEdge::getSource)
+                .map(IntermediateDataSet::getId)
+                .map(resultRetriever)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Iterable<DefaultLogicalResult> getProducedResults() {
+        return jobVertex.getProducedDataSets().stream()
+                .map(IntermediateDataSet::getId)
+                .map(resultRetriever)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Iterable<? extends LogicalEdge> getInputs() {
+        return inputEdges;
+    }
 }

@@ -1,0 +1,333 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testMultiDiffRankFunctions">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b,
+        RANK() OVER (PARTITION BY b ORDER BY a) rk,
+        ROW_NUMBER() OVER (PARTITION BY b ORDER BY a) rn FROM MyTable) t
+WHERE rk < 10
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2], rn=[$3])
++- LogicalFilter(condition=[<($2, 10)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], rn=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0, w1$o0], where=[<(w0$o0, 10)])
++- FlinkLogicalOverAggregate(window#0=[window(partition {1} order by [0 ASC-nulls-first] aggs [RANK()])], window#1=[window(partition {1} order by [0 ASC-nulls-first] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiSameRankFunctionsWithDiffGroup">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b,
+        RANK() OVER (PARTITION BY b ORDER BY a) rk1,
+        RANK() OVER (PARTITION BY c ORDER BY a) rk2 FROM MyTable) t
+WHERE rk1 < 10
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk1=[$2], rk2=[$3])
++- LogicalFilter(condition=[<($2, 10)])
+   +- LogicalProject(a=[$0], b=[$1], rk1=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], rk2=[RANK() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0, w1$o0], where=[<(w0$o0, 10)])
++- FlinkLogicalOverAggregate(window#0=[window(partition {1} order by [0 ASC-nulls-first] aggs [RANK()])], window#1=[window(partition {2} order by [0 ASC-nulls-first] aggs [RANK()])])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiSameRankFunctionsWithSameGroup">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b,
+        RANK() OVER (PARTITION BY b ORDER BY a) rk1,
+        RANK() OVER (PARTITION BY b ORDER BY a) rk2 FROM MyTable) t
+WHERE rk1 < 10
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk1=[$2], rk2=[$3])
++- LogicalFilter(condition=[<($2, 10)])
+   +- LogicalProject(a=[$0], b=[$1], rk1=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], rk2=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, rk2 AS rk1, rk2])
++- FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], select=[a, b, rk2])
+   +- FlinkLogicalCalc(select=[a, b])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankValueFilterWithEquals">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a, c) rk FROM MyTable) t
+WHERE rk = 2
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[=($2, 2)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST, $2 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, 2:BIGINT AS $2])
++- FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], select=[a, b, c])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankValueFilterWithRange">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b, RANK() OVER (PARTITION BY b, c ORDER BY a) rk FROM MyTable) t
+WHERE rk <= 2 AND rk > -2
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[AND(<=($2, 2), >($2, -2))])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1, $2 ORDER BY $0 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0])
++- FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=-1, rankEnd=2], partitionBy=[b,c], orderBy=[a ASC], select=[a, b, c, w0$o0])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankValueFilterWithUpperValue">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a) rk FROM MyTable) t
+WHERE rk <= 2 AND a > 10
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[AND(<=($2, 2), >($0, 10))])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0], where=[>(a, 10)])
++- FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], select=[a, b, w0$o0])
+   +- FlinkLogicalCalc(select=[a, b])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowNumberFunc">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b, ROW_NUMBER() OVER (PARTITION BY b ORDER BY a) rn FROM MyTable) t
+WHERE rn <= 2
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rn=[$2])
++- LogicalFilter(condition=[<=($2, 2)])
+   +- LogicalProject(a=[$0], b=[$1], rn=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], select=[a, b, w0$o0])
++- FlinkLogicalCalc(select=[a, b])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankValueFilterWithVariableField1">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY c) rk FROM MyTable) t
+WHERE rk < a
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[<($2, $0)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0])
++- FlinkLogicalRank(rankType=[RANK], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[c ASC], select=[a, b, c, w0$o0])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankValueFilterWithVariableField2">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY c) rk FROM MyTable) t
+WHERE rk > a
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[>($2, $0)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0], where=[>(w0$o0, a)])
++- FlinkLogicalOverAggregate(window#0=[window(partition {1} order by [2 ASC-nulls-first] aggs [RANK()])])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankValueFilterWithVariableField3">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY c) rk FROM MyTable) t
+WHERE rk < a and b > 5
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[AND(<($2, $0), >(CAST($1):BIGINT, 5))])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0], where=[>(CAST(b), 5:BIGINT)])
++- FlinkLogicalRank(rankType=[RANK], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[c ASC], select=[a, b, c, w0$o0])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankValueFilterWithVariableField4">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b, RANK() OVER (PARTITION BY a ORDER BY c) rk FROM MyTable) t
+WHERE rk = b
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[=($2, $1)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0])
++- FlinkLogicalRank(rankType=[RANK], rankRange=[rankEnd=b], partitionBy=[a], orderBy=[c ASC], select=[a, b, c, w0$o0])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithoutPartitionBy">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b, RANK() OVER (ORDER BY a) rk FROM MyTable) t
+WHERE rk < 10
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[<($2, 10)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (ORDER BY $0 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], select=[a, b, w0$o0])
++- FlinkLogicalCalc(select=[a, b])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithoutFilter">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a) rk FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0 AS $2])
++- FlinkLogicalOverAggregate(window#0=[window(partition {1} order by [0 ASC-nulls-first] aggs [RANK()])])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

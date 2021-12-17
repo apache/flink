@@ -21,36 +21,36 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
- * A test for the {@link TypeSerializer TypeSerializers} used for
- * {@link FlinkKafkaProducer.NextTransactionalIdHint}.
+ * A test for the {@link TypeSerializer TypeSerializers} used for {@link
+ * FlinkKafkaProducer.NextTransactionalIdHint}.
  */
-public class NextTransactionalIdHintSerializerTest extends
-	SerializerTestBase<FlinkKafkaProducer.NextTransactionalIdHint> {
+public class NextTransactionalIdHintSerializerTest
+        extends SerializerTestBase<FlinkKafkaProducer.NextTransactionalIdHint> {
 
-	@Override
-	protected TypeSerializer<FlinkKafkaProducer.NextTransactionalIdHint> createSerializer() {
-		return new FlinkKafkaProducer.NextTransactionalIdHintSerializer();
-	}
+    @Override
+    protected TypeSerializer<FlinkKafkaProducer.NextTransactionalIdHint> createSerializer() {
+        return new FlinkKafkaProducer.NextTransactionalIdHintSerializer();
+    }
 
-	@Override
-	protected int getLength() {
-		return Long.BYTES + Integer.BYTES;
-	}
+    @Override
+    protected int getLength() {
+        return Long.BYTES + Integer.BYTES;
+    }
 
-	@Override
-	protected Class<FlinkKafkaProducer.NextTransactionalIdHint> getTypeClass() {
-		return (Class) FlinkKafkaProducer.NextTransactionalIdHint.class;
-	}
+    @Override
+    protected Class<FlinkKafkaProducer.NextTransactionalIdHint> getTypeClass() {
+        return (Class) FlinkKafkaProducer.NextTransactionalIdHint.class;
+    }
 
-	@Override
-	protected FlinkKafkaProducer.NextTransactionalIdHint[] getTestData() {
-		return new FlinkKafkaProducer.NextTransactionalIdHint[] {
-			new FlinkKafkaProducer.NextTransactionalIdHint(1, 0L),
-			new FlinkKafkaProducer.NextTransactionalIdHint(1, 1L),
-			new FlinkKafkaProducer.NextTransactionalIdHint(1, -1L),
-			new FlinkKafkaProducer.NextTransactionalIdHint(2, 0L),
-			new FlinkKafkaProducer.NextTransactionalIdHint(2, 1L),
-			new FlinkKafkaProducer.NextTransactionalIdHint(2, -1L),
-		};
-	}
+    @Override
+    protected FlinkKafkaProducer.NextTransactionalIdHint[] getTestData() {
+        return new FlinkKafkaProducer.NextTransactionalIdHint[] {
+            new FlinkKafkaProducer.NextTransactionalIdHint(1, 0L),
+            new FlinkKafkaProducer.NextTransactionalIdHint(1, 1L),
+            new FlinkKafkaProducer.NextTransactionalIdHint(1, -1L),
+            new FlinkKafkaProducer.NextTransactionalIdHint(2, 0L),
+            new FlinkKafkaProducer.NextTransactionalIdHint(2, 1L),
+            new FlinkKafkaProducer.NextTransactionalIdHint(2, -1L),
+        };
+    }
 }

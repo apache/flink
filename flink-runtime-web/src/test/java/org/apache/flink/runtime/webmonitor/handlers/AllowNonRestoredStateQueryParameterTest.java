@@ -24,25 +24,22 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link AllowNonRestoredStateQueryParameter}.
- */
+/** Tests for {@link AllowNonRestoredStateQueryParameter}. */
 public class AllowNonRestoredStateQueryParameterTest extends TestLogger {
 
-	private final AllowNonRestoredStateQueryParameter allowNonRestoredStateQueryParameter =
-		new AllowNonRestoredStateQueryParameter();
+    private final AllowNonRestoredStateQueryParameter allowNonRestoredStateQueryParameter =
+            new AllowNonRestoredStateQueryParameter();
 
-	@Test
-	public void testConvertStringToValue() {
-		assertEquals("false", allowNonRestoredStateQueryParameter.convertValueToString(false));
-		assertEquals("true", allowNonRestoredStateQueryParameter.convertValueToString(true));
-	}
+    @Test
+    public void testConvertStringToValue() {
+        assertEquals("false", allowNonRestoredStateQueryParameter.convertValueToString(false));
+        assertEquals("true", allowNonRestoredStateQueryParameter.convertValueToString(true));
+    }
 
-	@Test
-	public void testConvertValueFromString() {
-		assertEquals(false, allowNonRestoredStateQueryParameter.convertStringToValue("false"));
-		assertEquals(true, allowNonRestoredStateQueryParameter.convertStringToValue("true"));
-		assertEquals(true, allowNonRestoredStateQueryParameter.convertStringToValue("TRUE"));
-	}
-
+    @Test
+    public void testConvertValueFromString() {
+        assertEquals(false, allowNonRestoredStateQueryParameter.convertStringToValue("false"));
+        assertEquals(true, allowNonRestoredStateQueryParameter.convertStringToValue("true"));
+        assertEquals(true, allowNonRestoredStateQueryParameter.convertStringToValue("TRUE"));
+    }
 }

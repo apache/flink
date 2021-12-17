@@ -32,15 +32,14 @@ import org.apache.flink.graph.Vertex;
 @ForwardedFields("f0; f1")
 public class Tuple2ToVertexMap<K, VV> implements MapFunction<Tuple2<K, VV>, Vertex<K, VV>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private Vertex<K, VV> vertex = new Vertex<>();
+    private Vertex<K, VV> vertex = new Vertex<>();
 
-	@Override
-	public Vertex<K, VV> map(Tuple2<K, VV> tuple) {
-		vertex.f0 = tuple.f0;
-		vertex.f1 = tuple.f1;
-		return vertex;
-	}
-
+    @Override
+    public Vertex<K, VV> map(Tuple2<K, VV> tuple) {
+        vertex.f0 = tuple.f0;
+        vertex.f1 = tuple.f1;
+        return vertex;
+    }
 }

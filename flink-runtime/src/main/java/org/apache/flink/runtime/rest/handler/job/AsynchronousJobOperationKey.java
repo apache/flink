@@ -30,45 +30,64 @@ import java.util.Objects;
 import static java.util.Objects.requireNonNull;
 
 /**
- * A pair of {@link JobID} and {@link TriggerId} used as a key to a hash based
- * collection.
+ * A pair of {@link JobID} and {@link TriggerId} used as a key to a hash based collection.
  *
  * @see AbstractAsynchronousOperationHandlers
  */
 @Immutable
 public class AsynchronousJobOperationKey extends OperationKey {
 
-	private final JobID jobId;
+    private final JobID jobId;
 
-	private AsynchronousJobOperationKey(final TriggerId triggerId, final JobID jobId) {
-		super(triggerId);
-		this.jobId = requireNonNull(jobId);
-	}
+    private AsynchronousJobOperationKey(final TriggerId triggerId, final JobID jobId) {
+        super(triggerId);
+        this.jobId = requireNonNull(jobId);
+    }
 
-	public static AsynchronousJobOperationKey of(final TriggerId triggerId, final JobID jobId) {
-		return new AsynchronousJobOperationKey(triggerId, jobId);
-	}
+    public static AsynchronousJobOperationKey of(final TriggerId triggerId, final JobID jobId) {
+        return new AsynchronousJobOperationKey(triggerId, jobId);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
+    /**
+     * Get the job id for the given operation key.
+     *
+     * @return job id
+     */
+    public JobID getJobId() {
+        return jobId;
+    }
 
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
 
-		if (!super.equals(o)) {
-			return false;
-		}
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-		AsynchronousJobOperationKey that = (AsynchronousJobOperationKey) o;
-		return Objects.equals(jobId, that.jobId);
-	}
+        if (!super.equals(o)) {
+            return false;
+        }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(super.hashCode(), jobId);
-	}
+        AsynchronousJobOperationKey that = (AsynchronousJobOperationKey) o;
+        return Objects.equals(jobId, that.jobId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), jobId);
+    }
+
+    @Override
+    public String toString() {
+        return getClass().getSimpleName()
+                + "{"
+                + "triggerId="
+                + getTriggerId()
+                + ", jobId="
+                + jobId
+                + '}';
+    }
 }

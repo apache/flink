@@ -18,13 +18,13 @@
 
 package org.apache.flink.deployment;
 
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -35,116 +35,120 @@ import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
 
-
 /**
- * End-to-end test for heavy deployment descriptors. This test creates a heavy deployment by producing inflated meta
- * data for the source's operator state. The state is registered as union state and will be multiplied in deployment.
+ * End-to-end test for heavy deployment descriptors. This test creates a heavy deployment by
+ * producing inflated meta data for the source's operator state. The state is registered as union
+ * state and will be multiplied in deployment.
  */
 public class HeavyDeploymentStressTestProgram {
 
-	private static final ConfigOption<Integer> NUM_LIST_STATES_PER_OP = ConfigOptions
-		.key("heavy_deployment_test.num_list_states_per_op")
-		.defaultValue(100);
+    private static final ConfigOption<Integer> NUM_LIST_STATES_PER_OP =
+            ConfigOptions.key("heavy_deployment_test.num_list_states_per_op").defaultValue(100);
 
-	private static final ConfigOption<Integer> NUM_PARTITIONS_PER_LIST_STATE = ConfigOptions
-		.key("heavy_deployment_test.num_partitions_per_list_state")
-		.defaultValue(100);
+    private static final ConfigOption<Integer> NUM_PARTITIONS_PER_LIST_STATE =
+            ConfigOptions.key("heavy_deployment_test.num_partitions_per_list_state")
+                    .defaultValue(100);
 
-	public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
 
-		final ParameterTool pt = ParameterTool.fromArgs(args);
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final ParameterTool pt = ParameterTool.fromArgs(args);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		setupEnvironment(env, pt);
+        setupEnvironment(env, pt);
 
-		final int numStates =
-			pt.getInt(NUM_LIST_STATES_PER_OP.key(), NUM_LIST_STATES_PER_OP.defaultValue());
-		final int numPartitionsPerState =
-			pt.getInt(NUM_PARTITIONS_PER_LIST_STATE.key(), NUM_PARTITIONS_PER_LIST_STATE.defaultValue());
+        final int numStates =
+                pt.getInt(NUM_LIST_STATES_PER_OP.key(), NUM_LIST_STATES_PER_OP.defaultValue());
+        final int numPartitionsPerState =
+                pt.getInt(
+                        NUM_PARTITIONS_PER_LIST_STATE.key(),
+                        NUM_PARTITIONS_PER_LIST_STATE.defaultValue());
 
-		Preconditions.checkState(env.getCheckpointInterval() > 0L, "Checkpointing must be enabled for this test!");
+        Preconditions.checkState(
+                env.getCheckpointInterval() > 0L, "Checkpointing must be enabled for this test!");
 
-		env.addSource(new SimpleEndlessSourceWithBloatedState(numStates, numPartitionsPerState)).setParallelism(env.getParallelism())
-			.addSink(new DiscardingSink<>()).setParallelism(1);
+        env.addSource(new SimpleEndlessSourceWithBloatedState(numStates, numPartitionsPerState))
+                .setParallelism(env.getParallelism())
+                .addSink(new DiscardingSink<>())
+                .setParallelism(1);
 
-		env.execute("HeavyDeploymentStressTestProgram");
-	}
+        env.execute("HeavyDeploymentStressTestProgram");
+    }
 
-	/**
-	 * Source with dummy operator state that results in inflated meta data.
-	 */
-	static class SimpleEndlessSourceWithBloatedState extends RichParallelSourceFunction<String>
-		implements CheckpointedFunction, CheckpointListener {
+    /** Source with dummy operator state that results in inflated meta data. */
+    static class SimpleEndlessSourceWithBloatedState extends RichParallelSourceFunction<String>
+            implements CheckpointedFunction, CheckpointListener {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private final int numListStates;
-		private final int numPartitionsPerListState;
+        private final int numListStates;
+        private final int numPartitionsPerListState;
 
-		private transient volatile boolean isRunning;
+        private transient volatile boolean isRunning;
 
-		/** Flag to induce failure after we have a valid checkpoint. */
-		private transient volatile boolean readyToFail;
+        /** Flag to induce failure after we have a valid checkpoint. */
+        private transient volatile boolean readyToFail;
 
-		SimpleEndlessSourceWithBloatedState(int numListStates, int numPartitionsPerListState) {
-			this.numListStates = numListStates;
-			this.numPartitionsPerListState = numPartitionsPerListState;
-		}
+        SimpleEndlessSourceWithBloatedState(int numListStates, int numPartitionsPerListState) {
+            this.numListStates = numListStates;
+            this.numPartitionsPerListState = numPartitionsPerListState;
+        }
 
-		@Override
-		public void snapshotState(FunctionSnapshotContext context) {
-		}
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) {}
 
-		@Override
-		public void initializeState(FunctionInitializationContext context) throws Exception {
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {
 
-			readyToFail = false;
+            readyToFail = false;
 
-			if (context.isRestored()) {
-				isRunning = false;
-			} else {
-				isRunning = true;
+            if (context.isRestored()) {
+                isRunning = false;
+            } else {
+                isRunning = true;
 
-				OperatorStateStore operatorStateStore = context.getOperatorStateStore();
-				for (int i = 0; i < numListStates; ++i) {
+                OperatorStateStore operatorStateStore = context.getOperatorStateStore();
+                for (int i = 0; i < numListStates; ++i) {
 
-					ListStateDescriptor<String> listStateDescriptor =
-						new ListStateDescriptor<>("test-list-state-" + i, String.class);
+                    ListStateDescriptor<String> listStateDescriptor =
+                            new ListStateDescriptor<>("test-list-state-" + i, String.class);
 
-					ListState<String> unionListState =
-						operatorStateStore.getUnionListState(listStateDescriptor);
+                    ListState<String> unionListState =
+                            operatorStateStore.getUnionListState(listStateDescriptor);
 
-					for (int j = 0; j < numPartitionsPerListState; ++j) {
-						unionListState.add(String.valueOf(j));
-					}
-				}
-			}
-		}
+                    for (int j = 0; j < numPartitionsPerListState; ++j) {
+                        unionListState.add(String.valueOf(j));
+                    }
+                }
+            }
+        }
 
-		@Override
-		public void run(SourceContext<String> ctx) throws Exception {
-			while (isRunning) {
+        @Override
+        public void run(SourceContext<String> ctx) throws Exception {
+            while (isRunning) {
 
-				if (readyToFail && getRuntimeContext().getIndexOfThisSubtask() == 0) {
-					throw new Exception("Artificial failure.");
-				}
+                if (readyToFail && getRuntimeContext().getIndexOfThisSubtask() == 0) {
+                    throw new Exception("Artificial failure.");
+                }
 
-				synchronized (ctx.getCheckpointLock()) {
-					ctx.collect("test-element");
-				}
+                synchronized (ctx.getCheckpointLock()) {
+                    ctx.collect("test-element");
+                }
 
-				Thread.sleep(1);
-			}
-		}
+                Thread.sleep(1);
+            }
+        }
 
-		@Override
-		public void cancel() {
-			this.isRunning = false;
-		}
+        @Override
+        public void cancel() {
+            this.isRunning = false;
+        }
 
-		@Override
-		public void notifyCheckpointComplete(long checkpointId) {
-			readyToFail = true;
-		}
-	}
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) {
+            readyToFail = true;
+        }
+
+        @Override
+        public void notifyCheckpointAborted(long checkpointId) {}
+    }
 }

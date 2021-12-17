@@ -23,15 +23,15 @@ import org.apache.flink.table.expressions.resolver.rules.ResolverRule.Resolution
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
 
 /**
- * Utility class for {@link ResolverRule} specific visitor that unifies access to
- * {@link ResolutionContext}.
+ * Utility class for {@link ResolverRule} specific visitor that unifies access to {@link
+ * ResolutionContext}.
  */
 @Internal
 abstract class RuleExpressionVisitor<T> extends ApiExpressionDefaultVisitor<T> {
 
-	protected final ResolutionContext resolutionContext;
+    protected final ResolutionContext resolutionContext;
 
-	RuleExpressionVisitor(ResolutionContext resolutionContext) {
-		this.resolutionContext = resolutionContext;
-	}
+    RuleExpressionVisitor(ResolutionContext resolutionContext) {
+        this.resolutionContext = resolutionContext;
+    }
 }

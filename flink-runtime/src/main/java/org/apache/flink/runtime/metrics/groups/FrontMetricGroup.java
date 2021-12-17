@@ -18,40 +18,106 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.CharacterFilter;
+import org.apache.flink.metrics.LogicalScopeProvider;
+import org.apache.flink.metrics.MetricGroup;
+
+import org.apache.commons.collections.map.CompositeMap;
+
+import java.util.Collections;
+import java.util.Map;
 
 /**
- * Metric group which forwards all registration calls to a variable parent metric group that injects a variable reporter
- * index into calls to {@link org.apache.flink.metrics.MetricGroup#getMetricIdentifier(String)}
- * or {@link org.apache.flink.metrics.MetricGroup#getMetricIdentifier(String, CharacterFilter)}.
- * This allows us to use reporter-specific delimiters, without requiring any action by the reporter.
+ * Metric group which forwards all registration calls to a variable parent metric group that injects
+ * a variable reporter index into calls to {@link
+ * org.apache.flink.metrics.MetricGroup#getMetricIdentifier(String)} or {@link
+ * org.apache.flink.metrics.MetricGroup#getMetricIdentifier(String, CharacterFilter)}. This allows
+ * us to use reporter-specific delimiters, without requiring any action by the reporter.
  *
  * @param <P> parentMetricGroup to {@link AbstractMetricGroup AbstractMetricGroup}
  */
-public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMetricGroup<P> {
+public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMetricGroup<P>
+        implements LogicalScopeProvider {
 
-	protected int reporterIndex;
+    @VisibleForTesting static final char DEFAULT_REPLACEMENT = '_';
+    @VisibleForTesting static final char DEFAULT_REPLACEMENT_ALTERNATIVE = '-';
 
-	public FrontMetricGroup(int reporterIndex, P reference) {
-		super(reference);
-		this.reporterIndex = reporterIndex;
-	}
+    private final ReporterScopedSettings settings;
 
-	@Override
-	public String getMetricIdentifier(String metricName) {
-		return parentMetricGroup.getMetricIdentifier(metricName, null, this.reporterIndex);
-	}
+    public FrontMetricGroup(ReporterScopedSettings settings, P reference) {
+        super(reference);
+        this.settings = settings;
+    }
 
-	@Override
-	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-		return parentMetricGroup.getMetricIdentifier(metricName, filter, this.reporterIndex);
-	}
+    @Override
+    public String getMetricIdentifier(String metricName) {
+        return parentMetricGroup.getMetricIdentifier(
+                metricName,
+                getDelimiterFilter(this.settings, CharacterFilter.NO_OP_FILTER),
+                this.settings.getReporterIndex(),
+                this.settings.getDelimiter());
+    }
 
-	public String getLogicalScope(CharacterFilter filter) {
-		return parentMetricGroup.getLogicalScope(filter);
-	}
+    @Override
+    public String getMetricIdentifier(String metricName, CharacterFilter filter) {
+        return parentMetricGroup.getMetricIdentifier(
+                metricName,
+                getDelimiterFilter(this.settings, filter),
+                this.settings.getReporterIndex(),
+                this.settings.getDelimiter());
+    }
 
-	public String getLogicalScope(CharacterFilter filter, char delimiter) {
-		return parentMetricGroup.getLogicalScope(filter, delimiter, this.reporterIndex);
-	}
+    @Override
+    public MetricGroup getWrappedMetricGroup() {
+        return parentMetricGroup;
+    }
+
+    @Override
+    public Map<String, String> getAllVariables() {
+        Map<String, String> allVariables =
+                parentMetricGroup.getAllVariables(
+                        this.settings.getReporterIndex(), this.settings.getExcludedVariables());
+
+        if (!this.settings.getAdditionalVariables().isEmpty()) {
+            allVariables = new CompositeMap(allVariables, this.settings.getAdditionalVariables());
+        }
+
+        return Collections.unmodifiableMap(allVariables);
+    }
+
+    /** @deprecated work against the LogicalScopeProvider interface instead. */
+    @Override
+    @Deprecated
+    public String getLogicalScope(CharacterFilter filter) {
+        return parentMetricGroup.getLogicalScope(
+                getDelimiterFilter(this.settings, filter), this.settings.getDelimiter());
+    }
+
+    /** @deprecated work against the LogicalScopeProvider interface instead. */
+    @Override
+    @Deprecated
+    public String getLogicalScope(CharacterFilter filter, char delimiter) {
+        return parentMetricGroup.getLogicalScope(
+                getDelimiterFilter(this.settings, filter),
+                delimiter,
+                this.settings.getReporterIndex());
+    }
+
+    private static CharacterFilter getDelimiterFilter(
+            ReporterScopedSettings reporterScopedSettings, CharacterFilter generalCharacterFilter) {
+
+        if (reporterScopedSettings.getDelimiter() != DEFAULT_REPLACEMENT) {
+            return input ->
+                    generalCharacterFilter.filterCharacters(
+                            input.replace(
+                                    reporterScopedSettings.getDelimiter(), DEFAULT_REPLACEMENT));
+        } else {
+            return input ->
+                    generalCharacterFilter.filterCharacters(
+                            input.replace(
+                                    reporterScopedSettings.getDelimiter(),
+                                    DEFAULT_REPLACEMENT_ALTERNATIVE));
+        }
+    }
 }

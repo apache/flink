@@ -23,14 +23,15 @@ import org.apache.flink.annotation.Public;
 import java.io.Serializable;
 
 /**
- * Interface for Join functions. Joins combine two data sets by joining their
- * elements on specified keys. This function is called with each pair of joining elements.
+ * Interface for Join functions. Joins combine two data sets by joining their elements on specified
+ * keys. This function is called with each pair of joining elements.
  *
- * <p>By default, the joins follows strictly the semantics of an "inner join" in SQL.
- * the semantics are those of an "inner join", meaning that elements are filtered out
- * if their key is not contained in the other data set.
+ * <p>By default, the joins follows strictly the semantics of an "inner join" in SQL. the semantics
+ * are those of an "inner join", meaning that elements are filtered out if their key is not
+ * contained in the other data set.
  *
  * <p>The basic syntax for using Join on two data sets is as follows:
+ *
  * <pre>{@code
  * DataSet<X> set1 = ...;
  * DataSet<Y> set2 = ...;
@@ -40,8 +41,8 @@ import java.io.Serializable;
  *
  * <p>{@code set1} is here considered the first input, {@code set2} the second input.
  *
- * <p>The Join function is an optional part of a join operation. If no JoinFunction is provided,
- * the result of the operation is a sequence of 2-tuples, where the elements in the tuple are those that
+ * <p>The Join function is an optional part of a join operation. If no JoinFunction is provided, the
+ * result of the operation is a sequence of 2-tuples, where the elements in the tuple are those that
  * the JoinFunction would have been invoked with.
  *
  * <p>Note: You can use a {@link CoGroupFunction} to perform an outer join.
@@ -54,15 +55,14 @@ import java.io.Serializable;
 @FunctionalInterface
 public interface JoinFunction<IN1, IN2, OUT> extends Function, Serializable {
 
-	/**
-	 * The join method, called once per joined pair of elements.
-	 *
-	 * @param first The element from first input.
-	 * @param second The element from second input.
-	 * @return The resulting element.
-	 *
-	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
-	 *                   to fail and may trigger recovery.
-	 */
-	OUT join(IN1 first, IN2 second) throws Exception;
+    /**
+     * The join method, called once per joined pair of elements.
+     *
+     * @param first The element from first input.
+     * @param second The element from second input.
+     * @return The resulting element.
+     * @throws Exception This method may throw exceptions. Throwing an exception will cause the
+     *     operation to fail and may trigger recovery.
+     */
+    OUT join(IN1 first, IN2 second) throws Exception;
 }

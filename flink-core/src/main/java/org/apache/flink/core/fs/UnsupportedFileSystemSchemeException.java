@@ -20,29 +20,27 @@ package org.apache.flink.core.fs;
 
 import java.io.IOException;
 
-/**
- * An exception to indicate that a specific file system scheme is not supported.
- */
+/** An exception to indicate that a specific file system scheme is not supported. */
 public class UnsupportedFileSystemSchemeException extends IOException {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Creates a new exception with the given message.
-	 *
-	 * @param message The exception message
-	 */
-	public UnsupportedFileSystemSchemeException(String message) {
-		super(message);
-	}
+    /**
+     * Creates a new exception with the given message.
+     *
+     * @param message The exception message
+     */
+    public UnsupportedFileSystemSchemeException(String message) {
+        super(message);
+    }
 
-	/**
-	 * Creates a new exception with the given message and cause.
-	 *
-	 * @param message The exception message
-	 * @param cause The exception cause
-	 */
-	public UnsupportedFileSystemSchemeException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    /**
+     * Creates a new exception with the given message and cause.
+     *
+     * @param message The exception message
+     * @param cause The exception cause
+     */
+    public UnsupportedFileSystemSchemeException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

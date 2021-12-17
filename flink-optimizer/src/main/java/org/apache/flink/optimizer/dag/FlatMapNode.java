@@ -18,48 +18,48 @@
 
 package org.apache.flink.optimizer.dag;
 
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.api.common.operators.base.FlatMapOperatorBase;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.operators.FlatMapDescriptor;
 import org.apache.flink.optimizer.operators.OperatorDescriptorSingle;
 
-/**
- * The optimizer's internal representation of a <i>FlatMap</i> operator node.
- */
+import java.util.Collections;
+import java.util.List;
+
+/** The optimizer's internal representation of a <i>FlatMap</i> operator node. */
 public class FlatMapNode extends SingleInputNode {
-	
-	private final List<OperatorDescriptorSingle> possibleProperties;
-	
-	public FlatMapNode(FlatMapOperatorBase<?, ?, ?> operator) {
-		super(operator);
-		
-		this.possibleProperties = Collections.<OperatorDescriptorSingle>singletonList(new FlatMapDescriptor());
-	}
 
-	@Override
-	public FlatMapOperatorBase<?, ?, ?> getOperator() {
-		return (FlatMapOperatorBase<?, ?, ?>) super.getOperator();
-	}
+    private final List<OperatorDescriptorSingle> possibleProperties;
 
-	@Override
-	public String getOperatorName() {
-		return "FlatMap";
-	}
+    public FlatMapNode(FlatMapOperatorBase<?, ?, ?> operator) {
+        super(operator);
 
-	@Override
-	protected List<OperatorDescriptorSingle> getPossibleProperties() {
-		return this.possibleProperties;
-	}
+        this.possibleProperties =
+                Collections.<OperatorDescriptorSingle>singletonList(new FlatMapDescriptor());
+    }
 
-	/**
-	 * Computes the estimates for the FlatMap operator. Since it un-nests, we assume a cardinality
-	 * increase. To give the system a hint at data increase, we take a default magic number of a 5 times increase. 
-	 */
-	@Override
-	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
-		this.estimatedNumRecords = getPredecessorNode().getEstimatedNumRecords() * 5;
-	}
+    @Override
+    public FlatMapOperatorBase<?, ?, ?> getOperator() {
+        return (FlatMapOperatorBase<?, ?, ?>) super.getOperator();
+    }
+
+    @Override
+    public String getOperatorName() {
+        return "FlatMap";
+    }
+
+    @Override
+    protected List<OperatorDescriptorSingle> getPossibleProperties() {
+        return this.possibleProperties;
+    }
+
+    /**
+     * Computes the estimates for the FlatMap operator. Since it un-nests, we assume a cardinality
+     * increase. To give the system a hint at data increase, we take a default magic number of a 5
+     * times increase.
+     */
+    @Override
+    protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+        this.estimatedNumRecords = getPredecessorNode().getEstimatedNumRecords() * 5;
+    }
 }

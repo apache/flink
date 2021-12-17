@@ -27,19 +27,17 @@ import java.util.stream.Stream;
 
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link IterableUtils}.
- */
+/** Tests for the {@link IterableUtils}. */
 public class IterableUtilsTest extends TestLogger {
 
-	private final Iterable<Integer> testIterable = Arrays.asList(1, 8, 5, 3, 8);
+    private final Iterable<Integer> testIterable = Arrays.asList(1, 8, 5, 3, 8);
 
-	@Test
-	public void testToStream() {
-		Queue<Integer> deque = new ArrayDeque<>();
-		testIterable.forEach(deque::add);
+    @Test
+    public void testToStream() {
+        Queue<Integer> deque = new ArrayDeque<>();
+        testIterable.forEach(deque::add);
 
-		Stream<Integer> stream = IterableUtils.toStream(testIterable);
-		assertTrue(stream.allMatch(value -> deque.poll().equals(value)));
-	}
+        Stream<Integer> stream = IterableUtils.toStream(testIterable);
+        assertTrue(stream.allMatch(value -> deque.poll().equals(value)));
+    }
 }

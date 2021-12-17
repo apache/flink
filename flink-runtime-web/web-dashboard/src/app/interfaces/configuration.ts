@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-export interface ConfigurationInterface {
+export interface Configuration {
   'refresh-interval': number;
   'timezone-name': string;
   'timezone-offset': number;
@@ -24,5 +24,6 @@ export interface ConfigurationInterface {
   'flink-revision': string;
   features: {
     'web-submit': boolean;
+    'web-cancel': boolean;
   };
 }

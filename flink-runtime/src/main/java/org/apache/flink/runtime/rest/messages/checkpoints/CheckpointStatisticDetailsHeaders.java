@@ -25,53 +25,54 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Headers for the {@link CheckpointStatisticDetailsHandler}.
- */
-public class CheckpointStatisticDetailsHeaders implements MessageHeaders<EmptyRequestBody, CheckpointStatistics, CheckpointMessageParameters> {
+/** Headers for the {@link CheckpointStatisticDetailsHandler}. */
+public class CheckpointStatisticDetailsHeaders
+        implements MessageHeaders<
+                EmptyRequestBody, CheckpointStatistics, CheckpointMessageParameters> {
 
-	private static final CheckpointStatisticDetailsHeaders INSTANCE = new CheckpointStatisticDetailsHeaders();
+    private static final CheckpointStatisticDetailsHeaders INSTANCE =
+            new CheckpointStatisticDetailsHeaders();
 
-	public static final String URL = "/jobs/:jobid/checkpoints/details/:checkpointid";
+    public static final String URL = "/jobs/:jobid/checkpoints/details/:checkpointid";
 
-	private CheckpointStatisticDetailsHeaders() {}
+    private CheckpointStatisticDetailsHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<CheckpointStatistics> getResponseClass() {
-		return CheckpointStatistics.class;
-	}
+    @Override
+    public Class<CheckpointStatistics> getResponseClass() {
+        return CheckpointStatistics.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public CheckpointMessageParameters getUnresolvedMessageParameters() {
-		return new CheckpointMessageParameters();
-	}
+    @Override
+    public CheckpointMessageParameters getUnresolvedMessageParameters() {
+        return new CheckpointMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static CheckpointStatisticDetailsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static CheckpointStatisticDetailsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns details for a checkpoint.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns details for a checkpoint.";
+    }
 }

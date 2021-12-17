@@ -30,32 +30,36 @@ import org.apache.flink.util.Collector;
  * when the window state also is an {@code Iterable}.
  */
 public final class InternalIterableWindowFunction<IN, OUT, KEY, W extends Window>
-		extends WrappingFunction<WindowFunction<IN, OUT, KEY, W>>
-		implements InternalWindowFunction<Iterable<IN>, OUT, KEY, W> {
+        extends WrappingFunction<WindowFunction<IN, OUT, KEY, W>>
+        implements InternalWindowFunction<Iterable<IN>, OUT, KEY, W> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public InternalIterableWindowFunction(WindowFunction<IN, OUT, KEY, W> wrappedFunction) {
-		super(wrappedFunction);
-	}
+    public InternalIterableWindowFunction(WindowFunction<IN, OUT, KEY, W> wrappedFunction) {
+        super(wrappedFunction);
+    }
 
-	@Override
-	public void process(KEY key, W window, InternalWindowContext context, Iterable<IN> input, Collector<OUT> out) throws Exception {
-		wrappedFunction.apply(key, window, input, out);
-	}
+    @Override
+    public void process(
+            KEY key,
+            W window,
+            InternalWindowContext context,
+            Iterable<IN> input,
+            Collector<OUT> out)
+            throws Exception {
+        wrappedFunction.apply(key, window, input, out);
+    }
 
-	@Override
-	public void clear(W window, InternalWindowContext context) throws Exception {
+    @Override
+    public void clear(W window, InternalWindowContext context) throws Exception {}
 
-	}
+    @Override
+    public RuntimeContext getRuntimeContext() {
+        throw new RuntimeException("This should never be called.");
+    }
 
-	@Override
-	public RuntimeContext getRuntimeContext() {
-		throw new RuntimeException("This should never be called.");
-	}
-
-	@Override
-	public IterationRuntimeContext getIterationRuntimeContext() {
-		throw new RuntimeException("This should never be called.");
-	}
+    @Override
+    public IterationRuntimeContext getIterationRuntimeContext() {
+        throw new RuntimeException("This should never be called.");
+    }
 }

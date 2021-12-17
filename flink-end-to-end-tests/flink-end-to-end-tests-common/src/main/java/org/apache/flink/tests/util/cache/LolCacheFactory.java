@@ -19,27 +19,16 @@
 package org.apache.flink.tests.util.cache;
 
 import org.junit.rules.TemporaryFolder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Optional;
 
-/**
- * A {@link DownloadCacheFactory} for the {@link LolCache}.
- */
+/** A {@link DownloadCacheFactory} for the {@link LolCache}. */
 public final class LolCacheFactory implements DownloadCacheFactory {
-	private static final Logger LOG = LoggerFactory.getLogger(LolCacheFactory.class);
 
-	@Override
-	public Optional<DownloadCache> create() {
-		final TemporaryFolder folder = new TemporaryFolder();
-		try {
-			folder.create();
-		} catch (IOException e) {
-			throw new RuntimeException("Could not initialize temporary directory.", e);
-		}
-		LOG.info("Created {}.", LolCache.class.getSimpleName());
-		return Optional.of(new LolCache(folder));
-	}
+    @Override
+    public DownloadCache create() throws IOException {
+        final TemporaryFolder folder = new TemporaryFolder();
+        folder.create();
+        return new LolCache(folder);
+    }
 }

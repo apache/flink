@@ -37,83 +37,84 @@ import java.util.concurrent.ExecutionException;
  * tests. Captured exceptions are thrown as a {@link TestingException}.
  */
 public class TestingFatalErrorHandler implements FatalErrorHandler {
-	private static final Logger LOG = LoggerFactory.getLogger(TestingFatalErrorHandler.class);
-	private CompletableFuture<Throwable> errorFuture;
+    private static final Logger LOG = LoggerFactory.getLogger(TestingFatalErrorHandler.class);
+    private CompletableFuture<Throwable> errorFuture;
 
-	public TestingFatalErrorHandler() {
-		errorFuture = new CompletableFuture<>();
-	}
+    public TestingFatalErrorHandler() {
+        errorFuture = new CompletableFuture<>();
+    }
 
-	public synchronized void rethrowError() throws TestingException {
-		final Throwable throwable = getException();
+    public synchronized void rethrowError() throws TestingException {
+        final Throwable throwable = getException();
 
-		if (throwable != null) {
+        if (throwable != null) {
             throw new TestingException(throwable);
         }
-	}
+    }
 
-	public synchronized boolean hasExceptionOccurred() {
-		return errorFuture.isDone();
-	}
+    public synchronized boolean hasExceptionOccurred() {
+        return errorFuture.isDone();
+    }
 
-	@Nullable
-	public synchronized Throwable getException() {
-		if (errorFuture.isDone()) {
-			Throwable throwable;
+    @Nullable
+    public synchronized Throwable getException() {
+        if (errorFuture.isDone()) {
+            Throwable throwable;
 
-			try {
-				throwable = errorFuture.get();
-			} catch (InterruptedException ie) {
-				ExceptionUtils.checkInterrupted(ie);
-				throw new FlinkRuntimeException("This should never happen since the future was completed.");
-			} catch (ExecutionException e) {
-				throwable = ExceptionUtils.stripExecutionException(e);
-			}
+            try {
+                throwable = errorFuture.get();
+            } catch (InterruptedException ie) {
+                ExceptionUtils.checkInterrupted(ie);
+                throw new FlinkRuntimeException(
+                        "This should never happen since the future was completed.");
+            } catch (ExecutionException e) {
+                throwable = ExceptionUtils.stripExecutionException(e);
+            }
 
-			return throwable;
-		} else {
-			return null;
-		}
-	}
+            return throwable;
+        } else {
+            return null;
+        }
+    }
 
-	public synchronized CompletableFuture<Throwable> getErrorFuture() {
-		return errorFuture;
-	}
+    public synchronized CompletableFuture<Throwable> getErrorFuture() {
+        return errorFuture;
+    }
 
-	public synchronized void clearError() {
-		errorFuture = new CompletableFuture<>();
-	}
+    public synchronized void clearError() {
+        errorFuture = new CompletableFuture<>();
+    }
 
-	@Override
-	public synchronized void onFatalError(@Nonnull Throwable exception) {
-		LOG.error("OnFatalError:", exception);
+    @Override
+    public synchronized void onFatalError(@Nonnull Throwable exception) {
+        LOG.error("OnFatalError:", exception);
 
-		if (!errorFuture.complete(exception)) {
-			final Throwable throwable = getException();
+        if (!errorFuture.complete(exception)) {
+            final Throwable throwable = getException();
 
-			Preconditions.checkNotNull(throwable);
+            Preconditions.checkNotNull(throwable);
 
-			throwable.addSuppressed(exception);
-		}
-	}
+            throwable.addSuppressed(exception);
+        }
+    }
 
-	//------------------------------------------------------------------
-	// static utility classes
-	//------------------------------------------------------------------
+    // ------------------------------------------------------------------
+    // static utility classes
+    // ------------------------------------------------------------------
 
-	private static final class TestingException extends Exception {
-		public TestingException(String message) {
-			super(message);
-		}
+    private static final class TestingException extends Exception {
+        public TestingException(String message) {
+            super(message);
+        }
 
-		public TestingException(String message, Throwable cause) {
-			super(message, cause);
-		}
+        public TestingException(String message, Throwable cause) {
+            super(message, cause);
+        }
 
-		public TestingException(Throwable cause) {
-			super(cause);
-		}
+        public TestingException(Throwable cause) {
+            super(cause);
+        }
 
-		private static final long serialVersionUID = -4648195335470914498L;
-	}
+        private static final long serialVersionUID = -4648195335470914498L;
+    }
 }

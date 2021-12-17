@@ -23,46 +23,44 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-/**
- * A testable {@link SourceFunction.SourceContext}.
- */
+/** A testable {@link SourceFunction.SourceContext}. */
 public class TestSourceContext<T> implements SourceFunction.SourceContext<T> {
 
-	private final Object checkpointLock = new Object();
+    private final Object checkpointLock = new Object();
 
-	private ConcurrentLinkedQueue<StreamRecord<T>> collectedOutputs = new ConcurrentLinkedQueue<>();
+    private ConcurrentLinkedQueue<StreamRecord<T>> collectedOutputs = new ConcurrentLinkedQueue<>();
 
-	@Override
-	public void collect(T element) {
-		this.collectedOutputs.add(new StreamRecord<>(element));
-	}
+    @Override
+    public void collect(T element) {
+        this.collectedOutputs.add(new StreamRecord<>(element));
+    }
 
-	@Override
-	public void collectWithTimestamp(T element, long timestamp) {
-		this.collectedOutputs.add(new StreamRecord<>(element, timestamp));
-	}
+    @Override
+    public void collectWithTimestamp(T element, long timestamp) {
+        this.collectedOutputs.add(new StreamRecord<>(element, timestamp));
+    }
 
-	@Override
-	public void emitWatermark(Watermark mark) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void emitWatermark(Watermark mark) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void markAsTemporarilyIdle() {}
+    @Override
+    public void markAsTemporarilyIdle() {}
 
-	@Override
-	public Object getCheckpointLock() {
-		return checkpointLock;
-	}
+    @Override
+    public Object getCheckpointLock() {
+        return checkpointLock;
+    }
 
-	@Override
-	public void close() {}
+    @Override
+    public void close() {}
 
-	public StreamRecord<T> removeLatestOutput() {
-		return collectedOutputs.poll();
-	}
+    public StreamRecord<T> removeLatestOutput() {
+        return collectedOutputs.poll();
+    }
 
-	public ConcurrentLinkedQueue<StreamRecord<T>> getCollectedOutputs() {
-		return collectedOutputs;
-	}
+    public ConcurrentLinkedQueue<StreamRecord<T>> getCollectedOutputs() {
+        return collectedOutputs;
+    }
 }

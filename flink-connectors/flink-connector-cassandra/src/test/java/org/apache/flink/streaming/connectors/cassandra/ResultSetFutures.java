@@ -28,77 +28,75 @@ import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Utility class to create {@link com.datastax.driver.core.ResultSetFuture}s.
- */
+/** Utility class to create {@link com.datastax.driver.core.ResultSetFuture}s. */
 class ResultSetFutures {
 
-	private ResultSetFutures() {
-	}
+    private ResultSetFutures() {}
 
-	static ResultSetFuture fromCompletableFuture(CompletableFuture<ResultSet> future) {
-		checkNotNull(future);
-		return new CompletableResultSetFuture(future);
-	}
+    static ResultSetFuture fromCompletableFuture(CompletableFuture<ResultSet> future) {
+        checkNotNull(future);
+        return new CompletableResultSetFuture(future);
+    }
 
-	private static class CompletableResultSetFuture implements ResultSetFuture {
+    private static class CompletableResultSetFuture implements ResultSetFuture {
 
-		private final CompletableFuture<ResultSet> completableFuture;
+        private final CompletableFuture<ResultSet> completableFuture;
 
-		CompletableResultSetFuture(CompletableFuture<ResultSet> future) {
-			this.completableFuture = future;
-		}
+        CompletableResultSetFuture(CompletableFuture<ResultSet> future) {
+            this.completableFuture = future;
+        }
 
-		@Override
-		public ResultSet getUninterruptibly() {
-			try {
-				return completableFuture.get();
-			} catch (InterruptedException e) {
-				return getUninterruptibly();
-			} catch (ExecutionException e) {
-				throw new RuntimeException(e);
-			}
-		}
+        @Override
+        public ResultSet getUninterruptibly() {
+            try {
+                return completableFuture.get();
+            } catch (InterruptedException e) {
+                return getUninterruptibly();
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        }
 
-		@Override
-		public ResultSet getUninterruptibly(long l, TimeUnit timeUnit) throws TimeoutException {
-			try {
-				return completableFuture.get(l, timeUnit);
-			} catch (InterruptedException e) {
-				return getUninterruptibly();
-			} catch (ExecutionException e) {
-				throw new RuntimeException(e);
-			}
-		}
+        @Override
+        public ResultSet getUninterruptibly(long l, TimeUnit timeUnit) throws TimeoutException {
+            try {
+                return completableFuture.get(l, timeUnit);
+            } catch (InterruptedException e) {
+                return getUninterruptibly();
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        }
 
-		@Override
-		public boolean cancel(boolean b) {
-			return completableFuture.cancel(b);
-		}
+        @Override
+        public boolean cancel(boolean b) {
+            return completableFuture.cancel(b);
+        }
 
-		@Override
-		public boolean isCancelled() {
-			return completableFuture.isCancelled();
-		}
+        @Override
+        public boolean isCancelled() {
+            return completableFuture.isCancelled();
+        }
 
-		@Override
-		public boolean isDone() {
-			return completableFuture.isDone();
-		}
+        @Override
+        public boolean isDone() {
+            return completableFuture.isDone();
+        }
 
-		@Override
-		public ResultSet get() throws InterruptedException, ExecutionException {
-			return completableFuture.get();
-		}
+        @Override
+        public ResultSet get() throws InterruptedException, ExecutionException {
+            return completableFuture.get();
+        }
 
-		@Override
-		public ResultSet get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-			return completableFuture.get(timeout, unit);
-		}
+        @Override
+        public ResultSet get(long timeout, TimeUnit unit)
+                throws InterruptedException, ExecutionException, TimeoutException {
+            return completableFuture.get(timeout, unit);
+        }
 
-		@Override
-		public void addListener(Runnable listener, Executor executor) {
-			completableFuture.whenComplete((result, error) -> listener.run());
-		}
-	}
+        @Override
+        public void addListener(Runnable listener, Executor executor) {
+            completableFuture.whenComplete((result, error) -> listener.run());
+        }
+    }
 }

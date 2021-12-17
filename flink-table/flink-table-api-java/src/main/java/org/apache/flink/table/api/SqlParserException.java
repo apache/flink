@@ -28,11 +28,11 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public class SqlParserException extends RuntimeException {
 
-	public SqlParserException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public SqlParserException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-	public SqlParserException(String message) {
-		super(message);
-	}
+    public SqlParserException(String message) {
+        super(message);
+    }
 }

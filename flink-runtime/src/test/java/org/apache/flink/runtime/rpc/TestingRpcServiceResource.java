@@ -27,40 +27,40 @@ import java.util.concurrent.CompletableFuture;
  */
 public class TestingRpcServiceResource extends ExternalResource {
 
-	private TestingRpcService testingRpcService;
+    private TestingRpcService testingRpcService;
 
-	public TestingRpcServiceResource() {
-		this.testingRpcService = null;
-	}
+    public TestingRpcServiceResource() {
+        this.testingRpcService = null;
+    }
 
-	public TestingRpcService getTestingRpcService() {
-		checkInitialized();
-		return testingRpcService;
-	}
+    public TestingRpcService getTestingRpcService() {
+        checkInitialized();
+        return testingRpcService;
+    }
 
-	private void checkInitialized() {
-		assert(testingRpcService != null);
-	}
+    private void checkInitialized() {
+        assert (testingRpcService != null);
+    }
 
-	@Override
-	protected void before() {
-		if (testingRpcService != null) {
-			terminateRpcService();
-		}
+    @Override
+    protected void before() {
+        if (testingRpcService != null) {
+            terminateRpcService();
+        }
 
-		testingRpcService = new TestingRpcService();
-	}
+        testingRpcService = new TestingRpcService();
+    }
 
-	@Override
-	protected void after() {
-		if (testingRpcService != null) {
-			terminateRpcService();
-			testingRpcService = null;
-		}
-	}
+    @Override
+    protected void after() {
+        if (testingRpcService != null) {
+            terminateRpcService();
+            testingRpcService = null;
+        }
+    }
 
-	private void terminateRpcService() {
-		CompletableFuture<Void> terminationFuture = testingRpcService.stopService();
-		terminationFuture.join();
-	}
+    private void terminateRpcService() {
+        CompletableFuture<Void> terminationFuture = testingRpcService.stopService();
+        terminationFuture.join();
+    }
 }

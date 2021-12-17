@@ -37,6 +37,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.plan.SourcePlanNode;
 import org.apache.flink.optimizer.util.CompilerTestBase;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -46,854 +47,873 @@ import java.util.List;
 @SuppressWarnings({"serial"})
 public class PropertyDataSourceTest extends CompilerTestBase {
 
-	private List<Tuple3<Long, SomePojo, String>> tuple3PojoData = new ArrayList<Tuple3<Long, SomePojo, String>>();
-	private TupleTypeInfo<Tuple3<Long, SomePojo, String>> tuple3PojoType = new TupleTypeInfo<Tuple3<Long, SomePojo, String>>(
-			BasicTypeInfo.LONG_TYPE_INFO,
-			TypeExtractor.createTypeInfo(SomePojo.class),
-			BasicTypeInfo.STRING_TYPE_INFO
-	);
+    private List<Tuple3<Long, SomePojo, String>> tuple3PojoData =
+            new ArrayList<Tuple3<Long, SomePojo, String>>();
+    private TupleTypeInfo<Tuple3<Long, SomePojo, String>> tuple3PojoType =
+            new TupleTypeInfo<Tuple3<Long, SomePojo, String>>(
+                    BasicTypeInfo.LONG_TYPE_INFO,
+                    TypeExtractor.createTypeInfo(SomePojo.class),
+                    BasicTypeInfo.STRING_TYPE_INFO);
 
-	@Test
-	public void checkSinglePartitionedSource1() {
+    @Test
+    public void checkSinglePartitionedSource1() {
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-		DataSource<Tuple2<Long, String>> data =
-				env.readCsvFile("/some/path").types(Long.class, String.class);
+        DataSource<Tuple2<Long, String>> data =
+                env.readCsvFile("/some/path").types(Long.class, String.class);
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy(0);
+        data.getSplitDataProperties().splitsPartitionedBy(0);
 
-		data.output(new DiscardingOutputFormat<Tuple2<Long,String>>());
+        data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		Plan plan = env.createProgramPlan();
+        Plan plan = env.createProgramPlan();
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(0)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(lprops.getGroupedFields() == null);
-		Assert.assertTrue(lprops.getOrdering() == null);
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(0)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(lprops.getGroupedFields() == null);
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-	}
+    @Test
+    public void checkSinglePartitionedSource2() {
 
-	@Test
-	public void checkSinglePartitionedSource2() {
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        DataSource<Tuple2<Long, String>> data =
+                env.readCsvFile("/some/path").types(Long.class, String.class);
 
-		DataSource<Tuple2<Long, String>> data =
-				env.readCsvFile("/some/path").types(Long.class, String.class);
+        data.getSplitDataProperties().splitsPartitionedBy(1, 0);
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy(1, 0);
+        data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		data.output(new DiscardingOutputFormat<Tuple2<Long,String>>());
+        Plan plan = env.createProgramPlan();
 
-		Plan plan = env.createProgramPlan();
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray()))
+                        .equals(new FieldSet(0, 1)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(lprops.getGroupedFields() == null);
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(0, 1)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(lprops.getGroupedFields() == null);
-		Assert.assertTrue(lprops.getOrdering() == null);
+    @Test
+    public void checkSinglePartitionedSource3() {
 
-	}
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-	@Test
-	public void checkSinglePartitionedSource3() {
+        DataSource<Tuple3<Long, SomePojo, String>> data =
+                env.fromCollection(tuple3PojoData, tuple3PojoType);
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        data.getSplitDataProperties().splitsPartitionedBy("*");
 
-		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
+        data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy("*");
+        Plan plan = env.createProgramPlan();
 
-		data.output(new DiscardingOutputFormat<Tuple3<Long,SomePojo,String>>());
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		Plan plan = env.createProgramPlan();
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray()))
+                        .equals(new FieldSet(0, 1, 2, 3, 4)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(lprops.getGroupedFields() == null);
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+    @Test
+    public void checkSinglePartitionedSource4() {
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(0, 1, 2, 3, 4)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(lprops.getGroupedFields() == null);
-		Assert.assertTrue(lprops.getOrdering() == null);
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-	}
+        DataSource<Tuple3<Long, SomePojo, String>> data =
+                env.fromCollection(tuple3PojoData, tuple3PojoType);
 
-	@Test
-	public void checkSinglePartitionedSource4() {
+        data.getSplitDataProperties().splitsPartitionedBy("f1");
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
+        Plan plan = env.createProgramPlan();
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy("f1");
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		data.output(new DiscardingOutputFormat<Tuple3<Long,SomePojo,String>>());
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		Plan plan = env.createProgramPlan();
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray()))
+                        .equals(new FieldSet(1, 2, 3)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(lprops.getGroupedFields() == null);
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+    @Test
+    public void checkSinglePartitionedSource5() {
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(1, 2, 3)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(lprops.getGroupedFields() == null);
-		Assert.assertTrue(lprops.getOrdering() == null);
+        DataSource<Tuple3<Long, SomePojo, String>> data =
+                env.fromCollection(tuple3PojoData, tuple3PojoType);
 
-	}
+        data.getSplitDataProperties().splitsPartitionedBy("f1.stringField");
 
-	@Test
-	public void checkSinglePartitionedSource5() {
+        data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        Plan plan = env.createProgramPlan();
 
-		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy("f1.stringField");
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		Plan plan = env.createProgramPlan();
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(3)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(lprops.getGroupedFields() == null);
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+    @Test
+    public void checkSinglePartitionedSource6() {
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        DataSource<Tuple3<Long, SomePojo, String>> data =
+                env.fromCollection(tuple3PojoData, tuple3PojoType);
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(3)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(lprops.getGroupedFields() == null);
-		Assert.assertTrue(lprops.getOrdering() == null);
+        data.getSplitDataProperties().splitsPartitionedBy("f1.intField; f2");
 
-	}
+        data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-	@Test
-	public void checkSinglePartitionedSource6() {
+        Plan plan = env.createProgramPlan();
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy("f1.intField; f2");
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray()))
+                        .equals(new FieldSet(2, 4)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(lprops.getGroupedFields() == null);
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-		Plan plan = env.createProgramPlan();
+    @Test
+    public void checkSinglePartitionedSource7() {
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        DataSource<Tuple2<Long, String>> data =
+                env.readCsvFile("/some/path").types(Long.class, String.class);
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        data.getSplitDataProperties().splitsPartitionedBy("byDate", 1, 0);
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(2, 4)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(lprops.getGroupedFields() == null);
-		Assert.assertTrue(lprops.getOrdering() == null);
+        data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-	}
+        Plan plan = env.createProgramPlan();
 
-	@Test
-	public void checkSinglePartitionedSource7() {
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		DataSource<Tuple2<Long, String>> data =
-				env.readCsvFile("/some/path").types(Long.class, String.class);
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy("byDate", 1, 0);
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray()))
+                        .equals(new FieldSet(0, 1)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING);
+        Assert.assertTrue(gprops.getCustomPartitioner() != null);
+        Assert.assertTrue(lprops.getGroupedFields() == null);
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
+    @Test
+    public void checkSinglePartitionedGroupedSource1() {
 
-		Plan plan = env.createProgramPlan();
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        DataSource<Tuple2<Long, String>> data =
+                env.readCsvFile("/some/path").types(Long.class, String.class);
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        data.getSplitDataProperties().splitsPartitionedBy(0).splitsGroupedBy(0);
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(0, 1)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING);
-		Assert.assertTrue(gprops.getCustomPartitioner() != null);
-		Assert.assertTrue(lprops.getGroupedFields() == null);
-		Assert.assertTrue(lprops.getOrdering() == null);
+        Plan plan = env.createProgramPlan();
 
-	}
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-	@Test
-	public void checkSinglePartitionedGroupedSource1() {
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		DataSource<Tuple2<Long, String>> data =
-				env.readCsvFile("/some/path").types(Long.class, String.class);
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(0)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(
+                new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(0)));
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy(0)
-				.splitsGroupedBy(0);
+    @Test
+    public void checkSinglePartitionedGroupedSource2() {
 
-		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-		Plan plan = env.createProgramPlan();
+        DataSource<Tuple2<Long, String>> data =
+                env.readCsvFile("/some/path").types(Long.class, String.class);
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        data.getSplitDataProperties().splitsPartitionedBy(0).splitsGroupedBy(1, 0);
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        Plan plan = env.createProgramPlan();
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(0)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(0)));
-		Assert.assertTrue(lprops.getOrdering() == null);
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-	}
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-	@Test
-	public void checkSinglePartitionedGroupedSource2() {
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(0)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(
+                new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(0, 1)));
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-		DataSource<Tuple2<Long, String>> data =
-				env.readCsvFile("/some/path").types(Long.class, String.class);
+    @Test
+    public void checkSinglePartitionedGroupedSource3() {
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy(0)
-				.splitsGroupedBy(1, 0);
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
+        DataSource<Tuple2<Long, String>> data =
+                env.readCsvFile("/some/path").types(Long.class, String.class);
 
-		Plan plan = env.createProgramPlan();
+        data.getSplitDataProperties().splitsPartitionedBy(1).splitsGroupedBy(0);
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        Plan plan = env.createProgramPlan();
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(0)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(0, 1)));
-		Assert.assertTrue(lprops.getOrdering() == null);
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-	}
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(1)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(lprops.getGroupedFields() == null);
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-	@Test
-	public void checkSinglePartitionedGroupedSource3() {
+    @Test
+    public void checkSinglePartitionedGroupedSource4() {
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-		DataSource<Tuple2<Long, String>> data =
-				env.readCsvFile("/some/path").types(Long.class, String.class);
+        DataSource<Tuple2<Long, String>> data =
+                env.readCsvFile("/some/path").types(Long.class, String.class);
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy(1)
-				.splitsGroupedBy(0);
+        data.getSplitDataProperties().splitsPartitionedBy(0, 1).splitsGroupedBy(0);
 
-		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
+        data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		Plan plan = env.createProgramPlan();
+        Plan plan = env.createProgramPlan();
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(1)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(lprops.getGroupedFields() == null);
-		Assert.assertTrue(lprops.getOrdering() == null);
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray()))
+                        .equals(new FieldSet(0, 1)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(lprops.getGroupedFields() == null);
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-	}
+    @Test
+    public void checkSinglePartitionedGroupedSource5() {
 
-	@Test
-	public void checkSinglePartitionedGroupedSource4() {
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        DataSource<Tuple3<Long, SomePojo, String>> data =
+                env.fromCollection(tuple3PojoData, tuple3PojoType);
 
-		DataSource<Tuple2<Long, String>> data =
-				env.readCsvFile("/some/path").types(Long.class, String.class);
+        data.getSplitDataProperties().splitsPartitionedBy("f2").splitsGroupedBy("f2");
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy(0, 1)
-				.splitsGroupedBy(0);
+        data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
+        Plan plan = env.createProgramPlan();
 
-		Plan plan = env.createProgramPlan();
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(4)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(
+                new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(4)));
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(0, 1)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(lprops.getGroupedFields() == null);
-		Assert.assertTrue(lprops.getOrdering() == null);
+    @Test
+    public void checkSinglePartitionedGroupedSource6() {
 
-	}
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-	@Test
-	public void checkSinglePartitionedGroupedSource5() {
+        DataSource<Tuple3<Long, SomePojo, String>> data =
+                env.fromCollection(tuple3PojoData, tuple3PojoType);
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        data.getSplitDataProperties()
+                .splitsPartitionedBy("f1.intField")
+                .splitsGroupedBy("f0; f1.intField");
 
-		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
+        data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy("f2")
-				.splitsGroupedBy("f2");
+        Plan plan = env.createProgramPlan();
 
-		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		Plan plan = env.createProgramPlan();
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(2)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(
+                new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(0, 2)));
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+    @Test
+    public void checkSinglePartitionedGroupedSource7() {
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(4)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(4)));
-		Assert.assertTrue(lprops.getOrdering() == null);
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-	}
+        DataSource<Tuple3<Long, SomePojo, String>> data =
+                env.fromCollection(tuple3PojoData, tuple3PojoType);
 
+        data.getSplitDataProperties().splitsPartitionedBy("f1.intField").splitsGroupedBy("f1");
 
-	@Test
-	public void checkSinglePartitionedGroupedSource6() {
+        data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        Plan plan = env.createProgramPlan();
 
-		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy("f1.intField")
-				.splitsGroupedBy("f0; f1.intField");
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		Plan plan = env.createProgramPlan();
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(2)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(
+                new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(1, 2, 3)));
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+    @Test
+    public void checkSinglePartitionedGroupedSource8() {
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        DataSource<Tuple3<Long, SomePojo, String>> data =
+                env.fromCollection(tuple3PojoData, tuple3PojoType);
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(2)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(0,2)));
-		Assert.assertTrue(lprops.getOrdering() == null);
+        data.getSplitDataProperties().splitsPartitionedBy("f1").splitsGroupedBy("f1.stringField");
 
-	}
+        data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
+        Plan plan = env.createProgramPlan();
 
-	@Test
-	public void checkSinglePartitionedGroupedSource7() {
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy("f1.intField")
-				.splitsGroupedBy("f1");
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray()))
+                        .equals(new FieldSet(1, 2, 3)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(lprops.getGroupedFields() == null);
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
+    @Test
+    public void checkSinglePartitionedOrderedSource1() {
 
-		Plan plan = env.createProgramPlan();
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        DataSource<Tuple2<Long, String>> data =
+                env.readCsvFile("/some/path").types(Long.class, String.class);
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        data.getSplitDataProperties()
+                .splitsPartitionedBy(1)
+                .splitsOrderedBy(new int[] {1}, new Order[] {Order.ASCENDING});
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(2)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(1,2,3)));
-		Assert.assertTrue(lprops.getOrdering() == null);
+        Plan plan = env.createProgramPlan();
 
-	}
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-	@Test
-	public void checkSinglePartitionedGroupedSource8() {
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(1)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(
+                (new FieldSet(lprops.getGroupedFields().toArray())).equals(new FieldSet(1)));
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy("f1")
-				.splitsGroupedBy("f1.stringField");
+    @Test
+    public void checkSinglePartitionedOrderedSource2() {
 
-		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-		Plan plan = env.createProgramPlan();
+        DataSource<Tuple2<Long, String>> data =
+                env.readCsvFile("/some/path").types(Long.class, String.class);
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        data.getSplitDataProperties()
+                .splitsPartitionedBy(1)
+                .splitsOrderedBy(new int[] {1, 0}, new Order[] {Order.ASCENDING, Order.DESCENDING});
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        Plan plan = env.createProgramPlan();
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(1,2,3)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(lprops.getGroupedFields() == null);
-		Assert.assertTrue(lprops.getOrdering() == null);
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-	}
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-	@Test
-	public void checkSinglePartitionedOrderedSource1() {
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(1)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(
+                (new FieldSet(lprops.getGroupedFields().toArray())).equals(new FieldSet(1, 0)));
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+    @Test
+    public void checkSinglePartitionedOrderedSource3() {
 
-		DataSource<Tuple2<Long, String>> data =
-				env.readCsvFile("/some/path").types(Long.class, String.class);
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy(1)
-				.splitsOrderedBy(new int[]{1}, new Order[]{Order.ASCENDING});
+        DataSource<Tuple2<Long, String>> data =
+                env.readCsvFile("/some/path").types(Long.class, String.class);
 
-		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
+        data.getSplitDataProperties()
+                .splitsPartitionedBy(0)
+                .splitsOrderedBy(new int[] {1}, new Order[] {Order.ASCENDING});
 
-		Plan plan = env.createProgramPlan();
+        data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        Plan plan = env.createProgramPlan();
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(1)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue((new FieldSet(lprops.getGroupedFields().toArray())).equals(new FieldSet(1)));
-		Assert.assertTrue(lprops.getOrdering() == null);
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-	}
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(0)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(lprops.getGroupedFields() == null);
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-	@Test
-	public void checkSinglePartitionedOrderedSource2() {
+    @Test
+    public void checkSinglePartitionedOrderedSource4() {
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-		DataSource<Tuple2<Long, String>> data =
-				env.readCsvFile("/some/path").types(Long.class, String.class);
+        DataSource<Tuple2<Long, String>> data =
+                env.readCsvFile("/some/path").types(Long.class, String.class);
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy(1)
-				.splitsOrderedBy(new int[]{1, 0}, new Order[]{Order.ASCENDING, Order.DESCENDING});
+        data.getSplitDataProperties()
+                .splitsPartitionedBy(0, 1)
+                .splitsOrderedBy(new int[] {1}, new Order[] {Order.DESCENDING});
 
-		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
+        data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		Plan plan = env.createProgramPlan();
+        Plan plan = env.createProgramPlan();
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(1)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue((new FieldSet(lprops.getGroupedFields().toArray())).equals(new FieldSet(1, 0)));
-		Assert.assertTrue(lprops.getOrdering() == null);
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray()))
+                        .equals(new FieldSet(0, 1)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(lprops.getGroupedFields() == null);
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-	}
+    @Test
+    public void checkSinglePartitionedOrderedSource5() {
 
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-	@Test
-	public void checkSinglePartitionedOrderedSource3() {
+        DataSource<Tuple3<Long, SomePojo, String>> data =
+                env.fromCollection(tuple3PojoData, tuple3PojoType);
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        data.getSplitDataProperties()
+                .splitsPartitionedBy("f1.intField")
+                .splitsOrderedBy(
+                        "f0; f1.intField", new Order[] {Order.ASCENDING, Order.DESCENDING});
 
-		DataSource<Tuple2<Long, String>> data =
-				env.readCsvFile("/some/path").types(Long.class, String.class);
+        data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy(0)
-				.splitsOrderedBy(new int[]{1}, new Order[]{Order.ASCENDING});
+        Plan plan = env.createProgramPlan();
 
-		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		Plan plan = env.createProgramPlan();
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(2)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(
+                new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(0, 2)));
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+    @Test
+    public void checkSinglePartitionedOrderedSource6() {
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(0)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(lprops.getGroupedFields() == null);
-		Assert.assertTrue(lprops.getOrdering() == null);
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-	}
+        DataSource<Tuple3<Long, SomePojo, String>> data =
+                env.fromCollection(tuple3PojoData, tuple3PojoType);
 
-	@Test
-	public void checkSinglePartitionedOrderedSource4() {
+        data.getSplitDataProperties()
+                .splitsPartitionedBy("f1.intField")
+                .splitsOrderedBy("f1", new Order[] {Order.DESCENDING});
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		DataSource<Tuple2<Long, String>> data =
-				env.readCsvFile("/some/path").types(Long.class, String.class);
+        Plan plan = env.createProgramPlan();
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy(0, 1)
-				.splitsOrderedBy(new int[]{1}, new Order[]{Order.DESCENDING});
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		Plan plan = env.createProgramPlan();
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(2)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(
+                new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(1, 2, 3)));
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+    @Test
+    public void checkSinglePartitionedOrderedSource7() {
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(0, 1)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(lprops.getGroupedFields() == null);
-		Assert.assertTrue(lprops.getOrdering() == null);
+        DataSource<Tuple3<Long, SomePojo, String>> data =
+                env.fromCollection(tuple3PojoData, tuple3PojoType);
 
-	}
+        data.getSplitDataProperties()
+                .splitsPartitionedBy("f1")
+                .splitsOrderedBy("f1.stringField", new Order[] {Order.ASCENDING});
 
-	@Test
-	public void checkSinglePartitionedOrderedSource5() {
+        data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        Plan plan = env.createProgramPlan();
 
-		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		data.getSplitDataProperties()
-			.splitsPartitionedBy("f1.intField")
-			.splitsOrderedBy("f0; f1.intField", new Order[]{Order.ASCENDING, Order.DESCENDING});
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
 
-		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
+        GlobalProperties gprops = sourceNode.getGlobalProperties();
+        LocalProperties lprops = sourceNode.getLocalProperties();
 
-		Plan plan = env.createProgramPlan();
+        Assert.assertTrue(
+                (new FieldSet(gprops.getPartitioningFields().toArray()))
+                        .equals(new FieldSet(1, 2, 3)));
+        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
+        Assert.assertTrue(lprops.getGroupedFields() == null);
+        Assert.assertTrue(lprops.getOrdering() == null);
+    }
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+    @Test
+    public void checkCoPartitionedSources1() {
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        DataSource<Tuple2<Long, String>> data1 =
+                env.readCsvFile("/some/path").types(Long.class, String.class);
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(2)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(0,2)));
-		Assert.assertTrue(lprops.getOrdering() == null);
+        data1.getSplitDataProperties().splitsPartitionedBy("byDate", 0);
 
-	}
+        DataSource<Tuple2<Long, String>> data2 =
+                env.readCsvFile("/some/path").types(Long.class, String.class);
 
+        data2.getSplitDataProperties().splitsPartitionedBy("byDate", 0);
 
-	@Test
-	public void checkSinglePartitionedOrderedSource6() {
+        data1.union(data2).output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        Plan plan = env.createProgramPlan();
 
-		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy("f1.intField")
-				.splitsOrderedBy("f1", new Order[]{Order.DESCENDING});
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode1 =
+                (SourcePlanNode)
+                        ((NAryUnionPlanNode) sinkNode.getPredecessor())
+                                .getListOfInputs()
+                                .get(0)
+                                .getSource();
+        SourcePlanNode sourceNode2 =
+                (SourcePlanNode)
+                        ((NAryUnionPlanNode) sinkNode.getPredecessor())
+                                .getListOfInputs()
+                                .get(1)
+                                .getSource();
 
-		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
+        GlobalProperties gprops1 = sourceNode1.getGlobalProperties();
+        LocalProperties lprops1 = sourceNode1.getLocalProperties();
+        GlobalProperties gprops2 = sourceNode2.getGlobalProperties();
+        LocalProperties lprops2 = sourceNode2.getLocalProperties();
 
-		Plan plan = env.createProgramPlan();
+        Assert.assertTrue(
+                (new FieldSet(gprops1.getPartitioningFields().toArray())).equals(new FieldSet(0)));
+        Assert.assertTrue(gprops1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING);
+        Assert.assertTrue(lprops1.getGroupedFields() == null);
+        Assert.assertTrue(lprops1.getOrdering() == null);
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        Assert.assertTrue(
+                (new FieldSet(gprops2.getPartitioningFields().toArray())).equals(new FieldSet(0)));
+        Assert.assertTrue(gprops2.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING);
+        Assert.assertTrue(lprops2.getGroupedFields() == null);
+        Assert.assertTrue(lprops2.getOrdering() == null);
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        Assert.assertTrue(gprops1.getCustomPartitioner().equals(gprops2.getCustomPartitioner()));
+    }
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+    @Test
+    public void checkCoPartitionedSources2() {
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(2)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(1,2,3)));
-		Assert.assertTrue(lprops.getOrdering() == null);
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
 
-	}
+        DataSource<Tuple2<Long, String>> data1 =
+                env.readCsvFile("/some/path").types(Long.class, String.class);
 
-	@Test
-	public void checkSinglePartitionedOrderedSource7() {
+        data1.getSplitDataProperties().splitsPartitionedBy("byCountry", 0);
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
+        DataSource<Tuple2<Long, String>> data2 =
+                env.readCsvFile("/some/path").types(Long.class, String.class);
 
-		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
+        data2.getSplitDataProperties().splitsPartitionedBy("byDate", 0);
 
-		data.getSplitDataProperties()
-				.splitsPartitionedBy("f1")
-				.splitsOrderedBy("f1.stringField", new Order[]{Order.ASCENDING});
+        data1.union(data2).output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
+        Plan plan = env.createProgramPlan();
 
-		Plan plan = env.createProgramPlan();
+        // submit the plan to the compiler
+        OptimizedPlan oPlan = compileNoStats(plan);
 
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
+        // check the optimized Plan
+        SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
+        SourcePlanNode sourceNode1 =
+                (SourcePlanNode)
+                        ((NAryUnionPlanNode) sinkNode.getPredecessor())
+                                .getListOfInputs()
+                                .get(0)
+                                .getSource();
+        SourcePlanNode sourceNode2 =
+                (SourcePlanNode)
+                        ((NAryUnionPlanNode) sinkNode.getPredecessor())
+                                .getListOfInputs()
+                                .get(1)
+                                .getSource();
 
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode = (SourcePlanNode) sinkNode.getPredecessor();
+        GlobalProperties gprops1 = sourceNode1.getGlobalProperties();
+        LocalProperties lprops1 = sourceNode1.getLocalProperties();
+        GlobalProperties gprops2 = sourceNode2.getGlobalProperties();
+        LocalProperties lprops2 = sourceNode2.getLocalProperties();
 
-		GlobalProperties gprops = sourceNode.getGlobalProperties();
-		LocalProperties lprops = sourceNode.getLocalProperties();
+        Assert.assertTrue(
+                (new FieldSet(gprops1.getPartitioningFields().toArray())).equals(new FieldSet(0)));
+        Assert.assertTrue(gprops1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING);
+        Assert.assertTrue(lprops1.getGroupedFields() == null);
+        Assert.assertTrue(lprops1.getOrdering() == null);
 
-		Assert.assertTrue((new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(1,2,3)));
-		Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-		Assert.assertTrue(lprops.getGroupedFields() == null);
-		Assert.assertTrue(lprops.getOrdering() == null);
+        Assert.assertTrue(
+                (new FieldSet(gprops2.getPartitioningFields().toArray())).equals(new FieldSet(0)));
+        Assert.assertTrue(gprops2.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING);
+        Assert.assertTrue(lprops2.getGroupedFields() == null);
+        Assert.assertTrue(lprops2.getOrdering() == null);
 
-	}
+        Assert.assertTrue(!gprops1.getCustomPartitioner().equals(gprops2.getCustomPartitioner()));
+    }
 
-
-	@Test
-	public void checkCoPartitionedSources1() {
-
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
-
-		DataSource<Tuple2<Long, String>> data1 =
-				env.readCsvFile("/some/path").types(Long.class, String.class);
-
-		data1.getSplitDataProperties()
-				.splitsPartitionedBy("byDate", 0);
-
-		DataSource<Tuple2<Long, String>> data2 =
-				env.readCsvFile("/some/path").types(Long.class, String.class);
-
-		data2.getSplitDataProperties()
-				.splitsPartitionedBy("byDate", 0);
-
-		data1.union(data2).output(new DiscardingOutputFormat<Tuple2<Long, String>>());
-
-		Plan plan = env.createProgramPlan();
-
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
-
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode1 = (SourcePlanNode) ((NAryUnionPlanNode)sinkNode.getPredecessor()).getListOfInputs().get(0).getSource();
-		SourcePlanNode sourceNode2 = (SourcePlanNode) ((NAryUnionPlanNode)sinkNode.getPredecessor()).getListOfInputs().get(1).getSource();
-
-		GlobalProperties gprops1 = sourceNode1.getGlobalProperties();
-		LocalProperties lprops1 = sourceNode1.getLocalProperties();
-		GlobalProperties gprops2 = sourceNode2.getGlobalProperties();
-		LocalProperties lprops2 = sourceNode2.getLocalProperties();
-
-		Assert.assertTrue((new FieldSet(gprops1.getPartitioningFields().toArray())).equals(new FieldSet(0)));
-		Assert.assertTrue(gprops1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING);
-		Assert.assertTrue(lprops1.getGroupedFields() == null);
-		Assert.assertTrue(lprops1.getOrdering() == null);
-
-		Assert.assertTrue((new FieldSet(gprops2.getPartitioningFields().toArray())).equals(new FieldSet(0)));
-		Assert.assertTrue(gprops2.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING);
-		Assert.assertTrue(lprops2.getGroupedFields() == null);
-		Assert.assertTrue(lprops2.getOrdering() == null);
-
-		Assert.assertTrue(gprops1.getCustomPartitioner().equals(gprops2.getCustomPartitioner()));
-	}
-
-	@Test
-	public void checkCoPartitionedSources2() {
-
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
-
-		DataSource<Tuple2<Long, String>> data1 =
-				env.readCsvFile("/some/path").types(Long.class, String.class);
-
-		data1.getSplitDataProperties()
-				.splitsPartitionedBy("byCountry", 0);
-
-		DataSource<Tuple2<Long, String>> data2 =
-				env.readCsvFile("/some/path").types(Long.class, String.class);
-
-		data2.getSplitDataProperties()
-				.splitsPartitionedBy("byDate", 0);
-
-		data1.union(data2).output(new DiscardingOutputFormat<Tuple2<Long, String>>());
-
-		Plan plan = env.createProgramPlan();
-
-		// submit the plan to the compiler
-		OptimizedPlan oPlan = compileNoStats(plan);
-
-		// check the optimized Plan
-		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
-		SourcePlanNode sourceNode1 = (SourcePlanNode) ((NAryUnionPlanNode)sinkNode.getPredecessor()).getListOfInputs().get(0).getSource();
-		SourcePlanNode sourceNode2 = (SourcePlanNode) ((NAryUnionPlanNode)sinkNode.getPredecessor()).getListOfInputs().get(1).getSource();
-
-		GlobalProperties gprops1 = sourceNode1.getGlobalProperties();
-		LocalProperties lprops1 = sourceNode1.getLocalProperties();
-		GlobalProperties gprops2 = sourceNode2.getGlobalProperties();
-		LocalProperties lprops2 = sourceNode2.getLocalProperties();
-
-		Assert.assertTrue((new FieldSet(gprops1.getPartitioningFields().toArray())).equals(new FieldSet(0)));
-		Assert.assertTrue(gprops1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING);
-		Assert.assertTrue(lprops1.getGroupedFields() == null);
-		Assert.assertTrue(lprops1.getOrdering() == null);
-
-		Assert.assertTrue((new FieldSet(gprops2.getPartitioningFields().toArray())).equals(new FieldSet(0)));
-		Assert.assertTrue(gprops2.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING);
-		Assert.assertTrue(lprops2.getGroupedFields() == null);
-		Assert.assertTrue(lprops2.getOrdering() == null);
-
-		Assert.assertTrue(!gprops1.getCustomPartitioner().equals(gprops2.getCustomPartitioner()));
-	}
-
-
-	public static class SomePojo {
-		public double doubleField;
-		public int intField;
-		public String stringField;
-	}
-
+    public static class SomePojo {
+        public double doubleField;
+        public int intField;
+        public String stringField;
+    }
 }
-
-

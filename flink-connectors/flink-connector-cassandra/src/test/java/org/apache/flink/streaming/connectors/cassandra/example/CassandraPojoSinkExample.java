@@ -33,34 +33,36 @@ import java.util.ArrayList;
  *
  * <p>Pojo's have to be annotated with datastax annotations to work with this sink.
  *
- * <p>The example assumes that a table exists in a local cassandra database, according to the following queries:
- * CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'};
- * CREATE TABLE IF NOT EXISTS test.message(body txt PRIMARY KEY)
+ * <p>The example assumes that a table exists in a local cassandra database, according to the
+ * following queries: CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class':
+ * 'SimpleStrategy', 'replication_factor': '1'}; CREATE TABLE IF NOT EXISTS test.message(body txt
+ * PRIMARY KEY)
  */
 public class CassandraPojoSinkExample {
-	private static final ArrayList<Message> messages = new ArrayList<>(20);
+    private static final ArrayList<Message> messages = new ArrayList<>(20);
 
-	static {
-		for (long i = 0; i < 20; i++) {
-			messages.add(new Message("cassandra-" + i));
-		}
-	}
+    static {
+        for (long i = 0; i < 20; i++) {
+            messages.add(new Message("cassandra-" + i));
+        }
+    }
 
-	public static void main(String[] args) throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    public static void main(String[] args) throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		DataStreamSource<Message> source = env.fromCollection(messages);
+        DataStreamSource<Message> source = env.fromCollection(messages);
 
-		CassandraSink.addSink(source)
-			.setClusterBuilder(new ClusterBuilder() {
-				@Override
-				protected Cluster buildCluster(Builder builder) {
-					return builder.addContactPoint("127.0.0.1").build();
-				}
-			})
-			.setMapperOptions(() -> new Mapper.Option[]{Mapper.Option.saveNullFields(true)})
-			.build();
+        CassandraSink.addSink(source)
+                .setClusterBuilder(
+                        new ClusterBuilder() {
+                            @Override
+                            protected Cluster buildCluster(Builder builder) {
+                                return builder.addContactPoint("127.0.0.1").build();
+                            }
+                        })
+                .setMapperOptions(() -> new Mapper.Option[] {Mapper.Option.saveNullFields(true)})
+                .build();
 
-		env.execute("Cassandra Sink example");
-	}
+        env.execute("Cassandra Sink example");
+    }
 }

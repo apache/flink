@@ -24,34 +24,29 @@ import org.apache.flink.runtime.event.AbstractEvent;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * The specific delegate implementation for the non output case like sink task.
- */
+/** The specific delegate implementation for the non output case like sink task. */
 public class NonRecordWriter<T extends IOReadableWritable> implements RecordWriterDelegate<T> {
 
-	public NonRecordWriter() {
-	}
+    public NonRecordWriter() {}
 
-	@Override
-	public void broadcastEvent(AbstractEvent event) throws IOException {
-	}
+    @Override
+    public void broadcastEvent(AbstractEvent event) throws IOException {}
 
-	@Override
-	public RecordWriter<T> getRecordWriter(int outputIndex) {
-		throw new UnsupportedOperationException("No record writer instance.");
-	}
+    @Override
+    public RecordWriter<T> getRecordWriter(int outputIndex) {
+        throw new UnsupportedOperationException("No record writer instance.");
+    }
 
-	@Override
-	public CompletableFuture<?> getAvailableFuture() {
-		throw new UnsupportedOperationException("No record writer instance.");
-	}
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        throw new UnsupportedOperationException("No record writer instance.");
+    }
 
-	@Override
-	public boolean isAvailable() {
-		return true;
-	}
+    @Override
+    public boolean isAvailable() {
+        return true;
+    }
 
-	@Override
-	public void close() {
-	}
+    @Override
+    public void close() {}
 }

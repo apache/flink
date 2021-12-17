@@ -19,29 +19,40 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 
-/**
- * A factory for per Job checkpoint recovery components.
- */
+import java.util.concurrent.Executor;
+
+/** A factory for per Job checkpoint recovery components. */
 public interface CheckpointRecoveryFactory {
 
-	/**
-	 * Creates a {@link CompletedCheckpointStore} instance for a job.
-	 *
-	 * @param jobId           Job ID to recover checkpoints for
-	 * @param maxNumberOfCheckpointsToRetain Maximum number of checkpoints to retain
-	 * @param userClassLoader User code class loader of the job
-	 * @return {@link CompletedCheckpointStore} instance for the job
-	 */
-	CompletedCheckpointStore createCheckpointStore(JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader)
-			throws Exception;
+    /**
+     * Creates a RECOVERED {@link CompletedCheckpointStore} instance for a job. In this context,
+     * RECOVERED means, that if we already have completed checkpoints from previous runs, we should
+     * use them as the initial state.
+     *
+     * @param jobId Job ID to recover checkpoints for
+     * @param maxNumberOfCheckpointsToRetain Maximum number of checkpoints to retain
+     * @param userClassLoader User code class loader of the job
+     * @param sharedStateRegistryFactory Simple factory to produce {@link SharedStateRegistry}
+     *     objects.
+     * @param ioExecutor Executor used to run (async) deletes.
+     * @return {@link CompletedCheckpointStore} instance for the job
+     */
+    CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
+            JobID jobId,
+            int maxNumberOfCheckpointsToRetain,
+            ClassLoader userClassLoader,
+            SharedStateRegistryFactory sharedStateRegistryFactory,
+            Executor ioExecutor)
+            throws Exception;
 
-	/**
-	 * Creates a {@link CheckpointIDCounter} instance for a job.
-	 *
-	 * @param jobId Job ID to recover checkpoints for
-	 * @return {@link CheckpointIDCounter} instance for the job
-	 */
-	CheckpointIDCounter createCheckpointIDCounter(JobID jobId) throws Exception;
-
+    /**
+     * Creates a {@link CheckpointIDCounter} instance for a job.
+     *
+     * @param jobId Job ID to recover checkpoints for
+     * @return {@link CheckpointIDCounter} instance for the job
+     */
+    CheckpointIDCounter createCheckpointIDCounter(JobID jobId) throws Exception;
 }

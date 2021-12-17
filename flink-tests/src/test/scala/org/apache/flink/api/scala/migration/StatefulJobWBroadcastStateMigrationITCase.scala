@@ -29,9 +29,10 @@ import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.api.scala.migration.CustomEnum.CustomEnum
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
-import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext, StateBackendLoader}
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend
 import org.apache.flink.runtime.state.memory.MemoryStateBackend
+import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext, StateBackendLoader}
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
@@ -46,7 +47,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Assert, Ignore, Test}
 
-import scala.util.{Failure, Properties, Try}
+import scala.util.{Failure, Try}
 
 object StatefulJobWBroadcastStateMigrationITCase {
 
@@ -62,15 +63,25 @@ object StatefulJobWBroadcastStateMigrationITCase {
       (MigrationVersion.v1_8, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
       (MigrationVersion.v1_8, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
       (MigrationVersion.v1_9, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_9, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME))
+      (MigrationVersion.v1_9, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_10, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_10, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_11, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_11, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_12, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_12, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_13, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_13, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_14, StateBackendLoader.HASHMAP_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_14, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME))
   }
 
   // TODO to generate savepoints for a specific Flink version / backend type,
   // TODO change these values accordingly, e.g. to generate for 1.3 with RocksDB,
   // TODO set as (MigrationVersion.v1_3, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME)
   // TODO Note: You should generate the savepoint based on the release branch instead of the master.
-  val GENERATE_SAVEPOINT_VER: MigrationVersion = MigrationVersion.v1_9
-  val GENERATE_SAVEPOINT_BACKEND_TYPE: String = StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME
+  val GENERATE_SAVEPOINT_VER: MigrationVersion = MigrationVersion.v1_14
+  val GENERATE_SAVEPOINT_BACKEND_TYPE: String = StateBackendLoader.HASHMAP_STATE_BACKEND_NAME
 
   val NUM_ELEMENTS = 4
 }
@@ -91,9 +102,11 @@ class StatefulJobWBroadcastStateMigrationITCase(
 
     StatefulJobWBroadcastStateMigrationITCase.GENERATE_SAVEPOINT_BACKEND_TYPE match {
       case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME =>
-        env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()))
+        env.setStateBackend(new EmbeddedRocksDBStateBackend())
       case StateBackendLoader.MEMORY_STATE_BACKEND_NAME =>
         env.setStateBackend(new MemoryStateBackend())
+      case StateBackendLoader.HASHMAP_STATE_BACKEND_NAME =>
+        env.setStateBackend(new HashMapStateBackend())
       case _ => throw new UnsupportedOperationException
     }
 
@@ -158,9 +171,11 @@ class StatefulJobWBroadcastStateMigrationITCase(
 
     migrationVersionAndBackend._2 match {
       case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME =>
-        env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()))
+        env.setStateBackend(new EmbeddedRocksDBStateBackend())
       case StateBackendLoader.MEMORY_STATE_BACKEND_NAME =>
         env.setStateBackend(new MemoryStateBackend())
+      case StateBackendLoader.HASHMAP_STATE_BACKEND_NAME =>
+        env.setStateBackend(new HashMapStateBackend())
       case _ => throw new UnsupportedOperationException
     }
 
@@ -290,7 +305,7 @@ private class CheckpointedSource(val numElements: Int)
   }
 
   override def initializeState(context: FunctionInitializationContext): Unit = {
-    state = context.getOperatorStateStore.getOperatorState(
+    state = context.getOperatorStateStore.getListState(
       new ListStateDescriptor[CustomCaseClass](
         "sourceState", createTypeInformation[CustomCaseClass]))
   }

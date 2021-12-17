@@ -29,31 +29,30 @@ import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 
 /**
- * Annotates edges of a directed graph with the degree, out-degree, and
- * in-degree of the source vertex.
+ * Annotates edges of a directed graph with the degree, out-degree, and in-degree of the source
+ * vertex.
  *
  * @param <K> ID type
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
 public class EdgeSourceDegrees<K, VV, EV>
-extends GraphAlgorithmWrappingDataSet<K, VV, EV, Edge<K, Tuple2<EV, Degrees>>> {
+        extends GraphAlgorithmWrappingDataSet<K, VV, EV, Edge<K, Tuple2<EV, Degrees>>> {
 
-	@Override
-	public DataSet<Edge<K, Tuple2<EV, Degrees>>> runInternal(Graph<K, VV, EV> input)
-			throws Exception {
-		// s, d(s)
-		DataSet<Vertex<K, Degrees>> vertexDegrees = input
-			.run(new VertexDegrees<K, VV, EV>()
-				.setParallelism(parallelism));
+    @Override
+    public DataSet<Edge<K, Tuple2<EV, Degrees>>> runInternal(Graph<K, VV, EV> input)
+            throws Exception {
+        // s, d(s)
+        DataSet<Vertex<K, Degrees>> vertexDegrees =
+                input.run(new VertexDegrees<K, VV, EV>().setParallelism(parallelism));
 
-		// s, t, d(s)
-		return input.getEdges()
-			.join(vertexDegrees, JoinHint.REPARTITION_HASH_SECOND)
-			.where(0)
-			.equalTo(0)
-			.with(new JoinEdgeWithVertexDegree<>())
-				.setParallelism(parallelism)
-				.name("Edge source degrees");
-	}
+        // s, t, d(s)
+        return input.getEdges()
+                .join(vertexDegrees, JoinHint.REPARTITION_HASH_SECOND)
+                .where(0)
+                .equalTo(0)
+                .with(new JoinEdgeWithVertexDegree<>())
+                .setParallelism(parallelism)
+                .name("Edge source degrees");
+    }
 }

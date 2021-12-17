@@ -16,29 +16,26 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.testutils.types;
 
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 
-
 public class IntPairPairComparator extends TypePairComparator<IntPair, IntPair> {
-	
-	private int key;
-	
 
-	@Override
-	public void setReference(IntPair reference) {
-		this.key = reference.getKey();
-	}
+    private int key;
 
-	@Override
-	public boolean equalToReference(IntPair candidate) {
-		return this.key == candidate.getKey();
-	}
+    @Override
+    public void setReference(IntPair reference) {
+        this.key = reference.getKey();
+    }
 
-	@Override
-	public int compareToReference(IntPair candidate) {
-		return candidate.getKey() - this.key;
-	}
+    @Override
+    public boolean equalToReference(IntPair candidate) {
+        return this.key == candidate.getKey();
+    }
+
+    @Override
+    public int compareToReference(IntPair candidate) {
+        return candidate.getKey() - this.key;
+    }
 }

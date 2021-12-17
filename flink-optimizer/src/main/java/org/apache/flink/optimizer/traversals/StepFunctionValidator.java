@@ -26,28 +26,28 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * A traversal that checks if the Workset of a delta iteration is used in the data flow
- * of its step function.
+ * A traversal that checks if the Workset of a delta iteration is used in the data flow of its step
+ * function.
  */
 public class StepFunctionValidator implements Visitor<Operator<?>> {
 
-	private final Set<Operator<?>> seenBefore = new HashSet<Operator<?>>();
+    private final Set<Operator<?>> seenBefore = new HashSet<Operator<?>>();
 
-	private boolean foundWorkset;
+    private boolean foundWorkset;
 
-	@Override
-	public boolean preVisit(Operator<?> visitable) {
-		if (visitable instanceof DeltaIterationBase.WorksetPlaceHolder) {
-			foundWorkset = true;
-		}
+    @Override
+    public boolean preVisit(Operator<?> visitable) {
+        if (visitable instanceof DeltaIterationBase.WorksetPlaceHolder) {
+            foundWorkset = true;
+        }
 
-		return (!foundWorkset) && seenBefore.add(visitable);
-	}
+        return (!foundWorkset) && seenBefore.add(visitable);
+    }
 
-	@Override
-	public void postVisit(Operator<?> visitable) {}
+    @Override
+    public void postVisit(Operator<?> visitable) {}
 
-	public boolean hasFoundWorkset() {
-		return foundWorkset;
-	}
+    public boolean hasFoundWorkset() {
+        return foundWorkset;
+    }
 }

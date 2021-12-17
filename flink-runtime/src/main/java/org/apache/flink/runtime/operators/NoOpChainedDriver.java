@@ -24,52 +24,45 @@ import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubExcepti
 
 /**
  * A chained driver that just passes on the input as the output
+ *
  * @param <IT> The type of the input
  */
 public class NoOpChainedDriver<IT> extends ChainedDriver<IT, IT> {
 
-	@Override
-	public void setup(AbstractInvokable parent) {
+    @Override
+    public void setup(AbstractInvokable parent) {}
 
-	}
+    @Override
+    public void openTask() throws Exception {}
 
-	@Override
-	public void openTask() throws Exception {
+    @Override
+    public void closeTask() throws Exception {}
 
-	}
+    @Override
+    public void cancelTask() {}
 
-	@Override
-	public void closeTask() throws Exception {
+    @Override
+    public Function getStub() {
+        return null;
+    }
 
-	}
+    @Override
+    public String getTaskName() {
+        return this.taskName;
+    }
 
-	@Override
-	public void cancelTask() {
+    @Override
+    public void collect(IT record) {
+        try {
+            this.numRecordsIn.inc();
+            this.outputCollector.collect(record);
+        } catch (Exception ex) {
+            throw new ExceptionInChainedStubException(this.taskName, ex);
+        }
+    }
 
-	}
-
-	@Override
-	public Function getStub() {
-		return null;
-	}
-
-	@Override
-	public String getTaskName() {
-		return this.taskName;
-	}
-
-	@Override
-	public void collect(IT record) {
-		try {
-			this.numRecordsIn.inc();
-			this.outputCollector.collect(record);
-		} catch (Exception ex) {
-			throw new ExceptionInChainedStubException(this.taskName, ex);
-		}
-	}
-
-	@Override
-	public void close() {
-		this.outputCollector.close();
-	}
+    @Override
+    public void close() {
+        this.outputCollector.close();
+    }
 }

@@ -46,203 +46,234 @@ import java.io.ObjectOutputStream;
 
 import static org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase.getCredentialsFromUGI;
 
-/**
- * Base class shared between the Java and Scala API of Flink.
- */
+/** Base class shared between the Java and Scala API of Flink. */
 @Internal
-public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormatCommonBase<T> implements FinalizeOnMaster {
+public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormatCommonBase<T>
+        implements FinalizeOnMaster {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	// Mutexes to avoid concurrent operations on Hadoop OutputFormats.
-	// Hadoop parallelizes tasks across JVMs which is why they might rely on this JVM isolation.
-	// In contrast, Flink parallelizes using Threads, so multiple Hadoop OutputFormat instances
-	// might be used in the same JVM.
-	protected static final Object OPEN_MUTEX = new Object();
-	protected static final Object CONFIGURE_MUTEX = new Object();
-	protected static final Object CLOSE_MUTEX = new Object();
+    // Mutexes to avoid concurrent operations on Hadoop OutputFormats.
+    // Hadoop parallelizes tasks across JVMs which is why they might rely on this JVM isolation.
+    // In contrast, Flink parallelizes using Threads, so multiple Hadoop OutputFormat instances
+    // might be used in the same JVM.
+    protected static final Object OPEN_MUTEX = new Object();
+    protected static final Object CONFIGURE_MUTEX = new Object();
+    protected static final Object CLOSE_MUTEX = new Object();
 
-	protected org.apache.hadoop.conf.Configuration configuration;
-	protected org.apache.hadoop.mapreduce.OutputFormat<K, V> mapreduceOutputFormat;
-	protected transient RecordWriter<K, V> recordWriter;
-	protected transient OutputCommitter outputCommitter;
-	protected transient TaskAttemptContext context;
-	protected transient int taskNumber;
+    protected org.apache.hadoop.conf.Configuration configuration;
+    protected org.apache.hadoop.mapreduce.OutputFormat<K, V> mapreduceOutputFormat;
+    protected transient RecordWriter<K, V> recordWriter;
+    protected transient OutputCommitter outputCommitter;
+    protected transient TaskAttemptContext context;
+    protected transient int taskNumber;
 
-	public HadoopOutputFormatBase(org.apache.hadoop.mapreduce.OutputFormat<K, V> mapreduceOutputFormat, Job job) {
-		super(job.getCredentials());
-		this.mapreduceOutputFormat = mapreduceOutputFormat;
-		this.configuration = job.getConfiguration();
-		HadoopUtils.mergeHadoopConf(configuration);
-	}
+    public HadoopOutputFormatBase(
+            org.apache.hadoop.mapreduce.OutputFormat<K, V> mapreduceOutputFormat, Job job) {
+        super(job.getCredentials());
+        this.mapreduceOutputFormat = mapreduceOutputFormat;
+        this.configuration = job.getConfiguration();
+        HadoopUtils.mergeHadoopConf(configuration);
+    }
 
-	public org.apache.hadoop.conf.Configuration getConfiguration() {
-		return this.configuration;
-	}
+    public org.apache.hadoop.conf.Configuration getConfiguration() {
+        return this.configuration;
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//  OutputFormat
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //  OutputFormat
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public void configure(Configuration parameters) {
+    @Override
+    public void configure(Configuration parameters) {
 
-		// enforce sequential configure() calls
-		synchronized (CONFIGURE_MUTEX) {
-			if (this.mapreduceOutputFormat instanceof Configurable) {
-				((Configurable) this.mapreduceOutputFormat).setConf(this.configuration);
-			}
-		}
-	}
+        // enforce sequential configure() calls
+        synchronized (CONFIGURE_MUTEX) {
+            if (this.mapreduceOutputFormat instanceof Configurable) {
+                ((Configurable) this.mapreduceOutputFormat).setConf(this.configuration);
+            }
+        }
+    }
 
-	/**
-	 * create the temporary output file for hadoop RecordWriter.
-	 * @param taskNumber The number of the parallel instance.
-	 * @param numTasks The number of parallel tasks.
-	 * @throws java.io.IOException
-	 */
-	@Override
-	public void open(int taskNumber, int numTasks) throws IOException {
+    /**
+     * create the temporary output file for hadoop RecordWriter.
+     *
+     * @param taskNumber The number of the parallel instance.
+     * @param numTasks The number of parallel tasks.
+     * @throws java.io.IOException
+     */
+    @Override
+    public void open(int taskNumber, int numTasks) throws IOException {
 
-		// enforce sequential open() calls
-		synchronized (OPEN_MUTEX) {
-			if (Integer.toString(taskNumber + 1).length() > 6) {
-				throw new IOException("Task id too large.");
-			}
+        // enforce sequential open() calls
+        synchronized (OPEN_MUTEX) {
+            if (Integer.toString(taskNumber + 1).length() > 6) {
+                throw new IOException("Task id too large.");
+            }
 
-			this.taskNumber = taskNumber + 1;
+            this.taskNumber = taskNumber + 1;
 
-			// for hadoop 2.2
-			this.configuration.set("mapreduce.output.basename", "tmp");
+            // for hadoop 2.2
+            this.configuration.set("mapreduce.output.basename", "tmp");
 
-			TaskAttemptID taskAttemptID = TaskAttemptID.forName("attempt__0000_r_"
-					+ String.format("%" + (6 - Integer.toString(taskNumber + 1).length()) + "s", " ").replace(" ", "0")
-					+ Integer.toString(taskNumber + 1)
-					+ "_0");
+            TaskAttemptID taskAttemptID =
+                    TaskAttemptID.forName(
+                            "attempt__0000_r_"
+                                    + String.format(
+                                                    "%"
+                                                            + (6
+                                                                    - Integer.toString(
+                                                                                    taskNumber + 1)
+                                                                            .length())
+                                                            + "s",
+                                                    " ")
+                                            .replace(" ", "0")
+                                    + Integer.toString(taskNumber + 1)
+                                    + "_0");
 
-			this.configuration.set("mapred.task.id", taskAttemptID.toString());
-			this.configuration.setInt("mapred.task.partition", taskNumber + 1);
-			// for hadoop 2.2
-			this.configuration.set("mapreduce.task.attempt.id", taskAttemptID.toString());
-			this.configuration.setInt("mapreduce.task.partition", taskNumber + 1);
+            this.configuration.set("mapred.task.id", taskAttemptID.toString());
+            this.configuration.setInt("mapred.task.partition", taskNumber + 1);
+            // for hadoop 2.2
+            this.configuration.set("mapreduce.task.attempt.id", taskAttemptID.toString());
+            this.configuration.setInt("mapreduce.task.partition", taskNumber + 1);
 
-			try {
-				this.context = new TaskAttemptContextImpl(this.configuration, taskAttemptID);
-				this.outputCommitter = this.mapreduceOutputFormat.getOutputCommitter(this.context);
-				this.outputCommitter.setupJob(new JobContextImpl(this.configuration, new JobID()));
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
+            try {
+                this.context = new TaskAttemptContextImpl(this.configuration, taskAttemptID);
+                this.outputCommitter = this.mapreduceOutputFormat.getOutputCommitter(this.context);
+                this.outputCommitter.setupJob(new JobContextImpl(this.configuration, new JobID()));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
 
-			this.context.getCredentials().addAll(this.credentials);
-			Credentials currentUserCreds = getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
-			if (currentUserCreds != null) {
-				this.context.getCredentials().addAll(currentUserCreds);
-			}
+            this.context.getCredentials().addAll(this.credentials);
+            Credentials currentUserCreds =
+                    getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
+            if (currentUserCreds != null) {
+                this.context.getCredentials().addAll(currentUserCreds);
+            }
 
-			// compatible for hadoop 2.2.0, the temporary output directory is different from hadoop 1.2.1
-			if (outputCommitter instanceof FileOutputCommitter) {
-				this.configuration.set("mapreduce.task.output.dir", ((FileOutputCommitter) this.outputCommitter).getWorkPath().toString());
-			}
+            // compatible for hadoop 2.2.0, the temporary output directory is different from hadoop
+            // 1.2.1
+            if (outputCommitter instanceof FileOutputCommitter) {
+                this.configuration.set(
+                        "mapreduce.task.output.dir",
+                        ((FileOutputCommitter) this.outputCommitter).getWorkPath().toString());
+            }
 
-			try {
-				this.recordWriter = this.mapreduceOutputFormat.getRecordWriter(this.context);
-			} catch (InterruptedException e) {
-				throw new IOException("Could not create RecordWriter.", e);
-			}
-		}
-	}
+            try {
+                this.recordWriter = this.mapreduceOutputFormat.getRecordWriter(this.context);
+            } catch (InterruptedException e) {
+                throw new IOException("Could not create RecordWriter.", e);
+            }
+        }
+    }
 
-	/**
-	 * commit the task by moving the output file out from the temporary directory.
-	 * @throws java.io.IOException
-	 */
-	@Override
-	public void close() throws IOException {
+    /**
+     * commit the task by moving the output file out from the temporary directory.
+     *
+     * @throws java.io.IOException
+     */
+    @Override
+    public void close() throws IOException {
 
-		// enforce sequential close() calls
-		synchronized (CLOSE_MUTEX) {
-			try {
-				this.recordWriter.close(this.context);
-			} catch (InterruptedException e) {
-				throw new IOException("Could not close RecordReader.", e);
-			}
+        // enforce sequential close() calls
+        synchronized (CLOSE_MUTEX) {
+            try {
+                this.recordWriter.close(this.context);
+            } catch (InterruptedException e) {
+                throw new IOException("Could not close RecordReader.", e);
+            }
 
-			if (this.outputCommitter.needsTaskCommit(this.context)) {
-				this.outputCommitter.commitTask(this.context);
-			}
+            if (this.outputCommitter.needsTaskCommit(this.context)) {
+                this.outputCommitter.commitTask(this.context);
+            }
 
-			Path outputPath = new Path(this.configuration.get("mapred.output.dir"));
+            Path outputPath = new Path(this.configuration.get("mapred.output.dir"));
 
-			// rename tmp-file to final name
-			FileSystem fs = FileSystem.get(outputPath.toUri(), this.configuration);
+            // rename tmp-file to final name
+            FileSystem fs = FileSystem.get(outputPath.toUri(), this.configuration);
 
-			String taskNumberStr = Integer.toString(this.taskNumber);
-			String tmpFileTemplate = "tmp-r-00000";
-			String tmpFile = tmpFileTemplate.substring(0, 11 - taskNumberStr.length()) + taskNumberStr;
+            String taskNumberStr = Integer.toString(this.taskNumber);
+            String tmpFileTemplate = "tmp-r-00000";
+            String tmpFile =
+                    tmpFileTemplate.substring(0, 11 - taskNumberStr.length()) + taskNumberStr;
 
-			if (fs.exists(new Path(outputPath.toString() + "/" + tmpFile))) {
-				fs.rename(new Path(outputPath.toString() + "/" + tmpFile), new Path(outputPath.toString() + "/" + taskNumberStr));
-			}
-		}
-	}
+            if (fs.exists(new Path(outputPath.toString() + "/" + tmpFile))) {
+                fs.rename(
+                        new Path(outputPath.toString() + "/" + tmpFile),
+                        new Path(outputPath.toString() + "/" + taskNumberStr));
+            }
+        }
+    }
 
-	@Override
-	public void finalizeGlobal(int parallelism) throws IOException {
+    @Override
+    public void finalizeGlobal(int parallelism) throws IOException {
 
-		JobContext jobContext;
-		TaskAttemptContext taskContext;
-		try {
-			TaskAttemptID taskAttemptID = TaskAttemptID.forName("attempt__0000_r_"
-					+ String.format("%" + (6 - Integer.toString(1).length()) + "s", " ").replace(" ", "0")
-					+ Integer.toString(1)
-					+ "_0");
+        JobContext jobContext;
+        TaskAttemptContext taskContext;
+        try {
+            TaskAttemptID taskAttemptID =
+                    TaskAttemptID.forName(
+                            "attempt__0000_r_"
+                                    + String.format(
+                                                    "%" + (6 - Integer.toString(1).length()) + "s",
+                                                    " ")
+                                            .replace(" ", "0")
+                                    + Integer.toString(1)
+                                    + "_0");
 
-			jobContext = new JobContextImpl(this.configuration, new JobID());
-			taskContext = new TaskAttemptContextImpl(this.configuration, taskAttemptID);
-			this.outputCommitter = this.mapreduceOutputFormat.getOutputCommitter(taskContext);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+            jobContext = new JobContextImpl(this.configuration, new JobID());
+            taskContext = new TaskAttemptContextImpl(this.configuration, taskAttemptID);
+            this.outputCommitter = this.mapreduceOutputFormat.getOutputCommitter(taskContext);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
-		jobContext.getCredentials().addAll(this.credentials);
-		Credentials currentUserCreds = getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
-		if (currentUserCreds != null) {
-			jobContext.getCredentials().addAll(currentUserCreds);
-		}
+        jobContext.getCredentials().addAll(this.credentials);
+        Credentials currentUserCreds = getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
+        if (currentUserCreds != null) {
+            jobContext.getCredentials().addAll(currentUserCreds);
+        }
 
-		// finalize HDFS output format
-		if (this.outputCommitter != null) {
-			this.outputCommitter.commitJob(jobContext);
-		}
-	}
+        // finalize HDFS output format
+        if (this.outputCommitter != null) {
+            this.outputCommitter.commitJob(jobContext);
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//  Custom serialization methods
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //  Custom serialization methods
+    // --------------------------------------------------------------------------------------------
 
-	private void writeObject(ObjectOutputStream out) throws IOException {
-		super.write(out);
-		out.writeUTF(this.mapreduceOutputFormat.getClass().getName());
-		this.configuration.write(out);
-	}
+    private void writeObject(ObjectOutputStream out) throws IOException {
+        super.write(out);
+        out.writeUTF(this.mapreduceOutputFormat.getClass().getName());
+        this.configuration.write(out);
+    }
 
-	@SuppressWarnings("unchecked")
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		super.read(in);
-		String hadoopOutputFormatClassName = in.readUTF();
+    @SuppressWarnings("unchecked")
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+        super.read(in);
+        String hadoopOutputFormatClassName = in.readUTF();
 
-		org.apache.hadoop.conf.Configuration configuration = new org.apache.hadoop.conf.Configuration();
-		configuration.readFields(in);
+        org.apache.hadoop.conf.Configuration configuration =
+                new org.apache.hadoop.conf.Configuration();
+        configuration.readFields(in);
 
-		if (this.configuration == null) {
-			this.configuration = configuration;
-		}
+        if (this.configuration == null) {
+            this.configuration = configuration;
+        }
 
-		try {
-			this.mapreduceOutputFormat = (org.apache.hadoop.mapreduce.OutputFormat<K, V>) Class.forName(hadoopOutputFormatClassName, true, Thread.currentThread().getContextClassLoader()).newInstance();
-		} catch (Exception e) {
-			throw new RuntimeException("Unable to instantiate the hadoop output format", e);
-		}
-	}
+        try {
+            this.mapreduceOutputFormat =
+                    (org.apache.hadoop.mapreduce.OutputFormat<K, V>)
+                            Class.forName(
+                                            hadoopOutputFormatClassName,
+                                            true,
+                                            Thread.currentThread().getContextClassLoader())
+                                    .newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to instantiate the hadoop output format", e);
+        }
+    }
 }

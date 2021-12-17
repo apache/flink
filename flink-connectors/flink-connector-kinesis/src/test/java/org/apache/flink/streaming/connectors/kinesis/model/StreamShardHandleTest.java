@@ -24,14 +24,18 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertThat;
 
-/**
- * Test for methods in the {@link StreamShardHandle} class.
- */
+/** Test for methods in the {@link StreamShardHandle} class. */
 public class StreamShardHandleTest {
-	@Test
-	public void testCompareShardIds() {
-		assertThat(StreamShardHandle.compareShardIds("shardId-000000000001", "shardId-000000000010"), lessThan(0));
-		assertThat(StreamShardHandle.compareShardIds("shardId-000000000010", "shardId-000000000010"), equalTo(0));
-		assertThat(StreamShardHandle.compareShardIds("shardId-000000000015", "shardId-000000000010"), greaterThan(0));
-	}
+    @Test
+    public void testCompareShardIds() {
+        assertThat(
+                StreamShardHandle.compareShardIds("shardId-000000000001", "shardId-000000000010"),
+                lessThan(0));
+        assertThat(
+                StreamShardHandle.compareShardIds("shardId-000000000010", "shardId-000000000010"),
+                equalTo(0));
+        assertThat(
+                StreamShardHandle.compareShardIds("shardId-000000000015", "shardId-000000000010"),
+                greaterThan(0));
+    }
 }

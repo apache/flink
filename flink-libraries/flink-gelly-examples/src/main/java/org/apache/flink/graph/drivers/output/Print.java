@@ -31,36 +31,36 @@ import java.util.List;
  *
  * @param <T> result Type
  */
-public class Print<T>
-extends OutputBase<T> {
+public class Print<T> extends OutputBase<T> {
 
-	private BooleanParameter printExecutionPlan = new BooleanParameter(this, "__print_execution_plan");
+    private BooleanParameter printExecutionPlan =
+            new BooleanParameter(this, "__print_execution_plan");
 
-	@Override
-	public void write(String executionName, PrintStream out, DataSet<T> data) throws Exception {
-		Collect<T> collector = new Collect<T>().run(data);
+    @Override
+    public void write(String executionName, PrintStream out, DataSet<T> data) throws Exception {
+        Collect<T> collector = new Collect<T>().run(data);
 
-		if (printExecutionPlan.getValue()) {
-			out.println();
-			out.println(data.getExecutionEnvironment().getExecutionPlan());
-		}
+        if (printExecutionPlan.getValue()) {
+            out.println();
+            out.println(data.getExecutionEnvironment().getExecutionPlan());
+        }
 
-		List<T> results = collector.execute(executionName);
+        List<T> results = collector.execute(executionName);
 
-		if (results.size() == 0) {
-			return;
-		}
+        if (results.size() == 0) {
+            return;
+        }
 
-		out.println();
+        out.println();
 
-		if (results.get(0) instanceof PrintableResult) {
-			for (Object result : results) {
-				out.println(((PrintableResult) result).toPrintableString());
-			}
-		} else {
-			for (Object result : results) {
-				out.println(result);
-			}
-		}
-	}
+        if (results.get(0) instanceof PrintableResult) {
+            for (Object result : results) {
+                out.println(((PrintableResult) result).toPrintableString());
+            }
+        } else {
+            for (Object result : results) {
+                out.println(result);
+            }
+        }
+    }
 }

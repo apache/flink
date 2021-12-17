@@ -18,23 +18,21 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-/**
- * A host binding address mechanism policy.
- */
+/** A host binding address mechanism policy. */
 enum HostBindPolicy {
-	NAME,
-	IP;
+    NAME,
+    IP;
 
-	@Override
-	public String toString() {
-		return name().toLowerCase();
-	}
+    @Override
+    public String toString() {
+        return name().toLowerCase();
+    }
 
-	public static HostBindPolicy fromString(String configValue) {
-		try {
-			return HostBindPolicy.valueOf(configValue.toUpperCase());
-		} catch (IllegalArgumentException ex) {
-			throw new IllegalArgumentException("Unknown host bind policy: " + configValue);
-		}
-	}
+    public static HostBindPolicy fromString(String configValue) {
+        try {
+            return HostBindPolicy.valueOf(configValue.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Unknown host bind policy: " + configValue);
+        }
+    }
 }

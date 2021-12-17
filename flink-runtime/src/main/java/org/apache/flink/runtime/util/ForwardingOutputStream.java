@@ -25,39 +25,40 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 /**
- * Output stream, that wraps another input stream and forwards all method calls to the wrapped stream.
+ * Output stream, that wraps another input stream and forwards all method calls to the wrapped
+ * stream.
  */
 @Internal
 public class ForwardingOutputStream extends OutputStream {
 
-	private final OutputStream delegate;
+    private final OutputStream delegate;
 
-	public ForwardingOutputStream(OutputStream delegate) {
-		this.delegate = Preconditions.checkNotNull(delegate);
-	}
+    public ForwardingOutputStream(OutputStream delegate) {
+        this.delegate = Preconditions.checkNotNull(delegate);
+    }
 
-	@Override
-	public void write(int b) throws IOException {
-		delegate.write(b);
-	}
+    @Override
+    public void write(int b) throws IOException {
+        delegate.write(b);
+    }
 
-	@Override
-	public void write(byte[] b) throws IOException {
-		delegate.write(b);
-	}
+    @Override
+    public void write(byte[] b) throws IOException {
+        delegate.write(b);
+    }
 
-	@Override
-	public void write(byte[] b, int off, int len) throws IOException {
-		delegate.write(b, off, len);
-	}
+    @Override
+    public void write(byte[] b, int off, int len) throws IOException {
+        delegate.write(b, off, len);
+    }
 
-	@Override
-	public void flush() throws IOException {
-		delegate.flush();
-	}
+    @Override
+    public void flush() throws IOException {
+        delegate.flush();
+    }
 
-	@Override
-	public void close() throws IOException {
-		delegate.close();
-	}
+    @Override
+    public void close() throws IOException {
+        delegate.close();
+    }
 }

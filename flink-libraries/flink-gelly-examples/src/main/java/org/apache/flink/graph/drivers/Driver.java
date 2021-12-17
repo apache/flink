@@ -27,55 +27,52 @@ import org.apache.flink.graph.drivers.parameter.Parameterized;
 import java.io.PrintStream;
 
 /**
- * A driver for one or more {@link GraphAlgorithm} and/or
- * {@link GraphAnalytic}.
+ * A driver for one or more {@link GraphAlgorithm} and/or {@link GraphAnalytic}.
  *
- * <p>It is preferable to include multiple, overlapping algorithms/analytics in
- * the same driver both for simplicity and since this examples module
- * demonstrates Flink capabilities rather than absolute performance.
+ * <p>It is preferable to include multiple, overlapping algorithms/analytics in the same driver both
+ * for simplicity and since this examples module demonstrates Flink capabilities rather than
+ * absolute performance.
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
-public interface Driver<K, VV, EV>
-extends Parameterized {
+public interface Driver<K, VV, EV> extends Parameterized {
 
-	/**
-	 * A one-line description, presented in the algorithm listing.
-	 *
-	 * @return short description
-	 */
-	String getShortDescription();
+    /**
+     * A one-line description, presented in the algorithm listing.
+     *
+     * @return short description
+     */
+    String getShortDescription();
 
-	/**
-	 * A multi-line description, presented in the algorithm usage.
-	 *
-	 * @return long description
-	 */
-	String getLongDescription();
+    /**
+     * A multi-line description, presented in the algorithm usage.
+     *
+     * @return long description
+     */
+    String getLongDescription();
 
-	/**
-	 * "Run" algorithms and analytics on the input graph. The execution plan
-	 * is not finalized here but in the output methods.
-	 *
-	 * <p>Drivers are first configured, next planned, and finally the chosen
-	 * output method is called.
-	 *
-	 * <p>A {@code null} value should be returned when the {@link Driver} does
-	 * not execute a {@link GraphAlgorithm} but only executes a
-	 * {@link GraphAnalytic}.
-	 *
-	 * @param graph input graph
-	 * @throws Exception on error
-	 */
-	DataSet plan(Graph<K, VV, EV> graph) throws Exception;
+    /**
+     * "Run" algorithms and analytics on the input graph. The execution plan is not finalized here
+     * but in the output methods.
+     *
+     * <p>Drivers are first configured, next planned, and finally the chosen output method is
+     * called.
+     *
+     * <p>A {@code null} value should be returned when the {@link Driver} does not execute a {@link
+     * GraphAlgorithm} but only executes a {@link GraphAnalytic}.
+     *
+     * @param graph input graph
+     * @throws Exception on error
+     */
+    DataSet plan(Graph<K, VV, EV> graph) throws Exception;
 
-	/**
-	 * Analytic results are summaries so are always printed to the console
-	 * irrespective of the chosen {@code Output}.
-	 *
-	 * @param out output stream for printing results
-	 */
-	void printAnalytics(PrintStream out);
+    /**
+     * Analytic results are summaries so are always printed to the console irrespective of the
+     * chosen {@code Output}.
+     *
+     * @param out output stream for printing results
+     */
+    void printAnalytics(PrintStream out);
 }

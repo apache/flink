@@ -21,24 +21,24 @@ package org.apache.flink.optimizer.operators;
 import org.apache.flink.optimizer.dataproperties.LocalProperties;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
-
 public class CrossBlockOuterFirstDescriptor extends CartesianProductDescriptor {
-	
-	public CrossBlockOuterFirstDescriptor() {
-		this(true, true);
-	}
-	
-	public CrossBlockOuterFirstDescriptor(boolean allowBroadcastFirst, boolean allowBroadcastSecond) {
-		super(allowBroadcastFirst, allowBroadcastSecond);
-	}
-	
-	@Override
-	public DriverStrategy getStrategy() {
-		return DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST;
-	}
-	
-	@Override
-	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
-		return new LocalProperties();
-	}
+
+    public CrossBlockOuterFirstDescriptor() {
+        this(true, true);
+    }
+
+    public CrossBlockOuterFirstDescriptor(
+            boolean allowBroadcastFirst, boolean allowBroadcastSecond) {
+        super(allowBroadcastFirst, allowBroadcastSecond);
+    }
+
+    @Override
+    public DriverStrategy getStrategy() {
+        return DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST;
+    }
+
+    @Override
+    public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
+        return new LocalProperties();
+    }
 }

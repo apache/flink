@@ -16,53 +16,71 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
-
 
 public class DoubleParserTest extends ParserTestBase<Double> {
 
-	@Override
-	public String[] getValidTestValues() {
-		return new String[] {
-			"0", "0.0", "123.4", "0.124", ".623", "1234", "-12.34", 
-			String.valueOf(Double.MAX_VALUE), String.valueOf(Double.MIN_VALUE),
-			String.valueOf(Double.NEGATIVE_INFINITY), String.valueOf(Double.POSITIVE_INFINITY),
-			String.valueOf(Double.NaN),
-			"1.234E2", "1.234e3", "1.234E-2", "1239"
-		};
-	}
-	
-	@Override
-	public Double[] getValidTestResults() {
-		return new Double[] {
-			0d, 0.0d, 123.4d, 0.124d, .623d, 1234d, -12.34d, 
-			Double.MAX_VALUE, Double.MIN_VALUE,
-			Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY,
-			Double.NaN,
-			1.234E2, 1.234e3, 1.234E-2, 1239d
-		};
-	}
+    @Override
+    public String[] getValidTestValues() {
+        return new String[] {
+            "0",
+            "0.0",
+            "123.4",
+            "0.124",
+            ".623",
+            "1234",
+            "-12.34",
+            String.valueOf(Double.MAX_VALUE),
+            String.valueOf(Double.MIN_VALUE),
+            String.valueOf(Double.NEGATIVE_INFINITY),
+            String.valueOf(Double.POSITIVE_INFINITY),
+            String.valueOf(Double.NaN),
+            "1.234E2",
+            "1.234e3",
+            "1.234E-2",
+            "1239"
+        };
+    }
 
-	@Override
-	public String[] getInvalidTestValues() {
-		return new String[] {
-			"a", "123abc4", "-57-6", "7-877678", " 1", "2 ", " ", "\t"
-		};
-	}
+    @Override
+    public Double[] getValidTestResults() {
+        return new Double[] {
+            0d,
+            0.0d,
+            123.4d,
+            0.124d,
+            .623d,
+            1234d,
+            -12.34d,
+            Double.MAX_VALUE,
+            Double.MIN_VALUE,
+            Double.NEGATIVE_INFINITY,
+            Double.POSITIVE_INFINITY,
+            Double.NaN,
+            1.234E2,
+            1.234e3,
+            1.234E-2,
+            1239d
+        };
+    }
 
-	@Override
-	public boolean allowsEmptyField() {
-		return false;
-	}
+    @Override
+    public String[] getInvalidTestValues() {
+        return new String[] {"a", "123abc4", "-57-6", "7-877678", " 1", "2 ", " ", "\t"};
+    }
 
-	@Override
-	public FieldParser<Double> getParser() {
-		return new DoubleParser();
-	}
+    @Override
+    public boolean allowsEmptyField() {
+        return false;
+    }
 
-	@Override
-	public Class<Double> getTypeClass() {
-		return Double.class;
-	}
+    @Override
+    public FieldParser<Double> getParser() {
+        return new DoubleParser();
+    }
+
+    @Override
+    public Class<Double> getTypeClass() {
+        return Double.class;
+    }
 }

@@ -16,12 +16,20 @@
   ~ limitations under the License.
   -->
 
-<div #trigger
+<div
+  #trigger
   class="resize"
   [class.vertical]="mode === 'vertical'"
   [class.horizontal]="mode === 'horizontal'"
   [style.left.px]="mode === 'vertical' ? left : 0"
   [style.top.px]="mode === 'vertical' ? 0 : top"
-  (mousedown)="startMove()">
-  <div class="resize-handle" [class.horizontal]="mode === 'horizontal'" [class.vertical]="mode === 'vertical'"><i nz-icon type="ellipsis"></i></div>
+  (mousedown)="startMove()"
+>
+  <div
+    class="resize-handle"
+    [class.horizontal]="mode === 'horizontal'"
+    [class.vertical]="mode === 'vertical'"
+  >
+    <i nz-icon nzType="ellipsis"></i>
+  </div>
 </div>

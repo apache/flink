@@ -41,141 +41,142 @@ import java.util.UUID;
  */
 public class TestingManualHighAvailabilityServices implements HighAvailabilityServices {
 
-	private final Map<JobID, ManualLeaderService> jobManagerLeaderServices;
+    private final Map<JobID, ManualLeaderService> jobManagerLeaderServices;
 
-	private final ManualLeaderService resourceManagerLeaderService;
+    private final ManualLeaderService resourceManagerLeaderService;
 
-	private final ManualLeaderService dispatcherLeaderService;
+    private final ManualLeaderService dispatcherLeaderService;
 
-	private final ManualLeaderService clusterRestEndpointLeaderService;
+    private final ManualLeaderService clusterRestEndpointLeaderService;
 
-	public TestingManualHighAvailabilityServices() {
-		jobManagerLeaderServices = new HashMap<>(4);
-		resourceManagerLeaderService = new ManualLeaderService();
-		dispatcherLeaderService = new ManualLeaderService();
-		clusterRestEndpointLeaderService = new ManualLeaderService();
-	}
+    public TestingManualHighAvailabilityServices() {
+        jobManagerLeaderServices = new HashMap<>(4);
+        resourceManagerLeaderService = new ManualLeaderService();
+        dispatcherLeaderService = new ManualLeaderService();
+        clusterRestEndpointLeaderService = new ManualLeaderService();
+    }
 
-	@Override
-	public LeaderRetrievalService getResourceManagerLeaderRetriever() {
-		return resourceManagerLeaderService.createLeaderRetrievalService();
-	}
+    @Override
+    public LeaderRetrievalService getResourceManagerLeaderRetriever() {
+        return resourceManagerLeaderService.createLeaderRetrievalService();
+    }
 
-	@Override
-	public LeaderRetrievalService getDispatcherLeaderRetriever() {
-		return dispatcherLeaderService.createLeaderRetrievalService();
-	}
+    @Override
+    public LeaderRetrievalService getDispatcherLeaderRetriever() {
+        return dispatcherLeaderService.createLeaderRetrievalService();
+    }
 
-	@Override
-	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
-		ManualLeaderService leaderService = getOrCreateJobManagerLeaderService(jobID);
+    @Override
+    public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
+        ManualLeaderService leaderService = getOrCreateJobManagerLeaderService(jobID);
 
-		return leaderService.createLeaderRetrievalService();
-	}
+        return leaderService.createLeaderRetrievalService();
+    }
 
-	@Override
-	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID, String defaultJobManagerAddress) {
-		return getJobManagerLeaderRetriever(jobID);
-	}
+    @Override
+    public LeaderRetrievalService getJobManagerLeaderRetriever(
+            JobID jobID, String defaultJobManagerAddress) {
+        return getJobManagerLeaderRetriever(jobID);
+    }
 
-	@Override
-	public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
-		return clusterRestEndpointLeaderService.createLeaderRetrievalService();
-	}
+    @Override
+    public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
+        return clusterRestEndpointLeaderService.createLeaderRetrievalService();
+    }
 
-	@Override
-	public LeaderElectionService getResourceManagerLeaderElectionService() {
-		return resourceManagerLeaderService.createLeaderElectionService();
-	}
+    @Override
+    public LeaderElectionService getResourceManagerLeaderElectionService() {
+        return resourceManagerLeaderService.createLeaderElectionService();
+    }
 
-	@Override
-	public LeaderElectionService getDispatcherLeaderElectionService() {
-		return dispatcherLeaderService.createLeaderElectionService();
-	}
+    @Override
+    public LeaderElectionService getDispatcherLeaderElectionService() {
+        return dispatcherLeaderService.createLeaderElectionService();
+    }
 
-	@Override
-	public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
-		ManualLeaderService leaderService = getOrCreateJobManagerLeaderService(jobID);
+    @Override
+    public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
+        ManualLeaderService leaderService = getOrCreateJobManagerLeaderService(jobID);
 
-		return leaderService.createLeaderElectionService();
-	}
+        return leaderService.createLeaderElectionService();
+    }
 
-	@Override
-	public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
-		return clusterRestEndpointLeaderService.createLeaderElectionService();
-	}
+    @Override
+    public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
+        return clusterRestEndpointLeaderService.createLeaderElectionService();
+    }
 
-	@Override
-	public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
-		return new StandaloneCheckpointRecoveryFactory();
-	}
+    @Override
+    public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
+        return new StandaloneCheckpointRecoveryFactory();
+    }
 
-	@Override
-	public JobGraphStore getJobGraphStore() throws Exception {
-		return new StandaloneJobGraphStore();
-	}
+    @Override
+    public JobGraphStore getJobGraphStore() throws Exception {
+        return new StandaloneJobGraphStore();
+    }
 
-	@Override
-	public RunningJobsRegistry getRunningJobsRegistry() throws Exception {
-		return new StandaloneRunningJobsRegistry();
-	}
+    @Override
+    public RunningJobsRegistry getRunningJobsRegistry() throws Exception {
+        return new StandaloneRunningJobsRegistry();
+    }
 
-	@Override
-	public BlobStore createBlobStore() throws IOException {
-		return new VoidBlobStore();
-	}
+    @Override
+    public BlobStore createBlobStore() throws IOException {
+        return new VoidBlobStore();
+    }
 
-	@Override
-	public void close() throws Exception {
-		// nothing to do
-	}
+    @Override
+    public void close() throws Exception {
+        // nothing to do
+    }
 
-	@Override
-	public void closeAndCleanupAllData() throws Exception {
-		// nothing to do
-	}
+    @Override
+    public void closeAndCleanupAllData() throws Exception {
+        // nothing to do
+    }
 
-	public void grantLeadership(JobID jobId, int index, UUID leaderId) {
-		ManualLeaderService manualLeaderService = jobManagerLeaderServices.get(jobId);
+    public void grantLeadership(JobID jobId, int index, UUID leaderId) {
+        ManualLeaderService manualLeaderService = jobManagerLeaderServices.get(jobId);
 
-		if (manualLeaderService != null) {
-			manualLeaderService.grantLeadership(index, leaderId);
-		} else {
-			throw new IllegalStateException("No manual leader service for job id " + jobId +
-				" has been initialized.");
-		}
-	}
+        if (manualLeaderService != null) {
+            manualLeaderService.grantLeadership(index, leaderId);
+        } else {
+            throw new IllegalStateException(
+                    "No manual leader service for job id " + jobId + " has been initialized.");
+        }
+    }
 
-	public void revokeLeadership(JobID jobId) {
-		ManualLeaderService manualLeaderService = jobManagerLeaderServices.get(jobId);
+    public void revokeLeadership(JobID jobId) {
+        ManualLeaderService manualLeaderService = jobManagerLeaderServices.get(jobId);
 
-		if (manualLeaderService != null) {
-			manualLeaderService.revokeLeadership();
-		} else {
-			throw new IllegalStateException("No manual leader service for job id " + jobId +
-				" has been initialized.");
-		}
-	}
+        if (manualLeaderService != null) {
+            manualLeaderService.revokeLeadership();
+        } else {
+            throw new IllegalStateException(
+                    "No manual leader service for job id " + jobId + " has been initialized.");
+        }
+    }
 
-	public void notifyRetrievers(JobID jobId, int index, UUID leaderId) {
-		ManualLeaderService manualLeaderService = jobManagerLeaderServices.get(jobId);
+    public void notifyRetrievers(JobID jobId, int index, UUID leaderId) {
+        ManualLeaderService manualLeaderService = jobManagerLeaderServices.get(jobId);
 
-		if (manualLeaderService != null) {
-			manualLeaderService.notifyRetrievers(index, leaderId);
-		} else {
-			throw new IllegalStateException("No manual leader service for job id " + jobId +
-				" has been initialized.");
-		}
-	}
+        if (manualLeaderService != null) {
+            manualLeaderService.notifyRetrievers(index, leaderId);
+        } else {
+            throw new IllegalStateException(
+                    "No manual leader service for job id " + jobId + " has been initialized.");
+        }
+    }
 
-	private ManualLeaderService getOrCreateJobManagerLeaderService(JobID jobId) {
-		ManualLeaderService manualLeaderService = jobManagerLeaderServices.get(jobId);
+    private ManualLeaderService getOrCreateJobManagerLeaderService(JobID jobId) {
+        ManualLeaderService manualLeaderService = jobManagerLeaderServices.get(jobId);
 
-		if (manualLeaderService == null) {
-			manualLeaderService = new ManualLeaderService();
-			jobManagerLeaderServices.put(jobId, manualLeaderService);
-		}
+        if (manualLeaderService == null) {
+            manualLeaderService = new ManualLeaderService();
+            jobManagerLeaderServices.put(jobId, manualLeaderService);
+        }
 
-		return manualLeaderService;
-	}
+        return manualLeaderService;
+    }
 }

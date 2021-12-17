@@ -24,48 +24,56 @@ import org.apache.flink.api.common.ExecutionMode;
 import java.util.Collections;
 import java.util.Map;
 
-/**
- * Utility class for constructing an ArchivedExecutionConfig.
- */
+/** Utility class for constructing an ArchivedExecutionConfig. */
 public class ArchivedExecutionConfigBuilder {
-	private String executionMode;
-	private String restartStrategyDescription;
-	private int parallelism;
-	private boolean objectReuseEnabled;
-	private Map<String, String> globalJobParameters;
+    private String executionMode;
+    private String restartStrategyDescription;
+    private int maxParallelism;
+    private int parallelism;
+    private boolean objectReuseEnabled;
+    private Map<String, String> globalJobParameters;
 
-	public ArchivedExecutionConfigBuilder setExecutionMode(String executionMode) {
-		this.executionMode = executionMode;
-		return this;
-	}
+    public ArchivedExecutionConfigBuilder setExecutionMode(String executionMode) {
+        this.executionMode = executionMode;
+        return this;
+    }
 
-	public ArchivedExecutionConfigBuilder setRestartStrategyDescription(String restartStrategyDescription) {
-		this.restartStrategyDescription = restartStrategyDescription;
-		return this;
-	}
+    public ArchivedExecutionConfigBuilder setRestartStrategyDescription(
+            String restartStrategyDescription) {
+        this.restartStrategyDescription = restartStrategyDescription;
+        return this;
+    }
 
-	public ArchivedExecutionConfigBuilder setParallelism(int parallelism) {
-		this.parallelism = parallelism;
-		return this;
-	}
+    public ArchivedExecutionConfigBuilder setParallelism(int parallelism) {
+        this.parallelism = parallelism;
+        return this;
+    }
 
-	public ArchivedExecutionConfigBuilder setObjectReuseEnabled(boolean objectReuseEnabled) {
-		this.objectReuseEnabled = objectReuseEnabled;
-		return this;
-	}
+    public ArchivedExecutionConfigBuilder setMaxParallelism(int parallelism) {
+        this.maxParallelism = maxParallelism;
+        return this;
+    }
 
-	public ArchivedExecutionConfigBuilder setGlobalJobParameters(Map<String, String> globalJobParameters) {
-		this.globalJobParameters = globalJobParameters;
-		return this;
-	}
+    public ArchivedExecutionConfigBuilder setObjectReuseEnabled(boolean objectReuseEnabled) {
+        this.objectReuseEnabled = objectReuseEnabled;
+        return this;
+    }
 
-	public ArchivedExecutionConfig build() {
-		return new ArchivedExecutionConfig(
-			executionMode != null ? executionMode : ExecutionMode.PIPELINED.name(),
-			restartStrategyDescription != null ? restartStrategyDescription : "default",
-			parallelism,
-			objectReuseEnabled,
-			globalJobParameters != null ? globalJobParameters : Collections.<String, String>emptyMap()
-		);
-	}
+    public ArchivedExecutionConfigBuilder setGlobalJobParameters(
+            Map<String, String> globalJobParameters) {
+        this.globalJobParameters = globalJobParameters;
+        return this;
+    }
+
+    public ArchivedExecutionConfig build() {
+        return new ArchivedExecutionConfig(
+                executionMode != null ? executionMode : ExecutionMode.PIPELINED.name(),
+                restartStrategyDescription != null ? restartStrategyDescription : "default",
+                maxParallelism,
+                parallelism,
+                objectReuseEnabled,
+                globalJobParameters != null
+                        ? globalJobParameters
+                        : Collections.<String, String>emptyMap());
+    }
 }

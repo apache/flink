@@ -35,6 +35,7 @@ import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 import org.apache.flink.runtime.operators.testutils.UnionIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -44,193 +45,206 @@ import java.util.Random;
 import static org.junit.Assert.*;
 
 /**
- * Test that checks how the combiner handles very large records that are too large to be written into
- * a fresh sort buffer.
+ * Test that checks how the combiner handles very large records that are too large to be written
+ * into a fresh sort buffer.
  */
 public class CombinerOversizedRecordsTest
-		extends UnaryOperatorTestBase<GroupCombineFunction<Tuple3<Integer, Integer, String>, Tuple3<Integer, Double, String>>,
-		Tuple3<Integer, Integer, String>, Tuple3<Integer, Double, String>> {
+        extends UnaryOperatorTestBase<
+                GroupCombineFunction<
+                        Tuple3<Integer, Integer, String>, Tuple3<Integer, Double, String>>,
+                Tuple3<Integer, Integer, String>,
+                Tuple3<Integer, Double, String>> {
 
-	private static final long COMBINE_MEM = 3 * 1024 * 1024;
+    private static final long COMBINE_MEM = 3 * 1024 * 1024;
 
-	private final double combine_frac;
+    private final double combine_frac;
 
-	private final ArrayList<Tuple3<Integer, Double, String>> outList = new ArrayList<Tuple3<Integer, Double, String>>();
+    private final ArrayList<Tuple3<Integer, Double, String>> outList =
+            new ArrayList<Tuple3<Integer, Double, String>>();
 
-	private final TypeSerializer<Tuple3<Integer, Integer, String>> serializer = 
-			new TupleSerializer<Tuple3<Integer, Integer, String>>(
-				(Class<Tuple3<Integer, Integer, String>>) (Class<?>) Tuple3.class,
-				new TypeSerializer<?>[] { IntSerializer.INSTANCE, IntSerializer.INSTANCE, StringSerializer.INSTANCE });
+    private final TypeSerializer<Tuple3<Integer, Integer, String>> serializer =
+            new TupleSerializer<Tuple3<Integer, Integer, String>>(
+                    (Class<Tuple3<Integer, Integer, String>>) (Class<?>) Tuple3.class,
+                    new TypeSerializer<?>[] {
+                        IntSerializer.INSTANCE, IntSerializer.INSTANCE, StringSerializer.INSTANCE
+                    });
 
-	private final TypeSerializer<Tuple3<Integer, Double, String>> outSerializer = 
-			new TupleSerializer<Tuple3<Integer, Double, String>>(
-					(Class<Tuple3<Integer, Double, String>>) (Class<?>) Tuple3.class,
-					new TypeSerializer<?>[] { IntSerializer.INSTANCE, DoubleSerializer.INSTANCE, StringSerializer.INSTANCE });
+    private final TypeSerializer<Tuple3<Integer, Double, String>> outSerializer =
+            new TupleSerializer<Tuple3<Integer, Double, String>>(
+                    (Class<Tuple3<Integer, Double, String>>) (Class<?>) Tuple3.class,
+                    new TypeSerializer<?>[] {
+                        IntSerializer.INSTANCE, DoubleSerializer.INSTANCE, StringSerializer.INSTANCE
+                    });
 
-	private final TypeComparator<Tuple3<Integer, Integer, String>> comparator = 
-			new TupleComparator<Tuple3<Integer, Integer, String>>(
-				new int[] { 0 },
-				new TypeComparator<?>[] { new IntComparator(true) },
-				new TypeSerializer<?>[] { IntSerializer.INSTANCE });
-	
-	// ------------------------------------------------------------------------
-	
-	public CombinerOversizedRecordsTest(ExecutionConfig config) {
-		super(config, COMBINE_MEM, 0);
-		combine_frac = (double)COMBINE_MEM / getMemoryManager().getMemorySize();
-	}
+    private final TypeComparator<Tuple3<Integer, Integer, String>> comparator =
+            new TupleComparator<Tuple3<Integer, Integer, String>>(
+                    new int[] {0},
+                    new TypeComparator<?>[] {new IntComparator(true)},
+                    new TypeSerializer<?>[] {IntSerializer.INSTANCE});
 
-	@Test
-	public void testOversizedRecordCombineTask() {
-		try {
-			final int keyCnt = 100;
-			final int valCnt = 20;
-			
-			// create a long heavy string payload
-			StringBuilder bld = new StringBuilder(10 * 1024 * 1024);
-			Random rnd = new Random();
-			
-			for (int i = 0; i < 10000000; i++) {
-				bld.append((char) (rnd.nextInt(26) + 'a'));
-			}
-			
-			String longString = bld.toString();
-			bld = null;
+    // ------------------------------------------------------------------------
 
-			// construct the input as a union of
-			// 1) long string
-			// 2) some random values
-			// 3) long string
-			// 4) random values
-			// 5) long string
-			
-			// random values 1
-			MutableObjectIterator<Tuple2<Integer, Integer>> gen1 = 
-				new UniformIntTupleGenerator(keyCnt, valCnt, false);
+    public CombinerOversizedRecordsTest(ExecutionConfig config) {
+        super(config, COMBINE_MEM, 0);
+        combine_frac = (double) COMBINE_MEM / getMemoryManager().getMemorySize();
+    }
 
-			// random values 2
-			MutableObjectIterator<Tuple2<Integer, Integer>> gen2 =
-					new UniformIntTupleGenerator(keyCnt, valCnt, false);
+    @Test
+    public void testOversizedRecordCombineTask() {
+        try {
+            final int keyCnt = 100;
+            final int valCnt = 20;
 
-			@SuppressWarnings("unchecked")
-			MutableObjectIterator<Tuple3<Integer, Integer, String>> input = 
-					new UnionIterator<Tuple3<Integer, Integer, String>>(
-							new SingleValueIterator<Tuple3<Integer, Integer, String>>(new Tuple3<Integer, Integer, String>(-1, -1, longString)),
-							new StringIteratorDecorator(gen1),
-							new SingleValueIterator<Tuple3<Integer, Integer, String>>(new Tuple3<Integer, Integer, String>(-1, -1, longString)),
-							new StringIteratorDecorator(gen2),
-							new SingleValueIterator<Tuple3<Integer, Integer, String>>(new Tuple3<Integer, Integer, String>(-1, -1, longString)));
-			
-			setInput(input, serializer);
-			addDriverComparator(this.comparator);
-			addDriverComparator(this.comparator);
-			setOutput(this.outList, this.outSerializer);
-	
-			getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
-			getTaskConfig().setRelativeMemoryDriver(combine_frac);
-			getTaskConfig().setFilehandlesDriver(2);
-	
-			GroupReduceCombineDriver<Tuple3<Integer, Integer, String>, Tuple3<Integer, Double, String>> testTask = 
-					new GroupReduceCombineDriver<Tuple3<Integer, Integer, String>, Tuple3<Integer, Double, String>>();
-			
-			testDriver(testTask, TestCombiner.class);
+            // create a long heavy string payload
+            StringBuilder bld = new StringBuilder(10 * 1024 * 1024);
+            Random rnd = new Random();
 
-			assertEquals(3, testTask.getOversizedRecordCount());
-			assertTrue(keyCnt + 3 == outList.size() || 2*keyCnt + 3 == outList.size());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            for (int i = 0; i < 10000000; i++) {
+                bld.append((char) (rnd.nextInt(26) + 'a'));
+            }
 
-	// ------------------------------------------------------------------------
-	
-	public static final class TestCombiner 
-			implements GroupCombineFunction<Tuple3<Integer, Integer, String>, Tuple3<Integer, Double, String>>
-	{
-		private static final long serialVersionUID = 1L;
-		
+            String longString = bld.toString();
+            bld = null;
 
-		@Override
-		public void combine(Iterable<Tuple3<Integer, Integer, String>> values,
-							Collector<Tuple3<Integer, Double, String>> out)
-		{
-			int key = 0;
-			int sum = 0;
-			String someString = null;
+            // construct the input as a union of
+            // 1) long string
+            // 2) some random values
+            // 3) long string
+            // 4) random values
+            // 5) long string
 
-			for (Tuple3<Integer, Integer, String> next : values) {
-				key = next.f0;
-				sum += next.f1;
-				someString = next.f2;
-			}
+            // random values 1
+            MutableObjectIterator<Tuple2<Integer, Integer>> gen1 =
+                    new UniformIntTupleGenerator(keyCnt, valCnt, false);
 
-			out.collect(new Tuple3<Integer, Double, String>(key, (double) sum, someString));
-		}
-	}
+            // random values 2
+            MutableObjectIterator<Tuple2<Integer, Integer>> gen2 =
+                    new UniformIntTupleGenerator(keyCnt, valCnt, false);
 
-	// ------------------------------------------------------------------------
-	
-	private static class StringIteratorDecorator implements MutableObjectIterator<Tuple3<Integer, Integer, String>> {
+            @SuppressWarnings("unchecked")
+            MutableObjectIterator<Tuple3<Integer, Integer, String>> input =
+                    new UnionIterator<Tuple3<Integer, Integer, String>>(
+                            new SingleValueIterator<Tuple3<Integer, Integer, String>>(
+                                    new Tuple3<Integer, Integer, String>(-1, -1, longString)),
+                            new StringIteratorDecorator(gen1),
+                            new SingleValueIterator<Tuple3<Integer, Integer, String>>(
+                                    new Tuple3<Integer, Integer, String>(-1, -1, longString)),
+                            new StringIteratorDecorator(gen2),
+                            new SingleValueIterator<Tuple3<Integer, Integer, String>>(
+                                    new Tuple3<Integer, Integer, String>(-1, -1, longString)));
 
-		private final MutableObjectIterator<Tuple2<Integer, Integer>> input;
+            setInput(input, serializer);
+            addDriverComparator(this.comparator);
+            addDriverComparator(this.comparator);
+            setOutput(this.outList, this.outSerializer);
 
-		private StringIteratorDecorator(MutableObjectIterator<Tuple2<Integer, Integer>> input) {
-			this.input = input;
-		}
+            getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
+            getTaskConfig().setRelativeMemoryDriver(combine_frac);
+            getTaskConfig().setFilehandlesDriver(2);
 
-		@Override
-		public Tuple3<Integer, Integer, String> next(Tuple3<Integer, Integer, String> reuse) throws IOException {
-			Tuple2<Integer, Integer> next = input.next();
-			if (next == null) {
-				return null;
-			}
-			else {
-				reuse.f0 = next.f0;
-				reuse.f1 = next.f1;
-				reuse.f2 = "test string";
-				return reuse;
-			}
-		}
+            GroupReduceCombineDriver<
+                            Tuple3<Integer, Integer, String>, Tuple3<Integer, Double, String>>
+                    testTask =
+                            new GroupReduceCombineDriver<
+                                    Tuple3<Integer, Integer, String>,
+                                    Tuple3<Integer, Double, String>>();
 
-		@Override
-		public Tuple3<Integer, Integer, String> next() throws IOException {
-			Tuple2<Integer, Integer> next = input.next();
-			if (next == null) {
-				return null;
-			}
-			else {
-				return new Tuple3<Integer, Integer, String>(next.f0, next.f1, "test string");
-			}
-		}
-	}
+            testDriver(testTask, TestCombiner.class);
 
-	// ------------------------------------------------------------------------
+            assertEquals(3, testTask.getOversizedRecordCount());
+            assertTrue(keyCnt + 3 == outList.size() || 2 * keyCnt + 3 == outList.size());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	private static class SingleValueIterator<T> implements MutableObjectIterator<T> {
-		
-		private final T value;
-		
-		private boolean pending = true;
+    // ------------------------------------------------------------------------
 
-		private SingleValueIterator(T value) {
-			this.value = value;
-		}
+    public static final class TestCombiner
+            implements GroupCombineFunction<
+                    Tuple3<Integer, Integer, String>, Tuple3<Integer, Double, String>> {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public T next(T reuse) {
-			return next();
-		}
+        @Override
+        public void combine(
+                Iterable<Tuple3<Integer, Integer, String>> values,
+                Collector<Tuple3<Integer, Double, String>> out) {
+            int key = 0;
+            int sum = 0;
+            String someString = null;
 
-		@Override
-		public T next() {
-			if (pending) {
-				pending = false;
-				return value;
-			} else {
-				return null;
-			}
-		}
-	}
+            for (Tuple3<Integer, Integer, String> next : values) {
+                key = next.f0;
+                sum += next.f1;
+                someString = next.f2;
+            }
+
+            out.collect(new Tuple3<Integer, Double, String>(key, (double) sum, someString));
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
+    private static class StringIteratorDecorator
+            implements MutableObjectIterator<Tuple3<Integer, Integer, String>> {
+
+        private final MutableObjectIterator<Tuple2<Integer, Integer>> input;
+
+        private StringIteratorDecorator(MutableObjectIterator<Tuple2<Integer, Integer>> input) {
+            this.input = input;
+        }
+
+        @Override
+        public Tuple3<Integer, Integer, String> next(Tuple3<Integer, Integer, String> reuse)
+                throws IOException {
+            Tuple2<Integer, Integer> next = input.next();
+            if (next == null) {
+                return null;
+            } else {
+                reuse.f0 = next.f0;
+                reuse.f1 = next.f1;
+                reuse.f2 = "test string";
+                return reuse;
+            }
+        }
+
+        @Override
+        public Tuple3<Integer, Integer, String> next() throws IOException {
+            Tuple2<Integer, Integer> next = input.next();
+            if (next == null) {
+                return null;
+            } else {
+                return new Tuple3<Integer, Integer, String>(next.f0, next.f1, "test string");
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
+    private static class SingleValueIterator<T> implements MutableObjectIterator<T> {
+
+        private final T value;
+
+        private boolean pending = true;
+
+        private SingleValueIterator(T value) {
+            this.value = value;
+        }
+
+        @Override
+        public T next(T reuse) {
+            return next();
+        }
+
+        @Override
+        public T next() {
+            if (pending) {
+                pending = false;
+                return value;
+            } else {
+                return null;
+            }
+        }
+    }
 }

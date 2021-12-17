@@ -38,125 +38,122 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * A FileSystem implementation for integration testing purposes. Supports and serves read-only content from static
- * key value map.
+ * A FileSystem implementation for integration testing purposes. Supports and serves read-only
+ * content from static key value map.
  */
 class DummyFSFileSystem extends FileSystem {
 
-	static final URI FS_URI = URI.create("dummy:///");
+    static final URI FS_URI = URI.create("dummy:///");
 
-	private static final String HOSTNAME = "localhost";
+    private final URI workingDir;
 
-	private final URI workingDir;
+    private final URI homeDir;
 
-	private final URI homeDir;
+    private final Map<String, byte[]> contents;
 
-	private final Map<String, byte[]> contents;
+    DummyFSFileSystem(Map<String, String> contents) {
+        this.workingDir = new File(System.getProperty("user.dir")).toURI();
+        this.homeDir = new File(System.getProperty("user.home")).toURI();
+        this.contents = convertToByteArrayMap(contents);
+    }
 
-	DummyFSFileSystem(Map<String, String> contents) {
-		this.workingDir = new File(System.getProperty("user.dir")).toURI();
-		this.homeDir = new File(System.getProperty("user.home")).toURI();
-		this.contents = convertToByteArrayMap(contents);
-	}
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
+    @Override
+    public URI getUri() {
+        return FS_URI;
+    }
 
-	@Override
-	public URI getUri() {
-		return FS_URI;
-	}
+    @Override
+    public Path getWorkingDirectory() {
+        return new Path(workingDir);
+    }
 
-	@Override
-	public Path getWorkingDirectory() {
-		return new Path(workingDir);
-	}
+    @Override
+    public Path getHomeDirectory() {
+        return new Path(homeDir);
+    }
 
-	@Override
-	public Path getHomeDirectory() {
-		return new Path(homeDir);
-	}
+    @Override
+    public boolean exists(Path f) throws IOException {
+        return getDataByPath(f) != null;
+    }
 
-	@Override
-	public boolean exists(Path f) throws IOException {
-		return getDataByPath(f) != null;
-	}
+    @Override
+    public FileStatus[] listStatus(final Path f) throws IOException {
+        byte[] data = getDataByPath(f);
+        if (data == null) {
+            return null;
+        }
+        return new FileStatus[] {new DummyFSFileStatus(f, data.length)};
+    }
 
-	@Override
-	public FileStatus[] listStatus(final Path f) throws IOException {
-		byte[] data = getDataByPath(f);
-		if (data == null) {
-			return null;
-		}
-		return new FileStatus[] { new DummyFSFileStatus(f, data.length) };
-	}
+    @Override
+    public BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len)
+            throws IOException {
+        return new BlockLocation[] {new LocalBlockLocation(file.getLen())};
+    }
 
-	@Override
-	public BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len) throws IOException {
-		return new BlockLocation[] {
-			new LocalBlockLocation(HOSTNAME, file.getLen())
-		};
-	}
+    @Override
+    public FileStatus getFileStatus(Path f) throws IOException {
+        byte[] data = getDataByPath(f);
+        if (data == null) {
+            throw new FileNotFoundException("File " + f + " does not exist.");
+        }
+        return new DummyFSFileStatus(f, data.length);
+    }
 
-	@Override
-	public FileStatus getFileStatus(Path f) throws IOException {
-		byte[] data = getDataByPath(f);
-		if (data == null) {
-			throw new FileNotFoundException("File " + f + " does not exist.");
-		}
-		return new DummyFSFileStatus(f, data.length);
-	}
+    @Override
+    public FSDataInputStream open(final Path f, final int bufferSize) throws IOException {
+        return open(f);
+    }
 
-	@Override
-	public FSDataInputStream open(final Path f, final int bufferSize) throws IOException {
-		return open(f);
-	}
+    @Override
+    public FSDataInputStream open(final Path f) throws IOException {
+        return DummyFSInputStream.create(getDataByPath(f));
+    }
 
-	@Override
-	public FSDataInputStream open(final Path f) throws IOException {
-		return DummyFSInputStream.create(getDataByPath(f));
-	}
+    @Override
+    public boolean delete(final Path path, final boolean recursive) throws IOException {
+        throw new UnsupportedOperationException("Dummy FS doesn't support delete operation");
+    }
 
-	@Override
-	public boolean delete(final Path path, final boolean recursive) throws IOException {
-		throw new UnsupportedOperationException("Dummy FS doesn't support delete operation");
-	}
+    @Override
+    public boolean mkdirs(final Path path) throws IOException {
+        throw new UnsupportedOperationException("Dummy FS doesn't support mkdirs operation");
+    }
 
-	@Override
-	public boolean mkdirs(final Path path) throws IOException {
-		throw new UnsupportedOperationException("Dummy FS doesn't support mkdirs operation");
-	}
+    @Override
+    public FSDataOutputStream create(final Path path, final WriteMode overwrite)
+            throws IOException {
+        throw new UnsupportedOperationException("Dummy FS doesn't support create operation");
+    }
 
-	@Override
-	public FSDataOutputStream create(final Path path, final WriteMode overwrite) throws IOException {
-		throw new UnsupportedOperationException("Dummy FS doesn't support create operation");
-	}
+    @Override
+    public boolean rename(final Path src, final Path dst) throws IOException {
+        throw new UnsupportedOperationException("Dummy FS doesn't support rename operation");
+    }
 
-	@Override
-	public boolean rename(final Path src, final Path dst) throws IOException {
-		throw new UnsupportedOperationException("Dummy FS doesn't support rename operation");
-	}
+    @Override
+    public boolean isDistributedFS() {
+        return true;
+    }
 
-	@Override
-	public boolean isDistributedFS() {
-		return true;
-	}
+    @Override
+    public FileSystemKind getKind() {
+        return FileSystemKind.OBJECT_STORE;
+    }
 
-	@Override
-	public FileSystemKind getKind() {
-		return FileSystemKind.OBJECT_STORE;
-	}
+    @Nullable
+    private byte[] getDataByPath(Path path) {
+        return contents.get(path.toUri().getPath());
+    }
 
-	@Nullable
-	private byte[] getDataByPath(Path path) {
-		return contents.get(path.toUri().getPath());
-	}
-
-	private static Map<String, byte[]> convertToByteArrayMap(Map<String, String> content) {
-		Map<String, byte[]> data = new HashMap<>();
-		Charset utf8 = Charset.forName("UTF-8");
-		content.entrySet().forEach(
-			entry -> data.put(entry.getKey(), entry.getValue().getBytes(utf8))
-		);
-		return data;
-	}
+    private static Map<String, byte[]> convertToByteArrayMap(Map<String, String> content) {
+        Map<String, byte[]> data = new HashMap<>();
+        Charset utf8 = Charset.forName("UTF-8");
+        content.entrySet()
+                .forEach(entry -> data.put(entry.getKey(), entry.getValue().getBytes(utf8)));
+        return data;
+    }
 }

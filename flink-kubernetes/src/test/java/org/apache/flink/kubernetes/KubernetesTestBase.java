@@ -18,175 +18,151 @@
 
 package org.apache.flink.kubernetes;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptionsInternal;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
-import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
 import org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
-import org.apache.flink.kubernetes.kubeclient.decorators.Decorator;
-import org.apache.flink.kubernetes.kubeclient.decorators.InitializerDecorator;
-import org.apache.flink.kubernetes.kubeclient.decorators.OwnerReferenceDecorator;
-import org.apache.flink.kubernetes.kubeclient.decorators.ServiceDecorator;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
-import io.fabric8.kubernetes.api.model.LoadBalancerIngress;
-import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
-import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.ServiceStatusBuilder;
-import io.fabric8.kubernetes.api.model.WatchEvent;
-import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.api.model.Config;
+import io.fabric8.kubernetes.api.model.ConfigBuilder;
+import io.fabric8.kubernetes.api.model.NamedClusterBuilder;
+import io.fabric8.kubernetes.api.model.NamedContextBuilder;
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
+import io.fabric8.kubernetes.client.utils.Serialization;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-/**
- * Base test class for Kubernetes.
- */
+/** Base test class for Kubernetes. */
 public class KubernetesTestBase extends TestLogger {
-	@Rule
-	public MixedKubernetesServer server = new MixedKubernetesServer(true, true);
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    protected static final String NAMESPACE = "test";
+    protected static final String CLUSTER_ID = "my-flink-cluster1";
+    protected static final String CONTAINER_IMAGE = "flink-k8s-test:latest";
+    protected static final String KEYTAB_FILE = "keytab";
+    protected static final String KRB5_CONF_FILE = "krb5.conf";
+    protected static final KubernetesConfigOptions.ImagePullPolicy CONTAINER_IMAGE_PULL_POLICY =
+            KubernetesConfigOptions.ImagePullPolicy.IfNotPresent;
+    protected static final int JOB_MANAGER_MEMORY = 768;
 
-	private File flinkConfDir;
+    @Rule public MixedKubernetesServer server = new MixedKubernetesServer(true, true);
 
-	protected static final String NAMESPACE = "test";
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	protected static final Configuration FLINK_CONFIG = new Configuration();
+    protected File flinkConfDir;
 
-	protected static final String CLUSTER_ID = "my-flink-cluster1";
+    protected File hadoopConfDir;
 
-	protected static final String CONTAINER_IMAGE = "flink-k8s-test:latest";
+    protected File kerberosDir;
 
-	protected static final String MOCK_SERVICE_ID = "mock-uuid-of-service";
+    protected final Configuration flinkConfig = new Configuration();
 
-	protected static final String MOCK_SERVICE_IP = "192.168.0.1";
+    protected NamespacedKubernetesClient kubeClient;
 
-	@Before
-	public void setUp() throws IOException {
-		FLINK_CONFIG.setString(KubernetesConfigOptions.NAMESPACE, NAMESPACE);
-		FLINK_CONFIG.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
-		FLINK_CONFIG.setString(KubernetesConfigOptions.CONTAINER_IMAGE, CONTAINER_IMAGE);
-		FLINK_CONFIG.setString(KubernetesConfigOptionsInternal.SERVICE_ID, MOCK_SERVICE_ID);
-		FLINK_CONFIG.setString(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, "main-class");
+    protected FlinkKubeClient flinkKubeClient;
 
-		flinkConfDir = temporaryFolder.newFolder().getAbsoluteFile();
-		BootstrapTools.writeConfiguration(new Configuration(), new File(flinkConfDir, "flink-conf.yaml"));
-		Map<String, String> map = new HashMap<>();
-		map.put(ConfigConstants.ENV_FLINK_CONF_DIR, flinkConfDir.toString());
-		TestBaseUtils.setEnv(map);
+    protected void setupFlinkConfig() {
+        flinkConfig.setString(KubernetesConfigOptions.NAMESPACE, NAMESPACE);
+        flinkConfig.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
+        flinkConfig.setString(KubernetesConfigOptions.CONTAINER_IMAGE, CONTAINER_IMAGE);
+        flinkConfig.set(
+                KubernetesConfigOptions.CONTAINER_IMAGE_PULL_POLICY, CONTAINER_IMAGE_PULL_POLICY);
+        flinkConfig.set(
+                JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(JOB_MANAGER_MEMORY));
+        flinkConfig.set(DeploymentOptionsInternal.CONF_DIR, flinkConfDir.toString());
+    }
 
-		// Set mock requests.
-		mockInternalServiceActionWatch();
-		mockRestServiceActionWatcher();
-		mockGetRestService();
-	}
+    protected void onSetup() throws Exception {}
 
-	protected FlinkKubeClient getFabric8FlinkKubeClient(){
-		return getFabric8FlinkKubeClient(FLINK_CONFIG);
-	}
+    @Before
+    public final void setup() throws Exception {
+        flinkConfDir = temporaryFolder.newFolder().getAbsoluteFile();
+        hadoopConfDir = temporaryFolder.newFolder().getAbsoluteFile();
+        kerberosDir = temporaryFolder.newFolder().getAbsoluteFile();
 
-	protected FlinkKubeClient getFabric8FlinkKubeClient(Configuration flinkConfig){
-		return new Fabric8FlinkKubeClient(flinkConfig, server.getClient().inNamespace(NAMESPACE));
-	}
+        setupFlinkConfig();
+        writeFlinkConfiguration();
 
-	protected KubernetesClient getKubeClient() {
-		return server.getClient().inNamespace(NAMESPACE);
-	}
+        kubeClient = server.getClient().inNamespace(NAMESPACE);
+        flinkKubeClient =
+                new Fabric8FlinkKubeClient(
+                        flinkConfig, kubeClient, Executors.newDirectExecutorService());
 
-	private void mockRestServiceActionWatcher() {
-		String serviceName = CLUSTER_ID + Constants.FLINK_REST_SERVICE_SUFFIX;
+        onSetup();
+    }
 
-		String path = String.format("/api/v1/namespaces/%s/services?fieldSelector=metadata.name%%3D%s&watch=true",
-			NAMESPACE, serviceName);
-		server.expect()
-			.withPath(path)
-			.andUpgradeToWebSocket()
-			.open()
-			.waitFor(1000)
-			.andEmit(new WatchEvent(getMockRestService(), "ADDED"))
-			.done()
-			.once();
-	}
+    @After
+    public void tearDown() throws Exception {
+        flinkKubeClient.close();
+    }
 
-	private void mockInternalServiceActionWatch() {
+    protected void writeFlinkConfiguration() throws IOException {
+        BootstrapTools.writeConfiguration(
+                this.flinkConfig, new File(flinkConfDir, "flink-conf.yaml"));
+    }
 
-		String path = String.format("/api/v1/namespaces/%s/services?fieldSelector=metadata.name%%3D%s&watch=true",
-			NAMESPACE, CLUSTER_ID);
-		server.expect()
-			.withPath(path)
-			.andUpgradeToWebSocket()
-			.open()
-			.waitFor(1000)
-			.andEmit(new WatchEvent(getMockInternalService(), "ADDED"))
-			.done()
-			.once();
-	}
+    protected Map<String, String> getCommonLabels() {
+        Map<String, String> labels = new HashMap<>();
+        labels.put(Constants.LABEL_TYPE_KEY, Constants.LABEL_TYPE_NATIVE_TYPE);
+        labels.put(Constants.LABEL_APP_KEY, CLUSTER_ID);
+        return labels;
+    }
 
-	private void mockGetRestService() {
-		String serviceName = CLUSTER_ID + Constants.FLINK_REST_SERVICE_SUFFIX;
+    protected void setHadoopConfDirEnv() {
+        Map<String, String> map = new HashMap<>();
+        map.put(Constants.ENV_HADOOP_CONF_DIR, hadoopConfDir.toString());
+        CommonTestUtils.setEnv(map, false);
+    }
 
-		String path = String.format("/api/v1/namespaces/%s/services/%s", NAMESPACE, serviceName);
-		server.expect()
-			.withPath(path)
-			.andReturn(200, getMockRestService())
-			.always();
-	}
+    protected void generateHadoopConfFileItems() throws IOException {
+        KubernetesTestUtils.createTemporyFile("some data", hadoopConfDir, "core-site.xml");
+        KubernetesTestUtils.createTemporyFile("some data", hadoopConfDir, "hdfs-site.xml");
+    }
 
-	private Service getMockRestService() {
-		List<Decorator<Service, KubernetesService>> restServiceDecorators = new ArrayList<>();
-		restServiceDecorators.add(new InitializerDecorator<>(CLUSTER_ID + Constants.FLINK_REST_SERVICE_SUFFIX));
-		String exposedType = FLINK_CONFIG.getString(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
-		restServiceDecorators.add(new ServiceDecorator(
-			KubernetesConfigOptions.ServiceExposedType.valueOf(exposedType), true));
-		restServiceDecorators.add(new OwnerReferenceDecorator<>());
+    protected void generateKerberosFileItems() throws IOException {
+        KubernetesTestUtils.createTemporyFile("some keytab", kerberosDir, KEYTAB_FILE);
+        KubernetesTestUtils.createTemporyFile("some conf", kerberosDir, KRB5_CONF_FILE);
+    }
 
-		KubernetesService kubernetesService = new KubernetesService(FLINK_CONFIG);
-		for (Decorator<Service, KubernetesService> d : restServiceDecorators) {
-			kubernetesService = d.decorate(kubernetesService);
-		}
-
-		Service service = kubernetesService.getInternalResource();
-		String mockServiceHostName = "mock-host-name-of-service";
-		service.setStatus(new ServiceStatusBuilder()
-			.withLoadBalancer(new LoadBalancerStatus(Collections.singletonList(
-			new LoadBalancerIngress(mockServiceHostName, MOCK_SERVICE_IP)))).build());
-		return service;
-	}
-
-	private Service getMockInternalService() {
-		List<Decorator<Service, KubernetesService>> internalServiceDecorators = new ArrayList<>();
-		internalServiceDecorators.add(new InitializerDecorator<>(CLUSTER_ID));
-		internalServiceDecorators.add(new ServiceDecorator(
-			KubernetesConfigOptions.ServiceExposedType.ClusterIP, true));
-
-		KubernetesService kubernetesService = new KubernetesService(FLINK_CONFIG);
-		for (Decorator<Service, KubernetesService> d : internalServiceDecorators) {
-			kubernetesService = d.decorate(kubernetesService);
-		}
-		kubernetesService.getInternalResource().getMetadata().setUid(MOCK_SERVICE_ID);
-		return kubernetesService.getInternalResource();
-	}
-
-	protected Map<String, String> getCommonLabels() {
-		Map<String, String> labels = new HashMap<>();
-		labels.put(Constants.LABEL_TYPE_KEY, Constants.LABEL_TYPE_NATIVE_TYPE);
-		labels.put(Constants.LABEL_APP_KEY, CLUSTER_ID);
-		return labels;
-	}
-
+    protected String writeKubeConfigForMockKubernetesServer() throws Exception {
+        final Config kubeConfig =
+                new ConfigBuilder()
+                        .withApiVersion(server.getClient().getApiVersion())
+                        .withClusters(
+                                new NamedClusterBuilder()
+                                        .withName(CLUSTER_ID)
+                                        .withNewCluster()
+                                        .withNewServer(server.getClient().getMasterUrl().toString())
+                                        .withInsecureSkipTlsVerify(true)
+                                        .endCluster()
+                                        .build())
+                        .withContexts(
+                                new NamedContextBuilder()
+                                        .withName(CLUSTER_ID)
+                                        .withNewContext()
+                                        .withCluster(CLUSTER_ID)
+                                        .withUser(
+                                                server.getClient().getConfiguration().getUsername())
+                                        .endContext()
+                                        .build())
+                        .withNewCurrentContext(CLUSTER_ID)
+                        .build();
+        final File kubeConfigFile = new File(temporaryFolder.newFolder(".kube"), "config");
+        Serialization.yamlMapper().writeValue(kubeConfigFile, kubeConfig);
+        return kubeConfigFile.getAbsolutePath();
+    }
 }

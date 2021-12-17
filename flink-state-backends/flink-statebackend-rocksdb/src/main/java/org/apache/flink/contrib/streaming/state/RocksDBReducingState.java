@@ -40,132 +40,133 @@ import java.util.Collection;
  * @param <N> The type of the namespace.
  * @param <V> The type of value that the state state stores.
  */
-class RocksDBReducingState<K, N, V>
-	extends AbstractRocksDBAppendingState<K, N, V, V, V>
-	implements InternalReducingState<K, N, V> {
+class RocksDBReducingState<K, N, V> extends AbstractRocksDBAppendingState<K, N, V, V, V>
+        implements InternalReducingState<K, N, V> {
 
-	/** User-specified reduce function. */
-	private final ReduceFunction<V> reduceFunction;
+    /** User-specified reduce function. */
+    private final ReduceFunction<V> reduceFunction;
 
-	/**
-	 * Creates a new {@code RocksDBReducingState}.
-	 *
-	 * @param columnFamily The RocksDB column family that this state is associated to.
-	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param valueSerializer The serializer for the state.
-	 * @param defaultValue The default value for the state.
-	 * @param reduceFunction The reduce function used for reducing state.
-	 * @param backend The backend for which this state is bind to.
-	 */
-	private RocksDBReducingState(ColumnFamilyHandle columnFamily,
-			TypeSerializer<N> namespaceSerializer,
-			TypeSerializer<V> valueSerializer,
-			V defaultValue,
-			ReduceFunction<V> reduceFunction,
-			RocksDBKeyedStateBackend<K> backend) {
+    /**
+     * Creates a new {@code RocksDBReducingState}.
+     *
+     * @param columnFamily The RocksDB column family that this state is associated to.
+     * @param namespaceSerializer The serializer for the namespace.
+     * @param valueSerializer The serializer for the state.
+     * @param defaultValue The default value for the state.
+     * @param reduceFunction The reduce function used for reducing state.
+     * @param backend The backend for which this state is bind to.
+     */
+    private RocksDBReducingState(
+            ColumnFamilyHandle columnFamily,
+            TypeSerializer<N> namespaceSerializer,
+            TypeSerializer<V> valueSerializer,
+            V defaultValue,
+            ReduceFunction<V> reduceFunction,
+            RocksDBKeyedStateBackend<K> backend) {
 
-		super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
-		this.reduceFunction = reduceFunction;
-	}
+        super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
+        this.reduceFunction = reduceFunction;
+    }
 
-	@Override
-	public TypeSerializer<K> getKeySerializer() {
-		return backend.getKeySerializer();
-	}
+    @Override
+    public TypeSerializer<K> getKeySerializer() {
+        return backend.getKeySerializer();
+    }
 
-	@Override
-	public TypeSerializer<N> getNamespaceSerializer() {
-		return namespaceSerializer;
-	}
+    @Override
+    public TypeSerializer<N> getNamespaceSerializer() {
+        return namespaceSerializer;
+    }
 
-	@Override
-	public TypeSerializer<V> getValueSerializer() {
-		return valueSerializer;
-	}
+    @Override
+    public TypeSerializer<V> getValueSerializer() {
+        return valueSerializer;
+    }
 
-	@Override
-	public V get() {
-		return getInternal();
-	}
+    @Override
+    public V get() {
+        return getInternal();
+    }
 
-	@Override
-	public void add(V value) throws Exception {
-		byte[] key = getKeyBytes();
-		V oldValue = getInternal(key);
-		V newValue = oldValue == null ? value : reduceFunction.reduce(oldValue, value);
-		updateInternal(key, newValue);
-	}
+    @Override
+    public void add(V value) throws Exception {
+        byte[] key = getKeyBytes();
+        V oldValue = getInternal(key);
+        V newValue = oldValue == null ? value : reduceFunction.reduce(oldValue, value);
+        updateInternal(key, newValue);
+    }
 
-	@Override
-	public void mergeNamespaces(N target, Collection<N> sources) {
-		if (sources == null || sources.isEmpty()) {
-			return;
-		}
+    @Override
+    public void mergeNamespaces(N target, Collection<N> sources) {
+        if (sources == null || sources.isEmpty()) {
+            return;
+        }
 
-		try {
-			V current = null;
+        try {
+            V current = null;
 
-			// merge the sources to the target
-			for (N source : sources) {
-				if (source != null) {
-					setCurrentNamespace(source);
-					final byte[] sourceKey = serializeCurrentKeyWithGroupAndNamespace();
-					final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
+            // merge the sources to the target
+            for (N source : sources) {
+                if (source != null) {
+                    setCurrentNamespace(source);
+                    final byte[] sourceKey = serializeCurrentKeyWithGroupAndNamespace();
+                    final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
 
-					if (valueBytes != null) {
-						backend.db.delete(columnFamily, writeOptions, sourceKey);
-						dataInputView.setBuffer(valueBytes);
-						V value = valueSerializer.deserialize(dataInputView);
+                    if (valueBytes != null) {
+                        backend.db.delete(columnFamily, writeOptions, sourceKey);
+                        dataInputView.setBuffer(valueBytes);
+                        V value = valueSerializer.deserialize(dataInputView);
 
-						if (current != null) {
-							current = reduceFunction.reduce(current, value);
-						}
-						else {
-							current = value;
-						}
-					}
-				}
-			}
+                        if (current != null) {
+                            current = reduceFunction.reduce(current, value);
+                        } else {
+                            current = value;
+                        }
+                    }
+                }
+            }
 
-			// if something came out of merging the sources, merge it or write it to the target
-			if (current != null) {
-				// create the target full-binary-key
-				setCurrentNamespace(target);
-				final byte[] targetKey = serializeCurrentKeyWithGroupAndNamespace();
-				final byte[] targetValueBytes = backend.db.get(columnFamily, targetKey);
+            // if something came out of merging the sources, merge it or write it to the target
+            if (current != null) {
+                // create the target full-binary-key
+                setCurrentNamespace(target);
+                final byte[] targetKey = serializeCurrentKeyWithGroupAndNamespace();
+                final byte[] targetValueBytes = backend.db.get(columnFamily, targetKey);
 
-				if (targetValueBytes != null) {
-					dataInputView.setBuffer(targetValueBytes);
-					// target also had a value, merge
-					V value = valueSerializer.deserialize(dataInputView);
+                if (targetValueBytes != null) {
+                    dataInputView.setBuffer(targetValueBytes);
+                    // target also had a value, merge
+                    V value = valueSerializer.deserialize(dataInputView);
 
-					current = reduceFunction.reduce(current, value);
-				}
+                    current = reduceFunction.reduce(current, value);
+                }
 
-				// serialize the resulting value
-				dataOutputView.clear();
-				valueSerializer.serialize(current, dataOutputView);
+                // serialize the resulting value
+                dataOutputView.clear();
+                valueSerializer.serialize(current, dataOutputView);
 
-				// write the resulting value
-				backend.db.put(columnFamily, writeOptions, targetKey, dataOutputView.getCopyOfBuffer());
-			}
-		}
-		catch (Exception e) {
-			throw new FlinkRuntimeException("Error while merging state in RocksDB", e);
-		}
-	}
+                // write the resulting value
+                backend.db.put(
+                        columnFamily, writeOptions, targetKey, dataOutputView.getCopyOfBuffer());
+            }
+        } catch (Exception e) {
+            throw new FlinkRuntimeException("Error while merging state in RocksDB", e);
+        }
+    }
 
-	@SuppressWarnings("unchecked")
-	static <K, N, SV, S extends State, IS extends S> IS create(
-		StateDescriptor<S, SV> stateDesc,
-		Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult,
-		RocksDBKeyedStateBackend<K> backend) {
-		return (IS) new RocksDBReducingState<>(
-			registerResult.f0,
-			registerResult.f1.getNamespaceSerializer(),
-			registerResult.f1.getStateSerializer(),
-			stateDesc.getDefaultValue(),
-			((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction(),
-			backend);
-	}
+    @SuppressWarnings("unchecked")
+    static <K, N, SV, S extends State, IS extends S> IS create(
+            StateDescriptor<S, SV> stateDesc,
+            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+                    registerResult,
+            RocksDBKeyedStateBackend<K> backend) {
+        return (IS)
+                new RocksDBReducingState<>(
+                        registerResult.f0,
+                        registerResult.f1.getNamespaceSerializer(),
+                        registerResult.f1.getStateSerializer(),
+                        stateDesc.getDefaultValue(),
+                        ((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction(),
+                        backend);
+    }
 }

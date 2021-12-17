@@ -32,77 +32,70 @@ import javax.annotation.Nullable;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collections;
-import java.util.Set;
 
-/**
- * Simple factory for the S3 file system.
- */
+/** Simple factory for the S3 file system. */
 public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
 
-	// intentionally obfuscated to prevent relocations by the shade-plugin
-	private static final Set<String> PACKAGE_PREFIXES_TO_SHADE = Collections.singleton("com.UNSHADE.".replace("UNSHADE", "amazonaws"));
+    private static final String[] FLINK_CONFIG_PREFIXES = {"s3.", "presto.s3."};
 
-	private static final Set<String> CONFIG_KEYS_TO_SHADE = Collections.singleton("presto.s3.credentials-provider");
+    private static final String[][] MIRRORED_CONFIG_KEYS = {
+        {"presto.s3.access.key", "presto.s3.access-key"},
+        {"presto.s3.secret.key", "presto.s3.secret-key"},
+        {"presto.s3.path.style.access", "presto.s3.path-style-access"}
+    };
 
-	// keep this in sync with the relocation pattern applied to com.amazon in the shade-plugin configuration
-	private static final String FLINK_SHADING_PREFIX = "org.apache.flink.fs.s3base.shaded.";
+    public S3FileSystemFactory() {
+        super("Presto S3 File System", createHadoopConfigLoader());
+    }
 
-	private static final String[] FLINK_CONFIG_PREFIXES = { "s3.", "presto.s3." };
+    @Override
+    public String getScheme() {
+        return "s3";
+    }
 
-	private static final String[][] MIRRORED_CONFIG_KEYS = {
-			{ "presto.s3.access.key", "presto.s3.access-key" },
-			{ "presto.s3.secret.key", "presto.s3.secret-key" }
-	};
+    @VisibleForTesting
+    static HadoopConfigLoader createHadoopConfigLoader() {
+        return new HadoopConfigLoader(
+                FLINK_CONFIG_PREFIXES,
+                MIRRORED_CONFIG_KEYS,
+                "presto.s3.",
+                Collections.emptySet(),
+                Collections.emptySet(),
+                "");
+    }
 
-	public S3FileSystemFactory() {
-		super("Presto S3 File System", createHadoopConfigLoader());
-	}
+    @Override
+    protected org.apache.hadoop.fs.FileSystem createHadoopFileSystem() {
+        return new PrestoS3FileSystem();
+    }
 
-	@Override
-	public String getScheme() {
-		return "s3";
-	}
+    @Override
+    protected URI getInitURI(URI fsUri, org.apache.hadoop.conf.Configuration hadoopConfig) {
+        final String scheme = fsUri.getScheme();
+        final String authority = fsUri.getAuthority();
+        final URI initUri;
 
-	@VisibleForTesting
-	static HadoopConfigLoader createHadoopConfigLoader() {
-		return new HadoopConfigLoader(FLINK_CONFIG_PREFIXES, MIRRORED_CONFIG_KEYS,
-			"presto.s3.", PACKAGE_PREFIXES_TO_SHADE, CONFIG_KEYS_TO_SHADE, FLINK_SHADING_PREFIX);
-	}
+        if (scheme == null && authority == null) {
+            initUri = createURI("s3://s3.amazonaws.com");
+        } else if (scheme != null && authority == null) {
+            initUri = createURI(scheme + "://s3.amazonaws.com");
+        } else {
+            initUri = fsUri;
+        }
+        return initUri;
+    }
 
-	@Override
-	protected org.apache.hadoop.fs.FileSystem createHadoopFileSystem() {
-		return new PrestoS3FileSystem();
-	}
+    @Nullable
+    @Override
+    protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
+        return null;
+    }
 
-	@Override
-	protected URI getInitURI(URI fsUri, org.apache.hadoop.conf.Configuration hadoopConfig) {
-		final String scheme = fsUri.getScheme();
-		final String authority = fsUri.getAuthority();
-		final URI initUri;
-
-		if (scheme == null && authority == null) {
-			initUri = createURI("s3://s3.amazonaws.com");
-		}
-		else if (scheme != null && authority == null) {
-			initUri = createURI(scheme + "://s3.amazonaws.com");
-		}
-		else {
-			initUri = fsUri;
-		}
-		return initUri;
-	}
-
-	@Nullable
-	@Override
-	protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
-		return null;
-	}
-
-	private URI createURI(String str) {
-		try {
-			return new URI(str);
-		} catch (URISyntaxException e) {
-			throw new FlinkRuntimeException("Error in s3 aws URI - " + str, e);
-		}
-	}
+    private URI createURI(String str) {
+        try {
+            return new URI(str);
+        } catch (URISyntaxException e) {
+            throw new FlinkRuntimeException("Error in s3 aws URI - " + str, e);
+        }
+    }
 }

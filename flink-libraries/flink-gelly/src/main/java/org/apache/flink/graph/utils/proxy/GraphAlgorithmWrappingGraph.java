@@ -34,8 +34,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Base class for a mergeable {@link GraphAlgorithm} which wraps and returns a
- * result {@link Graph}.
+ * Base class for a mergeable {@link GraphAlgorithm} which wraps and returns a result {@link Graph}.
  *
  * @param <IN_K> input ID type
  * @param <IN_VV> input vertex value type
@@ -43,100 +42,102 @@ import java.util.Map;
  * @param <OUT_K> output ID type
  * @param <OUT_VV> output vertex value type
  * @param <OUT_EV> output edge value type
- *
  * @see GraphAlgorithmWrappingBase
  */
 public abstract class GraphAlgorithmWrappingGraph<IN_K, IN_VV, IN_EV, OUT_K, OUT_VV, OUT_EV>
-extends GraphAlgorithmWrappingBase<IN_K, IN_VV, IN_EV, Graph<OUT_K, OUT_VV, OUT_EV>> {
+        extends GraphAlgorithmWrappingBase<IN_K, IN_VV, IN_EV, Graph<OUT_K, OUT_VV, OUT_EV>> {
 
-	// each algorithm and input pair may map to multiple configurations
-	private static Map<GraphAlgorithmWrappingGraph, List<GraphAlgorithmWrappingGraph>> cache =
-		Collections.synchronizedMap(new HashMap<GraphAlgorithmWrappingGraph, List<GraphAlgorithmWrappingGraph>>());
+    // each algorithm and input pair may map to multiple configurations
+    private static Map<GraphAlgorithmWrappingGraph, List<GraphAlgorithmWrappingGraph>> cache =
+            Collections.synchronizedMap(
+                    new HashMap<GraphAlgorithmWrappingGraph, List<GraphAlgorithmWrappingGraph>>());
 
-	private Graph<IN_K, IN_VV, IN_EV> input;
+    private Graph<IN_K, IN_VV, IN_EV> input;
 
-	private NoOpOperator<Vertex<OUT_K, OUT_VV>> verticesWrappingOperator;
+    private NoOpOperator<Vertex<OUT_K, OUT_VV>> verticesWrappingOperator;
 
-	private NoOpOperator<Edge<OUT_K, OUT_EV>> edgesWrappingOperator;
+    private NoOpOperator<Edge<OUT_K, OUT_EV>> edgesWrappingOperator;
 
-	/**
-	 * The implementation of the algorithm, renamed from {@link GraphAlgorithm#run(Graph)}.
-	 *
-	 * @param input the input graph
-	 * @return the algorithm's output
-	 * @throws Exception
-	 */
-	protected abstract Graph<OUT_K, OUT_VV, OUT_EV> runInternal(Graph<IN_K, IN_VV, IN_EV> input) throws Exception;
+    /**
+     * The implementation of the algorithm, renamed from {@link GraphAlgorithm#run(Graph)}.
+     *
+     * @param input the input graph
+     * @return the algorithm's output
+     * @throws Exception
+     */
+    protected abstract Graph<OUT_K, OUT_VV, OUT_EV> runInternal(Graph<IN_K, IN_VV, IN_EV> input)
+            throws Exception;
 
-	@Override
-	public final int hashCode() {
-		return new HashCodeBuilder(17, 37)
-			.append(input)
-			.append(getAlgorithmName())
-			.toHashCode();
-	}
+    @Override
+    public final int hashCode() {
+        return new HashCodeBuilder(17, 37).append(input).append(getAlgorithmName()).toHashCode();
+    }
 
-	@Override
-	public final boolean equals(Object obj) {
-		if (obj == null) {
-			return false;
-		}
+    @Override
+    public final boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
 
-		if (obj == this) {
-			return true;
-		}
+        if (obj == this) {
+            return true;
+        }
 
-		if (!GraphAlgorithmWrappingGraph.class.isAssignableFrom(obj.getClass())) {
-			return false;
-		}
+        if (!GraphAlgorithmWrappingGraph.class.isAssignableFrom(obj.getClass())) {
+            return false;
+        }
 
-		GraphAlgorithmWrappingGraph rhs = (GraphAlgorithmWrappingGraph) obj;
+        GraphAlgorithmWrappingGraph rhs = (GraphAlgorithmWrappingGraph) obj;
 
-		return new EqualsBuilder()
-			.append(input, rhs.input)
-			.append(getAlgorithmName(), rhs.getAlgorithmName())
-			.isEquals();
-	}
+        return new EqualsBuilder()
+                .append(input, rhs.input)
+                .append(getAlgorithmName(), rhs.getAlgorithmName())
+                .isEquals();
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public final Graph<OUT_K, OUT_VV, OUT_EV> run(Graph<IN_K, IN_VV, IN_EV> input)
-			throws Exception {
-		this.input = input;
+    @Override
+    @SuppressWarnings("unchecked")
+    public final Graph<OUT_K, OUT_VV, OUT_EV> run(Graph<IN_K, IN_VV, IN_EV> input)
+            throws Exception {
+        this.input = input;
 
-		if (cache.containsKey(this)) {
-			for (GraphAlgorithmWrappingGraph<IN_K, IN_VV, IN_EV, OUT_K, OUT_VV, OUT_EV> other : cache.get(this)) {
-				if (canMergeConfigurationWith(other)) {
-					mergeConfiguration(other);
+        if (cache.containsKey(this)) {
+            for (GraphAlgorithmWrappingGraph<IN_K, IN_VV, IN_EV, OUT_K, OUT_VV, OUT_EV> other :
+                    cache.get(this)) {
+                if (canMergeConfigurationWith(other)) {
+                    mergeConfiguration(other);
 
-					// configuration has been merged so generate new output
-					Graph<OUT_K, OUT_VV, OUT_EV> output = runInternal(input);
+                    // configuration has been merged so generate new output
+                    Graph<OUT_K, OUT_VV, OUT_EV> output = runInternal(input);
 
-					other.verticesWrappingOperator.setInput(output.getVertices());
-					other.edgesWrappingOperator.setInput(output.getEdges());
+                    other.verticesWrappingOperator.setInput(output.getVertices());
+                    other.edgesWrappingOperator.setInput(output.getEdges());
 
-					verticesWrappingOperator = other.verticesWrappingOperator;
-					edgesWrappingOperator = other.edgesWrappingOperator;
+                    verticesWrappingOperator = other.verticesWrappingOperator;
+                    edgesWrappingOperator = other.edgesWrappingOperator;
 
-					return Graph.fromDataSet(verticesWrappingOperator, edgesWrappingOperator, output.getContext());
-				}
-			}
-		}
+                    return Graph.fromDataSet(
+                            verticesWrappingOperator, edgesWrappingOperator, output.getContext());
+                }
+            }
+        }
 
-		// no mergeable configuration found so generate new output
-		Graph<OUT_K, OUT_VV, OUT_EV> output = runInternal(input);
+        // no mergeable configuration found so generate new output
+        Graph<OUT_K, OUT_VV, OUT_EV> output = runInternal(input);
 
-		// create a new operator to wrap the algorithm output
-		verticesWrappingOperator = new NoOpOperator<>(output.getVertices(), output.getVertices().getType());
-		edgesWrappingOperator = new NoOpOperator<>(output.getEdges(), output.getEdges().getType());
+        // create a new operator to wrap the algorithm output
+        verticesWrappingOperator =
+                new NoOpOperator<>(output.getVertices(), output.getVertices().getType());
+        edgesWrappingOperator = new NoOpOperator<>(output.getEdges(), output.getEdges().getType());
 
-		// cache this result
-		if (cache.containsKey(this)) {
-			cache.get(this).add(this);
-		} else {
-			cache.put(this, new ArrayList(Collections.singletonList(this)));
-		}
+        // cache this result
+        if (cache.containsKey(this)) {
+            cache.get(this).add(this);
+        } else {
+            cache.put(this, new ArrayList(Collections.singletonList(this)));
+        }
 
-		return Graph.fromDataSet(verticesWrappingOperator, edgesWrappingOperator, output.getContext());
-	}
+        return Graph.fromDataSet(
+                verticesWrappingOperator, edgesWrappingOperator, output.getContext());
+    }
 }

@@ -21,7 +21,10 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -29,139 +32,205 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
- * Simple container class which contains the raw/managed operator state and key-group state handles from all sub
- * tasks of an operator and therefore represents the complete state of a logical operator.
+ * Simple container class which contains the raw/managed operator state and key-group state handles
+ * from all sub tasks of an operator and therefore represents the complete state of a logical
+ * operator.
  */
 public class OperatorState implements CompositeStateHandle {
 
-	private static final long serialVersionUID = -4845578005863201810L;
+    private static final long serialVersionUID = -4845578005863201810L;
 
-	/** id of the operator */
-	private final OperatorID operatorID;
+    /** The id of the operator. */
+    private final OperatorID operatorID;
 
-	/** handles to non-partitioned states, subtaskindex -> subtaskstate */
-	private final Map<Integer, OperatorSubtaskState> operatorSubtaskStates;
+    /** The handles to states created by the parallel tasks: subtaskIndex -> subtaskstate. */
+    private final Map<Integer, OperatorSubtaskState> operatorSubtaskStates;
 
-	/** parallelism of the operator when it was checkpointed */
-	private final int parallelism;
+    /** The state of the operator coordinator. Null, if no such state exists. */
+    @Nullable private ByteStreamStateHandle coordinatorState;
 
-	/** maximum parallelism of the operator when the job was first created */
-	private final int maxParallelism;
+    /** The parallelism of the operator when it was checkpointed. */
+    private final int parallelism;
 
-	public OperatorState(OperatorID operatorID, int parallelism, int maxParallelism) {
-		Preconditions.checkArgument(
-			parallelism <= maxParallelism,
-			"Parallelism " + parallelism + " is not smaller or equal to max parallelism " + maxParallelism + ".");
+    /**
+     * The maximum parallelism (for number of keygroups) of the operator when the job was first
+     * created.
+     */
+    private final int maxParallelism;
 
-		this.operatorID = operatorID;
+    public OperatorState(OperatorID operatorID, int parallelism, int maxParallelism) {
+        if (parallelism > maxParallelism) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Parallelism %s is not smaller or equal to max parallelism %s.",
+                            parallelism, maxParallelism));
+        }
 
-		this.operatorSubtaskStates = new HashMap<>(parallelism);
+        this.operatorID = operatorID;
 
-		this.parallelism = parallelism;
-		this.maxParallelism = maxParallelism;
-	}
+        this.operatorSubtaskStates = new HashMap<>(parallelism);
 
-	public OperatorID getOperatorID() {
-		return operatorID;
-	}
+        this.parallelism = parallelism;
+        this.maxParallelism = maxParallelism;
+    }
 
-	public void putState(int subtaskIndex, OperatorSubtaskState subtaskState) {
-		Preconditions.checkNotNull(subtaskState);
+    public OperatorID getOperatorID() {
+        return operatorID;
+    }
 
-		if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
-			throw new IndexOutOfBoundsException("The given sub task index " + subtaskIndex +
-				" exceeds the maximum number of sub tasks " + operatorSubtaskStates.size());
-		} else {
-			operatorSubtaskStates.put(subtaskIndex, subtaskState);
-		}
-	}
+    public boolean isFullyFinished() {
+        return false;
+    }
 
-	public OperatorSubtaskState getState(int subtaskIndex) {
-		if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
-			throw new IndexOutOfBoundsException("The given sub task index " + subtaskIndex +
-				" exceeds the maximum number of sub tasks " + operatorSubtaskStates.size());
-		} else {
-			return operatorSubtaskStates.get(subtaskIndex);
-		}
-	}
+    public void putState(int subtaskIndex, OperatorSubtaskState subtaskState) {
+        Preconditions.checkNotNull(subtaskState);
 
-	public Collection<OperatorSubtaskState> getStates() {
-		return operatorSubtaskStates.values();
-	}
+        if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
+            throw new IndexOutOfBoundsException(
+                    "The given sub task index "
+                            + subtaskIndex
+                            + " exceeds the maximum number of sub tasks "
+                            + operatorSubtaskStates.size());
+        } else {
+            operatorSubtaskStates.put(subtaskIndex, subtaskState);
+        }
+    }
 
-	public int getNumberCollectedStates() {
-		return operatorSubtaskStates.size();
-	}
+    public OperatorSubtaskState getState(int subtaskIndex) {
+        if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
+            throw new IndexOutOfBoundsException(
+                    "The given sub task index "
+                            + subtaskIndex
+                            + " exceeds the maximum number of sub tasks "
+                            + operatorSubtaskStates.size());
+        } else {
+            return operatorSubtaskStates.get(subtaskIndex);
+        }
+    }
 
-	public int getParallelism() {
-		return parallelism;
-	}
+    public void setCoordinatorState(@Nullable ByteStreamStateHandle coordinatorState) {
+        checkState(this.coordinatorState == null, "coordinator state already set");
+        this.coordinatorState = coordinatorState;
+    }
 
-	public int getMaxParallelism() {
-		return maxParallelism;
-	}
+    @Nullable
+    public ByteStreamStateHandle getCoordinatorState() {
+        return coordinatorState;
+    }
 
-	@Override
-	public void discardState() throws Exception {
-		for (OperatorSubtaskState operatorSubtaskState : operatorSubtaskStates.values()) {
-			operatorSubtaskState.discardState();
-		}
-	}
+    public Map<Integer, OperatorSubtaskState> getSubtaskStates() {
+        return Collections.unmodifiableMap(operatorSubtaskStates);
+    }
 
-	@Override
-	public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
-		for (OperatorSubtaskState operatorSubtaskState : operatorSubtaskStates.values()) {
-			operatorSubtaskState.registerSharedStates(sharedStateRegistry);
-		}
-	}
+    public Collection<OperatorSubtaskState> getStates() {
+        return operatorSubtaskStates.values();
+    }
 
-	@Override
-	public long getStateSize() {
-		long result = 0L;
+    public int getNumberCollectedStates() {
+        return operatorSubtaskStates.size();
+    }
 
-		for (int i = 0; i < parallelism; i++) {
-			OperatorSubtaskState operatorSubtaskState = operatorSubtaskStates.get(i);
-			if (operatorSubtaskState != null) {
-				result += operatorSubtaskState.getStateSize();
-			}
-		}
+    public int getParallelism() {
+        return parallelism;
+    }
 
-		return result;
-	}
+    public int getMaxParallelism() {
+        return maxParallelism;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof OperatorState) {
-			OperatorState other = (OperatorState) obj;
+    public OperatorState copyAndDiscardInFlightData() {
+        OperatorState newState = new OperatorState(operatorID, parallelism, maxParallelism);
 
-			return operatorID.equals(other.operatorID)
-				&& parallelism == other.parallelism
-				&& operatorSubtaskStates.equals(other.operatorSubtaskStates);
-		} else {
-			return false;
-		}
-	}
+        for (Map.Entry<Integer, OperatorSubtaskState> originalSubtaskStateEntry :
+                operatorSubtaskStates.entrySet()) {
+            newState.putState(
+                    originalSubtaskStateEntry.getKey(),
+                    originalSubtaskStateEntry
+                            .getValue()
+                            .toBuilder()
+                            .setResultSubpartitionState(StateObjectCollection.empty())
+                            .setInputChannelState(StateObjectCollection.empty())
+                            .build());
+        }
 
-	@Override
-	public int hashCode() {
-		return parallelism + 31 * Objects.hash(operatorID, operatorSubtaskStates);
-	}
+        return newState;
+    }
 
-	public Map<Integer, OperatorSubtaskState> getSubtaskStates() {
-		return Collections.unmodifiableMap(operatorSubtaskStates);
-	}
+    @Override
+    public void discardState() throws Exception {
+        for (OperatorSubtaskState operatorSubtaskState : operatorSubtaskStates.values()) {
+            operatorSubtaskState.discardState();
+        }
 
-	@Override
-	public String toString() {
-		// KvStates are always null in 1.1. Don't print this as it might
-		// confuse users that don't care about how we store it internally.
-		return "OperatorState(" +
-			"operatorID: " + operatorID +
-			", parallelism: " + parallelism +
-			", maxParallelism: " + maxParallelism +
-			", sub task states: " + operatorSubtaskStates.size() +
-			", total size (bytes): " + getStateSize() +
-			')';
-	}
+        if (coordinatorState != null) {
+            coordinatorState.discardState();
+        }
+    }
+
+    @Override
+    public void registerSharedStates(SharedStateRegistry sharedStateRegistry, long checkpointID) {
+        for (OperatorSubtaskState operatorSubtaskState : operatorSubtaskStates.values()) {
+            operatorSubtaskState.registerSharedStates(sharedStateRegistry, checkpointID);
+        }
+    }
+
+    public boolean hasSubtaskStates() {
+        return operatorSubtaskStates.size() > 0;
+    }
+
+    @Override
+    public long getStateSize() {
+        long result = coordinatorState == null ? 0L : coordinatorState.getStateSize();
+
+        for (int i = 0; i < parallelism; i++) {
+            OperatorSubtaskState operatorSubtaskState = operatorSubtaskStates.get(i);
+            if (operatorSubtaskState != null) {
+                result += operatorSubtaskState.getStateSize();
+            }
+        }
+
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof OperatorState) {
+            OperatorState other = (OperatorState) obj;
+
+            return operatorID.equals(other.operatorID)
+                    && parallelism == other.parallelism
+                    && Objects.equals(coordinatorState, other.coordinatorState)
+                    && operatorSubtaskStates.equals(other.operatorSubtaskStates);
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public int hashCode() {
+        return parallelism + 31 * Objects.hash(operatorID, operatorSubtaskStates);
+    }
+
+    @Override
+    public String toString() {
+        // KvStates are always null in 1.1. Don't print this as it might
+        // confuse users that don't care about how we store it internally.
+        return "OperatorState("
+                + "operatorID: "
+                + operatorID
+                + ", parallelism: "
+                + parallelism
+                + ", maxParallelism: "
+                + maxParallelism
+                + ", coordinatorState: "
+                + (coordinatorState == null ? "(none)" : coordinatorState.getStateSize() + " bytes")
+                + ", sub task states: "
+                + operatorSubtaskStates.size()
+                + ", total size (bytes): "
+                + getStateSize()
+                + ')';
+    }
 }

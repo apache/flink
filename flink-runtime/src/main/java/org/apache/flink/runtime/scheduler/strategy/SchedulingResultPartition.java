@@ -23,23 +23,41 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.topology.Result;
 
-/**
- * Representation of {@link IntermediateResultPartition}.
- */
-public interface SchedulingResultPartition<V extends SchedulingExecutionVertex<V, R>, R extends SchedulingResultPartition<V, R>>
-	extends Result<ExecutionVertexID, IntermediateResultPartitionID, V, R> {
+import java.util.List;
 
-	/**
-	 * Gets id of the intermediate result.
-	 *
-	 * @return id of the intermediate result
-	 */
-	IntermediateDataSetID getResultId();
+/** Representation of {@link IntermediateResultPartition}. */
+public interface SchedulingResultPartition
+        extends Result<
+                ExecutionVertexID,
+                IntermediateResultPartitionID,
+                SchedulingExecutionVertex,
+                SchedulingResultPartition> {
 
-	/**
-	 * Gets the {@link ResultPartitionState}.
-	 *
-	 * @return result partition state
-	 */
-	ResultPartitionState getState();
+    /**
+     * Gets id of the intermediate result.
+     *
+     * @return id of the intermediate result
+     */
+    IntermediateDataSetID getResultId();
+
+    /**
+     * Gets the {@link ResultPartitionState}.
+     *
+     * @return result partition state
+     */
+    ResultPartitionState getState();
+
+    /**
+     * Gets the {@link ConsumerVertexGroup}s.
+     *
+     * @return list of {@link ConsumerVertexGroup}s
+     */
+    List<ConsumerVertexGroup> getConsumerVertexGroups();
+
+    /**
+     * Gets the {@link ConsumedPartitionGroup}s this partition belongs to.
+     *
+     * @return list of {@link ConsumedPartitionGroup}s
+     */
+    List<ConsumedPartitionGroup> getConsumedPartitionGroups();
 }

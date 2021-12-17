@@ -18,36 +18,50 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.throughput.BufferDebloatConfiguration;
 
-import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * A test input gate to mock reading data.
- */
+/** A test input gate to mock reading data. */
 public class TestSingleInputGate {
 
-	protected final SingleInputGate inputGate;
+    protected final SingleInputGate inputGate;
 
-	protected final TestInputChannel[] inputChannels;
+    protected final TestInputChannel[] inputChannels;
 
-	public TestSingleInputGate(int numberOfInputChannels, boolean initialize) {
-		checkArgument(numberOfInputChannels >= 1);
+    public TestSingleInputGate(int numberOfInputChannels, int gateIndex, boolean initialize) {
+        this(
+                numberOfInputChannels,
+                gateIndex,
+                initialize,
+                BufferDebloatConfiguration.fromConfiguration(new Configuration()));
+    }
 
-		inputGate = createSingleInputGate(numberOfInputChannels);
-		inputChannels = new TestInputChannel[numberOfInputChannels];
+    public TestSingleInputGate(
+            int numberOfInputChannels,
+            int gateIndex,
+            boolean initialize,
+            BufferDebloatConfiguration bufferDebloatConfiguration) {
+        checkArgument(numberOfInputChannels >= 1);
 
-		if (initialize) {
-			for (int i = 0; i < numberOfInputChannels; i++) {
-				inputChannels[i] = new TestInputChannel(inputGate, i);
-				inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannels[i]);
-			}
-		}
-	}
+        inputGate =
+                new SingleInputGateBuilder()
+                        .setNumberOfChannels(numberOfInputChannels)
+                        .setSingleInputGateIndex(gateIndex)
+                        .setBufferDebloatConfiguration(bufferDebloatConfiguration)
+                        .build();
+        inputChannels = new TestInputChannel[numberOfInputChannels];
 
-	public SingleInputGate getInputGate() {
-		return inputGate;
-	}
+        if (initialize) {
+            for (int i = 0; i < numberOfInputChannels; i++) {
+                inputChannels[i] = new TestInputChannel(inputGate, i);
+            }
+            inputGate.setInputChannels(inputChannels);
+        }
+    }
 
+    public SingleInputGate getInputGate() {
+        return inputGate;
+    }
 }

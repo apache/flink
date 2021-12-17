@@ -23,20 +23,17 @@ import org.apache.flink.api.common.JobID;
 import java.io.File;
 import java.io.IOException;
 
-/**
- * View on blobs stored in a {@link BlobStore}.
- */
+/** View on blobs stored in a {@link BlobStore}. */
 public interface BlobView {
 
-	/**
-	 * Copies a blob to a local file.
-	 *
-	 * @param jobId     ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
-	 * @param blobKey   The blob ID
-	 * @param localFile The local file to copy to
-	 *
-	 * @return whether the file was copied (<tt>true</tt>) or not (<tt>false</tt>)
-	 * @throws IOException If the copy fails
-	 */
-	boolean get(JobID jobId, BlobKey blobKey, File localFile) throws IOException;
+    /**
+     * Copies a blob to a local file.
+     *
+     * @param jobId ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
+     * @param blobKey The blob ID
+     * @param localFile The local file to copy to
+     * @return whether the file was copied (<tt>true</tt>) or not (<tt>false</tt>)
+     * @throws IOException If the copy fails
+     */
+    boolean get(JobID jobId, BlobKey blobKey, File localFile) throws IOException;
 }

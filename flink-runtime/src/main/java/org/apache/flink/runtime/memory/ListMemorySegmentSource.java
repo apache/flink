@@ -23,23 +23,20 @@ import org.apache.flink.core.memory.MemorySegmentSource;
 
 import java.util.List;
 
-/**
- * Simple memory segment source that draws segments from a list.
- *
- */
+/** Simple memory segment source that draws segments from a list. */
 public class ListMemorySegmentSource implements MemorySegmentSource {
-	private final List<MemorySegment> segments;
+    private final List<MemorySegment> segments;
 
-	public ListMemorySegmentSource(final List<MemorySegment> memorySegments) {
-		this.segments = memorySegments;
-	}
+    public ListMemorySegmentSource(final List<MemorySegment> memorySegments) {
+        this.segments = memorySegments;
+    }
 
-	@Override
-	public MemorySegment nextSegment() {
-		if (this.segments.size() > 0) {
-			return this.segments.remove(this.segments.size() - 1);
-		} else {
-			return null;
-		}
-	}
+    @Override
+    public MemorySegment nextSegment() {
+        if (this.segments.size() > 0) {
+            return this.segments.remove(this.segments.size() - 1);
+        } else {
+            return null;
+        }
+    }
 }

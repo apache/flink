@@ -28,10 +28,10 @@ import org.apache.flink.api.common.functions.MapFunction;
  */
 public class IdentityMapFunction<T> implements MapFunction<T, T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public T map(final T value) throws Exception {
-		return value;
-	}
+    @Override
+    public T map(final T value) throws Exception {
+        return value;
+    }
 }

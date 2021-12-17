@@ -21,34 +21,31 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.summarize.ObjectColumnSummary;
 
-/**
- * {@link Aggregator} that calculates statistics for {@link Object} values.
- */
+/** {@link Aggregator} that calculates statistics for {@link Object} values. */
 @Internal
 public class ObjectSummaryAggregator implements Aggregator<Object, ObjectColumnSummary> {
 
-	private long nonNullCount;
-	private long nullCount;
+    private long nonNullCount;
+    private long nullCount;
 
-	@Override
-	public void aggregate(Object value) {
-		if (value == null) {
-			nullCount++;
-		}
-		else {
-			nonNullCount++;
-		}
-	}
+    @Override
+    public void aggregate(Object value) {
+        if (value == null) {
+            nullCount++;
+        } else {
+            nonNullCount++;
+        }
+    }
 
-	@Override
-	public void combine(Aggregator<Object, ObjectColumnSummary> otherSameType) {
-		ObjectSummaryAggregator other = (ObjectSummaryAggregator) otherSameType;
-		nonNullCount += other.nonNullCount;
-		nullCount += other.nullCount;
-	}
+    @Override
+    public void combine(Aggregator<Object, ObjectColumnSummary> otherSameType) {
+        ObjectSummaryAggregator other = (ObjectSummaryAggregator) otherSameType;
+        nonNullCount += other.nonNullCount;
+        nullCount += other.nullCount;
+    }
 
-	@Override
-	public ObjectColumnSummary result() {
-		return new ObjectColumnSummary(nonNullCount, nullCount);
-	}
+    @Override
+    public ObjectColumnSummary result() {
+        return new ObjectColumnSummary(nonNullCount, nullCount);
+    }
 }

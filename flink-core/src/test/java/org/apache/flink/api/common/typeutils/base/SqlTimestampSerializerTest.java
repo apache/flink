@@ -18,41 +18,40 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.sql.Timestamp;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-/**
- * A test for the {@link SqlTimestampSerializer}.
- */
+import java.sql.Timestamp;
+
+/** A test for the {@link SqlTimestampSerializer}. */
 public class SqlTimestampSerializerTest extends SerializerTestBase<Timestamp> {
 
-	@Override
-	protected TypeSerializer<Timestamp> createSerializer() {
-		return new SqlTimestampSerializer();
-	}
+    @Override
+    protected TypeSerializer<Timestamp> createSerializer() {
+        return new SqlTimestampSerializer();
+    }
 
-	@Override
-	protected int getLength() {
-		return 12;
-	}
+    @Override
+    protected int getLength() {
+        return 12;
+    }
 
-	@Override
-	protected Class<Timestamp> getTypeClass() {
-		return Timestamp.class;
-	}
+    @Override
+    protected Class<Timestamp> getTypeClass() {
+        return Timestamp.class;
+    }
 
-	@Override
-	protected Timestamp[] getTestData() {
-		return new Timestamp[] {
-			new Timestamp(0L),
-			Timestamp.valueOf("1970-01-01 00:00:00.000"),
-			Timestamp.valueOf("1990-10-14 02:42:25.123"),
-			Timestamp.valueOf("1990-10-14 02:42:25.123000001"),
-			Timestamp.valueOf("1990-10-14 02:42:25.123000002"),
-			Timestamp.valueOf("2013-08-12 14:15:59.478"),
-			Timestamp.valueOf("2013-08-12 14:15:59.479"),
-			Timestamp.valueOf("2040-05-12 18:00:45.999")
-		};
-	}
+    @Override
+    protected Timestamp[] getTestData() {
+        return new Timestamp[] {
+            new Timestamp(0L),
+            Timestamp.valueOf("1970-01-01 00:00:00.000"),
+            Timestamp.valueOf("1990-10-14 02:42:25.123"),
+            Timestamp.valueOf("1990-10-14 02:42:25.123000001"),
+            Timestamp.valueOf("1990-10-14 02:42:25.123000002"),
+            Timestamp.valueOf("2013-08-12 14:15:59.478"),
+            Timestamp.valueOf("2013-08-12 14:15:59.479"),
+            Timestamp.valueOf("2040-05-12 18:00:45.999")
+        };
+    }
 }

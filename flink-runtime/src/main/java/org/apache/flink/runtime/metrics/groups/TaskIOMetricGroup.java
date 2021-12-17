@@ -19,14 +19,19 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.TimerGauge;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Metric group that contains shareable pre-defined IO-related metrics. The metrics registration is
@@ -34,95 +39,137 @@ import java.util.List;
  */
 public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
-	private final Counter numBytesIn;
-	private final Counter numBytesOut;
-	private final SumCounter numRecordsIn;
-	private final SumCounter numRecordsOut;
-	private final Counter numBuffersOut;
+    private final Counter numBytesIn;
+    private final Counter numBytesOut;
+    private final SumCounter numRecordsIn;
+    private final SumCounter numRecordsOut;
+    private final Counter numBuffersOut;
 
-	private final Meter numBytesInRate;
-	private final Meter numBytesOutRate;
-	private final Meter numRecordsInRate;
-	private final Meter numRecordsOutRate;
-	private final Meter numBuffersOutRate;
+    private final Meter numBytesInRate;
+    private final Meter numBytesOutRate;
+    private final Meter numRecordsInRate;
+    private final Meter numRecordsOutRate;
+    private final Meter numBuffersOutRate;
+    private final TimerGauge idleTimePerSecond;
+    private final Gauge busyTimePerSecond;
+    private final TimerGauge backPressuredTimePerSecond;
 
-	public TaskIOMetricGroup(TaskMetricGroup parent) {
-		super(parent);
+    private volatile boolean busyTimeEnabled;
 
-		this.numBytesIn = counter(MetricNames.IO_NUM_BYTES_IN);
-		this.numBytesOut = counter(MetricNames.IO_NUM_BYTES_OUT);
-		this.numBytesInRate = meter(MetricNames.IO_NUM_BYTES_IN_RATE, new MeterView(numBytesIn));
-		this.numBytesOutRate = meter(MetricNames.IO_NUM_BYTES_OUT_RATE, new MeterView(numBytesOut));
+    private final Map<IntermediateResultPartitionID, Counter> numBytesProducedOfPartitions =
+            new HashMap<>();
 
-		this.numRecordsIn = counter(MetricNames.IO_NUM_RECORDS_IN, new SumCounter());
-		this.numRecordsOut = counter(MetricNames.IO_NUM_RECORDS_OUT, new SumCounter());
-		this.numRecordsInRate = meter(MetricNames.IO_NUM_RECORDS_IN_RATE, new MeterView(numRecordsIn));
-		this.numRecordsOutRate = meter(MetricNames.IO_NUM_RECORDS_OUT_RATE, new MeterView(numRecordsOut));
+    public TaskIOMetricGroup(TaskMetricGroup parent) {
+        super(parent);
 
-		this.numBuffersOut = counter(MetricNames.IO_NUM_BUFFERS_OUT);
-		this.numBuffersOutRate = meter(MetricNames.IO_NUM_BUFFERS_OUT_RATE, new MeterView(numBuffersOut));
-	}
+        this.numBytesIn = counter(MetricNames.IO_NUM_BYTES_IN);
+        this.numBytesOut = counter(MetricNames.IO_NUM_BYTES_OUT);
+        this.numBytesInRate = meter(MetricNames.IO_NUM_BYTES_IN_RATE, new MeterView(numBytesIn));
+        this.numBytesOutRate = meter(MetricNames.IO_NUM_BYTES_OUT_RATE, new MeterView(numBytesOut));
 
-	public IOMetrics createSnapshot() {
-		return new IOMetrics(numRecordsInRate, numRecordsOutRate, numBytesInRate, numBytesOutRate);
-	}
+        this.numRecordsIn = counter(MetricNames.IO_NUM_RECORDS_IN, new SumCounter());
+        this.numRecordsOut = counter(MetricNames.IO_NUM_RECORDS_OUT, new SumCounter());
+        this.numRecordsInRate =
+                meter(MetricNames.IO_NUM_RECORDS_IN_RATE, new MeterView(numRecordsIn));
+        this.numRecordsOutRate =
+                meter(MetricNames.IO_NUM_RECORDS_OUT_RATE, new MeterView(numRecordsOut));
 
-	// ============================================================================================
-	// Getters
-	// ============================================================================================
+        this.numBuffersOut = counter(MetricNames.IO_NUM_BUFFERS_OUT);
+        this.numBuffersOutRate =
+                meter(MetricNames.IO_NUM_BUFFERS_OUT_RATE, new MeterView(numBuffersOut));
 
-	public Counter getNumBytesInCounter() {
-		return numBytesIn;
-	}
+        this.idleTimePerSecond = gauge(MetricNames.TASK_IDLE_TIME, new TimerGauge());
+        this.backPressuredTimePerSecond =
+                gauge(MetricNames.TASK_BACK_PRESSURED_TIME, new TimerGauge());
+        this.busyTimePerSecond = gauge(MetricNames.TASK_BUSY_TIME, this::getBusyTimePerSecond);
+    }
 
-	public Counter getNumBytesOutCounter() {
-		return numBytesOut;
-	}
+    public IOMetrics createSnapshot() {
+        return new IOMetrics(
+                numRecordsInRate,
+                numRecordsOutRate,
+                numBytesInRate,
+                numBytesOutRate,
+                numBytesProducedOfPartitions);
+    }
 
-	public Counter getNumRecordsInCounter() {
-		return numRecordsIn;
-	}
+    // ============================================================================================
+    // Getters
+    // ============================================================================================
 
-	public Counter getNumRecordsOutCounter() {
-		return numRecordsOut;
-	}
+    public Counter getNumBytesInCounter() {
+        return numBytesIn;
+    }
 
-	public Counter getNumBuffersOutCounter() {
-		return numBuffersOut;
-	}
+    public Counter getNumBytesOutCounter() {
+        return numBytesOut;
+    }
 
-	// ============================================================================================
-	// Metric Reuse
-	// ============================================================================================
-	public void reuseRecordsInputCounter(Counter numRecordsInCounter) {
-		this.numRecordsIn.addCounter(numRecordsInCounter);
-	}
+    public Counter getNumRecordsInCounter() {
+        return numRecordsIn;
+    }
 
-	public void reuseRecordsOutputCounter(Counter numRecordsOutCounter) {
-		this.numRecordsOut.addCounter(numRecordsOutCounter);
-	}
+    public Counter getNumRecordsOutCounter() {
+        return numRecordsOut;
+    }
 
-	/**
-	 * A {@link SimpleCounter} that can contain other {@link Counter}s. A call to {@link SumCounter#getCount()} returns
-	 * the sum of this counters and all contained counters.
-	 */
-	private static class SumCounter extends SimpleCounter {
-		private final List<Counter> internalCounters = new ArrayList<>();
+    public Counter getNumBuffersOutCounter() {
+        return numBuffersOut;
+    }
 
-		SumCounter() {
-		}
+    public TimerGauge getIdleTimeMsPerSecond() {
+        return idleTimePerSecond;
+    }
 
-		public void addCounter(Counter toAdd) {
-			internalCounters.add(toAdd);
-		}
+    public TimerGauge getBackPressuredTimePerSecond() {
+        return backPressuredTimePerSecond;
+    }
 
-		@Override
-		public long getCount() {
-			long sum = super.getCount();
-			for (Counter counter : internalCounters) {
-				sum += counter.getCount();
-			}
-			return sum;
-		}
-	}
+    public void setEnableBusyTime(boolean enabled) {
+        busyTimeEnabled = enabled;
+    }
+
+    private double getBusyTimePerSecond() {
+        double busyTime = idleTimePerSecond.getValue() + backPressuredTimePerSecond.getValue();
+        return busyTimeEnabled ? 1000.0 - Math.min(busyTime, 1000.0) : Double.NaN;
+    }
+
+    // ============================================================================================
+    // Metric Reuse
+    // ============================================================================================
+    public void reuseRecordsInputCounter(Counter numRecordsInCounter) {
+        this.numRecordsIn.addCounter(numRecordsInCounter);
+    }
+
+    public void reuseRecordsOutputCounter(Counter numRecordsOutCounter) {
+        this.numRecordsOut.addCounter(numRecordsOutCounter);
+    }
+
+    public void registerNumBytesProducedCounterForPartition(
+            IntermediateResultPartitionID resultPartitionId, Counter numBytesProducedCounter) {
+        this.numBytesProducedOfPartitions.put(resultPartitionId, numBytesProducedCounter);
+    }
+
+    /**
+     * A {@link SimpleCounter} that can contain other {@link Counter}s. A call to {@link
+     * SumCounter#getCount()} returns the sum of this counters and all contained counters.
+     */
+    private static class SumCounter extends SimpleCounter {
+        private final List<Counter> internalCounters = new ArrayList<>();
+
+        SumCounter() {}
+
+        public void addCounter(Counter toAdd) {
+            internalCounters.add(toAdd);
+        }
+
+        @Override
+        public long getCount() {
+            long sum = super.getCount();
+            for (Counter counter : internalCounters) {
+                sum += counter.getCount();
+            }
+            return sum;
+        }
+    }
 }

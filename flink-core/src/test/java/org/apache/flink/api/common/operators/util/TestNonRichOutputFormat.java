@@ -16,36 +16,33 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.util;
-
-import java.util.LinkedList;
-import java.util.List;
 
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
 
-/**
- * Non rich test output format which stores everything in a list.
- */
+import java.util.LinkedList;
+import java.util.List;
+
+/** Non rich test output format which stores everything in a list. */
 public class TestNonRichOutputFormat implements OutputFormat<String> {
-	public List<String> output = new LinkedList<String>();
+    public List<String> output = new LinkedList<String>();
 
-	@Override
-	public void configure(Configuration parameters){}
+    @Override
+    public void configure(Configuration parameters) {}
 
-	@Override
-	public void open(int a, int b){}
+    @Override
+    public void open(int a, int b) {}
 
-	@Override
-	public void close(){}
+    @Override
+    public void close() {}
 
-	@Override
-	public void writeRecord(String record){
-		output.add(record);
-	}
+    @Override
+    public void writeRecord(String record) {
+        output.add(record);
+    }
 
-	public void clear(){
-		output.clear();
-	}
+    public void clear() {
+        output.clear();
+    }
 }

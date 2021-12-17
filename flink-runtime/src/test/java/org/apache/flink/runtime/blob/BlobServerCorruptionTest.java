@@ -49,88 +49,86 @@ import static org.junit.Assert.assertTrue;
  */
 public class BlobServerCorruptionTest extends TestLogger {
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Rule
-	public final ExpectedException exception = ExpectedException.none();
+    @Rule public final ExpectedException exception = ExpectedException.none();
 
-	/**
-	 * Checks the GET operation fails when the downloaded file (from {@link BlobServer} or HA store)
-	 * is corrupt, i.e. its content's hash does not match the {@link BlobKey}'s hash.
-	 */
-	@Test
-	public void testGetFailsFromCorruptFile() throws IOException {
+    /**
+     * Checks the GET operation fails when the downloaded file (from {@link BlobServer} or HA store)
+     * is corrupt, i.e. its content's hash does not match the {@link BlobKey}'s hash.
+     */
+    @Test
+    public void testGetFailsFromCorruptFile() throws IOException {
 
-		final Configuration config = new Configuration();
-		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
+        final Configuration config = new Configuration();
+        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.setString(
+                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+        config.setString(
+                HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
 
-		BlobStoreService blobStoreService = null;
+        BlobStoreService blobStoreService = null;
 
-		try {
-			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
+        try {
+            blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
-			testGetFailsFromCorruptFile(config, blobStoreService, exception);
-		} finally {
-			if (blobStoreService != null) {
-				blobStoreService.closeAndCleanupAllData();
-			}
-		}
-	}
+            testGetFailsFromCorruptFile(config, blobStoreService, exception);
+        } finally {
+            if (blobStoreService != null) {
+                blobStoreService.closeAndCleanupAllData();
+            }
+        }
+    }
 
-	/**
-	 * Checks the GET operation fails when the downloaded file (from HA store)
-	 * is corrupt, i.e. its content's hash does not match the {@link BlobKey}'s hash.
-	 *
-	 * @param config
-	 * 		blob server configuration (including HA settings like {@link HighAvailabilityOptions#HA_STORAGE_PATH}
-	 * 		and {@link HighAvailabilityOptions#HA_CLUSTER_ID}) used to set up <tt>blobStore</tt>
-	 * @param blobStore
-	 * 		shared HA blob store to use
-	 * @param expectedException
-	 * 		expected exception rule to use
-	 */
-	public static void testGetFailsFromCorruptFile(
-			Configuration config, BlobStore blobStore, ExpectedException expectedException)
-			throws IOException {
+    /**
+     * Checks the GET operation fails when the downloaded file (from HA store) is corrupt, i.e. its
+     * content's hash does not match the {@link BlobKey}'s hash.
+     *
+     * @param config blob server configuration (including HA settings like {@link
+     *     HighAvailabilityOptions#HA_STORAGE_PATH} and {@link
+     *     HighAvailabilityOptions#HA_CLUSTER_ID}) used to set up <tt>blobStore</tt>
+     * @param blobStore shared HA blob store to use
+     * @param expectedException expected exception rule to use
+     */
+    public static void testGetFailsFromCorruptFile(
+            Configuration config, BlobStore blobStore, ExpectedException expectedException)
+            throws IOException {
 
-		Random rnd = new Random();
-		JobID jobId = new JobID();
+        Random rnd = new Random();
+        JobID jobId = new JobID();
 
-		try (BlobServer server = new BlobServer(config, blobStore)) {
+        try (BlobServer server = new BlobServer(config, blobStore)) {
 
-			server.start();
+            server.start();
 
-			byte[] data = new byte[2000000];
-			rnd.nextBytes(data);
+            byte[] data = new byte[2000000];
+            rnd.nextBytes(data);
 
-			// put content addressable (like libraries)
-			BlobKey key = put(server, jobId, data, PERMANENT_BLOB);
-			assertNotNull(key);
+            // put content addressable (like libraries)
+            BlobKey key = put(server, jobId, data, PERMANENT_BLOB);
+            assertNotNull(key);
 
-			// delete local file to make sure that the GET requests downloads from HA
-			File blobFile = server.getStorageLocation(jobId, key);
-			assertTrue(blobFile.delete());
+            // delete local file to make sure that the GET requests downloads from HA
+            File blobFile = server.getStorageLocation(jobId, key);
+            assertTrue(blobFile.delete());
 
-			// change HA store file contents to make sure that GET requests fail
-			byte[] data2 = Arrays.copyOf(data, data.length);
-			data2[0] ^= 1;
-			File tmpFile = Files.createTempFile("blob", ".jar").toFile();
-			try {
-				FileUtils.writeByteArrayToFile(tmpFile, data2);
-				blobStore.put(tmpFile, jobId, key);
-			} finally {
-				//noinspection ResultOfMethodCallIgnored
-				tmpFile.delete();
-			}
+            // change HA store file contents to make sure that GET requests fail
+            byte[] data2 = Arrays.copyOf(data, data.length);
+            data2[0] ^= 1;
+            File tmpFile = Files.createTempFile("blob", ".jar").toFile();
+            try {
+                FileUtils.writeByteArrayToFile(tmpFile, data2);
+                blobStore.put(tmpFile, jobId, key);
+            } finally {
+                //noinspection ResultOfMethodCallIgnored
+                tmpFile.delete();
+            }
 
-			// issue a GET request that fails
-			expectedException.expect(IOException.class);
-			expectedException.expectMessage("data corruption");
+            // issue a GET request that fails
+            expectedException.expect(IOException.class);
+            expectedException.expectMessage("data corruption");
 
-			get(server, jobId, key);
-		}
-	}
+            get(server, jobId, key);
+        }
+    }
 }

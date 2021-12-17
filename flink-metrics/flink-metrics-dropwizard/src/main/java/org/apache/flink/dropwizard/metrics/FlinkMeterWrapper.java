@@ -23,56 +23,55 @@ import org.apache.flink.metrics.Meter;
 import com.codahale.metrics.Clock;
 
 /**
- * Wrapper to use a Flink {@link Meter} as a Dropwizard {@link com.codahale.metrics.Meter}.
- * This is necessary to report Flink's meters via the Dropwizard
- * {@link com.codahale.metrics.Reporter}.
+ * Wrapper to use a Flink {@link Meter} as a Dropwizard {@link com.codahale.metrics.Meter}. This is
+ * necessary to report Flink's meters via the Dropwizard {@link com.codahale.metrics.Reporter}.
  */
 public class FlinkMeterWrapper extends com.codahale.metrics.Meter {
 
-	private final Meter meter;
+    private final Meter meter;
 
-	public FlinkMeterWrapper(Meter meter) {
-		super();
-		this.meter = meter;
-	}
+    public FlinkMeterWrapper(Meter meter) {
+        super();
+        this.meter = meter;
+    }
 
-	public FlinkMeterWrapper(Meter meter, Clock clock) {
-		super(clock);
-		this.meter = meter;
-	}
+    public FlinkMeterWrapper(Meter meter, Clock clock) {
+        super(clock);
+        this.meter = meter;
+    }
 
-	@Override
-	public void mark() {
-		meter.markEvent();
-	}
+    @Override
+    public void mark() {
+        meter.markEvent();
+    }
 
-	@Override
-	public void mark(long n) {
-		meter.markEvent(n);
-	}
+    @Override
+    public void mark(long n) {
+        meter.markEvent(n);
+    }
 
-	@Override
-	public long getCount() {
-		return meter.getCount();
-	}
+    @Override
+    public long getCount() {
+        return meter.getCount();
+    }
 
-	@Override
-	public double getOneMinuteRate() {
-		return meter.getRate();
-	}
+    @Override
+    public double getOneMinuteRate() {
+        return meter.getRate();
+    }
 
-	@Override
-	public double getFiveMinuteRate() {
-		return 0;
-	}
+    @Override
+    public double getFiveMinuteRate() {
+        return 0;
+    }
 
-	@Override
-	public double getFifteenMinuteRate() {
-		return 0;
-	}
+    @Override
+    public double getFifteenMinuteRate() {
+        return 0;
+    }
 
-	@Override
-	public double getMeanRate() {
-		return 0;
-	}
+    @Override
+    public double getMeanRate() {
+        return 0;
+    }
 }

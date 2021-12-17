@@ -29,55 +29,56 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 class InteractionsCountingTaskManagerGateway extends SimpleAckingTaskManagerGateway {
 
-	private final AtomicInteger cancelTaskCount = new AtomicInteger(0);
+    private final AtomicInteger cancelTaskCount = new AtomicInteger(0);
 
-	private final AtomicInteger submitTaskCount = new AtomicInteger(0);
+    private final AtomicInteger submitTaskCount = new AtomicInteger(0);
 
-	private CountDownLatch submitLatch;
+    private CountDownLatch submitLatch;
 
-	public InteractionsCountingTaskManagerGateway() {
-		submitLatch = new CountDownLatch(0);
-	}
+    public InteractionsCountingTaskManagerGateway() {
+        submitLatch = new CountDownLatch(0);
+    }
 
-	public InteractionsCountingTaskManagerGateway(final int expectedSubmitCount) {
-		this.submitLatch = new CountDownLatch(expectedSubmitCount);
-	}
+    public InteractionsCountingTaskManagerGateway(final int expectedSubmitCount) {
+        this.submitLatch = new CountDownLatch(expectedSubmitCount);
+    }
 
-	@Override
-	public CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
-		cancelTaskCount.incrementAndGet();
-		return CompletableFuture.completedFuture(Acknowledge.get());
-	}
+    @Override
+    public CompletableFuture<Acknowledge> cancelTask(
+            ExecutionAttemptID executionAttemptID, Time timeout) {
+        cancelTaskCount.incrementAndGet();
+        return CompletableFuture.completedFuture(Acknowledge.get());
+    }
 
-	@Override
-	public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
-		submitTaskCount.incrementAndGet();
-		submitLatch.countDown();
-		return CompletableFuture.completedFuture(Acknowledge.get());
-	}
+    @Override
+    public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
+        submitTaskCount.incrementAndGet();
+        submitLatch.countDown();
+        return CompletableFuture.completedFuture(Acknowledge.get());
+    }
 
-	void resetCounts() {
-		cancelTaskCount.set(0);
-		submitTaskCount.set(0);
-	}
+    void resetCounts() {
+        cancelTaskCount.set(0);
+        submitTaskCount.set(0);
+    }
 
-	int getCancelTaskCount() {
-		return cancelTaskCount.get();
-	}
+    int getCancelTaskCount() {
+        return cancelTaskCount.get();
+    }
 
-	int getSubmitTaskCount() {
-		return submitTaskCount.get();
-	}
+    int getSubmitTaskCount() {
+        return submitTaskCount.get();
+    }
 
-	int getInteractionsCount() {
-		return cancelTaskCount.get() + submitTaskCount.get();
-	}
+    int getInteractionsCount() {
+        return cancelTaskCount.get() + submitTaskCount.get();
+    }
 
-	void waitUntilAllTasksAreSubmitted() {
-		try {
-			submitLatch.await();
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-		}
-	}
+    void waitUntilAllTasksAreSubmitted() {
+        try {
+            submitLatch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
 }

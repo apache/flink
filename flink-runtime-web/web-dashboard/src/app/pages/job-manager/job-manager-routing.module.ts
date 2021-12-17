@@ -18,9 +18,13 @@
 
 import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
+
 import { JobManagerConfigurationComponent } from './configuration/job-manager-configuration.component';
 import { JobManagerComponent } from './job-manager.component';
+import { JobManagerLogDetailComponent } from './log-detail/job-manager-log-detail.component';
+import { JobManagerLogListComponent } from './log-list/job-manager-log-list.component';
 import { JobManagerLogsComponent } from './logs/job-manager-logs.component';
+import { JobManagerMetricsComponent } from './metrics/job-manager-metrics.component';
 import { JobManagerStdoutComponent } from './stdout/job-manager-stdout.component';
 
 const routes: Routes = [
@@ -28,6 +32,13 @@ const routes: Routes = [
     path: '',
     component: JobManagerComponent,
     children: [
+      {
+        path: 'metrics',
+        component: JobManagerMetricsComponent,
+        data: {
+          path: 'metrics'
+        }
+      },
       {
         path: 'config',
         component: JobManagerConfigurationComponent,
@@ -50,8 +61,22 @@ const routes: Routes = [
         }
       },
       {
+        path: 'log',
+        component: JobManagerLogListComponent,
+        data: {
+          path: 'log'
+        }
+      },
+      {
+        path: 'log/:logName',
+        component: JobManagerLogDetailComponent,
+        data: {
+          path: 'log'
+        }
+      },
+      {
         path: '**',
-        redirectTo: 'config',
+        redirectTo: 'metrics',
         pathMatch: 'full'
       }
     ]

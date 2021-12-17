@@ -58,16 +58,17 @@
 (defn find-files!
   "Lists files recursively given a directory. If the directory does not exist, an empty collection
   is returned."
-  [dir]
+  ([dir] (find-files! dir "*"))
+  ([dir name]
   (let [files (try
-                (c/exec :find dir :-type :f)
+                (c/exec :find dir :-type :f :-name (c/lit (str "\"" name "\"")))
                 (catch Exception e
                   (if (.contains (.getMessage e) "No such file or directory")
                     ""
                     (throw e))))]
     (->>
       (clojure.string/split files #"\n")
-      (remove clojure.string/blank?))))
+      (remove clojure.string/blank?)))))
 
 ;;; runit process supervisor (http://smarden.org/runit/)
 
@@ -133,7 +134,10 @@
 
 (defn- write-jstack!
   [pid out-path]
-  (c/exec :jstack :-l pid :> out-path))
+  (try
+    (c/exec :jstack :-l pid :> out-path)
+    (catch Exception e
+      (warn e "Failed to invoke jstack on pid" pid))))
 
 (defn dump-jstack-by-pattern!
   "Dumps the output of jstack for all JVMs that match one of the specified patterns."

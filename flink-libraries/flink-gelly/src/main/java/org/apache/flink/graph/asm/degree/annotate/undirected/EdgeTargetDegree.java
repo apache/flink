@@ -38,51 +38,51 @@ import org.apache.flink.types.LongValue;
  * @param <EV> edge value type
  */
 public class EdgeTargetDegree<K, VV, EV>
-extends GraphAlgorithmWrappingDataSet<K, VV, EV, Edge<K, Tuple2<EV, LongValue>>> {
+        extends GraphAlgorithmWrappingDataSet<K, VV, EV, Edge<K, Tuple2<EV, LongValue>>> {
 
-	// Optional configuration
-	private OptionalBoolean reduceOnSourceId = new OptionalBoolean(false, false);
+    // Optional configuration
+    private OptionalBoolean reduceOnSourceId = new OptionalBoolean(false, false);
 
-	/**
-	 * The degree can be counted from either the edge source or target IDs.
-	 * By default the target IDs are counted. Reducing on source IDs may
-	 * optimize the algorithm if the input edge list is sorted by source ID.
-	 *
-	 * @param reduceOnSourceId set to {@code true} if the input edge list
-	 *                         is sorted by target ID
-	 * @return this
-	 */
-	public EdgeTargetDegree<K, VV, EV> setReduceOnSourceId(boolean reduceOnSourceId) {
-		this.reduceOnSourceId.set(reduceOnSourceId);
+    /**
+     * The degree can be counted from either the edge source or target IDs. By default the target
+     * IDs are counted. Reducing on source IDs may optimize the algorithm if the input edge list is
+     * sorted by source ID.
+     *
+     * @param reduceOnSourceId set to {@code true} if the input edge list is sorted by target ID
+     * @return this
+     */
+    public EdgeTargetDegree<K, VV, EV> setReduceOnSourceId(boolean reduceOnSourceId) {
+        this.reduceOnSourceId.set(reduceOnSourceId);
 
-		return this;
-	}
+        return this;
+    }
 
-	@Override
-	protected void mergeConfiguration(GraphAlgorithmWrappingBase other) {
-		super.mergeConfiguration(other);
+    @Override
+    protected void mergeConfiguration(GraphAlgorithmWrappingBase other) {
+        super.mergeConfiguration(other);
 
-		EdgeTargetDegree rhs = (EdgeTargetDegree) other;
+        EdgeTargetDegree rhs = (EdgeTargetDegree) other;
 
-		reduceOnSourceId.mergeWith(rhs.reduceOnSourceId);
-	}
+        reduceOnSourceId.mergeWith(rhs.reduceOnSourceId);
+    }
 
-	@Override
-	public DataSet<Edge<K, Tuple2<EV, LongValue>>> runInternal(Graph<K, VV, EV> input)
-			throws Exception {
-		// t, d(t)
-		DataSet<Vertex<K, LongValue>> vertexDegrees = input
-			.run(new VertexDegree<K, VV, EV>()
-				.setReduceOnTargetId(!reduceOnSourceId.get())
-				.setParallelism(parallelism));
+    @Override
+    public DataSet<Edge<K, Tuple2<EV, LongValue>>> runInternal(Graph<K, VV, EV> input)
+            throws Exception {
+        // t, d(t)
+        DataSet<Vertex<K, LongValue>> vertexDegrees =
+                input.run(
+                        new VertexDegree<K, VV, EV>()
+                                .setReduceOnTargetId(!reduceOnSourceId.get())
+                                .setParallelism(parallelism));
 
-		// s, t, d(t)
-		return input.getEdges()
-			.join(vertexDegrees, JoinHint.REPARTITION_HASH_SECOND)
-			.where(1)
-			.equalTo(0)
-			.with(new JoinEdgeWithVertexDegree<>())
-				.setParallelism(parallelism)
-				.name("Edge target degree");
-	}
+        // s, t, d(t)
+        return input.getEdges()
+                .join(vertexDegrees, JoinHint.REPARTITION_HASH_SECOND)
+                .where(1)
+                .equalTo(0)
+                .with(new JoinEdgeWithVertexDegree<>())
+                .setParallelism(parallelism)
+                .name("Edge target degree");
+    }
 }

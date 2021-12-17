@@ -20,26 +20,25 @@ package org.apache.flink.runtime.io.disk.iomanager;
 
 import java.io.IOException;
 
-/**
- * A base class for synchronous readers and writers.
- */
+/** A base class for synchronous readers and writers. */
 public abstract class SynchronousFileIOChannel extends AbstractFileIOChannel {
-	
-	protected SynchronousFileIOChannel(FileIOChannel.ID channelID, boolean writeEnabled) throws IOException {
-		super(channelID, writeEnabled);
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public boolean isClosed() {
-		return !this.fileChannel.isOpen();
-	}
-	
-	@Override
-	public void close() throws IOException {
-		if (this.fileChannel.isOpen()) {
-			this.fileChannel.close();
-		}
-	}
+
+    protected SynchronousFileIOChannel(FileIOChannel.ID channelID, boolean writeEnabled)
+            throws IOException {
+        super(channelID, writeEnabled);
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    @Override
+    public boolean isClosed() {
+        return !this.fileChannel.isOpen();
+    }
+
+    @Override
+    public void close() throws IOException {
+        if (this.fileChannel.isOpen()) {
+            this.fileChannel.close();
+        }
+    }
 }

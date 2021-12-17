@@ -37,59 +37,57 @@ import java.util.List;
 
 import static org.junit.Assert.assertTrue;
 
-/**
- * Test the distributed cache.
- */
+/** Test the distributed cache. */
 public class DistributedCacheTest extends AbstractTestBase {
 
-	public static final String DATA =
-			"machen\n" +
-			"zeit\n" +
-			"heerscharen\n" +
-			"keiner\n" +
-			"meine\n";
+    public static final String DATA =
+            "machen\n" + "zeit\n" + "heerscharen\n" + "keiner\n" + "meine\n";
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Test
-	public void testStreamingDistributedCache() throws Exception {
-		String textPath = createTempFile("count.txt", DATA);
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.registerCachedFile(textPath, "cache_test");
-		env.readTextFile(textPath).flatMap(new WordChecker());
-		env.execute();
-	}
+    @Test
+    public void testStreamingDistributedCache() throws Exception {
+        String textPath = createTempFile("count.txt", DATA);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.registerCachedFile(textPath, "cache_test");
+        env.readTextFile(textPath).flatMap(new WordChecker());
+        env.execute();
+    }
 
-	@Test
-	public void testBatchDistributedCache() throws Exception {
-		String textPath = createTempFile("count.txt", DATA);
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.registerCachedFile(textPath, "cache_test");
-		env.readTextFile(textPath).flatMap(new WordChecker()).count();
-	}
+    @Test
+    public void testBatchDistributedCache() throws Exception {
+        String textPath = createTempFile("count.txt", DATA);
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.registerCachedFile(textPath, "cache_test");
+        env.readTextFile(textPath).flatMap(new WordChecker()).count();
+    }
 
-	private static class WordChecker extends RichFlatMapFunction<String, Tuple1<String>> {
-		private static final long serialVersionUID = 1L;
+    private static class WordChecker extends RichFlatMapFunction<String, Tuple1<String>> {
+        private static final long serialVersionUID = 1L;
 
-		private final List<String> wordList = new ArrayList<>();
+        private final List<String> wordList = new ArrayList<>();
 
-		@Override
-		public void open(Configuration conf) throws IOException {
-			File file = getRuntimeContext().getDistributedCache().getFile("cache_test");
-			try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-				String tempString;
-				while ((tempString = reader.readLine()) != null) {
-					wordList.add(tempString);
-				}
-			}
-		}
+        @Override
+        public void open(Configuration conf) throws IOException {
+            File file = getRuntimeContext().getDistributedCache().getFile("cache_test");
+            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                String tempString;
+                while ((tempString = reader.readLine()) != null) {
+                    wordList.add(tempString);
+                }
+            }
+        }
 
-		@Override
-		public void flatMap(String word, Collector<Tuple1<String>> out) throws Exception {
-			assertTrue("Unexpected word in stream! wordFromStream: " + word + ", shouldBeOneOf: " +
-				wordList.toString(), wordList.contains(word));
+        @Override
+        public void flatMap(String word, Collector<Tuple1<String>> out) throws Exception {
+            assertTrue(
+                    "Unexpected word in stream! wordFromStream: "
+                            + word
+                            + ", shouldBeOneOf: "
+                            + wordList.toString(),
+                    wordList.contains(word));
 
-			out.collect(new Tuple1<>(word));
-		}
-	}
+            out.collect(new Tuple1<>(word));
+        }
+    }
 }

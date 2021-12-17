@@ -17,13 +17,16 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnInit } from '@angular/core';
-import {
-  CheckPointCompletedStatisticsInterface,
-  CheckPointDetailInterface,
-  JobDetailCorrectInterface,
-  VerticesItemInterface
-} from 'interfaces';
+import { forkJoin } from 'rxjs';
 import { first } from 'rxjs/operators';
+
+import {
+  CheckpointCompletedStatistics,
+  CheckpointDetail,
+  JobDetailCorrect,
+  VerticesItem,
+  CheckpointConfig
+} from 'interfaces';
 import { JobService } from 'services';
 
 @Component({
@@ -33,33 +36,61 @@ import { JobService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobCheckpointsDetailComponent implements OnInit {
-  innerCheckPoint: CheckPointCompletedStatisticsInterface;
-  jobDetail: JobDetailCorrectInterface;
+  public readonly trackById = (_: number, node: VerticesItem): string => node.id;
+
+  public innerCheckPoint: CheckpointCompletedStatistics;
+  public jobDetail: JobDetailCorrect;
+  public checkPointType: string;
+
+  public checkPointDetail: CheckpointDetail;
+  public checkPointConfig: CheckpointConfig;
+  public listOfVertex: VerticesItem[] = [];
+  public isLoading = true;
 
   @Input()
-  set checkPoint(value) {
+  public set checkPoint(value) {
     this.innerCheckPoint = value;
     this.refresh();
   }
 
-  get checkPoint() {
+  public get checkPoint(): CheckpointCompletedStatistics {
     return this.innerCheckPoint;
   }
 
-  checkPointDetail: CheckPointDetailInterface;
-  listOfVertex: VerticesItemInterface[] = [];
-  isLoading = true;
+  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
 
-  trackVertexBy(_: number, node: VerticesItemInterface) {
-    return node.id;
+  public ngOnInit(): void {
+    this.jobService.jobDetail$.pipe(first()).subscribe(data => {
+      this.jobDetail = data;
+      this.listOfVertex = data!.vertices;
+      this.cdr.markForCheck();
+      this.refresh();
+    });
   }
 
-  refresh() {
+  public refresh(): void {
     this.isLoading = true;
     if (this.jobDetail && this.jobDetail.jid) {
-      this.jobService.loadCheckpointDetails(this.jobDetail.jid, this.checkPoint.id).subscribe(
-        data => {
-          this.checkPointDetail = data;
+      forkJoin([
+        this.jobService.loadCheckpointConfig(this.jobDetail.jid),
+        this.jobService.loadCheckpointDetails(this.jobDetail.jid, this.checkPoint.id)
+      ]).subscribe(
+        ([config, detail]) => {
+          this.checkPointConfig = config;
+          this.checkPointDetail = detail;
+          if (this.checkPointDetail.checkpoint_type === 'CHECKPOINT') {
+            if (this.checkPointConfig.unaligned_checkpoints) {
+              this.checkPointType = 'unaligned checkpoint';
+            } else {
+              this.checkPointType = 'aligned checkpoint';
+            }
+          } else if (this.checkPointDetail.checkpoint_type === 'SYNC_SAVEPOINT') {
+            this.checkPointType = 'savepoint on cancel';
+          } else if (this.checkPointDetail.checkpoint_type === 'SAVEPOINT') {
+            this.checkPointType = 'savepoint';
+          } else {
+            this.checkPointType = '-';
+          }
           this.isLoading = false;
           this.cdr.markForCheck();
         },
@@ -69,16 +100,5 @@ export class JobCheckpointsDetailComponent implements OnInit {
         }
       );
     }
-  }
-
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
-
-  ngOnInit() {
-    this.jobService.jobDetail$.pipe(first()).subscribe(data => {
-      this.jobDetail = data;
-      this.listOfVertex = data!.vertices;
-      this.cdr.markForCheck();
-      this.refresh();
-    });
   }
 }

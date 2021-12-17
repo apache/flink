@@ -27,15 +27,14 @@ import java.util.Optional;
  * Strategy for inferring the data type of a function call. The inferred type might describe the
  * final result or an intermediate result (accumulation type) of a function.
  *
- * <p>Note: Implementations should implement {@link Object#hashCode()} and {@link Object#equals(Object)}.
+ * <p>Note: Implementations should implement {@link Object#hashCode()} and {@link
+ * Object#equals(Object)}.
  *
  * @see TypeStrategies
  */
 @PublicEvolving
 public interface TypeStrategy {
 
-	/**
-	 * Infers a type from the given function call.
-	 */
-	Optional<DataType> inferType(CallContext callContext);
+    /** Infers a type from the given function call. */
+    Optional<DataType> inferType(CallContext callContext);
 }

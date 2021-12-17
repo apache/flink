@@ -18,20 +18,18 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-/**
- * Empty {@link ResponseBody} implementation.
- */
+/** Empty {@link ResponseBody} implementation. */
 public class EmptyResponseBody implements ResponseBody {
 
-	private static final EmptyResponseBody INSTANCE = new EmptyResponseBody();
+    private static final EmptyResponseBody INSTANCE = new EmptyResponseBody();
 
-	private EmptyResponseBody() {}
+    private EmptyResponseBody() {}
 
-	private Object readResolve() {
-		return INSTANCE;
-	}
+    private Object readResolve() {
+        return INSTANCE;
+    }
 
-	public static EmptyResponseBody getInstance() {
-		return INSTANCE;
-	}
+    public static EmptyResponseBody getInstance() {
+        return INSTANCE;
+    }
 }

@@ -23,35 +23,36 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import java.util.Iterator;
 
 /**
- * An iterator that returns messages. The iterator is {@link java.lang.Iterable} at the same time to support
- * the <i>foreach</i> syntax.
+ * An iterator that returns messages. The iterator is {@link java.lang.Iterable} at the same time to
+ * support the <i>foreach</i> syntax.
  */
-public final class MessageIterator<Message> implements Iterator<Message>, Iterable<Message>, java.io.Serializable {
-	private static final long serialVersionUID = 1L;
+public final class MessageIterator<Message>
+        implements Iterator<Message>, Iterable<Message>, java.io.Serializable {
+    private static final long serialVersionUID = 1L;
 
-	private transient Iterator<Tuple2<?, Message>> source;
+    private transient Iterator<Tuple2<?, Message>> source;
 
-	void setSource(Iterator<Tuple2<?, Message>> source) {
-		this.source = source;
-	}
+    void setSource(Iterator<Tuple2<?, Message>> source) {
+        this.source = source;
+    }
 
-	@Override
-	public final boolean hasNext() {
-		return this.source.hasNext();
-	}
+    @Override
+    public final boolean hasNext() {
+        return this.source.hasNext();
+    }
 
-	@Override
-	public final Message next() {
-		return this.source.next().f1;
-	}
+    @Override
+    public final Message next() {
+        return this.source.next().f1;
+    }
 
-	@Override
-	public final void remove() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public final void remove() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public Iterator<Message> iterator() {
-		return this;
-	}
+    @Override
+    public Iterator<Message> iterator() {
+        return this;
+    }
 }

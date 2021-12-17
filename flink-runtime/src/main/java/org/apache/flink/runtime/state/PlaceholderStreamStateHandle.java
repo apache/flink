@@ -21,32 +21,39 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
+import java.util.Optional;
+
 /**
- * A placeholder state handle for shared state that will replaced by an original that was
- * created in a previous checkpoint. So we don't have to send a state handle twice, e.g. in
- * case of {@link ByteStreamStateHandle}. This class is used in the referenced states of
- * {@link IncrementalRemoteKeyedStateHandle}.
+ * A placeholder state handle for shared state that will replaced by an original that was created in
+ * a previous checkpoint. So we don't have to send a state handle twice, e.g. in case of {@link
+ * ByteStreamStateHandle}. This class is used in the referenced states of {@link
+ * IncrementalRemoteKeyedStateHandle}.
  */
 public class PlaceholderStreamStateHandle implements StreamStateHandle {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public PlaceholderStreamStateHandle() {
-	}
+    public PlaceholderStreamStateHandle() {}
 
-	@Override
-	public FSDataInputStream openInputStream() {
-		throw new UnsupportedOperationException(
-			"This is only a placeholder to be replaced by a real StreamStateHandle in the checkpoint coordinator.");
-	}
+    @Override
+    public FSDataInputStream openInputStream() {
+        throw new UnsupportedOperationException(
+                "This is only a placeholder to be replaced by a real StreamStateHandle in the checkpoint coordinator.");
+    }
 
-	@Override
-	public void discardState() throws Exception {
-		// nothing to do.
-	}
+    @Override
+    public Optional<byte[]> asBytesIfInMemory() {
+        throw new UnsupportedOperationException(
+                "This is only a placeholder to be replaced by a real StreamStateHandle in the checkpoint coordinator.");
+    }
 
-	@Override
-	public long getStateSize() {
-		return 0L;
-	}
+    @Override
+    public void discardState() throws Exception {
+        // nothing to do.
+    }
+
+    @Override
+    public long getStateSize() {
+        return 0L;
+    }
 }

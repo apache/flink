@@ -18,51 +18,50 @@
 
 package org.apache.flink.runtime.iterative.concurrent;
 
-/**
- * Latch used to wait for the previous superstep to complete.
- */
+/** Latch used to wait for the previous superstep to complete. */
 public class SuperstepKickoffLatch {
 
-	private final Object monitor = new Object();
+    private final Object monitor = new Object();
 
-	private int superstepNumber = 1;
+    private int superstepNumber = 1;
 
-	private boolean terminated;
+    private boolean terminated;
 
-	public void triggerNextSuperstep() {
-		synchronized (monitor) {
-			if (terminated) {
-				throw new IllegalStateException("Already terminated.");
-			}
-			superstepNumber++;
-			monitor.notifyAll();
-		}
-	}
+    public void triggerNextSuperstep() {
+        synchronized (monitor) {
+            if (terminated) {
+                throw new IllegalStateException("Already terminated.");
+            }
+            superstepNumber++;
+            monitor.notifyAll();
+        }
+    }
 
-	public void signalTermination() {
-		synchronized (monitor) {
-			terminated = true;
-			monitor.notifyAll();
-		}
-	}
+    public void signalTermination() {
+        synchronized (monitor) {
+            terminated = true;
+            monitor.notifyAll();
+        }
+    }
 
-	public boolean awaitStartOfSuperstepOrTermination(int superstep) throws InterruptedException {
-		while (true) {
-			synchronized (monitor) {
-				if (terminated) {
-					return true;
-				}
-				else if (superstepNumber == superstep) {
-					// reached the superstep. all good!
-					return false;
-				}
-				else if (superstepNumber == superstep - 1) {
-					monitor.wait(2000);
-				}
-				else {
-					throw new IllegalStateException("Error while waiting for start of next superstep. current= " + superstepNumber + " waitingFor=" + superstep);
-				}
-			}
-		}
-	}
+    public boolean awaitStartOfSuperstepOrTermination(int superstep) throws InterruptedException {
+        while (true) {
+            synchronized (monitor) {
+                if (terminated) {
+                    return true;
+                } else if (superstepNumber == superstep) {
+                    // reached the superstep. all good!
+                    return false;
+                } else if (superstepNumber == superstep - 1) {
+                    monitor.wait(2000);
+                } else {
+                    throw new IllegalStateException(
+                            "Error while waiting for start of next superstep. current= "
+                                    + superstepNumber
+                                    + " waitingFor="
+                                    + superstep);
+                }
+            }
+        }
+    }
 }

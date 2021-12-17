@@ -23,43 +23,52 @@ import org.apache.flink.types.IntValue;
 
 import org.junit.Assert;
 
-/**
- * Tests for {@link ValueSummaryAggregator.IntegerValueSummaryAggregator}.
- */
+/** Tests for {@link ValueSummaryAggregator.IntegerValueSummaryAggregator}. */
 public class IntegerValueSummaryAggregatorTest extends IntegerSummaryAggregatorTest {
 
-	@Override
-	protected NumericColumnSummary<Integer> summarize(Integer... values) {
+    @Override
+    protected NumericColumnSummary<Integer> summarize(Integer... values) {
 
-		IntValue[] intValues = new IntValue[values.length];
-		for (int i = 0; i < values.length; i++) {
-			if (values[i] != null) {
-				intValues[i] = new IntValue(values[i]);
-			}
-		}
+        IntValue[] intValues = new IntValue[values.length];
+        for (int i = 0; i < values.length; i++) {
+            if (values[i] != null) {
+                intValues[i] = new IntValue(values[i]);
+            }
+        }
 
-		return new AggregateCombineHarness<IntValue, NumericColumnSummary<Integer>, ValueSummaryAggregator.IntegerValueSummaryAggregator>() {
+        return new AggregateCombineHarness<
+                IntValue,
+                NumericColumnSummary<Integer>,
+                ValueSummaryAggregator.IntegerValueSummaryAggregator>() {
 
-			@Override
-			protected void compareResults(NumericColumnSummary<Integer> result1, NumericColumnSummary<Integer> result2) {
+            @Override
+            protected void compareResults(
+                    NumericColumnSummary<Integer> result1, NumericColumnSummary<Integer> result2) {
 
-				Assert.assertEquals(result1.getTotalCount(), result2.getTotalCount());
-				Assert.assertEquals(result1.getNullCount(), result2.getNullCount());
-				Assert.assertEquals(result1.getMissingCount(), result2.getMissingCount());
-				Assert.assertEquals(result1.getNonMissingCount(), result2.getNonMissingCount());
-				Assert.assertEquals(result1.getInfinityCount(), result2.getInfinityCount());
-				Assert.assertEquals(result1.getNanCount(), result2.getNanCount());
+                Assert.assertEquals(result1.getTotalCount(), result2.getTotalCount());
+                Assert.assertEquals(result1.getNullCount(), result2.getNullCount());
+                Assert.assertEquals(result1.getMissingCount(), result2.getMissingCount());
+                Assert.assertEquals(result1.getNonMissingCount(), result2.getNonMissingCount());
+                Assert.assertEquals(result1.getInfinityCount(), result2.getInfinityCount());
+                Assert.assertEquals(result1.getNanCount(), result2.getNanCount());
 
-				Assert.assertEquals(result1.containsNull(), result2.containsNull());
-				Assert.assertEquals(result1.containsNonNull(), result2.containsNonNull());
+                Assert.assertEquals(result1.containsNull(), result2.containsNull());
+                Assert.assertEquals(result1.containsNonNull(), result2.containsNonNull());
 
-				Assert.assertEquals(result1.getMin().intValue(), result2.getMin().intValue());
-				Assert.assertEquals(result1.getMax().intValue(), result2.getMax().intValue());
-				Assert.assertEquals(result1.getSum().intValue(), result2.getSum().intValue());
-				Assert.assertEquals(result1.getMean().doubleValue(), result2.getMean().doubleValue(), 1e-12d);
-				Assert.assertEquals(result1.getVariance().doubleValue(), result2.getVariance().doubleValue(), 1e-9d);
-				Assert.assertEquals(result1.getStandardDeviation().doubleValue(), result2.getStandardDeviation().doubleValue(), 1e-12d);
-			}
-		}.summarize(intValues);
-	}
+                Assert.assertEquals(result1.getMin().intValue(), result2.getMin().intValue());
+                Assert.assertEquals(result1.getMax().intValue(), result2.getMax().intValue());
+                Assert.assertEquals(result1.getSum().intValue(), result2.getSum().intValue());
+                Assert.assertEquals(
+                        result1.getMean().doubleValue(), result2.getMean().doubleValue(), 1e-12d);
+                Assert.assertEquals(
+                        result1.getVariance().doubleValue(),
+                        result2.getVariance().doubleValue(),
+                        1e-9d);
+                Assert.assertEquals(
+                        result1.getStandardDeviation().doubleValue(),
+                        result2.getStandardDeviation().doubleValue(),
+                        1e-12d);
+            }
+        }.summarize(intValues);
+    }
 }

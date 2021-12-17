@@ -44,173 +44,192 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-/**
- * Tests for {@link AsynchronousBufferFileWriter}.
- */
+/** Tests for {@link AsynchronousBufferFileWriter}. */
 public class AsynchronousBufferFileWriterTest {
-	@Rule
-	public ExpectedException exception = ExpectedException.none();
+    @Rule public ExpectedException exception = ExpectedException.none();
 
-	private static final IOManager ioManager = new IOManagerAsync();
+    private static final IOManager ioManager = new IOManagerAsync();
 
-	private static final Buffer mockBuffer = mock(Buffer.class);
+    private static final Buffer mockBuffer = mock(Buffer.class);
 
-	private AsynchronousBufferFileWriter writer;
+    private AsynchronousBufferFileWriter writer;
 
-	@AfterClass
-	public static void shutdown() throws Exception {
-		ioManager.close();
-	}
+    @AfterClass
+    public static void shutdown() throws Exception {
+        ioManager.close();
+    }
 
-	@Before
-	public void setUp() throws IOException {
-		writer = new AsynchronousBufferFileWriter(ioManager.createChannel(), new RequestQueue<WriteRequest>());
-	}
+    @Before
+    public void setUp() throws IOException {
+        writer =
+                new AsynchronousBufferFileWriter(
+                        ioManager.createChannel(), new RequestQueue<WriteRequest>());
+    }
 
-	@Test
-	public void testAddAndHandleRequest() throws Exception {
-		addRequest();
-		assertEquals("Didn't increment number of outstanding requests.", 1, writer.getNumberOfOutstandingRequests());
+    @Test
+    public void testAddAndHandleRequest() throws Exception {
+        addRequest();
+        assertEquals(
+                "Didn't increment number of outstanding requests.",
+                1,
+                writer.getNumberOfOutstandingRequests());
 
-		handleRequest();
-		assertEquals("Didn't decrement number of outstanding requests.", 0, writer.getNumberOfOutstandingRequests());
-	}
+        handleRequest();
+        assertEquals(
+                "Didn't decrement number of outstanding requests.",
+                0,
+                writer.getNumberOfOutstandingRequests());
+    }
 
-	@Test
-	public void testAddWithFailingWriter() throws Exception {
-		AsynchronousBufferFileWriter writer =
-			new AsynchronousBufferFileWriter(ioManager.createChannel(), new RequestQueue<>());
-		writer.close();
+    @Test
+    public void testAddWithFailingWriter() throws Exception {
+        AsynchronousBufferFileWriter writer =
+                new AsynchronousBufferFileWriter(ioManager.createChannel(), new RequestQueue<>());
+        writer.close();
 
-		exception.expect(IOException.class);
+        exception.expect(IOException.class);
 
-		Buffer buffer = new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(4096),
-			FreeingBufferRecycler.INSTANCE);
-		try {
-			writer.writeBlock(buffer);
-		} finally {
-			if (!buffer.isRecycled()) {
-				buffer.recycleBuffer();
-				Assert.fail("buffer not recycled");
-			}
-			assertEquals("Shouln't increment number of outstanding requests.", 0, writer.getNumberOfOutstandingRequests());
-		}
-	}
+        Buffer buffer =
+                new NetworkBuffer(
+                        MemorySegmentFactory.allocateUnpooledSegment(4096),
+                        FreeingBufferRecycler.INSTANCE);
+        try {
+            writer.writeBlock(buffer);
+        } finally {
+            if (!buffer.isRecycled()) {
+                buffer.recycleBuffer();
+                Assert.fail("buffer not recycled");
+            }
+            assertEquals(
+                    "Shouln't increment number of outstanding requests.",
+                    0,
+                    writer.getNumberOfOutstandingRequests());
+        }
+    }
 
-	@Test
-	public void testSubscribe() throws Exception {
-		final TestNotificationListener listener = new TestNotificationListener();
+    @Test
+    public void testSubscribe() throws Exception {
+        final TestNotificationListener listener = new TestNotificationListener();
 
-		// Unsuccessful subscription, because no outstanding requests
-		assertFalse("Allowed to subscribe w/o any outstanding requests.", writer.registerAllRequestsProcessedListener(listener));
+        // Unsuccessful subscription, because no outstanding requests
+        assertFalse(
+                "Allowed to subscribe w/o any outstanding requests.",
+                writer.registerAllRequestsProcessedListener(listener));
 
-		// Successful subscription
-		addRequest();
-		assertTrue("Didn't allow to subscribe.", writer.registerAllRequestsProcessedListener(listener));
+        // Successful subscription
+        addRequest();
+        assertTrue(
+                "Didn't allow to subscribe.",
+                writer.registerAllRequestsProcessedListener(listener));
 
-		// Test notification
-		handleRequest();
+        // Test notification
+        handleRequest();
 
-		assertEquals("Listener was not notified.", 1, listener.getNumberOfNotifications());
-	}
+        assertEquals("Listener was not notified.", 1, listener.getNumberOfNotifications());
+    }
 
-	@Test
-	public void testSubscribeAndClose() throws IOException, InterruptedException {
-		final TestNotificationListener listener = new TestNotificationListener();
+    @Test
+    public void testSubscribeAndClose() throws IOException, InterruptedException {
+        final TestNotificationListener listener = new TestNotificationListener();
 
-		final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
+        final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 
-		final CountDownLatch sync = new CountDownLatch(1);
+        final CountDownLatch sync = new CountDownLatch(1);
 
-		addRequest();
-		addRequest();
+        addRequest();
+        addRequest();
 
-		writer.registerAllRequestsProcessedListener(listener);
+        writer.registerAllRequestsProcessedListener(listener);
 
-		final Thread asyncCloseThread = new Thread(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					writer.close();
-				}
-				catch (Throwable t) {
-					error.set(t);
-				}
-				finally {
-					sync.countDown();
-				}
-			}
-		});
+        final Thread asyncCloseThread =
+                new Thread(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    writer.close();
+                                } catch (Throwable t) {
+                                    error.set(t);
+                                } finally {
+                                    sync.countDown();
+                                }
+                            }
+                        });
 
-		asyncCloseThread.start();
+        asyncCloseThread.start();
 
-		handleRequest();
-		handleRequest();
+        handleRequest();
+        handleRequest();
 
-		sync.await();
+        sync.await();
 
-		assertEquals("Listener was not notified.", 1, listener.getNumberOfNotifications());
-	}
+        assertEquals("Listener was not notified.", 1, listener.getNumberOfNotifications());
+    }
 
-	@Test
-	public void testConcurrentSubscribeAndHandleRequest() throws Exception {
-		final ExecutorService executor = Executors.newFixedThreadPool(2);
+    @Test
+    public void testConcurrentSubscribeAndHandleRequest() throws Exception {
+        final ExecutorService executor = Executors.newFixedThreadPool(2);
 
-		final TestNotificationListener listener = new TestNotificationListener();
+        final TestNotificationListener listener = new TestNotificationListener();
 
-		final Callable<Boolean> subscriber = new Callable<Boolean>() {
-			@Override
-			public Boolean call() throws Exception {
-				return writer.registerAllRequestsProcessedListener(listener);
-			}
-		};
+        final Callable<Boolean> subscriber =
+                new Callable<Boolean>() {
+                    @Override
+                    public Boolean call() throws Exception {
+                        return writer.registerAllRequestsProcessedListener(listener);
+                    }
+                };
 
-		final Callable<Void> requestHandler = new Callable<Void>() {
-			@Override
-			public Void call() throws Exception {
-				handleRequest();
-				return null;
-			}
-		};
+        final Callable<Void> requestHandler =
+                new Callable<Void>() {
+                    @Override
+                    public Void call() throws Exception {
+                        handleRequest();
+                        return null;
+                    }
+                };
 
-		try {
-			// Repeat this to provoke races
-			for (int i = 0; i < 50000; i++) {
-				listener.reset();
+        try {
+            // Repeat this to provoke races
+            for (int i = 0; i < 50000; i++) {
+                listener.reset();
 
-				addRequest();
+                addRequest();
 
-				Future<Void> handleRequestFuture = executor.submit(requestHandler);
-				Future<Boolean> subscribeFuture = executor.submit(subscriber);
+                Future<Void> handleRequestFuture = executor.submit(requestHandler);
+                Future<Boolean> subscribeFuture = executor.submit(subscriber);
 
-				handleRequestFuture.get();
+                handleRequestFuture.get();
 
-				try {
-					if (subscribeFuture.get()) {
-						assertEquals("Race: Successfully subscribed, but was never notified.", 1, listener.getNumberOfNotifications());
-					}
-					else {
-						assertEquals("Race: Never subscribed successfully, but was notified.", 0, listener.getNumberOfNotifications());
-					}
-				}
-				catch (Throwable t) {
-					System.out.println(i);
-					Assert.fail(t.getMessage());
-				}
-			}
-		}
-		finally {
-			executor.shutdownNow();
-		}
-	}
+                try {
+                    if (subscribeFuture.get()) {
+                        assertEquals(
+                                "Race: Successfully subscribed, but was never notified.",
+                                1,
+                                listener.getNumberOfNotifications());
+                    } else {
+                        assertEquals(
+                                "Race: Never subscribed successfully, but was notified.",
+                                0,
+                                listener.getNumberOfNotifications());
+                    }
+                } catch (Throwable t) {
+                    System.out.println(i);
+                    Assert.fail(t.getMessage());
+                }
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private void addRequest() throws IOException {
-		writer.writeBlock(mockBuffer);
-	}
+    private void addRequest() throws IOException {
+        writer.writeBlock(mockBuffer);
+    }
 
-	private void handleRequest() {
-		writer.handleProcessedBuffer(mockBuffer, null);
-	}
+    private void handleRequest() {
+        writer.handleProcessedBuffer(mockBuffer, null);
+    }
 }

@@ -37,97 +37,100 @@ import java.util.Properties;
 @InterfaceStability.Stable
 public class VersionInfo {
 
-	private final Properties info;
+    private final Properties info;
 
-	protected VersionInfo(String component) {
-		info = new Properties();
+    protected VersionInfo(String component) {
+        info = new Properties();
 
-		if ("common".equals(component)) {
-			info.setProperty("version", "3.1.0");
-			info.setProperty("revision", "16b70619a24cdcf5d3b0fcf4b58ca77238ccbe6d");
-			info.setProperty("branch", "branch-3.1.0");
-			info.setProperty("user", "wtan");
-			info.setProperty("date", "2018-04-03T04:00Z");
-			info.setProperty("url", "git@github.com:hortonworks/hadoop-common-trunk.git");
-			info.setProperty("srcChecksum", "14182d20c972b3e2105580a1ad6990");
-			info.setProperty("protocVersion", "2.5.0");
-		}
-	}
+        if ("common".equals(component)) {
+            info.setProperty("version", "3.1.0");
+            info.setProperty("revision", "16b70619a24cdcf5d3b0fcf4b58ca77238ccbe6d");
+            info.setProperty("branch", "branch-3.1.0");
+            info.setProperty("user", "wtan");
+            info.setProperty("date", "2018-04-03T04:00Z");
+            info.setProperty("url", "git@github.com:hortonworks/hadoop-common-trunk.git");
+            info.setProperty("srcChecksum", "14182d20c972b3e2105580a1ad6990");
+            info.setProperty("protocVersion", "2.5.0");
+        }
+    }
 
-	protected String _getVersion() {
-		return info.getProperty("version", "Unknown");
-	}
+    protected String _getVersion() {
+        return info.getProperty("version", "Unknown");
+    }
 
-	protected String _getRevision() {
-		return info.getProperty("revision", "Unknown");
-	}
+    protected String _getRevision() {
+        return info.getProperty("revision", "Unknown");
+    }
 
-	protected String _getBranch() {
-		return info.getProperty("branch", "Unknown");
-	}
+    protected String _getBranch() {
+        return info.getProperty("branch", "Unknown");
+    }
 
-	protected String _getDate() {
-		return info.getProperty("date", "Unknown");
-	}
+    protected String _getDate() {
+        return info.getProperty("date", "Unknown");
+    }
 
-	protected String _getUser() {
-		return info.getProperty("user", "Unknown");
-	}
+    protected String _getUser() {
+        return info.getProperty("user", "Unknown");
+    }
 
-	protected String _getUrl() {
-		return info.getProperty("url", "Unknown");
-	}
+    protected String _getUrl() {
+        return info.getProperty("url", "Unknown");
+    }
 
-	protected String _getSrcChecksum() {
-		return info.getProperty("srcChecksum", "Unknown");
-	}
+    protected String _getSrcChecksum() {
+        return info.getProperty("srcChecksum", "Unknown");
+    }
 
-	protected String _getBuildVersion(){
-		return _getVersion() +
-				" from " + _getRevision() +
-				" by " + _getUser() +
-				" source checksum " + _getSrcChecksum();
-	}
+    protected String _getBuildVersion() {
+        return _getVersion()
+                + " from "
+                + _getRevision()
+                + " by "
+                + _getUser()
+                + " source checksum "
+                + _getSrcChecksum();
+    }
 
-	protected String _getProtocVersion() {
-		return info.getProperty("protocVersion", "Unknown");
-	}
+    protected String _getProtocVersion() {
+        return info.getProperty("protocVersion", "Unknown");
+    }
 
-	private static final VersionInfo COMMON_VERSION_INFO = new VersionInfo("common");
+    private static final VersionInfo COMMON_VERSION_INFO = new VersionInfo("common");
 
-	public static String getVersion() {
-		return COMMON_VERSION_INFO._getVersion();
-	}
+    public static String getVersion() {
+        return COMMON_VERSION_INFO._getVersion();
+    }
 
-	public static String getRevision() {
-		return COMMON_VERSION_INFO._getRevision();
-	}
+    public static String getRevision() {
+        return COMMON_VERSION_INFO._getRevision();
+    }
 
-	public static String getBranch() {
-		return COMMON_VERSION_INFO._getBranch();
-	}
+    public static String getBranch() {
+        return COMMON_VERSION_INFO._getBranch();
+    }
 
-	public static String getDate() {
-		return COMMON_VERSION_INFO._getDate();
-	}
+    public static String getDate() {
+        return COMMON_VERSION_INFO._getDate();
+    }
 
-	public static String getUser() {
-		return COMMON_VERSION_INFO._getUser();
-	}
+    public static String getUser() {
+        return COMMON_VERSION_INFO._getUser();
+    }
 
-	public static String getUrl() {
-		return COMMON_VERSION_INFO._getUrl();
-	}
+    public static String getUrl() {
+        return COMMON_VERSION_INFO._getUrl();
+    }
 
-	public static String getSrcChecksum() {
-		return COMMON_VERSION_INFO._getSrcChecksum();
-	}
+    public static String getSrcChecksum() {
+        return COMMON_VERSION_INFO._getSrcChecksum();
+    }
 
-	public static String getBuildVersion(){
-		return COMMON_VERSION_INFO._getBuildVersion();
-	}
+    public static String getBuildVersion() {
+        return COMMON_VERSION_INFO._getBuildVersion();
+    }
 
-	public static String getProtocVersion(){
-		return COMMON_VERSION_INFO._getProtocVersion();
-	}
+    public static String getProtocVersion() {
+        return COMMON_VERSION_INFO._getProtocVersion();
+    }
 }

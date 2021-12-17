@@ -26,48 +26,47 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 
-/**
- * Collecting {@link SourceFunction.SourceContext}.
- */
-public class CollectingSourceContext<T extends Serializable> implements SourceFunction.SourceContext<T> {
+/** Collecting {@link SourceFunction.SourceContext}. */
+public class CollectingSourceContext<T extends Serializable>
+        implements SourceFunction.SourceContext<T> {
 
-	private final Object lock;
-	private final Collection<T> collection;
+    private final Object lock;
+    private final Collection<T> collection;
 
-	public CollectingSourceContext(Object lock, Collection<T> collection) {
-		this.lock = lock;
-		this.collection = collection;
-	}
+    public CollectingSourceContext(Object lock, Collection<T> collection) {
+        this.lock = lock;
+        this.collection = collection;
+    }
 
-	@Override
-	public void collect(T element) {
-		try {
-			collection.add(CommonTestUtils.createCopySerializable(element));
-		} catch (IOException e) {
-			throw new RuntimeException(e.getMessage(), e);
-		}
-	}
+    @Override
+    public void collect(T element) {
+        try {
+            collection.add(CommonTestUtils.createCopySerializable(element));
+        } catch (IOException e) {
+            throw new RuntimeException(e.getMessage(), e);
+        }
+    }
 
-	@Override
-	public void collectWithTimestamp(T element, long timestamp) {
-		collect(element);
-	}
+    @Override
+    public void collectWithTimestamp(T element, long timestamp) {
+        collect(element);
+    }
 
-	@Override
-	public void emitWatermark(Watermark mark) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void emitWatermark(Watermark mark) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void markAsTemporarilyIdle() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void markAsTemporarilyIdle() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public Object getCheckpointLock() {
-		return lock;
-	}
+    @Override
+    public Object getCheckpointLock() {
+        return lock;
+    }
 
-	@Override
-	public void close() {}
+    @Override
+    public void close() {}
 }

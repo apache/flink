@@ -25,19 +25,15 @@ import org.junit.Test;
 
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link SavepointInfo}.
- */
+/** Tests for {@link SavepointInfo}. */
 public class SavepointInfoTest extends TestLogger {
 
-	@Test
-	public void testSetBothLocationAndFailureCause()  {
-		try {
-			new SavepointInfo(
-				"/tmp",
-				new SerializedThrowable(new RuntimeException()));
-			fail("Expected exception not thrown");
-		} catch (IllegalArgumentException e) {
-		}
-	}
+    @Test
+    public void testSetBothLocationAndFailureCause() {
+        try {
+            new SavepointInfo("/tmp", new SerializedThrowable(new RuntimeException()));
+            fail("Expected exception not thrown");
+        } catch (IllegalArgumentException e) {
+        }
+    }
 }

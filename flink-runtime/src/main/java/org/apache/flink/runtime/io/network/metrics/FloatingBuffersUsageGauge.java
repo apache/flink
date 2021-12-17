@@ -25,37 +25,36 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Gauge metric measuring the floating buffers usage gauge for {@link SingleInputGate}s.
- */
+/** Gauge metric measuring the floating buffers usage gauge for {@link SingleInputGate}s. */
 public class FloatingBuffersUsageGauge extends AbstractBuffersUsageGauge {
 
-	public FloatingBuffersUsageGauge(SingleInputGate[] inputGates) {
-		super(checkNotNull(inputGates));
-	}
+    public FloatingBuffersUsageGauge(SingleInputGate[] inputGates) {
+        super(checkNotNull(inputGates));
+    }
 
-	@Override
-	public int calculateUsedBuffers(SingleInputGate inputGate) {
-		int availableFloatingBuffers = 0;
-		BufferPool bufferPool = inputGate.getBufferPool();
-		if (bufferPool != null) {
-			int requestedFloatingBuffers = bufferPool.bestEffortGetNumOfUsedBuffers();
-			for (InputChannel ic : inputGate.getInputChannels().values()) {
-				if (ic instanceof RemoteInputChannel) {
-					availableFloatingBuffers += ((RemoteInputChannel) ic).unsynchronizedGetFloatingBuffersAvailable();
-				}
-			}
-			return Math.max(0, requestedFloatingBuffers - availableFloatingBuffers);
-		}
-		return 0;
-	}
+    @Override
+    public int calculateUsedBuffers(SingleInputGate inputGate) {
+        int availableFloatingBuffers = 0;
+        BufferPool bufferPool = inputGate.getBufferPool();
+        if (bufferPool != null) {
+            int requestedFloatingBuffers = bufferPool.bestEffortGetNumOfUsedBuffers();
+            for (InputChannel ic : inputGate.getInputChannels().values()) {
+                if (ic instanceof RemoteInputChannel) {
+                    availableFloatingBuffers +=
+                            ((RemoteInputChannel) ic).unsynchronizedGetFloatingBuffersAvailable();
+                }
+            }
+            return Math.max(0, requestedFloatingBuffers - availableFloatingBuffers);
+        }
+        return 0;
+    }
 
-	@Override
-	public int calculateTotalBuffers(SingleInputGate inputGate) {
-		BufferPool bufferPool = inputGate.getBufferPool();
-		if (bufferPool != null) {
-			return inputGate.getBufferPool().getNumBuffers();
-		}
-		return 0;
-	}
+    @Override
+    public int calculateTotalBuffers(SingleInputGate inputGate) {
+        BufferPool bufferPool = inputGate.getBufferPool();
+        if (bufferPool != null) {
+            return inputGate.getBufferPool().getNumBuffers();
+        }
+        return 0;
+    }
 }

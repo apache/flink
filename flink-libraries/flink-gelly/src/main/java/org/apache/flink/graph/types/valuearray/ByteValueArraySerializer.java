@@ -27,74 +27,72 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
-/**
- * Specialized serializer for {@code ByteValueArray}.
- */
+/** Specialized serializer for {@code ByteValueArray}. */
 public final class ByteValueArraySerializer extends TypeSerializerSingleton<ByteValueArray> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public ByteValueArray createInstance() {
-		return new ByteValueArray();
-	}
+    @Override
+    public ByteValueArray createInstance() {
+        return new ByteValueArray();
+    }
 
-	@Override
-	public ByteValueArray copy(ByteValueArray from) {
-		return copy(from, new ByteValueArray());
-	}
+    @Override
+    public ByteValueArray copy(ByteValueArray from) {
+        return copy(from, new ByteValueArray());
+    }
 
-	@Override
-	public ByteValueArray copy(ByteValueArray from, ByteValueArray reuse) {
-		reuse.setValue(from);
-		return reuse;
-	}
+    @Override
+    public ByteValueArray copy(ByteValueArray from, ByteValueArray reuse) {
+        reuse.setValue(from);
+        return reuse;
+    }
 
-	@Override
-	public int getLength() {
-		return -1;
-	}
+    @Override
+    public int getLength() {
+        return -1;
+    }
 
-	@Override
-	public void serialize(ByteValueArray record, DataOutputView target) throws IOException {
-		record.write(target);
-	}
+    @Override
+    public void serialize(ByteValueArray record, DataOutputView target) throws IOException {
+        record.write(target);
+    }
 
-	@Override
-	public ByteValueArray deserialize(DataInputView source) throws IOException {
-		return deserialize(new ByteValueArray(), source);
-	}
+    @Override
+    public ByteValueArray deserialize(DataInputView source) throws IOException {
+        return deserialize(new ByteValueArray(), source);
+    }
 
-	@Override
-	public ByteValueArray deserialize(ByteValueArray reuse, DataInputView source) throws IOException {
-		reuse.read(source);
-		return reuse;
-	}
+    @Override
+    public ByteValueArray deserialize(ByteValueArray reuse, DataInputView source)
+            throws IOException {
+        reuse.read(source);
+        return reuse;
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		ByteValueArray.copyInternal(source, target);
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        ByteValueArray.copyInternal(source, target);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public TypeSerializerSnapshot<ByteValueArray> snapshotConfiguration() {
-		return new ByteValueArraySerializerSnapshot();
-	}
+    @Override
+    public TypeSerializerSnapshot<ByteValueArray> snapshotConfiguration() {
+        return new ByteValueArraySerializerSnapshot();
+    }
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class ByteValueArraySerializerSnapshot extends SimpleTypeSerializerSnapshot<ByteValueArray> {
-		public ByteValueArraySerializerSnapshot() {
-			super(ByteValueArraySerializer::new);
-		}
-	}
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static final class ByteValueArraySerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<ByteValueArray> {
+        public ByteValueArraySerializerSnapshot() {
+            super(ByteValueArraySerializer::new);
+        }
+    }
 }

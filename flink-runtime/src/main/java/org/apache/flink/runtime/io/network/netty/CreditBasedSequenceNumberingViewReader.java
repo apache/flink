@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
@@ -29,185 +30,221 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.Buffe
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Simple wrapper for the subpartition view used in the new network credit-based mode.
  *
- * <p>It also keeps track of available buffers and notifies the outbound
- * handler about non-emptiness, similar to the {@link LocalInputChannel}.
+ * <p>It also keeps track of available buffers and notifies the outbound handler about
+ * non-emptiness, similar to the {@link LocalInputChannel}.
  */
-class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListener, NetworkSequenceViewReader {
+class CreditBasedSequenceNumberingViewReader
+        implements BufferAvailabilityListener, NetworkSequenceViewReader {
 
-	private final Object requestLock = new Object();
+    private final Object requestLock = new Object();
 
-	private final InputChannelID receiverId;
+    private final InputChannelID receiverId;
 
-	private final PartitionRequestQueue requestQueue;
+    private final PartitionRequestQueue requestQueue;
 
-	private volatile ResultSubpartitionView subpartitionView;
+    private final int initialCredit;
 
-	/**
-	 * The status indicating whether this reader is already enqueued in the pipeline for transferring
-	 * data or not.
-	 *
-	 * <p>It is mainly used to avoid repeated registrations but should be accessed by a single
-	 * thread only since there is no synchronisation.
-	 */
-	private boolean isRegisteredAsAvailable = false;
+    private volatile ResultSubpartitionView subpartitionView;
 
-	/** The number of available buffers for holding data on the consumer side. */
-	private int numCreditsAvailable;
+    /**
+     * The status indicating whether this reader is already enqueued in the pipeline for
+     * transferring data or not.
+     *
+     * <p>It is mainly used to avoid repeated registrations but should be accessed by a single
+     * thread only since there is no synchronisation.
+     */
+    private boolean isRegisteredAsAvailable = false;
 
-	private int sequenceNumber = -1;
+    /** The number of available buffers for holding data on the consumer side. */
+    private int numCreditsAvailable;
 
-	CreditBasedSequenceNumberingViewReader(
-			InputChannelID receiverId,
-			int initialCredit,
-			PartitionRequestQueue requestQueue) {
+    CreditBasedSequenceNumberingViewReader(
+            InputChannelID receiverId, int initialCredit, PartitionRequestQueue requestQueue) {
+        checkArgument(initialCredit >= 0, "Must be non-negative.");
 
-		this.receiverId = receiverId;
-		this.numCreditsAvailable = initialCredit;
-		this.requestQueue = requestQueue;
-	}
+        this.receiverId = receiverId;
+        this.initialCredit = initialCredit;
+        this.numCreditsAvailable = initialCredit;
+        this.requestQueue = requestQueue;
+    }
 
-	@Override
-	public void requestSubpartitionView(
-		ResultPartitionProvider partitionProvider,
-		ResultPartitionID resultPartitionId,
-		int subPartitionIndex) throws IOException {
+    @Override
+    public void requestSubpartitionView(
+            ResultPartitionProvider partitionProvider,
+            ResultPartitionID resultPartitionId,
+            int subPartitionIndex)
+            throws IOException {
 
-		synchronized (requestLock) {
-			if (subpartitionView == null) {
-				// This this call can trigger a notification we have to
-				// schedule a separate task at the event loop that will
-				// start consuming this. Otherwise the reference to the
-				// view cannot be available in getNextBuffer().
-				this.subpartitionView = partitionProvider.createSubpartitionView(
-					resultPartitionId,
-					subPartitionIndex,
-					this);
-			} else {
-				throw new IllegalStateException("Subpartition already requested");
-			}
-		}
-	}
+        synchronized (requestLock) {
+            if (subpartitionView == null) {
+                // This call can trigger a notification we have to
+                // schedule a separate task at the event loop that will
+                // start consuming this. Otherwise the reference to the
+                // view cannot be available in getNextBuffer().
+                this.subpartitionView =
+                        partitionProvider.createSubpartitionView(
+                                resultPartitionId, subPartitionIndex, this);
+            } else {
+                throw new IllegalStateException("Subpartition already requested");
+            }
+        }
 
-	@Override
-	public void addCredit(int creditDeltas) {
-		numCreditsAvailable += creditDeltas;
-	}
+        notifyDataAvailable();
+    }
 
-	@Override
-	public void setRegisteredAsAvailable(boolean isRegisteredAvailable) {
-		this.isRegisteredAsAvailable = isRegisteredAvailable;
-	}
+    @Override
+    public void addCredit(int creditDeltas) {
+        numCreditsAvailable += creditDeltas;
+    }
 
-	@Override
-	public boolean isRegisteredAsAvailable() {
-		return isRegisteredAsAvailable;
-	}
+    @Override
+    public void resumeConsumption() {
+        if (initialCredit == 0) {
+            // reset available credit if no exclusive buffer is available at the
+            // consumer side for all floating buffers must have been released
+            numCreditsAvailable = 0;
+        }
+        subpartitionView.resumeConsumption();
+    }
 
-	/**
-	 * Returns true only if the next buffer is an event or the reader has both available
-	 * credits and buffers.
-	 */
-	@Override
-	public boolean isAvailable() {
-		// BEWARE: this must be in sync with #isAvailable(BufferAndBacklog)!
-		if (numCreditsAvailable > 0) {
-			return subpartitionView.isAvailable();
-		}
-		else {
-			return subpartitionView.nextBufferIsEvent();
-		}
-	}
+    @Override
+    public void acknowledgeAllRecordsProcessed() {
+        subpartitionView.acknowledgeAllDataProcessed();
+    }
 
-	/**
-	 * Check whether this reader is available or not (internal use, in sync with
-	 * {@link #isAvailable()}, but slightly faster).
-	 *
-	 * <p>Returns true only if the next buffer is an event or the reader has both available
-	 * credits and buffers.
-	 *
-	 * @param bufferAndBacklog
-	 * 		current buffer and backlog including information about the next buffer
-	 */
-	private boolean isAvailable(BufferAndBacklog bufferAndBacklog) {
-		// BEWARE: this must be in sync with #isAvailable()!
-		if (numCreditsAvailable > 0) {
-			return bufferAndBacklog.isMoreAvailable();
-		}
-		else {
-			return bufferAndBacklog.nextBufferIsEvent();
-		}
-	}
+    @Override
+    public void setRegisteredAsAvailable(boolean isRegisteredAvailable) {
+        this.isRegisteredAsAvailable = isRegisteredAvailable;
+    }
 
-	@Override
-	public InputChannelID getReceiverId() {
-		return receiverId;
-	}
+    @Override
+    public boolean isRegisteredAsAvailable() {
+        return isRegisteredAsAvailable;
+    }
 
-	@Override
-	public int getSequenceNumber() {
-		return sequenceNumber;
-	}
+    /**
+     * Returns true only if the next buffer is an event or the reader has both available credits and
+     * buffers.
+     *
+     * @implSpec BEWARE: this must be in sync with {@link #getNextDataType(BufferAndBacklog)}, such
+     *     that {@code getNextDataType(bufferAndBacklog) != NONE <=>
+     *     AvailabilityWithBacklog#isAvailable()}!
+     */
+    @Override
+    public ResultSubpartitionView.AvailabilityWithBacklog getAvailabilityAndBacklog() {
+        return subpartitionView.getAvailabilityAndBacklog(numCreditsAvailable);
+    }
 
-	@VisibleForTesting
-	int getNumCreditsAvailable() {
-		return numCreditsAvailable;
-	}
+    /**
+     * Returns the {@link org.apache.flink.runtime.io.network.buffer.Buffer.DataType} of the next
+     * buffer in line.
+     *
+     * <p>Returns the next data type only if the next buffer is an event or the reader has both
+     * available credits and buffers.
+     *
+     * @implSpec BEWARE: this must be in sync with {@link #getAvailabilityAndBacklog()}, such that
+     *     {@code getNextDataType(bufferAndBacklog) != NONE <=>
+     *     AvailabilityWithBacklog#isAvailable()}!
+     * @param bufferAndBacklog current buffer and backlog including information about the next
+     *     buffer
+     * @return the next data type if the next buffer can be pulled immediately or {@link
+     *     Buffer.DataType#NONE}
+     */
+    private Buffer.DataType getNextDataType(BufferAndBacklog bufferAndBacklog) {
+        final Buffer.DataType nextDataType = bufferAndBacklog.getNextDataType();
+        if (numCreditsAvailable > 0 || nextDataType.isEvent()) {
+            return nextDataType;
+        }
+        return Buffer.DataType.NONE;
+    }
 
-	@VisibleForTesting
-	boolean hasBuffersAvailable() {
-		return subpartitionView.isAvailable();
-	}
+    @Override
+    public InputChannelID getReceiverId() {
+        return receiverId;
+    }
 
-	@Override
-	public BufferAndAvailability getNextBuffer() throws IOException, InterruptedException {
-		BufferAndBacklog next = subpartitionView.getNextBuffer();
-		if (next != null) {
-			sequenceNumber++;
+    @Override
+    public void notifyNewBufferSize(int newBufferSize) {
+        subpartitionView.notifyNewBufferSize(newBufferSize);
+    }
 
-			if (next.buffer().isBuffer() && --numCreditsAvailable < 0) {
-				throw new IllegalStateException("no credit available");
-			}
+    @VisibleForTesting
+    int getNumCreditsAvailable() {
+        return numCreditsAvailable;
+    }
 
-			return new BufferAndAvailability(
-				next.buffer(), isAvailable(next), next.buffersInBacklog());
-		} else {
-			return null;
-		}
-	}
+    @VisibleForTesting
+    ResultSubpartitionView.AvailabilityWithBacklog hasBuffersAvailable() {
+        return subpartitionView.getAvailabilityAndBacklog(Integer.MAX_VALUE);
+    }
 
-	@Override
-	public boolean isReleased() {
-		return subpartitionView.isReleased();
-	}
+    @Nullable
+    @Override
+    public BufferAndAvailability getNextBuffer() throws IOException {
+        BufferAndBacklog next = subpartitionView.getNextBuffer();
+        if (next != null) {
+            if (next.buffer().isBuffer() && --numCreditsAvailable < 0) {
+                throw new IllegalStateException("no credit available");
+            }
 
-	@Override
-	public Throwable getFailureCause() {
-		return subpartitionView.getFailureCause();
-	}
+            final Buffer.DataType nextDataType = getNextDataType(next);
+            return new BufferAndAvailability(
+                    next.buffer(), nextDataType, next.buffersInBacklog(), next.getSequenceNumber());
+        } else {
+            return null;
+        }
+    }
 
-	@Override
-	public void releaseAllResources() throws IOException {
-		subpartitionView.releaseAllResources();
-	}
+    @Override
+    public boolean needAnnounceBacklog() {
+        return initialCredit == 0 && numCreditsAvailable == 0;
+    }
 
-	@Override
-	public void notifyDataAvailable() {
-		requestQueue.notifyReaderNonEmpty(this);
-	}
+    @Override
+    public boolean isReleased() {
+        return subpartitionView.isReleased();
+    }
 
-	@Override
-	public String toString() {
-		return "CreditBasedSequenceNumberingViewReader{" +
-			"requestLock=" + requestLock +
-			", receiverId=" + receiverId +
-			", sequenceNumber=" + sequenceNumber +
-			", numCreditsAvailable=" + numCreditsAvailable +
-			", isRegisteredAsAvailable=" + isRegisteredAsAvailable +
-			'}';
-	}
+    @Override
+    public Throwable getFailureCause() {
+        return subpartitionView.getFailureCause();
+    }
+
+    @Override
+    public void releaseAllResources() throws IOException {
+        subpartitionView.releaseAllResources();
+    }
+
+    @Override
+    public void notifyDataAvailable() {
+        requestQueue.notifyReaderNonEmpty(this);
+    }
+
+    @Override
+    public void notifyPriorityEvent(int prioritySequenceNumber) {
+        notifyDataAvailable();
+    }
+
+    @Override
+    public String toString() {
+        return "CreditBasedSequenceNumberingViewReader{"
+                + "requestLock="
+                + requestLock
+                + ", receiverId="
+                + receiverId
+                + ", numCreditsAvailable="
+                + numCreditsAvailable
+                + ", isRegisteredAsAvailable="
+                + isRegisteredAsAvailable
+                + '}';
+    }
 }

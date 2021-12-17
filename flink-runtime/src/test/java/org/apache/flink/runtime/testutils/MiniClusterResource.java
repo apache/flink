@@ -22,15 +22,16 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
@@ -44,147 +45,190 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-/**
- * Resource which starts a {@link MiniCluster} for testing purposes.
- */
+import static org.apache.flink.runtime.testutils.PseudoRandomValueSelector.randomize;
+
+/** Resource which starts a {@link MiniCluster} for testing purposes. */
 public class MiniClusterResource extends ExternalResource {
+    private static final boolean RANDOMIZE_BUFFER_DEBLOAT_CONFIG =
+            Boolean.parseBoolean(System.getProperty("buffer-debloat.randomization", "false"));
 
-	private static final String DEFAULT_MANAGED_MEMORY_SIZE = "80m";
+    private static final MemorySize DEFAULT_MANAGED_MEMORY_SIZE = MemorySize.parse("80m");
 
-	protected final Logger log = LoggerFactory.getLogger(getClass());
+    protected final Logger log = LoggerFactory.getLogger(getClass());
 
-	private final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    private final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private final MiniClusterResourceConfiguration miniClusterResourceConfiguration;
+    private final MiniClusterResourceConfiguration miniClusterResourceConfiguration;
 
-	private MiniCluster miniCluster = null;
+    private MiniCluster miniCluster = null;
 
-	private int numberSlots = -1;
+    private int numberSlots = -1;
 
-	private UnmodifiableConfiguration restClusterClientConfig;
+    private UnmodifiableConfiguration restClusterClientConfig;
 
-	public MiniClusterResource(final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
-		this.miniClusterResourceConfiguration = Preconditions.checkNotNull(miniClusterResourceConfiguration);
-	}
+    public MiniClusterResource(
+            final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
+        this.miniClusterResourceConfiguration =
+                Preconditions.checkNotNull(miniClusterResourceConfiguration);
+    }
 
-	public int getNumberSlots() {
-		return numberSlots;
-	}
+    public int getNumberSlots() {
+        return numberSlots;
+    }
 
-	public MiniCluster getMiniCluster() {
-		return miniCluster;
-	}
+    public MiniCluster getMiniCluster() {
+        return miniCluster;
+    }
 
-	public UnmodifiableConfiguration getClientConfiguration() {
-		return restClusterClientConfig;
-	}
+    public UnmodifiableConfiguration getClientConfiguration() {
+        return restClusterClientConfig;
+    }
 
-	public URI getRestAddres() {
-		return miniCluster.getRestAddress().join();
-	}
+    public URI getRestAddres() {
+        return miniCluster.getRestAddress().join();
+    }
 
-	@Override
-	public void before() throws Exception {
-		temporaryFolder.create();
+    @Override
+    public void before() throws Exception {
+        temporaryFolder.create();
 
-		startMiniCluster();
+        startMiniCluster();
 
-		numberSlots = miniClusterResourceConfiguration.getNumberSlotsPerTaskManager() * miniClusterResourceConfiguration.getNumberTaskManagers();
-	}
+        numberSlots =
+                miniClusterResourceConfiguration.getNumberSlotsPerTaskManager()
+                        * miniClusterResourceConfiguration.getNumberTaskManagers();
+    }
 
-	@Override
-	public void after() {
-		Exception exception = null;
+    public void cancelAllJobs() {
+        try {
+            final Deadline jobCancellationDeadline =
+                    Deadline.fromNow(
+                            Duration.ofMillis(
+                                    miniClusterResourceConfiguration
+                                            .getShutdownTimeout()
+                                            .toMilliseconds()));
 
-		if (miniCluster != null) {
-			// try to cancel remaining jobs before shutting down cluster
-			try {
-				final Deadline jobCancellationDeadline =
-					Deadline.fromNow(
-						Duration.ofMillis(
-							miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds()));
+            final List<CompletableFuture<Acknowledge>> jobCancellationFutures =
+                    miniCluster.listJobs()
+                            .get(
+                                    jobCancellationDeadline.timeLeft().toMillis(),
+                                    TimeUnit.MILLISECONDS)
+                            .stream()
+                            .filter(status -> !status.getJobState().isGloballyTerminalState())
+                            .map(status -> miniCluster.cancelJob(status.getJobId()))
+                            .collect(Collectors.toList());
 
-				final List<CompletableFuture<Acknowledge>> jobCancellationFutures = miniCluster
-					.listJobs()
-					.get(jobCancellationDeadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS)
-					.stream()
-					.filter(status -> !status.getJobState().isGloballyTerminalState())
-					.map(status -> miniCluster.cancelJob(status.getJobId()))
-					.collect(Collectors.toList());
+            FutureUtils.waitForAll(jobCancellationFutures)
+                    .get(jobCancellationDeadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
-				FutureUtils
-					.waitForAll(jobCancellationFutures)
-					.get(jobCancellationDeadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+            CommonTestUtils.waitUntilCondition(
+                    () -> {
+                        final long unfinishedJobs =
+                                miniCluster.listJobs()
+                                        .get(
+                                                jobCancellationDeadline.timeLeft().toMillis(),
+                                                TimeUnit.MILLISECONDS)
+                                        .stream()
+                                        .filter(
+                                                status ->
+                                                        !status.getJobState()
+                                                                .isGloballyTerminalState())
+                                        .count();
+                        return unfinishedJobs == 0;
+                    },
+                    jobCancellationDeadline);
+        } catch (Exception e) {
+            log.warn("Exception while shutting down remaining jobs.", e);
+        }
+    }
 
-				CommonTestUtils.waitUntilCondition(() -> {
-					final long unfinishedJobs = miniCluster
-						.listJobs()
-						.get(jobCancellationDeadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS)
-						.stream()
-						.filter(status -> !status.getJobState().isGloballyTerminalState())
-						.count();
-					return unfinishedJobs == 0;
-				}, jobCancellationDeadline);
-			} catch (Exception e) {
-				log.warn("Exception while shutting down remaining jobs.", e);
-			}
+    @Override
+    public void after() {
+        Exception exception = null;
 
-			final CompletableFuture<?> terminationFuture = miniCluster.closeAsync();
+        if (miniCluster != null) {
+            // try to cancel remaining jobs before shutting down cluster
+            cancelAllJobs();
 
-			try {
-				terminationFuture.get(
-					miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds(),
-					TimeUnit.MILLISECONDS);
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
+            final CompletableFuture<?> terminationFuture = miniCluster.closeAsync();
 
-			miniCluster = null;
-		}
+            try {
+                terminationFuture.get(
+                        miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds(),
+                        TimeUnit.MILLISECONDS);
+            } catch (Exception e) {
+                exception = ExceptionUtils.firstOrSuppressed(e, exception);
+            }
 
-		if (exception != null) {
-			log.warn("Could not properly shut down the MiniClusterResource.", exception);
-		}
+            miniCluster = null;
+        }
 
-		temporaryFolder.delete();
-	}
+        if (exception != null) {
+            log.warn("Could not properly shut down the MiniClusterResource.", exception);
+        }
 
-	private void startMiniCluster() throws Exception {
-		final Configuration configuration = new Configuration(miniClusterResourceConfiguration.getConfiguration());
-		configuration.setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
+        temporaryFolder.delete();
+    }
 
-		// we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
-		// enabled this by default
-		if (!configuration.contains(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE)) {
-			configuration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
-		}
+    private void startMiniCluster() throws Exception {
+        final Configuration configuration =
+                new Configuration(miniClusterResourceConfiguration.getConfiguration());
+        configuration.setString(
+                CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
 
-		if (!configuration.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
-			configuration.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, DEFAULT_MANAGED_MEMORY_SIZE);
-		}
+        // we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
+        // enabled this by default
+        if (!configuration.contains(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE)) {
+            configuration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+        }
 
-		// set rest and rpc port to 0 to avoid clashes with concurrent MiniClusters
-		configuration.setInteger(JobManagerOptions.PORT, 0);
-		configuration.setString(RestOptions.BIND_PORT, "0");
+        if (!configuration.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
+            configuration.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, DEFAULT_MANAGED_MEMORY_SIZE);
+        }
 
-		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
-			.setConfiguration(configuration)
-			.setNumTaskManagers(miniClusterResourceConfiguration.getNumberTaskManagers())
-			.setNumSlotsPerTaskManager(miniClusterResourceConfiguration.getNumberSlotsPerTaskManager())
-			.build();
+        // set rest and rpc port to 0 to avoid clashes with concurrent MiniClusters
+        configuration.setInteger(JobManagerOptions.PORT, 0);
+        configuration.setString(RestOptions.BIND_PORT, "0");
 
-		miniCluster = new MiniCluster(miniClusterConfiguration);
+        randomizeConfiguration(configuration);
 
-		miniCluster.start();
+        final MiniClusterConfiguration miniClusterConfiguration =
+                new MiniClusterConfiguration.Builder()
+                        .setConfiguration(configuration)
+                        .setNumTaskManagers(
+                                miniClusterResourceConfiguration.getNumberTaskManagers())
+                        .setNumSlotsPerTaskManager(
+                                miniClusterResourceConfiguration.getNumberSlotsPerTaskManager())
+                        .setRpcServiceSharing(
+                                miniClusterResourceConfiguration.getRpcServiceSharing())
+                        .setHaServices(miniClusterResourceConfiguration.getHaServices())
+                        .build();
 
-		final URI restAddress = miniCluster.getRestAddress().get();
-		createClientConfiguration(restAddress);
-	}
+        miniCluster = new MiniCluster(miniClusterConfiguration);
 
-	private void createClientConfiguration(URI restAddress) {
-		Configuration restClientConfig = new Configuration();
-		restClientConfig.setString(JobManagerOptions.ADDRESS, restAddress.getHost());
-		restClientConfig.setInteger(RestOptions.PORT, restAddress.getPort());
-		this.restClusterClientConfig = new UnmodifiableConfiguration(restClientConfig);
-	}
+        miniCluster.start();
+
+        final URI restAddress = miniCluster.getRestAddress().get();
+        createClientConfiguration(restAddress);
+    }
+
+    /**
+     * This is the place for randomization the configuration that relates to task execution such as
+     * TaskManagerConf. Configurations which relates to streaming should be randomized in
+     * TestStreamEnvironment#randomizeConfiguration.
+     */
+    private static void randomizeConfiguration(Configuration configuration) {
+        // randomize ITTests for enabling buffer de-bloating
+        if (RANDOMIZE_BUFFER_DEBLOAT_CONFIG
+                && !configuration.contains(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
+            randomize(configuration, TaskManagerOptions.BUFFER_DEBLOAT_ENABLED, true, false);
+        }
+    }
+
+    private void createClientConfiguration(URI restAddress) {
+        Configuration restClientConfig = new Configuration();
+        restClientConfig.setString(JobManagerOptions.ADDRESS, restAddress.getHost());
+        restClientConfig.setInteger(RestOptions.PORT, restAddress.getPort());
+        this.restClusterClientConfig = new UnmodifiableConfiguration(restClientConfig);
+    }
 }

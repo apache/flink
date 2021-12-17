@@ -18,19 +18,16 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
-/**
- * State of a {@link SchedulingResultPartition}.
- */
+/** State of a {@link SchedulingResultPartition}. */
 public enum ResultPartitionState {
 
-	/**
-	 * Partition is just created or is just reset.
-	 */
-	CREATED,
+    /** Partition is just created or is just reset. */
+    CREATED,
 
-	/**
-	 * Partition is ready for consuming. For pipelined partition, this indicates it has data produced.
-	 * For blocking partition, this indicates all result partitions in its parent result have finished.
-	 */
-	CONSUMABLE
+    /**
+     * Partition is ready for consuming. For pipelined partition, this indicates it has data
+     * produced. For blocking partition, this indicates all result partitions in its parent result
+     * have finished.
+     */
+    CONSUMABLE
 }

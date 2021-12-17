@@ -28,113 +28,114 @@ import org.apache.flink.util.OutputTag;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing
- * {@link ProcessFunction ProcessFunctions}.
+ * A {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing {@link
+ * ProcessFunction ProcessFunctions}.
  */
 @Internal
 public class ProcessOperator<IN, OUT>
-		extends AbstractUdfStreamOperator<OUT, ProcessFunction<IN, OUT>>
-		implements OneInputStreamOperator<IN, OUT> {
+        extends AbstractUdfStreamOperator<OUT, ProcessFunction<IN, OUT>>
+        implements OneInputStreamOperator<IN, OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private transient TimestampedCollector<OUT> collector;
+    private transient TimestampedCollector<OUT> collector;
 
-	private transient ContextImpl context;
+    private transient ContextImpl context;
 
-	/** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
-	private long currentWatermark = Long.MIN_VALUE;
+    /** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
+    private long currentWatermark = Long.MIN_VALUE;
 
-	public ProcessOperator(ProcessFunction<IN, OUT> function) {
-		super(function);
+    public ProcessOperator(ProcessFunction<IN, OUT> function) {
+        super(function);
 
-		chainingStrategy = ChainingStrategy.ALWAYS;
-	}
+        chainingStrategy = ChainingStrategy.ALWAYS;
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		collector = new TimestampedCollector<>(output);
+    @Override
+    public void open() throws Exception {
+        super.open();
+        collector = new TimestampedCollector<>(output);
 
-		context = new ContextImpl(userFunction, getProcessingTimeService());
-	}
+        context = new ContextImpl(userFunction, getProcessingTimeService());
+    }
 
-	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
-		collector.setTimestamp(element);
-		context.element = element;
-		userFunction.processElement(element.getValue(), context, collector);
-		context.element = null;
-	}
+    @Override
+    public void processElement(StreamRecord<IN> element) throws Exception {
+        collector.setTimestamp(element);
+        context.element = element;
+        userFunction.processElement(element.getValue(), context, collector);
+        context.element = null;
+    }
 
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		super.processWatermark(mark);
-		this.currentWatermark = mark.getTimestamp();
-	}
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        super.processWatermark(mark);
+        this.currentWatermark = mark.getTimestamp();
+    }
 
-	private class ContextImpl extends ProcessFunction<IN, OUT>.Context implements TimerService {
-		private StreamRecord<IN> element;
+    private class ContextImpl extends ProcessFunction<IN, OUT>.Context implements TimerService {
+        private StreamRecord<IN> element;
 
-		private final ProcessingTimeService processingTimeService;
+        private final ProcessingTimeService processingTimeService;
 
-		ContextImpl(ProcessFunction<IN, OUT> function, ProcessingTimeService processingTimeService) {
-			function.super();
-			this.processingTimeService = processingTimeService;
-		}
+        ContextImpl(
+                ProcessFunction<IN, OUT> function, ProcessingTimeService processingTimeService) {
+            function.super();
+            this.processingTimeService = processingTimeService;
+        }
 
-		@Override
-		public Long timestamp() {
-			checkState(element != null);
+        @Override
+        public Long timestamp() {
+            checkState(element != null);
 
-			if (element.hasTimestamp()) {
-				return element.getTimestamp();
-			} else {
-				return null;
-			}
-		}
+            if (element.hasTimestamp()) {
+                return element.getTimestamp();
+            } else {
+                return null;
+            }
+        }
 
-		@Override
-		public <X> void output(OutputTag<X> outputTag, X value) {
-			if (outputTag == null) {
-				throw new IllegalArgumentException("OutputTag must not be null.");
-			}
-			output.collect(outputTag, new StreamRecord<>(value, element.getTimestamp()));
-		}
+        @Override
+        public <X> void output(OutputTag<X> outputTag, X value) {
+            if (outputTag == null) {
+                throw new IllegalArgumentException("OutputTag must not be null.");
+            }
+            output.collect(outputTag, new StreamRecord<>(value, element.getTimestamp()));
+        }
 
-		@Override
-		public long currentProcessingTime() {
-			return processingTimeService.getCurrentProcessingTime();
-		}
+        @Override
+        public long currentProcessingTime() {
+            return processingTimeService.getCurrentProcessingTime();
+        }
 
-		@Override
-		public long currentWatermark() {
-			return currentWatermark;
-		}
+        @Override
+        public long currentWatermark() {
+            return currentWatermark;
+        }
 
-		@Override
-		public void registerProcessingTimeTimer(long time) {
-			throw new UnsupportedOperationException(UNSUPPORTED_REGISTER_TIMER_MSG);
-		}
+        @Override
+        public void registerProcessingTimeTimer(long time) {
+            throw new UnsupportedOperationException(UNSUPPORTED_REGISTER_TIMER_MSG);
+        }
 
-		@Override
-		public void registerEventTimeTimer(long time) {
-			throw new UnsupportedOperationException(UNSUPPORTED_REGISTER_TIMER_MSG);
-		}
+        @Override
+        public void registerEventTimeTimer(long time) {
+            throw new UnsupportedOperationException(UNSUPPORTED_REGISTER_TIMER_MSG);
+        }
 
-		@Override
-		public void deleteProcessingTimeTimer(long time) {
-			throw new UnsupportedOperationException(UNSUPPORTED_DELETE_TIMER_MSG);
-		}
+        @Override
+        public void deleteProcessingTimeTimer(long time) {
+            throw new UnsupportedOperationException(UNSUPPORTED_DELETE_TIMER_MSG);
+        }
 
-		@Override
-		public void deleteEventTimeTimer(long time) {
-			throw new UnsupportedOperationException(UNSUPPORTED_DELETE_TIMER_MSG);
-		}
+        @Override
+        public void deleteEventTimeTimer(long time) {
+            throw new UnsupportedOperationException(UNSUPPORTED_DELETE_TIMER_MSG);
+        }
 
-		@Override
-		public TimerService timerService() {
-			return this;
-		}
-	}
+        @Override
+        public TimerService timerService() {
+            return this;
+        }
+    }
 }

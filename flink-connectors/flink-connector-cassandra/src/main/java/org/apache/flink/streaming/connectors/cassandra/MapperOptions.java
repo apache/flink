@@ -27,10 +27,11 @@ import java.io.Serializable;
  */
 public interface MapperOptions extends Serializable {
 
-	/**
-	 * Returns an array of {@link com.datastax.driver.mapping.Mapper.Option} that are used configure the mapper.
-	 *
-	 * @return array of options used to configure the mapper.
-	 */
-	Mapper.Option[] getMapperOptions();
+    /**
+     * Returns an array of {@link com.datastax.driver.mapping.Mapper.Option} that are used configure
+     * the mapper.
+     *
+     * @return array of options used to configure the mapper.
+     */
+    Mapper.Option[] getMapperOptions();
 }

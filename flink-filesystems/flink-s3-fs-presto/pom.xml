@@ -23,17 +23,17 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.15-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-s3-fs-presto</artifactId>
-	<name>flink-s3-fs-presto</name>
+	<name>Flink : FileSystems : S3 FS Presto</name>
 
 	<packaging>jar</packaging>
 
 	<properties>
-		<presto.version>0.187</presto.version>
+		<presto.version>0.257</presto.version>
 	</properties>
 
 	<dependencies>
@@ -59,7 +59,7 @@ under the License.
 			<artifactId>presto-hive</artifactId>
 			<version>${presto.version}</version>
 			<exclusions>
-				<!-- use our AWS dependencies instead -->
+				<!-- Exclude AWS dependencies which we provide ourselves (and in more recent versions). -->
 				<exclusion>
 					<groupId>com.amazonaws</groupId>
 					<artifactId>aws-java-sdk-core</artifactId>
@@ -68,12 +68,26 @@ under the License.
 					<groupId>com.amazonaws</groupId>
 					<artifactId>aws-java-sdk-s3</artifactId>
 				</exclusion>
-
-				<!-- lot's of unneeded stuff for the S3 file system -->
 				<exclusion>
-					<groupId>com.facebook.hive</groupId>
-					<artifactId>hive-dwrf</artifactId>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-sts</artifactId>
 				</exclusion>
+
+				<!-- Unfortunately, presto-hive has a lot of dependencies, many of which we don't need.
+				     To try and keep our footprint small, we're excluding dependencies on a best-effort
+				     basis here.
+				     The best way to do this is looking at
+				         https://github.com/prestodb/presto/tree/${presto.version}/presto-hive/src/main/java/com/facebook/presto/hive/s3
+				     and checking which dependencies are actually used. When there is doubt, it is
+				     probably easier to just bundle it. -->
+
+				<!-- AWS -->
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-glue</artifactId>
+				</exclusion>
+
+				<!-- Presto -->
 				<exclusion>
 					<groupId>com.facebook.presto.hive</groupId>
 					<artifactId>hive-apache</artifactId>
@@ -95,6 +109,150 @@ under the License.
 					<artifactId>presto-rcfile</artifactId>
 				</exclusion>
 				<exclusion>
+					<groupId>com.facebook.presto</groupId>
+					<artifactId>presto-parquet</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.presto</groupId>
+					<artifactId>presto-expressions</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.presto</groupId>
+					<artifactId>presto-cache</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.presto</groupId>
+					<artifactId>presto-memory-context</artifactId>
+				</exclusion>
+
+				<!-- Airlift -->
+				<exclusion>
+					<groupId>io.airlift</groupId>
+					<artifactId>aircompressor</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.airlift</groupId>
+					<artifactId>json</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.airlift</groupId>
+					<artifactId>bootstrap</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.airlift</groupId>
+					<artifactId>concurrent</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.airlift</groupId>
+					<artifactId>event</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.airlift</groupId>
+					<artifactId>http-client</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.airlift</groupId>
+					<artifactId>log-manager</artifactId>
+				</exclusion>
+
+				<!-- Other -->
+				<exclusion>
+					<groupId>cglib</groupId>
+					<artifactId>cglib-nodep</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.drift</groupId>
+					<artifactId>drift-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.hive</groupId>
+					<artifactId>hive-dwrf</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.github.luben</groupId>
+					<artifactId>zstd-jni</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.cloud.bigdataoss</groupId>
+					<artifactId>util</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.cloud.bigdataoss</groupId>
+					<artifactId>gcsio</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.cloud.bigdataoss</groupId>
+					<artifactId>util-hadoop</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.cloud.bigdataoss</groupId>
+					<artifactId>gcs-connector</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.errorprone</groupId>
+					<artifactId>error_prone_annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.j2objc</groupId>
+					<artifactId>j2objc-annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.code.findbugs</groupId>
+					<artifactId>annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.inject.extensions</groupId>
+					<artifactId>guice-multibindings</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>it.unimi.dsi</groupId>
+					<artifactId>fastutil</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.annotation</groupId>
+					<artifactId>javax.annotation-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.inject</groupId>
+					<artifactId>javax.inject</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.validation</groupId>
+					<artifactId>validation-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.bval</groupId>
+					<artifactId>bval-jsr</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hudi</groupId>
+					<artifactId>hudi-hadoop-mr</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.thrift</groupId>
+					<artifactId>libthrift</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.checkerframework</groupId>
+					<artifactId>checker-qual</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.mojo</groupId>
+					<artifactId>animal-sniffer-annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjdk.jol</groupId>
+					<artifactId>jol-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.roaringbitmap</groupId>
+					<artifactId>RoaringBitmap</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.roaringbitmap</groupId>
+					<artifactId>shims</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-jdk14</artifactId>
 				</exclusion>
@@ -107,83 +265,15 @@ under the License.
 					<artifactId>jcl-over-slf4j</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.apache.thrift</groupId>
-					<artifactId>libthrift</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.airlift</groupId>
-					<artifactId>json</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.airlift</groupId>
-					<artifactId>bootstrap</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.airlift</groupId>
-					<artifactId>concurrent</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.airlift</groupId>
-					<artifactId>event</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.airlift</groupId>
-					<artifactId>http-client</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.airlift</groupId>
-					<artifactId>aircompressor</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.airlift</groupId>
-					<artifactId>log-manager</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.inject</groupId>
-					<artifactId>javax.inject</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.inject</groupId>
-					<artifactId>guice</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.inject.extensions</groupId>
-					<artifactId>guice-multibindings</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>it.unimi.dsi</groupId>
-					<artifactId>fastutil</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.xerial.snappy</groupId>
 					<artifactId>snappy-java</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.bval</groupId>
-					<artifactId>bval-jsr</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.validation</groupId>
-					<artifactId>validation-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjdk.jol</groupId>
-					<artifactId>jol-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>cglib</groupId>
-					<artifactId>cglib-nodep</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.code.findbugs</groupId>
-					<artifactId>annotations</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>com.facebook.presto.hadoop</groupId>
 			<artifactId>hadoop-apache2</artifactId>
-			<version>2.7.3-1</version>
+			<version>2.7.4-9</version>
 		</dependency>
 
 		<dependency>
@@ -191,7 +281,7 @@ under the License.
 			<groupId>javax.xml.bind</groupId>
 			<artifactId>jaxb-api</artifactId>
 			<version>${jaxb.api.version}</version>
-			<!-- packaged in flink-dist -->
+			<!-- packaged as an optional dependency that is only accessible on Java 11+ -->
 			<scope>provided</scope>
 		</dependency>
 
@@ -213,6 +303,57 @@ under the License.
 		</dependency>
 	</dependencies>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-common</artifactId>
+				<version>${fs.hadoopshaded.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>jdk.tools</groupId>
+						<artifactId>jdk.tools</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>log4j</groupId>
+						<artifactId>log4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-hdfs</artifactId>
+				<version>${fs.hadoopshaded.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>jdk.tools</groupId>
+						<artifactId>jdk.tools</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>log4j</groupId>
+						<artifactId>log4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+
+			<dependency>
+				<!-- Bumped for security purposes -->
+				<groupId>commons-beanutils</groupId>
+				<artifactId>commons-beanutils</artifactId>
+				<version>1.9.4</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+
 	<build>
 		<plugins>
 			<plugin>
@@ -228,11 +369,81 @@ under the License.
 							<rules>
 								<bannedDependencies>
 									<excludes>
-										<!-- Incompatible license -->
 										<exclude>org.openjdk.jol:*</exclude>
 									</excludes>
+									<message>Dependencies on org.openjdk.jol are not allowed due to licensing issues.</message>
 								</bannedDependencies>
 							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<archive>
+						<manifestEntries>
+							<!-- jaxb-api is packaged as an optional dependency that is only accessible on Java 11 -->
+							<Multi-Release>true</Multi-Release>
+						</manifestEntries>
+					</archive>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy-javax-jars</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>copy</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<artifactItems>
+						<artifactItem>
+							<groupId>javax.xml.bind</groupId>
+							<artifactId>jaxb-api</artifactId>
+							<version>${jaxb.api.version}</version>
+							<type>jar</type>
+							<overWrite>true</overWrite>
+						</artifactItem>
+					</artifactItems>
+					<outputDirectory>${project.build.directory}/temporary</outputDirectory>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>unpack-javax-libraries</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<configuration>
+							<target>
+								<echo message="unpacking javax jars"/>
+								<unzip dest="${project.build.directory}/classes/META-INF/versions/11">
+									<fileset dir="${project.build.directory}/temporary">
+										<include name="*"/>
+									</fileset>
+								</unzip>
+							</target>
 						</configuration>
 					</execution>
 				</executions>
@@ -249,58 +460,18 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes>
 									<include>*:*</include>
 								</includes>
 							</artifactSet>
 							<relocations>
-								<!-- relocate the references to Hadoop to match the pre-shaded hadoop artifact -->
+								<!-- shade Flink's Hadoop FS adapter classes, forces plugin classloader for them -->
 								<relocation>
-									<pattern>org.apache.hadoop</pattern>
-									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop</shadedPattern>
+									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
+									<shadedPattern>org.apache.flink.fs.s3presto.common</shadedPattern>
 								</relocation>
-								<!-- relocate the AWS dependencies -->
-								<relocation>
-									<pattern>com.amazon</pattern>
-									<shadedPattern>org.apache.flink.fs.s3base.shaded.com.amazon</shadedPattern>
-								</relocation>
-								<!-- relocate S3 presto and dependencies -->
-								<relocation>
-									<pattern>com.facebook</pattern>
-									<shadedPattern>org.apache.flink.fs.s3presto.shaded.com.facebook</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>com.fasterxml</pattern>
-									<shadedPattern>org.apache.flink.fs.s3presto.shaded.com.fasterxml</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>io.airlift</pattern>
-									<shadedPattern>org.apache.flink.fs.s3presto.shaded.io.airlift</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.HdrHistogram</pattern>
-									<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.HdrHistogram</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.joda</pattern>
-									<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.joda</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.weakref</pattern>
-									<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.weakref</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.openjdk</pattern>
-									<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.openjdk</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>com.google</pattern>
-									<shadedPattern>org.apache.flink.fs.s3presto.shaded.com.google</shadedPattern>
-								</relocation>
-
-								<!-- shade Flink's Hadoop FS utility classes -->
+								<!-- shade Flink's Hadoop FS utility classes, forces plugin classloader for them -->
 								<relocation>
 									<pattern>org.apache.flink.runtime.util</pattern>
 									<shadedPattern>org.apache.flink.fs.s3presto.common</shadedPattern>
@@ -310,12 +481,25 @@ under the License.
 								<filter>
 									<artifact>*</artifact>
 									<excludes>
-										<exclude>META-INF/maven/org.weakref/**</exclude>
-										<exclude>META-INF/maven/org.hdrhistogram/**</exclude>
-										<exclude>META-INF/maven/joda-time/**</exclude>
-										<exclude>META-INF/maven/io.airlift/**</exclude>
-										<exclude>META-INF/maven/com*/**</exclude>
-										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
+										<exclude>.gitkeep</exclude>
+										<exclude>mime.types</exclude>
+										<exclude>mozilla/**</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>META-INF/LICENSE.txt</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>properties.dtd</exclude>
+										<exclude>PropertyList-1.0.dtd</exclude>
+										<exclude>META-INF/maven/**</exclude>
+										<exclude>META-INF/services/javax.xml.stream.*</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
 									</excludes>
 								</filter>
@@ -324,6 +508,15 @@ under the License.
 									<includes>
 										<include>com/facebook/presto/hadoop/**</include>
 									</includes>
+								</filter>
+								<filter>
+									<artifact>com.amazonaws:aws-java-sdk-s3</artifact>
+									<!-- Make sure we are using the overridden XmlResponsesSaxParser of flink-s3-fs-base.
+										Filter must be removed as soon as XmlResponsesSaxParser of this module is
+										dropped, for example when discontinuing support for Java 8. -->
+									<excludes>
+										<exclude>com/amazonaws/services/s3/model/transform/XmlResponsesSaxParser**</exclude>
+									</excludes>
 								</filter>
 							</filters>
 						</configuration>

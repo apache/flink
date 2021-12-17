@@ -20,18 +20,17 @@ package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
 
-/**
- * Tests for {@link JobSubmitResponseBody}.
- */
-public class JobSubmitResponseBodyTest extends RestResponseMarshallingTestBase<JobSubmitResponseBody> {
+/** Tests for {@link JobSubmitResponseBody}. */
+public class JobSubmitResponseBodyTest
+        extends RestResponseMarshallingTestBase<JobSubmitResponseBody> {
 
-	@Override
-	protected Class<JobSubmitResponseBody> getTestResponseClass() {
-		return JobSubmitResponseBody.class;
-	}
+    @Override
+    protected Class<JobSubmitResponseBody> getTestResponseClass() {
+        return JobSubmitResponseBody.class;
+    }
 
-	@Override
-	protected JobSubmitResponseBody getTestResponseInstance() throws Exception {
-		return new JobSubmitResponseBody("/url");
-	}
+    @Override
+    protected JobSubmitResponseBody getTestResponseInstance() throws Exception {
+        return new JobSubmitResponseBody("/url");
+    }
 }

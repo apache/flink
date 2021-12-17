@@ -18,7 +18,8 @@
 
 package org.apache.flink.metrics.influxdb;
 
-import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.util.TestMetricGroup;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -30,41 +31,46 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyChar;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 
-/**
- * Test for {@link MeasurementInfoProvider}.
- */
+/** Test for {@link MeasurementInfoProvider}. */
 public class MeasurementInfoProviderTest extends TestLogger {
-	private final MeasurementInfoProvider provider = new MeasurementInfoProvider();
+    private final MeasurementInfoProvider provider = new MeasurementInfoProvider();
 
-	@Test
-	public void simpleTestGetMetricInfo() {
-		String logicalScope = "myService.Status.JVM.ClassLoader";
-		Map<String, String> variables = new HashMap<>();
-		variables.put("<A>", "a");
-		variables.put("<B>", "b");
-		variables.put("<C>", "c");
-		String metricName = "ClassesLoaded";
-		FrontMetricGroup metricGroup = mock(
-			FrontMetricGroup.class,
-			(invocation) -> {
-				throw new UnsupportedOperationException("unexpected method call");
-			});
-		doReturn(variables).when(metricGroup).getAllVariables();
-		doReturn(logicalScope).when(metricGroup).getLogicalScope(any(), anyChar());
+    @Test
+    public void simpleTestGetMetricInfo() {
+        String logicalScope = "myService.Status.JVM.ClassLoader";
+        Map<String, String> variables = new HashMap<>();
+        variables.put("<A>", "a");
+        variables.put("<B>", "b");
+        variables.put("<C>", "c");
+        String metricName = "ClassesLoaded";
 
-		MeasurementInfo info = provider.getMetricInfo(metricName, metricGroup);
-		assertNotNull(info);
-		assertEquals(
-			String.join("" + MeasurementInfoProvider.SCOPE_SEPARATOR, logicalScope, metricName),
-			info.getName());
-		assertThat(info.getTags(), hasEntry("A", "a"));
-		assertThat(info.getTags(), hasEntry("B", "b"));
-		assertThat(info.getTags(), hasEntry("C", "c"));
-		assertEquals(3, info.getTags().size());
-	}
+        final MetricGroup metricGroup =
+                TestMetricGroup.newBuilder()
+                        .setVariables(variables)
+                        .setLogicalScopeFunction((characterFilter, character) -> logicalScope)
+                        .build();
+
+        MeasurementInfo info = provider.getMetricInfo(metricName, metricGroup);
+        assertNotNull(info);
+        assertEquals(
+                String.join("" + MeasurementInfoProvider.SCOPE_SEPARATOR, logicalScope, metricName),
+                info.getName());
+        assertThat(info.getTags(), hasEntry("A", "a"));
+        assertThat(info.getTags(), hasEntry("B", "b"));
+        assertThat(info.getTags(), hasEntry("C", "c"));
+        assertEquals(3, info.getTags().size());
+    }
+
+    @Test
+    public void testNormalizingTags() {
+        Map<String, String> variables = new HashMap<>();
+        variables.put("<A\n>", "a\n");
+
+        final MetricGroup metricGroup =
+                TestMetricGroup.newBuilder().setVariables(variables).build();
+
+        MeasurementInfo info = provider.getMetricInfo("m1", metricGroup);
+        assertThat(info.getTags(), hasEntry("A", "a"));
+    }
 }

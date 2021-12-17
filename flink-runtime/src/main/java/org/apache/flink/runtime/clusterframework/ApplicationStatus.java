@@ -20,61 +20,59 @@ package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.api.common.JobStatus;
 
-/**
- * The status of an application.
- */
+/** The status of an application. */
 public enum ApplicationStatus {
 
-	/** Application finished successfully */
-	SUCCEEDED(0),
+    /** Application finished successfully */
+    SUCCEEDED(0),
 
-	/** Application encountered an unrecoverable failure or error */
-	FAILED(1443),
-	
-	/** Application was canceled or killed on request */
-	CANCELED(0),
+    /** Application encountered an unrecoverable failure or error */
+    FAILED(1443),
 
-	/** Application status is not known */
-	UNKNOWN(1445);
-	
-	// ------------------------------------------------------------------------
+    /** Application was canceled or killed on request */
+    CANCELED(0),
 
-	/** The associated process exit code */
-	private final int processExitCode;
-	
-	private ApplicationStatus(int exitCode) {
-		this.processExitCode = exitCode;
-	}
+    /** Application status is not known */
+    UNKNOWN(1445);
 
-	/**
-	 * Gets the process exit code associated with this status
-	 * @return The associated process exit code.
-	 */
-	public int processExitCode() {
-		return processExitCode;
-	}
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Derives the ApplicationStatus that should be used for a job that resulted in the given
-	 * job status. If the job is not yet in a globally terminal state, this method returns
-	 * {@link #UNKNOWN}.
-	 */
-	public static ApplicationStatus fromJobStatus(JobStatus jobStatus) {
-		if (jobStatus == null) {
-			return UNKNOWN;
-		}
-		else {
-			switch (jobStatus) {
-				case FAILED:
-					return FAILED;
-				case CANCELED:
-					return CANCELED;
-				case FINISHED:
-					return SUCCEEDED;
+    /** The associated process exit code */
+    private final int processExitCode;
 
-				default:
-					return UNKNOWN;
-			}
-		}
-	}
+    private ApplicationStatus(int exitCode) {
+        this.processExitCode = exitCode;
+    }
+
+    /**
+     * Gets the process exit code associated with this status
+     *
+     * @return The associated process exit code.
+     */
+    public int processExitCode() {
+        return processExitCode;
+    }
+
+    /**
+     * Derives the ApplicationStatus that should be used for a job that resulted in the given job
+     * status. If the job is not yet in a globally terminal state, this method returns {@link
+     * #UNKNOWN}.
+     */
+    public static ApplicationStatus fromJobStatus(JobStatus jobStatus) {
+        if (jobStatus == null) {
+            return UNKNOWN;
+        } else {
+            switch (jobStatus) {
+                case FAILED:
+                    return FAILED;
+                case CANCELED:
+                    return CANCELED;
+                case FINISHED:
+                    return SUCCEEDED;
+
+                default:
+                    return UNKNOWN;
+            }
+        }
+    }
 }

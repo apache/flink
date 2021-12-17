@@ -24,12 +24,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.15-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
-	<name>flink-streaming-scala</name>
+	<name>Flink : Streaming Scala</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
@@ -38,7 +38,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -78,14 +78,22 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -101,7 +109,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -252,6 +260,29 @@ under the License.
 							<!-- Ignore method which was created automatically by Scala for default value calculation.
 							Can be removed once https://github.com/siom79/japicmp/issues/176 will be fixed -->
 							<exclude>org.apache.flink.streaming.api.scala.DataStream#iterate\$default\$3()</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.DataStream#assignTimestamps(org.apache.flink.streaming.api.functions.TimestampExtractor)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.ConnectedStreams#keyBy(scala.Function1,scala.Function1,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+
+							<!-- DataStream#fold was removed in 1.12 -->
+							<exlcude>org.apache.flink.streaming.api.scala.AllWindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.scala.function.AllWindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exlcude>
+							<exclude>org.apache.flink.streaming.api.scala.AllWindowedStream#apply(java.lang.Object,scala.Function2,scala.Function3,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.AllWindowedStream#fold(java.lang.Object,scala.Function2,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.AllWindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.scala.function.AllWindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.AllWindowedStream#fold(java.lang.Object,scala.Function2,scala.Function3,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.KeyedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.KeyedStream#fold(java.lang.Object,scala.Function2,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.scala.function.WindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#apply(java.lang.Object,scala.Function2,scala.Function4,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#fold(java.lang.Object,scala.Function2,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.scala.function.WindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#fold(java.lang.Object,scala.Function2,scala.Function4,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.AllWindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+
+							<!-- DataStream#split was removed in 1.12 -->
+							<exclude>org.apache.flink.streaming.api.scala.DataStream#split(org.apache.flink.streaming.api.collector.selector.OutputSelector)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.DataStream#split(scala.Function1)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.SplitStream</exclude>
 						</excludes>
 					</parameter>
 				</configuration>

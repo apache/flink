@@ -19,15 +19,14 @@
 package org.apache.flink.test.util;
 
 /**
- * Mirror of the {@link MiniClusterWithClientResource} to avoid breaking
- * changes when splitting up the original MiniClusterResource implementation
- * with FLINK-10637.
+ * Mirror of the {@link MiniClusterWithClientResource} to avoid breaking changes when splitting up
+ * the original MiniClusterResource implementation with FLINK-10637.
  *
  * @deprecated This class should be replaced with {@link MiniClusterWithClientResource}.
  */
 @Deprecated
 public class MiniClusterResource extends MiniClusterWithClientResource {
-	public MiniClusterResource(MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
-		super(miniClusterResourceConfiguration);
-	}
+    public MiniClusterResource(MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
+        super(miniClusterResourceConfiguration);
+    }
 }

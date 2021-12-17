@@ -29,13 +29,13 @@ import org.apache.calcite.sql.parser.SqlParserPos;
  * <p>This class is almost an extension of {@link org.apache.calcite.sql.SqlInsertKeyword}.
  */
 public enum RichSqlInsertKeyword {
-	OVERWRITE;
+    OVERWRITE;
 
-	/**
-	 * Creates a parse-tree node representing an occurrence of this keyword
-	 * at a particular position in the parsed text.
-	 */
-	public SqlLiteral symbol(SqlParserPos pos) {
-		return SqlLiteral.createSymbol(this, pos);
-	}
+    /**
+     * Creates a parse-tree node representing an occurrence of this keyword at a particular position
+     * in the parsed text.
+     */
+    public SqlLiteral symbol(SqlParserPos pos) {
+        return SqlLiteral.createSymbol(this, pos);
+    }
 }

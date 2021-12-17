@@ -23,51 +23,56 @@ import org.apache.flink.runtime.rest.handler.job.JobVertexBackPressureHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link JobVertexBackPressureHandler}.
- */
-public class JobVertexBackPressureHeaders implements MessageHeaders<EmptyRequestBody, JobVertexBackPressureInfo, JobVertexMessageParameters> {
+/** Message headers for the {@link JobVertexBackPressureHandler}. */
+public class JobVertexBackPressureHeaders
+        implements MessageHeaders<
+                EmptyRequestBody, JobVertexBackPressureInfo, JobVertexMessageParameters> {
 
-	private static final JobVertexBackPressureHeaders INSTANCE = new JobVertexBackPressureHeaders();
+    private static final JobVertexBackPressureHeaders INSTANCE = new JobVertexBackPressureHeaders();
 
-	private static final String URL = "/jobs/:" + JobIDPathParameter.KEY + "/vertices/:" + JobVertexIdPathParameter.KEY + "/backpressure";
+    private static final String URL =
+            "/jobs/:"
+                    + JobIDPathParameter.KEY
+                    + "/vertices/:"
+                    + JobVertexIdPathParameter.KEY
+                    + "/backpressure";
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<JobVertexBackPressureInfo> getResponseClass() {
-		return JobVertexBackPressureInfo.class;
-	}
+    @Override
+    public Class<JobVertexBackPressureInfo> getResponseClass() {
+        return JobVertexBackPressureInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public JobVertexMessageParameters getUnresolvedMessageParameters() {
-		return new JobVertexMessageParameters();
-	}
+    @Override
+    public JobVertexMessageParameters getUnresolvedMessageParameters() {
+        return new JobVertexMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static JobVertexBackPressureHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JobVertexBackPressureHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns back-pressure information for a job, and may initiate back-pressure sampling if necessary.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns back-pressure information for a job, and may initiate back-pressure sampling if necessary.";
+    }
 }

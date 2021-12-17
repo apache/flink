@@ -13,5 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-org.apache.flink.fs.azurefs.AzureFSFactory
-org.apache.flink.fs.azurefs.SecureAzureFSFactory
+org.apache.flink.fs.azurefs.AzureBlobStorageFSFactory
+org.apache.flink.fs.azurefs.SecureAzureBlobStorageFSFactory
+org.apache.flink.fs.azurefs.AzureDataLakeStoreGen2FSFactory
+org.apache.flink.fs.azurefs.SecureAzureDataLakeStoreGen2FSFactory

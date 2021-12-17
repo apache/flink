@@ -23,24 +23,27 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobStoreService;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingContender;
-import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.retry.RetryNTimes;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.flink.shaded.curator4.org.apache.curator.retry.RetryNTimes;
+
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -51,203 +54,262 @@ import java.util.List;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link ZooKeeperHaServices}.
- */
+/** Tests for the {@link ZooKeeperHaServices}. */
 public class ZooKeeperHaServicesTest extends TestLogger {
 
-	@ClassRule
-	public static final ZooKeeperResource ZOO_KEEPER_RESOURCE = new ZooKeeperResource();
+    @ClassRule public static final ZooKeeperResource ZOO_KEEPER_RESOURCE = new ZooKeeperResource();
 
-	private static CuratorFramework client;
+    @Rule
+    public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource =
+            new TestingFatalErrorHandlerResource();
 
-	@BeforeClass
-	public static void setupClass() {
-		client = startCuratorFramework();
-		client.start();
-	}
+    private static CuratorFramework client;
 
-	@Before
-	public void setup() throws Exception {
-		final List<String> children = client.getChildren().forPath("/");
+    @BeforeClass
+    public static void setupClass() {
+        client = startCuratorFramework();
+        client.start();
+    }
 
-		for (String child : children) {
-			if (!child.equals("zookeeper")) {
-				client.delete().deletingChildrenIfNeeded().forPath('/' + child);
-			}
-		}
-	}
+    @Before
+    public void setup() throws Exception {
+        final List<String> children = client.getChildren().forPath("/");
 
-	@AfterClass
-	public static void teardownClass() {
-		if (client != null) {
-			client.close();
-		}
-	}
+        for (String child : children) {
+            if (!child.equals("zookeeper")) {
+                client.delete().deletingChildrenIfNeeded().forPath('/' + child);
+            }
+        }
+    }
 
-	/**
-	 * Tests that a simple {@link ZooKeeperHaServices#close()} does not delete ZooKeeper paths.
-	 */
-	@Test
-	public void testSimpleClose() throws Exception {
-		final String rootPath = "/foo/bar/flink";
-		final Configuration configuration = createConfiguration(rootPath);
+    @AfterClass
+    public static void teardownClass() {
+        if (client != null) {
+            client.close();
+        }
+    }
 
-		final TestingBlobStoreService blobStoreService = new TestingBlobStoreService();
+    /** Tests that a simple {@link ZooKeeperHaServices#close()} does not delete ZooKeeper paths. */
+    @Test
+    public void testSimpleClose() throws Exception {
+        final String rootPath = "/foo/bar/flink";
+        final Configuration configuration = createConfiguration(rootPath);
 
-		runCleanupTest(
-			configuration,
-			blobStoreService,
-			ZooKeeperHaServices::close);
+        final TestingBlobStoreService blobStoreService = new TestingBlobStoreService();
 
-		assertThat(blobStoreService.isClosed(), is(true));
-		assertThat(blobStoreService.isClosedAndCleanedUpAllData(), is(false));
+        runCleanupTest(configuration, blobStoreService, ZooKeeperHaServices::close);
 
-		final List<String> children = client.getChildren().forPath(rootPath);
-		assertThat(children, is(not(empty())));
-	}
+        assertThat(blobStoreService.isClosed(), is(true));
+        assertThat(blobStoreService.isClosedAndCleanedUpAllData(), is(false));
 
-	/**
-	 * Tests that the {@link ZooKeeperHaServices} cleans up all paths if
-	 * it is closed via {@link ZooKeeperHaServices#closeAndCleanupAllData()}.
-	 */
-	@Test
-	public void testSimpleCloseAndCleanupAllData() throws Exception {
-		final Configuration configuration = createConfiguration("/foo/bar/flink");
+        final List<String> children = client.getChildren().forPath(rootPath);
+        assertThat(children, is(not(empty())));
+    }
 
-		final TestingBlobStoreService blobStoreService = new TestingBlobStoreService();
+    /**
+     * Tests that the {@link ZooKeeperHaServices} cleans up all paths if it is closed via {@link
+     * ZooKeeperHaServices#closeAndCleanupAllData()}.
+     */
+    @Test
+    public void testSimpleCloseAndCleanupAllData() throws Exception {
+        final Configuration configuration = createConfiguration("/foo/bar/flink");
 
-		final List<String> initialChildren = client.getChildren().forPath("/");
+        final TestingBlobStoreService blobStoreService = new TestingBlobStoreService();
 
-		runCleanupTest(
-			configuration,
-			blobStoreService,
-			ZooKeeperHaServices::closeAndCleanupAllData);
+        final List<String> initialChildren = client.getChildren().forPath("/");
 
-		assertThat(blobStoreService.isClosedAndCleanedUpAllData(), is(true));
+        runCleanupTest(
+                configuration, blobStoreService, ZooKeeperHaServices::closeAndCleanupAllData);
 
-		final List<String> children = client.getChildren().forPath("/");
-		assertThat(children, is(equalTo(initialChildren)));
-	}
+        assertThat(blobStoreService.isClosedAndCleanedUpAllData(), is(true));
 
-	/**
-	 * Tests that we can only delete the parent znodes as long as they are empty.
-	 */
-	@Test
-	public void testCloseAndCleanupAllDataWithUncle() throws Exception {
-		final String prefix = "/foo/bar";
-		final String flinkPath = prefix + "/flink";
-		final Configuration configuration = createConfiguration(flinkPath);
+        final List<String> children = client.getChildren().forPath("/");
+        assertThat(children, is(equalTo(initialChildren)));
+    }
 
-		final TestingBlobStoreService blobStoreService = new TestingBlobStoreService();
+    /** Tests that we can only delete the parent znodes as long as they are empty. */
+    @Test
+    public void testCloseAndCleanupAllDataWithUncle() throws Exception {
+        final String prefix = "/foo/bar";
+        final String flinkPath = prefix + "/flink";
+        final Configuration configuration = createConfiguration(flinkPath);
 
-		final String unclePath = prefix + "/foobar";
-		client.create().creatingParentContainersIfNeeded().forPath(unclePath);
+        final TestingBlobStoreService blobStoreService = new TestingBlobStoreService();
 
-		runCleanupTest(
-			configuration,
-			blobStoreService,
-			ZooKeeperHaServices::closeAndCleanupAllData);
+        final String unclePath = prefix + "/foobar";
+        client.create().creatingParentContainersIfNeeded().forPath(unclePath);
 
-		assertThat(blobStoreService.isClosedAndCleanedUpAllData(), is(true));
+        runCleanupTest(
+                configuration, blobStoreService, ZooKeeperHaServices::closeAndCleanupAllData);
 
-		assertThat(client.checkExists().forPath(flinkPath), is(nullValue()));
-		assertThat(client.checkExists().forPath(unclePath), is(notNullValue()));
-	}
+        assertThat(blobStoreService.isClosedAndCleanedUpAllData(), is(true));
 
-	private static CuratorFramework startCuratorFramework() {
-		return CuratorFrameworkFactory.builder()
-				.connectString(ZOO_KEEPER_RESOURCE.getConnectString())
-				.retryPolicy(new RetryNTimes(50, 100))
-				.build();
-	}
+        assertThat(client.checkExists().forPath(flinkPath), is(nullValue()));
+        assertThat(client.checkExists().forPath(unclePath), is(notNullValue()));
+    }
 
-	@Nonnull
-	private Configuration createConfiguration(String rootPath) {
-		final Configuration configuration = new Configuration();
-		configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, ZOO_KEEPER_RESOURCE.getConnectString());
-		configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_ROOT, rootPath);
-		return configuration;
-	}
+    /** Tests that the ZooKeeperHaServices cleans up paths for job manager. */
+    @Test
+    public void testCleanupJobData() throws Exception {
+        String rootPath = "/foo/bar/flink";
+        final Configuration configuration = createConfiguration(rootPath);
+        final String namespace = configuration.get(HighAvailabilityOptions.HA_CLUSTER_ID);
 
-	private void runCleanupTest(
-			Configuration configuration,
-			TestingBlobStoreService blobStoreService,
-			ThrowingConsumer<ZooKeeperHaServices, Exception> zooKeeperHaServicesConsumer) throws Exception {
-		try (ZooKeeperHaServices zooKeeperHaServices = new ZooKeeperHaServices(
-			ZooKeeperUtils.startCuratorFramework(configuration),
-			Executors.directExecutor(),
-			configuration,
-			blobStoreService)) {
+        JobID jobID = new JobID();
+        final String path = rootPath + namespace + ZooKeeperUtils.getJobsPath();
 
-			// create some Zk services to trigger the generation of paths
-			final LeaderRetrievalService resourceManagerLeaderRetriever = zooKeeperHaServices.getResourceManagerLeaderRetriever();
-			final LeaderElectionService resourceManagerLeaderElectionService = zooKeeperHaServices.getResourceManagerLeaderElectionService();
-			final RunningJobsRegistry runningJobsRegistry = zooKeeperHaServices.getRunningJobsRegistry();
+        final TestingBlobStoreService blobStoreService = new TestingBlobStoreService();
 
-			final TestingListener listener = new TestingListener();
-			resourceManagerLeaderRetriever.start(listener);
-			resourceManagerLeaderElectionService.start(new TestingContender("foobar", resourceManagerLeaderElectionService));
-			final JobID jobId = new JobID();
-			runningJobsRegistry.setJobRunning(jobId);
+        runCleanupTestWithJob(
+                configuration,
+                blobStoreService,
+                jobID,
+                haServices -> {
+                    final List<String> childrenBefore = client.getChildren().forPath(path);
 
-			listener.waitForNewLeader(2000L);
+                    haServices.cleanupJobData(jobID);
 
-			resourceManagerLeaderRetriever.stop();
-			resourceManagerLeaderElectionService.stop();
-			runningJobsRegistry.clearJob(jobId);
+                    final List<String> childrenAfter = client.getChildren().forPath(path);
 
-			zooKeeperHaServicesConsumer.accept(zooKeeperHaServices);
-		}
-	}
+                    assertThat(childrenBefore, hasItem(jobID.toString()));
+                    assertThat(childrenAfter, not(hasItem(jobID.toString())));
+                });
+    }
 
-	private static class TestingBlobStoreService implements BlobStoreService {
+    private static CuratorFramework startCuratorFramework() {
+        return CuratorFrameworkFactory.builder()
+                .connectString(ZOO_KEEPER_RESOURCE.getConnectString())
+                .retryPolicy(new RetryNTimes(50, 100))
+                .build();
+    }
 
-		private boolean closedAndCleanedUpAllData = false;
-		private boolean closed = false;
+    @Nonnull
+    private Configuration createConfiguration(String rootPath) {
+        final Configuration configuration = new Configuration();
+        configuration.setString(
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
+                ZOO_KEEPER_RESOURCE.getConnectString());
+        configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_ROOT, rootPath);
+        return configuration;
+    }
 
-		@Override
-		public void closeAndCleanupAllData() {
-			closedAndCleanedUpAllData = true;
-		}
+    private void runCleanupTest(
+            Configuration configuration,
+            TestingBlobStoreService blobStoreService,
+            ThrowingConsumer<ZooKeeperHaServices, Exception> zooKeeperHaServicesConsumer)
+            throws Exception {
+        runCleanupTestWithJob(
+                configuration, blobStoreService, new JobID(), zooKeeperHaServicesConsumer);
+    }
 
-		@Override
-		public void close() throws IOException {
-			closed = true;
-		}
+    private void runCleanupTestWithJob(
+            Configuration configuration,
+            TestingBlobStoreService blobStoreService,
+            JobID jobId,
+            ThrowingConsumer<ZooKeeperHaServices, Exception> zooKeeperHaServicesConsumer)
+            throws Exception {
+        try (ZooKeeperHaServices zooKeeperHaServices =
+                new ZooKeeperHaServices(
+                        ZooKeeperUtils.startCuratorFramework(
+                                configuration,
+                                testingFatalErrorHandlerResource.getFatalErrorHandler()),
+                        Executors.directExecutor(),
+                        configuration,
+                        blobStoreService)) {
 
-		@Override
-		public boolean put(File localFile, JobID jobId, BlobKey blobKey) {
-			return false;
-		}
+            // create some Zk services to trigger the generation of paths
+            final LeaderRetrievalService resourceManagerLeaderRetriever =
+                    zooKeeperHaServices.getResourceManagerLeaderRetriever();
+            final LeaderElectionService resourceManagerLeaderElectionService =
+                    zooKeeperHaServices.getResourceManagerLeaderElectionService();
 
-		@Override
-		public boolean delete(JobID jobId, BlobKey blobKey) {
-			return false;
-		}
+            final LeaderRetrievalService jobManagerLeaderRetriever =
+                    zooKeeperHaServices.getJobManagerLeaderRetriever(jobId);
+            final LeaderElectionService jobManagerLeaderElectionService =
+                    zooKeeperHaServices.getJobManagerLeaderElectionService(jobId);
 
-		@Override
-		public boolean deleteAll(JobID jobId) {
-			return false;
-		}
+            final RunningJobsRegistry runningJobsRegistry =
+                    zooKeeperHaServices.getRunningJobsRegistry();
 
-		@Override
-		public boolean get(JobID jobId, BlobKey blobKey, File localFile) {
-			return false;
-		}
+            final LeaderRetrievalUtils.LeaderConnectionInfoListener resourceManagerLeaderListener =
+                    new LeaderRetrievalUtils.LeaderConnectionInfoListener();
+            resourceManagerLeaderElectionService.start(
+                    new TestingContender(
+                            "unused-resourcemanager-address",
+                            resourceManagerLeaderElectionService));
+            resourceManagerLeaderRetriever.start(resourceManagerLeaderListener);
 
-		private boolean isClosed() {
-			return closed;
-		}
+            final LeaderRetrievalUtils.LeaderConnectionInfoListener jobManagerLeaderListener =
+                    new LeaderRetrievalUtils.LeaderConnectionInfoListener();
+            jobManagerLeaderElectionService.start(
+                    new TestingContender(
+                            "unused-jobmanager-address", jobManagerLeaderElectionService));
+            jobManagerLeaderRetriever.start(jobManagerLeaderListener);
 
-		private boolean isClosedAndCleanedUpAllData() {
-			return closedAndCleanedUpAllData;
-		}
-	}
+            runningJobsRegistry.setJobRunning(jobId);
+
+            // Make sure that the respective zNodes have been properly created
+            resourceManagerLeaderListener.getLeaderConnectionInfoFuture().join();
+            jobManagerLeaderListener.getLeaderConnectionInfoFuture().join();
+
+            resourceManagerLeaderRetriever.stop();
+            resourceManagerLeaderElectionService.stop();
+            jobManagerLeaderRetriever.stop();
+            jobManagerLeaderElectionService.stop();
+            runningJobsRegistry.clearJob(jobId);
+
+            zooKeeperHaServicesConsumer.accept(zooKeeperHaServices);
+        }
+    }
+
+    private static class TestingBlobStoreService implements BlobStoreService {
+
+        private boolean closedAndCleanedUpAllData = false;
+        private boolean closed = false;
+
+        @Override
+        public void closeAndCleanupAllData() {
+            closedAndCleanedUpAllData = true;
+        }
+
+        @Override
+        public void close() throws IOException {
+            closed = true;
+        }
+
+        @Override
+        public boolean put(File localFile, JobID jobId, BlobKey blobKey) {
+            return false;
+        }
+
+        @Override
+        public boolean delete(JobID jobId, BlobKey blobKey) {
+            return false;
+        }
+
+        @Override
+        public boolean deleteAll(JobID jobId) {
+            return false;
+        }
+
+        @Override
+        public boolean get(JobID jobId, BlobKey blobKey, File localFile) {
+            return false;
+        }
+
+        private boolean isClosed() {
+            return closed;
+        }
+
+        private boolean isClosedAndCleanedUpAllData() {
+            return closedAndCleanedUpAllData;
+        }
+    }
 }

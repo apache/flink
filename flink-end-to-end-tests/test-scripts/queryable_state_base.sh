@@ -25,20 +25,20 @@ function link_queryable_state_lib {
 
 # Returns the ip address of the queryable state server
 function get_queryable_state_server_ip {
-    local ip=$(cat ${FLINK_DIR}/log/flink*taskexecutor*log \
+    local ip=$(cat $FLINK_LOG_DIR/flink*taskexecutor*log \
         | grep "Started Queryable State Server" \
         | head -1 \
-        | awk '{split($11, a, "/"); split(a[2], b, ":"); print b[1]}')
+        | grep -Eo  "\.*[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.*")
 
     printf "${ip} \n"
 }
 
 # Returns the ip address of the queryable state server
 function get_queryable_state_proxy_port {
-    local port=$(cat ${FLINK_DIR}/log/flink*taskexecutor*log \
+    local port=$(cat $FLINK_LOG_DIR/flink*taskexecutor*log \
         | grep "Started Queryable State Proxy Server" \
         | head -1 \
-        | awk '{split($12, a, "/"); split(a[2], b, ":"); split(b[2], c, "."); print c[1]}')
+        | grep -Eo  "\.*\:([0-9]{3,5})\.*" | tr -d ":.")
 
     printf "${port} \n"
 }

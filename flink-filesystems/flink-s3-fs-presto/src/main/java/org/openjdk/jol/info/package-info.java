@@ -17,9 +17,8 @@
  */
 
 /**
- * This package contains mock classes to avoid a dependency on OpenJDK JOL,
- * which is incompatible with the Apache License.
- * This package does not contain any implementation of similar logic, it
+ * This package contains mock classes to avoid a dependency on OpenJDK JOL, which is incompatible
+ * with the Apache License. This package does not contain any implementation of similar logic, it
  * simply puts dummy place holders here to make the code work without JOL.
  */
 package org.openjdk.jol.info;

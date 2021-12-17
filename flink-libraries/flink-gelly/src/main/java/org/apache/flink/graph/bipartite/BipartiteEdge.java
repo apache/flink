@@ -22,9 +22,9 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 
 /**
- * A BipartiteEdge represents a link between top and bottom vertices
- * in a {@link BipartiteGraph}. It is generalized form of {@link Edge}
- * where the source and target vertex IDs can be of different types.
+ * A BipartiteEdge represents a link between top and bottom vertices in a {@link BipartiteGraph}. It
+ * is generalized form of {@link Edge} where the source and target vertex IDs can be of different
+ * types.
  *
  * @param <KT> the key type of the top vertices
  * @param <KB> the key type of the bottom vertices
@@ -32,37 +32,37 @@ import org.apache.flink.graph.Edge;
  */
 public class BipartiteEdge<KT, KB, EV> extends Tuple3<KT, KB, EV> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public BipartiteEdge() {}
+    public BipartiteEdge() {}
 
-	public BipartiteEdge(KT topId, KB bottomId, EV value) {
-		this.f0 = topId;
-		this.f1 = bottomId;
-		this.f2 = value;
-	}
+    public BipartiteEdge(KT topId, KB bottomId, EV value) {
+        this.f0 = topId;
+        this.f1 = bottomId;
+        this.f2 = value;
+    }
 
-	public KT getTopId() {
-		return this.f0;
-	}
+    public KT getTopId() {
+        return this.f0;
+    }
 
-	public void setTopId(KT topId) {
-		this.f0 = topId;
-	}
+    public void setTopId(KT topId) {
+        this.f0 = topId;
+    }
 
-	public KB getBottomId() {
-		return this.f1;
-	}
+    public KB getBottomId() {
+        return this.f1;
+    }
 
-	public void setBottomId(KB bottomId) {
-		this.f1 = bottomId;
-	}
+    public void setBottomId(KB bottomId) {
+        this.f1 = bottomId;
+    }
 
-	public EV getValue() {
-		return this.f2;
-	}
+    public EV getValue() {
+        return this.f2;
+    }
 
-	public void setValue(EV value) {
-		this.f2 = value;
-	}
+    public void setValue(EV value) {
+        this.f2 = value;
+    }
 }

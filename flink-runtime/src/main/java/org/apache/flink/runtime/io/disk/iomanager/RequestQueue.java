@@ -21,32 +21,30 @@ package org.apache.flink.runtime.io.disk.iomanager;
 import java.io.Closeable;
 import java.util.concurrent.LinkedBlockingQueue;
 
-/**
- * A {@link LinkedBlockingQueue} that is extended with closing methods.
- */
+/** A {@link LinkedBlockingQueue} that is extended with closing methods. */
 public final class RequestQueue<E> extends LinkedBlockingQueue<E> implements Closeable {
-	
-	private static final long serialVersionUID = 3804115535778471680L;
-	
-	/** Flag marking this queue as closed. */
-	private volatile boolean closed = false;
-	
-	/**
-	 * Closes this request queue.
-	 * 
-	 * @see java.io.Closeable#close()
-	 */
-	@Override
-	public void close() {
-		this.closed = true;
-	}
-	
-	/**
-	 * Checks whether this request queue is closed.
-	 * 
-	 * @return True, if the queue is closed, false otherwise.
-	 */
-	public boolean isClosed() {
-		return this.closed;
-	}
+
+    private static final long serialVersionUID = 3804115535778471680L;
+
+    /** Flag marking this queue as closed. */
+    private volatile boolean closed = false;
+
+    /**
+     * Closes this request queue.
+     *
+     * @see java.io.Closeable#close()
+     */
+    @Override
+    public void close() {
+        this.closed = true;
+    }
+
+    /**
+     * Checks whether this request queue is closed.
+     *
+     * @return True, if the queue is closed, false otherwise.
+     */
+    public boolean isClosed() {
+        return this.closed;
+    }
 }

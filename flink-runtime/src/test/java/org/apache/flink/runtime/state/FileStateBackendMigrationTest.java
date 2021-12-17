@@ -18,17 +18,18 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+
 import java.io.File;
 
 /**
- * Tests for the keyed state backend and operator state backend, as created by the
- * {@link FsStateBackend}.
+ * Tests for the keyed state backend and operator state backend, as created by the {@link
+ * FsStateBackend}.
  */
 public class FileStateBackendMigrationTest extends StateBackendMigrationTestBase<FsStateBackend> {
 
-	@Override
-	protected FsStateBackend getStateBackend() throws Exception {
-		File checkpointPath = tempFolder.newFolder();
-		return new FsStateBackend(checkpointPath.toURI(), false);
-	}
+    @Override
+    protected FsStateBackend getStateBackend() throws Exception {
+        File checkpointPath = tempFolder.newFolder();
+        return new FsStateBackend(checkpointPath.toURI(), false);
+    }
 }

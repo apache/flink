@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -27,6 +28,7 @@ import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteBatch;
 import org.rocksdb.WriteOptions;
 
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -37,80 +39,108 @@ import javax.annotation.Nullable;
  */
 public class RocksDBWriteBatchWrapper implements AutoCloseable {
 
-	private static final int MIN_CAPACITY = 100;
-	private static final int MAX_CAPACITY = 1000;
-	private static final int PER_RECORD_BYTES = 100;
+    private static final int MIN_CAPACITY = 100;
+    private static final int MAX_CAPACITY = 1000;
+    private static final int PER_RECORD_BYTES = 100;
+    // default 0 for disable memory size based flush
+    private static final long DEFAULT_BATCH_SIZE = 0;
 
-	private final RocksDB db;
+    private final RocksDB db;
 
-	private final WriteBatch batch;
+    private final WriteBatch batch;
 
-	private final WriteOptions options;
+    private final WriteOptions options;
 
-	private final int capacity;
+    private final int capacity;
 
-	public RocksDBWriteBatchWrapper(@Nonnull RocksDB rocksDB) {
-		this(rocksDB, null, 500);
-	}
+    @Nonnegative private final long batchSize;
 
-	public RocksDBWriteBatchWrapper(@Nonnull RocksDB rocksDB, @Nullable WriteOptions options) {
-		this(rocksDB, options, 500);
-	}
+    public RocksDBWriteBatchWrapper(@Nonnull RocksDB rocksDB, long writeBatchSize) {
+        this(rocksDB, null, 500, writeBatchSize);
+    }
 
-	public RocksDBWriteBatchWrapper(@Nonnull RocksDB rocksDB, @Nullable WriteOptions options, int capacity) {
-		Preconditions.checkArgument(capacity >= MIN_CAPACITY && capacity <= MAX_CAPACITY,
-			"capacity should be between " + MIN_CAPACITY + " and " + MAX_CAPACITY);
+    public RocksDBWriteBatchWrapper(@Nonnull RocksDB rocksDB, @Nullable WriteOptions options) {
+        this(rocksDB, options, 500, DEFAULT_BATCH_SIZE);
+    }
 
-		this.db = rocksDB;
-		this.options = options;
-		this.capacity = capacity;
-		this.batch = new WriteBatch(this.capacity * PER_RECORD_BYTES);
-	}
+    public RocksDBWriteBatchWrapper(
+            @Nonnull RocksDB rocksDB, @Nullable WriteOptions options, long batchSize) {
+        this(rocksDB, options, 500, batchSize);
+    }
 
-	public void put(
-		@Nonnull ColumnFamilyHandle handle,
-		@Nonnull byte[] key,
-		@Nonnull byte[] value) throws RocksDBException {
+    public RocksDBWriteBatchWrapper(
+            @Nonnull RocksDB rocksDB,
+            @Nullable WriteOptions options,
+            int capacity,
+            long batchSize) {
+        Preconditions.checkArgument(
+                capacity >= MIN_CAPACITY && capacity <= MAX_CAPACITY,
+                "capacity should be between " + MIN_CAPACITY + " and " + MAX_CAPACITY);
+        Preconditions.checkArgument(batchSize >= 0, "Max batch size have to be no negative.");
 
-		batch.put(handle, key, value);
+        this.db = rocksDB;
+        this.options = options;
+        this.capacity = capacity;
+        this.batchSize = batchSize;
+        if (this.batchSize > 0) {
+            this.batch =
+                    new WriteBatch(
+                            (int) Math.min(this.batchSize, this.capacity * PER_RECORD_BYTES));
+        } else {
+            this.batch = new WriteBatch(this.capacity * PER_RECORD_BYTES);
+        }
+    }
 
-		if (batch.count() == capacity) {
-			flush();
-		}
-	}
+    public void put(@Nonnull ColumnFamilyHandle handle, @Nonnull byte[] key, @Nonnull byte[] value)
+            throws RocksDBException {
 
-	public void remove(
-		@Nonnull ColumnFamilyHandle handle,
-		@Nonnull byte[] key) throws RocksDBException {
+        batch.put(handle, key, value);
 
-		batch.remove(handle, key);
+        flushIfNeeded();
+    }
 
-		if (batch.count() == capacity) {
-			flush();
-		}
-	}
+    public void remove(@Nonnull ColumnFamilyHandle handle, @Nonnull byte[] key)
+            throws RocksDBException {
 
-	public void flush() throws RocksDBException {
-		if (options != null) {
-			db.write(options, batch);
-		} else {
-			// use the default WriteOptions, if wasn't provided.
-			try (WriteOptions writeOptions = new WriteOptions()) {
-				db.write(writeOptions, batch);
-			}
-		}
-		batch.clear();
-	}
+        batch.remove(handle, key);
 
-	public WriteOptions getOptions() {
-		return options;
-	}
+        flushIfNeeded();
+    }
 
-	@Override
-	public void close() throws RocksDBException {
-		if (batch.count() != 0) {
-			flush();
-		}
-		IOUtils.closeQuietly(batch);
-	}
+    public void flush() throws RocksDBException {
+        if (options != null) {
+            db.write(options, batch);
+        } else {
+            // use the default WriteOptions, if wasn't provided.
+            try (WriteOptions writeOptions = new WriteOptions()) {
+                db.write(writeOptions, batch);
+            }
+        }
+        batch.clear();
+    }
+
+    public WriteOptions getOptions() {
+        return options;
+    }
+
+    @Override
+    public void close() throws RocksDBException {
+        if (batch.count() != 0) {
+            flush();
+        }
+        IOUtils.closeQuietly(batch);
+    }
+
+    private void flushIfNeeded() throws RocksDBException {
+        boolean needFlush =
+                batch.count() == capacity || (batchSize > 0 && getDataSize() >= batchSize);
+        if (needFlush) {
+            flush();
+        }
+    }
+
+    @VisibleForTesting
+    long getDataSize() {
+        return batch.getDataSize();
+    }
 }

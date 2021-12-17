@@ -34,67 +34,63 @@ import static org.apache.flink.util.Preconditions.checkState;
  * @param <T> The type to be instantiated.
  */
 @Internal
-public abstract class GenericTypeSerializerSnapshot<T, S extends TypeSerializer> implements TypeSerializerSnapshot<T> {
+public abstract class GenericTypeSerializerSnapshot<T, S extends TypeSerializer>
+        implements TypeSerializerSnapshot<T> {
 
-	private static final int VERSION = 2;
-	private Class<T> typeClass;
+    private static final int VERSION = 2;
+    private Class<T> typeClass;
 
-	protected GenericTypeSerializerSnapshot() {
-	}
+    protected GenericTypeSerializerSnapshot() {}
 
-	protected GenericTypeSerializerSnapshot(Class<T> typeClass) {
-		this.typeClass = checkNotNull(typeClass, "type class can not be NULL");
-	}
+    protected GenericTypeSerializerSnapshot(Class<T> typeClass) {
+        this.typeClass = checkNotNull(typeClass, "type class can not be NULL");
+    }
 
-	/**
-	 * Create a serializer that is able to serialize the generic type {@code typeClass}.
-	 */
-	protected abstract TypeSerializer<T> createSerializer(Class<T> typeClass);
+    /** Create a serializer that is able to serialize the generic type {@code typeClass}. */
+    protected abstract TypeSerializer<T> createSerializer(Class<T> typeClass);
 
-	/**
-	 * Gets the type class from the corresponding serializer.
-	 */
-	protected abstract Class<T> getTypeClass(S serializer);
+    /** Gets the type class from the corresponding serializer. */
+    protected abstract Class<T> getTypeClass(S serializer);
 
-	/**
-	 * Gets the serializer's class.
-	 */
-	protected abstract Class<?> serializerClass();
+    /** Gets the serializer's class. */
+    protected abstract Class<?> serializerClass();
 
-	@Override
-	public final int getCurrentVersion() {
-		return VERSION;
-	}
+    @Override
+    public final int getCurrentVersion() {
+        return VERSION;
+    }
 
-	@Override
-	public final void writeSnapshot(DataOutputView out) throws IOException {
-		checkState(typeClass != null, "type class can not be NULL");
-		out.writeUTF(typeClass.getName());
-	}
+    @Override
+    public final void writeSnapshot(DataOutputView out) throws IOException {
+        checkState(typeClass != null, "type class can not be NULL");
+        out.writeUTF(typeClass.getName());
+    }
 
-	@Override
-	public final void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		typeClass = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
-	}
+    @Override
+    public final void readSnapshot(
+            int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+        typeClass = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public final TypeSerializer<T> restoreSerializer() {
-		checkState(typeClass != null, "type class can not be NULL");
-		return createSerializer(typeClass);
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public final TypeSerializer<T> restoreSerializer() {
+        checkState(typeClass != null, "type class can not be NULL");
+        return createSerializer(typeClass);
+    }
 
-	@Override
-	public final TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
-		if (!serializerClass().isInstance(newSerializer)) {
-			return TypeSerializerSchemaCompatibility.incompatible();
-		}
-		@SuppressWarnings("unchecked") S casted = (S) newSerializer;
-		if (typeClass == getTypeClass(casted)) {
-			return TypeSerializerSchemaCompatibility.compatibleAsIs();
-		}
-		else {
-			return TypeSerializerSchemaCompatibility.incompatible();
-		}
-	}
+    @Override
+    public final TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+            TypeSerializer<T> newSerializer) {
+        if (!serializerClass().isInstance(newSerializer)) {
+            return TypeSerializerSchemaCompatibility.incompatible();
+        }
+        @SuppressWarnings("unchecked")
+        S casted = (S) newSerializer;
+        if (typeClass == getTypeClass(casted)) {
+            return TypeSerializerSchemaCompatibility.compatibleAsIs();
+        } else {
+            return TypeSerializerSchemaCompatibility.incompatible();
+        }
+    }
 }

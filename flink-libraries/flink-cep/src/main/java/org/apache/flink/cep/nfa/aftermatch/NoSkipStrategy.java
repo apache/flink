@@ -24,35 +24,32 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Every possible match will be emitted.
- */
+/** Every possible match will be emitted. */
 public class NoSkipStrategy extends AfterMatchSkipStrategy {
 
-	private static final long serialVersionUID = -5843740153729531775L;
+    private static final long serialVersionUID = -5843740153729531775L;
 
-	static final NoSkipStrategy INSTANCE = new NoSkipStrategy();
+    static final NoSkipStrategy INSTANCE = new NoSkipStrategy();
 
-	private NoSkipStrategy() {
-	}
+    private NoSkipStrategy() {}
 
-	@Override
-	public boolean isSkipStrategy() {
-		return false;
-	}
+    @Override
+    public boolean isSkipStrategy() {
+        return false;
+    }
 
-	@Override
-	protected boolean shouldPrune(EventId startEventID, EventId pruningId) {
-		throw new IllegalStateException("This should never happen. Please file a bug.");
-	}
+    @Override
+    protected boolean shouldPrune(EventId startEventID, EventId pruningId) {
+        throw new IllegalStateException("This should never happen. Please file a bug.");
+    }
 
-	@Override
-	protected EventId getPruningId(Collection<Map<String, List<EventId>>> match) {
-		throw new IllegalStateException("This should never happen. Please file a bug.");
-	}
+    @Override
+    protected EventId getPruningId(Collection<Map<String, List<EventId>>> match) {
+        throw new IllegalStateException("This should never happen. Please file a bug.");
+    }
 
-	@Override
-	public String toString() {
-		return "NoSkipStrategy{}";
-	}
+    @Override
+    public String toString() {
+        return "NoSkipStrategy{}";
+    }
 }

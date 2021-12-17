@@ -22,35 +22,33 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 
-/**
- * Gauge metric measuring the output buffer pool usage gauge for {@link ResultPartition}s.
- */
+/** Gauge metric measuring the output buffer pool usage gauge for {@link ResultPartition}s. */
 public class OutputBufferPoolUsageGauge implements Gauge<Float> {
 
-	private final ResultPartition[] resultPartitions;
+    private final ResultPartition[] resultPartitions;
 
-	public OutputBufferPoolUsageGauge(ResultPartition[] resultPartitions) {
-		this.resultPartitions = resultPartitions;
-	}
+    public OutputBufferPoolUsageGauge(ResultPartition[] resultPartitions) {
+        this.resultPartitions = resultPartitions;
+    }
 
-	@Override
-	public Float getValue() {
-		int usedBuffers = 0;
-		int bufferPoolSize = 0;
+    @Override
+    public Float getValue() {
+        int usedBuffers = 0;
+        int bufferPoolSize = 0;
 
-		for (ResultPartition resultPartition : resultPartitions) {
-			BufferPool bufferPool = resultPartition.getBufferPool();
+        for (ResultPartition resultPartition : resultPartitions) {
+            BufferPool bufferPool = resultPartition.getBufferPool();
 
-			if (bufferPool != null) {
-				usedBuffers += bufferPool.bestEffortGetNumOfUsedBuffers();
-				bufferPoolSize += bufferPool.getNumBuffers();
-			}
-		}
+            if (bufferPool != null) {
+                usedBuffers += bufferPool.bestEffortGetNumOfUsedBuffers();
+                bufferPoolSize += bufferPool.getNumBuffers();
+            }
+        }
 
-		if (bufferPoolSize != 0) {
-			return ((float) usedBuffers) / bufferPoolSize;
-		} else {
-			return 0.0f;
-		}
-	}
+        if (bufferPoolSize != 0) {
+            return ((float) usedBuffers) / bufferPoolSize;
+        } else {
+            return 0.0f;
+        }
+    }
 }

@@ -26,19 +26,18 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 
 import java.io.IOException;
 
-/**
- * Jackson serializer for {@link JobVertexID}.
- */
+/** Jackson serializer for {@link JobVertexID}. */
 public class JobVertexIDSerializer extends StdSerializer<JobVertexID> {
 
-	private static final long serialVersionUID = -2339350570828548335L;
+    private static final long serialVersionUID = -2339350570828548335L;
 
-	public JobVertexIDSerializer() {
-		super(JobVertexID.class);
-	}
+    public JobVertexIDSerializer() {
+        super(JobVertexID.class);
+    }
 
-	@Override
-	public void serialize(JobVertexID value, JsonGenerator gen, SerializerProvider provider) throws IOException {
-		gen.writeString(value.toString());
-	}
+    @Override
+    public void serialize(JobVertexID value, JsonGenerator gen, SerializerProvider provider)
+            throws IOException {
+        gen.writeString(value.toString());
+    }
 }

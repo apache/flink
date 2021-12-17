@@ -26,5 +26,5 @@ package org.apache.flink.graph;
  */
 public interface GraphAlgorithm<K, VV, EV, T> {
 
-	T run(Graph<K, VV, EV> input) throws Exception;
+    T run(Graph<K, VV, EV> input) throws Exception;
 }

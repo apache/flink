@@ -29,28 +29,26 @@ import java.util.concurrent.CompletableFuture;
  */
 public class SystemExitTrackingSecurityManager extends SecurityManager {
 
-	private final CompletableFuture<Integer> systemExitFuture = new CompletableFuture<>();
+    private final CompletableFuture<Integer> systemExitFuture = new CompletableFuture<>();
 
-	@Override
-	public void checkPermission(final Permission perm) {
-	}
+    @Override
+    public void checkPermission(final Permission perm) {}
 
-	@Override
-	public void checkPermission(final Permission perm, final Object context) {
-	}
+    @Override
+    public void checkPermission(final Permission perm, final Object context) {}
 
-	@Override
-	public synchronized void checkExit(final int status) {
-		systemExitFuture.complete(status);
-		throw new SecurityException(
-				"SystemExitTrackingSecurityManager is installed. JVM will not exit");
-	}
+    @Override
+    public synchronized void checkExit(final int status) {
+        systemExitFuture.complete(status);
+        throw new SecurityException(
+                "SystemExitTrackingSecurityManager is installed. JVM will not exit");
+    }
 
-	/**
-	 * Returns a {@link CompletableFuture} that is completed with the exit code when {@link
-	 * System#exit(int)} is called.
-	 */
-	public CompletableFuture<Integer> getSystemExitFuture() {
-		return systemExitFuture;
-	}
+    /**
+     * Returns a {@link CompletableFuture} that is completed with the exit code when {@link
+     * System#exit(int)} is called.
+     */
+    public CompletableFuture<Integer> getSystemExitFuture() {
+        return systemExitFuture;
+    }
 }

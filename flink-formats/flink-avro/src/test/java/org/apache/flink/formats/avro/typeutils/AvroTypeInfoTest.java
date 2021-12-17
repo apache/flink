@@ -28,22 +28,20 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
 
-/**
- * Test for {@link AvroTypeInfo}.
- */
+/** Test for {@link AvroTypeInfo}. */
 public class AvroTypeInfoTest extends TypeInformationTestBase<AvroTypeInfo<?>> {
 
-	@Override
-	protected AvroTypeInfo<?>[] getTestData() {
-		return new AvroTypeInfo<?>[] {
-			new AvroTypeInfo<>(Address.class),
-			new AvroTypeInfo<>(User.class),
-		};
-	}
+    @Override
+    protected AvroTypeInfo<?>[] getTestData() {
+        return new AvroTypeInfo<?>[] {
+            new AvroTypeInfo<>(Address.class), new AvroTypeInfo<>(User.class),
+        };
+    }
 
-	@Test
-	public void testAvroByDefault() {
-		final TypeSerializer<User> serializer = new AvroTypeInfo<>(User.class).createSerializer(new ExecutionConfig());
-		assertTrue(serializer instanceof AvroSerializer);
-	}
+    @Test
+    public void testAvroByDefault() {
+        final TypeSerializer<User> serializer =
+                new AvroTypeInfo<>(User.class).createSerializer(new ExecutionConfig());
+        assertTrue(serializer instanceof AvroSerializer);
+    }
 }

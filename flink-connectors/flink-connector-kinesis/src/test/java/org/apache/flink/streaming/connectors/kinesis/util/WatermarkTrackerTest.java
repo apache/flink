@@ -29,80 +29,77 @@ import java.util.Map;
 /** Test for {@link WatermarkTracker}. */
 public class WatermarkTrackerTest {
 
-	WatermarkTracker.WatermarkState wm1 = new WatermarkTracker.WatermarkState();
-	MutableLong clock = new MutableLong(0);
+    WatermarkTracker.WatermarkState wm1 = new WatermarkTracker.WatermarkState();
+    MutableLong clock = new MutableLong(0);
 
-	private class TestWatermarkTracker extends WatermarkTracker {
-		/**
-		 * The watermarks of all sub tasks that participate in the synchronization.
-		 */
-		private final Map<String, WatermarkState> watermarks = new HashMap<>();
+    private class TestWatermarkTracker extends WatermarkTracker {
+        /** The watermarks of all sub tasks that participate in the synchronization. */
+        private final Map<String, WatermarkState> watermarks = new HashMap<>();
 
-		private long updateTimeoutCount = 0;
+        private long updateTimeoutCount = 0;
 
-		@Override
-		protected long getCurrentTime() {
-			return clock.longValue();
-		}
+        @Override
+        protected long getCurrentTime() {
+            return clock.longValue();
+        }
 
-		@Override
-		public long updateWatermark(final long localWatermark) {
-			refreshWatermarkSnapshot(this.watermarks);
+        @Override
+        public long updateWatermark(final long localWatermark) {
+            refreshWatermarkSnapshot(this.watermarks);
 
-			long currentTime = getCurrentTime();
-			String subtaskId = this.getSubtaskId();
+            long currentTime = getCurrentTime();
+            String subtaskId = this.getSubtaskId();
 
-			WatermarkState ws = watermarks.get(subtaskId);
-			if (ws == null) {
-				watermarks.put(subtaskId, ws = new WatermarkState());
-			}
-			ws.lastUpdated = currentTime;
-			ws.watermark = Math.max(ws.watermark, localWatermark);
-			saveWatermark(subtaskId, ws);
+            WatermarkState ws = watermarks.get(subtaskId);
+            if (ws == null) {
+                watermarks.put(subtaskId, ws = new WatermarkState());
+            }
+            ws.lastUpdated = currentTime;
+            ws.watermark = Math.max(ws.watermark, localWatermark);
+            saveWatermark(subtaskId, ws);
 
-			long globalWatermark = ws.watermark;
-			for (Map.Entry<String, WatermarkState> e : watermarks.entrySet()) {
-				ws = e.getValue();
-				if (ws.lastUpdated + getUpdateTimeoutMillis() < currentTime) {
-					// ignore outdated subtask
-					updateTimeoutCount++;
-					continue;
-				}
-				globalWatermark = Math.min(ws.watermark, globalWatermark);
-			}
-			return globalWatermark;
-		}
+            long globalWatermark = ws.watermark;
+            for (Map.Entry<String, WatermarkState> e : watermarks.entrySet()) {
+                ws = e.getValue();
+                if (ws.lastUpdated + getUpdateTimeoutMillis() < currentTime) {
+                    // ignore outdated subtask
+                    updateTimeoutCount++;
+                    continue;
+                }
+                globalWatermark = Math.min(ws.watermark, globalWatermark);
+            }
+            return globalWatermark;
+        }
 
-		protected void refreshWatermarkSnapshot(Map<String, WatermarkState> watermarks) {
-			watermarks.put("wm1", wm1);
-		}
+        protected void refreshWatermarkSnapshot(Map<String, WatermarkState> watermarks) {
+            watermarks.put("wm1", wm1);
+        }
 
-		protected void saveWatermark(String id, WatermarkState ws) {
-			// do nothing
-		}
+        protected void saveWatermark(String id, WatermarkState ws) {
+            // do nothing
+        }
 
-		public long getUpdateTimeoutCount() {
-			return updateTimeoutCount;
-		}
-	}
+        public long getUpdateTimeoutCount() {
+            return updateTimeoutCount;
+        }
+    }
 
-	@Test
-	public void test() {
-		long watermark = 0;
-		TestWatermarkTracker ws = new TestWatermarkTracker();
-		ws.open(new MockStreamingRuntimeContext(false, 1, 0));
-		Assert.assertEquals(Long.MIN_VALUE, ws.updateWatermark(Long.MIN_VALUE));
-		Assert.assertEquals(Long.MIN_VALUE, ws.updateWatermark(watermark));
-		// timeout wm1
-		clock.add(WatermarkTracker.DEFAULT_UPDATE_TIMEOUT_MILLIS + 1);
-		Assert.assertEquals(watermark, ws.updateWatermark(watermark));
-		Assert.assertEquals(watermark, ws.updateWatermark(watermark - 1));
+    @Test
+    public void test() {
+        long watermark = 0;
+        TestWatermarkTracker ws = new TestWatermarkTracker();
+        ws.open(new MockStreamingRuntimeContext(false, 1, 0));
+        Assert.assertEquals(Long.MIN_VALUE, ws.updateWatermark(Long.MIN_VALUE));
+        Assert.assertEquals(Long.MIN_VALUE, ws.updateWatermark(watermark));
+        // timeout wm1
+        clock.add(WatermarkTracker.DEFAULT_UPDATE_TIMEOUT_MILLIS + 1);
+        Assert.assertEquals(watermark, ws.updateWatermark(watermark));
+        Assert.assertEquals(watermark, ws.updateWatermark(watermark - 1));
 
-		// min watermark
-		wm1.watermark = watermark + 1;
-		wm1.lastUpdated = clock.longValue();
-		Assert.assertEquals(watermark, ws.updateWatermark(watermark));
-		Assert.assertEquals(watermark + 1, ws.updateWatermark(watermark + 1));
-	}
-
+        // min watermark
+        wm1.watermark = watermark + 1;
+        wm1.lastUpdated = clock.longValue();
+        Assert.assertEquals(watermark, ws.updateWatermark(watermark));
+        Assert.assertEquals(watermark + 1, ws.updateWatermark(watermark + 1));
+    }
 }

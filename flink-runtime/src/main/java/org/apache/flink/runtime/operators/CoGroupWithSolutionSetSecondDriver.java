@@ -36,224 +36,242 @@ import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.runtime.util.SingleElementIterator;
 import org.apache.flink.util.Collector;
 
-public class CoGroupWithSolutionSetSecondDriver<IT1, IT2, OT> implements ResettableDriver<CoGroupFunction<IT1, IT2, OT>, OT> {
-	
-	private TaskContext<CoGroupFunction<IT1, IT2, OT>, OT> taskContext;
-	
-	private CompactingHashTable<IT2> hashTable;
-	
-	private JoinHashMap<IT2> objectMap;
-	
-	private TypeSerializer<IT1> probeSideSerializer;
-	
-	private TypeComparator<IT1> probeSideComparator;
+public class CoGroupWithSolutionSetSecondDriver<IT1, IT2, OT>
+        implements ResettableDriver<CoGroupFunction<IT1, IT2, OT>, OT> {
 
-	private TypeSerializer<IT2> solutionSetSerializer;
+    private TaskContext<CoGroupFunction<IT1, IT2, OT>, OT> taskContext;
 
-	private TypePairComparator<IT1, IT2> pairComparator;
-	
-	private IT2 solutionSideRecord;
-	
-	protected volatile boolean running;
+    private CompactingHashTable<IT2> hashTable;
 
-	private boolean objectReuseEnabled = false;
+    private JoinHashMap<IT2> objectMap;
 
-	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public void setup(TaskContext<CoGroupFunction<IT1, IT2, OT>, OT> context) {
-		this.taskContext = context;
-		this.running = true;
-	}
-	
-	@Override
-	public int getNumberOfInputs() {
-		return 1;
-	}
-	
-	@Override
-	public Class<CoGroupFunction<IT1, IT2, OT>> getStubType() {
-		@SuppressWarnings("unchecked")
-		final Class<CoGroupFunction<IT1, IT2, OT>> clazz = (Class<CoGroupFunction<IT1, IT2, OT>>) (Class<?>) CoGroupFunction.class;
-		return clazz;
-	}
-	
-	@Override
-	public int getNumberOfDriverComparators() {
-		return 1;
-	}
-	
-	@Override
-	public boolean isInputResettable(int inputNum) {
-		if (inputNum < 0 || inputNum > 1) {
-			throw new IndexOutOfBoundsException();
-		}
-		
-		// from the perspective of the task that runs this operator, there is only one input, which is not resettable
-		// we implement the resettable interface only in order to avoid that this class is re-instantiated for
-		// every iteration
-		return false;
-	}
-	
-	// --------------------------------------------------------------------------------------------
+    private TypeSerializer<IT1> probeSideSerializer;
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public void initialize() throws Exception {
-		
-		final TypeComparator<IT2> solutionSetComparator;
-		
-		// grab a handle to the hash table from the iteration broker
-		if (taskContext instanceof AbstractIterativeTask) {
-			AbstractIterativeTask<?, ?> iterativeTaskContext = (AbstractIterativeTask<?, ?>) taskContext;
-			String identifier = iterativeTaskContext.brokerKey();
-			Object table = SolutionSetBroker.instance().get(identifier);
-			
-			if (table instanceof CompactingHashTable) {
-				this.hashTable = (CompactingHashTable<IT2>) table;
-				solutionSetSerializer = this.hashTable.getBuildSideSerializer();
-				solutionSetComparator = this.hashTable.getBuildSideComparator().duplicate();
-			}
-			else if (table instanceof JoinHashMap) {
-				this.objectMap = (JoinHashMap<IT2>) table;
-				solutionSetSerializer = this.objectMap.getBuildSerializer();
-				solutionSetComparator = this.objectMap.getBuildComparator().duplicate();
-			}
-			else {
-				throw new RuntimeException("Unrecognized solution set index: " + table);
-			}
-		}
-		else {
-			throw new Exception("The task context of this driver is no iterative task context.");
-		}
-		
-		TaskConfig config = taskContext.getTaskConfig();
-		ClassLoader classLoader = taskContext.getUserCodeClassLoader();
-		
-		TypeComparatorFactory<IT1> probeSideComparatorFactory = config.getDriverComparator(0, classLoader); 
-		
-		this.probeSideSerializer = taskContext.<IT1>getInputSerializer(0).getSerializer();
-		this.probeSideComparator = probeSideComparatorFactory.createComparator();
+    private TypeComparator<IT1> probeSideComparator;
 
-		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
-		objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+    private TypeSerializer<IT2> solutionSetSerializer;
 
-		if (objectReuseEnabled) {
-			solutionSideRecord = solutionSetSerializer.createInstance();
-		};
-		
-		TypePairComparatorFactory<IT1, IT2> factory = taskContext.getTaskConfig().getPairComparatorFactory(taskContext.getUserCodeClassLoader());
-		pairComparator = factory.createComparator12(this.probeSideComparator, solutionSetComparator);
-	}
+    private TypePairComparator<IT1, IT2> pairComparator;
 
-	@Override
-	public void prepare() {
-		// nothing to prepare in each iteration
-		// later, if we support out-of-core operation, we need to put the code in here
-		// that brings the initial in-memory partitions into memory
-	}
+    private IT2 solutionSideRecord;
 
-	@Override
-	public void run() throws Exception {
+    protected volatile boolean running;
 
-		final CoGroupFunction<IT1, IT2, OT> coGroupStub = taskContext.getStub();
-		final Collector<OT> collector = taskContext.getOutputCollector();
+    private boolean objectReuseEnabled = false;
 
-		final SingleElementIterator<IT2> siIter = new SingleElementIterator<IT2>();
-		final Iterable<IT2> emptySolutionSide = EmptyIterator.<IT2>get();
+    // --------------------------------------------------------------------------------------------
 
-		if (objectReuseEnabled) {
-			final ReusingKeyGroupedIterator<IT1> probeSideInput = new ReusingKeyGroupedIterator<IT1>(taskContext.<IT1>getInput(0), probeSideSerializer, probeSideComparator);
+    @Override
+    public void setup(TaskContext<CoGroupFunction<IT1, IT2, OT>, OT> context) {
+        this.taskContext = context;
+        this.running = true;
+    }
 
-			if (this.hashTable != null) {
-				final CompactingHashTable<IT2> join = hashTable;
-				final CompactingHashTable<IT2>.HashTableProber<IT1> prober = join.getProber(this.probeSideComparator, this.pairComparator);
+    @Override
+    public int getNumberOfInputs() {
+        return 1;
+    }
 
-				IT2 buildSideRecord = solutionSideRecord;
+    @Override
+    public Class<CoGroupFunction<IT1, IT2, OT>> getStubType() {
+        @SuppressWarnings("unchecked")
+        final Class<CoGroupFunction<IT1, IT2, OT>> clazz =
+                (Class<CoGroupFunction<IT1, IT2, OT>>) (Class<?>) CoGroupFunction.class;
+        return clazz;
+    }
 
-				while (this.running && probeSideInput.nextKey()) {
-					IT1 current = probeSideInput.getCurrent();
+    @Override
+    public int getNumberOfDriverComparators() {
+        return 1;
+    }
 
-					IT2 matchedRecord = prober.getMatchFor(current, buildSideRecord);
-					if (matchedRecord != null) {
-						siIter.set(matchedRecord);
-						coGroupStub.coGroup(probeSideInput.getValues(), siIter, collector);
-					} else {
-						coGroupStub.coGroup(probeSideInput.getValues(), emptySolutionSide, collector);
-					}
-				}
-			} else {
-				final JoinHashMap<IT2> join = this.objectMap;
-				final JoinHashMap<IT2>.Prober<IT1> prober = join.createProber(this.probeSideComparator, this.pairComparator);
-				final TypeSerializer<IT2> serializer = join.getBuildSerializer();
+    @Override
+    public boolean isInputResettable(int inputNum) {
+        if (inputNum < 0 || inputNum > 1) {
+            throw new IndexOutOfBoundsException();
+        }
 
-				while (this.running && probeSideInput.nextKey()) {
-					IT1 current = probeSideInput.getCurrent();
+        // from the perspective of the task that runs this operator, there is only one input, which
+        // is not resettable
+        // we implement the resettable interface only in order to avoid that this class is
+        // re-instantiated for
+        // every iteration
+        return false;
+    }
 
-					IT2 buildSideRecord = prober.lookupMatch(current);
-					if (buildSideRecord != null) {
-						siIter.set(serializer.copy(buildSideRecord));
-						coGroupStub.coGroup(probeSideInput.getValues(), siIter, collector);
-					} else {
-						coGroupStub.coGroup(probeSideInput.getValues(), emptySolutionSide, collector);
-					}
-				}
-			}
-		} else {
-			final NonReusingKeyGroupedIterator<IT1> probeSideInput = 
-					new NonReusingKeyGroupedIterator<IT1>(taskContext.<IT1>getInput(0), probeSideComparator);
+    // --------------------------------------------------------------------------------------------
 
-			if (this.hashTable != null) {
-				final CompactingHashTable<IT2> join = hashTable;
-				final CompactingHashTable<IT2>.HashTableProber<IT1> prober = join.getProber(this.probeSideComparator, this.pairComparator);
+    @Override
+    @SuppressWarnings("unchecked")
+    public void initialize() throws Exception {
 
-				IT2 buildSideRecord;
+        final TypeComparator<IT2> solutionSetComparator;
 
-				while (this.running && probeSideInput.nextKey()) {
-					IT1 current = probeSideInput.getCurrent();
+        // grab a handle to the hash table from the iteration broker
+        if (taskContext instanceof AbstractIterativeTask) {
+            AbstractIterativeTask<?, ?> iterativeTaskContext =
+                    (AbstractIterativeTask<?, ?>) taskContext;
+            String identifier = iterativeTaskContext.brokerKey();
+            Object table = SolutionSetBroker.instance().get(identifier);
 
-					buildSideRecord = prober.getMatchFor(current);
-					if (buildSideRecord != null) {
-						siIter.set(solutionSetSerializer.copy(buildSideRecord));
-						coGroupStub.coGroup(probeSideInput.getValues(), siIter, collector);
-					} else {
-						coGroupStub.coGroup(probeSideInput.getValues(), emptySolutionSide, collector);
-					}
-				}
-			} else {
-				final JoinHashMap<IT2> join = this.objectMap;
-				final JoinHashMap<IT2>.Prober<IT1> prober = join.createProber(this.probeSideComparator, this.pairComparator);
-				final TypeSerializer<IT2> serializer = join.getBuildSerializer();
+            if (table instanceof CompactingHashTable) {
+                this.hashTable = (CompactingHashTable<IT2>) table;
+                solutionSetSerializer = this.hashTable.getBuildSideSerializer();
+                solutionSetComparator = this.hashTable.getBuildSideComparator().duplicate();
+            } else if (table instanceof JoinHashMap) {
+                this.objectMap = (JoinHashMap<IT2>) table;
+                solutionSetSerializer = this.objectMap.getBuildSerializer();
+                solutionSetComparator = this.objectMap.getBuildComparator().duplicate();
+            } else {
+                throw new RuntimeException("Unrecognized solution set index: " + table);
+            }
+        } else {
+            throw new Exception("The task context of this driver is no iterative task context.");
+        }
 
-				while (this.running && probeSideInput.nextKey()) {
-					IT1 current = probeSideInput.getCurrent();
+        TaskConfig config = taskContext.getTaskConfig();
+        ClassLoader classLoader = taskContext.getUserCodeClassLoader();
 
-					IT2 buildSideRecord = prober.lookupMatch(current);
-					if (buildSideRecord != null) {
-						siIter.set(serializer.copy(buildSideRecord));
-						coGroupStub.coGroup(probeSideInput.getValues(), siIter, collector);
-					} else {
-						coGroupStub.coGroup(probeSideInput.getValues(), emptySolutionSide, collector);
-					}
-				}
-			}
+        TypeComparatorFactory<IT1> probeSideComparatorFactory =
+                config.getDriverComparator(0, classLoader);
 
-		}
-	}
+        this.probeSideSerializer = taskContext.<IT1>getInputSerializer(0).getSerializer();
+        this.probeSideComparator = probeSideComparatorFactory.createComparator();
 
-	@Override
-	public void cleanup() {}
-	
-	@Override
-	public void reset() {}
+        ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+        objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 
-	@Override
-	public void teardown() {
-		// hash table is torn down by the iteration head task
-	}
+        if (objectReuseEnabled) {
+            solutionSideRecord = solutionSetSerializer.createInstance();
+        }
+        ;
 
-	@Override
-	public void cancel() {
-		this.running = false;
-	}
+        TypePairComparatorFactory<IT1, IT2> factory =
+                taskContext
+                        .getTaskConfig()
+                        .getPairComparatorFactory(taskContext.getUserCodeClassLoader());
+        pairComparator =
+                factory.createComparator12(this.probeSideComparator, solutionSetComparator);
+    }
+
+    @Override
+    public void prepare() {
+        // nothing to prepare in each iteration
+        // later, if we support out-of-core operation, we need to put the code in here
+        // that brings the initial in-memory partitions into memory
+    }
+
+    @Override
+    public void run() throws Exception {
+
+        final CoGroupFunction<IT1, IT2, OT> coGroupStub = taskContext.getStub();
+        final Collector<OT> collector = taskContext.getOutputCollector();
+
+        final SingleElementIterator<IT2> siIter = new SingleElementIterator<IT2>();
+        final Iterable<IT2> emptySolutionSide = EmptyIterator.<IT2>get();
+
+        if (objectReuseEnabled) {
+            final ReusingKeyGroupedIterator<IT1> probeSideInput =
+                    new ReusingKeyGroupedIterator<IT1>(
+                            taskContext.<IT1>getInput(0), probeSideSerializer, probeSideComparator);
+
+            if (this.hashTable != null) {
+                final CompactingHashTable<IT2> join = hashTable;
+                final CompactingHashTable<IT2>.HashTableProber<IT1> prober =
+                        join.getProber(this.probeSideComparator, this.pairComparator);
+
+                IT2 buildSideRecord = solutionSideRecord;
+
+                while (this.running && probeSideInput.nextKey()) {
+                    IT1 current = probeSideInput.getCurrent();
+
+                    IT2 matchedRecord = prober.getMatchFor(current, buildSideRecord);
+                    if (matchedRecord != null) {
+                        siIter.set(matchedRecord);
+                        coGroupStub.coGroup(probeSideInput.getValues(), siIter, collector);
+                    } else {
+                        coGroupStub.coGroup(
+                                probeSideInput.getValues(), emptySolutionSide, collector);
+                    }
+                }
+            } else {
+                final JoinHashMap<IT2> join = this.objectMap;
+                final JoinHashMap<IT2>.Prober<IT1> prober =
+                        join.createProber(this.probeSideComparator, this.pairComparator);
+                final TypeSerializer<IT2> serializer = join.getBuildSerializer();
+
+                while (this.running && probeSideInput.nextKey()) {
+                    IT1 current = probeSideInput.getCurrent();
+
+                    IT2 buildSideRecord = prober.lookupMatch(current);
+                    if (buildSideRecord != null) {
+                        siIter.set(serializer.copy(buildSideRecord));
+                        coGroupStub.coGroup(probeSideInput.getValues(), siIter, collector);
+                    } else {
+                        coGroupStub.coGroup(
+                                probeSideInput.getValues(), emptySolutionSide, collector);
+                    }
+                }
+            }
+        } else {
+            final NonReusingKeyGroupedIterator<IT1> probeSideInput =
+                    new NonReusingKeyGroupedIterator<IT1>(
+                            taskContext.<IT1>getInput(0), probeSideComparator);
+
+            if (this.hashTable != null) {
+                final CompactingHashTable<IT2> join = hashTable;
+                final CompactingHashTable<IT2>.HashTableProber<IT1> prober =
+                        join.getProber(this.probeSideComparator, this.pairComparator);
+
+                IT2 buildSideRecord;
+
+                while (this.running && probeSideInput.nextKey()) {
+                    IT1 current = probeSideInput.getCurrent();
+
+                    buildSideRecord = prober.getMatchFor(current);
+                    if (buildSideRecord != null) {
+                        siIter.set(solutionSetSerializer.copy(buildSideRecord));
+                        coGroupStub.coGroup(probeSideInput.getValues(), siIter, collector);
+                    } else {
+                        coGroupStub.coGroup(
+                                probeSideInput.getValues(), emptySolutionSide, collector);
+                    }
+                }
+            } else {
+                final JoinHashMap<IT2> join = this.objectMap;
+                final JoinHashMap<IT2>.Prober<IT1> prober =
+                        join.createProber(this.probeSideComparator, this.pairComparator);
+                final TypeSerializer<IT2> serializer = join.getBuildSerializer();
+
+                while (this.running && probeSideInput.nextKey()) {
+                    IT1 current = probeSideInput.getCurrent();
+
+                    IT2 buildSideRecord = prober.lookupMatch(current);
+                    if (buildSideRecord != null) {
+                        siIter.set(serializer.copy(buildSideRecord));
+                        coGroupStub.coGroup(probeSideInput.getValues(), siIter, collector);
+                    } else {
+                        coGroupStub.coGroup(
+                                probeSideInput.getValues(), emptySolutionSide, collector);
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
+    public void cleanup() {}
+
+    @Override
+    public void reset() {}
+
+    @Override
+    public void teardown() {
+        // hash table is torn down by the iteration head task
+    }
+
+    @Override
+    public void cancel() {
+        this.running = false;
+    }
 }

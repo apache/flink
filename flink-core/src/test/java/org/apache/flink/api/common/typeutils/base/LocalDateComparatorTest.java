@@ -26,24 +26,24 @@ import java.time.LocalDate;
 
 public class LocalDateComparatorTest extends ComparatorTestBase<LocalDate> {
 
-	@Override
-	protected TypeComparator<LocalDate> createComparator(boolean ascending) {
-		return new LocalDateComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<LocalDate> createComparator(boolean ascending) {
+        return new LocalDateComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<LocalDate> createSerializer() {
-		return new LocalDateSerializer();
-	}
+    @Override
+    protected TypeSerializer<LocalDate> createSerializer() {
+        return new LocalDateSerializer();
+    }
 
-	@Override
-	protected LocalDate[] getSortedTestData() {
-		return new LocalDate[] {
-				LocalDate.of(0, 1, 1),
-				LocalDate.of(1970, 1, 1),
-				LocalDate.of(1990, 10, 14),
-				LocalDate.of(2013, 8, 12),
-				LocalDate.of(2040, 5, 12)
-		};
-	}
+    @Override
+    protected LocalDate[] getSortedTestData() {
+        return new LocalDate[] {
+            LocalDate.of(0, 1, 1),
+            LocalDate.of(1970, 1, 1),
+            LocalDate.of(1990, 10, 14),
+            LocalDate.of(2013, 8, 12),
+            LocalDate.of(2040, 5, 12)
+        };
+    }
 }

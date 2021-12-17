@@ -37,204 +37,223 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * This class represents a single materialization of a broadcast variable and maintains a reference count for it. If the
- * reference count reaches zero the variable is no longer accessible and will eventually be garbage-collected.
+ * This class represents a single materialization of a broadcast variable and maintains a reference
+ * count for it. If the reference count reaches zero the variable is no longer accessible and will
+ * eventually be garbage-collected.
  *
  * @param <T> The type of the elements in the broadcast data set.
  */
 public class BroadcastVariableMaterialization<T, C> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(BroadcastVariableMaterialization.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(BroadcastVariableMaterialization.class);
 
-	private final Set<BatchTask<?, ?>> references = new HashSet<BatchTask<?, ?>>();
+    private final Set<BatchTask<?, ?>> references = new HashSet<BatchTask<?, ?>>();
 
-	private final Object materializationMonitor = new Object();
+    private final Object materializationMonitor = new Object();
 
-	private final BroadcastVariableKey key;
+    private final BroadcastVariableKey key;
 
-	private ArrayList<T> data;
+    private ArrayList<T> data;
 
-	private C transformed;
+    private C transformed;
 
-	private boolean materialized;
+    private boolean materialized;
 
-	private boolean disposed;
+    private boolean disposed;
 
-	public BroadcastVariableMaterialization(BroadcastVariableKey key) {
-		this.key = key;
-	}
+    public BroadcastVariableMaterialization(BroadcastVariableKey key) {
+        this.key = key;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	public void materializeVariable(MutableReader<?> reader, TypeSerializerFactory<?> serializerFactory, BatchTask<?, ?> referenceHolder)
-			throws MaterializationExpiredException, IOException {
-		Preconditions.checkNotNull(reader);
-		Preconditions.checkNotNull(serializerFactory);
-		Preconditions.checkNotNull(referenceHolder);
+    public void materializeVariable(
+            MutableReader<?> reader,
+            TypeSerializerFactory<?> serializerFactory,
+            BatchTask<?, ?> referenceHolder)
+            throws MaterializationExpiredException, IOException {
+        Preconditions.checkNotNull(reader);
+        Preconditions.checkNotNull(serializerFactory);
+        Preconditions.checkNotNull(referenceHolder);
 
-		final boolean materializer;
+        final boolean materializer;
 
-		// hold the reference lock only while we track references and decide who should be the materializer
-		// that way, other tasks can de-register (in case of failure) while materialization is happening
-		synchronized (references) {
-			if (disposed) {
-				throw new MaterializationExpiredException();
-			}
+        // hold the reference lock only while we track references and decide who should be the
+        // materializer
+        // that way, other tasks can de-register (in case of failure) while materialization is
+        // happening
+        synchronized (references) {
+            if (disposed) {
+                throw new MaterializationExpiredException();
+            }
 
-			// sanity check
-			if (!references.add(referenceHolder)) {
-				throw new IllegalStateException(
-						String.format("The task %s already holds a reference to the broadcast variable %s.",
-								referenceHolder.getEnvironment().getTaskInfo().getTaskNameWithSubtasks(),
-								key.toString()));
-			}
+            // sanity check
+            if (!references.add(referenceHolder)) {
+                throw new IllegalStateException(
+                        String.format(
+                                "The task %s already holds a reference to the broadcast variable %s.",
+                                referenceHolder
+                                        .getEnvironment()
+                                        .getTaskInfo()
+                                        .getTaskNameWithSubtasks(),
+                                key.toString()));
+            }
 
-			materializer = references.size() == 1;
-		}
+            materializer = references.size() == 1;
+        }
 
-		try {
-			@SuppressWarnings("unchecked")
-			final MutableReader<DeserializationDelegate<T>> typedReader = (MutableReader<DeserializationDelegate<T>>) reader;
+        try {
+            @SuppressWarnings("unchecked")
+            final MutableReader<DeserializationDelegate<T>> typedReader =
+                    (MutableReader<DeserializationDelegate<T>>) reader;
 
-			@SuppressWarnings("unchecked")
-			final TypeSerializer<T> serializer = ((TypeSerializerFactory<T>) serializerFactory).getSerializer();
+            @SuppressWarnings("unchecked")
+            final TypeSerializer<T> serializer =
+                    ((TypeSerializerFactory<T>) serializerFactory).getSerializer();
 
-			final ReaderIterator<T> readerIterator = new ReaderIterator<T>(typedReader, serializer);
+            final ReaderIterator<T> readerIterator = new ReaderIterator<T>(typedReader, serializer);
 
-			if (materializer) {
-				// first one, so we need to materialize;
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Getting Broadcast Variable (" + key + ") - First access, materializing.");
-				}
+            if (materializer) {
+                // first one, so we need to materialize;
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            "Getting Broadcast Variable ("
+                                    + key
+                                    + ") - First access, materializing.");
+                }
 
-				ArrayList<T> data = new ArrayList<T>();
+                ArrayList<T> data = new ArrayList<T>();
 
-				T element;
-				while ((element = readerIterator.next()) != null) {
-					data.add(element);
-				}
+                T element;
+                while ((element = readerIterator.next()) != null) {
+                    data.add(element);
+                }
 
-				synchronized (materializationMonitor) {
-					this.data = data;
-					this.materialized = true;
-					materializationMonitor.notifyAll();
-				}
+                synchronized (materializationMonitor) {
+                    this.data = data;
+                    this.materialized = true;
+                    materializationMonitor.notifyAll();
+                }
 
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Materialization of Broadcast Variable (" + key + ") finished.");
-				}
-			}
-			else {
-				// successor: discard all data and refer to the shared variable
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Materialization of Broadcast Variable (" + key + ") finished.");
+                }
+            } else {
+                // successor: discard all data and refer to the shared variable
 
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Getting Broadcast Variable (" + key + ") - shared access.");
-				}
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Getting Broadcast Variable (" + key + ") - shared access.");
+                }
 
-				T element = serializer.createInstance();
-				while ((element = readerIterator.next(element)) != null) {
-				}
+                T element = serializer.createInstance();
+                while ((element = readerIterator.next(element)) != null) {}
 
-				synchronized (materializationMonitor) {
-					while (!this.materialized && !disposed) {
-						materializationMonitor.wait();
-					}
-				}
+                synchronized (materializationMonitor) {
+                    while (!this.materialized && !disposed) {
+                        materializationMonitor.wait();
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            // in case of an exception, we need to clean up big time
+            decrementReferenceIfHeld(referenceHolder);
 
-			}
-		}
-		catch (Throwable t) {
-			// in case of an exception, we need to clean up big time
-			decrementReferenceIfHeld(referenceHolder);
+            if (t instanceof IOException) {
+                throw (IOException) t;
+            } else {
+                throw new IOException("Materialization of the broadcast variable failed.", t);
+            }
+        }
+    }
 
-			if (t instanceof IOException) {
-				throw (IOException) t;
-			} else {
-				throw new IOException("Materialization of the broadcast variable failed.", t);
-			}
-		}
-	}
+    public boolean decrementReference(BatchTask<?, ?> referenceHolder) {
+        return decrementReferenceInternal(referenceHolder, true);
+    }
 
-	public boolean decrementReference(BatchTask<?, ?> referenceHolder) {
-		return decrementReferenceInternal(referenceHolder, true);
-	}
+    public boolean decrementReferenceIfHeld(BatchTask<?, ?> referenceHolder) {
+        return decrementReferenceInternal(referenceHolder, false);
+    }
 
-	public boolean decrementReferenceIfHeld(BatchTask<?, ?> referenceHolder) {
-		return decrementReferenceInternal(referenceHolder, false);
-	}
+    private boolean decrementReferenceInternal(
+            BatchTask<?, ?> referenceHolder, boolean errorIfNoReference) {
+        synchronized (references) {
+            if (disposed || references.isEmpty()) {
+                if (errorIfNoReference) {
+                    throw new IllegalStateException(
+                            "Decrementing reference to broadcast variable that is no longer alive.");
+                } else {
+                    return false;
+                }
+            }
 
-	private boolean decrementReferenceInternal(BatchTask<?, ?> referenceHolder, boolean errorIfNoReference) {
-		synchronized (references) {
-			if (disposed || references.isEmpty()) {
-				if (errorIfNoReference) {
-					throw new IllegalStateException("Decrementing reference to broadcast variable that is no longer alive.");
-				} else {
-					return false;
-				}
-			}
+            if (!references.remove(referenceHolder)) {
+                if (errorIfNoReference) {
+                    throw new IllegalStateException(
+                            String.format(
+                                    "The task %s did not hold a reference to the broadcast variable %s.",
+                                    referenceHolder
+                                            .getEnvironment()
+                                            .getTaskInfo()
+                                            .getTaskNameWithSubtasks(),
+                                    key.toString()));
+                } else {
+                    return false;
+                }
+            }
 
-			if (!references.remove(referenceHolder)) {
-				if (errorIfNoReference) {
-					throw new IllegalStateException(
-							String.format("The task %s did not hold a reference to the broadcast variable %s.",
-									referenceHolder.getEnvironment().getTaskInfo().getTaskNameWithSubtasks(),
-									key.toString()));
-				} else {
-					return false;
-				}
-			}
+            if (references.isEmpty()) {
+                disposed = true;
+                data = null;
+                transformed = null;
+                return true;
+            } else {
+                return false;
+            }
+        }
+    }
 
-			if (references.isEmpty()) {
-				disposed = true;
-				data = null;
-				transformed = null;
-				return true;
-			} else {
-				return false;
-			}
-		}
-	}
+    // --------------------------------------------------------------------------------------------
 
-	// --------------------------------------------------------------------------------------------
+    public List<T> getVariable() throws InitializationTypeConflictException {
+        if (!materialized) {
+            throw new IllegalStateException(
+                    "The Broadcast Variable has not yet been materialized.");
+        }
+        if (disposed) {
+            throw new IllegalStateException("The Broadcast Variable has been disposed");
+        }
 
-	public List<T> getVariable() throws InitializationTypeConflictException {
-		if (!materialized) {
-			throw new IllegalStateException("The Broadcast Variable has not yet been materialized.");
-		}
-		if (disposed) {
-			throw new IllegalStateException("The Broadcast Variable has been disposed");
-		}
+        synchronized (references) {
+            if (transformed != null) {
+                if (transformed instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<T> casted = (List<T>) transformed;
+                    return casted;
+                } else {
+                    throw new InitializationTypeConflictException(transformed.getClass());
+                }
+            } else {
+                return data;
+            }
+        }
+    }
 
-		synchronized (references) {
-			if (transformed != null) {
-				if (transformed instanceof List) {
-					@SuppressWarnings("unchecked")
-					List<T> casted = (List<T>) transformed;
-					return casted;
-				} else {
-					throw new InitializationTypeConflictException(transformed.getClass());
-				}
-			}
-			else {
-				return data;
-			}
-		}
-	}
+    public C getVariable(BroadcastVariableInitializer<T, C> initializer) {
+        if (!materialized) {
+            throw new IllegalStateException(
+                    "The Broadcast Variable has not yet been materialized.");
+        }
+        if (disposed) {
+            throw new IllegalStateException("The Broadcast Variable has been disposed");
+        }
 
-	public C getVariable(BroadcastVariableInitializer<T, C> initializer) {
-		if (!materialized) {
-			throw new IllegalStateException("The Broadcast Variable has not yet been materialized.");
-		}
-		if (disposed) {
-			throw new IllegalStateException("The Broadcast Variable has been disposed");
-		}
-
-		synchronized (references) {
-			if (transformed == null) {
-				transformed = initializer.initializeBroadcastVariable(data);
-				data = null;
-			}
-			return transformed;
-		}
-	}
+        synchronized (references) {
+            if (transformed == null) {
+                transformed = initializer.initializeBroadcastVariable(data);
+                data = null;
+            }
+            return transformed;
+        }
+    }
 }

@@ -24,57 +24,61 @@ import org.apache.flink.runtime.rest.messages.job.SubtasksAllAccumulatorsInfo;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link SubtasksAllAccumulatorsHandler}.
- */
-public class SubtasksAllAccumulatorsHeaders implements MessageHeaders<EmptyRequestBody, SubtasksAllAccumulatorsInfo, JobVertexMessageParameters> {
+/** Message headers for the {@link SubtasksAllAccumulatorsHandler}. */
+public class SubtasksAllAccumulatorsHeaders
+        implements MessageHeaders<
+                EmptyRequestBody, SubtasksAllAccumulatorsInfo, JobVertexMessageParameters> {
 
-	private static final SubtasksAllAccumulatorsHeaders INSTANCE = new SubtasksAllAccumulatorsHeaders();
+    private static final SubtasksAllAccumulatorsHeaders INSTANCE =
+            new SubtasksAllAccumulatorsHeaders();
 
-	public static final String URL = "/jobs" +
-		"/:" + JobIDPathParameter.KEY +
-		"/vertices" +
-		"/:" + JobVertexIdPathParameter.KEY +
-		"/subtasks/accumulators";
+    public static final String URL =
+            "/jobs"
+                    + "/:"
+                    + JobIDPathParameter.KEY
+                    + "/vertices"
+                    + "/:"
+                    + JobVertexIdPathParameter.KEY
+                    + "/subtasks/accumulators";
 
-	private SubtasksAllAccumulatorsHeaders() {}
+    private SubtasksAllAccumulatorsHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<SubtasksAllAccumulatorsInfo> getResponseClass() {
-		return SubtasksAllAccumulatorsInfo.class;
-	}
+    @Override
+    public Class<SubtasksAllAccumulatorsInfo> getResponseClass() {
+        return SubtasksAllAccumulatorsInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public JobVertexMessageParameters getUnresolvedMessageParameters() {
-		return new JobVertexMessageParameters();
-	}
+    @Override
+    public JobVertexMessageParameters getUnresolvedMessageParameters() {
+        return new JobVertexMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static SubtasksAllAccumulatorsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static SubtasksAllAccumulatorsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns all user-defined accumulators for all subtasks of a task.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns all user-defined accumulators for all subtasks of a task.";
+    }
 }

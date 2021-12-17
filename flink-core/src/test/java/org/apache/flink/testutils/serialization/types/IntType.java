@@ -16,59 +16,58 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.testutils.serialization.types;
-
-import java.io.IOException;
-import java.util.Random;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+import java.util.Random;
+
 public class IntType implements SerializationTestType {
 
-	private int value;
+    private int value;
 
-	public IntType() {
-		this.value = 0;
-	}
+    public IntType() {
+        this.value = 0;
+    }
 
-	public IntType(int value) {
-		this.value = value;
-	}
+    public IntType(int value) {
+        this.value = value;
+    }
 
-	@Override
-	public IntType getRandom(Random rnd) {
-		return new IntType(rnd.nextInt());
-	}
+    @Override
+    public IntType getRandom(Random rnd) {
+        return new IntType(rnd.nextInt());
+    }
 
-	@Override
-	public int length() {
-		return 4;
-	}
+    @Override
+    public int length() {
+        return 4;
+    }
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeInt(this.value);
-	}
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        out.writeInt(this.value);
+    }
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-		this.value = in.readInt();
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {
+        this.value = in.readInt();
+    }
 
-	@Override
-	public int hashCode() {
-		return this.value;
-	}
+    @Override
+    public int hashCode() {
+        return this.value;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof IntType) {
-			IntType other = (IntType) obj;
-			return this.value == other.value;
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof IntType) {
+            IntType other = (IntType) obj;
+            return this.value == other.value;
+        } else {
+            return false;
+        }
+    }
 }

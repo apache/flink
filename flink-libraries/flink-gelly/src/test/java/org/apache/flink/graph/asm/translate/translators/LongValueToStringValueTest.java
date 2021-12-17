@@ -26,19 +26,21 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link LongValueToStringValue}.
- */
+/** Tests for {@link LongValueToStringValue}. */
 public class LongValueToStringValueTest {
 
-	private TranslateFunction<LongValue, StringValue> translator = new LongValueToStringValue();
+    private TranslateFunction<LongValue, StringValue> translator = new LongValueToStringValue();
 
-	@Test
-	public void testTranslation() throws Exception {
-		StringValue reuse = new StringValue();
+    @Test
+    public void testTranslation() throws Exception {
+        StringValue reuse = new StringValue();
 
-		assertEquals(new StringValue("-9223372036854775808"), translator.translate(new LongValue(Long.MIN_VALUE), reuse));
-		assertEquals(new StringValue("0"), translator.translate(new LongValue(0), reuse));
-		assertEquals(new StringValue("9223372036854775807"), translator.translate(new LongValue(Long.MAX_VALUE), reuse));
-	}
+        assertEquals(
+                new StringValue("-9223372036854775808"),
+                translator.translate(new LongValue(Long.MIN_VALUE), reuse));
+        assertEquals(new StringValue("0"), translator.translate(new LongValue(0), reuse));
+        assertEquals(
+                new StringValue("9223372036854775807"),
+                translator.translate(new LongValue(Long.MAX_VALUE), reuse));
+    }
 }

@@ -19,25 +19,23 @@
 package org.apache.flink.runtime.state;
 
 /**
- * The scope for a chunk of checkpointed state. Defines whether state is owned by one
- * checkpoint, or whether it is shared by multiple checkpoints.
+ * The scope for a chunk of checkpointed state. Defines whether state is owned by one checkpoint, or
+ * whether it is shared by multiple checkpoints.
  *
- * <p>Different checkpoint storage implementations may treat checkpointed state of different
- * scopes differently, for example put it into different folders or tables.
+ * <p>Different checkpoint storage implementations may treat checkpointed state of different scopes
+ * differently, for example put it into different folders or tables.
  */
 public enum CheckpointedStateScope {
 
-	/**
-	 * Exclusive state belongs exclusively to one specific checkpoint / savepoint.
-	 */
-	EXCLUSIVE,
+    /** Exclusive state belongs exclusively to one specific checkpoint / savepoint. */
+    EXCLUSIVE,
 
-	/**
-	 * Shared state may belong to more than one checkpoint.
-	 *
-	 * <p>Shared state is typically used for incremental or differential checkpointing
-	 * methods, where only deltas are written, and state from prior checkpoints is
-	 * referenced in newer checkpoints as well.
-	 */
-	SHARED
+    /**
+     * Shared state may belong to more than one checkpoint.
+     *
+     * <p>Shared state is typically used for incremental or differential checkpointing methods,
+     * where only deltas are written, and state from prior checkpoints is referenced in newer
+     * checkpoints as well.
+     */
+    SHARED
 }

@@ -30,30 +30,31 @@ import java.io.PrintStream;
  *
  * @param <T> result Type
  */
-public class CSV<T>
-extends OutputBase<T> {
+public class CSV<T> extends OutputBase<T> {
 
-	private StringParameter filename = new StringParameter(this, "output_filename");
+    private StringParameter filename = new StringParameter(this, "output_filename");
 
-	private StringParameter lineDelimiter = new StringParameter(this, "output_line_delimiter")
-		.setDefaultValue(CsvOutputFormat.DEFAULT_LINE_DELIMITER);
+    private StringParameter lineDelimiter =
+            new StringParameter(this, "output_line_delimiter")
+                    .setDefaultValue(CsvOutputFormat.DEFAULT_LINE_DELIMITER);
 
-	private StringParameter fieldDelimiter = new StringParameter(this, "output_field_delimiter")
-		.setDefaultValue(CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
+    private StringParameter fieldDelimiter =
+            new StringParameter(this, "output_field_delimiter")
+                    .setDefaultValue(CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
 
-	@Override
-	public void write(String executionName, PrintStream out, DataSet<T> data) throws Exception {
-		if (Tuple.class.isAssignableFrom(data.getType().getTypeClass())) {
-			data
-				.writeAsCsv(filename.getValue(), lineDelimiter.getValue(), fieldDelimiter.getValue())
-					.name("CSV: " + filename.getValue());
-		} else {
-			// line and field delimiters are ineffective when writing custom POJOs result types
-			data
-				.writeAsText(filename.getValue())
-					.name("CSV: " + filename.getValue());
-		}
+    @Override
+    public void write(String executionName, PrintStream out, DataSet<T> data) throws Exception {
+        if (Tuple.class.isAssignableFrom(data.getType().getTypeClass())) {
+            data.writeAsCsv(
+                            filename.getValue(),
+                            lineDelimiter.getValue(),
+                            fieldDelimiter.getValue())
+                    .name("CSV: " + filename.getValue());
+        } else {
+            // line and field delimiters are ineffective when writing custom POJOs result types
+            data.writeAsText(filename.getValue()).name("CSV: " + filename.getValue());
+        }
 
-		data.getExecutionEnvironment().execute();
-	}
+        data.getExecutionEnvironment().execute();
+    }
 }

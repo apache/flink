@@ -22,15 +22,17 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * Request parameter for job accumulator's handler {@link org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler}.
+ * Request parameter for job accumulator's handler {@link
+ * org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler}.
  */
 public class JobAccumulatorsMessageParameters extends JobMessageParameters {
 
-	public final AccumulatorsIncludeSerializedValueQueryParameter
-		includeSerializedAccumulatorsParameter = new AccumulatorsIncludeSerializedValueQueryParameter();
+    public final AccumulatorsIncludeSerializedValueQueryParameter
+            includeSerializedAccumulatorsParameter =
+                    new AccumulatorsIncludeSerializedValueQueryParameter();
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.singleton(includeSerializedAccumulatorsParameter);
-	}
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.singleton(includeSerializedAccumulatorsParameter);
+    }
 }

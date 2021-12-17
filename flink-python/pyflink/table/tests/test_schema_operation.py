@@ -24,12 +24,12 @@ class StreamTableSchemaTests(PyFlinkStreamTableTestCase):
 
     def test_print_schema(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.group_by("c").select("a.sum, c as b")
+        result = t.group_by(t.c).select(t.a.sum, t.c.alias('b'))
         result.print_schema()
 
     def test_get_schema(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.group_by("c").select("a.sum as a, c as b")
+        result = t.group_by(t.c).select(t.a.sum.alias('a'), t.c.alias('b'))
         schema = result.get_schema()
 
         assert schema == TableSchema(["a", "b"], [DataTypes.BIGINT(), DataTypes.STRING()])

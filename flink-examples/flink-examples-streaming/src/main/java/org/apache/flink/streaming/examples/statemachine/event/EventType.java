@@ -18,10 +18,13 @@
 
 package org.apache.flink.streaming.examples.statemachine.event;
 
-/**
- * The type of the event processed by the state machine.
- */
+/** The type of the event processed by the state machine. */
 public enum EventType {
-
-	a, b, c, d, e, f, g;
+    a,
+    b,
+    c,
+    d,
+    e,
+    f,
+    g;
 }

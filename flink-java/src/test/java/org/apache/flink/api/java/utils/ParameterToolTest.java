@@ -42,151 +42,165 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Tests for {@link ParameterTool}.
- */
+/** Tests for {@link ParameterTool}. */
 public class ParameterToolTest extends AbstractParameterToolTest {
 
-	// ----- Parser tests -----------------
+    // ----- Parser tests -----------------
 
-	@Test
-	public void testFromCliArgs() {
-		ParameterTool parameter = (ParameterTool) createParameterToolFromArgs(new String[]{"--input", "myInput", "-expectedCount", "15", "--withoutValues",
-				"--negativeFloat", "-0.58", "-isWorking", "true", "--maxByte", "127", "-negativeShort", "-1024"});
-		Assert.assertEquals(7, parameter.getNumberOfParameters());
-		validate(parameter);
-		Assert.assertTrue(parameter.has("withoutValues"));
-		Assert.assertEquals(-0.58, parameter.getFloat("negativeFloat"), 0.1);
-		Assert.assertTrue(parameter.getBoolean("isWorking"));
-		Assert.assertEquals(127, parameter.getByte("maxByte"));
-		Assert.assertEquals(-1024, parameter.getShort("negativeShort"));
-	}
+    @Test
+    public void testFromCliArgs() {
+        ParameterTool parameter =
+                (ParameterTool)
+                        createParameterToolFromArgs(
+                                new String[] {
+                                    "--input",
+                                    "myInput",
+                                    "-expectedCount",
+                                    "15",
+                                    "--withoutValues",
+                                    "--negativeFloat",
+                                    "-0.58",
+                                    "-isWorking",
+                                    "true",
+                                    "--maxByte",
+                                    "127",
+                                    "-negativeShort",
+                                    "-1024"
+                                });
+        Assert.assertEquals(7, parameter.getNumberOfParameters());
+        validate(parameter);
+        Assert.assertTrue(parameter.has("withoutValues"));
+        Assert.assertEquals(-0.58, parameter.getFloat("negativeFloat"), 0.1);
+        Assert.assertTrue(parameter.getBoolean("isWorking"));
+        Assert.assertEquals(127, parameter.getByte("maxByte"));
+        Assert.assertEquals(-1024, parameter.getShort("negativeShort"));
+    }
 
-	@Test
-	public void testFromPropertiesFile() throws IOException {
-		File propertiesFile = tmp.newFile();
-		Properties props = new Properties();
-		props.setProperty("input", "myInput");
-		props.setProperty("expectedCount", "15");
-		try (final OutputStream out = new FileOutputStream(propertiesFile)) {
-			props.store(out, "Test properties");
-		}
-		ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFile.getAbsolutePath());
-		Assert.assertEquals(2, parameter.getNumberOfParameters());
-		validate(parameter);
+    @Test
+    public void testFromPropertiesFile() throws IOException {
+        File propertiesFile = tmp.newFile();
+        Properties props = new Properties();
+        props.setProperty("input", "myInput");
+        props.setProperty("expectedCount", "15");
+        try (final OutputStream out = new FileOutputStream(propertiesFile)) {
+            props.store(out, "Test properties");
+        }
+        ParameterTool parameter =
+                ParameterTool.fromPropertiesFile(propertiesFile.getAbsolutePath());
+        Assert.assertEquals(2, parameter.getNumberOfParameters());
+        validate(parameter);
 
-		parameter = ParameterTool.fromPropertiesFile(propertiesFile);
-		Assert.assertEquals(2, parameter.getNumberOfParameters());
-		validate(parameter);
+        parameter = ParameterTool.fromPropertiesFile(propertiesFile);
+        Assert.assertEquals(2, parameter.getNumberOfParameters());
+        validate(parameter);
 
-		try (FileInputStream fis = new FileInputStream(propertiesFile)) {
-			parameter = ParameterTool.fromPropertiesFile(fis);
-		}
-		Assert.assertEquals(2, parameter.getNumberOfParameters());
-		validate(parameter);
-	}
+        try (FileInputStream fis = new FileInputStream(propertiesFile)) {
+            parameter = ParameterTool.fromPropertiesFile(fis);
+        }
+        Assert.assertEquals(2, parameter.getNumberOfParameters());
+        validate(parameter);
+    }
 
-	@Test
-	public void testFromMapOrProperties() {
-		Properties props = new Properties();
-		props.setProperty("input", "myInput");
-		props.setProperty("expectedCount", "15");
-		ParameterTool parameter = ParameterTool.fromMap((Map) props);
-		Assert.assertEquals(2, parameter.getNumberOfParameters());
-		validate(parameter);
-	}
+    @Test
+    public void testFromMapOrProperties() {
+        Properties props = new Properties();
+        props.setProperty("input", "myInput");
+        props.setProperty("expectedCount", "15");
+        ParameterTool parameter = ParameterTool.fromMap((Map) props);
+        Assert.assertEquals(2, parameter.getNumberOfParameters());
+        validate(parameter);
+    }
 
-	/**
-	 * This is mainly meant to be used with -D arguments against the JVM.
-	 */
-	@Test
-	public void testSystemProperties() {
-		System.setProperty("input", "myInput");
-		System.setProperty("expectedCount", "15");
-		ParameterTool parameter = ParameterTool.fromSystemProperties();
-		validate(parameter);
-	}
+    /** This is mainly meant to be used with -D arguments against the JVM. */
+    @Test
+    public void testSystemProperties() {
+        System.setProperty("input", "myInput");
+        System.setProperty("expectedCount", "15");
+        ParameterTool parameter = ParameterTool.fromSystemProperties();
+        validate(parameter);
+    }
 
-	@Test
-	public void testMerged() {
-		ParameterTool parameter1 = (ParameterTool) createParameterToolFromArgs(new String[]{"--input", "myInput"});
-		System.setProperty("expectedCount", "15");
-		ParameterTool parameter2 = ParameterTool.fromSystemProperties();
-		ParameterTool parameter = parameter1.mergeWith(parameter2);
-		validate(parameter);
-	}
+    @Test
+    public void testMerged() {
+        ParameterTool parameter1 =
+                (ParameterTool) createParameterToolFromArgs(new String[] {"--input", "myInput"});
+        System.setProperty("expectedCount", "15");
+        ParameterTool parameter2 = ParameterTool.fromSystemProperties();
+        ParameterTool parameter = parameter1.mergeWith(parameter2);
+        validate(parameter);
+    }
 
+    /** Tests that we can concurrently serialize and access the ParameterTool. See FLINK-7943 */
+    @Test
+    public void testConcurrentExecutionConfigSerialization()
+            throws ExecutionException, InterruptedException {
 
+        final int numInputs = 10;
+        Collection<String> input = new ArrayList<>(numInputs);
 
-	/**
-	 * Tests that we can concurrently serialize and access the ParameterTool. See FLINK-7943
-	 */
-	@Test
-	public void testConcurrentExecutionConfigSerialization() throws ExecutionException, InterruptedException {
+        for (int i = 0; i < numInputs; i++) {
+            input.add("--" + UUID.randomUUID());
+            input.add(UUID.randomUUID().toString());
+        }
 
-		final int numInputs = 10;
-		Collection<String> input = new ArrayList<>(numInputs);
+        final String[] args = input.toArray(new String[0]);
 
-		for (int i = 0; i < numInputs; i++) {
-			input.add("--" + UUID.randomUUID());
-			input.add(UUID.randomUUID().toString());
-		}
+        final ParameterTool parameterTool = (ParameterTool) createParameterToolFromArgs(args);
 
-		final String[] args = input.toArray(new String[0]);
+        final int numThreads = 5;
+        final int numSerializations = 100;
 
-		final ParameterTool parameterTool = (ParameterTool) createParameterToolFromArgs(args);
+        final Collection<CompletableFuture<Void>> futures = new ArrayList<>(numSerializations);
 
-		final int numThreads = 5;
-		final int numSerializations = 100;
+        final ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
 
-		final Collection<CompletableFuture<Void>> futures = new ArrayList<>(numSerializations);
+        try {
+            for (int i = 0; i < numSerializations; i++) {
+                futures.add(
+                        CompletableFuture.runAsync(
+                                () -> {
+                                    try {
+                                        serializeDeserialize(parameterTool);
+                                    } catch (Exception e) {
+                                        throw new CompletionException(e);
+                                    }
+                                },
+                                executorService));
+            }
 
-		final ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
+            for (CompletableFuture<Void> future : futures) {
+                future.get();
+            }
+        } finally {
+            executorService.shutdownNow();
+            executorService.awaitTermination(1000L, TimeUnit.MILLISECONDS);
+        }
+    }
 
-		try {
-			for (int i = 0; i < numSerializations; i++) {
-				futures.add(
-					CompletableFuture.runAsync(
-						() -> {
-							try {
-								serializeDeserialize(parameterTool);
-							} catch (Exception e) {
-								throw new CompletionException(e);
-							}
-						},
-						executorService));
-			}
+    /**
+     * Accesses parameter tool parameters and then serializes the given parameter tool and
+     * deserializes again.
+     *
+     * @param parameterTool to serialize/deserialize
+     */
+    private void serializeDeserialize(ParameterTool parameterTool)
+            throws IOException, ClassNotFoundException {
+        // weirdly enough, this call has side effects making the ParameterTool serialization fail if
+        // not
+        // using a concurrent data structure.
+        parameterTool.get(UUID.randomUUID().toString());
 
-			for (CompletableFuture<Void> future : futures) {
-				future.get();
-			}
-		} finally {
-			executorService.shutdownNow();
-			executorService.awaitTermination(1000L, TimeUnit.MILLISECONDS);
-		}
-	}
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+            oos.writeObject(parameterTool);
+            oos.close();
+            baos.close();
 
-	/**
-	 * Accesses parameter tool parameters and then serializes the given parameter tool and deserializes again.
-	 * @param parameterTool to serialize/deserialize
-	 */
-	private void serializeDeserialize(ParameterTool parameterTool) throws IOException, ClassNotFoundException {
-		// weirdly enough, this call has side effects making the ParameterTool serialization fail if not
-		// using a concurrent data structure.
-		parameterTool.get(UUID.randomUUID().toString());
+            ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+            ObjectInputStream ois = new ObjectInputStream(bais);
 
-		try (
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			ObjectOutputStream oos = new ObjectOutputStream(baos)) {
-			oos.writeObject(parameterTool);
-			oos.close();
-			baos.close();
-
-			ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-			ObjectInputStream ois = new ObjectInputStream(bais);
-
-			// this should work :-)
-			ParameterTool deserializedParameterTool = ((ParameterTool) ois.readObject());
-		}
-	}
+            // this should work :-)
+            ParameterTool deserializedParameterTool = ((ParameterTool) ois.readObject());
+        }
+    }
 }

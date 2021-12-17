@@ -1,0 +1,195 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+parameters:
+  test_pool_definition: # defines the hardware pool for compilation and unit test execution.
+  e2e_pool_definion: # defines the hardware pool for end-to-end test execution
+  stage_name: # defines a unique identifier for all jobs in a stage (in case the jobs are added multiple times to a stage)
+  environment: # defines environment variables for downstream scripts
+  run_end_to_end: # if set to 'true', the end to end tests will be executed
+  container: # the container name for the build
+  jdk: # the jdk version to use
+
+jobs:
+- job: compile_${{parameters.stage_name}}
+  # succeeded() is needed to allow job cancellation
+  condition: and(succeeded(), not(eq(variables['MODE'], 'e2e')))
+  pool: ${{parameters.test_pool_definition}}
+  container: ${{parameters.container}}
+  timeoutInMinutes: 240
+  cancelTimeoutInMinutes: 1
+  workspace:
+    clean: all # this cleans the entire workspace directory before running a new job
+    # It is necessary because the custom build machines are reused for tests.
+    # See also https://docs.microsoft.com/en-us/azure/devops/pipelines/process/phases?view=azure-devops&tabs=yaml#workspace
+
+  steps:
+  # if on Azure, free up disk space
+  - script: ./tools/azure-pipelines/free_disk_space.sh
+    target: host
+    condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
+    displayName: Free up disk space
+  # The cache task is persisting the .m2 directory between builds, so that
+  # we do not have to re-download all dependencies from maven central for
+  # each build. The hope is that downloading the cache is faster than
+  # all dependencies individually.
+  # In this configuration, we use a hash over all committed (not generated) .pom files
+  # as a key for the build cache (CACHE_KEY). If we have a cache miss on the hash
+  # (usually because a pom file has changed), we'll fall back to a key without
+  # the pom files (CACHE_FALLBACK_KEY).
+  # Offical documentation of the Cache task: https://docs.microsoft.com/en-us/azure/devops/pipelines/caching/?view=azure-devops
+  - task: Cache@2
+    inputs:
+      key: $(CACHE_KEY)
+      restoreKeys: $(CACHE_FALLBACK_KEY)
+      path: $(MAVEN_CACHE_FOLDER)
+    continueOnError: true # continue the build even if the cache fails.
+    # do not use cache on the "Default" queue
+    condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
+    displayName: Cache Maven local repo
+  - script: |
+      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
+      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
+    displayName: "Set JDK"
+  # Compile
+  - script: |
+      ${{parameters.environment}} ./tools/ci/compile.sh || exit $?
+      ./tools/azure-pipelines/create_build_artifact.sh
+    displayName: Compile
+
+  # upload artifacts for next stage
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: $(FLINK_ARTIFACT_DIR)
+      artifact: FlinkCompileArtifact-${{parameters.stage_name}}
+
+- job: test_${{parameters.stage_name}}
+  dependsOn: compile_${{parameters.stage_name}}
+  condition: and(succeeded(), not(eq(variables['MODE'], 'e2e')))
+  pool: ${{parameters.test_pool_definition}}
+  container: ${{parameters.container}}
+  timeoutInMinutes: 240
+  cancelTimeoutInMinutes: 1
+  workspace:
+    clean: all
+  strategy:
+    matrix:
+      core:
+        module: core
+      python:
+        module: python
+      libraries:
+        module: libraries
+      table:
+        module: table
+      connectors:
+        module: connectors
+      kafka_gelly:
+        module: kafka/gelly
+      tests:
+        module: tests
+      misc:
+        module: misc
+      finegrained_resource_management:
+        module: finegrained_resource_management
+  steps:
+  # if on Azure, free up disk space
+  - script: ./tools/azure-pipelines/free_disk_space.sh
+    target: host
+    condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
+    displayName: Free up disk space
+
+  # download artifact from compile stage
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      path: $(FLINK_ARTIFACT_DIR)
+      artifact: FlinkCompileArtifact-${{parameters.stage_name}}
+
+  - script: ./tools/azure-pipelines/unpack_build_artifact.sh
+    displayName: "Unpack Build artifact"
+
+  - task: Cache@2
+    inputs:
+      key: $(CACHE_KEY)
+      restoreKeys: $(CACHE_FALLBACK_KEY)
+      path: $(MAVEN_CACHE_FOLDER)
+    continueOnError: true # continue the build even if the cache fails.
+    condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
+    displayName: Cache Maven local repo
+
+  - task: Cache@2
+    inputs:
+      key: '"$(module)" | $(DOCKER_IMAGES_CACHE_KEY)'
+      path: $(DOCKER_IMAGES_CACHE_FOLDER)
+      cacheHitVar: DOCKER_IMAGES_CACHE_HIT
+    continueOnError: true
+    condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
+    displayName: Cache docker images
+
+  - script: ./tools/azure-pipelines/cache_docker_images.sh load
+    displayName: Restore docker images
+    condition: and(not(canceled()), eq(variables.DOCKER_IMAGES_CACHE_HIT, 'true'))
+    continueOnError: true
+
+  - script: |
+      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
+      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
+    displayName: "Set JDK"
+
+  - script: sudo sysctl -w kernel.core_pattern=core.%p
+    displayName: Set coredump pattern
+
+  # Test
+  - script: ${{parameters.environment}} ./tools/azure-pipelines/uploading_watchdog.sh ./tools/ci/test_controller.sh $(module)
+    displayName: Test - $(module)
+    env:
+      IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
+      IT_CASE_S3_ACCESS_KEY: $(SECRET_S3_ACCESS_KEY)
+      IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
+      IT_CASE_GLUE_SCHEMA_ACCESS_KEY: $(SECRET_GLUE_SCHEMA_ACCESS_KEY)
+      IT_CASE_GLUE_SCHEMA_SECRET_KEY: $(SECRET_GLUE_SCHEMA_SECRET_KEY)
+
+  - task: PublishTestResults@2
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: 'JUnit'
+
+  # upload debug artifacts
+  - task: PublishPipelineArtifact@1
+    condition: not(eq('$(DEBUG_FILES_OUTPUT_DIR)', ''))
+    displayName: Upload Logs
+    inputs:
+      targetPath: $(DEBUG_FILES_OUTPUT_DIR)
+      artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
+
+  - script: ./tools/azure-pipelines/cache_docker_images.sh save
+    displayName: Save docker images
+    condition: and(not(canceled()), or(failed(), ne(variables.DOCKER_IMAGES_CACHE_HIT, 'true')))
+    continueOnError: true
+
+- template: e2e-template.yml
+  parameters:
+    stage_name: ${{parameters.stage_name}}
+    e2e_pool_definition: ${{parameters.e2e_pool_definition}}
+    environment: ${{parameters.environment}}
+    jdk: ${{parameters.jdk}}
+    group: 1
+- template: e2e-template.yml
+  parameters:
+    stage_name: ${{parameters.stage_name}}
+    e2e_pool_definition: ${{parameters.e2e_pool_definition}}
+    environment: ${{parameters.environment}}
+    jdk: ${{parameters.jdk}}
+    group: 2

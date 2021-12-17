@@ -31,44 +31,48 @@ import java.util.Collections;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the marshalling of {@link AsynchronousOperationResult}.
- */
+/** Tests for the marshalling of {@link AsynchronousOperationResult}. */
 @RunWith(Parameterized.class)
-public class AsynchronousOperationResultTest extends RestResponseMarshallingTestBase<AsynchronousOperationResult<TriggerId>> {
+public class AsynchronousOperationResultTest
+        extends RestResponseMarshallingTestBase<AsynchronousOperationResult<TriggerId>> {
 
-	@Parameterized.Parameters
-	public static Collection<Object[]> data() {
-		return Arrays.asList(new Object[][]{
-			{AsynchronousOperationResult.inProgress()},
-			{AsynchronousOperationResult.completed(new TriggerId())}
-		});
-	}
+    @Parameterized.Parameters
+    public static Collection<Object[]> data() {
+        return Arrays.asList(
+                new Object[][] {
+                    {AsynchronousOperationResult.inProgress()},
+                    {AsynchronousOperationResult.completed(new TriggerId())}
+                });
+    }
 
-	private final AsynchronousOperationResult<TriggerId> asynchronousOperationResult;
+    private final AsynchronousOperationResult<TriggerId> asynchronousOperationResult;
 
-	public AsynchronousOperationResultTest(AsynchronousOperationResult<TriggerId> asynchronousOperationResult) {
-		this.asynchronousOperationResult = asynchronousOperationResult;
-	}
+    public AsynchronousOperationResultTest(
+            AsynchronousOperationResult<TriggerId> asynchronousOperationResult) {
+        this.asynchronousOperationResult = asynchronousOperationResult;
+    }
 
-	@Override
-	protected Class<AsynchronousOperationResult<TriggerId>> getTestResponseClass() {
-		return (Class<AsynchronousOperationResult<TriggerId>>) (Class<?>) AsynchronousOperationResult.class;
-	}
+    @Override
+    protected Class<AsynchronousOperationResult<TriggerId>> getTestResponseClass() {
+        return (Class<AsynchronousOperationResult<TriggerId>>)
+                (Class<?>) AsynchronousOperationResult.class;
+    }
 
-	@Override
-	protected Collection<Class<?>> getTypeParameters() {
-		return Collections.singleton(TriggerId.class);
-	}
+    @Override
+    protected Collection<Class<?>> getTypeParameters() {
+        return Collections.singleton(TriggerId.class);
+    }
 
-	@Override
-	protected AsynchronousOperationResult<TriggerId> getTestResponseInstance() throws Exception {
-		return asynchronousOperationResult;
-	}
+    @Override
+    protected AsynchronousOperationResult<TriggerId> getTestResponseInstance() throws Exception {
+        return asynchronousOperationResult;
+    }
 
-	@Override
-	protected void assertOriginalEqualsToUnmarshalled(AsynchronousOperationResult<TriggerId> expected, AsynchronousOperationResult<TriggerId> actual) {
-		assertThat(actual.queueStatus().getId(), is(expected.queueStatus().getId()));
-		assertThat(actual.resource(), is(expected.resource()));
-	}
+    @Override
+    protected void assertOriginalEqualsToUnmarshalled(
+            AsynchronousOperationResult<TriggerId> expected,
+            AsynchronousOperationResult<TriggerId> actual) {
+        assertThat(actual.queueStatus().getId(), is(expected.queueStatus().getId()));
+        assertThat(actual.resource(), is(expected.resource()));
+    }
 }

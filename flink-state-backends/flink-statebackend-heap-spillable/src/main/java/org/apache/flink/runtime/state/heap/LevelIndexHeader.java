@@ -18,38 +18,36 @@
 
 package org.apache.flink.runtime.state.heap;
 
-/**
- * Head level index for skip list.
- */
+/** Head level index for skip list. */
 public interface LevelIndexHeader {
 
-	/**
-	 * Returns the top level of skip list.
-	 *
-	 * @return the top level of skip list.
-	 */
-	int getLevel();
+    /**
+     * Returns the top level of skip list.
+     *
+     * @return the top level of skip list.
+     */
+    int getLevel();
 
-	/**
-	 * Updates the top level of skip list to the given level.
-	 *
-	 * @param level the level which top level of skip list updates to.
-	 */
-	void updateLevel(int level);
+    /**
+     * Updates the top level of skip list to the given level.
+     *
+     * @param level the level which top level of skip list updates to.
+     */
+    void updateLevel(int level);
 
-	/**
-	 * Returns the next node in the given level.
-	 *
-	 * @param level the level whose next node is returned.
-	 * @return id of the next node.
-	 */
-	long getNextNode(int level);
+    /**
+     * Returns the next node in the given level.
+     *
+     * @param level the level whose next node is returned.
+     * @return id of the next node.
+     */
+    long getNextNode(int level);
 
-	/**
-	 * Updates the next node in the given level to the specified node id.
-	 *
-	 * @param level the level whose next node is updated.
-	 * @param newNodeId the id of the next node.
-	 */
-	void updateNextNode(int level, long newNodeId);
+    /**
+     * Updates the next node in the given level to the specified node id.
+     *
+     * @param level the level whose next node is updated.
+     * @param newNodeId the id of the next node.
+     */
+    void updateNextNode(int level, long newNodeId);
 }

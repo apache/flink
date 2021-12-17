@@ -20,28 +20,26 @@ package org.apache.flink.streaming.connectors.kinesis.util;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * Internal use.
- */
+/** Internal use. */
 @Internal
 public class TimeoutLatch {
 
-	private final Object lock = new Object();
-	private volatile boolean waiting;
+    private final Object lock = new Object();
+    private volatile boolean waiting;
 
-	public void await(long timeout) throws InterruptedException {
-		synchronized (lock) {
-			waiting = true;
-			lock.wait(timeout);
-		}
-	}
+    public void await(long timeout) throws InterruptedException {
+        synchronized (lock) {
+            waiting = true;
+            lock.wait(timeout);
+        }
+    }
 
-	public void trigger() {
-		if (waiting) {
-			synchronized (lock) {
-				waiting = false;
-				lock.notifyAll();
-			}
-		}
-	}
+    public void trigger() {
+        if (waiting) {
+            synchronized (lock) {
+                waiting = false;
+                lock.notifyAll();
+            }
+        }
+    }
 }

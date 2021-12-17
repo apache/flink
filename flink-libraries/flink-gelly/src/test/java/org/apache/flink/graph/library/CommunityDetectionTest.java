@@ -35,82 +35,76 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link CommunityDetection}.
- */
+/** Tests for {@link CommunityDetection}. */
 public class CommunityDetectionTest extends AsmTestBase {
 
-	@Test
-	public void testWithSimpleGraph() throws Exception {
-		Graph<IntValue, Long, Double> result = undirectedSimpleGraph
-			.mapVertices(v -> (long) v.getId().getValue(),
-				new TypeHint<Vertex<IntValue, Long>>(){}.getTypeInfo())
-			.mapEdges(e -> (double) e.getTarget().getValue() + e.getSource().getValue(),
-				new TypeHint<Edge<IntValue, Double>>(){}.getTypeInfo())
-			.run(new CommunityDetection<>(10, 0.5));
+    @Test
+    public void testWithSimpleGraph() throws Exception {
+        Graph<IntValue, Long, Double> result =
+                undirectedSimpleGraph
+                        .mapVertices(
+                                v -> (long) v.getId().getValue(),
+                                new TypeHint<Vertex<IntValue, Long>>() {}.getTypeInfo())
+                        .mapEdges(
+                                e -> (double) e.getTarget().getValue() + e.getSource().getValue(),
+                                new TypeHint<Edge<IntValue, Double>>() {}.getTypeInfo())
+                        .run(new CommunityDetection<>(10, 0.5));
 
-		String expectedResult =
-			"(0,3)\n" +
-			"(1,5)\n" +
-			"(2,5)\n" +
-			"(3,3)\n" +
-			"(4,5)\n" +
-			"(5,5)\n";
+        String expectedResult =
+                "(0,3)\n" + "(1,5)\n" + "(2,5)\n" + "(3,3)\n" + "(4,5)\n" + "(5,5)\n";
 
-		TestBaseUtils.compareResultAsText(result.getVertices().collect(), expectedResult);
-	}
+        TestBaseUtils.compareResultAsText(result.getVertices().collect(), expectedResult);
+    }
 
-	@Test
-	public void testWithSingletonEdgeGraph() throws Exception {
-		Graph<LongValue, Long, Double> result = new SingletonEdgeGraph(env, 1)
-			.generate()
-			.mapVertices(v -> v.getId().getValue(),
-				new TypeHint<Vertex<LongValue, Long>>(){}.getTypeInfo())
-			.mapEdges(e -> 1.0,
-				new TypeHint<Edge<LongValue, Double>>(){}.getTypeInfo())
-			.run(new CommunityDetection<>(10, 0.5));
+    @Test
+    public void testWithSingletonEdgeGraph() throws Exception {
+        Graph<LongValue, Long, Double> result =
+                new SingletonEdgeGraph(env, 1)
+                        .generate()
+                        .mapVertices(
+                                v -> v.getId().getValue(),
+                                new TypeHint<Vertex<LongValue, Long>>() {}.getTypeInfo())
+                        .mapEdges(
+                                e -> 1.0, new TypeHint<Edge<LongValue, Double>>() {}.getTypeInfo())
+                        .run(new CommunityDetection<>(10, 0.5));
 
-		String expectedResult =
-			"(0,0)\n" +
-			"(1,1)\n";
+        String expectedResult = "(0,0)\n" + "(1,1)\n";
 
-		TestBaseUtils.compareResultAsText(result.getVertices().collect(), expectedResult);
-	}
+        TestBaseUtils.compareResultAsText(result.getVertices().collect(), expectedResult);
+    }
 
-	@Test
-	public void testWithEmptyGraphWithVertices() throws Exception {
-		emptyGraphWithVertices
-			.mapVertices(v -> 0L,
-				new TypeHint<Vertex<LongValue, Long>>(){}.getTypeInfo())
-			.mapEdges(e -> 0.0,
-				new TypeHint<Edge<LongValue, Double>>(){}.getTypeInfo())
-			.run(new CommunityDetection<>(10, 0.5));
-	}
+    @Test
+    public void testWithEmptyGraphWithVertices() throws Exception {
+        emptyGraphWithVertices
+                .mapVertices(v -> 0L, new TypeHint<Vertex<LongValue, Long>>() {}.getTypeInfo())
+                .mapEdges(e -> 0.0, new TypeHint<Edge<LongValue, Double>>() {}.getTypeInfo())
+                .run(new CommunityDetection<>(10, 0.5));
+    }
 
-	@Test
-	public void testWithEmptyGraphWithoutVertices() throws Exception {
-		emptyGraphWithoutVertices
-			.mapVertices(v -> 0L,
-				new TypeHint<Vertex<LongValue, Long>>(){}.getTypeInfo())
-			.mapEdges(e -> 0.0,
-				new TypeHint<Edge<LongValue, Double>>(){}.getTypeInfo())
-			.run(new CommunityDetection<>(10, 0.5));
-	}
+    @Test
+    public void testWithEmptyGraphWithoutVertices() throws Exception {
+        emptyGraphWithoutVertices
+                .mapVertices(v -> 0L, new TypeHint<Vertex<LongValue, Long>>() {}.getTypeInfo())
+                .mapEdges(e -> 0.0, new TypeHint<Edge<LongValue, Double>>() {}.getTypeInfo())
+                .run(new CommunityDetection<>(10, 0.5));
+    }
 
-	@Test
-	public void testWithRMatGraph() throws Exception {
-		Graph<LongValue, Long, Double> result = undirectedRMatGraph(8, 4)
-			.mapVertices(v -> v.getId().getValue(),
-				new TypeHint<Vertex<LongValue, Long>>(){}.getTypeInfo())
-			.mapEdges(e -> (double) e.getTarget().getValue() - e.getSource().getValue(),
-				new TypeHint<Edge<LongValue, Double>>(){}.getTypeInfo())
-			.run(new CommunityDetection<>(10, 0.5));
+    @Test
+    public void testWithRMatGraph() throws Exception {
+        Graph<LongValue, Long, Double> result =
+                undirectedRMatGraph(8, 4)
+                        .mapVertices(
+                                v -> v.getId().getValue(),
+                                new TypeHint<Vertex<LongValue, Long>>() {}.getTypeInfo())
+                        .mapEdges(
+                                e -> (double) e.getTarget().getValue() - e.getSource().getValue(),
+                                new TypeHint<Edge<LongValue, Double>>() {}.getTypeInfo())
+                        .run(new CommunityDetection<>(10, 0.5));
 
-		Checksum checksum = new ChecksumHashCode<Vertex<LongValue, Long>>()
-			.run(result.getVertices())
-			.execute();
+        Checksum checksum =
+                new ChecksumHashCode<Vertex<LongValue, Long>>().run(result.getVertices()).execute();
 
-		assertEquals(184, checksum.getCount());
-		assertEquals(0x00000000000cdc96L, checksum.getChecksum());
-	}
+        assertEquals(184, checksum.getCount());
+        assertEquals(0x00000000000cdc96L, checksum.getChecksum());
+    }
 }

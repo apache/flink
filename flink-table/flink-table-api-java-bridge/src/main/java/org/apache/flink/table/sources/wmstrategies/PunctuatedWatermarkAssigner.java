@@ -22,19 +22,16 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.types.Row;
 
-/**
- * A punctuated watermark assigner.
- */
+/** A punctuated watermark assigner. */
 @PublicEvolving
 public abstract class PunctuatedWatermarkAssigner extends WatermarkStrategy {
 
-	/**
-	 * Returns the watermark for the current row or null if no watermark should be generated.
-	 *
-	 * @param row The current row.
-	 * @param timestamp The value of the timestamp attribute for the row.
-	 * @return The watermark for this row or null if no watermark should be generated.
-	 */
-	public abstract Watermark getWatermark(Row row, long timestamp);
-
+    /**
+     * Returns the watermark for the current row or null if no watermark should be generated.
+     *
+     * @param row The current row.
+     * @param timestamp The value of the timestamp attribute for the row.
+     * @return The watermark for this row or null if no watermark should be generated.
+     */
+    public abstract Watermark getWatermark(Row row, long timestamp);
 }

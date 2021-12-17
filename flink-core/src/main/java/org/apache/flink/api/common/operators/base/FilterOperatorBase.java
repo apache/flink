@@ -18,9 +18,6 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -33,41 +30,46 @@ import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * @see org.apache.flink.api.common.functions.FlatMapFunction
- */
+/** @see org.apache.flink.api.common.functions.FlatMapFunction */
 @Internal
-public class FilterOperatorBase<T, FT extends FlatMapFunction<T, T>> extends SingleInputOperator<T, T, FT> {
-	
-	public FilterOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<T, T> operatorInfo, String name) {
-		super(udf, operatorInfo, name);
-	}
-	
-	public FilterOperatorBase(FT udf, UnaryOperatorInformation<T, T> operatorInfo, String name) {
-		super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, name);
-	}
-	
-	public FilterOperatorBase(Class<? extends FT> udf, UnaryOperatorInformation<T, T> operatorInfo, String name) {
-		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
-	}
+public class FilterOperatorBase<T, FT extends FlatMapFunction<T, T>>
+        extends SingleInputOperator<T, T, FT> {
 
-	@Override
-	protected List<T> executeOnCollections(List<T> inputData, RuntimeContext ctx, ExecutionConfig executionConfig) throws Exception {
-		FlatMapFunction<T, T> function = this.userFunction.getUserCodeObject();
-		
-		FunctionUtils.setFunctionRuntimeContext(function, ctx);
-		FunctionUtils.openFunction(function, this.parameters);
-		
-		ArrayList<T> result = new ArrayList<T>(inputData.size());
-		ListCollector<T> collector = new ListCollector<T>(result);
+    public FilterOperatorBase(
+            UserCodeWrapper<FT> udf, UnaryOperatorInformation<T, T> operatorInfo, String name) {
+        super(udf, operatorInfo, name);
+    }
 
-		for (T element : inputData) {
-			function.flatMap(element, collector);
-		}
-		
-		FunctionUtils.closeFunction(function);
-		
-		return result;
-	}
+    public FilterOperatorBase(FT udf, UnaryOperatorInformation<T, T> operatorInfo, String name) {
+        super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, name);
+    }
+
+    public FilterOperatorBase(
+            Class<? extends FT> udf, UnaryOperatorInformation<T, T> operatorInfo, String name) {
+        super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
+    }
+
+    @Override
+    protected List<T> executeOnCollections(
+            List<T> inputData, RuntimeContext ctx, ExecutionConfig executionConfig)
+            throws Exception {
+        FlatMapFunction<T, T> function = this.userFunction.getUserCodeObject();
+
+        FunctionUtils.setFunctionRuntimeContext(function, ctx);
+        FunctionUtils.openFunction(function, this.parameters);
+
+        ArrayList<T> result = new ArrayList<T>(inputData.size());
+        ListCollector<T> collector = new ListCollector<T>(result);
+
+        for (T element : inputData) {
+            function.flatMap(element, collector);
+        }
+
+        FunctionUtils.closeFunction(function);
+
+        return result;
+    }
 }

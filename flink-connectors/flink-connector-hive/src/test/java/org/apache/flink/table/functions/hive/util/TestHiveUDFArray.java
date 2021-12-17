@@ -22,64 +22,61 @@ import org.apache.hadoop.hive.ql.exec.UDF;
 
 import java.util.List;
 
-/**
- * Test array in Hive UDF.
- */
+/** Test array in Hive UDF. */
 public class TestHiveUDFArray extends UDF {
-	public TestHiveUDFArray() {
-	}
+    public TestHiveUDFArray() {}
 
-	public Integer evaluate(List<Double> a) {
-		if (a == null) {
-			return null;
-		} else {
-			Integer total = 0;
+    public Integer evaluate(List<Double> a) {
+        if (a == null) {
+            return null;
+        } else {
+            Integer total = 0;
 
-			for (Double e : a) {
-				if (e != null) {
-					total += e.intValue();
-				}
-			}
+            for (Double e : a) {
+                if (e != null) {
+                    total += e.intValue();
+                }
+            }
 
-			return total;
-		}
-	}
+            return total;
+        }
+    }
 
-	public Integer evaluate(int base, List<Double> a) {
-		if (a == null) {
-			return null;
-		} else {
-			Integer total = 0;
+    public Integer evaluate(int base, List<Double> a) {
+        if (a == null) {
+            return null;
+        } else {
+            Integer total = 0;
 
-			for (Double e : a) {
-				if (e != null) {
-					total += e.intValue();
-				}
-			}
+            for (Double e : a) {
+                if (e != null) {
+                    total += e.intValue();
+                }
+            }
 
-			return total + base;
-		}
-	}
+            return total + base;
+        }
+    }
 
-	public Integer evaluate(int base, List<Double> a, List<Double> b) {
-		if (a == null) {
-			return null;
-		} else {
-			Integer total = 0;
+    public Integer evaluate(int base, List<Double> a, List<Double> b) {
+        if (a == null) {
+            return null;
+        } else {
+            Integer total = 0;
 
-			for (Double e : a) {
-				if (e != null) {
-					total += e.intValue();
-				}
-			}
+            for (Double e : a) {
+                if (e != null) {
+                    total += e.intValue();
+                }
+            }
 
-			for (Double e : b) {
-				if (e != null) {
-					total += e.intValue();
-				}
-			}
+            for (Double e : b) {
+                if (e != null) {
+                    total += e.intValue();
+                }
+            }
 
-			return total + base;
-		}
-	}
+            return total + base;
+        }
+    }
 }

@@ -27,8 +27,9 @@ import javax.annotation.Nonnull;
 import java.util.List;
 
 /**
- * This class represents the snapshot of a {@link CopyOnWriteStateTable} and has a role in operator state checkpointing.
- * This class is also responsible for writing the state in the process of checkpointing.
+ * This class represents the snapshot of a {@link CopyOnWriteStateTable} and has a role in operator
+ * state checkpointing. This class is also responsible for writing the state in the process of
+ * checkpointing.
  *
  * @param <K> type of key
  * @param <N> type of namespace
@@ -37,55 +38,53 @@ import java.util.List;
 @Internal
 public class CopyOnWriteStateTableSnapshot<K, N, S> extends AbstractStateTableSnapshot<K, N, S> {
 
-	/**
-	 * The offset to the contiguous key groups.
-	 */
-	private final int keyGroupOffset;
+    /** The offset to the contiguous key groups. */
+    private final int keyGroupOffset;
 
-	/**
-	 * Snapshots of state partitioned by key-group.
-	 */
-	@Nonnull
-	private final List<CopyOnWriteStateMapSnapshot<K, N, S>> stateMapSnapshots;
+    /** Snapshots of state partitioned by key-group. */
+    @Nonnull private final List<CopyOnWriteStateMapSnapshot<K, N, S>> stateMapSnapshots;
 
-	/**
-	 * Creates a new {@link CopyOnWriteStateTableSnapshot}.
-	 *
-	 * @param owningStateTable the {@link CopyOnWriteStateTable} for which this object represents a snapshot.
-	 */
-	CopyOnWriteStateTableSnapshot(
-		CopyOnWriteStateTable<K, N, S> owningStateTable,
-		TypeSerializer<K> localKeySerializer,
-		TypeSerializer<N> localNamespaceSerializer,
-		TypeSerializer<S> localStateSerializer,
-		StateSnapshotTransformer<S> stateSnapshotTransformer) {
-		super(owningStateTable,
-			localKeySerializer,
-			localNamespaceSerializer,
-			localStateSerializer,
-			stateSnapshotTransformer);
+    /**
+     * Creates a new {@link CopyOnWriteStateTableSnapshot}.
+     *
+     * @param owningStateTable the {@link CopyOnWriteStateTable} for which this object represents a
+     *     snapshot.
+     */
+    CopyOnWriteStateTableSnapshot(
+            CopyOnWriteStateTable<K, N, S> owningStateTable,
+            TypeSerializer<K> localKeySerializer,
+            TypeSerializer<N> localNamespaceSerializer,
+            TypeSerializer<S> localStateSerializer,
+            StateSnapshotTransformer<S> stateSnapshotTransformer) {
+        super(
+                owningStateTable,
+                localKeySerializer,
+                localNamespaceSerializer,
+                localStateSerializer,
+                stateSnapshotTransformer);
 
-		this.keyGroupOffset = owningStateTable.getKeyGroupOffset();
-		this.stateMapSnapshots = owningStateTable.getStateMapSnapshotList();
-	}
+        this.keyGroupOffset = owningStateTable.getKeyGroupOffset();
+        this.stateMapSnapshots = owningStateTable.getStateMapSnapshotList();
+    }
 
-	@Override
-	protected StateMapSnapshot<K, N, S, ? extends StateMap<K, N, S>> getStateMapSnapshotForKeyGroup(int keyGroup) {
-		int indexOffset = keyGroup - keyGroupOffset;
-		CopyOnWriteStateMapSnapshot<K, N, S> stateMapSnapshot = null;
-		if (indexOffset >= 0 && indexOffset < stateMapSnapshots.size()) {
-			stateMapSnapshot = stateMapSnapshots.get(indexOffset);
-		}
+    @Override
+    protected StateMapSnapshot<K, N, S, ? extends StateMap<K, N, S>> getStateMapSnapshotForKeyGroup(
+            int keyGroup) {
+        int indexOffset = keyGroup - keyGroupOffset;
+        CopyOnWriteStateMapSnapshot<K, N, S> stateMapSnapshot = null;
+        if (indexOffset >= 0 && indexOffset < stateMapSnapshots.size()) {
+            stateMapSnapshot = stateMapSnapshots.get(indexOffset);
+        }
 
-		return stateMapSnapshot;
-	}
+        return stateMapSnapshot;
+    }
 
-	@Override
-	public void release() {
-		for (CopyOnWriteStateMapSnapshot snapshot : stateMapSnapshots) {
-			if (!snapshot.isReleased()) {
-				snapshot.release();
-			}
-		}
-	}
+    @Override
+    public void release() {
+        for (CopyOnWriteStateMapSnapshot snapshot : stateMapSnapshots) {
+            if (!snapshot.isReleased()) {
+                snapshot.release();
+            }
+        }
+    }
 }

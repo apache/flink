@@ -447,9 +447,16 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
   }
 
  def sideOutputLateData(lateDataOutputTag: OutputTag[T]): PatternStream[T] = {
-   jPatternStream.sideOutputLateData(lateDataOutputTag)
-   this
- }
+    PatternStream[T](jPatternStream.sideOutputLateData(lateDataOutputTag))
+  }
+
+  def inProcessingTime(): PatternStream[T] = {
+    PatternStream[T](jPatternStream.inProcessingTime())
+  }
+
+  def inEventTime(): PatternStream[T] = {
+    PatternStream[T](jPatternStream.inEventTime())
+  }
 }
 
 object PatternStream {

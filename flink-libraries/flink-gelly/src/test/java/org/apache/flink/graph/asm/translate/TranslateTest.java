@@ -36,103 +36,92 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for translation of {@link Graph} IDs and values.
- */
+/** Tests for translation of {@link Graph} IDs and values. */
 public class TranslateTest {
 
-	private Graph<LongValue, LongValue, LongValue> graph;
+    private Graph<LongValue, LongValue, LongValue> graph;
 
-	private String expectedVertexResult =
-		"(0,1)\n" +
-		"(1,2)\n" +
-		"(2,3)\n" +
-		"(3,4)\n" +
-		"(4,5)\n" +
-		"(5,6)\n" +
-		"(6,7)\n" +
-		"(7,8)\n" +
-		"(8,9)\n" +
-		"(9,10)";
+    private String expectedVertexResult =
+            "(0,1)\n" + "(1,2)\n" + "(2,3)\n" + "(3,4)\n" + "(4,5)\n" + "(5,6)\n" + "(6,7)\n"
+                    + "(7,8)\n" + "(8,9)\n" + "(9,10)";
 
-	private String expectedEdgeResult =
-		"(0,1,2)\n" +
-		"(1,2,3)\n" +
-		"(2,3,4)\n" +
-		"(3,4,5)\n" +
-		"(4,5,6)\n" +
-		"(5,6,7)\n" +
-		"(6,7,8)\n" +
-		"(7,8,9)\n" +
-		"(8,9,10)\n" +
-		"(9,10,11)";
+    private String expectedEdgeResult =
+            "(0,1,2)\n"
+                    + "(1,2,3)\n"
+                    + "(2,3,4)\n"
+                    + "(3,4,5)\n"
+                    + "(4,5,6)\n"
+                    + "(5,6,7)\n"
+                    + "(6,7,8)\n"
+                    + "(7,8,9)\n"
+                    + "(8,9,10)\n"
+                    + "(9,10,11)";
 
-	@Before
-	public void setup() {
-		ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
+    @Before
+    public void setup() {
+        ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 
-		int count = 10;
+        int count = 10;
 
-		List<Vertex<LongValue, LongValue>> vertexList = new LinkedList<>();
-		List<Edge<LongValue, LongValue>> edgeList = new LinkedList<>();
+        List<Vertex<LongValue, LongValue>> vertexList = new LinkedList<>();
+        List<Edge<LongValue, LongValue>> edgeList = new LinkedList<>();
 
-		for (long l = 0; l < count; l++) {
-			LongValue lv0 = new LongValue(l);
-			LongValue lv1 = new LongValue(l + 1);
-			LongValue lv2 = new LongValue(l + 2);
-			vertexList.add(new Vertex<>(lv0, lv1));
-			edgeList.add(new Edge<>(lv0, lv1, lv2));
-		}
+        for (long l = 0; l < count; l++) {
+            LongValue lv0 = new LongValue(l);
+            LongValue lv1 = new LongValue(l + 1);
+            LongValue lv2 = new LongValue(l + 2);
+            vertexList.add(new Vertex<>(lv0, lv1));
+            edgeList.add(new Edge<>(lv0, lv1, lv2));
+        }
 
-		graph = Graph.fromCollection(vertexList, edgeList, env);
-	}
+        graph = Graph.fromCollection(vertexList, edgeList, env);
+    }
 
-	@Test
-	public void testTranslateGraphIds() throws Exception {
-		Graph<StringValue, LongValue, LongValue> stringIdGraph = graph
-			.translateGraphIds(new LongValueToStringValue());
+    @Test
+    public void testTranslateGraphIds() throws Exception {
+        Graph<StringValue, LongValue, LongValue> stringIdGraph =
+                graph.translateGraphIds(new LongValueToStringValue());
 
-		for (Vertex<StringValue, LongValue> vertex : stringIdGraph.getVertices().collect()) {
-			assertEquals(StringValue.class, vertex.f0.getClass());
-			assertEquals(LongValue.class, vertex.f1.getClass());
-		}
+        for (Vertex<StringValue, LongValue> vertex : stringIdGraph.getVertices().collect()) {
+            assertEquals(StringValue.class, vertex.f0.getClass());
+            assertEquals(LongValue.class, vertex.f1.getClass());
+        }
 
-		for (Edge<StringValue, LongValue> edge : stringIdGraph.getEdges().collect()) {
-			assertEquals(StringValue.class, edge.f0.getClass());
-			assertEquals(StringValue.class, edge.f1.getClass());
-			assertEquals(LongValue.class, edge.f2.getClass());
-		}
+        for (Edge<StringValue, LongValue> edge : stringIdGraph.getEdges().collect()) {
+            assertEquals(StringValue.class, edge.f0.getClass());
+            assertEquals(StringValue.class, edge.f1.getClass());
+            assertEquals(LongValue.class, edge.f2.getClass());
+        }
 
-		TestBaseUtils.compareResultAsText(stringIdGraph.getVertices().collect(), expectedVertexResult);
-		TestBaseUtils.compareResultAsText(stringIdGraph.getEdges().collect(), expectedEdgeResult);
-	}
+        TestBaseUtils.compareResultAsText(
+                stringIdGraph.getVertices().collect(), expectedVertexResult);
+        TestBaseUtils.compareResultAsText(stringIdGraph.getEdges().collect(), expectedEdgeResult);
+    }
 
-	@Test
-	public void testTranslateVertexValues() throws Exception {
-		DataSet<Vertex<LongValue, StringValue>> vertexSet = graph
-			.translateVertexValues(new LongValueToStringValue())
-			.getVertices();
+    @Test
+    public void testTranslateVertexValues() throws Exception {
+        DataSet<Vertex<LongValue, StringValue>> vertexSet =
+                graph.translateVertexValues(new LongValueToStringValue()).getVertices();
 
-		for (Vertex<LongValue, StringValue> vertex : vertexSet.collect()) {
-			assertEquals(LongValue.class, vertex.f0.getClass());
-			assertEquals(StringValue.class, vertex.f1.getClass());
-		}
+        for (Vertex<LongValue, StringValue> vertex : vertexSet.collect()) {
+            assertEquals(LongValue.class, vertex.f0.getClass());
+            assertEquals(StringValue.class, vertex.f1.getClass());
+        }
 
-		TestBaseUtils.compareResultAsText(vertexSet.collect(), expectedVertexResult);
-	}
+        TestBaseUtils.compareResultAsText(vertexSet.collect(), expectedVertexResult);
+    }
 
-	@Test
-	public void testTranslateEdgeValues() throws Exception {
-		DataSet<Edge<LongValue, StringValue>> edgeSet = graph
-			.translateEdgeValues(new LongValueToStringValue())
-			.getEdges();
+    @Test
+    public void testTranslateEdgeValues() throws Exception {
+        DataSet<Edge<LongValue, StringValue>> edgeSet =
+                graph.translateEdgeValues(new LongValueToStringValue()).getEdges();
 
-		for (Edge<LongValue, StringValue> edge : edgeSet.collect()) {
-			assertEquals(LongValue.class, edge.f0.getClass());
-			assertEquals(LongValue.class, edge.f1.getClass());
-			assertEquals(StringValue.class, edge.f2.getClass());
-		}
+        for (Edge<LongValue, StringValue> edge : edgeSet.collect()) {
+            assertEquals(LongValue.class, edge.f0.getClass());
+            assertEquals(LongValue.class, edge.f1.getClass());
+            assertEquals(StringValue.class, edge.f2.getClass());
+        }
 
-		TestBaseUtils.compareResultAsText(edgeSet.collect(), expectedEdgeResult);
-	}
+        TestBaseUtils.compareResultAsText(edgeSet.collect(), expectedEdgeResult);
+    }
 }

@@ -33,21 +33,25 @@ import static org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend.copy
  * @param <K> The data type that the serializer serializes.
  */
 public class MockRestoreOperation<K> implements RestoreOperation<Void> {
-	private final Collection<KeyedStateHandle> state;
-	private final Map<String, Map<K, Map<Object, Object>>> stateValues;
+    private final Collection<KeyedStateHandle> state;
+    private final Map<String, Map<K, Map<Object, Object>>> stateValues;
 
-	public MockRestoreOperation(
-		Collection<KeyedStateHandle> state,
-		Map<String, Map<K, Map<Object, Object>>> stateValues) {
-		this.state = state;
-		this.stateValues = stateValues;
-	}
+    public MockRestoreOperation(
+            Collection<KeyedStateHandle> state,
+            Map<String, Map<K, Map<Object, Object>>> stateValues) {
+        this.state = state;
+        this.stateValues = stateValues;
+    }
 
-	@Override
-	public Void restore() {
-		state.forEach(ksh -> stateValues.putAll(
-			copy(((MockKeyedStateBackend.MockKeyedStateHandle<K>) ksh).snapshotStates,
-				Collections.emptyMap())));
-		return null;
-	}
+    @Override
+    public Void restore() {
+        state.forEach(
+                ksh ->
+                        stateValues.putAll(
+                                copy(
+                                        ((MockKeyedStateBackend.MockKeyedStateHandle<K>) ksh)
+                                                .snapshotStates,
+                                        Collections.emptyMap())));
+        return null;
+    }
 }

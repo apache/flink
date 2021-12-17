@@ -18,8 +18,6 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.ExtendedSqlNode;
-
 import org.apache.calcite.sql.SqlDrop;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -32,43 +30,51 @@ import org.apache.calcite.util.ImmutableNullableList;
 
 import java.util.List;
 
-/**
- * DROP VIEW DDL sql call.
- */
-public class SqlDropView extends SqlDrop implements ExtendedSqlNode {
-	private static final SqlOperator OPERATOR =
-		new SqlSpecialOperator("DROP VIEW", SqlKind.DROP_VIEW);
+/** DROP VIEW DDL sql call. */
+public class SqlDropView extends SqlDrop {
+    private static final SqlOperator OPERATOR =
+            new SqlSpecialOperator("DROP VIEW", SqlKind.DROP_VIEW);
 
-	private final SqlIdentifier viewName;
+    private final SqlIdentifier viewName;
+    private final boolean isTemporary;
 
-	public SqlDropView(SqlParserPos pos, SqlIdentifier viewName, boolean ifExists) {
-		super(OPERATOR, pos, ifExists);
-		this.viewName = viewName;
-	}
+    public SqlDropView(
+            SqlParserPos pos, SqlIdentifier viewName, boolean ifExists, boolean isTemporary) {
+        super(OPERATOR, pos, ifExists);
+        this.viewName = viewName;
+        this.isTemporary = isTemporary;
+    }
 
-	@Override
-	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(viewName);
-	}
+    @Override
+    public List<SqlNode> getOperandList() {
+        return ImmutableNullableList.of(viewName);
+    }
 
-	public SqlIdentifier getViewName() {
-		return viewName;
-	}
+    public SqlIdentifier getViewName() {
+        return viewName;
+    }
 
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("DROP");
-		writer.keyword("VIEW");
-		if (ifExists) {
-			writer.keyword("IF EXISTS");
-		}
-		viewName.unparse(writer, leftPrec, rightPrec);
-	}
+    public boolean getIfExists() {
+        return this.ifExists;
+    }
 
-	public void validate() {
-		// no-op
-	}
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("DROP");
+        if (isTemporary) {
+            writer.keyword("TEMPORARY");
+        }
+        writer.keyword("VIEW");
+        if (ifExists) {
+            writer.keyword("IF EXISTS");
+        }
+        viewName.unparse(writer, leftPrec, rightPrec);
+    }
 
-	public String[] fullViewName() {
-		return viewName.names.toArray(new String[0]);
-	}
+    public boolean isTemporary() {
+        return isTemporary;
+    }
+
+    public String[] fullViewName() {
+        return viewName.names.toArray(new String[0]);
+    }
 }

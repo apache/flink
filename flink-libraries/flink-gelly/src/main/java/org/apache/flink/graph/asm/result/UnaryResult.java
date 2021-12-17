@@ -27,20 +27,19 @@ import java.io.Serializable;
  *
  * @param <K> graph ID type
  */
-public interface UnaryResult<K>
-extends Serializable {
+public interface UnaryResult<K> extends Serializable {
 
-	/**
-	 * Get the first vertex ID.
-	 *
-	 * @return first vertex ID
-	 */
-	K getVertexId0();
+    /**
+     * Get the first vertex ID.
+     *
+     * @return first vertex ID
+     */
+    K getVertexId0();
 
-	/**
-	 * Set the first vertex ID.
-	 *
-	 * @param vertexId0 new vertex ID
-	 */
-	void setVertexId0(K vertexId0);
+    /**
+     * Set the first vertex ID.
+     *
+     * @param vertexId0 new vertex ID
+     */
+    void setVertexId0(K vertexId0);
 }

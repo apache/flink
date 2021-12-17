@@ -38,131 +38,137 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An implementation of {@link BoundedData} that writes directly into a File Channel.
- * The readers are simple file channel readers using a simple dedicated buffer pool.
+ * An implementation of {@link BoundedData} that writes directly into a File Channel. The readers
+ * are simple file channel readers using a simple dedicated buffer pool.
  */
 final class FileChannelBoundedData implements BoundedData {
 
-	private final Path filePath;
+    private final Path filePath;
 
-	private final FileChannel fileChannel;
+    private final FileChannel fileChannel;
 
-	private final ByteBuffer[] headerAndBufferArray;
+    private final ByteBuffer[] headerAndBufferArray;
 
-	private long size;
+    private long size;
 
-	private final int memorySegmentSize;
+    private final int memorySegmentSize;
 
-	FileChannelBoundedData(
-			Path filePath,
-			FileChannel fileChannel,
-			int memorySegmentSize) {
+    FileChannelBoundedData(Path filePath, FileChannel fileChannel, int memorySegmentSize) {
 
-		this.filePath = checkNotNull(filePath);
-		this.fileChannel = checkNotNull(fileChannel);
-		this.memorySegmentSize = memorySegmentSize;
-		this.headerAndBufferArray = BufferReaderWriterUtil.allocatedWriteBufferArray();
-	}
+        this.filePath = checkNotNull(filePath);
+        this.fileChannel = checkNotNull(fileChannel);
+        this.memorySegmentSize = memorySegmentSize;
+        this.headerAndBufferArray = BufferReaderWriterUtil.allocatedWriteBufferArray();
+    }
 
-	@Override
-	public void writeBuffer(Buffer buffer) throws IOException {
-		size += BufferReaderWriterUtil.writeToByteChannel(fileChannel, buffer, headerAndBufferArray);
-	}
+    @Override
+    public void writeBuffer(Buffer buffer) throws IOException {
+        size +=
+                BufferReaderWriterUtil.writeToByteChannel(
+                        fileChannel, buffer, headerAndBufferArray);
+    }
 
-	@Override
-	public void finishWrite() throws IOException {
-		fileChannel.close();
-	}
+    @Override
+    public void finishWrite() throws IOException {
+        fileChannel.close();
+    }
 
-	@Override
-	public Reader createReader(ResultSubpartitionView subpartitionView) throws IOException {
-		checkState(!fileChannel.isOpen());
+    @Override
+    public Reader createReader(ResultSubpartitionView subpartitionView) throws IOException {
+        checkState(!fileChannel.isOpen());
 
-		final FileChannel fc = FileChannel.open(filePath, StandardOpenOption.READ);
-		return new FileBufferReader(fc, memorySegmentSize, subpartitionView);
-	}
+        final FileChannel fc = FileChannel.open(filePath, StandardOpenOption.READ);
+        return new FileBufferReader(fc, memorySegmentSize, subpartitionView);
+    }
 
-	@Override
-	public long getSize() {
-		return size;
-	}
+    @Override
+    public long getSize() {
+        return size;
+    }
 
-	@Override
-	public void close() throws IOException {
-		IOUtils.closeQuietly(fileChannel);
-		Files.delete(filePath);
-	}
+    @Override
+    public Path getFilePath() {
+        return filePath;
+    }
 
-	// ------------------------------------------------------------------------
+    @Override
+    public void close() throws IOException {
+        IOUtils.closeQuietly(fileChannel);
+        Files.delete(filePath);
+    }
 
-	public static FileChannelBoundedData create(Path filePath, int memorySegmentSize) throws IOException {
-		final FileChannel fileChannel = FileChannel.open(
-				filePath, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+    // ------------------------------------------------------------------------
 
-		return new FileChannelBoundedData(
-				filePath,
-				fileChannel,
-				memorySegmentSize);
-	}
+    public static FileChannelBoundedData create(Path filePath, int memorySegmentSize)
+            throws IOException {
+        final FileChannel fileChannel =
+                FileChannel.open(filePath, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
 
-	// ------------------------------------------------------------------------
+        return new FileChannelBoundedData(filePath, fileChannel, memorySegmentSize);
+    }
 
-	static final class FileBufferReader implements BoundedData.Reader, BufferRecycler {
+    // ------------------------------------------------------------------------
 
-		private static final int NUM_BUFFERS = 2;
+    static final class FileBufferReader implements BoundedData.Reader, BufferRecycler {
 
-		private final FileChannel fileChannel;
+        private static final int NUM_BUFFERS = 2;
 
-		private final ByteBuffer headerBuffer;
+        private final FileChannel fileChannel;
 
-		private final ArrayDeque<MemorySegment> buffers;
+        private final ByteBuffer headerBuffer;
 
-		private final ResultSubpartitionView subpartitionView;
+        private final ArrayDeque<MemorySegment> buffers;
 
-		/** The tag indicates whether we have read the end of this file. */
-		private boolean isFinished;
+        private final ResultSubpartitionView subpartitionView;
 
-		FileBufferReader(FileChannel fileChannel, int bufferSize, ResultSubpartitionView subpartitionView) {
-			this.fileChannel = checkNotNull(fileChannel);
-			this.headerBuffer = BufferReaderWriterUtil.allocatedHeaderBuffer();
-			this.buffers = new ArrayDeque<>(NUM_BUFFERS);
+        /** The tag indicates whether we have read the end of this file. */
+        private boolean isFinished;
 
-			for (int i = 0; i < NUM_BUFFERS; i++) {
-				buffers.addLast(MemorySegmentFactory.allocateUnpooledOffHeapMemory(bufferSize, null));
-			}
+        FileBufferReader(
+                FileChannel fileChannel, int bufferSize, ResultSubpartitionView subpartitionView) {
+            this.fileChannel = checkNotNull(fileChannel);
+            this.headerBuffer = BufferReaderWriterUtil.allocatedHeaderBuffer();
+            this.buffers = new ArrayDeque<>(NUM_BUFFERS);
 
-			this.subpartitionView = checkNotNull(subpartitionView);
-		}
+            for (int i = 0; i < NUM_BUFFERS; i++) {
+                buffers.addLast(
+                        MemorySegmentFactory.allocateUnpooledOffHeapMemory(bufferSize, null));
+            }
 
-		@Nullable
-		@Override
-		public Buffer nextBuffer() throws IOException {
-			final MemorySegment memory = buffers.pollFirst();
-			if (memory == null) {
-				return null;
-			}
+            this.subpartitionView = checkNotNull(subpartitionView);
+        }
 
-			final Buffer next = BufferReaderWriterUtil.readFromByteChannel(fileChannel, headerBuffer, memory, this);
-			if (next == null) {
-				isFinished = true;
-				recycle(memory);
-			}
+        @Nullable
+        @Override
+        public Buffer nextBuffer() throws IOException {
+            final MemorySegment memory = buffers.pollFirst();
+            if (memory == null) {
+                return null;
+            }
 
-			return next;
-		}
+            final Buffer next =
+                    BufferReaderWriterUtil.readFromByteChannel(
+                            fileChannel, headerBuffer, memory, this);
+            if (next == null) {
+                isFinished = true;
+                recycle(memory);
+            }
 
-		@Override
-		public void close() throws IOException {
-			fileChannel.close();
-		}
+            return next;
+        }
 
-		@Override
-		public void recycle(MemorySegment memorySegment) {
-			buffers.addLast(memorySegment);
+        @Override
+        public void close() throws IOException {
+            fileChannel.close();
+        }
 
-			if (!isFinished) {
-				subpartitionView.notifyDataAvailable();
-			}
-		}
-	}
+        @Override
+        public void recycle(MemorySegment memorySegment) {
+            buffers.addLast(memorySegment);
+
+            if (!isFinished) {
+                subpartitionView.notifyDataAvailable();
+            }
+        }
+    }
 }

@@ -19,10 +19,10 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.CharacterFilter;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
@@ -34,125 +34,104 @@ import java.util.Map;
 /**
  * Special {@link org.apache.flink.metrics.MetricGroup} representing a TaskManager.
  *
- * <p>Contains extra logic for adding jobs with tasks, and removing jobs when they do
- * not contain tasks any more
+ * <p>Contains extra logic for adding jobs with tasks, and removing jobs when they do not contain
+ * tasks any more
  */
 @Internal
 public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetricGroup> {
 
-	private final Map<JobID, TaskManagerJobMetricGroup> jobs = new HashMap<>();
+    private final Map<JobID, TaskManagerJobMetricGroup> jobs = new HashMap<>();
 
-	private final String hostname;
+    private final String hostname;
 
-	private final String taskManagerId;
+    private final String taskManagerId;
 
-	public TaskManagerMetricGroup(MetricRegistry registry, String hostname, String taskManagerId) {
-		super(registry, registry.getScopeFormats().getTaskManagerFormat().formatScope(hostname, taskManagerId), null);
-		this.hostname = hostname;
-		this.taskManagerId = taskManagerId;
-	}
+    TaskManagerMetricGroup(MetricRegistry registry, String hostname, String taskManagerId) {
+        super(
+                registry,
+                registry.getScopeFormats()
+                        .getTaskManagerFormat()
+                        .formatScope(hostname, taskManagerId),
+                null);
+        this.hostname = hostname;
+        this.taskManagerId = taskManagerId;
+    }
 
-	public String hostname() {
-		return hostname;
-	}
+    public static TaskManagerMetricGroup createTaskManagerMetricGroup(
+            MetricRegistry metricRegistry, String hostName, ResourceID resourceID) {
+        return new TaskManagerMetricGroup(metricRegistry, hostName, resourceID.toString());
+    }
 
-	public String taskManagerId() {
-		return taskManagerId;
-	}
+    public String hostname() {
+        return hostname;
+    }
 
-	@Override
-	protected QueryScopeInfo.TaskManagerQueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
-		return new QueryScopeInfo.TaskManagerQueryScopeInfo(this.taskManagerId);
-	}
+    public String taskManagerId() {
+        return taskManagerId;
+    }
 
-	// ------------------------------------------------------------------------
-	//  job groups
-	// ------------------------------------------------------------------------
+    @Override
+    protected QueryScopeInfo.TaskManagerQueryScopeInfo createQueryServiceMetricInfo(
+            CharacterFilter filter) {
+        return new QueryScopeInfo.TaskManagerQueryScopeInfo(this.taskManagerId);
+    }
 
-	public TaskMetricGroup addTaskForJob(
-			final JobID jobId,
-			final String jobName,
-			final JobVertexID jobVertexId,
-			final ExecutionAttemptID executionAttemptId,
-			final String taskName,
-			final int subtaskIndex,
-			final int attemptNumber) {
-		Preconditions.checkNotNull(jobId);
+    // ------------------------------------------------------------------------
+    //  job groups
+    // ------------------------------------------------------------------------
 
-		String resolvedJobName = jobName == null || jobName.isEmpty()
-			? jobId.toString()
-			: jobName;
+    public TaskManagerJobMetricGroup addJob(JobID jobId, String jobName) {
+        Preconditions.checkNotNull(jobId);
+        String resolvedJobName = jobName == null || jobName.isEmpty() ? jobId.toString() : jobName;
+        TaskManagerJobMetricGroup jobGroup;
+        synchronized (this) { // synchronization isn't strictly necessary as of FLINK-24864
+            jobGroup = jobs.get(jobId);
+            if (jobGroup == null) {
+                jobGroup = new TaskManagerJobMetricGroup(registry, this, jobId, resolvedJobName);
+                jobs.put(jobId, jobGroup);
+            }
+        }
+        return jobGroup;
+    }
 
-		// we cannot strictly lock both our map modification and the job group modification
-		// because it might lead to a deadlock
-		while (true) {
-			// get or create a jobs metric group
-			TaskManagerJobMetricGroup currentJobGroup;
-			synchronized (this) {
-				currentJobGroup = jobs.get(jobId);
+    @VisibleForTesting
+    public TaskManagerJobMetricGroup getJobMetricsGroup(JobID jobId) {
+        return jobs.get(jobId);
+    }
 
-				if (currentJobGroup == null || currentJobGroup.isClosed()) {
-					currentJobGroup = new TaskManagerJobMetricGroup(registry, this, jobId, resolvedJobName);
-					jobs.put(jobId, currentJobGroup);
-				}
-			}
+    public void removeJobMetricsGroup(JobID jobId) {
+        if (jobId != null) {
+            TaskManagerJobMetricGroup groupToClose;
+            synchronized (this) { // synchronization isn't strictly necessary as of FLINK-24864
+                groupToClose = jobs.remove(jobId);
+            }
+            if (groupToClose != null) {
+                groupToClose.close();
+            }
+        }
+    }
 
-			// try to add another task. this may fail if we found a pre-existing job metrics
-			// group and it is closed concurrently
-			TaskMetricGroup taskGroup = currentJobGroup.addTask(
-				jobVertexId,
-				executionAttemptId,
-				taskName,
-				subtaskIndex,
-				attemptNumber);
+    public int numRegisteredJobMetricGroups() {
+        return jobs.size();
+    }
 
-			if (taskGroup != null) {
-				// successfully added the next task
-				return taskGroup;
-			}
+    // ------------------------------------------------------------------------
+    //  Component Metric Group Specifics
+    // ------------------------------------------------------------------------
 
-			// else fall through the loop
-		}
-	}
+    @Override
+    protected void putVariables(Map<String, String> variables) {
+        variables.put(ScopeFormat.SCOPE_HOST, hostname);
+        variables.put(ScopeFormat.SCOPE_TASKMANAGER_ID, taskManagerId);
+    }
 
-	public void removeJobMetricsGroup(JobID jobId, TaskManagerJobMetricGroup group) {
-		if (jobId == null || group == null || !group.isClosed()) {
-			return;
-		}
+    @Override
+    protected Iterable<? extends ComponentMetricGroup> subComponents() {
+        return jobs.values();
+    }
 
-		synchronized (this) {
-			// optimistically remove the currently contained group, and check later if it was correct
-			TaskManagerJobMetricGroup containedGroup = jobs.remove(jobId);
-
-			// check if another group was actually contained, and restore that one
-			if (containedGroup != null && containedGroup != group) {
-				jobs.put(jobId, containedGroup);
-			}
-		}
-	}
-
-	public int numRegisteredJobMetricGroups() {
-		return jobs.size();
-	}
-
-	// ------------------------------------------------------------------------
-	//  Component Metric Group Specifics
-	// ------------------------------------------------------------------------
-
-	@Override
-	protected void putVariables(Map<String, String> variables) {
-		variables.put(ScopeFormat.SCOPE_HOST, hostname);
-		variables.put(ScopeFormat.SCOPE_TASKMANAGER_ID, taskManagerId);
-	}
-
-	@Override
-	protected Iterable<? extends ComponentMetricGroup> subComponents() {
-		return jobs.values();
-	}
-
-	@Override
-	protected String getGroupName(CharacterFilter filter) {
-		return "taskmanager";
-	}
+    @Override
+    protected String getGroupName(CharacterFilter filter) {
+        return "taskmanager";
+    }
 }
-

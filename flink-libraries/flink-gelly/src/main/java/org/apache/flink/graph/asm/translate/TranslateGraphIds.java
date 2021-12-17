@@ -30,7 +30,8 @@ import static org.apache.flink.graph.asm.translate.Translate.translateEdgeIds;
 import static org.apache.flink.graph.asm.translate.Translate.translateVertexIds;
 
 /**
- * Translate {@link Vertex} and {@link Edge} IDs of a {@link Graph} using the given {@link TranslateFunction}.
+ * Translate {@link Vertex} and {@link Edge} IDs of a {@link Graph} using the given {@link
+ * TranslateFunction}.
  *
  * @param <OLD> old graph ID type
  * @param <NEW> new graph ID type
@@ -38,43 +39,45 @@ import static org.apache.flink.graph.asm.translate.Translate.translateVertexIds;
  * @param <EV> edge value type
  */
 public class TranslateGraphIds<OLD, NEW, VV, EV>
-extends GraphAlgorithmWrappingGraph<OLD, VV, EV, NEW, VV, EV> {
+        extends GraphAlgorithmWrappingGraph<OLD, VV, EV, NEW, VV, EV> {
 
-	// Required configuration
-	private TranslateFunction<OLD, NEW> translator;
+    // Required configuration
+    private TranslateFunction<OLD, NEW> translator;
 
-	/**
-	 * Translate {@link Vertex} and {@link Edge} IDs of a {@link Graph} using the given {@link TranslateFunction}.
-	 *
-	 * @param translator implements conversion from {@code OLD} to {@code NEW}
-	 */
-	public TranslateGraphIds(TranslateFunction<OLD, NEW> translator) {
-		Preconditions.checkNotNull(translator);
+    /**
+     * Translate {@link Vertex} and {@link Edge} IDs of a {@link Graph} using the given {@link
+     * TranslateFunction}.
+     *
+     * @param translator implements conversion from {@code OLD} to {@code NEW}
+     */
+    public TranslateGraphIds(TranslateFunction<OLD, NEW> translator) {
+        Preconditions.checkNotNull(translator);
 
-		this.translator = translator;
-	}
+        this.translator = translator;
+    }
 
-	@Override
-	protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
-		if (!super.canMergeConfigurationWith(other)) {
-			return false;
-		}
+    @Override
+    protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
+        if (!super.canMergeConfigurationWith(other)) {
+            return false;
+        }
 
-		TranslateGraphIds rhs = (TranslateGraphIds) other;
+        TranslateGraphIds rhs = (TranslateGraphIds) other;
 
-		return translator == rhs.translator;
-	}
+        return translator == rhs.translator;
+    }
 
-	@Override
-	public Graph<NEW, VV, EV> runInternal(Graph<OLD, VV, EV> input)
-			throws Exception {
-		// Vertices
-		DataSet<Vertex<NEW, VV>> translatedVertices = translateVertexIds(input.getVertices(), translator, parallelism);
+    @Override
+    public Graph<NEW, VV, EV> runInternal(Graph<OLD, VV, EV> input) throws Exception {
+        // Vertices
+        DataSet<Vertex<NEW, VV>> translatedVertices =
+                translateVertexIds(input.getVertices(), translator, parallelism);
 
-		// Edges
-		DataSet<Edge<NEW, EV>> translatedEdges = translateEdgeIds(input.getEdges(), translator, parallelism);
+        // Edges
+        DataSet<Edge<NEW, EV>> translatedEdges =
+                translateEdgeIds(input.getEdges(), translator, parallelism);
 
-		// Graph
-		return Graph.fromDataSet(translatedVertices, translatedEdges, input.getContext());
-	}
+        // Graph
+        return Graph.fromDataSet(translatedVertices, translatedEdges, input.getContext());
+    }
 }

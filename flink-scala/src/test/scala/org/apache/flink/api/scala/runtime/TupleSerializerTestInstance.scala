@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.{SerializerTestInstance, TypeSerial
 import org.apache.flink.testutils.DeeplyEqualsChecker
 import org.apache.flink.testutils.DeeplyEqualsChecker.CustomEqualityChecker
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 
 object TupleSerializerTestInstance {
@@ -55,6 +55,7 @@ object TupleSerializerTestInstance {
     }
 }
 
+@Ignore("Prevents this class from being considered a test class by JUnit.")
 class TupleSerializerTestInstance[T <: Product] (
     serializer: TypeSerializer[T],
     typeClass: Class[T],

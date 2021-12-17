@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableSchema;
 
 import java.util.HashMap;
@@ -26,35 +28,40 @@ import java.util.Optional;
 
 /**
  * An implementation of catalog view.
+ *
+ * @deprecated Use {@link CatalogView#of(Schema, String, String, String, Map)} or a custom
+ *     implementation instead. Don't implement against this internal class. It can lead to
+ *     unintended side effects if code checks against this class instead of the common interface.
  */
+@Deprecated
+@Internal
 public class CatalogViewImpl extends AbstractCatalogView {
-	public CatalogViewImpl(
-			String originalQuery,
-			String expandedQuery,
-			TableSchema schema,
-			Map<String, String> properties,
-			String comment) {
-		super(originalQuery, expandedQuery, schema, properties, comment);
-	}
+    public CatalogViewImpl(
+            String originalQuery,
+            String expandedQuery,
+            TableSchema schema,
+            Map<String, String> properties,
+            String comment) {
+        super(originalQuery, expandedQuery, schema, properties, comment);
+    }
 
-	@Override
-	public CatalogBaseTable copy() {
-		return new CatalogViewImpl(
-			getOriginalQuery(),
-			getExpandedQuery(),
-			getSchema().copy(),
-			new HashMap<>(getProperties()),
-			getComment()
-		);
-	}
+    @Override
+    public CatalogBaseTable copy() {
+        return new CatalogViewImpl(
+                getOriginalQuery(),
+                getExpandedQuery(),
+                getSchema().copy(),
+                new HashMap<>(getOptions()),
+                getComment());
+    }
 
-	@Override
-	public Optional<String> getDescription() {
-		return Optional.ofNullable(getComment());
-	}
+    @Override
+    public Optional<String> getDescription() {
+        return Optional.ofNullable(getComment());
+    }
 
-	@Override
-	public Optional<String> getDetailedDescription() {
-		return Optional.of("This is a catalog view implementation");
-	}
+    @Override
+    public Optional<String> getDetailedDescription() {
+        return Optional.of("This is a catalog view implementation");
+    }
 }

@@ -16,25 +16,24 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.util;
-
-import java.io.IOException;
 
 import org.apache.flink.util.MutableObjectIterator;
 
+import java.io.IOException;
+
 /**
- * The resettable iterator is a specialization of the iterator, allowing to reset the iterator and re-retrieve elements.
- * Whether the iterator is completely reset or only partially depends on the actual implementation.
+ * The resettable iterator is a specialization of the iterator, allowing to reset the iterator and
+ * re-retrieve elements. Whether the iterator is completely reset or only partially depends on the
+ * actual implementation.
  */
 public interface ResettableMutableObjectIterator<E> extends MutableObjectIterator<E> {
-	
-	/**
-	 * Resets the iterator.
-	 * 
-	 * @throws IOException May be thrown when the serialization into buffers or the spilling to secondary
-	 *                     storage fails.
-	 */
-	public void reset() throws IOException;
-	
+
+    /**
+     * Resets the iterator.
+     *
+     * @throws IOException May be thrown when the serialization into buffers or the spilling to
+     *     secondary storage fails.
+     */
+    public void reset() throws IOException;
 }

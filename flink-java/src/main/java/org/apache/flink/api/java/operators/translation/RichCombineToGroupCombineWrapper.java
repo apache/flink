@@ -28,32 +28,34 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 /**
- * A wrapper the wraps a function that implements both {@link CombineFunction} and {@link GroupReduceFunction} interfaces
- * and makes it look like a function that implements {@link GroupCombineFunction} and {@link GroupReduceFunction} to the runtime.
+ * A wrapper the wraps a function that implements both {@link CombineFunction} and {@link
+ * GroupReduceFunction} interfaces and makes it look like a function that implements {@link
+ * GroupCombineFunction} and {@link GroupReduceFunction} to the runtime.
  */
-public class RichCombineToGroupCombineWrapper<IN, OUT, F extends RichGroupReduceFunction<IN, OUT> & CombineFunction<IN, IN>>
-	extends RichGroupCombineFunction<IN, IN> implements GroupReduceFunction<IN, OUT> {
+public class RichCombineToGroupCombineWrapper<
+                IN, OUT, F extends RichGroupReduceFunction<IN, OUT> & CombineFunction<IN, IN>>
+        extends RichGroupCombineFunction<IN, IN> implements GroupReduceFunction<IN, OUT> {
 
-	private final F wrappedFunction;
+    private final F wrappedFunction;
 
-	public RichCombineToGroupCombineWrapper(F wrappedFunction) {
-		this.wrappedFunction = Preconditions.checkNotNull(wrappedFunction);
-	}
+    public RichCombineToGroupCombineWrapper(F wrappedFunction) {
+        this.wrappedFunction = Preconditions.checkNotNull(wrappedFunction);
+    }
 
-	@Override
-	public void open(Configuration config) throws Exception {
-		wrappedFunction.setRuntimeContext(getRuntimeContext());
-		wrappedFunction.open(config);
-	}
+    @Override
+    public void open(Configuration config) throws Exception {
+        wrappedFunction.setRuntimeContext(getRuntimeContext());
+        wrappedFunction.open(config);
+    }
 
-	@Override
-	public void combine(Iterable<IN> values, Collector<IN> out) throws Exception {
-		IN outValue = wrappedFunction.combine(values);
-		out.collect(outValue);
-	}
+    @Override
+    public void combine(Iterable<IN> values, Collector<IN> out) throws Exception {
+        IN outValue = wrappedFunction.combine(values);
+        out.collect(outValue);
+    }
 
-	@Override
-	public void reduce(Iterable<IN> values, Collector<OUT> out) throws Exception {
-		wrappedFunction.reduce(values, out);
-	}
+    @Override
+    public void reduce(Iterable<IN> values, Collector<OUT> out) throws Exception {
+        wrappedFunction.reduce(values, out);
+    }
 }

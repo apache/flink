@@ -21,40 +21,16 @@ package org.apache.flink.table.api.internal;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.CatalogBaseTable;
-import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sources.TableSource;
 
-/**
- * A way to register a table in a {@link TableEnvironment} that this descriptor originates from.
- */
+/** A way to register a table in a {@link TableEnvironment} that this descriptor originates from. */
 @Internal
 public interface Registration {
-	/**
-	 * Registers an external {@link TableSource} in this {@link TableEnvironment}'s catalog.
-	 * Registered tables can be referenced in SQL queries.
-	 *
-	 * @param name The name under which the {@link TableSource} is registered.
-	 * @param tableSource The {@link TableSource} to register.
-	 * @see TableEnvironment#registerTableSource(String, TableSource)
-	 */
-	void createTableSource(String name, TableSource<?> tableSource);
 
-	/**
-	 * Registers an external {@link TableSink} with already configured field names and field types in
-	 * this {@link TableEnvironment}'s catalog.
-	 * Registered sink tables can be referenced in SQL DML statements.
-	 *
-	 * @param name The name under which the {@link TableSink} is registered.
-	 * @param tableSink The configured {@link TableSink} to register.
-	 * @see TableEnvironment#registerTableSink(String, TableSink)
-	 */
-	void createTableSink(String name, TableSink<?> tableSink);
-
-	/**
-	 * Creates a temporary table in a given path.
-	 *
-	 * @param path Path where to register the given table
-	 * @param table table to register
-	 */
-	void createTemporaryTable(String path, CatalogBaseTable table);
+    /**
+     * Creates a temporary table in a given path.
+     *
+     * @param path Path where to register the given table
+     * @param table table to register
+     */
+    void createTemporaryTable(String path, CatalogBaseTable table);
 }

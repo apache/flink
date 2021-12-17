@@ -16,17 +16,14 @@
  * limitations under the License.
  */
 
-import { BrowserModule } from '@angular/platform-browser';
-import { APP_INITIALIZER, Injector, NgModule } from '@angular/core';
-import { Router } from '@angular/router';
-import { AppRoutingModule } from './app-routing.module';
-import { AppComponent } from './app.component';
-import { NgZorroAntdModule, NZ_I18N, en_US, NZ_ICONS, NZ_NOTIFICATION_CONFIG } from 'ng-zorro-antd';
-import { FormsModule } from '@angular/forms';
-import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { registerLocaleData } from '@angular/common';
+import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
 import en from '@angular/common/locales/en';
+import { APP_INITIALIZER, Injector, NgModule } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { BrowserModule } from '@angular/platform-browser';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { Router } from '@angular/router';
 
 import {
   BarsOutline,
@@ -65,33 +62,61 @@ import {
   ShrinkOutline,
   PicCenterOutline
 } from '@ant-design/icons-angular/icons';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzBadgeModule } from 'ng-zorro-antd/badge';
+import { NZ_CONFIG, NzConfig } from 'ng-zorro-antd/core/config';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzDrawerModule } from 'ng-zorro-antd/drawer';
+import { NZ_I18N, en_US } from 'ng-zorro-antd/i18n';
+import { NZ_ICONS, NzIconModule } from 'ng-zorro-antd/icon';
+import { NzLayoutModule } from 'ng-zorro-antd/layout';
+import { NzMenuModule } from 'ng-zorro-antd/menu';
+import { NzNotificationModule } from 'ng-zorro-antd/notification';
 
+import { Configuration } from 'interfaces';
 import { StatusService } from 'services';
-import { ConfigurationInterface } from 'interfaces';
+
+import { AppRoutingModule } from './app-routing.module';
+import { AppComponent } from './app.component';
 import { AppInterceptor } from './app.interceptor';
 
 registerLocaleData(en);
 
-export function AppInitServiceFactory(
-  statusService: StatusService,
-  injector: Injector
-): () => Promise<ConfigurationInterface> {
+export function AppInitServiceFactory(statusService: StatusService, injector: Injector): () => Promise<Configuration> {
   return () => {
     return statusService.boot(injector.get<Router>(Router));
   };
 }
 
+const ngZorroConfig: NzConfig = {
+  notification: { nzMaxStack: 1 }
+};
+
 @NgModule({
   declarations: [AppComponent],
-  imports: [BrowserModule, AppRoutingModule, NgZorroAntdModule, FormsModule, HttpClientModule, BrowserAnimationsModule],
+  imports: [
+    BrowserModule,
+    AppRoutingModule,
+    FormsModule,
+    HttpClientModule,
+    BrowserAnimationsModule,
+    NzLayoutModule,
+    NzIconModule,
+    NzMenuModule,
+    NzDividerModule,
+    NzBadgeModule,
+    NzDrawerModule,
+    NzAlertModule,
+    NzNotificationModule
+  ],
   providers: [
     {
       provide: NZ_I18N,
       useValue: en_US
     },
     {
-      provide: NZ_NOTIFICATION_CONFIG,
-      useValue: { nzMaxStack: 1 }
+      provide: NZ_CONFIG,
+      useValue: ngZorroConfig
     },
     {
       provide: NZ_ICONS,

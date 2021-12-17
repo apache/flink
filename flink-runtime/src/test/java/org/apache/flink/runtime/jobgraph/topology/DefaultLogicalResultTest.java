@@ -43,87 +43,85 @@ import static org.apache.flink.runtime.jobgraph.topology.DefaultLogicalVertexTes
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-/**
- * Unit tests for {@link DefaultLogicalResult}.
- */
+/** Unit tests for {@link DefaultLogicalResult}. */
 public class DefaultLogicalResultTest extends TestLogger {
 
-	private IntermediateDataSet result;
+    private IntermediateDataSet result;
 
-	private DefaultLogicalResult logicalResult;
+    private DefaultLogicalResult logicalResult;
 
-	private Map<JobVertexID, JobVertex> vertexMap;
+    private Map<JobVertexID, JobVertex> vertexMap;
 
-	private JobVertex producerVertex;
+    private JobVertex producerVertex;
 
-	private Set<JobVertex> consumerVertices;
+    private Set<JobVertex> consumerVertices;
 
-	@Before
-	public void setUp() throws Exception {
-		buildVerticesAndResults();
+    @Before
+    public void setUp() throws Exception {
+        buildVerticesAndResults();
 
-		logicalResult = new DefaultLogicalResult(
-			result,
-			vid -> new DefaultLogicalVertex(vertexMap.get(vid), rid -> null));
-	}
+        logicalResult =
+                new DefaultLogicalResult(
+                        result, vid -> new DefaultLogicalVertex(vertexMap.get(vid), rid -> null));
+    }
 
-	@Test
-	public void testConstructor() {
-		assertResultInfoEquals(result, logicalResult);
-	}
+    @Test
+    public void testConstructor() {
+        assertResultInfoEquals(result, logicalResult);
+    }
 
-	@Test
-	public void testGetProducer() {
-		assertVertexInfoEquals(producerVertex, logicalResult.getProducer());
-	}
+    @Test
+    public void testGetProducer() {
+        assertVertexInfoEquals(producerVertex, logicalResult.getProducer());
+    }
 
-	@Test
-	public void testGetConsumers() {
-		assertVerticesEquals(consumerVertices, logicalResult.getConsumers());
-	}
+    @Test
+    public void testGetConsumers() {
+        assertVerticesEquals(consumerVertices, logicalResult.getConsumers());
+    }
 
-	private void buildVerticesAndResults() {
-		vertexMap = new HashMap<>();
-		consumerVertices = new HashSet<>();
+    private void buildVerticesAndResults() {
+        vertexMap = new HashMap<>();
+        consumerVertices = new HashSet<>();
 
-		final int parallelism = 3;
-		producerVertex = createNoOpVertex(parallelism);
-		vertexMap.put(producerVertex.getID(), producerVertex);
+        final int parallelism = 3;
+        producerVertex = createNoOpVertex(parallelism);
+        vertexMap.put(producerVertex.getID(), producerVertex);
 
-		result = producerVertex.createAndAddResultDataSet(PIPELINED);
+        result = producerVertex.createAndAddResultDataSet(PIPELINED);
 
-		for (int i = 0; i < 5; i++) {
-			final JobVertex consumerVertex = createNoOpVertex(parallelism);
-			consumerVertex.connectDataSetAsInput(result, ALL_TO_ALL);
-			consumerVertices.add(consumerVertex);
-			vertexMap.put(consumerVertex.getID(), consumerVertex);
-		}
-	}
+        for (int i = 0; i < 5; i++) {
+            final JobVertex consumerVertex = createNoOpVertex(parallelism);
+            consumerVertex.connectDataSetAsInput(result, ALL_TO_ALL);
+            consumerVertices.add(consumerVertex);
+            vertexMap.put(consumerVertex.getID(), consumerVertex);
+        }
+    }
 
-	static void assertResultsEquals(
-		final Iterable<IntermediateDataSet> results,
-		final Iterable<DefaultLogicalResult> logicalResults) {
+    static void assertResultsEquals(
+            final Iterable<IntermediateDataSet> results,
+            final Iterable<DefaultLogicalResult> logicalResults) {
 
-		final Map<IntermediateDataSetID, DefaultLogicalResult> logicalResultMap = IterableUtils
-			.toStream(logicalResults)
-			.collect(Collectors.toMap(DefaultLogicalResult::getId, Function.identity()));
+        final Map<IntermediateDataSetID, DefaultLogicalResult> logicalResultMap =
+                IterableUtils.toStream(logicalResults)
+                        .collect(
+                                Collectors.toMap(DefaultLogicalResult::getId, Function.identity()));
 
-		for (IntermediateDataSet result : results) {
-			final DefaultLogicalResult logicalResult = logicalResultMap.remove(result.getId());
+        for (IntermediateDataSet result : results) {
+            final DefaultLogicalResult logicalResult = logicalResultMap.remove(result.getId());
 
-			assertNotNull(logicalResult);
-			assertResultInfoEquals(result, logicalResult);
-		}
+            assertNotNull(logicalResult);
+            assertResultInfoEquals(result, logicalResult);
+        }
 
-		// this ensures the two collections exactly matches
-		assertEquals(0, logicalResultMap.size());
-	}
+        // this ensures the two collections exactly matches
+        assertEquals(0, logicalResultMap.size());
+    }
 
-	static void assertResultInfoEquals(
-			final IntermediateDataSet result,
-			final DefaultLogicalResult logicalResult) {
+    static void assertResultInfoEquals(
+            final IntermediateDataSet result, final DefaultLogicalResult logicalResult) {
 
-		assertEquals(result.getId(), logicalResult.getId());
-		assertEquals(result.getResultType(), logicalResult.getResultType());
-	}
+        assertEquals(result.getId(), logicalResult.getId());
+        assertEquals(result.getResultType(), logicalResult.getResultType());
+    }
 }

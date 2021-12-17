@@ -34,54 +34,53 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link EdgeTargetDegrees}.
- */
+/** Tests for {@link EdgeTargetDegrees}. */
 public class EdgeTargetDegreesTest extends AsmTestBase {
 
-	@Test
-	public void testWithSimpleGraph() throws Exception {
-		String expectedResult =
-			"(0,1,((null),(3,0,3)))\n" +
-			"(0,2,((null),(3,2,1)))\n" +
-			"(2,1,((null),(3,0,3)))\n" +
-			"(2,3,((null),(4,2,2)))\n" +
-			"(3,1,((null),(3,0,3)))\n" +
-			"(3,4,((null),(1,0,1)))\n" +
-			"(5,3,((null),(4,2,2)))";
+    @Test
+    public void testWithSimpleGraph() throws Exception {
+        String expectedResult =
+                "(0,1,((null),(3,0,3)))\n"
+                        + "(0,2,((null),(3,2,1)))\n"
+                        + "(2,1,((null),(3,0,3)))\n"
+                        + "(2,3,((null),(4,2,2)))\n"
+                        + "(3,1,((null),(3,0,3)))\n"
+                        + "(3,4,((null),(1,0,1)))\n"
+                        + "(5,3,((null),(4,2,2)))";
 
-		DataSet<Edge<IntValue, Tuple2<NullValue, Degrees>>> targetDegrees = directedSimpleGraph
-				.run(new EdgeTargetDegrees<>());
+        DataSet<Edge<IntValue, Tuple2<NullValue, Degrees>>> targetDegrees =
+                directedSimpleGraph.run(new EdgeTargetDegrees<>());
 
-		TestBaseUtils.compareResultAsText(targetDegrees.collect(), expectedResult);
-	}
+        TestBaseUtils.compareResultAsText(targetDegrees.collect(), expectedResult);
+    }
 
-	@Test
-	public void testWithEmptyGraphWithVertices() throws Exception {
-		DataSet<Edge<LongValue, Tuple2<NullValue, Degrees>>> targetDegrees = emptyGraphWithVertices
-			.run(new EdgeTargetDegrees<>());
+    @Test
+    public void testWithEmptyGraphWithVertices() throws Exception {
+        DataSet<Edge<LongValue, Tuple2<NullValue, Degrees>>> targetDegrees =
+                emptyGraphWithVertices.run(new EdgeTargetDegrees<>());
 
-		assertEquals(0, targetDegrees.collect().size());
-	}
+        assertEquals(0, targetDegrees.collect().size());
+    }
 
-	@Test
-	public void testWithEmptyGraphWithoutVertices() throws Exception {
-		DataSet<Edge<LongValue, Tuple2<NullValue, Degrees>>> targetDegrees = emptyGraphWithoutVertices
-			.run(new EdgeTargetDegrees<>());
+    @Test
+    public void testWithEmptyGraphWithoutVertices() throws Exception {
+        DataSet<Edge<LongValue, Tuple2<NullValue, Degrees>>> targetDegrees =
+                emptyGraphWithoutVertices.run(new EdgeTargetDegrees<>());
 
-		assertEquals(0, targetDegrees.collect().size());
-	}
+        assertEquals(0, targetDegrees.collect().size());
+    }
 
-	@Test
-	public void testWithRMatGraph() throws Exception {
-		DataSet<Edge<LongValue, Tuple2<NullValue, Degrees>>> targetDegrees = directedRMatGraph(10, 16)
-			.run(new EdgeTargetDegrees<>());
+    @Test
+    public void testWithRMatGraph() throws Exception {
+        DataSet<Edge<LongValue, Tuple2<NullValue, Degrees>>> targetDegrees =
+                directedRMatGraph(10, 16).run(new EdgeTargetDegrees<>());
 
-		Checksum checksum = new ChecksumHashCode<Edge<LongValue, Tuple2<NullValue, Degrees>>>()
-			.run(targetDegrees)
-			.execute();
+        Checksum checksum =
+                new ChecksumHashCode<Edge<LongValue, Tuple2<NullValue, Degrees>>>()
+                        .run(targetDegrees)
+                        .execute();
 
-		assertEquals(12009, checksum.getCount());
-		assertEquals(0x0000160af450cc81L, checksum.getChecksum());
-	}
+        assertEquals(12009, checksum.getCount());
+        assertEquals(0x0000160af450cc81L, checksum.getChecksum());
+    }
 }

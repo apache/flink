@@ -20,16 +20,14 @@ package org.apache.flink.api.java.aggregation;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * @param <T> The type to be aggregated.
- */
+/** @param <T> The type to be aggregated. */
 @Internal
 public abstract class AggregationFunction<T> implements java.io.Serializable {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public abstract void initializeAggregate();
+    public abstract void initializeAggregate();
 
-	public abstract void aggregate(T value);
+    public abstract void aggregate(T value);
 
-	public abstract T getAggregate();
+    public abstract T getAggregate();
 }

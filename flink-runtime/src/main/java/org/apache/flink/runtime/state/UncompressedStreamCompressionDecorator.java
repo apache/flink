@@ -26,23 +26,24 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-/**
- * This implementation does not decorate the stream with any compression.
- */
+/** This implementation does not decorate the stream with any compression. */
 @Internal
 public class UncompressedStreamCompressionDecorator extends StreamCompressionDecorator {
 
-	public static final StreamCompressionDecorator INSTANCE = new UncompressedStreamCompressionDecorator();
+    public static final StreamCompressionDecorator INSTANCE =
+            new UncompressedStreamCompressionDecorator();
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	protected OutputStream decorateWithCompression(NonClosingOutpusStreamDecorator stream) throws IOException {
-		return stream;
-	}
+    @Override
+    protected OutputStream decorateWithCompression(NonClosingOutpusStreamDecorator stream)
+            throws IOException {
+        return stream;
+    }
 
-	@Override
-	protected InputStream decorateWithCompression(NonClosingInputStreamDecorator stream) throws IOException {
-		return stream;
-	}
+    @Override
+    protected InputStream decorateWithCompression(NonClosingInputStreamDecorator stream)
+            throws IOException {
+        return stream;
+    }
 }

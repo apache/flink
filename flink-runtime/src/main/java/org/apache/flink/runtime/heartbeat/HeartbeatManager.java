@@ -21,41 +21,40 @@ package org.apache.flink.runtime.heartbeat;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
 /**
- * A heartbeat manager has to be able to start/stop monitoring a {@link HeartbeatTarget}, and report heartbeat timeouts
- * for this target.
+ * A heartbeat manager has to be able to start/stop monitoring a {@link HeartbeatTarget}, and report
+ * heartbeat timeouts for this target.
  *
  * @param <I> Type of the incoming payload
  * @param <O> Type of the outgoing payload
  */
 public interface HeartbeatManager<I, O> extends HeartbeatTarget<I> {
 
-	/**
-	 * Start monitoring a {@link HeartbeatTarget}. Heartbeat timeouts for this target are reported
-	 * to the {@link HeartbeatListener} associated with this heartbeat manager.
-	 *
-	 * @param resourceID Resource ID identifying the heartbeat target
-	 * @param heartbeatTarget Interface to send heartbeat requests and responses to the heartbeat
-	 *                        target
-	 */
-	void monitorTarget(ResourceID resourceID, HeartbeatTarget<O> heartbeatTarget);
+    /**
+     * Start monitoring a {@link HeartbeatTarget}. Heartbeat timeouts for this target are reported
+     * to the {@link HeartbeatListener} associated with this heartbeat manager.
+     *
+     * @param resourceID Resource ID identifying the heartbeat target
+     * @param heartbeatTarget Interface to send heartbeat requests and responses to the heartbeat
+     *     target
+     */
+    void monitorTarget(ResourceID resourceID, HeartbeatTarget<O> heartbeatTarget);
 
-	/**
-	 * Stops monitoring the heartbeat target with the associated resource ID.
-	 *
-	 * @param resourceID Resource ID of the heartbeat target which shall no longer be monitored
-	 */
-	void unmonitorTarget(ResourceID resourceID);
+    /**
+     * Stops monitoring the heartbeat target with the associated resource ID.
+     *
+     * @param resourceID Resource ID of the heartbeat target which shall no longer be monitored
+     */
+    void unmonitorTarget(ResourceID resourceID);
 
-	/**
-	 * Stops the heartbeat manager.
-	 */
-	void stop();
+    /** Stops the heartbeat manager. */
+    void stop();
 
-	/**
-	 * Returns the last received heartbeat from the given target.
-	 *
-	 * @param resourceId for which to return the last heartbeat
-	 * @return Last heartbeat received from the given target or -1 if the target is not being monitored.
-	 */
-	long getLastHeartbeatFrom(ResourceID resourceId);
+    /**
+     * Returns the last received heartbeat from the given target.
+     *
+     * @param resourceId for which to return the last heartbeat
+     * @return Last heartbeat received from the given target or -1 if the target is not being
+     *     monitored.
+     */
+    long getLastHeartbeatFrom(ResourceID resourceId);
 }

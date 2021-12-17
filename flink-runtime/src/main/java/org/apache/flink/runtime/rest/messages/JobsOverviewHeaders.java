@@ -24,54 +24,53 @@ import org.apache.flink.runtime.rest.handler.job.JobsOverviewHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for {@link JobsOverviewHandler}.
- */
-public final class JobsOverviewHeaders implements MessageHeaders<EmptyRequestBody, MultipleJobsDetails, EmptyMessageParameters> {
+/** Message headers for {@link JobsOverviewHandler}. */
+public final class JobsOverviewHeaders
+        implements MessageHeaders<EmptyRequestBody, MultipleJobsDetails, EmptyMessageParameters> {
 
-	private static final JobsOverviewHeaders INSTANCE = new JobsOverviewHeaders();
+    private static final JobsOverviewHeaders INSTANCE = new JobsOverviewHeaders();
 
-	public static final String URL = "/jobs/overview";
+    public static final String URL = "/jobs/overview";
 
-	// make this class a singleton
-	private JobsOverviewHeaders() {}
+    // make this class a singleton
+    private JobsOverviewHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	@Override
-	public Class<MultipleJobsDetails> getResponseClass() {
-		return MultipleJobsDetails.class;
-	}
+    @Override
+    public Class<MultipleJobsDetails> getResponseClass() {
+        return MultipleJobsDetails.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public EmptyMessageParameters getUnresolvedMessageParameters() {
-		return EmptyMessageParameters.getInstance();
-	}
+    @Override
+    public EmptyMessageParameters getUnresolvedMessageParameters() {
+        return EmptyMessageParameters.getInstance();
+    }
 
-	public static JobsOverviewHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JobsOverviewHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns an overview over all jobs.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns an overview over all jobs.";
+    }
 }

@@ -23,29 +23,32 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Gauge metric measuring the input buffers usage for {@link SingleInputGate}s under credit based mode.
+ * Gauge metric measuring the input buffers usage for {@link SingleInputGate}s under credit based
+ * mode.
  */
 public class CreditBasedInputBuffersUsageGauge extends AbstractBuffersUsageGauge {
 
-	private final FloatingBuffersUsageGauge floatingBuffersUsageGauge;
-	private final ExclusiveBuffersUsageGauge exclusiveBuffersUsageGauge;
+    private final FloatingBuffersUsageGauge floatingBuffersUsageGauge;
+    private final ExclusiveBuffersUsageGauge exclusiveBuffersUsageGauge;
 
-	public CreditBasedInputBuffersUsageGauge(
-		FloatingBuffersUsageGauge floatingBuffersUsageGauge,
-		ExclusiveBuffersUsageGauge exclusiveBuffersUsageGauge,
-		SingleInputGate[] inputGates) {
-		super(checkNotNull(inputGates));
-		this.floatingBuffersUsageGauge = checkNotNull(floatingBuffersUsageGauge);
-		this.exclusiveBuffersUsageGauge = checkNotNull(exclusiveBuffersUsageGauge);
-	}
+    public CreditBasedInputBuffersUsageGauge(
+            FloatingBuffersUsageGauge floatingBuffersUsageGauge,
+            ExclusiveBuffersUsageGauge exclusiveBuffersUsageGauge,
+            SingleInputGate[] inputGates) {
+        super(checkNotNull(inputGates));
+        this.floatingBuffersUsageGauge = checkNotNull(floatingBuffersUsageGauge);
+        this.exclusiveBuffersUsageGauge = checkNotNull(exclusiveBuffersUsageGauge);
+    }
 
-	@Override
-	public int calculateUsedBuffers(SingleInputGate inputGate) {
-		return floatingBuffersUsageGauge.calculateUsedBuffers(inputGate) + exclusiveBuffersUsageGauge.calculateUsedBuffers(inputGate);
-	}
+    @Override
+    public int calculateUsedBuffers(SingleInputGate inputGate) {
+        return floatingBuffersUsageGauge.calculateUsedBuffers(inputGate)
+                + exclusiveBuffersUsageGauge.calculateUsedBuffers(inputGate);
+    }
 
-	@Override
-	public int calculateTotalBuffers(SingleInputGate inputGate) {
-		return floatingBuffersUsageGauge.calculateTotalBuffers(inputGate) + exclusiveBuffersUsageGauge.calculateTotalBuffers(inputGate);
-	}
+    @Override
+    public int calculateTotalBuffers(SingleInputGate inputGate) {
+        return floatingBuffersUsageGauge.calculateTotalBuffers(inputGate)
+                + exclusiveBuffersUsageGauge.calculateTotalBuffers(inputGate);
+    }
 }

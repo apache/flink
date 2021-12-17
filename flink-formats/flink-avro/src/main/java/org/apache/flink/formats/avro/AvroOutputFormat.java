@@ -38,164 +38,166 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * {@link FileOutputFormat} for Avro records.
+ *
  * @param <E>
  */
 public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializable {
 
-	/**
-	 * Wrapper which encapsulates the supported codec and a related serialization byte.
-	 */
-	public enum Codec {
+    /** Wrapper which encapsulates the supported codec and a related serialization byte. */
+    public enum Codec {
+        NULL((byte) 0, CodecFactory.nullCodec()),
+        SNAPPY((byte) 1, CodecFactory.snappyCodec()),
+        BZIP2((byte) 2, CodecFactory.bzip2Codec()),
+        DEFLATE((byte) 3, CodecFactory.deflateCodec(CodecFactory.DEFAULT_DEFLATE_LEVEL)),
+        XZ((byte) 4, CodecFactory.xzCodec(CodecFactory.DEFAULT_XZ_LEVEL));
 
-		NULL((byte) 0, CodecFactory.nullCodec()),
-		SNAPPY((byte) 1, CodecFactory.snappyCodec()),
-		BZIP2((byte) 2, CodecFactory.bzip2Codec()),
-		DEFLATE((byte) 3, CodecFactory.deflateCodec(CodecFactory.DEFAULT_DEFLATE_LEVEL)),
-		XZ((byte) 4, CodecFactory.xzCodec(CodecFactory.DEFAULT_XZ_LEVEL));
+        private byte codecByte;
 
-		private byte codecByte;
+        private CodecFactory codecFactory;
 
-		private CodecFactory codecFactory;
+        Codec(final byte codecByte, final CodecFactory codecFactory) {
+            this.codecByte = codecByte;
+            this.codecFactory = codecFactory;
+        }
 
-		Codec(final byte codecByte, final CodecFactory codecFactory) {
-			this.codecByte = codecByte;
-			this.codecFactory = codecFactory;
-		}
+        private byte getCodecByte() {
+            return codecByte;
+        }
 
-		private byte getCodecByte() {
-			return codecByte;
-		}
+        private CodecFactory getCodecFactory() {
+            return codecFactory;
+        }
 
-		private CodecFactory getCodecFactory() {
-			return codecFactory;
-		}
+        private static Codec forCodecByte(byte codecByte) {
+            for (final Codec codec : Codec.values()) {
+                if (codec.getCodecByte() == codecByte) {
+                    return codec;
+                }
+            }
+            throw new IllegalArgumentException("no codec for codecByte: " + codecByte);
+        }
+    }
 
-		private static Codec forCodecByte(byte codecByte) {
-			for (final Codec codec : Codec.values()) {
-				if (codec.getCodecByte() == codecByte) {
-					return codec;
-				}
-			}
-			throw new IllegalArgumentException("no codec for codecByte: " + codecByte);
-		}
-	}
+    private static final long serialVersionUID = 1L;
 
-	private static final long serialVersionUID = 1L;
+    private final Class<E> avroValueType;
 
-	private final Class<E> avroValueType;
+    private transient Schema userDefinedSchema = null;
 
-	private transient Schema userDefinedSchema = null;
+    private transient Codec codec = null;
 
-	private transient Codec codec = null;
+    private transient DataFileWriter<E> dataFileWriter;
 
-	private transient DataFileWriter<E> dataFileWriter;
+    public AvroOutputFormat(Path filePath, Class<E> type) {
+        super(filePath);
+        this.avroValueType = type;
+    }
 
-	public AvroOutputFormat(Path filePath, Class<E> type) {
-		super(filePath);
-		this.avroValueType = type;
-	}
+    public AvroOutputFormat(Class<E> type) {
+        this.avroValueType = type;
+    }
 
-	public AvroOutputFormat(Class<E> type) {
-		this.avroValueType = type;
-	}
+    @Override
+    protected String getDirectoryFileName(int taskNumber) {
+        return super.getDirectoryFileName(taskNumber) + ".avro";
+    }
 
-	@Override
-	protected String getDirectoryFileName(int taskNumber) {
-		return super.getDirectoryFileName(taskNumber) + ".avro";
-	}
+    public void setSchema(Schema schema) {
+        this.userDefinedSchema = schema;
+    }
 
-	public void setSchema(Schema schema) {
-		this.userDefinedSchema = schema;
-	}
+    /**
+     * Set avro codec for compression.
+     *
+     * @param codec avro codec.
+     */
+    public void setCodec(final Codec codec) {
+        this.codec = checkNotNull(codec, "codec can not be null");
+    }
 
-	/**
-	 * Set avro codec for compression.
-	 *
-	 * @param codec avro codec.
-	 */
-	public void setCodec(final Codec codec) {
-		this.codec = checkNotNull(codec, "codec can not be null");
-	}
+    @Override
+    public void writeRecord(E record) throws IOException {
+        dataFileWriter.append(record);
+    }
 
-	@Override
-	public void writeRecord(E record) throws IOException {
-		dataFileWriter.append(record);
-	}
+    @Override
+    public void open(int taskNumber, int numTasks) throws IOException {
+        super.open(taskNumber, numTasks);
 
-	@Override
-	public void open(int taskNumber, int numTasks) throws IOException {
-		super.open(taskNumber, numTasks);
+        DatumWriter<E> datumWriter;
+        Schema schema;
+        if (org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(avroValueType)) {
+            datumWriter = new SpecificDatumWriter<E>(avroValueType);
+            try {
+                schema =
+                        ((org.apache.avro.specific.SpecificRecordBase) avroValueType.newInstance())
+                                .getSchema();
+            } catch (InstantiationException | IllegalAccessException e) {
+                throw new RuntimeException(e.getMessage());
+            }
+        } else if (org.apache.avro.generic.GenericRecord.class.isAssignableFrom(avroValueType)) {
+            if (userDefinedSchema == null) {
+                throw new IllegalStateException("Schema must be set when using Generic Record");
+            }
+            datumWriter = new GenericDatumWriter<E>(userDefinedSchema);
+            schema = userDefinedSchema;
+        } else {
+            datumWriter = new ReflectDatumWriter<E>(avroValueType);
+            schema = ReflectData.get().getSchema(avroValueType);
+        }
+        dataFileWriter = new DataFileWriter<E>(datumWriter);
+        if (codec != null) {
+            dataFileWriter.setCodec(codec.getCodecFactory());
+        }
+        if (userDefinedSchema == null) {
+            dataFileWriter.create(schema, stream);
+        } else {
+            dataFileWriter.create(userDefinedSchema, stream);
+        }
+    }
 
-		DatumWriter<E> datumWriter;
-		Schema schema;
-		if (org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(avroValueType)) {
-			datumWriter = new SpecificDatumWriter<E>(avroValueType);
-			try {
-				schema = ((org.apache.avro.specific.SpecificRecordBase) avroValueType.newInstance()).getSchema();
-			} catch (InstantiationException | IllegalAccessException e) {
-				throw new RuntimeException(e.getMessage());
-			}
-		} else if (org.apache.avro.generic.GenericRecord.class.isAssignableFrom(avroValueType)) {
-			if (userDefinedSchema == null) {
-				throw new IllegalStateException("Schema must be set when using Generic Record");
-			}
-			datumWriter = new GenericDatumWriter<E>(userDefinedSchema);
-			schema = userDefinedSchema;
-		} else {
-			datumWriter = new ReflectDatumWriter<E>(avroValueType);
-			schema = ReflectData.get().getSchema(avroValueType);
-		}
-		dataFileWriter = new DataFileWriter<E>(datumWriter);
-		if (codec != null) {
-			dataFileWriter.setCodec(codec.getCodecFactory());
-		}
-		if (userDefinedSchema == null) {
-			dataFileWriter.create(schema, stream);
-		} else {
-			dataFileWriter.create(userDefinedSchema, stream);
-		}
-	}
+    private void writeObject(java.io.ObjectOutputStream out) throws IOException {
+        out.defaultWriteObject();
 
-	private void writeObject(java.io.ObjectOutputStream out) throws IOException {
-		out.defaultWriteObject();
+        if (codec != null) {
+            out.writeByte(codec.getCodecByte());
+        } else {
+            out.writeByte(-1);
+        }
 
-		if (codec != null) {
-			out.writeByte(codec.getCodecByte());
-		} else {
-			out.writeByte(-1);
-		}
+        if (userDefinedSchema != null) {
+            byte[] json = userDefinedSchema.toString().getBytes(ConfigConstants.DEFAULT_CHARSET);
+            out.writeInt(json.length);
+            out.write(json);
+        } else {
+            out.writeInt(0);
+        }
+    }
 
-		if (userDefinedSchema != null) {
-			byte[] json = userDefinedSchema.toString().getBytes(ConfigConstants.DEFAULT_CHARSET);
-			out.writeInt(json.length);
-			out.write(json);
-		} else {
-			out.writeInt(0);
-		}
-	}
+    private void readObject(java.io.ObjectInputStream in)
+            throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
 
-	private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
+        byte codecByte = in.readByte();
+        if (codecByte >= 0) {
+            setCodec(Codec.forCodecByte(codecByte));
+        }
 
-		byte codecByte = in.readByte();
-		if (codecByte >= 0) {
-			setCodec(Codec.forCodecByte(codecByte));
-		}
+        int length = in.readInt();
+        if (length != 0) {
+            byte[] json = new byte[length];
+            in.readFully(json);
 
-		int length = in.readInt();
-		if (length != 0) {
-			byte[] json = new byte[length];
-			in.readFully(json);
+            Schema schema =
+                    new Schema.Parser().parse(new String(json, ConfigConstants.DEFAULT_CHARSET));
+            setSchema(schema);
+        }
+    }
 
-			Schema schema = new Schema.Parser().parse(new String(json, ConfigConstants.DEFAULT_CHARSET));
-			setSchema(schema);
-		}
-	}
-
-	@Override
-	public void close() throws IOException {
-		dataFileWriter.flush();
-		dataFileWriter.close();
-		super.close();
-	}
+    @Override
+    public void close() throws IOException {
+        dataFileWriter.flush();
+        dataFileWriter.close();
+        super.close();
+    }
 }

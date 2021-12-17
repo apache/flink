@@ -30,51 +30,46 @@ import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link ConfluentSchemaRegistryCoder}.
- */
+/** Tests for {@link ConfluentSchemaRegistryCoder}. */
 public class ConfluentSchemaRegistryCoderTest {
 
-	@Test
-	public void testSpecificRecordWithConfluentSchemaRegistry() throws Exception {
-		MockSchemaRegistryClient client = new MockSchemaRegistryClient();
+    @Test
+    public void testSpecificRecordWithConfluentSchemaRegistry() throws Exception {
+        MockSchemaRegistryClient client = new MockSchemaRegistryClient();
 
-		Schema schema = SchemaBuilder.record("testRecord")
-			.fields()
-			.optionalString("testField")
-			.endRecord();
-		int schemaId = client.register("testTopic", schema);
+        Schema schema =
+                SchemaBuilder.record("testRecord").fields().optionalString("testField").endRecord();
+        int schemaId = client.register("testTopic", schema);
 
-		ConfluentSchemaRegistryCoder registryCoder = new ConfluentSchemaRegistryCoder(client);
-		ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
-		DataOutputStream dataOutputStream = new DataOutputStream(byteOutStream);
-		dataOutputStream.writeByte(0);
-		dataOutputStream.writeInt(schemaId);
-		dataOutputStream.flush();
+        ConfluentSchemaRegistryCoder registryCoder = new ConfluentSchemaRegistryCoder(client);
+        ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
+        DataOutputStream dataOutputStream = new DataOutputStream(byteOutStream);
+        dataOutputStream.writeByte(0);
+        dataOutputStream.writeInt(schemaId);
+        dataOutputStream.flush();
 
-		ByteArrayInputStream byteInStream = new ByteArrayInputStream(byteOutStream.toByteArray());
-		Schema readSchema = registryCoder.readSchema(byteInStream);
+        ByteArrayInputStream byteInStream = new ByteArrayInputStream(byteOutStream.toByteArray());
+        Schema readSchema = registryCoder.readSchema(byteInStream);
 
-		assertEquals(schema, readSchema);
-		assertEquals(0, byteInStream.available());
-	}
+        assertEquals(schema, readSchema);
+        assertEquals(0, byteInStream.available());
+    }
 
-	@Test(expected = IOException.class)
-	public void testMagicByteVerification() throws Exception {
-		MockSchemaRegistryClient client = new MockSchemaRegistryClient();
-		int schemaId = client.register("testTopic", Schema.create(Schema.Type.BOOLEAN));
+    @Test(expected = IOException.class)
+    public void testMagicByteVerification() throws Exception {
+        MockSchemaRegistryClient client = new MockSchemaRegistryClient();
+        int schemaId = client.register("testTopic", Schema.create(Schema.Type.BOOLEAN));
 
-		ConfluentSchemaRegistryCoder coder = new ConfluentSchemaRegistryCoder(client);
-		ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
-		DataOutputStream dataOutputStream = new DataOutputStream(byteOutStream);
-		dataOutputStream.writeByte(5);
-		dataOutputStream.writeInt(schemaId);
-		dataOutputStream.flush();
+        ConfluentSchemaRegistryCoder coder = new ConfluentSchemaRegistryCoder(client);
+        ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
+        DataOutputStream dataOutputStream = new DataOutputStream(byteOutStream);
+        dataOutputStream.writeByte(5);
+        dataOutputStream.writeInt(schemaId);
+        dataOutputStream.flush();
 
-		ByteArrayInputStream byteInStream = new ByteArrayInputStream(byteOutStream.toByteArray());
-		coder.readSchema(byteInStream);
+        ByteArrayInputStream byteInStream = new ByteArrayInputStream(byteOutStream.toByteArray());
+        coder.readSchema(byteInStream);
 
-		// exception is thrown
-	}
-
+        // exception is thrown
+    }
 }

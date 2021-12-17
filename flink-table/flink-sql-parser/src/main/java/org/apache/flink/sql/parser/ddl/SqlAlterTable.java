@@ -18,100 +18,80 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlPartitionUtils;
+
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
 
-import java.util.List;
+import javax.annotation.Nullable;
+
+import java.util.LinkedHashMap;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * ALTER TABLE [[catalogName.] dataBasesName].tableName RENAME TO [[catalogName.] dataBasesName].newTableName or
- * ALTER TABLE [[catalogName.] dataBasesName].tableName SET ( name=value [, name=value]*) sql call.
+ * Abstract class to describe statements like ALTER TABLE [[catalogName.] dataBasesName].tableName
+ * ...
  */
-public class SqlAlterTable extends SqlCall {
+public abstract class SqlAlterTable extends SqlCall {
 
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ALTER TABLE", SqlKind.ALTER_TABLE);
+    public static final SqlSpecialOperator OPERATOR =
+            new SqlSpecialOperator("ALTER TABLE", SqlKind.ALTER_TABLE);
 
-	private final SqlIdentifier tableIdentifier;
-	private final SqlIdentifier newTableIdentifier;
+    protected final SqlIdentifier tableIdentifier;
+    protected final SqlNodeList partitionSpec;
 
-	private final SqlNodeList propertyList;
-	private final boolean isRename;
+    public SqlAlterTable(
+            SqlParserPos pos, SqlIdentifier tableName, @Nullable SqlNodeList partitionSpec) {
+        super(pos);
+        this.tableIdentifier = requireNonNull(tableName, "tableName should not be null");
+        this.partitionSpec = partitionSpec;
+    }
 
-	public SqlAlterTable(
-			SqlParserPos pos,
-			SqlIdentifier tableName,
-			SqlIdentifier newTableName,
-			SqlNodeList propertyList,
-			boolean isRename) {
-		super(pos);
-		this.tableIdentifier = requireNonNull(tableName, "tableName should not be null");
-		this.newTableIdentifier = newTableName;
-		this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
-		this.isRename = isRename;
-	}
+    public SqlAlterTable(SqlParserPos pos, SqlIdentifier tableName) {
+        this(pos, tableName, null);
+    }
 
-	@Override
-	public SqlOperator getOperator() {
-		return OPERATOR;
-	}
+    @Override
+    public SqlOperator getOperator() {
+        return OPERATOR;
+    }
 
-	@Override
-	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(tableIdentifier, newTableIdentifier, propertyList);
-	}
+    public SqlIdentifier getTableName() {
+        return tableIdentifier;
+    }
 
-	public SqlIdentifier getTableName() {
-		return tableIdentifier;
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("ALTER TABLE");
+        tableIdentifier.unparse(writer, leftPrec, rightPrec);
+        SqlNodeList partitionSpec = getPartitionSpec();
+        if (partitionSpec != null && partitionSpec.size() > 0) {
+            writer.keyword("PARTITION");
+            partitionSpec.unparse(
+                    writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
+        }
+    }
 
-	public boolean isRename() {
-		return isRename;
-	}
+    public String[] fullTableName() {
+        return tableIdentifier.names.toArray(new String[0]);
+    }
 
-	public SqlNodeList getPropertyList() {
-		return propertyList;
-	}
+    /**
+     * Returns the partition spec if the ALTER should be applied to partitions, and null otherwise.
+     */
+    public SqlNodeList getPartitionSpec() {
+        return partitionSpec;
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("ALTER TABLE");
-		tableIdentifier.unparse(writer, leftPrec, rightPrec);
-		if (isRename) {
-			writer.keyword("RENAME TO");
-			newTableIdentifier.unparse(writer, leftPrec, rightPrec);
-		} else {
-			writer.keyword("SET");
-			SqlWriter.Frame withFrame = writer.startList("(", ")");
-			for (SqlNode property : propertyList) {
-				printIndent(writer);
-				property.unparse(writer, leftPrec, rightPrec);
-			}
-			writer.newlineAndIndent();
-			writer.endList(withFrame);
-		}
-	}
-
-	private void printIndent(SqlWriter writer) {
-		writer.sep(",", false);
-		writer.newlineAndIndent();
-		writer.print("  ");
-	}
-
-	public String[] fullTableName() {
-		return tableIdentifier.names.toArray(new String[0]);
-	}
-
-	public String[] fullNewTableName() {
-		return newTableIdentifier.names.toArray(new String[0]);
-	}
+    /** Get partition spec as key-value strings. */
+    public LinkedHashMap<String, String> getPartitionKVs() {
+        return SqlPartitionUtils.getPartitionKVs(getPartitionSpec());
+    }
 }

@@ -25,32 +25,25 @@ import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Tests for {@link JobMetricsHandler}.
- */
+/** Tests for {@link JobMetricsHandler}. */
 public class JobMetricsHandlerTest extends MetricsHandlerTestBase<JobMetricsHandler> {
 
-	private static final String TEST_JOB_ID = new JobID().toString();
+    private static final String TEST_JOB_ID = new JobID().toString();
 
-	@Override
-	JobMetricsHandler getMetricsHandler() {
-		return new JobMetricsHandler(
-			leaderRetriever,
-			TIMEOUT,
-			TEST_HEADERS,
-			mockMetricFetcher);
-	}
+    @Override
+    JobMetricsHandler getMetricsHandler() {
+        return new JobMetricsHandler(leaderRetriever, TIMEOUT, TEST_HEADERS, mockMetricFetcher);
+    }
 
-	@Override
-	QueryScopeInfo getQueryScopeInfo() {
-		return new QueryScopeInfo.JobQueryScopeInfo(TEST_JOB_ID);
-	}
+    @Override
+    QueryScopeInfo getQueryScopeInfo() {
+        return new QueryScopeInfo.JobQueryScopeInfo(TEST_JOB_ID);
+    }
 
-	@Override
-	Map<String, String> getPathParameters() {
-		Map<String, String> pathParameters = new HashMap<>();
-		pathParameters.put(JobIDPathParameter.KEY, TEST_JOB_ID);
-		return pathParameters;
-	}
-
+    @Override
+    Map<String, String> getPathParameters() {
+        Map<String, String> pathParameters = new HashMap<>();
+        pathParameters.put(JobIDPathParameter.KEY, TEST_JOB_ID);
+        return pathParameters;
+    }
 }

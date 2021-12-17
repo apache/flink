@@ -24,61 +24,65 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * An abstract catalog table.
- */
+/** An abstract catalog table. */
 public abstract class AbstractCatalogTable implements CatalogTable {
-	// Schema of the table (column names and types)
-	private final TableSchema tableSchema;
-	// Partition keys if this is a partitioned table. It's an empty set if the table is not partitioned
-	private final List<String> partitionKeys;
-	// Properties of the table
-	private final Map<String, String> properties;
-	// Comment of the table
-	private final String comment;
+    // Schema of the table (column names and types)
+    private final TableSchema tableSchema;
+    // Partition keys if this is a partitioned table. It's an empty set if the table is not
+    // partitioned
+    private final List<String> partitionKeys;
+    // Properties of the table
+    private final Map<String, String> options;
+    // Comment of the table
+    private final String comment;
 
-	public AbstractCatalogTable(
-			TableSchema tableSchema,
-			Map<String, String> properties,
-			String comment) {
-		this(tableSchema, new ArrayList<>(), properties, comment);
-	}
+    public AbstractCatalogTable(
+            TableSchema tableSchema, Map<String, String> options, String comment) {
+        this(tableSchema, new ArrayList<>(), options, comment);
+    }
 
-	public AbstractCatalogTable(
-			TableSchema tableSchema,
-			List<String> partitionKeys,
-			Map<String, String> properties,
-			String comment) {
-		this.tableSchema = checkNotNull(tableSchema, "tableSchema cannot be null");
-		this.partitionKeys = checkNotNull(partitionKeys, "partitionKeys cannot be null");
-		this.properties = checkNotNull(properties, "properties cannot be null");
-		this.comment = comment;
-	}
+    public AbstractCatalogTable(
+            TableSchema tableSchema,
+            List<String> partitionKeys,
+            Map<String, String> options,
+            String comment) {
+        this.tableSchema = checkNotNull(tableSchema, "tableSchema cannot be null");
+        this.partitionKeys = checkNotNull(partitionKeys, "partitionKeys cannot be null");
+        this.options = checkNotNull(options, "options cannot be null");
 
-	@Override
-	public boolean isPartitioned() {
-		return !partitionKeys.isEmpty();
-	}
+        checkArgument(
+                options.entrySet().stream()
+                        .allMatch(e -> e.getKey() != null && e.getValue() != null),
+                "properties cannot have null keys or values");
 
-	@Override
-	public List<String> getPartitionKeys() {
-		return partitionKeys;
-	}
+        this.comment = comment;
+    }
 
-	@Override
-	public Map<String, String> getProperties() {
-		return properties;
-	}
+    @Override
+    public boolean isPartitioned() {
+        return !partitionKeys.isEmpty();
+    }
 
-	@Override
-	public TableSchema getSchema() {
-		return tableSchema;
-	}
+    @Override
+    public List<String> getPartitionKeys() {
+        return partitionKeys;
+    }
 
-	@Override
-	public String getComment() {
-		return comment;
-	}
+    @Override
+    public Map<String, String> getOptions() {
+        return options;
+    }
+
+    @Override
+    public TableSchema getSchema() {
+        return tableSchema;
+    }
+
+    @Override
+    public String getComment() {
+        return comment != null ? comment : "";
+    }
 }

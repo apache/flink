@@ -1,0 +1,151 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testIntersectAll">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalIntersect(all=[true])
+:- LogicalProject(c=[$2])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(f=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
+   :- LogicalProject($f0=[IF(>($1, $2), $2, $1)], c=[$0])
+   :  +- LogicalFilter(condition=[AND(>=($1, 1), >=($2, 1))])
+   :     +- LogicalAggregate(group=[{0}], vcol_left_cnt=[COUNT($1)], vcol_right_cnt=[COUNT($2)])
+   :        +- LogicalUnion(all=[true])
+   :           :- LogicalProject(c=[$0], vcol_left_marker=[true], vcol_right_marker=[null:BOOLEAN])
+   :           :  +- LogicalProject(c=[$2])
+   :           :     +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+   :           +- LogicalProject(f=[$0], vcol_left_marker=[null:BOOLEAN], vcol_right_marker=[true])
+   :              +- LogicalProject(f=[$2])
+   :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$a5a5fb35ffda8b52251be55e3ceaee69($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIntersectAllLeftIsEmpty">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 WHERE 1=0 INTERSECT ALL SELECT f FROM T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalIntersect(all=[true])
+:- LogicalProject(c=[$2])
+:  +- LogicalFilter(condition=[=(1, 0)])
+:     +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(f=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
+   :- LogicalProject($f0=[IF(>($1, $2), $2, $1)], c=[$0])
+   :  +- LogicalFilter(condition=[AND(>=($1, 1), >=($2, 1))])
+   :     +- LogicalAggregate(group=[{0}], vcol_left_cnt=[COUNT($1)], vcol_right_cnt=[COUNT($2)])
+   :        +- LogicalUnion(all=[true])
+   :           :- LogicalProject(c=[$0], vcol_left_marker=[true], vcol_right_marker=[null:BOOLEAN])
+   :           :  +- LogicalProject(c=[$2])
+   :           :     +- LogicalFilter(condition=[=(1, 0)])
+   :           :        +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+   :           +- LogicalProject(f=[$0], vcol_left_marker=[null:BOOLEAN], vcol_right_marker=[true])
+   :              +- LogicalProject(f=[$2])
+   :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$a5a5fb35ffda8b52251be55e3ceaee69($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIntersectAllWithFilter">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM ((SELECT * FROM T1) INTERSECT ALL (SELECT * FROM T2)) WHERE a > 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[>($0, 1)])
+   +- LogicalIntersect(all=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+      +- LogicalProject(d=[$0], e=[$1], f=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[>($0, 1)])
+   +- LogicalProject(a=[$4], b=[$5], c=[$6])
+      +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
+         :- LogicalProject($f0=[IF(>($3, $4), $4, $3)], a=[$0], b=[$1], c=[$2])
+         :  +- LogicalFilter(condition=[AND(>=($3, 1), >=($4, 1))])
+         :     +- LogicalAggregate(group=[{0, 1, 2}], vcol_left_cnt=[COUNT($3)], vcol_right_cnt=[COUNT($4)])
+         :        +- LogicalUnion(all=[true])
+         :           :- LogicalProject(a=[$0], b=[$1], c=[$2], vcol_left_marker=[true], vcol_right_marker=[null:BOOLEAN])
+         :           :  +- LogicalProject(a=[$0], b=[$1], c=[$2])
+         :           :     +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+         :           +- LogicalProject(d=[$0], e=[$1], f=[$2], vcol_left_marker=[null:BOOLEAN], vcol_right_marker=[true])
+         :              +- LogicalProject(d=[$0], e=[$1], f=[$2])
+         :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+         +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$211d2b2fa33c76ac8407a4e802c302c0($0, $1, $2, $3)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIntersectAllRightIsEmpty">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2 WHERE 1=0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalIntersect(all=[true])
+:- LogicalProject(c=[$2])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(f=[$2])
+   +- LogicalFilter(condition=[=(1, 0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
+   :- LogicalProject($f0=[IF(>($1, $2), $2, $1)], c=[$0])
+   :  +- LogicalFilter(condition=[AND(>=($1, 1), >=($2, 1))])
+   :     +- LogicalAggregate(group=[{0}], vcol_left_cnt=[COUNT($1)], vcol_right_cnt=[COUNT($2)])
+   :        +- LogicalUnion(all=[true])
+   :           :- LogicalProject(c=[$0], vcol_left_marker=[true], vcol_right_marker=[null:BOOLEAN])
+   :           :  +- LogicalProject(c=[$2])
+   :           :     +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+   :           +- LogicalProject(f=[$0], vcol_left_marker=[null:BOOLEAN], vcol_right_marker=[true])
+   :              +- LogicalProject(f=[$2])
+   :                 +- LogicalFilter(condition=[=(1, 0)])
+   :                    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$a5a5fb35ffda8b52251be55e3ceaee69($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

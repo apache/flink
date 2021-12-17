@@ -20,23 +20,20 @@ package org.apache.flink.runtime.entrypoint;
 
 import org.apache.flink.util.FlinkException;
 
-/**
- * Exception which indicates that the parsing of command line
- * arguments failed.
- */
+/** Exception which indicates that the parsing of command line arguments failed. */
 public class FlinkParseException extends FlinkException {
 
-	private static final long serialVersionUID = 5164983338744708430L;
+    private static final long serialVersionUID = 5164983338744708430L;
 
-	public FlinkParseException(String message) {
-		super(message);
-	}
+    public FlinkParseException(String message) {
+        super(message);
+    }
 
-	public FlinkParseException(Throwable cause) {
-		super(cause);
-	}
+    public FlinkParseException(Throwable cause) {
+        super(cause);
+    }
 
-	public FlinkParseException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public FlinkParseException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

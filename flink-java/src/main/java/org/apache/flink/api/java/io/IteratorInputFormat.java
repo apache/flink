@@ -25,31 +25,29 @@ import org.apache.flink.api.common.io.NonParallelInput;
 import java.io.Serializable;
 import java.util.Iterator;
 
-/**
- * An input format that returns objects from an iterator.
- */
+/** An input format that returns objects from an iterator. */
 @PublicEvolving
 public class IteratorInputFormat<T> extends GenericInputFormat<T> implements NonParallelInput {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private Iterator<T> iterator; // input data as serializable iterator
+    private Iterator<T> iterator; // input data as serializable iterator
 
-	public IteratorInputFormat(Iterator<T> iterator) {
-		if (!(iterator instanceof Serializable)) {
-			throw new IllegalArgumentException("The data source iterator must be serializable.");
-		}
+    public IteratorInputFormat(Iterator<T> iterator) {
+        if (!(iterator instanceof Serializable)) {
+            throw new IllegalArgumentException("The data source iterator must be serializable.");
+        }
 
-		this.iterator = iterator;
-	}
+        this.iterator = iterator;
+    }
 
-	@Override
-	public boolean reachedEnd() {
-		return !this.iterator.hasNext();
-	}
+    @Override
+    public boolean reachedEnd() {
+        return !this.iterator.hasNext();
+    }
 
-	@Override
-	public T nextRecord(T record) {
-		return this.iterator.next();
-	}
+    @Override
+    public T nextRecord(T record) {
+        return this.iterator.next();
+    }
 }

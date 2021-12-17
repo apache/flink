@@ -31,12 +31,12 @@ import org.apache.flink.annotation.PublicEvolving;
 @FunctionalInterface
 public interface TriConsumer<S, T, U> {
 
-	/**
-	 * Performs this operation on the given arguments.
-	 *
-	 * @param s first argument
-	 * @param t second argument
-	 * @param u third argument
-	 */
-	void accept(S s, T t, U u);
+    /**
+     * Performs this operation on the given arguments.
+     *
+     * @param s first argument
+     * @param t second argument
+     * @param u third argument
+     */
+    void accept(S s, T t, U u);
 }

@@ -24,26 +24,26 @@ import org.apache.flink.types.BooleanValue;
 @PublicEvolving
 public class BooleanValueParser extends FieldParser<BooleanValue> {
 
-	private BooleanParser parser = new BooleanParser();
+    private BooleanParser parser = new BooleanParser();
 
-	private BooleanValue result;
+    private BooleanValue result;
 
-	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, byte[] delim, BooleanValue reuse) {
-		int returnValue = parser.parseField(bytes, startPos, limit, delim, reuse.getValue());
-		setErrorState(parser.getErrorState());
-		reuse.setValue(parser.getLastResult());
-		result = reuse;
-		return returnValue;
-	}
+    @Override
+    public int parseField(byte[] bytes, int startPos, int limit, byte[] delim, BooleanValue reuse) {
+        int returnValue = parser.parseField(bytes, startPos, limit, delim, reuse.getValue());
+        setErrorState(parser.getErrorState());
+        reuse.setValue(parser.getLastResult());
+        result = reuse;
+        return returnValue;
+    }
 
-	@Override
-	public BooleanValue getLastResult() {
-		return result;
-	}
+    @Override
+    public BooleanValue getLastResult() {
+        return result;
+    }
 
-	@Override
-	public BooleanValue createValue() {
-		return new BooleanValue(false);
-	}
+    @Override
+    public BooleanValue createValue() {
+        return new BooleanValue(false);
+    }
 }

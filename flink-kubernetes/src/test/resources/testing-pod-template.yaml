@@ -1,0 +1,96 @@
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-template
+  annotations:
+    a1: v1-pod-template
+    annotation-key-of-pod-template: annotation-value-of-pod-template
+  labels:
+    label1: value1-pod-template
+    label-key-of-pod-template: label-value-of-pod-template
+spec:
+  initContainers:
+    - name: artifacts-fetcher
+      image: testing-init-image
+      # Use wget or other tools to get user jars from remote storage
+      command: [ 'wget', 'https://path/of/StateMachineExample.jar', '-O', '/flink-artifact/myjob.jar' ]
+      volumeMounts:
+        - mountPath: /flink-artifact
+          name: flink-artifact
+  containers:
+    # Do not change the main container name
+    - name: testing-main-container
+      image: testing-main-container-image
+      imagePullPolicy: Always
+      resources:
+        requests:
+          # The cpu and memory resource will always be overwritten by Flink
+          cpu: 0.01
+          memory: 10Mi
+          ephemeral-storage: 256Mi
+        limits:
+          cpu: 0.01
+          memory: 10Mi
+          ephemeral-storage: 256Mi
+      env:
+        - name: ENV_OF_POD_TEMPLATE
+          value: env-value-of-pod-template
+        - name: key1
+          value: value1-of-pod-template
+      volumeMounts:
+        - mountPath: /opt/flink/volumes/hostpath
+          name: flink-volume-hostpath
+        - mountPath: /opt/flink/artifacts
+          name: flink-artifact
+        - mountPath: /opt/flink/log
+          name: flink-logs
+      ports:
+        - containerPort: 9999
+          name: testing-port
+          protocol: TCP
+      # Use sidecar container to push logs to remote storage or do some other debugging things
+    - name: sidecar-log-collector
+      image: test-sidecar-image
+      command: [ 'command-to-upload', '/flink-logs/jobmanager.log' ]
+      volumeMounts:
+        - mountPath: /flink-logs
+          name: flink-logs
+  restartPolicy: Always
+  serviceAccountName: service-account-of-pod-template
+  imagePullSecrets:
+    - name: image-pull-secret-of-pod-template
+  nodeSelector:
+    env: value-of-pod-template
+    node-selector-key-of-pod-template: node-selector-value-of-pod-template
+  tolerations:
+    - key: key2-of-pod-template
+      operator: Exists
+      effect: NoExecute
+      tolerationSeconds: 6000
+  volumes:
+    - name: flink-volume-hostpath
+      hostPath:
+        path: /tmp
+        type: Directory
+    - name: flink-artifact
+      emptyDir: { }
+    - name: flink-logs
+      emptyDir: { }

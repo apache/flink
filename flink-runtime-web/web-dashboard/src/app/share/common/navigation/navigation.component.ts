@@ -17,9 +17,9 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { Subject } from 'rxjs';
-import { map, takeUntil } from 'rxjs/operators';
+import { filter, flatMap, map, startWith, takeUntil } from 'rxjs/operators';
 
 @Component({
   selector: 'flink-navigation',
@@ -29,32 +29,33 @@ import { map, takeUntil } from 'rxjs/operators';
 })
 export class NavigationComponent implements OnInit, OnDestroy {
   @Input() listOfNavigation: Array<{ path: string; title: string }> = [];
-  @Input() tabBarGutter = 8;
   @Input() size = 'default';
   navIndex = 0;
   destroy$ = new Subject();
 
-  navigateTo(path: string) {
+  navigateTo(path: string): void {
     this.router.navigate([path], { relativeTo: this.activatedRoute }).then();
   }
 
   constructor(private activatedRoute: ActivatedRoute, private router: Router, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
-    if (this.activatedRoute && this.activatedRoute.firstChild) {
-      this.activatedRoute.firstChild.data
-        .pipe(
-          takeUntil(this.destroy$),
-          map(data => data.path)
-        )
-        .subscribe(data => {
-          this.navIndex = this.listOfNavigation.map(nav => nav.path).indexOf(data);
-          this.cdr.markForCheck();
-        });
-    }
+  ngOnInit(): void {
+    this.router.events
+      .pipe(
+        filter(e => e instanceof NavigationEnd),
+        startWith(true),
+        filter(() => !!(this.activatedRoute && this.activatedRoute.firstChild)),
+        flatMap(() => this.activatedRoute!.firstChild!.data),
+        takeUntil(this.destroy$),
+        map(data => data.path)
+      )
+      .subscribe(data => {
+        this.navIndex = this.listOfNavigation.map(nav => nav.path).indexOf(data);
+        this.cdr.markForCheck();
+      });
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

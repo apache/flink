@@ -25,37 +25,35 @@ import com.esotericsoftware.minlog.Log.Logger;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * An implementation of the Minlog Logger that forwards to slf4j.
- */
+/** An implementation of the Minlog Logger that forwards to slf4j. */
 @Internal
 class MinlogForwarder extends Logger {
 
-	private final org.slf4j.Logger log;
+    private final org.slf4j.Logger log;
 
-	MinlogForwarder(org.slf4j.Logger log) {
-		this.log = checkNotNull(log);
-	}
+    MinlogForwarder(org.slf4j.Logger log) {
+        this.log = checkNotNull(log);
+    }
 
-	@Override
-	public void log (int level, String category, String message, Throwable ex) {
-		final String logString = "[KRYO " + category + "] " + message;
-		switch (level) {
-			case Log.LEVEL_ERROR:
-				log.error(logString, ex);
-				break;
-			case Log.LEVEL_WARN:
-				log.warn(logString, ex);
-				break;
-			case Log.LEVEL_INFO:
-				log.info(logString, ex);
-				break;
-			case Log.LEVEL_DEBUG:
-				log.debug(logString, ex);
-				break;
-			case Log.LEVEL_TRACE:
-				log.trace(logString, ex);
-				break;
-		}
-	}
+    @Override
+    public void log(int level, String category, String message, Throwable ex) {
+        final String logString = "[KRYO " + category + "] " + message;
+        switch (level) {
+            case Log.LEVEL_ERROR:
+                log.error(logString, ex);
+                break;
+            case Log.LEVEL_WARN:
+                log.warn(logString, ex);
+                break;
+            case Log.LEVEL_INFO:
+                log.info(logString, ex);
+                break;
+            case Log.LEVEL_DEBUG:
+                log.debug(logString, ex);
+                break;
+            case Log.LEVEL_TRACE:
+                log.trace(logString, ex);
+                break;
+        }
+    }
 }

@@ -24,16 +24,17 @@ import org.apache.flink.testutils.DeeplyEqualsChecker;
 import java.util.Objects;
 
 /**
- * Base class for tests of {@link org.apache.flink.api.common.typeutils.TypeSerializer}s for any {@link ValueArray}.
- * It overrides default deepEquals of {@link Iterable}s with {@link Objects#equals(Object, Object)}.
+ * Base class for tests of {@link org.apache.flink.api.common.typeutils.TypeSerializer}s for any
+ * {@link ValueArray}. It overrides default deepEquals of {@link Iterable}s with {@link
+ * Objects#equals(Object, Object)}.
  */
-public abstract class ValueArraySerializerTestBase<U extends ValueArray<?>> extends SerializerTestBase<U> {
-	ValueArraySerializerTestBase() {
-		super(
-			new DeeplyEqualsChecker()
-				.withCustomCheck(
-					(o1, o2) -> o1 instanceof ValueArray && o2 instanceof ValueArray,
-					(o1, o2, checker) -> Objects.equals(o1, o2)));
-	}
-
+public abstract class ValueArraySerializerTestBase<U extends ValueArray<?>>
+        extends SerializerTestBase<U> {
+    ValueArraySerializerTestBase() {
+        super(
+                new DeeplyEqualsChecker()
+                        .withCustomCheck(
+                                (o1, o2) -> o1 instanceof ValueArray && o2 instanceof ValueArray,
+                                (o1, o2, checker) -> Objects.equals(o1, o2)));
+    }
 }

@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor
@@ -36,7 +35,6 @@ class IntervalJoinITCase extends AbstractTestBase {
   @Test
   def testInclusiveBounds(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(1)
 
     val dataStream1 = env.fromElements(("key", 0L), ("key", 1L), ("key", 2L))
@@ -74,7 +72,6 @@ class IntervalJoinITCase extends AbstractTestBase {
   @Test
   def testExclusiveBounds(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(1)
 
     val dataStream1 = env.fromElements(("key", 0L), ("key", 1L), ("key", 2L))
@@ -112,7 +109,7 @@ object Companion {
 
 class ResultSink extends SinkFunction[(String, Long)] {
 
-  override def invoke(value: (String, Long), context: SinkFunction.Context[_]): Unit = {
+  override def invoke(value: (String, Long), context: SinkFunction.Context): Unit = {
     Companion.results.append(value.toString())
   }
 

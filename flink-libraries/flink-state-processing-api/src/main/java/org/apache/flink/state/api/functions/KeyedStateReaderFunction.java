@@ -28,8 +28,8 @@ import java.util.Set;
 /**
  * A function that processes keys from a restored operator
  *
- * <p>For every key {@link #readKey(Object, Context, Collector)} is invoked. This can produce zero or more
- * elements as output.
+ * <p>For every key {@link #readKey(Object, Context, Collector)} is invoked. This can produce zero
+ * or more elements as output.
  *
  * <p><b>NOTE:</b> State descriptors must be eagerly registered in {@code open(Configuration)}. Any
  * attempt to dynamically register states inside of {@code readKey} will result in a {@code
@@ -48,49 +48,44 @@ import java.util.Set;
 @PublicEvolving
 public abstract class KeyedStateReaderFunction<K, OUT> extends AbstractRichFunction {
 
-	private static final long serialVersionUID = 3873843034140417407L;
+    private static final long serialVersionUID = 3873843034140417407L;
 
-	/**
-	 * Initialization method for the function. It is called before {@link #readKey(Object,
-	 * Context, Collector)} and thus suitable for one time setup work.
-	 *
-	 * <p>This is the only method that my register state descriptors within a {@code
-	 * KeyedStateReaderFunction}.
-	 */
-	public abstract void open(Configuration parameters) throws Exception;
+    /**
+     * Initialization method for the function. It is called before {@link #readKey(Object, Context,
+     * Collector)} and thus suitable for one time setup work.
+     *
+     * <p>This is the only method that my register state descriptors within a {@code
+     * KeyedStateReaderFunction}.
+     */
+    public abstract void open(Configuration parameters) throws Exception;
 
-	/**
-	 * Process one key from the restored state backend.
-	 *
-	 * <p>This function can read partitioned state from the restored state backend and output zero or
-	 * more elements using the {@link Collector} parameter.
-	 *
-	 * @param key The input value.
-	 * @param out The collector for returning result values.
-	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the
-	 *     operation to fail and may trigger recovery.
-	 */
-	public abstract void readKey(K key, Context ctx, Collector<OUT> out) throws Exception;
+    /**
+     * Process one key from the restored state backend.
+     *
+     * <p>This function can read partitioned state from the restored state backend and output zero
+     * or more elements using the {@link Collector} parameter.
+     *
+     * @param key The input value.
+     * @param out The collector for returning result values.
+     * @throws Exception This method may throw exceptions. Throwing an exception will cause the
+     *     operation to fail and may trigger recovery.
+     */
+    public abstract void readKey(K key, Context ctx, Collector<OUT> out) throws Exception;
 
-	/**
-	 * Context that {@link KeyedStateReaderFunction}'s can use for getting additional data about an input
-	 * record.
-	 *
-	 * <p>The context is only valid for the duration of a {@link
-	 * KeyedStateReaderFunction#readKey(Object, Context, Collector)}  call. Do not store the context and use
-	 * afterwards!
-	 */
-	public interface Context {
+    /**
+     * Context that {@link KeyedStateReaderFunction}'s can use for getting additional data about an
+     * input record.
+     *
+     * <p>The context is only valid for the duration of a {@link
+     * KeyedStateReaderFunction#readKey(Object, Context, Collector)} call. Do not store the context
+     * and use afterwards!
+     */
+    public interface Context {
 
-		/**
-		 * @return All registered event time timers for the current key.
-		 */
-		Set<Long> registeredEventTimeTimers() throws Exception;
+        /** @return All registered event time timers for the current key. */
+        Set<Long> registeredEventTimeTimers() throws Exception;
 
-		/**
-		 * @return All registered processing time timers for the current key.
-		 */
-		Set<Long> registeredProcessingTimeTimers() throws Exception;
-	}
+        /** @return All registered processing time timers for the current key. */
+        Set<Long> registeredProcessingTimeTimers() throws Exception;
+    }
 }
-

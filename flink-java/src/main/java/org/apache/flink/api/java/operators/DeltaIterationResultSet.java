@@ -27,64 +27,66 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 
 /**
  * Resulting {@link DataSet} of a delta iteration operation.
+ *
  * @param <ST>
  * @param <WT>
  */
 @Public
 public class DeltaIterationResultSet<ST, WT> extends DataSet<ST> {
 
-	private DeltaIteration<ST, WT> iterationHead;
+    private DeltaIteration<ST, WT> iterationHead;
 
-	private DataSet<ST> nextSolutionSet;
+    private DataSet<ST> nextSolutionSet;
 
-	private DataSet<WT> nextWorkset;
+    private DataSet<WT> nextWorkset;
 
-	private Keys<ST> keys;
+    private Keys<ST> keys;
 
-	private int maxIterations;
+    private int maxIterations;
 
-	private TypeInformation<WT> typeWS;
+    private TypeInformation<WT> typeWS;
 
-	DeltaIterationResultSet(ExecutionEnvironment context,
-							TypeInformation<ST> typeSS,
-							TypeInformation<WT> typeWS,
-							DeltaIteration<ST, WT> iterationHead,
-							DataSet<ST> nextSolutionSet,
-							DataSet<WT> nextWorkset,
-							Keys<ST> keys,
-							int maxIterations) {
-		super(context, typeSS);
-		this.iterationHead = iterationHead;
-		this.nextWorkset = nextWorkset;
-		this.nextSolutionSet = nextSolutionSet;
-		this.keys = keys;
-		this.maxIterations = maxIterations;
-		this.typeWS = typeWS;
-	}
+    DeltaIterationResultSet(
+            ExecutionEnvironment context,
+            TypeInformation<ST> typeSS,
+            TypeInformation<WT> typeWS,
+            DeltaIteration<ST, WT> iterationHead,
+            DataSet<ST> nextSolutionSet,
+            DataSet<WT> nextWorkset,
+            Keys<ST> keys,
+            int maxIterations) {
+        super(context, typeSS);
+        this.iterationHead = iterationHead;
+        this.nextWorkset = nextWorkset;
+        this.nextSolutionSet = nextSolutionSet;
+        this.keys = keys;
+        this.maxIterations = maxIterations;
+        this.typeWS = typeWS;
+    }
 
-	public DeltaIteration<ST, WT> getIterationHead() {
-		return iterationHead;
-	}
+    public DeltaIteration<ST, WT> getIterationHead() {
+        return iterationHead;
+    }
 
-	public DataSet<ST> getNextSolutionSet() {
-		return nextSolutionSet;
-	}
+    public DataSet<ST> getNextSolutionSet() {
+        return nextSolutionSet;
+    }
 
-	public DataSet<WT> getNextWorkset() {
-		return nextWorkset;
-	}
+    public DataSet<WT> getNextWorkset() {
+        return nextWorkset;
+    }
 
-	@Internal
-	public int[] getKeyPositions() {
-		return keys.computeLogicalKeyPositions();
-	}
+    @Internal
+    public int[] getKeyPositions() {
+        return keys.computeLogicalKeyPositions();
+    }
 
-	@Internal
-	public int getMaxIterations() {
-		return maxIterations;
-	}
+    @Internal
+    public int getMaxIterations() {
+        return maxIterations;
+    }
 
-	public TypeInformation<WT> getWorksetType() {
-		return typeWS;
-	}
+    public TypeInformation<WT> getWorksetType() {
+        return typeWS;
+    }
 }

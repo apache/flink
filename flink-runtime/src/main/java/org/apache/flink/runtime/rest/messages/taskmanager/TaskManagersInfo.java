@@ -27,40 +27,38 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import java.util.Collection;
 import java.util.Objects;
 
-/**
- * Class containing a collection of {@link TaskManagerInfo}.
- */
+/** Class containing a collection of {@link TaskManagerInfo}. */
 public class TaskManagersInfo implements ResponseBody {
 
-	public static final String FIELD_NAME_TASK_MANAGERS = "taskmanagers";
+    public static final String FIELD_NAME_TASK_MANAGERS = "taskmanagers";
 
-	@JsonProperty(FIELD_NAME_TASK_MANAGERS)
-	private final Collection<TaskManagerInfo> taskManagerInfos;
+    @JsonProperty(FIELD_NAME_TASK_MANAGERS)
+    private final Collection<TaskManagerInfo> taskManagerInfos;
 
-	@JsonCreator
-	public TaskManagersInfo(
-			@JsonProperty(FIELD_NAME_TASK_MANAGERS) Collection<TaskManagerInfo> taskManagerInfos) {
-		this.taskManagerInfos = Preconditions.checkNotNull(taskManagerInfos);
-	}
+    @JsonCreator
+    public TaskManagersInfo(
+            @JsonProperty(FIELD_NAME_TASK_MANAGERS) Collection<TaskManagerInfo> taskManagerInfos) {
+        this.taskManagerInfos = Preconditions.checkNotNull(taskManagerInfos);
+    }
 
-	public Collection<TaskManagerInfo> getTaskManagerInfos() {
-		return taskManagerInfos;
-	}
+    public Collection<TaskManagerInfo> getTaskManagerInfos() {
+        return taskManagerInfos;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		TaskManagersInfo that = (TaskManagersInfo) o;
-		return Objects.equals(taskManagerInfos, that.taskManagerInfos);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TaskManagersInfo that = (TaskManagersInfo) o;
+        return Objects.equals(taskManagerInfos, that.taskManagerInfos);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(taskManagerInfos);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(taskManagerInfos);
+    }
 }

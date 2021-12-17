@@ -23,19 +23,28 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.util.Collector;
 
-/**
- * Simple flat join function that joins two binary tuples and considers null cases.
- */
-public class SimpleTupleJoinFunction implements FlatJoinFunction<Tuple2<String, String>, Tuple2<String, Integer>, Tuple4<String, String, String, Object>> {
+/** Simple flat join function that joins two binary tuples and considers null cases. */
+public class SimpleTupleJoinFunction
+        implements FlatJoinFunction<
+                Tuple2<String, String>,
+                Tuple2<String, Integer>,
+                Tuple4<String, String, String, Object>> {
 
-	@Override
-	public void join(Tuple2<String, String> first, Tuple2<String, Integer> second, Collector<Tuple4<String, String, String, Object>> out) throws Exception {
-		if (first == null) {
-			out.collect(new Tuple4<String, String, String, Object>(null, null, second.f0, second.f1));
-		} else if (second == null) {
-			out.collect(new Tuple4<String, String, String, Object>(first.f0, first.f1, null, null));
-		} else {
-			out.collect(new Tuple4<String, String, String, Object>(first.f0, first.f1, second.f0, second.f1));
-		}
-	}
+    @Override
+    public void join(
+            Tuple2<String, String> first,
+            Tuple2<String, Integer> second,
+            Collector<Tuple4<String, String, String, Object>> out)
+            throws Exception {
+        if (first == null) {
+            out.collect(
+                    new Tuple4<String, String, String, Object>(null, null, second.f0, second.f1));
+        } else if (second == null) {
+            out.collect(new Tuple4<String, String, String, Object>(first.f0, first.f1, null, null));
+        } else {
+            out.collect(
+                    new Tuple4<String, String, String, Object>(
+                            first.f0, first.f1, second.f0, second.f1));
+        }
+    }
 }

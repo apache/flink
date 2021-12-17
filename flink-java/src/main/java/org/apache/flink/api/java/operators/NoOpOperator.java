@@ -31,21 +31,21 @@ import org.apache.flink.util.Preconditions;
 @Internal
 public class NoOpOperator<IN> extends DataSet<IN> {
 
-	private DataSet<IN> input;
+    private DataSet<IN> input;
 
-	public NoOpOperator(DataSet<IN> input, TypeInformation<IN> resultType) {
-		super(input.getExecutionEnvironment(), resultType);
+    public NoOpOperator(DataSet<IN> input, TypeInformation<IN> resultType) {
+        super(input.getExecutionEnvironment(), resultType);
 
-		this.input = input;
-	}
+        this.input = input;
+    }
 
-	public DataSet<IN> getInput() {
-		return input;
-	}
+    public DataSet<IN> getInput() {
+        return input;
+    }
 
-	public void setInput(DataSet<IN> input) {
-		Preconditions.checkNotNull(input);
+    public void setInput(DataSet<IN> input) {
+        Preconditions.checkNotNull(input);
 
-		this.input = input;
-	}
+        this.input = input;
+    }
 }

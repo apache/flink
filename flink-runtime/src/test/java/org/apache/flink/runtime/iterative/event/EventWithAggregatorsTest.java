@@ -35,115 +35,113 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Tests for {@link IterationEventWithAggregators}.
- */
+/** Tests for {@link IterationEventWithAggregators}. */
 public class EventWithAggregatorsTest {
 
-	private ClassLoader cl = ClassLoader.getSystemClassLoader();
+    private ClassLoader cl = ClassLoader.getSystemClassLoader();
 
-	@Test
-	public void testSerializationOfEmptyEvent() {
-		AllWorkersDoneEvent e = new AllWorkersDoneEvent();
-		IterationEventWithAggregators deserialized = pipeThroughSerialization(e);
+    @Test
+    public void testSerializationOfEmptyEvent() {
+        AllWorkersDoneEvent e = new AllWorkersDoneEvent();
+        IterationEventWithAggregators deserialized = pipeThroughSerialization(e);
 
-		Assert.assertEquals(0, deserialized.getAggregatorNames().length);
-		Assert.assertEquals(0, deserialized.getAggregates(cl).length);
-	}
+        Assert.assertEquals(0, deserialized.getAggregatorNames().length);
+        Assert.assertEquals(0, deserialized.getAggregates(cl).length);
+    }
 
-	@Test
-	public void testSerializationOfEventWithAggregateValues() {
-		StringValue stringValue = new StringValue("test string");
-		LongValue longValue = new LongValue(68743254);
+    @Test
+    public void testSerializationOfEventWithAggregateValues() {
+        StringValue stringValue = new StringValue("test string");
+        LongValue longValue = new LongValue(68743254);
 
-		String stringValueName = "stringValue";
-		String longValueName = "longValue";
+        String stringValueName = "stringValue";
+        String longValueName = "longValue";
 
-		Aggregator<StringValue> stringAgg = new TestAggregator<StringValue>(stringValue);
-		Aggregator<LongValue> longAgg = new TestAggregator<LongValue>(longValue);
+        Aggregator<StringValue> stringAgg = new TestAggregator<StringValue>(stringValue);
+        Aggregator<LongValue> longAgg = new TestAggregator<LongValue>(longValue);
 
-		Map<String, Aggregator<?>> aggMap = new HashMap<String,  Aggregator<?>>();
-		aggMap.put(stringValueName, stringAgg);
-		aggMap.put(longValueName, longAgg);
+        Map<String, Aggregator<?>> aggMap = new HashMap<String, Aggregator<?>>();
+        aggMap.put(stringValueName, stringAgg);
+        aggMap.put(longValueName, longAgg);
 
-		Set<String> allNames = new HashSet<String>();
-		allNames.add(stringValueName);
-		allNames.add(longValueName);
+        Set<String> allNames = new HashSet<String>();
+        allNames.add(stringValueName);
+        allNames.add(longValueName);
 
-		Set<Value> allVals = new HashSet<Value>();
-		allVals.add(stringValue);
-		allVals.add(longValue);
+        Set<Value> allVals = new HashSet<Value>();
+        allVals.add(stringValue);
+        allVals.add(longValue);
 
-		// run the serialization
-		AllWorkersDoneEvent e = new AllWorkersDoneEvent(aggMap);
-		IterationEventWithAggregators deserialized = pipeThroughSerialization(e);
+        // run the serialization
+        AllWorkersDoneEvent e = new AllWorkersDoneEvent(aggMap);
+        IterationEventWithAggregators deserialized = pipeThroughSerialization(e);
 
-		// verify the result
-		String[] names = deserialized.getAggregatorNames();
-		Value[] aggregates = deserialized.getAggregates(cl);
+        // verify the result
+        String[] names = deserialized.getAggregatorNames();
+        Value[] aggregates = deserialized.getAggregates(cl);
 
-		Assert.assertEquals(allNames.size(), names.length);
-		Assert.assertEquals(allVals.size(), aggregates.length);
+        Assert.assertEquals(allNames.size(), names.length);
+        Assert.assertEquals(allVals.size(), aggregates.length);
 
-		// check that all the correct names and values are returned
-		for (String s : names) {
-			allNames.remove(s);
-		}
-		for (Value v : aggregates) {
-			allVals.remove(v);
-		}
+        // check that all the correct names and values are returned
+        for (String s : names) {
+            allNames.remove(s);
+        }
+        for (Value v : aggregates) {
+            allVals.remove(v);
+        }
 
-		Assert.assertTrue(allNames.isEmpty());
-		Assert.assertTrue(allVals.isEmpty());
-	}
+        Assert.assertTrue(allNames.isEmpty());
+        Assert.assertTrue(allVals.isEmpty());
+    }
 
-	private IterationEventWithAggregators pipeThroughSerialization(IterationEventWithAggregators event) {
-		try {
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			event.write(new DataOutputViewStreamWrapper(baos));
+    private IterationEventWithAggregators pipeThroughSerialization(
+            IterationEventWithAggregators event) {
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            event.write(new DataOutputViewStreamWrapper(baos));
 
-			byte[] data = baos.toByteArray();
-			baos.close();
+            byte[] data = baos.toByteArray();
+            baos.close();
 
-			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(new ByteArrayInputStream(data));
-			IterationEventWithAggregators newEvent = event.getClass().newInstance();
-			newEvent.read(in);
-			in.close();
+            DataInputViewStreamWrapper in =
+                    new DataInputViewStreamWrapper(new ByteArrayInputStream(data));
+            IterationEventWithAggregators newEvent = event.getClass().newInstance();
+            newEvent.read(in);
+            in.close();
 
-			return newEvent;
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			Assert.fail("Test threw an exception: " + e.getMessage());
-			return null;
-		}
-	}
+            return newEvent;
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            Assert.fail("Test threw an exception: " + e.getMessage());
+            return null;
+        }
+    }
 
-	private static class TestAggregator<T extends Value> implements Aggregator<T> {
+    private static class TestAggregator<T extends Value> implements Aggregator<T> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private final T val;
+        private final T val;
 
-		public TestAggregator(T val) {
-			this.val = val;
-		}
+        public TestAggregator(T val) {
+            this.val = val;
+        }
 
-		@Override
-		public T getAggregate() {
-			return val;
-		}
+        @Override
+        public T getAggregate() {
+            return val;
+        }
 
-		@Override
-		public void aggregate(T element) {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public void aggregate(T element) {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public void reset() {
-			throw new UnsupportedOperationException();
-		}
-	}
-
+        @Override
+        public void reset() {
+            throw new UnsupportedOperationException();
+        }
+    }
 }

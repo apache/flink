@@ -34,246 +34,297 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Utilities to create class loaders.
- */
+/** Utilities to create class loaders. */
 public class ClassLoaderUtils {
-	public static URLClassLoader compileAndLoadJava(File root, String filename, String source) throws
-		IOException {
-		return withRoot(root)
-			.addClass(filename.replaceAll("\\.java", ""), source)
-			.build();
-	}
 
-	private static URLClassLoader createClassLoader(File root) throws MalformedURLException {
-		return new URLClassLoader(
-			new URL[]{root.toURI().toURL()},
-			Thread.currentThread().getContextClassLoader());
-	}
+    public static URLClassLoader compileAndLoadJava(File root, String filename, String source)
+            throws IOException {
+        return withRoot(root).addClass(filename.replaceAll("\\.java", ""), source).build();
+    }
 
-	private static void writeAndCompile(File root, String filename, String source) throws IOException {
-		File file = writeSourceFile(root, filename, source);
+    private static URLClassLoader createClassLoader(File root, ClassLoader parent)
+            throws MalformedURLException {
+        return new URLClassLoader(new URL[] {root.toURI().toURL()}, parent);
+    }
 
-		compileClass(file);
-	}
+    private static void writeAndCompile(File root, String filename, String source)
+            throws IOException {
+        File file = writeSourceFile(root, filename, source);
 
-	private static File writeSourceFile(File root, String filename, String source) throws IOException {
-		File file = new File(root, filename);
-		FileWriter fileWriter = new FileWriter(file);
+        compileClass(file);
+    }
 
-		fileWriter.write(source);
-		fileWriter.close();
+    private static File writeSourceFile(File root, String filename, String source)
+            throws IOException {
+        File file = new File(root, filename);
+        file.getParentFile().mkdirs();
+        FileWriter fileWriter = new FileWriter(file);
 
-		return file;
-	}
+        fileWriter.write(source);
+        fileWriter.close();
 
-	public static ClassLoaderBuilder withRoot(File root) {
-		return new ClassLoaderBuilder(root);
-	}
+        return file;
+    }
 
-	private static int compileClass(File sourceFile) {
-		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-		return compiler.run(null, null, null, "-proc:none", sourceFile.getPath());
-	}
+    public static ClassLoaderBuilder withRoot(File root) {
+        return new ClassLoaderBuilder(root);
+    }
 
-	public static URL[] getClasspathURLs() {
-		final String[] cp = System.getProperty("java.class.path").split(File.pathSeparator);
+    private static int compileClass(File sourceFile) {
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        return compiler.run(
+                null,
+                null,
+                null,
+                "-proc:none",
+                "-classpath",
+                sourceFile.getParent() + ":" + System.getProperty("java.class.path"),
+                sourceFile.getPath());
+    }
 
-		return Arrays.stream(cp)
-			.filter(str -> !str.isEmpty())
-			.map(ClassLoaderUtils::parse)
-			.toArray(URL[]::new);
-	}
+    public static URL[] getClasspathURLs() {
+        final String[] cp = System.getProperty("java.class.path").split(File.pathSeparator);
 
-	private static URL parse(String fileName) {
-		try {
-			return new File(fileName).toURI().toURL();
-		} catch (MalformedURLException e) {
-			throw new RuntimeException(e);
-		}
-	}
+        return Arrays.stream(cp)
+                .filter(str -> !str.isEmpty())
+                .map(ClassLoaderUtils::parse)
+                .toArray(URL[]::new);
+    }
 
-	public static class ClassLoaderBuilder {
+    private static URL parse(String fileName) {
+        try {
+            return new File(fileName).toURI().toURL();
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-		private final File root;
-		private final Map<String, String> classes;
+    /**
+     * Builder for a {@link ClassLoader} where you can add resources and compile java source code.
+     */
+    public static class ClassLoaderBuilder {
 
-		private ClassLoaderBuilder(File root) {
-			this.root = root;
-			this.classes = new HashMap<>();
-		}
+        private final File root;
+        private final Map<String, String> classes;
+        private final Map<String, String> resources;
+        private final Map<String, List<String>> services;
+        private ClassLoader parent;
 
-		public ClassLoaderBuilder addClass(String className, String source) {
-			String oldValue = classes.putIfAbsent(className, source);
+        private ClassLoaderBuilder(File root) {
+            this.root = root;
+            this.classes = new LinkedHashMap<>();
+            this.resources = new LinkedHashMap<>();
+            this.services = new HashMap<>();
+            this.parent = Thread.currentThread().getContextClassLoader();
+        }
 
-			if (oldValue != null) {
-				throw new RuntimeException(String.format("Class with name %s already registered.", className));
-			}
+        public ClassLoaderBuilder addResource(String targetPath, String resource) {
+            String oldValue = resources.putIfAbsent(targetPath, resource);
 
-			return this;
-		}
+            if (oldValue != null) {
+                throw new RuntimeException(
+                        String.format("Resource with path %s already registered.", resource));
+            }
 
-		public URLClassLoader build() throws IOException {
-			for (Map.Entry<String, String> classInfo : classes.entrySet()) {
-				writeAndCompile(root, createFileName(classInfo.getKey()), classInfo.getValue());
-			}
+            return this;
+        }
 
-			return createClassLoader(root);
-		}
+        public ClassLoaderBuilder addService(String serviceClass, String implClass) {
+            services.computeIfAbsent(serviceClass, k -> new ArrayList<>()).add(implClass);
+            return this;
+        }
 
-		private String createFileName(String className) {
-			return className + ".java";
-		}
-	}
-	// ------------------------------------------------------------------------
-	//  Testing of objects not in the application class loader
-	// ------------------------------------------------------------------------
+        public ClassLoaderBuilder addClass(String className, String source) {
+            String oldValue = classes.putIfAbsent(className, source);
 
-	/**
-	 * A new object and the corresponding ClassLoader for that object, as returned by
-	 * {@link #createSerializableObjectFromNewClassLoader()} or
-	 * {@link #createExceptionObjectFromNewClassLoader()}.
-	 */
-	public static final class ObjectAndClassLoader<T> {
+            if (oldValue != null) {
+                throw new RuntimeException(
+                        String.format("Class with name %s already registered.", className));
+            }
 
-		private final T object;
-		private final ClassLoader classLoader;
+            return this;
+        }
 
-		private ObjectAndClassLoader(T object, ClassLoader classLoader) {
-			this.object = object;
-			this.classLoader = classLoader;
-		}
+        public ClassLoaderBuilder withParentClassLoader(ClassLoader classLoader) {
+            this.parent = classLoader;
+            return this;
+        }
 
-		public ClassLoader getClassLoader() {
-			return classLoader;
-		}
+        public URLClassLoader build() throws IOException {
+            for (Map.Entry<String, String> classInfo : classes.entrySet()) {
+                writeAndCompile(root, createFileName(classInfo.getKey()), classInfo.getValue());
+            }
 
-		public T getObject() {
-			return object;
-		}
-	}
+            services.forEach(
+                    (serviceClass, serviceImpls) ->
+                            resources.putIfAbsent(
+                                    "META-INF/services/" + serviceClass,
+                                    String.join("\n", serviceImpls)));
+            for (Map.Entry<String, String> resource : resources.entrySet()) {
+                writeSourceFile(root, resource.getKey(), resource.getValue());
+            }
 
-	/**
-	 * Creates a new ClassLoader and a new {@link Serializable} class inside that ClassLoader.
-	 * This is useful when unit testing the class loading behavior of code, and needing a class that
-	 * is outside the system class path.
-	 *
-	 * <p>NOTE: Even though this method may throw IOExceptions, we do not declare those and rather
-	 * wrap them in Runtime Exceptions. While this is generally discouraged, we do this here because it
-	 * is merely a test utility and not production code, and it makes it easier to use this method
-	 * during the initialization of variables and especially static variables.
-	 */
-	public static ObjectAndClassLoader<Serializable> createSerializableObjectFromNewClassLoader() {
+            return createClassLoader(root, parent);
+        }
 
-		final String classSource = "" +
-			"import java.io.Serializable;" +
-			"import java.util.Random;" +
-			"public class TestSerializable implements Serializable {" +
-			"  private static final long serialVersionUID = -3L;" +
-			"  private final long random;" +
-			"  public TestSerializable() {" +
-			"    random = new Random().nextLong();" +
-			"  }" +
-			"  public boolean equals(Object o) {" +
-			"    if (this == o) { return true; }" +
-			"    if ((o == null) || (getClass() != o.getClass())) { return false; }" +
-			"    TestSerializable that = (TestSerializable) o;" +
-			"    return random == random;" +
-			"  }" +
-			"  public int hashCode() {" +
-			"    return (int)(random ^ random >>> 32);" +
-			"  }" +
-			"  public String toString() {" +
-			"    return \"TestSerializable{random=\" + random + '}';" +
-			"  }" +
-			"}";
+        private String createFileName(String className) {
+            return className + ".java";
+        }
+    }
 
-		return createObjectFromNewClassLoader(
-			"TestSerializable",
-			Serializable.class,
-			classSource
-		);
-	}
+    // ------------------------------------------------------------------------
+    //  Testing of objects not in the application class loader
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Creates a new ClassLoader and a new {@link Exception} class inside that ClassLoader.
-	 * This is useful when unit testing the class loading behavior of code, and needing a class that
-	 * is outside the system class path.
-	 *
-	 * <p>NOTE: Even though this method may throw IOExceptions, we do not declare those and rather
-	 * wrap them in Runtime Exceptions. While this is generally discouraged, we do this here because it
-	 * is merely a test utility and not production code, and it makes it easier to use this method
-	 * during the initialization of variables and especially static variables.
-	 */
-	public static ObjectAndClassLoader<Exception> createExceptionObjectFromNewClassLoader() {
+    /**
+     * A new object and the corresponding ClassLoader for that object, as returned by {@link
+     * #createSerializableObjectFromNewClassLoader()} or {@link
+     * #createExceptionObjectFromNewClassLoader()}.
+     */
+    public static final class ObjectAndClassLoader<T> {
 
-		return createObjectFromNewClassLoader(
-			"TestExceptionForSerialization",
-			Exception.class,
-			"public class TestExceptionForSerialization extends java.lang.Exception {}"
-		);
-	}
+        private final T object;
+        private final ClassLoader classLoader;
 
-	private static <T> ObjectAndClassLoader<T> createObjectFromNewClassLoader(String testClassName, Class<T> testClass, String source) {
-		final Path classDirPath = new File(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString()).toPath();
+        private ObjectAndClassLoader(T object, ClassLoader classLoader) {
+            this.object = object;
+            this.classLoader = classLoader;
+        }
 
-		URLClassLoader classLoader = null;
-		try {
-			Files.createDirectories(classDirPath);
-			classLoader = compileAndLoadJava(classDirPath.toFile(), testClassName, source);
+        public ClassLoader getClassLoader() {
+            return classLoader;
+        }
 
-			final Class<?> clazz = classLoader.loadClass(testClassName);
-			final T object = clazz.asSubclass(testClass).getDeclaredConstructor().newInstance();
+        public T getObject() {
+            return object;
+        }
+    }
 
-			return new ObjectAndClassLoader<>(object, classLoader);
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Cannot create test class outside system class path", e);
-		}
-		finally {
-			// we clean up eagerly, because it is fine to delete the class file once the class is loaded
-			// and we have no later life cycle hook here to do the cleanup
-			tryClose(classLoader);
-			tryDeleteDirectoryRecursively(classDirPath);
-		}
-	}
+    /**
+     * Creates a new ClassLoader and a new {@link Serializable} class inside that ClassLoader. This
+     * is useful when unit testing the class loading behavior of code, and needing a class that is
+     * outside the system class path.
+     *
+     * <p>NOTE: Even though this method may throw IOExceptions, we do not declare those and rather
+     * wrap them in Runtime Exceptions. While this is generally discouraged, we do this here because
+     * it is merely a test utility and not production code, and it makes it easier to use this
+     * method during the initialization of variables and especially static variables.
+     */
+    public static ObjectAndClassLoader<Serializable> createSerializableObjectFromNewClassLoader() {
 
-	// ------------------------------------------------------------------------
-	//  miscellaneous utils
-	// ------------------------------------------------------------------------
+        final String classSource =
+                ""
+                        + "import java.io.Serializable;"
+                        + "import java.util.Random;"
+                        + "public class TestSerializable implements Serializable {"
+                        + "  private static final long serialVersionUID = -3L;"
+                        + "  private final long random;"
+                        + "  public TestSerializable() {"
+                        + "    random = new Random().nextLong();"
+                        + "  }"
+                        + "  public boolean equals(Object o) {"
+                        + "    if (this == o) { return true; }"
+                        + "    if ((o == null) || (getClass() != o.getClass())) { return false; }"
+                        + "    TestSerializable that = (TestSerializable) o;"
+                        + "    return random == random;"
+                        + "  }"
+                        + "  public int hashCode() {"
+                        + "    return (int)(random ^ random >>> 32);"
+                        + "  }"
+                        + "  public String toString() {"
+                        + "    return \"TestSerializable{random=\" + random + '}';"
+                        + "  }"
+                        + "}";
 
-	private static void tryClose(@Nullable AutoCloseable closeable) {
-		if (closeable != null) {
-			try {
-				closeable.close();
-			}
-			catch (Exception ignored) {}
-		}
-	}
+        return createObjectFromNewClassLoader("TestSerializable", Serializable.class, classSource);
+    }
 
-	private static void tryDeleteDirectoryRecursively(Path directory) {
-		final SimpleFileVisitor<Path> deletingVisitor = new SimpleFileVisitor<Path>() {
-			@Override
-			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-				Files.delete(file);
-				return FileVisitResult.CONTINUE;
-			}
+    /**
+     * Creates a new ClassLoader and a new {@link Exception} class inside that ClassLoader. This is
+     * useful when unit testing the class loading behavior of code, and needing a class that is
+     * outside the system class path.
+     *
+     * <p>NOTE: Even though this method may throw IOExceptions, we do not declare those and rather
+     * wrap them in Runtime Exceptions. While this is generally discouraged, we do this here because
+     * it is merely a test utility and not production code, and it makes it easier to use this
+     * method during the initialization of variables and especially static variables.
+     */
+    public static ObjectAndClassLoader<Exception> createExceptionObjectFromNewClassLoader() {
 
-			@Override
-			public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-				Files.delete(dir);
-				return FileVisitResult.CONTINUE;
-			}
-		};
+        return createObjectFromNewClassLoader(
+                "TestExceptionForSerialization",
+                Exception.class,
+                "public class TestExceptionForSerialization extends java.lang.Exception {}");
+    }
 
-		try {
-			Files.walkFileTree(directory, deletingVisitor);
-		}
-		catch (Exception ignored) {}
-	}
+    private static <T> ObjectAndClassLoader<T> createObjectFromNewClassLoader(
+            String testClassName, Class<T> testClass, String source) {
+        final Path classDirPath =
+                new File(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString())
+                        .toPath();
+
+        URLClassLoader classLoader = null;
+        try {
+            Files.createDirectories(classDirPath);
+            classLoader = compileAndLoadJava(classDirPath.toFile(), testClassName, source);
+
+            final Class<?> clazz = classLoader.loadClass(testClassName);
+            final T object = clazz.asSubclass(testClass).getDeclaredConstructor().newInstance();
+
+            return new ObjectAndClassLoader<>(object, classLoader);
+        } catch (Exception e) {
+            throw new RuntimeException("Cannot create test class outside system class path", e);
+        } finally {
+            // we clean up eagerly, because it is fine to delete the class file once the class is
+            // loaded
+            // and we have no later life cycle hook here to do the cleanup
+            tryClose(classLoader);
+            tryDeleteDirectoryRecursively(classDirPath);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    //  miscellaneous utils
+    // ------------------------------------------------------------------------
+
+    private static void tryClose(@Nullable AutoCloseable closeable) {
+        if (closeable != null) {
+            try {
+                closeable.close();
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private static void tryDeleteDirectoryRecursively(Path directory) {
+        final SimpleFileVisitor<Path> deletingVisitor =
+                new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+                            throws IOException {
+                        Files.delete(file);
+                        return FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public FileVisitResult postVisitDirectory(Path dir, IOException exc)
+                            throws IOException {
+                        Files.delete(dir);
+                        return FileVisitResult.CONTINUE;
+                    }
+                };
+
+        try {
+            Files.walkFileTree(directory, deletingVisitor);
+        } catch (Exception ignored) {
+        }
+    }
 }

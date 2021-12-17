@@ -28,40 +28,32 @@ import org.apache.flink.runtime.rest.messages.SubtaskIndexPathParameter;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Tests for {@link SubtaskMetricsHandler}.
- */
+/** Tests for {@link SubtaskMetricsHandler}. */
 public class SubtaskMetricsHandlerTest extends MetricsHandlerTestBase<SubtaskMetricsHandler> {
 
-	private static final String TEST_JOB_ID = new JobID().toString();
+    private static final String TEST_JOB_ID = new JobID().toString();
 
-	private static final String TEST_VERTEX_ID = new JobVertexID().toString();
+    private static final String TEST_VERTEX_ID = new JobVertexID().toString();
 
-	private static final int TEST_SUBTASK_INDEX = 0;
+    private static final int TEST_SUBTASK_INDEX = 0;
 
-	@Override
-	SubtaskMetricsHandler getMetricsHandler() {
-		return new SubtaskMetricsHandler(
-			leaderRetriever,
-			TIMEOUT,
-			TEST_HEADERS,
-			mockMetricFetcher
-		);
-	}
+    @Override
+    SubtaskMetricsHandler getMetricsHandler() {
+        return new SubtaskMetricsHandler(leaderRetriever, TIMEOUT, TEST_HEADERS, mockMetricFetcher);
+    }
 
-	@Override
-	QueryScopeInfo getQueryScopeInfo() {
-		return new QueryScopeInfo.TaskQueryScopeInfo(TEST_JOB_ID, TEST_VERTEX_ID,
-			TEST_SUBTASK_INDEX);
-	}
+    @Override
+    QueryScopeInfo getQueryScopeInfo() {
+        return new QueryScopeInfo.TaskQueryScopeInfo(
+                TEST_JOB_ID, TEST_VERTEX_ID, TEST_SUBTASK_INDEX);
+    }
 
-	@Override
-	Map<String, String> getPathParameters() {
-		final Map<String, String> pathParameters = new HashMap<>();
-		pathParameters.put(JobIDPathParameter.KEY, TEST_JOB_ID);
-		pathParameters.put(JobVertexIdPathParameter.KEY, TEST_VERTEX_ID);
-		pathParameters.put(SubtaskIndexPathParameter.KEY, Integer.toString(TEST_SUBTASK_INDEX));
-		return pathParameters;
-	}
-
+    @Override
+    Map<String, String> getPathParameters() {
+        final Map<String, String> pathParameters = new HashMap<>();
+        pathParameters.put(JobIDPathParameter.KEY, TEST_JOB_ID);
+        pathParameters.put(JobVertexIdPathParameter.KEY, TEST_VERTEX_ID);
+        pathParameters.put(SubtaskIndexPathParameter.KEY, Integer.toString(TEST_SUBTASK_INDEX));
+        return pathParameters;
+    }
 }

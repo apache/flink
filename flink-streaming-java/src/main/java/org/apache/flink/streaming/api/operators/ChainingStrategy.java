@@ -21,33 +21,39 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Defines the chaining scheme for the operator. When an operator is chained to the
- * predecessor, it means that they run in the same thread. They become one operator
- * consisting of multiple steps.
+ * Defines the chaining scheme for the operator. When an operator is chained to the predecessor, it
+ * means that they run in the same thread. They become one operator consisting of multiple steps.
  *
- * <p>The default value used by the StreamOperator is {@link #HEAD}, which means that
- * the operator is not chained to its predecessor. Most operators override this with
- * {@link #ALWAYS}, meaning they will be chained to predecessors whenever possible.
+ * <p>The default value used by the StreamOperator is {@link #HEAD}, which means that the operator
+ * is not chained to its predecessor. Most operators override this with {@link #ALWAYS}, meaning
+ * they will be chained to predecessors whenever possible.
  */
 @PublicEvolving
 public enum ChainingStrategy {
 
-	/**
-	 * Operators will be eagerly chained whenever possible.
-	 *
-	 * <p>To optimize performance, it is generally a good practice to allow maximal
-	 * chaining and increase operator parallelism.
-	 */
-	ALWAYS,
+    /**
+     * Operators will be eagerly chained whenever possible.
+     *
+     * <p>To optimize performance, it is generally a good practice to allow maximal chaining and
+     * increase operator parallelism.
+     */
+    ALWAYS,
 
-	/**
-	 * The operator will not be chained to the preceding or succeeding operators.
-	 */
-	NEVER,
+    /** The operator will not be chained to the preceding or succeeding operators. */
+    NEVER,
 
-	/**
-	 * The operator will not be chained to the predecessor, but successors may chain to this
-	 * operator.
-	 */
-	HEAD
+    /**
+     * The operator will not be chained to the predecessor, but successors may chain to this
+     * operator.
+     */
+    HEAD,
+
+    /**
+     * This operator will run at the head of a chain (similar as in {@link #HEAD}, but it will
+     * additionally try to chain source inputs if possible. This allows multi-input operators to be
+     * chained with multiple sources into one task.
+     */
+    HEAD_WITH_SOURCES;
+
+    public static final ChainingStrategy DEFAULT_CHAINING_STRATEGY = ALWAYS;
 }

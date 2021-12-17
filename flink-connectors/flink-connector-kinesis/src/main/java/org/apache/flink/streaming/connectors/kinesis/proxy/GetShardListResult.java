@@ -27,51 +27,52 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Basic model class to bundle the shards retrieved from Kinesis on a {@link KinesisProxyInterface#getShardList(Map)} call.
+ * Basic model class to bundle the shards retrieved from Kinesis on a {@link
+ * KinesisProxyInterface#getShardList(Map)} call.
  */
 @Internal
 public class GetShardListResult {
 
-	private final Map<String, LinkedList<StreamShardHandle>> streamsToRetrievedShardList = new HashMap<>();
+    private final Map<String, LinkedList<StreamShardHandle>> streamsToRetrievedShardList =
+            new HashMap<>();
 
-	public void addRetrievedShardToStream(String stream, StreamShardHandle retrievedShard) {
-		if (!streamsToRetrievedShardList.containsKey(stream)) {
-			streamsToRetrievedShardList.put(stream, new LinkedList<StreamShardHandle>());
-		}
-		streamsToRetrievedShardList.get(stream).add(retrievedShard);
-	}
+    public void addRetrievedShardToStream(String stream, StreamShardHandle retrievedShard) {
+        if (!streamsToRetrievedShardList.containsKey(stream)) {
+            streamsToRetrievedShardList.put(stream, new LinkedList<StreamShardHandle>());
+        }
+        streamsToRetrievedShardList.get(stream).add(retrievedShard);
+    }
 
-	public void addRetrievedShardsToStream(String stream, List<StreamShardHandle> retrievedShards) {
-		if (retrievedShards.size() != 0) {
-			if (!streamsToRetrievedShardList.containsKey(stream)) {
-				streamsToRetrievedShardList.put(stream, new LinkedList<StreamShardHandle>());
-			}
-			streamsToRetrievedShardList.get(stream).addAll(retrievedShards);
-		}
-	}
+    public void addRetrievedShardsToStream(String stream, List<StreamShardHandle> retrievedShards) {
+        if (retrievedShards.size() != 0) {
+            if (!streamsToRetrievedShardList.containsKey(stream)) {
+                streamsToRetrievedShardList.put(stream, new LinkedList<StreamShardHandle>());
+            }
+            streamsToRetrievedShardList.get(stream).addAll(retrievedShards);
+        }
+    }
 
-	public List<StreamShardHandle> getRetrievedShardListOfStream(String stream) {
-		if (!streamsToRetrievedShardList.containsKey(stream)) {
-			return null;
-		} else {
-			return streamsToRetrievedShardList.get(stream);
-		}
-	}
+    public List<StreamShardHandle> getRetrievedShardListOfStream(String stream) {
+        if (!streamsToRetrievedShardList.containsKey(stream)) {
+            return null;
+        } else {
+            return streamsToRetrievedShardList.get(stream);
+        }
+    }
 
-	public StreamShardHandle getLastSeenShardOfStream(String stream) {
-		if (!streamsToRetrievedShardList.containsKey(stream)) {
-			return null;
-		} else {
-			return streamsToRetrievedShardList.get(stream).getLast();
-		}
-	}
+    public StreamShardHandle getLastSeenShardOfStream(String stream) {
+        if (!streamsToRetrievedShardList.containsKey(stream)) {
+            return null;
+        } else {
+            return streamsToRetrievedShardList.get(stream).getLast();
+        }
+    }
 
-	public boolean hasRetrievedShards() {
-		return !streamsToRetrievedShardList.isEmpty();
-	}
+    public boolean hasRetrievedShards() {
+        return !streamsToRetrievedShardList.isEmpty();
+    }
 
-	public Set<String> getStreamsWithRetrievedShards() {
-		return streamsToRetrievedShardList.keySet();
-	}
-
+    public Set<String> getStreamsWithRetrievedShards() {
+        return streamsToRetrievedShardList.keySet();
+    }
 }

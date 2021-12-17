@@ -17,12 +17,10 @@
  */
 
 package org.apache.flink.streaming.api
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{createTuple2TypeInformation => apiTupleCreator}
 import org.apache.flink.api.scala.typeutils.{CaseClassTypeInfo, TypeUtils}
 import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
-import org.apache.flink.streaming.api.datastream.{ SplitStream => SplitJavaStream }
 import org.apache.flink.streaming.api.datastream.{ ConnectedStreams => ConnectedJavaStreams }
 import org.apache.flink.streaming.api.datastream.{ BroadcastConnectedStream => BroadcastConnectedJavaStreams }
 import org.apache.flink.streaming.api.datastream.{ KeyedStream => KeyedJavaStream }
@@ -50,12 +48,6 @@ package object scala {
   private[flink] def asScalaStream[R, K](stream: KeyedJavaStream[R, K])
                                              = new KeyedStream[R, K](stream)
 
-  /**
-   * Converts an [[org.apache.flink.streaming.api.datastream.SplitStream]] to a
-   * [[org.apache.flink.streaming.api.scala.SplitStream]].
-   */
-  private[flink] def asScalaStream[R](stream: SplitJavaStream[R])
-                                             = new SplitStream[R](stream)
   /**
    * Converts an [[org.apache.flink.streaming.api.datastream.ConnectedStreams]] to a
    * [[org.apache.flink.streaming.api.scala.ConnectedStreams]].

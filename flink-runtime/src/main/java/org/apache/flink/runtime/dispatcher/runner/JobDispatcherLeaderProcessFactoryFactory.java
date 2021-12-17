@@ -30,45 +30,44 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.concurrent.Executor;
 
-/**
- * Factory for the {@link JobDispatcherLeaderProcessFactory}.
- */
-public class JobDispatcherLeaderProcessFactoryFactory implements DispatcherLeaderProcessFactoryFactory {
+/** Factory for the {@link JobDispatcherLeaderProcessFactory}. */
+public class JobDispatcherLeaderProcessFactoryFactory
+        implements DispatcherLeaderProcessFactoryFactory {
 
-	private final JobGraphRetriever jobGraphRetriever;
+    private final JobGraphRetriever jobGraphRetriever;
 
-	private JobDispatcherLeaderProcessFactoryFactory(JobGraphRetriever jobGraphRetriever) {
-		this.jobGraphRetriever = jobGraphRetriever;
-	}
+    private JobDispatcherLeaderProcessFactoryFactory(JobGraphRetriever jobGraphRetriever) {
+        this.jobGraphRetriever = jobGraphRetriever;
+    }
 
-	@Override
-	public DispatcherLeaderProcessFactory createFactory(
-			JobGraphStoreFactory jobGraphStoreFactory,
-			Executor ioExecutor,
-			RpcService rpcService,
-			PartialDispatcherServices partialDispatcherServices,
-			FatalErrorHandler fatalErrorHandler) {
+    @Override
+    public DispatcherLeaderProcessFactory createFactory(
+            JobGraphStoreFactory jobGraphStoreFactory,
+            Executor ioExecutor,
+            RpcService rpcService,
+            PartialDispatcherServices partialDispatcherServices,
+            FatalErrorHandler fatalErrorHandler) {
 
-		final JobGraph jobGraph;
+        final JobGraph jobGraph;
 
-		try {
-			jobGraph = jobGraphRetriever.retrieveJobGraph(partialDispatcherServices.getConfiguration());
-		} catch (FlinkException e) {
-			throw new FlinkRuntimeException("Could not retrieve the JobGraph.", e);
-		}
+        try {
+            jobGraph =
+                    jobGraphRetriever.retrieveJobGraph(
+                            partialDispatcherServices.getConfiguration());
+        } catch (FlinkException e) {
+            throw new FlinkRuntimeException("Could not retrieve the JobGraph.", e);
+        }
 
-		final DefaultDispatcherGatewayServiceFactory defaultDispatcherServiceFactory = new DefaultDispatcherGatewayServiceFactory(
-			JobDispatcherFactory.INSTANCE,
-			rpcService,
-			partialDispatcherServices);
+        final DefaultDispatcherGatewayServiceFactory defaultDispatcherServiceFactory =
+                new DefaultDispatcherGatewayServiceFactory(
+                        JobDispatcherFactory.INSTANCE, rpcService, partialDispatcherServices);
 
-		return new JobDispatcherLeaderProcessFactory(
-			defaultDispatcherServiceFactory,
-			jobGraph,
-			fatalErrorHandler);
-	}
+        return new JobDispatcherLeaderProcessFactory(
+                defaultDispatcherServiceFactory, jobGraph, fatalErrorHandler);
+    }
 
-	public static JobDispatcherLeaderProcessFactoryFactory create(JobGraphRetriever jobGraphRetriever) {
-		return new JobDispatcherLeaderProcessFactoryFactory(jobGraphRetriever);
-	}
+    public static JobDispatcherLeaderProcessFactoryFactory create(
+            JobGraphRetriever jobGraphRetriever) {
+        return new JobDispatcherLeaderProcessFactoryFactory(jobGraphRetriever);
+    }
 }

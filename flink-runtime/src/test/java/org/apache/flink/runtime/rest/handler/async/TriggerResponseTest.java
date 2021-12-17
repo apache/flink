@@ -25,23 +25,22 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Marshalling test for {@link TriggerResponse}.
- */
+/** Marshalling test for {@link TriggerResponse}. */
 public class TriggerResponseTest extends RestResponseMarshallingTestBase<TriggerResponse> {
 
-	@Override
-	protected Class<TriggerResponse> getTestResponseClass() {
-		return TriggerResponse.class;
-	}
+    @Override
+    protected Class<TriggerResponse> getTestResponseClass() {
+        return TriggerResponse.class;
+    }
 
-	@Override
-	protected TriggerResponse getTestResponseInstance() throws Exception {
-		return new TriggerResponse(new TriggerId());
-	}
+    @Override
+    protected TriggerResponse getTestResponseInstance() throws Exception {
+        return new TriggerResponse(new TriggerId());
+    }
 
-	@Override
-	protected void assertOriginalEqualsToUnmarshalled(TriggerResponse expected, TriggerResponse actual) {
-		assertThat(actual.getTriggerId(), is(equalTo(expected.getTriggerId())));
-	}
+    @Override
+    protected void assertOriginalEqualsToUnmarshalled(
+            TriggerResponse expected, TriggerResponse actual) {
+        assertThat(actual.getTriggerId(), is(equalTo(expected.getTriggerId())));
+    }
 }

@@ -27,9 +27,9 @@ import org.apache.flink.util.Collector;
 import java.util.Collections;
 
 /**
- * A {@link AllWindowFunction} that composes an {@link AggregateFunction} and {@link AllWindowFunction}.
- * Upon invocation, this first applies {@code AggregateFunction} to the input, and then
- * finally the {@code AllWindowFunction} to the single result element.
+ * A {@link AllWindowFunction} that composes an {@link AggregateFunction} and {@link
+ * AllWindowFunction}. Upon invocation, this first applies {@code AggregateFunction} to the input,
+ * and then finally the {@code AllWindowFunction} to the single result element.
  *
  * @param <W> The window type
  * @param <T> The type of the input to the AggregateFunction
@@ -39,29 +39,27 @@ import java.util.Collections;
  */
 @Internal
 public class AggregateApplyAllWindowFunction<W extends Window, T, ACC, V, R>
-	extends WrappingFunction<AllWindowFunction<V, R, W>>
-	implements AllWindowFunction<T, R, W> {
+        extends WrappingFunction<AllWindowFunction<V, R, W>> implements AllWindowFunction<T, R, W> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final AggregateFunction<T, ACC, V> aggFunction;
+    private final AggregateFunction<T, ACC, V> aggFunction;
 
-	public AggregateApplyAllWindowFunction(
-			AggregateFunction<T, ACC, V> aggFunction,
-			AllWindowFunction<V, R, W> windowFunction) {
+    public AggregateApplyAllWindowFunction(
+            AggregateFunction<T, ACC, V> aggFunction, AllWindowFunction<V, R, W> windowFunction) {
 
-		super(windowFunction);
-		this.aggFunction = aggFunction;
-	}
+        super(windowFunction);
+        this.aggFunction = aggFunction;
+    }
 
-	@Override
-	public void apply(W window, Iterable<T> values, Collector<R> out) throws Exception {
-		ACC acc = aggFunction.createAccumulator();
+    @Override
+    public void apply(W window, Iterable<T> values, Collector<R> out) throws Exception {
+        ACC acc = aggFunction.createAccumulator();
 
-		for (T value : values) {
-			acc = aggFunction.add(value, acc);
-		}
+        for (T value : values) {
+            acc = aggFunction.add(value, acc);
+        }
 
-		wrappedFunction.apply(window, Collections.singletonList(aggFunction.getResult(acc)), out);
-	}
+        wrappedFunction.apply(window, Collections.singletonList(aggFunction.getResult(acc)), out);
+    }
 }

@@ -22,13 +22,13 @@
  * <p>The internal state classes give access to the namespace getters and setters and access to
  * additional functionality, like raw value access or state merging.
  *
- * <p>The public API state hierarchy is intended to be programmed against by Flink applications.
- * The internal state hierarchy holds all the auxiliary methods that are used by the runtime and not
- * intended to be used by user applications. These internal methods are considered of limited use to users and
- * only confusing, and are usually not regarded as stable across releases.
+ * <p>The public API state hierarchy is intended to be programmed against by Flink applications. The
+ * internal state hierarchy holds all the auxiliary methods that are used by the runtime and not
+ * intended to be used by user applications. These internal methods are considered of limited use to
+ * users and only confusing, and are usually not regarded as stable across releases.
  *
- * <p>Each specific type in the internal state hierarchy extends the type from the public
- * state hierarchy. The following illustrates the relationship between the public- and the internal
+ * <p>Each specific type in the internal state hierarchy extends the type from the public state
+ * hierarchy. The following illustrates the relationship between the public- and the internal
  * hierarchy at the example of a subset of the classes:
  *
  * <pre>

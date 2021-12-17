@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -27,75 +25,76 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.DoubleValue;
 
+import java.io.IOException;
+
 @Internal
 public final class DoubleValueSerializer extends TypeSerializerSingleton<DoubleValue> {
 
-	private static final long serialVersionUID = 1L;
-	
-	public static final DoubleValueSerializer INSTANCE = new DoubleValueSerializer();
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    public static final DoubleValueSerializer INSTANCE = new DoubleValueSerializer();
 
-	@Override
-	public DoubleValue createInstance() {
-		return new DoubleValue();
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public DoubleValue copy(DoubleValue from) {
-		return copy(from, new DoubleValue());
-	}
-	
-	@Override
-	public DoubleValue copy(DoubleValue from, DoubleValue reuse) {
-		reuse.setValue(from.getValue());
-		return reuse;
-	}
+    @Override
+    public DoubleValue createInstance() {
+        return new DoubleValue();
+    }
 
-	@Override
-	public int getLength() {
-		return 8;
-	}
+    @Override
+    public DoubleValue copy(DoubleValue from) {
+        return copy(from, new DoubleValue());
+    }
 
-	@Override
-	public void serialize(DoubleValue record, DataOutputView target) throws IOException {
-		record.write(target);
-	}
+    @Override
+    public DoubleValue copy(DoubleValue from, DoubleValue reuse) {
+        reuse.setValue(from.getValue());
+        return reuse;
+    }
 
-	@Override
-	public DoubleValue deserialize(DataInputView source) throws IOException {
-		return deserialize(new DoubleValue(), source);
-	}
-	
-	@Override
-	public DoubleValue deserialize(DoubleValue reuse, DataInputView source) throws IOException {
-		reuse.read(source);
-		return reuse;
-	}
+    @Override
+    public int getLength() {
+        return 8;
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.writeDouble(source.readDouble());
-	}
+    @Override
+    public void serialize(DoubleValue record, DataOutputView target) throws IOException {
+        record.write(target);
+    }
 
-	@Override
-	public TypeSerializerSnapshot<DoubleValue> snapshotConfiguration() {
-		return new DoubleValueSerializerSnapshot();
-	}
+    @Override
+    public DoubleValue deserialize(DataInputView source) throws IOException {
+        return deserialize(new DoubleValue(), source);
+    }
 
-	// ------------------------------------------------------------------------
+    @Override
+    public DoubleValue deserialize(DoubleValue reuse, DataInputView source) throws IOException {
+        reuse.read(source);
+        return reuse;
+    }
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class DoubleValueSerializerSnapshot extends SimpleTypeSerializerSnapshot<DoubleValue> {
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        target.writeDouble(source.readDouble());
+    }
 
-		public DoubleValueSerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
-	}
+    @Override
+    public TypeSerializerSnapshot<DoubleValue> snapshotConfiguration() {
+        return new DoubleValueSerializerSnapshot();
+    }
+
+    // ------------------------------------------------------------------------
+
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static final class DoubleValueSerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<DoubleValue> {
+
+        public DoubleValueSerializerSnapshot() {
+            super(() -> INSTANCE);
+        }
+    }
 }

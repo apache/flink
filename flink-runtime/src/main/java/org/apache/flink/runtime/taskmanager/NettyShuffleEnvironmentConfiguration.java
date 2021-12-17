@@ -22,8 +22,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
+import org.apache.flink.runtime.throughput.BufferDebloatConfiguration;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -36,327 +38,479 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Objects;
 
-/**
- * Configuration object for the network stack.
- */
+/** Configuration object for the network stack. */
 public class NettyShuffleEnvironmentConfiguration {
-	private static final Logger LOG = LoggerFactory.getLogger(NettyShuffleEnvironmentConfiguration.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(NettyShuffleEnvironmentConfiguration.class);
 
-	private final int numNetworkBuffers;
+    private final int numNetworkBuffers;
 
-	private final int networkBufferSize;
+    private final int networkBufferSize;
 
-	private final int partitionRequestInitialBackoff;
+    private final int partitionRequestInitialBackoff;
 
-	private final int partitionRequestMaxBackoff;
+    private final int partitionRequestMaxBackoff;
 
-	/** Number of network buffers to use for each outgoing/incoming channel (subpartition/input channel). */
-	private final int networkBuffersPerChannel;
+    /**
+     * Number of network buffers to use for each outgoing/incoming channel (subpartition/input
+     * channel).
+     */
+    private final int networkBuffersPerChannel;
 
-	/** Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate). */
-	private final int floatingNetworkBuffersPerGate;
+    /**
+     * Number of extra network buffers to use for each outgoing/incoming gate (result
+     * partition/input gate).
+     */
+    private final int floatingNetworkBuffersPerGate;
 
-	private final Duration requestSegmentsTimeout;
+    private final int sortShuffleMinBuffers;
 
-	private final boolean isNetworkDetailedMetrics;
+    private final int sortShuffleMinParallelism;
 
-	private final NettyConfig nettyConfig;
+    /** Size of direct memory to be allocated for blocking shuffle data read. */
+    private final long batchShuffleReadMemoryBytes;
 
-	private final String[] tempDirs;
+    private final Duration requestSegmentsTimeout;
 
-	private final BoundedBlockingSubpartitionType blockingSubpartitionType;
+    private final boolean isNetworkDetailedMetrics;
 
-	private final boolean forcePartitionReleaseOnConsumption;
+    private final NettyConfig nettyConfig;
 
-	public NettyShuffleEnvironmentConfiguration(
-			int numNetworkBuffers,
-			int networkBufferSize,
-			int partitionRequestInitialBackoff,
-			int partitionRequestMaxBackoff,
-			int networkBuffersPerChannel,
-			int floatingNetworkBuffersPerGate,
-			Duration requestSegmentsTimeout,
-			boolean isNetworkDetailedMetrics,
-			@Nullable NettyConfig nettyConfig,
-			String[] tempDirs,
-			BoundedBlockingSubpartitionType blockingSubpartitionType,
-			boolean forcePartitionReleaseOnConsumption) {
+    private final String[] tempDirs;
 
-		this.numNetworkBuffers = numNetworkBuffers;
-		this.networkBufferSize = networkBufferSize;
-		this.partitionRequestInitialBackoff = partitionRequestInitialBackoff;
-		this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
-		this.networkBuffersPerChannel = networkBuffersPerChannel;
-		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
-		this.requestSegmentsTimeout = Preconditions.checkNotNull(requestSegmentsTimeout);
-		this.isNetworkDetailedMetrics = isNetworkDetailedMetrics;
-		this.nettyConfig = nettyConfig;
-		this.tempDirs = Preconditions.checkNotNull(tempDirs);
-		this.blockingSubpartitionType = Preconditions.checkNotNull(blockingSubpartitionType);
-		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
-	}
+    private final BoundedBlockingSubpartitionType blockingSubpartitionType;
 
-	// ------------------------------------------------------------------------
+    private final boolean blockingShuffleCompressionEnabled;
 
-	public int numNetworkBuffers() {
-		return numNetworkBuffers;
-	}
+    private final String compressionCodec;
 
-	public int networkBufferSize() {
-		return networkBufferSize;
-	}
+    private final int maxBuffersPerChannel;
 
-	public int partitionRequestInitialBackoff() {
-		return partitionRequestInitialBackoff;
-	}
+    private final BufferDebloatConfiguration debloatConfiguration;
 
-	public int partitionRequestMaxBackoff() {
-		return partitionRequestMaxBackoff;
-	}
+    public NettyShuffleEnvironmentConfiguration(
+            int numNetworkBuffers,
+            int networkBufferSize,
+            int partitionRequestInitialBackoff,
+            int partitionRequestMaxBackoff,
+            int networkBuffersPerChannel,
+            int floatingNetworkBuffersPerGate,
+            Duration requestSegmentsTimeout,
+            boolean isNetworkDetailedMetrics,
+            @Nullable NettyConfig nettyConfig,
+            String[] tempDirs,
+            BoundedBlockingSubpartitionType blockingSubpartitionType,
+            boolean blockingShuffleCompressionEnabled,
+            String compressionCodec,
+            int maxBuffersPerChannel,
+            long batchShuffleReadMemoryBytes,
+            int sortShuffleMinBuffers,
+            int sortShuffleMinParallelism,
+            BufferDebloatConfiguration debloatConfiguration) {
 
-	public int networkBuffersPerChannel() {
-		return networkBuffersPerChannel;
-	}
+        this.numNetworkBuffers = numNetworkBuffers;
+        this.networkBufferSize = networkBufferSize;
+        this.partitionRequestInitialBackoff = partitionRequestInitialBackoff;
+        this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
+        this.networkBuffersPerChannel = networkBuffersPerChannel;
+        this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
+        this.requestSegmentsTimeout = Preconditions.checkNotNull(requestSegmentsTimeout);
+        this.isNetworkDetailedMetrics = isNetworkDetailedMetrics;
+        this.nettyConfig = nettyConfig;
+        this.tempDirs = Preconditions.checkNotNull(tempDirs);
+        this.blockingSubpartitionType = Preconditions.checkNotNull(blockingSubpartitionType);
+        this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
+        this.compressionCodec = Preconditions.checkNotNull(compressionCodec);
+        this.maxBuffersPerChannel = maxBuffersPerChannel;
+        this.batchShuffleReadMemoryBytes = batchShuffleReadMemoryBytes;
+        this.sortShuffleMinBuffers = sortShuffleMinBuffers;
+        this.sortShuffleMinParallelism = sortShuffleMinParallelism;
+        this.debloatConfiguration = debloatConfiguration;
+    }
 
-	public int floatingNetworkBuffersPerGate() {
-		return floatingNetworkBuffersPerGate;
-	}
+    // ------------------------------------------------------------------------
 
-	public Duration getRequestSegmentsTimeout() {
-		return requestSegmentsTimeout;
-	}
+    public int numNetworkBuffers() {
+        return numNetworkBuffers;
+    }
 
-	public NettyConfig nettyConfig() {
-		return nettyConfig;
-	}
+    public int networkBufferSize() {
+        return networkBufferSize;
+    }
 
-	public boolean isNetworkDetailedMetrics() {
-		return isNetworkDetailedMetrics;
-	}
+    public int partitionRequestInitialBackoff() {
+        return partitionRequestInitialBackoff;
+    }
 
-	public String[] getTempDirs() {
-		return tempDirs;
-	}
+    public int partitionRequestMaxBackoff() {
+        return partitionRequestMaxBackoff;
+    }
 
-	public BoundedBlockingSubpartitionType getBlockingSubpartitionType() {
-		return blockingSubpartitionType;
-	}
+    public int networkBuffersPerChannel() {
+        return networkBuffersPerChannel;
+    }
 
-	public boolean isForcePartitionReleaseOnConsumption() {
-		return forcePartitionReleaseOnConsumption;
-	}
+    public int floatingNetworkBuffersPerGate() {
+        return floatingNetworkBuffersPerGate;
+    }
 
-	// ------------------------------------------------------------------------
+    public long batchShuffleReadMemoryBytes() {
+        return batchShuffleReadMemoryBytes;
+    }
 
-	/**
-	 * Utility method to extract network related parameters from the configuration and to
-	 * sanity check them.
-	 *
-	 * @param configuration configuration object
-	 * @param shuffleMemorySize the size of memory reserved for shuffle environment
-	 * @param localTaskManagerCommunication true, to skip initializing the network stack
-	 * @param taskManagerAddress identifying the IP address under which the TaskManager will be accessible
-	 * @return NettyShuffleEnvironmentConfiguration
-	 */
-	public static NettyShuffleEnvironmentConfiguration fromConfiguration(
-		Configuration configuration,
-		MemorySize shuffleMemorySize,
-		boolean localTaskManagerCommunication,
-		InetAddress taskManagerAddress) {
+    public int sortShuffleMinBuffers() {
+        return sortShuffleMinBuffers;
+    }
 
-		final int dataport = getDataport(configuration);
+    public int sortShuffleMinParallelism() {
+        return sortShuffleMinParallelism;
+    }
 
-		final int pageSize = ConfigurationParserUtils.getPageSize(configuration);
+    public Duration getRequestSegmentsTimeout() {
+        return requestSegmentsTimeout;
+    }
 
-		final NettyConfig nettyConfig = createNettyConfig(configuration, localTaskManagerCommunication, taskManagerAddress, dataport);
+    public NettyConfig nettyConfig() {
+        return nettyConfig;
+    }
 
-		final int numberOfNetworkBuffers = calculateNumberOfNetworkBuffers(
-			configuration,
-			shuffleMemorySize,
-			pageSize);
+    public boolean isNetworkDetailedMetrics() {
+        return isNetworkDetailedMetrics;
+    }
 
-		int initialRequestBackoff = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL);
-		int maxRequestBackoff = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX);
+    public String[] getTempDirs() {
+        return tempDirs;
+    }
 
-		int buffersPerChannel = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL);
-		int extraBuffersPerGate = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
+    public BoundedBlockingSubpartitionType getBlockingSubpartitionType() {
+        return blockingSubpartitionType;
+    }
 
-		boolean isNetworkDetailedMetrics = configuration.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_DETAILED_METRICS);
+    public boolean isBlockingShuffleCompressionEnabled() {
+        return blockingShuffleCompressionEnabled;
+    }
 
-		String[] tempDirs = ConfigurationUtils.parseTempDirectories(configuration);
+    public BufferDebloatConfiguration getDebloatConfiguration() {
+        return debloatConfiguration;
+    }
 
-		Duration requestSegmentsTimeout = Duration.ofMillis(configuration.getLong(
-				NettyShuffleEnvironmentOptions.NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS));
+    public boolean isSSLEnabled() {
+        return nettyConfig != null && nettyConfig.getSSLEnabled();
+    }
 
-		BoundedBlockingSubpartitionType blockingSubpartitionType = getBlockingSubpartitionType(configuration);
+    public String getCompressionCodec() {
+        return compressionCodec;
+    }
 
-		boolean forcePartitionReleaseOnConsumption =
-			configuration.getBoolean(NettyShuffleEnvironmentOptions.FORCE_PARTITION_RELEASE_ON_CONSUMPTION);
+    public int getMaxBuffersPerChannel() {
+        return maxBuffersPerChannel;
+    }
 
-		return new NettyShuffleEnvironmentConfiguration(
-			numberOfNetworkBuffers,
-			pageSize,
-			initialRequestBackoff,
-			maxRequestBackoff,
-			buffersPerChannel,
-			extraBuffersPerGate,
-			requestSegmentsTimeout,
-			isNetworkDetailedMetrics,
-			nettyConfig,
-			tempDirs,
-			blockingSubpartitionType,
-			forcePartitionReleaseOnConsumption);
-	}
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Parses the hosts / ports for communication and data exchange from configuration.
-	 *
-	 * @param configuration configuration object
-	 * @return the data port
-	 */
-	private static int getDataport(Configuration configuration) {
-		final int dataport = configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT);
-		ConfigurationParserUtils.checkConfigParameter(dataport >= 0, dataport, NettyShuffleEnvironmentOptions.DATA_PORT.key(),
-			"Leave config parameter empty or use 0 to let the system choose a port automatically.");
+    /**
+     * Utility method to extract network related parameters from the configuration and to sanity
+     * check them.
+     *
+     * @param configuration configuration object
+     * @param networkMemorySize the size of memory reserved for shuffle environment
+     * @param localTaskManagerCommunication true, to skip initializing the network stack
+     * @param taskManagerAddress identifying the IP address under which the TaskManager will be
+     *     accessible
+     * @return NettyShuffleEnvironmentConfiguration
+     */
+    public static NettyShuffleEnvironmentConfiguration fromConfiguration(
+            Configuration configuration,
+            MemorySize networkMemorySize,
+            boolean localTaskManagerCommunication,
+            InetAddress taskManagerAddress) {
 
-		return dataport;
-	}
+        final int dataBindPort = getDataBindPort(configuration);
 
-	/**
-	 * Calculates the number of network buffers based on configuration and jvm heap size.
-	 *
-	 * @param configuration configuration object
-	 * @param shuffleMemorySize the size of memory reserved for shuffle environment
-	 * @param pageSize size of memory segment
-	 * @return the number of network buffers
-	 */
-	private static int calculateNumberOfNetworkBuffers(
-		Configuration configuration,
-		MemorySize shuffleMemorySize,
-		int pageSize) {
+        final int pageSize = ConfigurationParserUtils.getPageSize(configuration);
 
-		logIfIgnoringOldConfigs(configuration);
+        final NettyConfig nettyConfig =
+                createNettyConfig(
+                        configuration,
+                        localTaskManagerCommunication,
+                        taskManagerAddress,
+                        dataBindPort);
 
-		// tolerate offcuts between intended and allocated memory due to segmentation (will be available to the user-space memory)
-		long numberOfNetworkBuffersLong = shuffleMemorySize.getBytes() / pageSize;
-		if (numberOfNetworkBuffersLong > Integer.MAX_VALUE) {
-			throw new IllegalArgumentException("The given number of memory bytes (" + shuffleMemorySize.getBytes()
-				+ ") corresponds to more than MAX_INT pages.");
-		}
+        final int numberOfNetworkBuffers =
+                calculateNumberOfNetworkBuffers(configuration, networkMemorySize, pageSize);
 
-		return (int) numberOfNetworkBuffersLong;
-	}
+        int initialRequestBackoff =
+                configuration.getInteger(
+                        NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL);
+        int maxRequestBackoff =
+                configuration.getInteger(
+                        NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX);
 
-	@SuppressWarnings("deprecation")
-	private static void logIfIgnoringOldConfigs(Configuration configuration) {
-		if (configuration.contains(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS)) {
-			LOG.info("Ignoring old (but still present) network buffer configuration via {}.",
-				NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS.key());
-		}
-	}
+        int buffersPerChannel =
+                configuration.getInteger(
+                        NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL);
+        int extraBuffersPerGate =
+                configuration.getInteger(
+                        NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
 
-	/**
-	 * Generates {@link NettyConfig} from Flink {@link Configuration}.
-	 *
-	 * @param configuration configuration object
-	 * @param localTaskManagerCommunication true, to skip initializing the network stack
-	 * @param taskManagerAddress identifying the IP address under which the TaskManager will be accessible
-	 * @param dataport data port for communication and data exchange
-	 * @return the netty configuration or {@code null} if communication is in the same task manager
-	 */
-	@Nullable
-	private static NettyConfig createNettyConfig(
-		Configuration configuration,
-		boolean localTaskManagerCommunication,
-		InetAddress taskManagerAddress,
-		int dataport) {
+        int maxBuffersPerChannel =
+                configuration.getInteger(
+                        NettyShuffleEnvironmentOptions.NETWORK_MAX_BUFFERS_PER_CHANNEL);
 
-		final NettyConfig nettyConfig;
-		if (!localTaskManagerCommunication) {
-			final InetSocketAddress taskManagerInetSocketAddress = new InetSocketAddress(taskManagerAddress, dataport);
+        long batchShuffleReadMemoryBytes =
+                configuration.get(TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY).getBytes();
 
-			nettyConfig = new NettyConfig(
-				taskManagerInetSocketAddress.getAddress(),
-				taskManagerInetSocketAddress.getPort(),
-				ConfigurationParserUtils.getPageSize(configuration),
-				ConfigurationParserUtils.getSlot(configuration),
-				configuration);
-		} else {
-			nettyConfig = null;
-		}
+        int sortShuffleMinBuffers =
+                configuration.getInteger(
+                        NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
+        int sortShuffleMinParallelism =
+                configuration.getInteger(
+                        NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM);
 
-		return nettyConfig;
-	}
+        boolean isNetworkDetailedMetrics =
+                configuration.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_DETAILED_METRICS);
 
-	private static BoundedBlockingSubpartitionType getBlockingSubpartitionType(Configuration config) {
-		String transport = config.getString(NettyShuffleEnvironmentOptions.NETWORK_BOUNDED_BLOCKING_SUBPARTITION_TYPE);
+        String[] tempDirs = ConfigurationUtils.parseTempDirectories(configuration);
 
-		switch (transport) {
-			case "mmap":
-				return BoundedBlockingSubpartitionType.FILE_MMAP;
-			case "file":
-				return BoundedBlockingSubpartitionType.FILE;
-			default:
-				return BoundedBlockingSubpartitionType.AUTO;
-		}
-	}
+        Duration requestSegmentsTimeout =
+                Duration.ofMillis(
+                        configuration.getLong(
+                                NettyShuffleEnvironmentOptions
+                                        .NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS));
 
-	// ------------------------------------------------------------------------
+        BoundedBlockingSubpartitionType blockingSubpartitionType =
+                getBlockingSubpartitionType(configuration);
 
-	@Override
-	public int hashCode() {
-		int result = 1;
-		result = 31 * result + numNetworkBuffers;
-		result = 31 * result + networkBufferSize;
-		result = 31 * result + partitionRequestInitialBackoff;
-		result = 31 * result + partitionRequestMaxBackoff;
-		result = 31 * result + networkBuffersPerChannel;
-		result = 31 * result + floatingNetworkBuffersPerGate;
-		result = 31 * result + requestSegmentsTimeout.hashCode();
-		result = 31 * result + (nettyConfig != null ? nettyConfig.hashCode() : 0);
-		result = 31 * result + Arrays.hashCode(tempDirs);
-		result = 31 * result + (forcePartitionReleaseOnConsumption ? 1 : 0);
-		return result;
-	}
+        boolean blockingShuffleCompressionEnabled =
+                configuration.get(
+                        NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED);
+        String compressionCodec =
+                configuration.getString(NettyShuffleEnvironmentOptions.SHUFFLE_COMPRESSION_CODEC);
 
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj) {
-			return true;
-		}
-		else if (obj == null || getClass() != obj.getClass()) {
-			return false;
-		}
-		else {
-			final NettyShuffleEnvironmentConfiguration that = (NettyShuffleEnvironmentConfiguration) obj;
+        return new NettyShuffleEnvironmentConfiguration(
+                numberOfNetworkBuffers,
+                pageSize,
+                initialRequestBackoff,
+                maxRequestBackoff,
+                buffersPerChannel,
+                extraBuffersPerGate,
+                requestSegmentsTimeout,
+                isNetworkDetailedMetrics,
+                nettyConfig,
+                tempDirs,
+                blockingSubpartitionType,
+                blockingShuffleCompressionEnabled,
+                compressionCodec,
+                maxBuffersPerChannel,
+                batchShuffleReadMemoryBytes,
+                sortShuffleMinBuffers,
+                sortShuffleMinParallelism,
+                BufferDebloatConfiguration.fromConfiguration(configuration));
+    }
 
-			return this.numNetworkBuffers == that.numNetworkBuffers &&
-					this.networkBufferSize == that.networkBufferSize &&
-					this.partitionRequestInitialBackoff == that.partitionRequestInitialBackoff &&
-					this.partitionRequestMaxBackoff == that.partitionRequestMaxBackoff &&
-					this.networkBuffersPerChannel == that.networkBuffersPerChannel &&
-					this.floatingNetworkBuffersPerGate == that.floatingNetworkBuffersPerGate &&
-					this.requestSegmentsTimeout.equals(that.requestSegmentsTimeout) &&
-					(nettyConfig != null ? nettyConfig.equals(that.nettyConfig) : that.nettyConfig == null) &&
-					Arrays.equals(this.tempDirs, that.tempDirs) &&
-					this.forcePartitionReleaseOnConsumption == that.forcePartitionReleaseOnConsumption;
-		}
-	}
+    /**
+     * Parses the hosts / ports for communication and data exchange from configuration.
+     *
+     * @param configuration configuration object
+     * @return the data port
+     */
+    private static int getDataBindPort(Configuration configuration) {
+        final int dataBindPort;
+        if (configuration.contains(NettyShuffleEnvironmentOptions.DATA_BIND_PORT)) {
+            dataBindPort = configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_BIND_PORT);
+            ConfigurationParserUtils.checkConfigParameter(
+                    dataBindPort >= 0,
+                    dataBindPort,
+                    NettyShuffleEnvironmentOptions.DATA_BIND_PORT.key(),
+                    "Leave config parameter empty to fallback to '"
+                            + NettyShuffleEnvironmentOptions.DATA_PORT.key()
+                            + "' automatically.");
+        } else {
+            dataBindPort = configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT);
+            ConfigurationParserUtils.checkConfigParameter(
+                    dataBindPort >= 0,
+                    dataBindPort,
+                    NettyShuffleEnvironmentOptions.DATA_PORT.key(),
+                    "Leave config parameter empty or use 0 to let the system choose a port automatically.");
+        }
+        return dataBindPort;
+    }
 
-	@Override
-	public String toString() {
-		return "NettyShuffleEnvironmentConfiguration{" +
-				", numNetworkBuffers=" + numNetworkBuffers +
-				", networkBufferSize=" + networkBufferSize +
-				", partitionRequestInitialBackoff=" + partitionRequestInitialBackoff +
-				", partitionRequestMaxBackoff=" + partitionRequestMaxBackoff +
-				", networkBuffersPerChannel=" + networkBuffersPerChannel +
-				", floatingNetworkBuffersPerGate=" + floatingNetworkBuffersPerGate +
-				", requestSegmentsTimeout=" + requestSegmentsTimeout +
-				", nettyConfig=" + nettyConfig +
-				", tempDirs=" + Arrays.toString(tempDirs) +
-				", forcePartitionReleaseOnConsumption=" + forcePartitionReleaseOnConsumption +
-				'}';
-	}
+    /**
+     * Calculates the number of network buffers based on configuration and jvm heap size.
+     *
+     * @param configuration configuration object
+     * @param networkMemorySize the size of memory reserved for shuffle environment
+     * @param pageSize size of memory segment
+     * @return the number of network buffers
+     */
+    private static int calculateNumberOfNetworkBuffers(
+            Configuration configuration, MemorySize networkMemorySize, int pageSize) {
+
+        logIfIgnoringOldConfigs(configuration);
+
+        // tolerate offcuts between intended and allocated memory due to segmentation (will be
+        // available to the user-space memory)
+        long numberOfNetworkBuffersLong = networkMemorySize.getBytes() / pageSize;
+        if (numberOfNetworkBuffersLong > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(
+                    "The given number of memory bytes ("
+                            + networkMemorySize.getBytes()
+                            + ") corresponds to more than MAX_INT pages.");
+        }
+
+        return (int) numberOfNetworkBuffersLong;
+    }
+
+    @SuppressWarnings("deprecation")
+    private static void logIfIgnoringOldConfigs(Configuration configuration) {
+        if (configuration.contains(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS)) {
+            LOG.info(
+                    "Ignoring old (but still present) network buffer configuration via {}.",
+                    NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS.key());
+        }
+    }
+
+    /**
+     * Generates {@link NettyConfig} from Flink {@link Configuration}.
+     *
+     * @param configuration configuration object
+     * @param localTaskManagerCommunication true, to skip initializing the network stack
+     * @param taskManagerAddress identifying the IP address under which the TaskManager will be
+     *     accessible
+     * @param dataport data port for communication and data exchange
+     * @return the netty configuration or {@code null} if communication is in the same task manager
+     */
+    @Nullable
+    private static NettyConfig createNettyConfig(
+            Configuration configuration,
+            boolean localTaskManagerCommunication,
+            InetAddress taskManagerAddress,
+            int dataport) {
+
+        final NettyConfig nettyConfig;
+        if (!localTaskManagerCommunication) {
+            final InetSocketAddress taskManagerInetSocketAddress =
+                    new InetSocketAddress(taskManagerAddress, dataport);
+
+            nettyConfig =
+                    new NettyConfig(
+                            taskManagerInetSocketAddress.getAddress(),
+                            taskManagerInetSocketAddress.getPort(),
+                            ConfigurationParserUtils.getPageSize(configuration),
+                            ConfigurationParserUtils.getSlot(configuration),
+                            configuration);
+        } else {
+            nettyConfig = null;
+        }
+
+        return nettyConfig;
+    }
+
+    private static BoundedBlockingSubpartitionType getBlockingSubpartitionType(
+            Configuration config) {
+        String transport =
+                config.getString(NettyShuffleEnvironmentOptions.NETWORK_BLOCKING_SHUFFLE_TYPE);
+
+        switch (transport) {
+            case "mmap":
+                return BoundedBlockingSubpartitionType.FILE_MMAP;
+            case "file":
+                return BoundedBlockingSubpartitionType.FILE;
+            default:
+                return BoundedBlockingSubpartitionType.AUTO;
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
+    @Override
+    public int hashCode() {
+        int result = 1;
+        result = 31 * result + numNetworkBuffers;
+        result = 31 * result + networkBufferSize;
+        result = 31 * result + partitionRequestInitialBackoff;
+        result = 31 * result + partitionRequestMaxBackoff;
+        result = 31 * result + networkBuffersPerChannel;
+        result = 31 * result + floatingNetworkBuffersPerGate;
+        result = 31 * result + requestSegmentsTimeout.hashCode();
+        result = 31 * result + (nettyConfig != null ? nettyConfig.hashCode() : 0);
+        result = 31 * result + Arrays.hashCode(tempDirs);
+        result = 31 * result + (blockingShuffleCompressionEnabled ? 1 : 0);
+        result = 31 * result + Objects.hashCode(compressionCodec);
+        result = 31 * result + maxBuffersPerChannel;
+        result = 31 * result + Objects.hashCode(batchShuffleReadMemoryBytes);
+        result = 31 * result + sortShuffleMinBuffers;
+        result = 31 * result + sortShuffleMinParallelism;
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        } else if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        } else {
+            final NettyShuffleEnvironmentConfiguration that =
+                    (NettyShuffleEnvironmentConfiguration) obj;
+
+            return this.numNetworkBuffers == that.numNetworkBuffers
+                    && this.networkBufferSize == that.networkBufferSize
+                    && this.partitionRequestInitialBackoff == that.partitionRequestInitialBackoff
+                    && this.partitionRequestMaxBackoff == that.partitionRequestMaxBackoff
+                    && this.networkBuffersPerChannel == that.networkBuffersPerChannel
+                    && this.floatingNetworkBuffersPerGate == that.floatingNetworkBuffersPerGate
+                    && this.batchShuffleReadMemoryBytes == that.batchShuffleReadMemoryBytes
+                    && this.sortShuffleMinBuffers == that.sortShuffleMinBuffers
+                    && this.sortShuffleMinParallelism == that.sortShuffleMinParallelism
+                    && this.requestSegmentsTimeout.equals(that.requestSegmentsTimeout)
+                    && (nettyConfig != null
+                            ? nettyConfig.equals(that.nettyConfig)
+                            : that.nettyConfig == null)
+                    && Arrays.equals(this.tempDirs, that.tempDirs)
+                    && this.blockingShuffleCompressionEnabled
+                            == that.blockingShuffleCompressionEnabled
+                    && this.maxBuffersPerChannel == that.maxBuffersPerChannel
+                    && Objects.equals(this.compressionCodec, that.compressionCodec);
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "NettyShuffleEnvironmentConfiguration{"
+                + ", numNetworkBuffers="
+                + numNetworkBuffers
+                + ", networkBufferSize="
+                + networkBufferSize
+                + ", partitionRequestInitialBackoff="
+                + partitionRequestInitialBackoff
+                + ", partitionRequestMaxBackoff="
+                + partitionRequestMaxBackoff
+                + ", networkBuffersPerChannel="
+                + networkBuffersPerChannel
+                + ", floatingNetworkBuffersPerGate="
+                + floatingNetworkBuffersPerGate
+                + ", requestSegmentsTimeout="
+                + requestSegmentsTimeout
+                + ", nettyConfig="
+                + nettyConfig
+                + ", tempDirs="
+                + Arrays.toString(tempDirs)
+                + ", blockingShuffleCompressionEnabled="
+                + blockingShuffleCompressionEnabled
+                + ", compressionCodec="
+                + compressionCodec
+                + ", maxBuffersPerChannel="
+                + maxBuffersPerChannel
+                + ", batchShuffleReadMemoryBytes="
+                + batchShuffleReadMemoryBytes
+                + ", sortShuffleMinBuffers="
+                + sortShuffleMinBuffers
+                + ", sortShuffleMinParallelism="
+                + sortShuffleMinParallelism
+                + '}';
+    }
 }

@@ -26,53 +26,52 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link TaskManagersHandler}.
- */
-public class TaskManagersHeaders implements MessageHeaders<EmptyRequestBody, TaskManagersInfo, EmptyMessageParameters> {
+/** Message headers for the {@link TaskManagersHandler}. */
+public class TaskManagersHeaders
+        implements MessageHeaders<EmptyRequestBody, TaskManagersInfo, EmptyMessageParameters> {
 
-	private static final TaskManagersHeaders INSTANCE = new TaskManagersHeaders();
+    private static final TaskManagersHeaders INSTANCE = new TaskManagersHeaders();
 
-	public static final String URL = "/taskmanagers";
+    public static final String URL = "/taskmanagers";
 
-	private TaskManagersHeaders() {}
+    private TaskManagersHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<TaskManagersInfo> getResponseClass() {
-		return TaskManagersInfo.class;
-	}
+    @Override
+    public Class<TaskManagersInfo> getResponseClass() {
+        return TaskManagersInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public EmptyMessageParameters getUnresolvedMessageParameters() {
-		return EmptyMessageParameters.getInstance();
-	}
+    @Override
+    public EmptyMessageParameters getUnresolvedMessageParameters() {
+        return EmptyMessageParameters.getInstance();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static TaskManagersHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static TaskManagersHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns an overview over all task managers.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns an overview over all task managers.";
+    }
 }

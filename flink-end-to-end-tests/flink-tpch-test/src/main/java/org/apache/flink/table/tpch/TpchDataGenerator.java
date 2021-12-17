@@ -31,97 +31,100 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 
-/**
- * TPC-H test data generator.
- */
+/** TPC-H test data generator. */
 public class TpchDataGenerator {
 
-	public static final int QUERY_NUM = 22;
+    public static final int QUERY_NUM = 22;
 
-	public static void main(String[] args) throws IOException {
-		if (args.length != 2) {
-			System.out.println("Exactly 1 double value and 1 path should be provided as argument");
-			return;
-		}
+    public static void main(String[] args) throws IOException {
+        if (args.length != 2) {
+            System.out.println("Exactly 1 double value and 1 path should be provided as argument");
+            return;
+        }
 
-		double scale = Double.valueOf(args[0]);
-		String path = args[1];
-		generateTable(scale, path);
-		generateQuery(path);
-		generateExpected(path);
-	}
+        double scale = Double.valueOf(args[0]);
+        String path = args[1];
+        generateTable(scale, path);
+        generateQuery(path);
+        generateExpected(path);
+    }
 
-	private static void generateTable(double scale, String path) throws IOException {
-		File dir = new File(path + "/table");
-		dir.mkdir();
+    private static void generateTable(double scale, String path) throws IOException {
+        File dir = new File(path + "/table");
+        dir.mkdir();
 
-		for (TpchTable table : TpchTable.getTables()) {
-			Iterable generator = table.createGenerator(scale, 1, 1);
+        for (TpchTable table : TpchTable.getTables()) {
+            Iterable generator = table.createGenerator(scale, 1, 1);
 
-			StringBuilder builder = new StringBuilder();
-			generator.forEach(s -> {
-				String line = ((TpchEntity) s).toLine().trim();
-				if (line.endsWith("|")) {
-					line = line.substring(0, line.length() - 1);
-				}
-				builder.append(line).append('\n');
-			});
+            StringBuilder builder = new StringBuilder();
+            generator.forEach(
+                    s -> {
+                        String line = ((TpchEntity) s).toLine().trim();
+                        if (line.endsWith("|")) {
+                            line = line.substring(0, line.length() - 1);
+                        }
+                        builder.append(line).append('\n');
+                    });
 
-			try (BufferedWriter writer = new BufferedWriter(
-				new OutputStreamWriter(
-					new FileOutputStream(path + "/table/" + table.getTableName() + ".csv")))
-			) {
-				writer.write(builder.toString());
-			}
-		}
-	}
+            try (BufferedWriter writer =
+                    new BufferedWriter(
+                            new OutputStreamWriter(
+                                    new FileOutputStream(
+                                            path + "/table/" + table.getTableName() + ".csv")))) {
+                writer.write(builder.toString());
+            }
+        }
+    }
 
-	private static void generateQuery(String path) throws IOException {
-		File dir = new File(path + "/query");
-		dir.mkdir();
+    private static void generateQuery(String path) throws IOException {
+        File dir = new File(path + "/query");
+        dir.mkdir();
 
-		for (int i = 0; i < QUERY_NUM; i++) {
-			try (
-				InputStream in = TpchDataGenerator.class.getResourceAsStream(
-					"/io/airlift/tpch/queries/q" + (i + 1) + ".sql");
-				OutputStream out = new FileOutputStream(path + "/query/q" + (i + 1) + ".sql")
-			) {
-				byte[] buffer = new byte[4096];
-				int bytesRead = 0;
-				while ((bytesRead = in.read(buffer)) > 0) {
-					out.write(buffer, 0, bytesRead);
-				}
-			}
-		}
-	}
+        for (int i = 0; i < QUERY_NUM; i++) {
+            try (InputStream in =
+                            TpchDataGenerator.class.getResourceAsStream(
+                                    "/io/airlift/tpch/queries/q" + (i + 1) + ".sql");
+                    OutputStream out = new FileOutputStream(path + "/query/q" + (i + 1) + ".sql")) {
+                byte[] buffer = new byte[4096];
+                int bytesRead = 0;
+                while ((bytesRead = in.read(buffer)) > 0) {
+                    out.write(buffer, 0, bytesRead);
+                }
+            }
+        }
+    }
 
-	private static void generateExpected(String path) throws IOException {
-		File dir = new File(path + "/expected");
-		dir.mkdir();
+    private static void generateExpected(String path) throws IOException {
+        File dir = new File(path + "/expected");
+        dir.mkdir();
 
-		for (int i = 0; i < QUERY_NUM; i++) {
-			try (
-				BufferedReader reader = new BufferedReader(
-					new InputStreamReader(TpchDataGenerator.class.getResourceAsStream(
-						"/io/airlift/tpch/queries/q" + (i + 1) + ".result")));
-				BufferedWriter writer = new BufferedWriter(
-					new OutputStreamWriter(
-						new FileOutputStream(path + "/expected/q" + (i + 1) + ".csv")))
-			) {
-				int lineNumber = 0;
-				String line;
-				while ((line = reader.readLine()) != null) {
-					line = line.trim().replace("null", "");
-					lineNumber++;
-					if (lineNumber == 1) {
-						continue;
-					}
-					if (line.length() > 0 && line.endsWith("|")) {
-						line = line.substring(0, line.length() - 1);
-					}
-					writer.write(line + "\n");
-				}
-			}
-		}
-	}
+        for (int i = 0; i < QUERY_NUM; i++) {
+            try (BufferedReader reader =
+                            new BufferedReader(
+                                    new InputStreamReader(
+                                            TpchDataGenerator.class.getResourceAsStream(
+                                                    "/io/airlift/tpch/queries/q"
+                                                            + (i + 1)
+                                                            + ".result")));
+                    BufferedWriter writer =
+                            new BufferedWriter(
+                                    new OutputStreamWriter(
+                                            new FileOutputStream(
+                                                    path + "/expected/q" + (i + 1) + ".csv")))) {
+                int lineNumber = 0;
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    line = line.trim().replace("null", "");
+                    lineNumber++;
+                    if (lineNumber == 1) {
+                        continue;
+                    }
+                    if (line.length() > 0 && line.endsWith("|")) {
+                        line = line.substring(0, line.length() - 1);
+                    }
+                    writer.write(line + "\n");
+                }
+            }
+        }
+    }
 }

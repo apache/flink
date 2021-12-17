@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -27,75 +25,76 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.LongValue;
 
+import java.io.IOException;
+
 @Internal
 public final class LongValueSerializer extends TypeSerializerSingleton<LongValue> {
 
-	private static final long serialVersionUID = 1L;
-	
-	public static final LongValueSerializer INSTANCE = new LongValueSerializer();
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    public static final LongValueSerializer INSTANCE = new LongValueSerializer();
 
-	@Override
-	public LongValue createInstance() {
-		return new LongValue();
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public LongValue copy(LongValue from) {
-		return copy(from, new LongValue());
-	}
-	
-	@Override
-	public LongValue copy(LongValue from, LongValue reuse) {
-		reuse.setValue(from.getValue());
-		return reuse;
-	}
+    @Override
+    public LongValue createInstance() {
+        return new LongValue();
+    }
 
-	@Override
-	public int getLength() {
-		return 8;
-	}
+    @Override
+    public LongValue copy(LongValue from) {
+        return copy(from, new LongValue());
+    }
 
-	@Override
-	public void serialize(LongValue record, DataOutputView target) throws IOException {
-		record.write(target);
-	}
+    @Override
+    public LongValue copy(LongValue from, LongValue reuse) {
+        reuse.setValue(from.getValue());
+        return reuse;
+    }
 
-	@Override
-	public LongValue deserialize(DataInputView source) throws IOException {
-		return deserialize(new LongValue(), source);
-	}
-	
-	@Override
-	public LongValue deserialize(LongValue reuse, DataInputView source) throws IOException {
-		reuse.read(source);
-		return reuse;
-	}
+    @Override
+    public int getLength() {
+        return 8;
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.writeLong(source.readLong());
-	}
+    @Override
+    public void serialize(LongValue record, DataOutputView target) throws IOException {
+        record.write(target);
+    }
 
-	@Override
-	public TypeSerializerSnapshot<LongValue> snapshotConfiguration() {
-		return new LongValueSerializerSnapshot();
-	}
+    @Override
+    public LongValue deserialize(DataInputView source) throws IOException {
+        return deserialize(new LongValue(), source);
+    }
 
-	// ------------------------------------------------------------------------
+    @Override
+    public LongValue deserialize(LongValue reuse, DataInputView source) throws IOException {
+        reuse.read(source);
+        return reuse;
+    }
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class LongValueSerializerSnapshot extends SimpleTypeSerializerSnapshot<LongValue> {
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        target.writeLong(source.readLong());
+    }
 
-		public LongValueSerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
-	}
+    @Override
+    public TypeSerializerSnapshot<LongValue> snapshotConfiguration() {
+        return new LongValueSerializerSnapshot();
+    }
+
+    // ------------------------------------------------------------------------
+
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static final class LongValueSerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<LongValue> {
+
+        public LongValueSerializerSnapshot() {
+            super(() -> INSTANCE);
+        }
+    }
 }

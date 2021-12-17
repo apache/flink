@@ -21,44 +21,38 @@ package org.apache.flink.tests.util.parameters;
 import java.util.Optional;
 import java.util.function.Function;
 
-/**
- * System-property based parameters for tests and resources.
- */
+/** System-property based parameters for tests and resources. */
 public class ParameterProperty<V> {
 
-	private final String propertyName;
-	private final Function<String, V> converter;
+    private final String propertyName;
+    private final Function<String, V> converter;
 
-	public ParameterProperty(final String propertyName, final Function<String, V> converter) {
-		this.propertyName = propertyName;
-		this.converter = converter;
-	}
+    public ParameterProperty(final String propertyName, final Function<String, V> converter) {
+        this.propertyName = propertyName;
+        this.converter = converter;
+    }
 
-	public String getPropertyName() {
-		return propertyName;
-	}
+    public String getPropertyName() {
+        return propertyName;
+    }
 
-	/**
-	 * Retrieves the value of this property.
-	 *
-	 * @return Optional containing the value of this property
-	 */
-	public Optional<V> get() {
-		final String value = System.getProperty(propertyName);
-		return value == null
-			? Optional.empty()
-			: Optional.of(converter.apply(value));
-	}
+    /**
+     * Retrieves the value of this property.
+     *
+     * @return Optional containing the value of this property
+     */
+    public Optional<V> get() {
+        final String value = System.getProperty(propertyName);
+        return value == null ? Optional.empty() : Optional.of(converter.apply(value));
+    }
 
-	/**
-	 * Retrieves the value of this property, or the given default if no value was set.
-	 *
-	 * @return the value of this property, or the given default if no value was set
-	 */
-	public V get(final V defaultValue) {
-		final String value = System.getProperty(propertyName);
-		return value == null
-			? defaultValue
-			: converter.apply(value);
-	}
+    /**
+     * Retrieves the value of this property, or the given default if no value was set.
+     *
+     * @return the value of this property, or the given default if no value was set
+     */
+    public V get(final V defaultValue) {
+        final String value = System.getProperty(propertyName);
+        return value == null ? defaultValue : converter.apply(value);
+    }
 }

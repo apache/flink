@@ -20,8 +20,5 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 
-/**
- * {@link MessageParameters} for {@link JarPlanHandler}.
- */
-class JarPlanMessageParameters extends JarMessageParameters {
-}
+/** {@link MessageParameters} for {@link JarPlanHandler}. */
+class JarPlanMessageParameters extends JarMessageParameters {}

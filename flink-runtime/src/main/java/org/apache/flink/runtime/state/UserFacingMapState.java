@@ -26,78 +26,78 @@ import java.util.Map;
 
 /**
  * Simple wrapper map state that exposes empty state properly as an empty map.
- * 
+ *
  * @param <K> The type of keys in the map state.
  * @param <V> The type of values in the map state.
  */
 class UserFacingMapState<K, V> implements MapState<K, V> {
 
-	private final MapState<K, V> originalState;
+    private final MapState<K, V> originalState;
 
-	private final Map<K, V> emptyState = Collections.<K, V>emptyMap();
+    private final Map<K, V> emptyState = Collections.<K, V>emptyMap();
 
-	UserFacingMapState(MapState<K, V> originalState) {
-		this.originalState = originalState;
-	}
+    UserFacingMapState(MapState<K, V> originalState) {
+        this.originalState = originalState;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public V get(K key) throws Exception {
-		return originalState.get(key);
-	}
+    @Override
+    public V get(K key) throws Exception {
+        return originalState.get(key);
+    }
 
-	@Override
-	public void put(K key, V value) throws Exception {
-		originalState.put(key, value);
-	}
+    @Override
+    public void put(K key, V value) throws Exception {
+        originalState.put(key, value);
+    }
 
-	@Override
-	public void putAll(Map<K, V> value) throws Exception {
-		originalState.putAll(value);
-	}
+    @Override
+    public void putAll(Map<K, V> value) throws Exception {
+        originalState.putAll(value);
+    }
 
-	@Override
-	public void clear() {
-		originalState.clear();
-	}
+    @Override
+    public void clear() {
+        originalState.clear();
+    }
 
-	@Override
-	public void remove(K key) throws Exception {
-		originalState.remove(key);
-	}
+    @Override
+    public void remove(K key) throws Exception {
+        originalState.remove(key);
+    }
 
-	@Override
-	public boolean contains(K key) throws Exception {
-		return originalState.contains(key);
-	}
+    @Override
+    public boolean contains(K key) throws Exception {
+        return originalState.contains(key);
+    }
 
-	@Override
-	public Iterable<Map.Entry<K, V>> entries() throws Exception {
-		Iterable<Map.Entry<K, V>> original = originalState.entries();
-		return original != null ? original : emptyState.entrySet();
-	}
+    @Override
+    public Iterable<Map.Entry<K, V>> entries() throws Exception {
+        Iterable<Map.Entry<K, V>> original = originalState.entries();
+        return original != null ? original : emptyState.entrySet();
+    }
 
-	@Override
-	public Iterable<K> keys() throws Exception {
-		Iterable<K> original = originalState.keys();
-		return original != null ? original : emptyState.keySet();
-	}
+    @Override
+    public Iterable<K> keys() throws Exception {
+        Iterable<K> original = originalState.keys();
+        return original != null ? original : emptyState.keySet();
+    }
 
-	@Override
-	public Iterable<V> values() throws Exception {
-		Iterable<V> original = originalState.values();
-		return original != null ? original : emptyState.values();
-	}
+    @Override
+    public Iterable<V> values() throws Exception {
+        Iterable<V> original = originalState.values();
+        return original != null ? original : emptyState.values();
+    }
 
-	@Override
-	public Iterator<Map.Entry<K, V>> iterator() throws Exception {
-		Iterator<Map.Entry<K, V>> original = originalState.iterator();
-		return original != null ? original : emptyState.entrySet().iterator();
-	}
+    @Override
+    public Iterator<Map.Entry<K, V>> iterator() throws Exception {
+        Iterator<Map.Entry<K, V>> original = originalState.iterator();
+        return original != null ? original : emptyState.entrySet().iterator();
+    }
 
-	@Override
-	public boolean isEmpty() throws Exception {
-		return originalState.isEmpty();
-	}
+    @Override
+    public boolean isEmpty() throws Exception {
+        return originalState.isEmpty();
+    }
 }

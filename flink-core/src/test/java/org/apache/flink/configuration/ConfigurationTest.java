@@ -23,6 +23,13 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -33,302 +40,393 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * This class contains test for the configuration package. In particular, the serialization of {@link Configuration}
- * objects is tested.
+ * This class contains test for the configuration package. In particular, the serialization of
+ * {@link Configuration} objects is tested.
  */
 public class ConfigurationTest extends TestLogger {
 
-	/**
-	 * This test checks the serialization/deserialization of configuration objects.
-	 */
-	@Test
-	public void testConfigurationSerializationAndGetters() {
-		try {
-			final Configuration orig = new Configuration();
-			orig.setString("mykey", "myvalue");
-			orig.setInteger("mynumber", 100);
-			orig.setLong("longvalue", 478236947162389746L);
-			orig.setFloat("PI", 3.1415926f);
-			orig.setDouble("E", Math.E);
-			orig.setBoolean("shouldbetrue", true);
-			orig.setBytes("bytes sequence", new byte[] { 1, 2, 3, 4, 5 });
-			orig.setClass("myclass", this.getClass());
+    private static final ConfigOption<String> STRING_OPTION =
+            ConfigOptions.key("test-string-key").noDefaultValue();
 
-			final Configuration copy = InstantiationUtil.createCopyWritable(orig);
-			assertEquals("myvalue", copy.getString("mykey", "null"));
-			assertEquals(100, copy.getInteger("mynumber", 0));
-			assertEquals(478236947162389746L, copy.getLong("longvalue", 0L));
-			assertEquals(3.1415926f, copy.getFloat("PI", 3.1415926f), 0.0);
-			assertEquals(Math.E, copy.getDouble("E", 0.0), 0.0);
-			assertEquals(true, copy.getBoolean("shouldbetrue", false));
-			assertArrayEquals(new byte[] { 1, 2, 3, 4, 5 }, copy.getBytes("bytes sequence", null));
-			assertEquals(getClass(), copy.getClass("myclass", null, getClass().getClassLoader()));
+    private static final ConfigOption<List<String>> LIST_STRING_OPTION =
+            ConfigOptions.key("test-list-key").stringType().asList().noDefaultValue();
 
-			assertEquals(orig, copy);
-			assertEquals(orig.keySet(), copy.keySet());
-			assertEquals(orig.hashCode(), copy.hashCode());
+    private static final ConfigOption<Map<String, String>> MAP_OPTION =
+            ConfigOptions.key("test-map-key").mapType().noDefaultValue();
 
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+    private static final ConfigOption<Duration> DURATION_OPTION =
+            ConfigOptions.key("test-duration-key").durationType().noDefaultValue();
 
-	@Test
-	public void testCopyConstructor() {
-		try {
-			final String key = "theKey";
+    private static final Map<String, String> PROPERTIES_MAP = new HashMap<>();
 
-			Configuration cfg1 = new Configuration();
-			cfg1.setString(key, "value");
+    static {
+        PROPERTIES_MAP.put("prop1", "value1");
+        PROPERTIES_MAP.put("prop2", "12");
+    }
 
-			Configuration cfg2 = new Configuration(cfg1);
-			cfg2.setString(key, "another value");
+    private static final String MAP_PROPERTY_1 = MAP_OPTION.key() + ".prop1";
 
-			assertEquals("value", cfg1.getString(key, ""));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+    private static final String MAP_PROPERTY_2 = MAP_OPTION.key() + ".prop2";
 
-	@Test
-	public void testOptionWithDefault() {
-		Configuration cfg = new Configuration();
-		cfg.setInteger("int-key", 11);
-		cfg.setString("string-key", "abc");
+    /** This test checks the serialization/deserialization of configuration objects. */
+    @Test
+    public void testConfigurationSerializationAndGetters() {
+        try {
+            final Configuration orig = new Configuration();
+            orig.setString("mykey", "myvalue");
+            orig.setInteger("mynumber", 100);
+            orig.setLong("longvalue", 478236947162389746L);
+            orig.setFloat("PI", 3.1415926f);
+            orig.setDouble("E", Math.E);
+            orig.setBoolean("shouldbetrue", true);
+            orig.setBytes("bytes sequence", new byte[] {1, 2, 3, 4, 5});
+            orig.setClass("myclass", this.getClass());
 
-		ConfigOption<String> presentStringOption = ConfigOptions.key("string-key").defaultValue("my-beautiful-default");
-		ConfigOption<Integer> presentIntOption = ConfigOptions.key("int-key").defaultValue(87);
+            final Configuration copy = InstantiationUtil.createCopyWritable(orig);
+            assertEquals("myvalue", copy.getString("mykey", "null"));
+            assertEquals(100, copy.getInteger("mynumber", 0));
+            assertEquals(478236947162389746L, copy.getLong("longvalue", 0L));
+            assertEquals(3.1415926f, copy.getFloat("PI", 3.1415926f), 0.0);
+            assertEquals(Math.E, copy.getDouble("E", 0.0), 0.0);
+            assertEquals(true, copy.getBoolean("shouldbetrue", false));
+            assertArrayEquals(new byte[] {1, 2, 3, 4, 5}, copy.getBytes("bytes sequence", null));
+            assertEquals(getClass(), copy.getClass("myclass", null, getClass().getClassLoader()));
 
-		assertEquals("abc", cfg.getString(presentStringOption));
-		assertEquals("abc", cfg.getValue(presentStringOption));
+            assertEquals(orig, copy);
+            assertEquals(orig.keySet(), copy.keySet());
+            assertEquals(orig.hashCode(), copy.hashCode());
 
-		assertEquals(11, cfg.getInteger(presentIntOption));
-		assertEquals("11", cfg.getValue(presentIntOption));
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-		// test getting default when no value is present
+    @Test
+    public void testCopyConstructor() {
+        try {
+            final String key = "theKey";
 
-		ConfigOption<String> stringOption = ConfigOptions.key("test").defaultValue("my-beautiful-default");
-		ConfigOption<Integer> intOption = ConfigOptions.key("test2").defaultValue(87);
+            Configuration cfg1 = new Configuration();
+            cfg1.setString(key, "value");
 
-		// getting strings with default value should work
-		assertEquals("my-beautiful-default", cfg.getValue(stringOption));
-		assertEquals("my-beautiful-default", cfg.getString(stringOption));
+            Configuration cfg2 = new Configuration(cfg1);
+            cfg2.setString(key, "another value");
 
-		// overriding the default should work
-		assertEquals("override", cfg.getString(stringOption, "override"));
+            assertEquals("value", cfg1.getString(key, ""));
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-		// getting a primitive with a default value should work
-		assertEquals(87, cfg.getInteger(intOption));
-		assertEquals("87", cfg.getValue(intOption));
-	}
+    @Test
+    public void testOptionWithDefault() {
+        Configuration cfg = new Configuration();
+        cfg.setInteger("int-key", 11);
+        cfg.setString("string-key", "abc");
 
-	@Test
-	public void testOptionWithNoDefault() {
-		Configuration cfg = new Configuration();
-		cfg.setInteger("int-key", 11);
-		cfg.setString("string-key", "abc");
+        ConfigOption<String> presentStringOption =
+                ConfigOptions.key("string-key").defaultValue("my-beautiful-default");
+        ConfigOption<Integer> presentIntOption = ConfigOptions.key("int-key").defaultValue(87);
 
-		ConfigOption<String> presentStringOption = ConfigOptions.key("string-key").noDefaultValue();
+        assertEquals("abc", cfg.getString(presentStringOption));
+        assertEquals("abc", cfg.getValue(presentStringOption));
 
-		assertEquals("abc", cfg.getString(presentStringOption));
-		assertEquals("abc", cfg.getValue(presentStringOption));
+        assertEquals(11, cfg.getInteger(presentIntOption));
+        assertEquals("11", cfg.getValue(presentIntOption));
 
-		// test getting default when no value is present
+        // test getting default when no value is present
 
-		ConfigOption<String> stringOption = ConfigOptions.key("test").noDefaultValue();
+        ConfigOption<String> stringOption =
+                ConfigOptions.key("test").defaultValue("my-beautiful-default");
+        ConfigOption<Integer> intOption = ConfigOptions.key("test2").defaultValue(87);
 
-		// getting strings for null should work
-		assertNull(cfg.getValue(stringOption));
-		assertNull(cfg.getString(stringOption));
+        // getting strings with default value should work
+        assertEquals("my-beautiful-default", cfg.getValue(stringOption));
+        assertEquals("my-beautiful-default", cfg.getString(stringOption));
 
-		// overriding the null default should work
-		assertEquals("override", cfg.getString(stringOption, "override"));
-	}
+        // overriding the default should work
+        assertEquals("override", cfg.getString(stringOption, "override"));
 
-	@Test
-	public void testDeprecatedKeys() {
-		Configuration cfg = new Configuration();
-		cfg.setInteger("the-key", 11);
-		cfg.setInteger("old-key", 12);
-		cfg.setInteger("older-key", 13);
+        // getting a primitive with a default value should work
+        assertEquals(87, cfg.getInteger(intOption));
+        assertEquals("87", cfg.getValue(intOption));
+    }
 
-		ConfigOption<Integer> matchesFirst = ConfigOptions
-				.key("the-key")
-				.defaultValue(-1)
-				.withDeprecatedKeys("old-key", "older-key");
+    @Test
+    public void testOptionWithNoDefault() {
+        Configuration cfg = new Configuration();
+        cfg.setInteger("int-key", 11);
+        cfg.setString("string-key", "abc");
 
-		ConfigOption<Integer> matchesSecond = ConfigOptions
-				.key("does-not-exist")
-				.defaultValue(-1)
-				.withDeprecatedKeys("old-key", "older-key");
+        ConfigOption<String> presentStringOption = ConfigOptions.key("string-key").noDefaultValue();
 
-		ConfigOption<Integer> matchesThird = ConfigOptions
-				.key("does-not-exist")
-				.defaultValue(-1)
-				.withDeprecatedKeys("foo", "older-key");
+        assertEquals("abc", cfg.getString(presentStringOption));
+        assertEquals("abc", cfg.getValue(presentStringOption));
 
-		ConfigOption<Integer> notContained = ConfigOptions
-				.key("does-not-exist")
-				.defaultValue(-1)
-				.withDeprecatedKeys("not-there", "also-not-there");
+        // test getting default when no value is present
 
-		assertEquals(11, cfg.getInteger(matchesFirst));
-		assertEquals(12, cfg.getInteger(matchesSecond));
-		assertEquals(13, cfg.getInteger(matchesThird));
-		assertEquals(-1, cfg.getInteger(notContained));
-	}
+        ConfigOption<String> stringOption = ConfigOptions.key("test").noDefaultValue();
 
-	@Test
-	public void testFallbackKeys() {
-		Configuration cfg = new Configuration();
-		cfg.setInteger("the-key", 11);
-		cfg.setInteger("old-key", 12);
-		cfg.setInteger("older-key", 13);
+        // getting strings for null should work
+        assertNull(cfg.getValue(stringOption));
+        assertNull(cfg.getString(stringOption));
 
-		ConfigOption<Integer> matchesFirst = ConfigOptions
-			.key("the-key")
-			.defaultValue(-1)
-			.withFallbackKeys("old-key", "older-key");
+        // overriding the null default should work
+        assertEquals("override", cfg.getString(stringOption, "override"));
+    }
 
-		ConfigOption<Integer> matchesSecond = ConfigOptions
-			.key("does-not-exist")
-			.defaultValue(-1)
-			.withFallbackKeys("old-key", "older-key");
+    @Test
+    public void testDeprecatedKeys() {
+        Configuration cfg = new Configuration();
+        cfg.setInteger("the-key", 11);
+        cfg.setInteger("old-key", 12);
+        cfg.setInteger("older-key", 13);
 
-		ConfigOption<Integer> matchesThird = ConfigOptions
-			.key("does-not-exist")
-			.defaultValue(-1)
-			.withFallbackKeys("foo", "older-key");
+        ConfigOption<Integer> matchesFirst =
+                ConfigOptions.key("the-key")
+                        .defaultValue(-1)
+                        .withDeprecatedKeys("old-key", "older-key");
 
-		ConfigOption<Integer> notContained = ConfigOptions
-			.key("does-not-exist")
-			.defaultValue(-1)
-			.withFallbackKeys("not-there", "also-not-there");
+        ConfigOption<Integer> matchesSecond =
+                ConfigOptions.key("does-not-exist")
+                        .defaultValue(-1)
+                        .withDeprecatedKeys("old-key", "older-key");
 
-		assertEquals(11, cfg.getInteger(matchesFirst));
-		assertEquals(12, cfg.getInteger(matchesSecond));
-		assertEquals(13, cfg.getInteger(matchesThird));
-		assertEquals(-1, cfg.getInteger(notContained));
-	}
+        ConfigOption<Integer> matchesThird =
+                ConfigOptions.key("does-not-exist")
+                        .defaultValue(-1)
+                        .withDeprecatedKeys("foo", "older-key");
 
-	@Test
-	public void testFallbackAndDeprecatedKeys() {
-		final ConfigOption<Integer> fallback = ConfigOptions
-			.key("fallback")
-			.defaultValue(-1);
+        ConfigOption<Integer> notContained =
+                ConfigOptions.key("does-not-exist")
+                        .defaultValue(-1)
+                        .withDeprecatedKeys("not-there", "also-not-there");
 
-		final ConfigOption<Integer> deprecated = ConfigOptions
-			.key("deprecated")
-			.defaultValue(-1);
+        assertEquals(11, cfg.getInteger(matchesFirst));
+        assertEquals(12, cfg.getInteger(matchesSecond));
+        assertEquals(13, cfg.getInteger(matchesThird));
+        assertEquals(-1, cfg.getInteger(notContained));
+    }
 
-		final ConfigOption<Integer> mainOption = ConfigOptions
-			.key("main")
-			.defaultValue(-1)
-			.withFallbackKeys(fallback.key())
-			.withDeprecatedKeys(deprecated.key());
+    @Test
+    public void testFallbackKeys() {
+        Configuration cfg = new Configuration();
+        cfg.setInteger("the-key", 11);
+        cfg.setInteger("old-key", 12);
+        cfg.setInteger("older-key", 13);
 
-		final Configuration fallbackCfg = new Configuration();
-		fallbackCfg.setInteger(fallback, 1);
-		assertEquals(1, fallbackCfg.getInteger(mainOption));
+        ConfigOption<Integer> matchesFirst =
+                ConfigOptions.key("the-key")
+                        .defaultValue(-1)
+                        .withFallbackKeys("old-key", "older-key");
 
-		final Configuration deprecatedCfg = new Configuration();
-		deprecatedCfg.setInteger(deprecated, 2);
-		assertEquals(2, deprecatedCfg.getInteger(mainOption));
+        ConfigOption<Integer> matchesSecond =
+                ConfigOptions.key("does-not-exist")
+                        .defaultValue(-1)
+                        .withFallbackKeys("old-key", "older-key");
 
-		// reverse declaration of fallback and deprecated keys, fallback keys should always be used first
-		final ConfigOption<Integer> reversedMainOption = ConfigOptions
-			.key("main")
-			.defaultValue(-1)
-			.withDeprecatedKeys(deprecated.key())
-			.withFallbackKeys(fallback.key());
+        ConfigOption<Integer> matchesThird =
+                ConfigOptions.key("does-not-exist")
+                        .defaultValue(-1)
+                        .withFallbackKeys("foo", "older-key");
 
-		final Configuration deprecatedAndFallBackConfig = new Configuration();
-		deprecatedAndFallBackConfig.setInteger(fallback, 1);
-		deprecatedAndFallBackConfig.setInteger(deprecated, 2);
-		assertEquals(1, deprecatedAndFallBackConfig.getInteger(mainOption));
-		assertEquals(1, deprecatedAndFallBackConfig.getInteger(reversedMainOption));
-	}
+        ConfigOption<Integer> notContained =
+                ConfigOptions.key("does-not-exist")
+                        .defaultValue(-1)
+                        .withFallbackKeys("not-there", "also-not-there");
 
-	@Test
-	public void testRemove(){
-		Configuration cfg = new Configuration();
-		cfg.setInteger("a", 1);
-		cfg.setInteger("b", 2);
+        assertEquals(11, cfg.getInteger(matchesFirst));
+        assertEquals(12, cfg.getInteger(matchesSecond));
+        assertEquals(13, cfg.getInteger(matchesThird));
+        assertEquals(-1, cfg.getInteger(notContained));
+    }
 
-		ConfigOption<Integer> validOption = ConfigOptions
-			.key("a")
-			.defaultValue(-1);
+    @Test
+    public void testFallbackAndDeprecatedKeys() {
+        final ConfigOption<Integer> fallback = ConfigOptions.key("fallback").defaultValue(-1);
 
-		ConfigOption<Integer> deprecatedOption = ConfigOptions
-			.key("c")
-			.defaultValue(-1)
-			.withDeprecatedKeys("d", "b");
+        final ConfigOption<Integer> deprecated = ConfigOptions.key("deprecated").defaultValue(-1);
 
-		ConfigOption<Integer> unexistedOption = ConfigOptions
-			.key("e")
-			.defaultValue(-1)
-			.withDeprecatedKeys("f", "g", "j");
+        final ConfigOption<Integer> mainOption =
+                ConfigOptions.key("main")
+                        .defaultValue(-1)
+                        .withFallbackKeys(fallback.key())
+                        .withDeprecatedKeys(deprecated.key());
 
-		assertEquals("Wrong expectation about size", cfg.keySet().size(), 2);
-		assertTrue("Expected 'validOption' is removed", cfg.removeConfig(validOption));
-		assertEquals("Wrong expectation about size", cfg.keySet().size(), 1);
-		assertTrue("Expected 'existedOption' is removed", cfg.removeConfig(deprecatedOption));
-		assertEquals("Wrong expectation about size", cfg.keySet().size(), 0);
-		assertFalse("Expected 'unexistedOption' is not removed", cfg.removeConfig(unexistedOption));
-	}
+        final Configuration fallbackCfg = new Configuration();
+        fallbackCfg.setInteger(fallback, 1);
+        assertEquals(1, fallbackCfg.getInteger(mainOption));
 
-	@Test
-	public void testShouldParseValidStringToEnum() {
-		final ConfigOption<String> configOption = createStringConfigOption();
+        final Configuration deprecatedCfg = new Configuration();
+        deprecatedCfg.setInteger(deprecated, 2);
+        assertEquals(2, deprecatedCfg.getInteger(mainOption));
 
-		final Configuration configuration = new Configuration();
-		configuration.setString(configOption.key(), TestEnum.VALUE1.toString());
+        // reverse declaration of fallback and deprecated keys, fallback keys should always be used
+        // first
+        final ConfigOption<Integer> reversedMainOption =
+                ConfigOptions.key("main")
+                        .defaultValue(-1)
+                        .withDeprecatedKeys(deprecated.key())
+                        .withFallbackKeys(fallback.key());
 
-		final TestEnum parsedEnumValue = configuration.getEnum(TestEnum.class, configOption);
-		assertEquals(TestEnum.VALUE1, parsedEnumValue);
-	}
+        final Configuration deprecatedAndFallBackConfig = new Configuration();
+        deprecatedAndFallBackConfig.setInteger(fallback, 1);
+        deprecatedAndFallBackConfig.setInteger(deprecated, 2);
+        assertEquals(1, deprecatedAndFallBackConfig.getInteger(mainOption));
+        assertEquals(1, deprecatedAndFallBackConfig.getInteger(reversedMainOption));
+    }
 
-	@Test
-	public void testShouldParseValidStringToEnumIgnoringCase() {
-		final ConfigOption<String> configOption = createStringConfigOption();
+    @Test
+    public void testRemove() {
+        Configuration cfg = new Configuration();
+        cfg.setInteger("a", 1);
+        cfg.setInteger("b", 2);
 
-		final Configuration configuration = new Configuration();
-		configuration.setString(configOption.key(), TestEnum.VALUE1.toString().toLowerCase());
+        ConfigOption<Integer> validOption = ConfigOptions.key("a").defaultValue(-1);
 
-		final TestEnum parsedEnumValue = configuration.getEnum(TestEnum.class, configOption);
-		assertEquals(TestEnum.VALUE1, parsedEnumValue);
-	}
+        ConfigOption<Integer> deprecatedOption =
+                ConfigOptions.key("c").defaultValue(-1).withDeprecatedKeys("d", "b");
 
-	@Test
-	public void testThrowsExceptionIfTryingToParseInvalidStringForEnum() {
-		final ConfigOption<String> configOption = createStringConfigOption();
+        ConfigOption<Integer> unexistedOption =
+                ConfigOptions.key("e").defaultValue(-1).withDeprecatedKeys("f", "g", "j");
 
-		final Configuration configuration = new Configuration();
-		final String invalidValueForTestEnum = "InvalidValueForTestEnum";
-		configuration.setString(configOption.key(), invalidValueForTestEnum);
+        assertEquals("Wrong expectation about size", cfg.keySet().size(), 2);
+        assertTrue("Expected 'validOption' is removed", cfg.removeConfig(validOption));
+        assertEquals("Wrong expectation about size", cfg.keySet().size(), 1);
+        assertTrue("Expected 'existedOption' is removed", cfg.removeConfig(deprecatedOption));
+        assertEquals("Wrong expectation about size", cfg.keySet().size(), 0);
+        assertFalse("Expected 'unexistedOption' is not removed", cfg.removeConfig(unexistedOption));
+    }
 
-		try {
-			configuration.getEnum(TestEnum.class, configOption);
-			fail("Expected exception not thrown");
-		} catch (IllegalArgumentException e) {
-			final String expectedMessage = "Value for config option " +
-				configOption.key() + " must be one of [VALUE1, VALUE2] (was " +
-				invalidValueForTestEnum + ")";
-			assertThat(e.getMessage(), containsString(expectedMessage));
-		}
-	}
+    @Test
+    public void testShouldParseValidStringToEnum() {
+        final Configuration configuration = new Configuration();
+        configuration.setString(STRING_OPTION.key(), TestEnum.VALUE1.toString());
 
-	enum TestEnum {
-		VALUE1,
-		VALUE2
-	}
+        final TestEnum parsedEnumValue = configuration.getEnum(TestEnum.class, STRING_OPTION);
+        assertEquals(TestEnum.VALUE1, parsedEnumValue);
+    }
 
-	private static ConfigOption<String> createStringConfigOption() {
-		return ConfigOptions
-			.key("test-string-key")
-			.noDefaultValue();
-	}
+    @Test
+    public void testShouldParseValidStringToEnumIgnoringCase() {
+        final Configuration configuration = new Configuration();
+        configuration.setString(STRING_OPTION.key(), TestEnum.VALUE1.toString().toLowerCase());
+
+        final TestEnum parsedEnumValue = configuration.getEnum(TestEnum.class, STRING_OPTION);
+        assertEquals(TestEnum.VALUE1, parsedEnumValue);
+    }
+
+    @Test
+    public void testThrowsExceptionIfTryingToParseInvalidStringForEnum() {
+        final Configuration configuration = new Configuration();
+        final String invalidValueForTestEnum = "InvalidValueForTestEnum";
+        configuration.setString(STRING_OPTION.key(), invalidValueForTestEnum);
+
+        try {
+            configuration.getEnum(TestEnum.class, STRING_OPTION);
+            fail("Expected exception not thrown");
+        } catch (IllegalArgumentException e) {
+            final String expectedMessage =
+                    "Value for config option "
+                            + STRING_OPTION.key()
+                            + " must be one of [VALUE1, VALUE2] (was "
+                            + invalidValueForTestEnum
+                            + ")";
+            assertThat(e.getMessage(), containsString(expectedMessage));
+        }
+    }
+
+    @Test
+    public void testToMap() {
+        final Configuration configuration = new Configuration();
+        final String listValues = "value1;value2;value3";
+        configuration.set(LIST_STRING_OPTION, Arrays.asList(listValues.split(";")));
+
+        final String mapValues = "key1:value1,key2:value2";
+        configuration.set(
+                MAP_OPTION,
+                Arrays.stream(mapValues.split(","))
+                        .collect(Collectors.toMap(e -> e.split(":")[0], e -> e.split(":")[1])));
+
+        final Duration duration = Duration.ofMillis(3000);
+        configuration.set(DURATION_OPTION, duration);
+
+        assertEquals(listValues, configuration.toMap().get(LIST_STRING_OPTION.key()));
+        assertEquals(mapValues, configuration.toMap().get(MAP_OPTION.key()));
+        assertEquals("3 s", configuration.toMap().get(DURATION_OPTION.key()));
+    }
+
+    @Test
+    public void testMapNotContained() {
+        final Configuration cfg = new Configuration();
+
+        assertFalse(cfg.getOptional(MAP_OPTION).isPresent());
+        assertFalse(cfg.contains(MAP_OPTION));
+    }
+
+    @Test
+    public void testMapWithPrefix() {
+        final Configuration cfg = new Configuration();
+        cfg.setString(MAP_PROPERTY_1, "value1");
+        cfg.setInteger(MAP_PROPERTY_2, 12);
+
+        assertEquals(cfg.get(MAP_OPTION), PROPERTIES_MAP);
+        assertTrue(cfg.contains(MAP_OPTION));
+    }
+
+    @Test
+    public void testMapWithoutPrefix() {
+        final Configuration cfg = new Configuration();
+        cfg.set(MAP_OPTION, PROPERTIES_MAP);
+
+        assertEquals(cfg.get(MAP_OPTION), PROPERTIES_MAP);
+        assertTrue(cfg.contains(MAP_OPTION));
+    }
+
+    @Test
+    public void testMapNonPrefixHasPrecedence() {
+        final Configuration cfg = new Configuration();
+        cfg.set(MAP_OPTION, PROPERTIES_MAP);
+        cfg.setString(MAP_PROPERTY_1, "value1");
+        cfg.setInteger(MAP_PROPERTY_2, 99999);
+
+        assertEquals(cfg.get(MAP_OPTION), PROPERTIES_MAP);
+        assertTrue(cfg.contains(MAP_OPTION));
+        assertTrue(cfg.containsKey(MAP_PROPERTY_1));
+    }
+
+    @Test
+    public void testMapThatOverwritesPrefix() {
+        final Configuration cfg = new Configuration();
+        cfg.setString(MAP_PROPERTY_1, "value1");
+        cfg.setInteger(MAP_PROPERTY_2, 99999);
+        cfg.set(MAP_OPTION, PROPERTIES_MAP);
+
+        assertEquals(cfg.get(MAP_OPTION), PROPERTIES_MAP);
+        assertTrue(cfg.contains(MAP_OPTION));
+        assertFalse(cfg.containsKey(MAP_PROPERTY_1));
+    }
+
+    @Test
+    public void testMapRemovePrefix() {
+        final Configuration cfg = new Configuration();
+        cfg.setString(MAP_PROPERTY_1, "value1");
+        cfg.setInteger(MAP_PROPERTY_2, 99999);
+        cfg.removeConfig(MAP_OPTION);
+
+        assertFalse(cfg.contains(MAP_OPTION));
+        assertFalse(cfg.containsKey(MAP_PROPERTY_1));
+        assertFalse(cfg.containsKey(MAP_PROPERTY_2));
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Test classes
+    // --------------------------------------------------------------------------------------------
+
+    enum TestEnum {
+        VALUE1,
+        VALUE2
+    }
 }

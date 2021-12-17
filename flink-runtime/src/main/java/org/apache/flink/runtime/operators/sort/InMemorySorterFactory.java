@@ -22,16 +22,14 @@ import org.apache.flink.core.memory.MemorySegment;
 
 import java.util.List;
 
-/**
- * Factory for {@link InMemorySorter}.
- */
+/** Factory for {@link InMemorySorter}. */
 public interface InMemorySorterFactory<T> {
 
-	/**
-	 * Create an {@link InMemorySorter} instance with the given memory segments.
-	 *
-	 * @param sortSegments to initialize the InMemorySorter with
-	 * @return new InMemorySorter instance
-	 */
-	InMemorySorter<T> create(List<MemorySegment> sortSegments);
+    /**
+     * Create an {@link InMemorySorter} instance with the given memory segments.
+     *
+     * @param sortSegments to initialize the InMemorySorter with
+     * @return new InMemorySorter instance
+     */
+    InMemorySorter<T> create(List<MemorySegment> sortSegments);
 }

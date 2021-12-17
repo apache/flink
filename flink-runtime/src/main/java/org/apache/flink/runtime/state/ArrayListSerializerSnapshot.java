@@ -23,41 +23,37 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.ArrayList;
 
-/**
- * Snapshot class for the {@link ArrayListSerializer}.
- */
-public class ArrayListSerializerSnapshot<T> extends CompositeTypeSerializerSnapshot<ArrayList<T>, ArrayListSerializer<T>> {
+/** Snapshot class for the {@link ArrayListSerializer}. */
+public class ArrayListSerializerSnapshot<T>
+        extends CompositeTypeSerializerSnapshot<ArrayList<T>, ArrayListSerializer<T>> {
 
-	private static final int CURRENT_VERSION = 1;
+    private static final int CURRENT_VERSION = 1;
 
-	/**
-	 * Constructor for read instantiation.
-	 */
-	public ArrayListSerializerSnapshot() {
-		super(ArrayListSerializer.class);
-	}
+    /** Constructor for read instantiation. */
+    public ArrayListSerializerSnapshot() {
+        super(ArrayListSerializer.class);
+    }
 
-	/**
-	 * Constructor for creating the snapshot for writing.
-	 */
-	public ArrayListSerializerSnapshot(ArrayListSerializer<T> arrayListSerializer) {
-		super(arrayListSerializer);
-	}
+    /** Constructor for creating the snapshot for writing. */
+    public ArrayListSerializerSnapshot(ArrayListSerializer<T> arrayListSerializer) {
+        super(arrayListSerializer);
+    }
 
-	@Override
-	public int getCurrentOuterSnapshotVersion() {
-		return CURRENT_VERSION;
-	}
+    @Override
+    public int getCurrentOuterSnapshotVersion() {
+        return CURRENT_VERSION;
+    }
 
-	@Override
-	protected ArrayListSerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-		@SuppressWarnings("unchecked")
-		TypeSerializer<T> elementSerializer = (TypeSerializer<T>) nestedSerializers[0];
-		return new ArrayListSerializer<>(elementSerializer);
-	}
+    @Override
+    protected ArrayListSerializer<T> createOuterSerializerWithNestedSerializers(
+            TypeSerializer<?>[] nestedSerializers) {
+        @SuppressWarnings("unchecked")
+        TypeSerializer<T> elementSerializer = (TypeSerializer<T>) nestedSerializers[0];
+        return new ArrayListSerializer<>(elementSerializer);
+    }
 
-	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(ArrayListSerializer<T> outerSerializer) {
-		return new TypeSerializer<?>[] { outerSerializer.getElementSerializer() };
-	}
+    @Override
+    protected TypeSerializer<?>[] getNestedSerializers(ArrayListSerializer<T> outerSerializer) {
+        return new TypeSerializer<?>[] {outerSerializer.getElementSerializer()};
+    }
 }

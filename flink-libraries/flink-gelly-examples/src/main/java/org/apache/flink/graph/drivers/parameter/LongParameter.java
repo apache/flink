@@ -21,110 +21,120 @@ package org.apache.flink.graph.drivers.parameter;
 import org.apache.flink.api.java.utils.ParameterTool;
 
 /**
- * A {@link Parameter} storing a {@link Long} within <tt>min</tt> and
- * <tt>max</tt> bounds (inclusive).
+ * A {@link Parameter} storing a {@link Long} within <tt>min</tt> and <tt>max</tt> bounds
+ * (inclusive).
  *
  * <p>Note that the default value may be outside of these bounds.
  */
-public class LongParameter
-extends SimpleParameter<Long> {
+public class LongParameter extends SimpleParameter<Long> {
 
-	private boolean hasMinimumValue = false;
-	private long minimumValue;
+    private boolean hasMinimumValue = false;
+    private long minimumValue;
 
-	private boolean hasMaximumValue = false;
-	private long maximumValue;
+    private boolean hasMaximumValue = false;
+    private long maximumValue;
 
-	/**
-	 * Set the parameter name and add this parameter to the list of parameters
-	 * stored by owner.
-	 *
-	 * @param owner the {@link Parameterized} using this {@link Parameter}
-	 * @param name the parameter name
-	 */
-	public LongParameter(ParameterizedBase owner, String name) {
-		super(owner, name);
-	}
+    /**
+     * Set the parameter name and add this parameter to the list of parameters stored by owner.
+     *
+     * @param owner the {@link Parameterized} using this {@link Parameter}
+     * @param name the parameter name
+     */
+    public LongParameter(ParameterizedBase owner, String name) {
+        super(owner, name);
+    }
 
-	/**
-	 * Set the default value.
-	 *
-	 * <p>The default may set to any value and is not restricted by setting the
-	 * minimum or maximum values.
-	 *
-	 * @param defaultValue the default value.
-	 * @return this
-	 */
-	public LongParameter setDefaultValue(long defaultValue) {
-		super.setDefaultValue(defaultValue);
+    /**
+     * Set the default value.
+     *
+     * <p>The default may set to any value and is not restricted by setting the minimum or maximum
+     * values.
+     *
+     * @param defaultValue the default value.
+     * @return this
+     */
+    public LongParameter setDefaultValue(long defaultValue) {
+        super.setDefaultValue(defaultValue);
 
-		return this;
-	}
+        return this;
+    }
 
-	/**
-	 * Set the minimum value.
-	 *
-	 * <p>If a maximum value has been set then the minimum value must not be
-	 * greater than the maximum value.
-	 *
-	 * @param minimumValue the minimum value
-	 * @return this
-	 */
-	public LongParameter setMinimumValue(long minimumValue) {
-		if (hasMaximumValue) {
-			Util.checkParameter(minimumValue <= maximumValue,
-				"Minimum value (" + minimumValue + ") must be less than or equal to maximum (" + maximumValue + ")");
-		}
+    /**
+     * Set the minimum value.
+     *
+     * <p>If a maximum value has been set then the minimum value must not be greater than the
+     * maximum value.
+     *
+     * @param minimumValue the minimum value
+     * @return this
+     */
+    public LongParameter setMinimumValue(long minimumValue) {
+        if (hasMaximumValue) {
+            Util.checkParameter(
+                    minimumValue <= maximumValue,
+                    "Minimum value ("
+                            + minimumValue
+                            + ") must be less than or equal to maximum ("
+                            + maximumValue
+                            + ")");
+        }
 
-		this.hasMinimumValue = true;
-		this.minimumValue = minimumValue;
+        this.hasMinimumValue = true;
+        this.minimumValue = minimumValue;
 
-		return this;
-	}
+        return this;
+    }
 
-	/**
-	 * Set the maximum value.
-	 *
-	 * <p>If a minimum value has been set then the maximum value must not be
-	 * less than the minimum value.
-	 *
-	 * @param maximumValue the maximum value
-	 * @return this
-	 */
-	public LongParameter setMaximumValue(long maximumValue) {
-		if (hasMinimumValue) {
-			Util.checkParameter(maximumValue >= minimumValue,
-				"Maximum value (" + maximumValue + ") must be greater than or equal to minimum (" + minimumValue + ")");
-		}
+    /**
+     * Set the maximum value.
+     *
+     * <p>If a minimum value has been set then the maximum value must not be less than the minimum
+     * value.
+     *
+     * @param maximumValue the maximum value
+     * @return this
+     */
+    public LongParameter setMaximumValue(long maximumValue) {
+        if (hasMinimumValue) {
+            Util.checkParameter(
+                    maximumValue >= minimumValue,
+                    "Maximum value ("
+                            + maximumValue
+                            + ") must be greater than or equal to minimum ("
+                            + minimumValue
+                            + ")");
+        }
 
-		this.hasMaximumValue = true;
-		this.maximumValue = maximumValue;
+        this.hasMaximumValue = true;
+        this.maximumValue = maximumValue;
 
-		return this;
-	}
+        return this;
+    }
 
-	@Override
-	public void configure(ParameterTool parameterTool) {
-		if (hasDefaultValue && !parameterTool.has(name)) {
-			// skip checks for min and max when using default value
-			value = defaultValue;
-		} else {
-			value = parameterTool.getLong(name);
+    @Override
+    public void configure(ParameterTool parameterTool) {
+        if (hasDefaultValue && !parameterTool.has(name)) {
+            // skip checks for min and max when using default value
+            value = defaultValue;
+        } else {
+            value = parameterTool.getLong(name);
 
-			if (hasMinimumValue) {
-				Util.checkParameter(value >= minimumValue,
-					name + " must be greater than or equal to " + minimumValue);
-			}
+            if (hasMinimumValue) {
+                Util.checkParameter(
+                        value >= minimumValue,
+                        name + " must be greater than or equal to " + minimumValue);
+            }
 
-			if (hasMaximumValue) {
-				Util.checkParameter(value <= maximumValue,
-					name + " must be less than or equal to " + maximumValue);
-			}
-		}
-	}
+            if (hasMaximumValue) {
+                Util.checkParameter(
+                        value <= maximumValue,
+                        name + " must be less than or equal to " + maximumValue);
+            }
+        }
+    }
 
-	@Override
-	public String toString() {
-		return Long.toString(value);
-	}
+    @Override
+    public String toString() {
+        return Long.toString(value);
+    }
 }
