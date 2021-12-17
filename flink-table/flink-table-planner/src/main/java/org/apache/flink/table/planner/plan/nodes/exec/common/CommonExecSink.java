@@ -66,11 +66,11 @@ import org.apache.flink.table.runtime.operators.sink.StreamRecordTimestampInsert
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
+import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.RowKind;
 
@@ -211,20 +211,34 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                     notNullEnforcer, notNullFieldIndices, notNullFieldNames, fieldNames);
         }
 
+        final ExecutionConfigOptions.TypeLengthEnforcer typeLengthEnforcer =
+                config.getConfiguration()
+                        .get(ExecutionConfigOptions.TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER);
+
         // Build CHAR/VARCHAR length enforcer
-        final List<ConstraintEnforcer.CharFieldInfo> charFieldInfo =
-                getCharFieldInfo(physicalRowType);
+        final List<ConstraintEnforcer.FieldInfo> charFieldInfo =
+                getFieldInfoForLengthEnforcer(physicalRowType, LengthEnforcerType.CHAR);
         if (!charFieldInfo.isEmpty()) {
-            final ExecutionConfigOptions.CharLengthEnforcer charLengthEnforcer =
-                    config.getConfiguration()
-                            .get(ExecutionConfigOptions.TABLE_EXEC_SINK_CHAR_LENGTH_ENFORCER);
             final List<String> charFieldNames =
                     charFieldInfo.stream()
                             .map(cfi -> fieldNames[cfi.fieldIdx()])
                             .collect(Collectors.toList());
 
             validatorBuilder.addCharLengthConstraint(
-                    charLengthEnforcer, charFieldInfo, charFieldNames, fieldNames);
+                    typeLengthEnforcer, charFieldInfo, charFieldNames, fieldNames);
+        }
+
+        // Build BINARY/VARBINARY length enforcer
+        final List<ConstraintEnforcer.FieldInfo> binaryFieldInfo =
+                getFieldInfoForLengthEnforcer(physicalRowType, LengthEnforcerType.BINARY);
+        if (!binaryFieldInfo.isEmpty()) {
+            final List<String> binaryFieldNames =
+                    binaryFieldInfo.stream()
+                            .map(cfi -> fieldNames[cfi.fieldIdx()])
+                            .collect(Collectors.toList());
+
+            validatorBuilder.addBinaryLengthConstraint(
+                    typeLengthEnforcer, binaryFieldInfo, binaryFieldNames, fieldNames);
         }
 
         ConstraintEnforcer constraintEnforcer = validatorBuilder.build();
@@ -257,26 +271,40 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     }
 
     /**
-     * Returns a List of {@link ConstraintEnforcer.CharFieldInfo}, each containing the info needed
-     * to determine whether a string value needs trimming and/or padding.
+     * Returns a List of {@link ConstraintEnforcer.FieldInfo}, each containing the info needed to
+     * determine whether a string or binary value needs trimming and/or padding.
      */
-    private List<ConstraintEnforcer.CharFieldInfo> getCharFieldInfo(RowType physicalType) {
-        final List<ConstraintEnforcer.CharFieldInfo> charFieldsAndLengths = new ArrayList<>();
+    private List<ConstraintEnforcer.FieldInfo> getFieldInfoForLengthEnforcer(
+            RowType physicalType, LengthEnforcerType enforcerType) {
+        LogicalTypeRoot staticType = null;
+        LogicalTypeRoot variableType = null;
+        int maxLength = 0;
+        switch (enforcerType) {
+            case CHAR:
+                staticType = LogicalTypeRoot.CHAR;
+                variableType = LogicalTypeRoot.VARCHAR;
+                maxLength = CharType.MAX_LENGTH;
+                break;
+            case BINARY:
+                staticType = LogicalTypeRoot.BINARY;
+                variableType = LogicalTypeRoot.VARBINARY;
+                maxLength = BinaryType.MAX_LENGTH;
+        }
+        final List<ConstraintEnforcer.FieldInfo> fieldsAndLengths = new ArrayList<>();
         for (int i = 0; i < physicalType.getFieldCount(); i++) {
             LogicalType type = physicalType.getTypeAt(i);
-            boolean isChar = type.is(LogicalTypeRoot.CHAR);
+            boolean isStatic = type.is(staticType);
             // Should trim and possibly pad
-            if ((isChar && (LogicalTypeChecks.getLength(type) < CharType.MAX_LENGTH))
-                    || (type.is(LogicalTypeRoot.VARCHAR)
-                            && (LogicalTypeChecks.getLength(type) < VarCharType.MAX_LENGTH))) {
-                charFieldsAndLengths.add(
-                        new ConstraintEnforcer.CharFieldInfo(
-                                i, LogicalTypeChecks.getLength(type), isChar));
-            } else if (isChar) { // Should pad
-                charFieldsAndLengths.add(new ConstraintEnforcer.CharFieldInfo(i, null, isChar));
+            if ((isStatic && (LogicalTypeChecks.getLength(type) < maxLength))
+                    || (type.is(variableType) && (LogicalTypeChecks.getLength(type) < maxLength))) {
+                fieldsAndLengths.add(
+                        new ConstraintEnforcer.FieldInfo(
+                                i, LogicalTypeChecks.getLength(type), isStatic));
+            } else if (isStatic) { // Should pad
+                fieldsAndLengths.add(new ConstraintEnforcer.FieldInfo(i, null, isStatic));
             }
         }
-        return charFieldsAndLengths;
+        return fieldsAndLengths;
     }
 
     /**
@@ -513,5 +541,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
 
     private RowType getPhysicalRowType(ResolvedSchema schema) {
         return (RowType) schema.toPhysicalRowDataType().getLogicalType();
+    }
+
+    private enum LengthEnforcerType {
+        CHAR,
+        BINARY
     }
 }
