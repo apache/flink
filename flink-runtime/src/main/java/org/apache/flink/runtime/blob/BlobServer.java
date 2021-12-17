@@ -227,6 +227,14 @@ public class BlobServer extends Thread
                     maxConnections,
                     backlog);
         }
+
+        checkStoredBlobsForCorruption();
+    }
+
+    private void checkStoredBlobsForCorruption() throws IOException {
+        if (storageDir.deref().exists()) {
+            BlobUtils.checkAndDeleteCorruptedBlobs(storageDir.deref().toPath(), LOG);
+        }
     }
 
     // --------------------------------------------------------------------------------------------

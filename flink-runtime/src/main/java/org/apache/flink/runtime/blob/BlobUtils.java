@@ -25,16 +25,19 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Reference;
 import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.EOFException;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -44,8 +47,11 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Random;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /** Utility class to work with blob data. */
 public class BlobUtils {
@@ -451,6 +457,87 @@ public class BlobUtils {
                         blobKey,
                         jobId);
             }
+        }
+    }
+
+    public static byte[] calculateMessageDigest(File file) throws IOException {
+        final MessageDigest messageDigest = createMessageDigest();
+
+        final byte[] buffer = new byte[4096];
+
+        try (final FileInputStream fis = new FileInputStream(file)) {
+            while (true) {
+                final int bytesRead = fis.read(buffer, 0, buffer.length);
+
+                if (bytesRead == -1) {
+                    break;
+                }
+
+                messageDigest.update(buffer, 0, bytesRead);
+            }
+        }
+
+        return messageDigest.digest();
+    }
+
+    static void checkAndDeleteCorruptedBlobs(java.nio.file.Path storageDir, Logger log)
+            throws IOException {
+        for (Blob blob : listBlobsInDirectory(storageDir)) {
+            final BlobKey blobKey = blob.getBlobKey();
+            final java.nio.file.Path blobPath = blob.getPath();
+
+            final byte[] messageDigest = calculateMessageDigest(blobPath.toFile());
+
+            if (!Arrays.equals(blobKey.getHash(), messageDigest)) {
+                log.info(
+                        "Found corrupted blob {} under {}. Deleting this blob.", blobKey, blobPath);
+
+                try {
+                    FileUtils.deleteFileOrDirectory(blobPath.toFile());
+                } catch (IOException ioe) {
+                    log.debug("Could not delete the blob {}.", blobPath, ioe);
+                }
+            }
+        }
+    }
+
+    @Nonnull
+    static Collection<java.nio.file.Path> listBlobFilesInDirectory(java.nio.file.Path directory)
+            throws IOException {
+        return FileUtils.listFilesInDirectory(
+                directory, file -> file.getFileName().toString().startsWith(BLOB_FILE_PREFIX));
+    }
+
+    @Nonnull
+    static Collection<Blob> listBlobsInDirectory(java.nio.file.Path directory) throws IOException {
+        return listBlobFilesInDirectory(directory).stream()
+                .map(
+                        blobPath -> {
+                            final BlobKey blobKey =
+                                    BlobKey.fromString(
+                                            blobPath.getFileName()
+                                                    .toString()
+                                                    .substring(BLOB_FILE_PREFIX.length()));
+                            return new Blob(blobKey, blobPath);
+                        })
+                .collect(Collectors.toList());
+    }
+
+    static final class Blob {
+        private final BlobKey blobKey;
+        private final java.nio.file.Path path;
+
+        Blob(BlobKey blobKey, java.nio.file.Path path) {
+            this.blobKey = blobKey;
+            this.path = path;
+        }
+
+        public BlobKey getBlobKey() {
+            return blobKey;
+        }
+
+        public java.nio.file.Path getPath() {
+            return path;
         }
     }
 }

@@ -69,6 +69,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -627,6 +628,36 @@ public class BlobServerPutTest extends TestLogger {
     public void testConcurrentPutOperationsForJobHa()
             throws IOException, ExecutionException, InterruptedException {
         testConcurrentPutOperations(new JobID(), PERMANENT_BLOB);
+    }
+
+    @Test
+    public void testFailedBlobStorePutsDeletesLocalBlob() throws IOException {
+        final BlobKey.BlobType blobType = PERMANENT_BLOB;
+        final JobID jobId = JobID.generate();
+        final byte[] data = new byte[] {1, 2, 3};
+
+        final File storageDir = temporaryFolder.newFolder();
+        final TestingBlobStore blobStore =
+                new TestingBlobStoreBuilder()
+                        .setPutFunction(
+                                (file, jobID, blobKey) -> {
+                                    throw new IOException("Could not persist the file.");
+                                })
+                        .createTestingBlobStore();
+        try (final BlobServer blobServer =
+                new BlobServer(new Configuration(), storageDir, blobStore)) {
+            try {
+                put(blobServer, jobId, data, blobType);
+                fail("Expected that the put operation fails with an IOException.");
+            } catch (IOException expected) {
+                // expected :-)
+            }
+
+            final File jobSpecificStorageDirectory =
+                    new File(BlobUtils.getStorageLocationPath(storageDir.getAbsolutePath(), jobId));
+
+            assertThat(jobSpecificStorageDirectory).isEmptyDirectory();
+        }
     }
 
     /**

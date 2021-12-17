@@ -134,6 +134,7 @@ public class BlobCacheDeleteTest extends TestLogger {
             assertTrue(server.getStorageLocation(jobId1, key1).exists());
             // delete on server so that the cache cannot re-download
             assertTrue(server.deleteInternal(jobId1, key1));
+            assertFalse(server.getStorageLocation(jobId1, key1).exists());
             verifyDeleted(cache, jobId1, key1);
             // deleting one BLOB should not affect another BLOB with a different key
             // (and keys are always different now)
