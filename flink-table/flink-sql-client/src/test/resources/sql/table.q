@@ -494,7 +494,7 @@ drop temporary table tbl1;
 # test playing with keyword identifiers
 # ==========================================================================
 
-create table `mod` (`table` string, `database` string);
+create table `mod` (`table` string, `database` string) with ('connector' = 'values');
 [INFO] Execute statement succeed.
 !info
 

@@ -287,11 +287,11 @@ use catalog hivecatalog;
 [INFO] Execute statement succeed.
 !info
 
-create table MyTable1 (a int, b string);
+create table MyTable1 (a int, b string) with ('connector' = 'values');
 [INFO] Execute statement succeed.
 !info
 
-create table MyTable2 (a int, b string);
+create table MyTable2 (a int, b string) with ('connector' = 'values');
 [INFO] Execute statement succeed.
 !info
 
@@ -330,11 +330,11 @@ show views;
 !ok
 
 # test create with full qualified name
-create table c1.db1.MyTable3 (a int, b string);
+create table c1.db1.MyTable3 (a int, b string) with ('connector' = 'values');
 [INFO] Execute statement succeed.
 !info
 
-create table c1.db1.MyTable4 (a int, b string);
+create table c1.db1.MyTable4 (a int, b string) with ('connector' = 'values');
 [INFO] Execute statement succeed.
 !info
 
@@ -377,11 +377,11 @@ show views;
 !ok
 
 # test create with database name
-create table `default`.MyTable5 (a int, b string);
+create table `default`.MyTable5 (a int, b string) with ('connector' = 'values');
 [INFO] Execute statement succeed.
 !info
 
-create table `default`.MyTable6 (a int, b string);
+create table `default`.MyTable6 (a int, b string) with ('connector' = 'values');
 [INFO] Execute statement succeed.
 !info
 
@@ -489,7 +489,7 @@ SET 'sql-client.execution.result-mode' = 'changelog';
 [INFO] Session property has been set.
 !info
 
-create table MyTable7 (a int, b string);
+create table MyTable7 (a int, b string) with ('connector' = 'values');
 [INFO] Execute statement succeed.
 !info
 
