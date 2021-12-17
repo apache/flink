@@ -77,6 +77,19 @@ abstract class ElasticsearchSinkBuilderBaseTest<B extends ElasticsearchSinkBuild
                 () -> createEmptyBuilder().setHosts(new HttpHost("localhost:3000")).build());
     }
 
+    @Test
+    void testThrowIfSetInvalidTimeouts() {
+        assertThrows(
+                IllegalStateException.class,
+                () -> createEmptyBuilder().setConnectionRequestTimeout(-1).build());
+        assertThrows(
+                IllegalStateException.class,
+                () -> createEmptyBuilder().setConnectionTimeout(-1).build());
+        assertThrows(
+                IllegalStateException.class,
+                () -> createEmptyBuilder().setSocketTimeout(-1).build());
+    }
+
     abstract B createEmptyBuilder();
 
     abstract B createMinimalBuilder();

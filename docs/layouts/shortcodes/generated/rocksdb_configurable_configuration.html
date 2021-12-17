@@ -76,21 +76,21 @@
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.log.file-num</h5></td>
-            <td style="word-wrap: break-word;">1000</td>
+            <td style="word-wrap: break-word;">4</td>
             <td>Integer</td>
-            <td>The maximum number of files RocksDB should keep for information logging (Default setting: 1000).</td>
+            <td>The maximum number of files RocksDB should keep for information logging (Default setting: 4).</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.log.level</h5></td>
-            <td style="word-wrap: break-word;">HEADER_LEVEL</td>
+            <td style="word-wrap: break-word;">INFO_LEVEL</td>
             <td><p>Enum</p></td>
-            <td>The specified information logging level for RocksDB. If unset, Flink will use <code class="highlighter-rouge">HEADER_LEVEL</code>.<br />Note: RocksDB info logs will not be written to the TaskManager logs and there is no rolling strategy, unless you configure <code class="highlighter-rouge">state.backend.rocksdb.log.dir</code>, <code class="highlighter-rouge">state.backend.rocksdb.log.max-file-size</code>, and <code class="highlighter-rouge">state.backend.rocksdb.log.file-num</code> accordingly. Without a rolling strategy, long-running tasks may lead to uncontrolled disk space usage if configured with increased log levels!<br />There is no need to modify the RocksDB log level, unless for troubleshooting RocksDB.<br /><br />Possible values:<ul><li>"DEBUG_LEVEL"</li><li>"INFO_LEVEL"</li><li>"WARN_LEVEL"</li><li>"ERROR_LEVEL"</li><li>"FATAL_LEVEL"</li><li>"HEADER_LEVEL"</li><li>"NUM_INFO_LOG_LEVELS"</li></ul></td>
+            <td>The specified information logging level for RocksDB. If unset, Flink will use <code class="highlighter-rouge">INFO_LEVEL</code>.<br />Note: RocksDB info logs will not be written to the TaskManager logs and there is no rolling strategy, unless you configure <code class="highlighter-rouge">state.backend.rocksdb.log.dir</code>, <code class="highlighter-rouge">state.backend.rocksdb.log.max-file-size</code>, and <code class="highlighter-rouge">state.backend.rocksdb.log.file-num</code> accordingly. Without a rolling strategy, long-running tasks may lead to uncontrolled disk space usage if configured with increased log levels!<br />There is no need to modify the RocksDB log level, unless for troubleshooting RocksDB.<br /><br />Possible values:<ul><li>"DEBUG_LEVEL"</li><li>"INFO_LEVEL"</li><li>"WARN_LEVEL"</li><li>"ERROR_LEVEL"</li><li>"FATAL_LEVEL"</li><li>"HEADER_LEVEL"</li><li>"NUM_INFO_LOG_LEVELS"</li></ul></td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.log.max-file-size</h5></td>
-            <td style="word-wrap: break-word;">0 bytes</td>
+            <td style="word-wrap: break-word;">25 mb</td>
             <td>MemorySize</td>
-            <td>The maximum size of RocksDB's file used for information logging. If the log files becomes larger than this, a new file will be created. If 0 (Flink default setting), all logs will be written to one log file.</td>
+            <td>The maximum size of RocksDB's file used for information logging. If the log files becomes larger than this, a new file will be created. If 0, all logs will be written to one log file. The default maximum file size is '25MB'. </td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.thread.num</h5></td>

@@ -105,6 +105,8 @@ public class ExecutionJobVertex
 
     private final ResourceProfile resourceProfile;
 
+    private int numExecutionVertexFinished;
+
     /**
      * Either store a serialized task information, which is for all sub tasks the same, or the
      * permanent blob key of the offloaded task information BLOB containing the serialized task
@@ -333,6 +335,10 @@ public class ExecutionJobVertex
         return operatorCoordinators;
     }
 
+    int getNumExecutionVertexFinished() {
+        return numExecutionVertexFinished;
+    }
+
     public Either<SerializedValue<TaskInformation>, PermanentBlobKey> getTaskInformationOrBlobKey()
             throws IOException {
         // only one thread should offload the task information, so let's also let only one thread
@@ -457,6 +463,20 @@ public class ExecutionJobVertex
         for (ExecutionVertex ev : getTaskVertices()) {
             ev.fail(t);
         }
+    }
+
+    void executionVertexFinished() {
+        numExecutionVertexFinished++;
+        if (numExecutionVertexFinished == parallelismInfo.getParallelism()) {
+            getGraph().jobVertexFinished();
+        }
+    }
+
+    void executionVertexUnFinished() {
+        if (numExecutionVertexFinished == parallelismInfo.getParallelism()) {
+            getGraph().jobVertexUnFinished();
+        }
+        numExecutionVertexFinished--;
     }
 
     // --------------------------------------------------------------------------------------------

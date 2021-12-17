@@ -57,8 +57,8 @@ abstract class AggTestBase(isBatchMode: Boolean) {
   private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
   val inputNames = Array("f0", "f1", "f2", "f3", "f4")
   val inputTypes: Array[LogicalType] = Array(
-    new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(), new DoubleType(), new BigIntType(),
-    new VarCharType(VarCharType.MAX_LENGTH))
+    VarCharType.STRING_TYPE, new BigIntType(), new DoubleType(), new BigIntType(),
+    VarCharType.STRING_TYPE)
   val inputType: RowType = RowType.of(inputTypes, inputNames)
 
   val relBuilder: RelBuilder = planner.getRelBuilder.values(

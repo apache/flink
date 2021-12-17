@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
@@ -95,9 +96,10 @@ public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
                 extractElement = "";
                 resetElement = "";
             }
-            CodeGeneratorContext ctx =
+            final CodeGeneratorContext ctx =
                     new CodeGeneratorContext(planner.getTableConfig())
                             .setOperatorBaseClass(TableStreamOperator.class);
+            final Configuration config = planner.getTableConfig().getConfiguration();
             transformation =
                     ScanUtil.convertToInternalRow(
                             ctx,
@@ -106,6 +108,9 @@ public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
                             sourceType,
                             (RowType) getOutputType(),
                             qualifiedName,
+                            (detailName, simplifyName) ->
+                                    getFormattedOperatorName(detailName, simplifyName, config),
+                            (description) -> getFormattedOperatorDescription(description, config),
                             JavaScalaConversionUtil.toScala(rowtimeExpr),
                             extractElement,
                             resetElement);

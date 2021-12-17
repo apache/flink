@@ -41,6 +41,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonDeserializer;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonSerializer;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy;
@@ -261,9 +262,10 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
                         inputCountIndex);
 
         final OneInputTransformation<RowData, RowData> transform =
-                new OneInputTransformation<>(
+                ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getDescription(),
+                        getOperatorName(planner.getTableConfig()),
+                        getOperatorDescription(planner.getTableConfig()),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

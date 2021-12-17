@@ -23,7 +23,10 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
@@ -170,6 +173,19 @@ public interface StateBackend extends java.io.Serializable {
 
     /** Whether the state backend uses Flink's managed memory. */
     default boolean useManagedMemory() {
+        return false;
+    }
+
+    /**
+     * Tells if a state backend supports the {@link RestoreMode#NO_CLAIM} mode.
+     *
+     * <p>If a state backend supports {@code NO_CLAIM} mode, it should create an independent
+     * snapshot when it receives {@link CheckpointType#FULL_CHECKPOINT} in {@link
+     * Snapshotable#snapshot(long, long, CheckpointStreamFactory, CheckpointOptions)}.
+     *
+     * @return If the state backend supports {@link RestoreMode#NO_CLAIM} mode.
+     */
+    default boolean supportsNoClaimRestoreMode() {
         return false;
     }
 }

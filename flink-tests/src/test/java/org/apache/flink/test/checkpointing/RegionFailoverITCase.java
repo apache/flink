@@ -173,7 +173,7 @@ public class RegionFailoverITCase extends TestLogger {
         env.setMaxParallelism(MAX_PARALLELISM);
         env.enableCheckpointing(200, CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig()
-                .enableExternalizedCheckpoints(
+                .setExternalizedCheckpointCleanup(
                         CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
         env.disableOperatorChaining();
 
@@ -451,17 +451,20 @@ public class RegionFailoverITCase extends TestLogger {
         }
 
         @Override
-        public void addCheckpoint(
+        public CompletedCheckpoint addCheckpointAndSubsumeOldestOne(
                 CompletedCheckpoint checkpoint,
                 CheckpointsCleaner checkpointsCleaner,
                 Runnable postCleanup)
                 throws Exception {
-            super.addCheckpoint(checkpoint, checkpointsCleaner, postCleanup);
+            CompletedCheckpoint subsumedCheckpoint =
+                    super.addCheckpointAndSubsumeOldestOne(
+                            checkpoint, checkpointsCleaner, postCleanup);
             // we record the information when adding completed checkpoint instead of
             // 'notifyCheckpointComplete' invoked
             // on task side to avoid race condition. See FLINK-13601.
             lastCompletedCheckpointId.set(checkpoint.getCheckpointID());
             numCompletedCheckpoints.incrementAndGet();
+            return subsumedCheckpoint;
         }
     }
 

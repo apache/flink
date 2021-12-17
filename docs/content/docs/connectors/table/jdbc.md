@@ -257,7 +257,7 @@ Features
 
 ### Key handling
 
-Flink uses the primary key that defined in DDL when writing data to external databases. The connector operate in upsert mode if the primary key was defined, otherwise, the connector operate in append mode.
+Flink uses the primary key that was defined in DDL when writing data to external databases. The connector operates in upsert mode if the primary key was defined, otherwise, the connector operates in append mode.
 
 In upsert mode, Flink will insert a new row or update the existing row according to the primary key, Flink can ensure the idempotence in this way. To guarantee the output result is as expected, it's recommended to define primary key for the table and make sure the primary key is one of the unique key sets or primary key of the underlying database table. In append mode, Flink will interpret all records as INSERT messages, the INSERT operation may fail if a primary key or unique constraint violation happens in the underlying database.
 
@@ -333,7 +333,7 @@ PostgresCatalog.getTable(ObjectPath tablePath)
 PostgresCatalog.tableExists(ObjectPath tablePath)
 ```
 
-Other `Catalog` methods is unsupported now.
+Other `Catalog` methods are currently not supported.
 
 #### Usage of PostgresCatalog
 

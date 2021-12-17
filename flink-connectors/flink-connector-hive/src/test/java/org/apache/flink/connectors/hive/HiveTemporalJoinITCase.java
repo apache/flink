@@ -18,6 +18,7 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
@@ -27,7 +28,6 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTest;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
-import org.apache.flink.table.filesystem.FileSystemConnectorOptions;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.types.Row;

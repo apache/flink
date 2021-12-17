@@ -26,6 +26,7 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.cep.utils.CepOperatorTestUtilities;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -43,7 +44,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
-import static org.apache.flink.cep.operator.CepOperatorTestUtilities.getKeyedCepOpearator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -420,7 +420,7 @@ public class CEPRescalingTest {
         KeySelector<Event, Integer> keySelector = new TestKeySelector();
         KeyedOneInputStreamOperatorTestHarness<Integer, Event, Map<String, List<Event>>> harness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
-                        getKeyedCepOpearator(false, new NFAFactory()),
+                        CepOperatorTestUtilities.getKeyedCepOperator(false, new NFAFactory()),
                         keySelector,
                         BasicTypeInfo.INT_TYPE_INFO,
                         maxParallelism,

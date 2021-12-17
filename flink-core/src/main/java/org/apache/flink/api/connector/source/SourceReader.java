@@ -43,7 +43,7 @@ import java.util.concurrent.CompletableFuture;
  * </ul>
  *
  * @param <T> The type of the record emitted by this source reader.
- * @param <SplitT> The type of the the source splits.
+ * @param <SplitT> The type of the source splits.
  */
 @Public
 public interface SourceReader<T, SplitT extends SourceSplit>

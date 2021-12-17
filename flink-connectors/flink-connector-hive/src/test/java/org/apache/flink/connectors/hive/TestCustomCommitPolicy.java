@@ -18,7 +18,7 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.table.filesystem.PartitionCommitPolicy;
+import org.apache.flink.connector.file.table.PartitionCommitPolicy;
 
 import java.util.HashSet;
 import java.util.Set;

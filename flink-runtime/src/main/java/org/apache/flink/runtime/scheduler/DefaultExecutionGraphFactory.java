@@ -173,8 +173,7 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                     executionGraphToRestore.getCheckpointCoordinator();
             if (checkpointCoordinator != null) {
                 checkpointCoordinator.restoreSavepoint(
-                        savepointRestoreSettings.getRestorePath(),
-                        savepointRestoreSettings.allowNonRestoredState(),
+                        savepointRestoreSettings,
                         executionGraphToRestore.getAllVertices(),
                         userCodeClassLoader);
             }

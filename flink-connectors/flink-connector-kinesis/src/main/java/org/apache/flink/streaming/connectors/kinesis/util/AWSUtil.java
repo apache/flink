@@ -18,9 +18,10 @@
 package org.apache.flink.streaming.connectors.kinesis.util;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.connector.aws.config.AWSConfigConstants.CredentialProvider;
+import org.apache.flink.connector.kinesis.config.AWSKinesisDataStreamsConfigConstants;
+import org.apache.flink.connector.kinesis.util.AWSKinesisDataStreamsUtil;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
@@ -61,9 +62,6 @@ import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequen
 /** Some utilities specific to Amazon Web Service. */
 @Internal
 public class AWSUtil {
-    /** Used for formatting Flink-specific user agent string when creating Kinesis client. */
-    private static final String USER_AGENT_FORMAT = "Apache Flink %s (%s) Kinesis Connector";
-
     /**
      * Creates an AmazonKinesis client.
      *
@@ -84,7 +82,10 @@ public class AWSUtil {
     public static AmazonKinesis createKinesisClient(
             Properties configProps, ClientConfiguration awsClientConfig) {
         // set a Flink-specific user agent
-        awsClientConfig.setUserAgentPrefix(formatFlinkUserAgentPrefix());
+        awsClientConfig.setUserAgentPrefix(
+                AWSKinesisDataStreamsUtil.formatFlinkUserAgentPrefix(
+                        AWSKinesisDataStreamsConfigConstants
+                                .BASE_KINESIS_USER_AGENT_PREFIX_FORMAT));
 
         // utilize automatic refreshment of credentials by directly passing the
         // AWSCredentialsProvider
@@ -109,18 +110,6 @@ public class AWSUtil {
     }
 
     /**
-     * Creates a user agent prefix for Flink. This can be used by HTTP Clients.
-     *
-     * @return a user agent prefix for Flink
-     */
-    public static String formatFlinkUserAgentPrefix() {
-        return String.format(
-                USER_AGENT_FORMAT,
-                EnvironmentInformation.getVersion(),
-                EnvironmentInformation.getRevisionInformation().commitId);
-    }
-
-    /**
      * Return a {@link AWSCredentialsProvider} instance corresponding to the configuration
      * properties.
      *
@@ -129,28 +118,6 @@ public class AWSUtil {
      */
     public static AWSCredentialsProvider getCredentialsProvider(final Properties configProps) {
         return getCredentialsProvider(configProps, AWSConfigConstants.AWS_CREDENTIALS_PROVIDER);
-    }
-
-    /**
-     * Determines and returns the credential provider type from the given properties.
-     *
-     * @return the credential provider type
-     */
-    static CredentialProvider getCredentialProviderType(
-            final Properties configProps, final String configPrefix) {
-        if (!configProps.containsKey(configPrefix)) {
-            if (configProps.containsKey(AWSConfigConstants.accessKeyId(configPrefix))
-                    && configProps.containsKey(AWSConfigConstants.secretKey(configPrefix))) {
-                // if the credential provider type is not specified, but the Access Key ID and
-                // Secret Key are given, it will default to BASIC
-                return CredentialProvider.BASIC;
-            } else {
-                // if the credential provider type is not specified, it will default to AUTO
-                return CredentialProvider.AUTO;
-            }
-        } else {
-            return CredentialProvider.valueOf(configProps.getProperty(configPrefix));
-        }
     }
 
     /**
@@ -166,7 +133,7 @@ public class AWSUtil {
     private static AWSCredentialsProvider getCredentialsProvider(
             final Properties configProps, final String configPrefix) {
         CredentialProvider credentialProviderType =
-                getCredentialProviderType(configProps, configPrefix);
+                AWSKinesisDataStreamsUtil.getCredentialProviderType(configProps, configPrefix);
 
         switch (credentialProviderType) {
             case ENV_VAR:

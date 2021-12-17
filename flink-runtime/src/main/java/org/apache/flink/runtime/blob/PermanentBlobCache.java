@@ -54,7 +54,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>If files for a job are not needed any more, they will enter a staged, i.e. deferred, cleanup.
  * Files may thus still be be accessible upon recovery and do not need to be re-downloaded.
  */
-public class PermanentBlobCache extends AbstractBlobCache implements PermanentBlobService {
+public class PermanentBlobCache extends AbstractBlobCache implements JobPermanentBlobService {
 
     /** Job reference counters with a time-to-live (TTL). */
     @VisibleForTesting
@@ -138,6 +138,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements PermanentBl
      * @param jobId ID of the job this blob belongs to
      * @see #releaseJob(JobID)
      */
+    @Override
     public void registerJob(JobID jobId) {
         checkNotNull(jobId);
 
@@ -160,6 +161,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements PermanentBl
      * @param jobId ID of the job this blob belongs to
      * @see #registerJob(JobID)
      */
+    @Override
     public void releaseJob(JobID jobId) {
         checkNotNull(jobId);
 

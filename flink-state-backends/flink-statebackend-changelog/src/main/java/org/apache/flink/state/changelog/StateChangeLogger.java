@@ -70,4 +70,7 @@ interface StateChangeLogger<Value, Namespace> extends Closeable {
     void valueElementRemoved(
             ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer, Namespace ns)
             throws IOException;
+
+    /** Enable logging meta data before next writes. */
+    void resetWritingMetaFlag();
 }

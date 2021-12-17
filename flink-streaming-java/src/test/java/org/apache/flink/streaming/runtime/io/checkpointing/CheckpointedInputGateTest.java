@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.MockChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
@@ -270,7 +271,9 @@ public class CheckpointedInputGateTest {
         return new CheckpointBarrier(
                 barrierId,
                 barrierId,
-                CheckpointOptions.unaligned(CheckpointStorageLocationReference.getDefault()));
+                CheckpointOptions.unaligned(
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault()));
     }
 
     private void assertAddedInputSize(

@@ -46,6 +46,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.AvailabilityTestResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
@@ -85,6 +86,7 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
 import org.apache.flink.runtime.taskmanager.AsynchronousException;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
@@ -197,6 +199,7 @@ import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -232,6 +235,8 @@ public class StreamTaskTest extends TestLogger {
 
     @Test
     public void testSavepointSuspendedAborted() throws Exception {
+        thrown.expect(FlinkRuntimeException.class);
+        thrown.expectMessage("Stop-with-savepoint failed.");
         testSyncSavepointWithEndInput(
                 (task, id) ->
                         task.abortCheckpointOnBarrier(
@@ -245,7 +250,7 @@ public class StreamTaskTest extends TestLogger {
     @Test
     public void testSavepointTerminateAborted() throws Exception {
         thrown.expect(FlinkRuntimeException.class);
-        thrown.expectMessage("Stop-with-savepoint --drain failed.");
+        thrown.expectMessage("Stop-with-savepoint failed.");
         testSyncSavepointWithEndInput(
                 (task, id) ->
                         task.abortCheckpointOnBarrier(
@@ -258,6 +263,8 @@ public class StreamTaskTest extends TestLogger {
 
     @Test
     public void testSavepointSuspendAbortedAsync() throws Exception {
+        thrown.expect(FlinkRuntimeException.class);
+        thrown.expectMessage("Stop-with-savepoint failed.");
         testSyncSavepointWithEndInput(
                 (streamTask, abortCheckpointId) ->
                         streamTask.notifyCheckpointAbortAsync(abortCheckpointId, 0),
@@ -268,7 +275,7 @@ public class StreamTaskTest extends TestLogger {
     @Test
     public void testSavepointTerminateAbortedAsync() throws Exception {
         thrown.expect(FlinkRuntimeException.class);
-        thrown.expectMessage("Stop-with-savepoint --drain failed.");
+        thrown.expectMessage("Stop-with-savepoint failed.");
         testSyncSavepointWithEndInput(
                 (streamTask, abortCheckpointId) ->
                         streamTask.notifyCheckpointAbortAsync(abortCheckpointId, 0),
@@ -618,6 +625,39 @@ public class StreamTaskTest extends TestLogger {
 
         streamTask.finishInput();
         task.waitForTaskCompletion(false);
+    }
+
+    @Test
+    public void testForceFullSnapshotOnIncompatibleStateBackend() throws Exception {
+        try (StreamTaskMailboxTestHarness<Integer> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .modifyStreamConfig(
+                                config -> config.setStateBackend(new OnlyIncrementalStateBackend()))
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(new StreamMap<>(value -> null))
+                        .build()) {
+            final IllegalStateException exception =
+                    assertThrows(
+                            IllegalStateException.class,
+                            () -> {
+                                harness.streamTask.triggerCheckpointAsync(
+                                        new CheckpointMetaData(42L, 1L),
+                                        CheckpointOptions.forConfig(
+                                                CheckpointType.FULL_CHECKPOINT,
+                                                getDefault(),
+                                                true,
+                                                false,
+                                                0L));
+                            });
+            assertThat(
+                    exception.getMessage(),
+                    equalTo(
+                            "Configured state backend (OnlyIncrementalStateBackend) does not"
+                                    + " support enforcing a full snapshot. If you are restoring in"
+                                    + " NO_CLAIM mode, please consider choosing either CLAIM or"
+                                    + " LEGACY restore mode."));
+        }
     }
 
     /**
@@ -990,7 +1030,8 @@ public class StreamTaskTest extends TestLogger {
         assertFalse(ClosingOperator.closed.get());
 
         // close operators directly, so that task is still fully running
-        harness.streamTask.operatorChain.finishOperators(harness.streamTask.getActionExecutor());
+        harness.streamTask.operatorChain.finishOperators(
+                harness.streamTask.getActionExecutor(), StopMode.DRAIN);
         harness.streamTask.operatorChain.closeAllOperators();
         harness.streamTask.notifyCheckpointCompleteAsync(2);
         harness.streamTask.runMailboxStep();
@@ -1052,7 +1093,7 @@ public class StreamTaskTest extends TestLogger {
             harness.processElement(new StreamRecord<>(1));
 
             harness.streamTask.operatorChain.finishOperators(
-                    harness.streamTask.getActionExecutor());
+                    harness.streamTask.getActionExecutor(), StopMode.DRAIN);
             harness.streamTask.operatorChain.closeAllOperators();
             assertTrue(ClosingOperator.closed.get());
 
@@ -2365,7 +2406,7 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
-        public void registerSharedStates(SharedStateRegistry stateRegistry) {}
+        public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {}
 
         @Override
         public void discardState() {
@@ -2650,6 +2691,18 @@ public class StreamTaskTest extends TestLogger {
 
         public List<Long> getNotifiedCheckpoint() {
             return notifiedCheckpoint;
+        }
+    }
+
+    private static final class OnlyIncrementalStateBackend extends MockStateBackend {
+        @Override
+        public boolean supportsNoClaimRestoreMode() {
+            return false;
+        }
+
+        @Override
+        public String toString() {
+            return "OnlyIncrementalStateBackend";
         }
     }
 }

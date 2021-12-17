@@ -27,7 +27,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-table-runtime_${scala.binary.version}</artifactId>
+	<artifactId>flink-table-runtime</artifactId>
 	<name>Flink : Table : Runtime</name>
 	<description>
 		This module contains classes that are required by a task manager for
@@ -79,17 +79,17 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<!-- Provides the kryo serializer -->
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
 			<groupId>org.codehaus.janino</groupId>
 			<artifactId>janino</artifactId>
 			<version>${janino.version}</version>
+		</dependency>
+
+		<!-- Jackson -->
+
+		<dependency>
+			<groupId>com.jayway.jsonpath</groupId>
+			<artifactId>json-path</artifactId>
+			<version>${jsonpath.version}</version>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -136,6 +136,36 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<artifactSet>
+								<includes combine.children="append">
+									<include>com.jayway.jsonpath:json-path</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>com.jayway</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.com.jayway</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.fasterxml</pattern>
+									<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml</shadedPattern>
+								</relocation>
+							</relocations>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

@@ -21,24 +21,30 @@ package org.apache.flink.connector.hbase2;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.connector.hbase2.source.AbstractTableInputFormat;
 import org.apache.flink.connector.hbase2.source.HBaseRowDataInputFormat;
 import org.apache.flink.connector.hbase2.util.HBaseTestBase;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -54,6 +60,13 @@ import static org.junit.Assert.assertNull;
 
 /** IT cases for HBase connector (including source and sink). */
 public class HBaseConnectorITCase extends HBaseTestBase {
+
+    @ClassRule
+    public static final MiniClusterWithClientResource MINI_CLUSTER =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(new Configuration())
+                            .build());
 
     // -------------------------------------------------------------------------------------
     // HBaseTableSource tests
@@ -250,12 +263,32 @@ public class HBaseConnectorITCase extends HBaseTestBase {
                         + " FROM "
                         + TEST_TABLE_1;
 
+        TableResult tableResult = tEnv.executeSql(query);
+
         // wait to finish
-        tEnv.executeSql(query).await();
+        tableResult.await();
+
+        assertEquals(
+                "Expected INSERT rowKind", RowKind.INSERT, tableResult.collect().next().getKind());
 
         // start a batch scan job to verify contents in HBase table
         TableEnvironment batchEnv = TableEnvironment.create(batchSettings);
         batchEnv.executeSql(table2DDL);
+
+        List<String> expected = new ArrayList<>();
+        expected.add("+I[1, 10, Hello-1, 100, 1.01, false, Welt-1]\n");
+        expected.add("+I[2, 20, Hello-2, 200, 2.02, true, Welt-2]\n");
+        expected.add("+I[3, 30, Hello-3, 300, 3.03, false, Welt-3]\n");
+        expected.add("+I[4, 40, null, 400, 4.04, true, Welt-4]\n");
+        expected.add("+I[5, 50, Hello-5, 500, 5.05, false, Welt-5]\n");
+        expected.add("+I[6, 60, Hello-6, 600, 6.06, true, Welt-6]\n");
+        expected.add("+I[7, 70, Hello-7, 700, 7.07, false, Welt-7]\n");
+        expected.add("+I[8, 80, null, 800, 8.08, true, Welt-8]\n");
+
+        Table countTable =
+                batchEnv.sqlQuery("SELECT COUNT(h.rowkey) FROM " + TEST_TABLE_2 + " AS h");
+
+        assertEquals(new Long(expected.size()), countTable.execute().collect().next().getField(0));
 
         Table table =
                 batchEnv.sqlQuery(
@@ -270,18 +303,12 @@ public class HBaseConnectorITCase extends HBaseTestBase {
                                 + "FROM "
                                 + TEST_TABLE_2
                                 + " AS h");
-        List<Row> results = CollectionUtil.iteratorToList(table.execute().collect());
-        String expected =
-                "+I[1, 10, Hello-1, 100, 1.01, false, Welt-1]\n"
-                        + "+I[2, 20, Hello-2, 200, 2.02, true, Welt-2]\n"
-                        + "+I[3, 30, Hello-3, 300, 3.03, false, Welt-3]\n"
-                        + "+I[4, 40, null, 400, 4.04, true, Welt-4]\n"
-                        + "+I[5, 50, Hello-5, 500, 5.05, false, Welt-5]\n"
-                        + "+I[6, 60, Hello-6, 600, 6.06, true, Welt-6]\n"
-                        + "+I[7, 70, Hello-7, 700, 7.07, false, Welt-7]\n"
-                        + "+I[8, 80, null, 800, 8.08, true, Welt-8]\n";
 
-        TestBaseUtils.compareResultAsText(results, expected);
+        TableResult tableResult2 = table.execute();
+
+        List<Row> results = CollectionUtil.iteratorToList(tableResult2.collect());
+
+        TestBaseUtils.compareResultAsText(results, String.join("", expected));
     }
 
     @Test
@@ -307,34 +334,18 @@ public class HBaseConnectorITCase extends HBaseTestBase {
                         + " family4"
                         + " from "
                         + TEST_TABLE_1;
+
+        TableResult tableResult = tEnv.executeSql(insertStatement);
+
         // wait to finish
-        tEnv.executeSql(insertStatement).await();
+        tableResult.await();
+
+        assertEquals(
+                "Expected INSERT rowKind", RowKind.INSERT, tableResult.collect().next().getKind());
 
         // start a batch scan job to verify contents in HBase table
         TableEnvironment batchEnv = TableEnvironment.create(batchSettings);
         batchEnv.executeSql(table3DDL);
-        String query =
-                "SELECT "
-                        + "  h.rowkey, "
-                        + "  h.family1.col1, "
-                        + "  h.family2.col1, "
-                        + "  h.family2.col2, "
-                        + "  h.family3.col1, "
-                        + "  h.family3.col2, "
-                        + "  h.family3.col3, "
-                        + "  h.family4.col1, "
-                        + "  h.family4.col2, "
-                        + "  h.family4.col3, "
-                        + "  h.family4.col4 "
-                        + " FROM "
-                        + TEST_TABLE_3
-                        + " AS h";
-        Iterator<Row> collected = tEnv.executeSql(query).collect();
-        List<String> result =
-                Lists.newArrayList(collected).stream()
-                        .map(Row::toString)
-                        .sorted()
-                        .collect(Collectors.toList());
 
         List<String> expected = new ArrayList<>();
         expected.add(
@@ -353,6 +364,37 @@ public class HBaseConnectorITCase extends HBaseTestBase {
                 "+I[7, 70, Hello-7, 700, 7.07, false, Welt-7, 2019-08-19T19:30, 2019-08-19, 19:30, 12345678.0007]");
         expected.add(
                 "+I[8, 80, null, 800, 8.08, true, Welt-8, 2019-08-19T19:40, 2019-08-19, 19:40, 12345678.0008]");
+
+        Table countTable =
+                batchEnv.sqlQuery("SELECT COUNT(h.rowkey) FROM " + TEST_TABLE_3 + " AS h");
+
+        assertEquals(new Long(expected.size()), countTable.execute().collect().next().getField(0));
+
+        String query =
+                "SELECT "
+                        + "  h.rowkey, "
+                        + "  h.family1.col1, "
+                        + "  h.family2.col1, "
+                        + "  h.family2.col2, "
+                        + "  h.family3.col1, "
+                        + "  h.family3.col2, "
+                        + "  h.family3.col3, "
+                        + "  h.family4.col1, "
+                        + "  h.family4.col2, "
+                        + "  h.family4.col3, "
+                        + "  h.family4.col4 "
+                        + " FROM "
+                        + TEST_TABLE_3
+                        + " AS h";
+
+        TableResult tableResult3 = batchEnv.executeSql(query);
+
+        List<String> result =
+                Lists.newArrayList(tableResult3.collect()).stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+
         assertEquals(expected, result);
     }
 

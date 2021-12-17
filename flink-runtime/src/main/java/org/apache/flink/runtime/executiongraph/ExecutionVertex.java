@@ -401,7 +401,7 @@ public class ExecutionVertex
             // if the execution was 'FINISHED' before, tell the ExecutionGraph that
             // we take one step back on the road to reaching global FINISHED
             if (oldState == FINISHED) {
-                getExecutionGraphAccessor().vertexUnFinished();
+                getJobVertex().executionVertexUnFinished();
             }
 
             // reset the intermediate results
@@ -522,7 +522,7 @@ public class ExecutionVertex
     // --------------------------------------------------------------------------------------------
 
     void executionFinished(Execution execution) {
-        getExecutionGraphAccessor().vertexFinished();
+        getJobVertex().executionVertexFinished();
     }
 
     // --------------------------------------------------------------------------------------------

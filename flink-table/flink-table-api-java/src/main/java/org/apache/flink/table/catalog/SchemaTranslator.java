@@ -43,6 +43,7 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -113,19 +114,42 @@ public final class SchemaTranslator {
             ResolvedSchema inputSchema,
             AbstractDataType<?> targetDataType) {
         final List<String> inputFieldNames = inputSchema.getColumnNames();
+        final List<String> inputFieldNamesNormalized =
+                inputFieldNames.stream()
+                        .map(n -> n.toLowerCase(Locale.ROOT))
+                        .collect(Collectors.toList());
         final DataType resolvedDataType = dataTypeFactory.createDataType(targetDataType);
         final List<String> targetFieldNames = flattenToNames(resolvedDataType);
+        final List<String> targetFieldNamesNormalized =
+                targetFieldNames.stream()
+                        .map(n -> n.toLowerCase(Locale.ROOT))
+                        .collect(Collectors.toList());
         final List<DataType> targetFieldDataTypes = flattenToDataTypes(resolvedDataType);
 
         // help in reorder fields for POJOs if all field names are present but out of order,
         // otherwise let the sink validation fail later
-        final List<String> projections;
-        if (targetFieldNames.size() == inputFieldNames.size()
-                && !targetFieldNames.equals(inputFieldNames)
-                && targetFieldNames.containsAll(inputFieldNames)) {
-            projections = targetFieldNames;
-        } else {
-            projections = null;
+        List<String> projections = null;
+        if (targetFieldNames.size() == inputFieldNames.size()) {
+            // reordering by name (case-sensitive)
+            if (targetFieldNames.containsAll(inputFieldNames)) {
+                projections = targetFieldNames;
+            }
+            // reordering by name (case-insensitive) but fields must be unique
+            else if (targetFieldNamesNormalized.containsAll(inputFieldNamesNormalized)
+                    && targetFieldNamesNormalized.stream().distinct().count()
+                            == targetFieldNames.size()
+                    && inputFieldNamesNormalized.stream().distinct().count()
+                            == inputFieldNames.size()) {
+                projections =
+                        targetFieldNamesNormalized.stream()
+                                .map(
+                                        targetName -> {
+                                            final int inputFieldPos =
+                                                    inputFieldNamesNormalized.indexOf(targetName);
+                                            return inputFieldNames.get(inputFieldPos);
+                                        })
+                                .collect(Collectors.toList());
+            }
         }
 
         final Schema schema =

@@ -445,27 +445,27 @@ class TemporalTypesTest extends ExpressionTestBase {
     testAllApis(
       'f0 < 'f3,
       "f0 < f3",
-      "false")
+      "FALSE")
 
     testAllApis(
       'f0 < 'f4,
       "f0 < f4",
-      "true")
+      "TRUE")
 
     testAllApis(
       'f1 < 'f5,
       "f1 < f5",
-      "false")
+      "FALSE")
 
     testAllApis(
       'f0.cast(DataTypes.TIMESTAMP(3)) !== 'f2,
       "CAST(f0 AS TIMESTAMP(9)) <> f2",
-      "true")
+      "TRUE")
 
     testAllApis(
       'f0.cast(DataTypes.TIMESTAMP(9)) === 'f6,
       "CAST(f0 AS TIMESTAMP(9)) = f6",
-      "true")
+      "TRUE")
   }
 
   @Test
@@ -476,24 +476,24 @@ class TemporalTypesTest extends ExpressionTestBase {
     testAllApis(
       12.months < 24.months,
       "INTERVAL '12' MONTH < INTERVAL '24' MONTH",
-      "true")
+      "TRUE")
 
     testAllApis(
       8.years === 8.years,
       "INTERVAL '8' YEAR = INTERVAL '8' YEAR",
-      "true")
+      "TRUE")
 
     // interval millis comparison
 
     testAllApis(
       8.millis > 10.millis,
       "INTERVAL '0.008' SECOND > INTERVAL '0.010' SECOND",
-      "false")
+      "FALSE")
 
     testAllApis(
       8.millis === 8.millis,
       "INTERVAL '0.008' SECOND = INTERVAL '0.008' SECOND",
-      "true")
+      "TRUE")
 
     // interval months addition/subtraction
 
@@ -703,17 +703,17 @@ class TemporalTypesTest extends ExpressionTestBase {
     testAllApis(
       'f11,
       "f11",
-      "null"
+      "NULL"
     )
     testAllApis(
       'f12,
       "f12",
-      "null"
+      "NULL"
     )
     testAllApis(
       'f13,
       "f13",
-      "null"
+      "NULL"
     )
   }
 
@@ -722,23 +722,23 @@ class TemporalTypesTest extends ExpressionTestBase {
     testAllApis(
       'f13.extract(TimeIntervalUnit.HOUR),
       "extract(HOUR FROM f13)",
-      "null"
+      "NULL"
     )
 
     testAllApis(
       'f13.floor(TimeIntervalUnit.HOUR),
       "FLOOR(f13 TO HOUR)",
-      "null"
+      "NULL"
     )
 
     testSqlApi(
       "TO_TIMESTAMP(SUBSTRING('', 2, -1))",
-      "null"
+      "NULL"
     )
 
     testSqlApi(
       "TO_TIMESTAMP(f14, 'yyyy-mm-dd')",
-      "null"
+      "NULL"
     )
   }
 
@@ -850,7 +850,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testSqlApi(
       timestampLtz("2018-03-14 19:00:00.010") + " > " + "f25",
-      "true")
+      "TRUE")
 
     testSqlApi(
       s"${timestampLtz("2018-03-14 01:02:03.123456789", 9)}",
@@ -963,7 +963,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("QUARTER(DATE '2016-04-12')", "2")
     testSqlApi(
       "(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)",
-      "true")
+      "TRUE")
     testSqlApi(
       "CEIL(f17 TO HOUR)",
       "1990-10-14 08:00:00.000"
@@ -1048,7 +1048,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     cases.foreach {
       caseExpr =>
-        testSqlApi(caseExpr, "null")
+        testSqlApi(caseExpr, "NULL")
     }
   }
 
@@ -1096,7 +1096,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     // test with null input
     testSqlApi(
       "from_unixtime(cast(null as int))",
-      "null")
+      "NULL")
   }
 
   @Test
@@ -1219,7 +1219,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     //    "TIMESTAMP '1970-01-01 00:00:00.123455789')",
     //  "1")
 
-    testSqlApi("TO_TIMESTAMP('abc')", "null")
+    testSqlApi("TO_TIMESTAMP('abc')", "NULL")
 
     // TO_TIMESTAMP should complement YEAR/MONTH/DAY/HOUR/MINUTE/SECOND/NANO_OF_SECOND
     testSqlApi(
@@ -1290,22 +1290,22 @@ class TemporalTypesTest extends ExpressionTestBase {
     // TIMESTAMP compare should support nanosecond
     testSqlApi(
       "TIMESTAMP '1970-01-01 00:00:00.123456789' > TIMESTAMP '1970-01-01 00:00:00.123456788'",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "TIMESTAMP '1970-01-01 00:00:00.123456788' < TIMESTAMP '1970-01-01 00:00:00.123456789'",
-      "true")
+      "TRUE")
 
 
     testSqlApi(
       s"${timestampLtz("1970-01-01 00:00:00.123456789", 9)} > " +
         s"${timestampLtz("1970-01-01 00:00:00.123456788", 9)}",
-      "true")
+      "TRUE")
 
     testSqlApi(
       s"${timestampLtz("1970-01-01 00:00:00.123456788", 9)} < " +
         s"${timestampLtz("1970-01-01 00:00:00.123456789", 9)}",
-      "true")
+      "TRUE")
 
 
     // DATE_FORMAT() should support nanosecond
@@ -1428,41 +1428,41 @@ class TemporalTypesTest extends ExpressionTestBase {
     testAllApis(
       toTimestampLtz(JLong.MIN_VALUE.cast(DataTypes.BIGINT()), 0),
       s"TO_TIMESTAMP_LTZ(CAST(${JLong.MIN_VALUE} AS BIGINT), 0)",
-      "null")
+      "NULL")
     testAllApis(
       toTimestampLtz(JLong.MAX_VALUE.cast(DataTypes.BIGINT()), 0),
       s"TO_TIMESTAMP_LTZ(CAST(${JLong.MAX_VALUE} AS BIGINT), 0)",
-      "null")
+      "NULL")
 
     // FLOAT
     testAllApis(
       toTimestampLtz((-JFloat.MAX_VALUE).cast(DataTypes.FLOAT()), 0),
       s"TO_TIMESTAMP_LTZ(CAST(-${JFloat.MAX_VALUE} AS FLOAT), 0)",
-      "null")
+      "NULL")
     testAllApis(
       toTimestampLtz(JFloat.MAX_VALUE.cast(DataTypes.FLOAT()), 0),
       s"TO_TIMESTAMP_LTZ(CAST(${JFloat.MAX_VALUE} AS FLOAT), 0)",
-      "null")
+      "NULL")
 
     // DOUBLE
     testAllApis(
       toTimestampLtz((-JDouble.MAX_VALUE).cast(DataTypes.DOUBLE()), 0),
       s"TO_TIMESTAMP_LTZ(CAST(-${JDouble.MAX_VALUE} AS DOUBLE), 0)",
-      "null")
+      "NULL")
     testAllApis(
       toTimestampLtz(JDouble.MAX_VALUE.cast(DataTypes.DOUBLE()), 0),
       s"TO_TIMESTAMP_LTZ(CAST(${JDouble.MAX_VALUE} AS DOUBLE), 0)",
-      "null")
+      "NULL")
 
     // DECIMAL
     testAllApis(
       toTimestampLtz((-JDouble.MAX_VALUE).cast(DataTypes.DECIMAL(38, 18)), 0),
       s"TO_TIMESTAMP_LTZ(-${JDouble.MAX_VALUE}, 0)",
-      "null")
+      "NULL")
     testAllApis(
       toTimestampLtz(JDouble.MAX_VALUE.cast(DataTypes.DECIMAL(38, 18)), 0),
       s"TO_TIMESTAMP_LTZ(${JDouble.MAX_VALUE}, 0)",
-      "null")
+      "NULL")
 
     // test valid min/max epoch mills
     testAllApis(
@@ -1482,11 +1482,11 @@ class TemporalTypesTest extends ExpressionTestBase {
     testAllApis(
       toTimestampLtz(-62167219200001L, 3),
       s"TO_TIMESTAMP_LTZ(-62167219200001, 3)",
-      "null")
+      "NULL")
     testAllApis(
       toTimestampLtz(253402300800000L, 3),
       s"TO_TIMESTAMP_LTZ(253402300800000, 3)",
-      "null")
+      "NULL")
 
     // test invalid number of arguments
     testExpectedSqlException(
@@ -1630,7 +1630,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(
       s"TIMESTAMPDIFF(SECOND, CAST(null AS TIMESTAMP_LTZ)," +
         s" ${timestampLtz("1970-01-01 00:02:03.234")})",
-      "null")
+      "NULL")
   }
 
   @Test

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
@@ -99,7 +100,10 @@ public class LocalInputChannelTest {
     public void testNoDataPersistedAfterReceivingAlignedBarrier() throws Exception {
         CheckpointBarrier barrier =
                 new CheckpointBarrier(
-                        1L, 0L, CheckpointOptions.alignedWithTimeout(getDefault(), 123L));
+                        1L,
+                        0L,
+                        CheckpointOptions.alignedWithTimeout(
+                                CheckpointType.CHECKPOINT, getDefault(), 123L));
         BufferConsumer barrierHolder = EventSerializer.toBufferConsumer(barrier, false);
         BufferConsumer data = createFilledFinishedBufferConsumer(1);
 
@@ -580,7 +584,8 @@ public class LocalInputChannelTest {
         channel.requestSubpartition(0);
 
         final CheckpointStorageLocationReference location = getDefault();
-        CheckpointOptions options = CheckpointOptions.unaligned(location);
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, location);
         stateWriter.start(0, options);
 
         final CheckpointBarrier barrier = new CheckpointBarrier(0, 123L, options);

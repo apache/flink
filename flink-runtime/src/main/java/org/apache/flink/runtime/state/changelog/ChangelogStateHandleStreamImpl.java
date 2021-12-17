@@ -31,6 +31,9 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.runtime.state.StateUtil.bestEffortDiscardAllStateObjects;
 
 /** {@link ChangelogStateHandle} implementation based on {@link StreamStateHandle}. */
 @Internal
@@ -55,12 +58,12 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry stateRegistry) {
+    public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
         this.stateRegistry = stateRegistry;
         handlesAndOffsets.forEach(
                 handleAndOffset ->
                         stateRegistry.registerReference(
-                                getKey(handleAndOffset.f0), handleAndOffset.f0));
+                                getKey(handleAndOffset.f0), handleAndOffset.f0, checkpointID));
     }
 
     @Override
@@ -79,15 +82,11 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     }
 
     @Override
-    public void discardState() {
+    public void discardState() throws Exception {
+        // discard only on TM; on JM, shared state is removed on subsumption
         if (stateRegistry == null) {
-            // todo: discard private state (FLINK-23139)
-            // discarding the state here will fail some tests
-            // by invalidating checkpoints on abortion
-        } else {
-            handlesAndOffsets.forEach(
-                    handleAndOffset ->
-                            stateRegistry.unregisterReference(getKey(handleAndOffset.f0)));
+            bestEffortDiscardAllStateObjects(
+                    handlesAndOffsets.stream().map(t2 -> t2.f0).collect(Collectors.toList()));
         }
     }
 

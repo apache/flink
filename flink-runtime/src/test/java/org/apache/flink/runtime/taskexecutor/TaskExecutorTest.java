@@ -30,9 +30,8 @@ import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.blob.NoOpTaskExecutorBlobService;
 import org.apache.flink.runtime.blob.TransientBlobKey;
-import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -198,8 +197,6 @@ public class TaskExecutorTest extends TestLogger {
 
     private TestingRpcService rpc;
 
-    private BlobCacheService dummyBlobCacheService;
-
     private Configuration configuration;
 
     private UnresolvedTaskManagerLocation unresolvedTaskManagerLocation;
@@ -221,9 +218,6 @@ public class TaskExecutorTest extends TestLogger {
     @Before
     public void setup() throws IOException {
         rpc = new TestingRpcService();
-
-        dummyBlobCacheService =
-                new BlobCacheService(new Configuration(), new VoidBlobStore(), null);
 
         configuration = new Configuration();
         TaskExecutorResourceUtils.adjustForLocalExecution(configuration);
@@ -250,11 +244,6 @@ public class TaskExecutorTest extends TestLogger {
         if (rpc != null) {
             RpcUtils.terminateRpcService(rpc, timeout);
             rpc = null;
-        }
-
-        if (dummyBlobCacheService != null) {
-            dummyBlobCacheService.close();
-            dummyBlobCacheService = null;
         }
 
         if (nettyShuffleEnvironment != null) {
@@ -2759,7 +2748,7 @@ public class TaskExecutorTest extends TestLogger {
                 heartbeatServices,
                 UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
                 null,
-                dummyBlobCacheService,
+                NoOpTaskExecutorBlobService.INSTANCE,
                 testingFatalErrorHandler,
                 taskExecutorPartitionTracker);
     }
@@ -2790,7 +2779,7 @@ public class TaskExecutorTest extends TestLogger {
                 heartbeatServices,
                 metricGroup,
                 null,
-                dummyBlobCacheService,
+                NoOpTaskExecutorBlobService.INSTANCE,
                 testingFatalErrorHandler,
                 new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
     }

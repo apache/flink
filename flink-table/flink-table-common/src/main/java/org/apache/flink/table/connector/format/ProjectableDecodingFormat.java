@@ -53,7 +53,7 @@ public interface ProjectableDecodingFormat<I> extends DecodingFormat<I> {
      *     the original {@link DataType}, including nested rows. For example, {@code [[0, 2, 1],
      *     ...]} specifies to include the 2nd field of the 3rd field of the 1st field in the
      *     top-level row. It's guaranteed that this array won't contain nested projections if {@link
-     *     #supportsNestedProjection()} returns {@code true}. For more details, check {@link
+     *     #supportsNestedProjection()} returns {@code false}. For more details, check {@link
      *     Projection} as well.
      * @return the runtime decoder
      * @see DecodingFormat

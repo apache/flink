@@ -204,7 +204,10 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
      * @param sharedStateRegistry The registry where shared states are registered
      */
     public void registerSharedStatesAfterRestored(SharedStateRegistry sharedStateRegistry) {
-        sharedStateRegistry.registerAll(operatorStates.values());
+        // in claim mode we should not register any shared handles
+        if (!props.isUnclaimed()) {
+            sharedStateRegistry.registerAll(operatorStates.values(), checkpointID);
+        }
     }
 
     // ------------------------------------------------------------------------

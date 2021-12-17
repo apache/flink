@@ -24,6 +24,7 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.state.testutils.EmptyStreamStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 
@@ -224,9 +225,9 @@ public class CompletedCheckpointTest {
                                 CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
                         new TestCompletedCheckpointStorageLocation());
 
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         checkpoint.registerSharedStatesAfterRestored(sharedStateRegistry);
-        verify(state, times(1)).registerSharedStates(sharedStateRegistry);
+        verify(state, times(1)).registerSharedStates(sharedStateRegistry, 0L);
     }
 
     /** Tests that the garbage collection properties are respected when subsuming checkpoints. */
@@ -242,7 +243,7 @@ public class CompletedCheckpointTest {
 
         CheckpointProperties props =
                 new CheckpointProperties(
-                        false, CheckpointType.CHECKPOINT, true, false, false, false, false);
+                        false, CheckpointType.CHECKPOINT, true, false, false, false, false, false);
 
         CompletedCheckpoint checkpoint =
                 new CompletedCheckpoint(
@@ -255,9 +256,9 @@ public class CompletedCheckpointTest {
                         props,
                         location);
 
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         checkpoint.registerSharedStatesAfterRestored(sharedStateRegistry);
-        verify(state, times(1)).registerSharedStates(sharedStateRegistry);
+        verify(state, times(1)).registerSharedStates(sharedStateRegistry, 0L);
 
         // Subsume
         checkpoint.discardOnSubsume();
@@ -288,7 +289,14 @@ public class CompletedCheckpointTest {
             // Keep
             CheckpointProperties retainProps =
                     new CheckpointProperties(
-                            false, CheckpointType.CHECKPOINT, false, false, false, false, false);
+                            false,
+                            CheckpointType.CHECKPOINT,
+                            false,
+                            false,
+                            false,
+                            false,
+                            false,
+                            false);
             CompletedCheckpoint checkpoint =
                     new CompletedCheckpoint(
                             new JobID(),
@@ -314,7 +322,7 @@ public class CompletedCheckpointTest {
             // Keep
             CheckpointProperties discardProps =
                     new CheckpointProperties(
-                            false, CheckpointType.CHECKPOINT, true, true, true, true, true);
+                            false, CheckpointType.CHECKPOINT, true, true, true, true, true, false);
 
             checkpoint =
                     new CompletedCheckpoint(

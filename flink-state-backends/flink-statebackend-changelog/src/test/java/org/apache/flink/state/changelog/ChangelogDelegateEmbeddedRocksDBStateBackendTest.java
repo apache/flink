@@ -56,6 +56,11 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
         return false;
     }
 
+    @Override
+    protected boolean isSafeToReuseKVState() {
+        return true;
+    }
+
     @Test
     @Ignore("The type of handle returned from snapshot() is not incremental")
     public void testSharedIncrementalStateDeRegistration() {}
@@ -86,6 +91,14 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         ChangelogStateBackendTestUtils.testMaterializedRestore(
+                getStateBackend(), env, streamFactory);
+    }
+
+    @Test
+    public void testMaterializedRestorePriorityQueue() throws Exception {
+        CheckpointStreamFactory streamFactory = createStreamFactory();
+
+        ChangelogStateBackendTestUtils.testMaterializedRestoreForPriorityQueue(
                 getStateBackend(), env, streamFactory);
     }
 }

@@ -104,15 +104,11 @@ public abstract class KafkaTestBase extends TestLogger {
 
     @BeforeClass
     public static void prepare() throws Exception {
-        prepare(true);
-    }
-
-    public static void prepare(boolean hideKafkaBehindProxy) throws Exception {
         LOG.info("-------------------------------------------------------------------------");
         LOG.info("    Starting KafkaTestBase ");
         LOG.info("-------------------------------------------------------------------------");
 
-        startClusters(false, hideKafkaBehindProxy);
+        startClusters(false);
     }
 
     @AfterClass
@@ -147,13 +143,11 @@ public abstract class KafkaTestBase extends TestLogger {
                 KafkaTestEnvironment.createConfig().setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS));
     }
 
-    public static void startClusters(boolean secureMode, boolean hideKafkaBehindProxy)
-            throws Exception {
+    public static void startClusters(boolean secureMode) throws Exception {
         startClusters(
                 KafkaTestEnvironment.createConfig()
                         .setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS)
-                        .setSecureMode(secureMode)
-                        .setHideKafkaBehindProxy(hideKafkaBehindProxy));
+                        .setSecureMode(secureMode));
     }
 
     public static void startClusters(KafkaTestEnvironment.Config environmentConfig)

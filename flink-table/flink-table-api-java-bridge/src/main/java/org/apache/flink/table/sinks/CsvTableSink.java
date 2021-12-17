@@ -21,7 +21,6 @@ package org.apache.flink.table.sinks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -37,7 +36,7 @@ import java.util.Arrays;
 /**
  * A simple {@link TableSink} to emit data as CSV files.
  *
- * @deprecated The legacy CSV connector has been replaced by {@link FileSink}. It is kept only to
+ * @deprecated The legacy CSV connector has been replaced by {@code FileSink}. It is kept only to
  *     support tests for the legacy connector stack.
  */
 @Internal

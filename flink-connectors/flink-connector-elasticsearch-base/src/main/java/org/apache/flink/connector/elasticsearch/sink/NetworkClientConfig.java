@@ -27,14 +27,23 @@ class NetworkClientConfig implements Serializable {
     @Nullable private final String username;
     @Nullable private final String password;
     @Nullable private final String connectionPathPrefix;
+    @Nullable private final Integer connectionRequestTimeout;
+    @Nullable private final Integer connectionTimeout;
+    @Nullable private final Integer socketTimeout;
 
     NetworkClientConfig(
             @Nullable String username,
             @Nullable String password,
-            @Nullable String connectionPathPrefix) {
+            @Nullable String connectionPathPrefix,
+            @Nullable Integer connectionRequestTimeout,
+            @Nullable Integer connectionTimeout,
+            @Nullable Integer socketTimeout) {
         this.username = username;
         this.password = password;
         this.connectionPathPrefix = connectionPathPrefix;
+        this.connectionRequestTimeout = connectionRequestTimeout;
+        this.connectionTimeout = connectionTimeout;
+        this.socketTimeout = socketTimeout;
     }
 
     @Nullable
@@ -45,6 +54,21 @@ class NetworkClientConfig implements Serializable {
     @Nullable
     public String getPassword() {
         return password;
+    }
+
+    @Nullable
+    public Integer getConnectionRequestTimeout() {
+        return connectionRequestTimeout;
+    }
+
+    @Nullable
+    public Integer getConnectionTimeout() {
+        return connectionTimeout;
+    }
+
+    @Nullable
+    public Integer getSocketTimeout() {
+        return socketTimeout;
     }
 
     @Nullable

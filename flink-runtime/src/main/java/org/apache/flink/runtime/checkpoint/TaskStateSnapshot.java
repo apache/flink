@@ -167,10 +167,10 @@ public class TaskStateSnapshot implements CompositeStateHandle {
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry stateRegistry) {
+    public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
         for (OperatorSubtaskState operatorSubtaskState : subtaskStatesByOperatorID.values()) {
             if (operatorSubtaskState != null) {
-                operatorSubtaskState.registerSharedStates(stateRegistry);
+                operatorSubtaskState.registerSharedStates(stateRegistry, checkpointID);
             }
         }
     }

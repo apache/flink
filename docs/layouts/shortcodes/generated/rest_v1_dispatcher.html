@@ -869,6 +869,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "string"
       }
     },
+    "restoreMode" : {
+      "type" : "string",
+      "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
+    },
     "savepointPath" : {
       "type" : "string"
     }
@@ -1028,6 +1032,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:LogInfo",
         "properties" : {
+          "mtime" : {
+            "type" : "integer"
+          },
           "name" : {
             "type" : "string"
           },
@@ -5729,6 +5736,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:LogInfo",
         "properties" : {
+          "mtime" : {
+            "type" : "integer"
+          },
           "name" : {
             "type" : "string"
           },

@@ -26,7 +26,6 @@ import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.SymbolType;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -45,7 +44,8 @@ public class SymbolArgumentTypeStrategy implements ArgumentTypeStrategy {
     public Optional<DataType> inferArgumentType(
             CallContext callContext, int argumentPos, boolean throwOnFailure) {
         final DataType argumentType = callContext.getArgumentDataTypes().get(argumentPos);
-        if (argumentType.getLogicalType().getTypeRoot() != LogicalTypeRoot.SYMBOL) {
+        if (argumentType.getLogicalType().getTypeRoot() != LogicalTypeRoot.SYMBOL
+                || !callContext.isArgumentLiteral(argumentPos)) {
             if (throwOnFailure) {
                 throw callContext.newValidationError(
                         "Unsupported argument type. Expected symbol type '%s' but actual type was '%s'.",
@@ -55,13 +55,15 @@ public class SymbolArgumentTypeStrategy implements ArgumentTypeStrategy {
             }
         }
 
-        final SymbolType<?> symbolType = (SymbolType<?>) argumentType.getLogicalType();
-        if (symbolType.getSymbolClass() != symbolClass) {
+        if (!callContext.getArgumentValue(argumentPos, symbolClass).isPresent()) {
             if (throwOnFailure) {
                 throw callContext.newValidationError(
-                        "Unsupported argument symbol type. Expected symbol '%s' but actual symbol was '%s'.",
+                        "Unsupported argument symbol type. Expected symbol '%s' but actual symbol was %s.",
                         symbolClass.getSimpleName(),
-                        symbolType.getDefaultConversion().getSimpleName());
+                        callContext
+                                .getArgumentValue(argumentPos, Enum.class)
+                                .map(e -> "'" + e.getClass().getSimpleName() + "'")
+                                .orElse("invalid"));
             } else {
                 return Optional.empty();
             }

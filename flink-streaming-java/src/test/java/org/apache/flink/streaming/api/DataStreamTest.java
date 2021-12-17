@@ -1104,6 +1104,84 @@ public class DataStreamTest extends TestLogger {
                 });
     }
 
+    /**
+     * Tests {@link SingleOutputStreamOperator#setDescription(String)} functionality.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testUserDefinedDescription() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        DataStream<Long> dataStream1 =
+                env.generateSequence(0, 0)
+                        .name("testSource1")
+                        .setDescription("this is test source 1")
+                        .map(
+                                new MapFunction<Long, Long>() {
+                                    @Override
+                                    public Long map(Long value) throws Exception {
+                                        return null;
+                                    }
+                                })
+                        .name("testMap")
+                        .setDescription("this is test map 1");
+
+        DataStream<Long> dataStream2 =
+                env.generateSequence(0, 0)
+                        .name("testSource2")
+                        .setDescription("this is test source 2")
+                        .map(
+                                new MapFunction<Long, Long>() {
+                                    @Override
+                                    public Long map(Long value) throws Exception {
+                                        return null;
+                                    }
+                                })
+                        .name("testMap")
+                        .setDescription("this is test map 2");
+
+        dataStream1
+                .connect(dataStream2)
+                .flatMap(
+                        new CoFlatMapFunction<Long, Long, Long>() {
+
+                            @Override
+                            public void flatMap1(Long value, Collector<Long> out)
+                                    throws Exception {}
+
+                            @Override
+                            public void flatMap2(Long value, Collector<Long> out)
+                                    throws Exception {}
+                        })
+                .name("testCoFlatMap")
+                .setDescription("this is test co flat map")
+                .windowAll(GlobalWindows.create())
+                .trigger(PurgingTrigger.of(CountTrigger.of(10)))
+                .reduce(
+                        new ReduceFunction<Long>() {
+                            private static final long serialVersionUID = 1L;
+
+                            @Override
+                            public Long reduce(Long value1, Long value2) throws Exception {
+                                return null;
+                            }
+                        })
+                .name("testWindowReduce")
+                .setDescription("this is test window reduce")
+                .print();
+
+        // test functionality through the operator names in the execution plan
+        String plan = env.getExecutionPlan();
+
+        assertTrue(plan.contains("this is test source 1"));
+        assertTrue(plan.contains("this is test source 2"));
+        assertTrue(plan.contains("this is test map 1"));
+        assertTrue(plan.contains("this is test map 2"));
+        assertTrue(plan.contains("this is test co flat map"));
+        assertTrue(plan.contains("this is test window reduce"));
+    }
+
     private abstract static class CustomWmEmitter<T>
             implements AssignerWithPunctuatedWatermarks<T> {
 
