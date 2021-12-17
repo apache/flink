@@ -49,6 +49,8 @@ trait FileSystemITCaseBase {
 
   def formatProperties(): Array[String] = Array()
 
+  def getScheme: String = "file"
+
   def tableEnv: TableEnvironment
 
   def check(sqlQuery: String, expectedResult: Seq[Row]): Unit
@@ -59,7 +61,7 @@ trait FileSystemITCaseBase {
   }
 
   def open(): Unit = {
-    resultPath = fileTmpFolder.newFolder().toURI.toString
+    resultPath = fileTmpFolder.newFolder().toURI.getPath
     BatchTableEnvUtil.registerCollection(
       tableEnv,
       "originalT",
@@ -76,7 +78,7 @@ trait FileSystemITCaseBase {
          |  c as b + 1
          |) partitioned by (a, b) with (
          |  'connector' = 'filesystem',
-         |  'path' = '$resultPath',
+         |  'path' = '$getScheme://$resultPath',
          |  ${formatProperties().mkString(",\n")}
          |)
        """.stripMargin
@@ -90,7 +92,7 @@ trait FileSystemITCaseBase {
          |  b bigint
          |) with (
          |  'connector' = 'filesystem',
-         |  'path' = '$resultPath',
+         |  'path' = '$getScheme://$resultPath',
          |  ${formatProperties().mkString(",\n")}
          |)
        """.stripMargin
@@ -102,7 +104,7 @@ trait FileSystemITCaseBase {
          |  x decimal(10, 0), y int
          |) with (
          |  'connector' = 'filesystem',
-         |  'path' = '$resultPath',
+         |  'path' = '$getScheme://$resultPath',
          |  ${formatProperties().mkString(",\n")}
          |)
        """.stripMargin
@@ -114,7 +116,7 @@ trait FileSystemITCaseBase {
          |  x decimal(3, 2), y int
          |) with (
          |  'connector' = 'filesystem',
-         |  'path' = '$resultPath',
+         |  'path' = '$getScheme://$resultPath',
          |  ${formatProperties().mkString(",\n")}
          |)
        """.stripMargin
@@ -256,7 +258,7 @@ trait FileSystemITCaseBase {
       "partition(a='1', b='1') select x, y from originalT where a=1 and b=1").await()
 
     // create hidden partition dir
-    assertTrue(new File(new Path(resultPath + "/a=1/.b=2").toUri).mkdir())
+    assertTrue(new File(new Path("file:" + resultPath + "/a=1/.b=2").toUri).mkdir())
 
     check(
       "select x, y from partitionedTable",
