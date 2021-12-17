@@ -261,15 +261,19 @@ class KafkaConnectorOptionsUtil {
 
     public static Map<KafkaTopicPartition, Long> buildBoundedOffsets(ReadableConfig tableOptions) {
         Map<KafkaTopicPartition, Long> boundedOffsets = new HashMap<>();
-        String boundedOffsetsEndOpt = tableOptions.get(SCAN_END_SPECIFIC_OFFSETS);
-        final Map<Integer, Long> offsetMap =
-                parseSpecificOffsets(boundedOffsetsEndOpt, SCAN_END_SPECIFIC_OFFSETS.key());
-        offsetMap.forEach(
-                (partition, offset) -> {
-                    final KafkaTopicPartition topicPartition =
-                            new KafkaTopicPartition(tableOptions.get(TOPIC).get(0), partition);
-                    boundedOffsets.put(topicPartition, offset);
-                });
+        if (tableOptions.getOptional(SCAN_END_SPECIFIC_OFFSETS).isPresent()) {
+            final Map<Integer, Long> offsetMap =
+                    parseSpecificOffsets(
+                            tableOptions.get(SCAN_END_SPECIFIC_OFFSETS),
+                            SCAN_END_SPECIFIC_OFFSETS.key());
+            offsetMap.forEach(
+                    (partition, offset) -> {
+                        final KafkaTopicPartition topicPartition =
+                                new KafkaTopicPartition(tableOptions.get(TOPIC).get(0), partition);
+                        boundedOffsets.put(topicPartition, offset);
+                    });
+            return boundedOffsets;
+        }
         return boundedOffsets;
     }
 

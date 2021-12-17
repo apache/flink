@@ -162,7 +162,7 @@ public class KafkaDynamicSource
             Map<KafkaTopicPartition, Long> specificStartupOffsets,
             long startupTimestampMillis,
             boolean upsertMode,
-            Map<KafkaTopicPartition, Long> boundedEndOffsets,
+            @Nullable Map<KafkaTopicPartition, Long> boundedEndOffsets,
             String tableIdentifier) {
         // Format attributes
         this.physicalDataType =
@@ -197,9 +197,7 @@ public class KafkaDynamicSource
         this.startupTimestampMillis = startupTimestampMillis;
         this.upsertMode = upsertMode;
         this.tableIdentifier = tableIdentifier;
-        this.boundedEndOffsets =
-                Preconditions.checkNotNull(boundedEndOffsets, "bounded offsets must not be null.");
-        ;
+        this.boundedEndOffsets = boundedEndOffsets;
     }
 
     @Override
@@ -418,7 +416,7 @@ public class KafkaDynamicSource
                 break;
         }
 
-        if (boundedEndOffsets != null) {
+        if (!boundedEndOffsets.isEmpty()) {
             Map<TopicPartition, Long> offsets = new HashMap<>();
             boundedEndOffsets.forEach(
                     (tp, offset) ->

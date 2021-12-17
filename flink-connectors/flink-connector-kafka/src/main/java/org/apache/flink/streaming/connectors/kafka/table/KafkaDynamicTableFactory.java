@@ -185,6 +185,8 @@ public class KafkaDynamicTableFactory
         final int[] keyProjection = createKeyFormatProjection(tableOptions, physicalDataType);
 
         final int[] valueProjection = createValueFormatProjection(tableOptions, physicalDataType);
+        final Map<KafkaTopicPartition, Long> buildBoundedOffsets =
+                buildBoundedOffsets(tableOptions);
 
         final String keyPrefix = tableOptions.getOptional(KEY_FIELDS_PREFIX).orElse(null);
 
@@ -201,7 +203,7 @@ public class KafkaDynamicTableFactory
                 startupOptions.startupMode,
                 startupOptions.specificOffsets,
                 startupOptions.startupTimestampMillis,
-                buildBoundedOffsets(tableOptions),
+                buildBoundedOffsets,
                 context.getObjectIdentifier().asSummaryString());
     }
 
@@ -361,7 +363,7 @@ public class KafkaDynamicTableFactory
             StartupMode startupMode,
             Map<KafkaTopicPartition, Long> specificStartupOffsets,
             long startupTimestampMillis,
-            Map<KafkaTopicPartition, Long> boundedEndOffsets,
+            @Nullable Map<KafkaTopicPartition, Long> boundedEndOffsets,
             String tableIdentifier) {
         return new KafkaDynamicSource(
                 physicalDataType,

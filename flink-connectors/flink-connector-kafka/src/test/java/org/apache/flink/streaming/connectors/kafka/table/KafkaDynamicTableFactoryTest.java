@@ -160,6 +160,11 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                     "partition:%d,offset:%d;partition:%d,offset:%d",
                     PARTITION_0, OFFSET_0, PARTITION_1, OFFSET_1);
 
+    private static final String PROPS_SCAN_BOUNDED_OFFSETS =
+            String.format(
+                    "partition:%d,offset:%d;partition:%d,offset:%d",
+                    PARTITION_0, END_OFFSET_0, PARTITION_1, END_OFFSET_1);
+
     private static final ResolvedSchema SCHEMA =
             new ResolvedSchema(
                     Arrays.asList(
@@ -201,7 +206,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 
         final Map<KafkaTopicPartition, Long> boundedEndOffsets = new HashMap<>();
         boundedEndOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_0), END_OFFSET_0);
-        specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_1), END_OFFSET_1);
+        boundedEndOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_1), END_OFFSET_1);
 
         final DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
                 new DecodingFormatMock(",", true);
@@ -973,6 +978,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         tableOptions.put("properties.bootstrap.servers", "dummy");
         tableOptions.put("scan.startup.mode", "specific-offsets");
         tableOptions.put("scan.startup.specific-offsets", PROPS_SCAN_OFFSETS);
+        tableOptions.put("scan.end.specific-offsets", PROPS_SCAN_BOUNDED_OFFSETS);
         tableOptions.put("scan.topic-partition-discovery.interval", DISCOVERY_INTERVAL);
         // Format options.
         tableOptions.put("format", TestFormatFactory.IDENTIFIER);
