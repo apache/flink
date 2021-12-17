@@ -38,7 +38,7 @@
 
 avro:
     name: Avro
-    maven: flink-sql-avro
+    maven: flink-avro
     category: format
     sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro/$version/flink-sql-avro-$version.jar
 
