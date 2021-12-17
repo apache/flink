@@ -549,8 +549,7 @@ public class BlobClientTest extends TestLogger {
         }
 
         @Override
-        void getFileInternal(@Nullable JobID jobId, BlobKey blobKey, File localFile)
-                throws IOException {
+        File getFileInternal(@Nullable JobID jobId, BlobKey blobKey) throws IOException {
             if (blockingMillis > 0) {
                 try {
                     Thread.sleep(blockingMillis);
@@ -559,7 +558,7 @@ public class BlobClientTest extends TestLogger {
                 }
             }
 
-            super.getFileInternal(jobId, blobKey, localFile);
+            return super.getFileInternal(jobId, blobKey);
         }
 
         void setBlockingMillis(long millis) {

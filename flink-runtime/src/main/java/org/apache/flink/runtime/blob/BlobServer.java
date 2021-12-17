@@ -385,7 +385,7 @@ public class BlobServer extends Thread
      */
     @Override
     public File getFile(TransientBlobKey key) throws IOException {
-        return getFileInternal(null, key);
+        return getFileInternalWithReadLock(null, key);
     }
 
     /**
@@ -403,7 +403,7 @@ public class BlobServer extends Thread
     @Override
     public File getFile(JobID jobId, TransientBlobKey key) throws IOException {
         checkNotNull(jobId);
-        return getFileInternal(jobId, key);
+        return getFileInternalWithReadLock(jobId, key);
     }
 
     /**
@@ -422,7 +422,7 @@ public class BlobServer extends Thread
     @Override
     public File getFile(JobID jobId, PermanentBlobKey key) throws IOException {
         checkNotNull(jobId);
-        return getFileInternal(jobId, key);
+        return getFileInternalWithReadLock(jobId, key);
     }
 
     /**
@@ -437,15 +437,13 @@ public class BlobServer extends Thread
      * @return file referring to the local storage location of the BLOB
      * @throws IOException Thrown if the file retrieval failed.
      */
-    private File getFileInternal(@Nullable JobID jobId, BlobKey blobKey) throws IOException {
+    private File getFileInternalWithReadLock(@Nullable JobID jobId, BlobKey blobKey)
+            throws IOException {
         checkArgument(blobKey != null, "BLOB key cannot be null.");
-
-        final File localFile = BlobUtils.getStorageLocation(storageDir.deref(), jobId, blobKey);
         readWriteLock.readLock().lock();
 
         try {
-            getFileInternal(jobId, blobKey, localFile);
-            return localFile;
+            return getFileInternal(jobId, blobKey);
         } finally {
             readWriteLock.readLock().unlock();
         }
@@ -462,12 +460,13 @@ public class BlobServer extends Thread
      *
      * @param jobId ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
      * @param blobKey blob key associated with the requested file
-     * @param localFile (local) file where the blob is/should be stored
      * @throws IOException Thrown if the file retrieval failed.
+     * @return the retrieved local blob file
      */
-    void getFileInternal(@Nullable JobID jobId, BlobKey blobKey, File localFile)
-            throws IOException {
+    File getFileInternal(@Nullable JobID jobId, BlobKey blobKey) throws IOException {
         // assume readWriteLock.readLock() was already locked (cannot really check that)
+
+        final File localFile = BlobUtils.getStorageLocation(storageDir.deref(), jobId, blobKey);
 
         if (localFile.exists()) {
             // update TTL for transient BLOBs:
@@ -479,7 +478,7 @@ public class BlobServer extends Thread
                         Tuple2.of(jobId, (TransientBlobKey) blobKey),
                         System.currentTimeMillis() + cleanupInterval);
             }
-            return;
+            return localFile;
         } else if (blobKey instanceof PermanentBlobKey) {
             // Try the HA blob store
             // first we have to release the read lock in order to acquire the write lock
@@ -499,7 +498,7 @@ public class BlobServer extends Thread
                     readWriteLock.writeLock().unlock();
                 }
 
-                return;
+                return localFile;
             } finally {
                 // delete incomingFile from a failed download
                 if (incomingFile != null && !incomingFile.delete() && incomingFile.exists()) {
