@@ -31,7 +31,7 @@ public interface ManagedTableFactory extends DynamicTableFactory {
 
     @Override
     default String factoryIdentifier() {
-        return "";
+        return "default";
     }
 
     /**
