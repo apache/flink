@@ -546,11 +546,12 @@ public class ExecutionVertex
     }
 
     /** Simply forward this notification. */
-    void notifyStateTransition(Execution execution, ExecutionState newState) {
+    void notifyStateTransition(
+            Execution execution, ExecutionState previousState, ExecutionState newState) {
         // only forward this notification if the execution is still the current execution
         // otherwise we have an outdated execution
         if (isCurrentExecution(execution)) {
-            getExecutionGraphAccessor().notifyExecutionChange(execution, newState);
+            getExecutionGraphAccessor().notifyExecutionChange(execution, previousState, newState);
         }
     }
 

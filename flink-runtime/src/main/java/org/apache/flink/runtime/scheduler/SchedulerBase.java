@@ -25,7 +25,10 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -51,8 +54,11 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.executiongraph.JobStatusProvider;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
+import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
+import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -76,6 +82,8 @@ import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.scheduler.exceptionhistory.FailureHandlingResultSnapshot;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
+import org.apache.flink.runtime.scheduler.metrics.JobStatusMetrics;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationHandlerImpl;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
@@ -107,6 +115,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -151,6 +160,10 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     private final ExecutionGraphFactory executionGraphFactory;
 
+    private final MetricOptions.JobStatusMetricsSettings jobStatusMetricsSettings;
+
+    private final DeploymentStateTimeMetrics deploymentStateTimeMetrics;
+
     public SchedulerBase(
             final Logger log,
             final JobGraph jobGraph,
@@ -185,6 +198,11 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         this.checkpointIdCounter =
                 SchedulerUtils.createCheckpointIDCounterIfCheckpointingIsEnabled(
                         jobGraph, checkNotNull(checkpointRecoveryFactory));
+
+        this.jobStatusMetricsSettings =
+                MetricOptions.JobStatusMetricsSettings.fromConfiguration(jobMasterConfiguration);
+        this.deploymentStateTimeMetrics =
+                new DeploymentStateTimeMetrics(jobGraph.getJobType(), jobStatusMetricsSettings);
 
         this.executionGraph =
                 createAndRestoreExecutionGraph(
@@ -349,6 +367,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                         initializationTimestamp,
                         new DefaultVertexAttemptNumberStore(),
                         computeVertexParallelismStore(jobGraph),
+                        deploymentStateTimeMetrics,
                         log);
 
         newExecutionGraph.setInternalTaskFailuresListener(
@@ -588,14 +607,37 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     @Override
     public final void startScheduling() {
         mainThreadExecutor.assertRunningInMainThread();
-        registerJobMetrics();
+        registerJobMetrics(
+                jobManagerJobMetricGroup,
+                executionGraph,
+                this::getNumberOfRestarts,
+                deploymentStateTimeMetrics,
+                executionGraph::registerJobStatusListener,
+                executionGraph.getStatusTimestamp(JobStatus.INITIALIZING),
+                jobStatusMetricsSettings);
         operatorCoordinatorHandler.startAllOperatorCoordinators();
         startSchedulingInternal();
     }
 
-    private void registerJobMetrics() {
-        jobManagerJobMetricGroup.gauge(MetricNames.NUM_RESTARTS, this::getNumberOfRestarts);
-        jobManagerJobMetricGroup.gauge(MetricNames.FULL_RESTARTS, this::getNumberOfRestarts);
+    public static void registerJobMetrics(
+            MetricGroup metrics,
+            JobStatusProvider jobStatusProvider,
+            Gauge<Long> numberOfRestarts,
+            DeploymentStateTimeMetrics deploymentTimeMetrics,
+            Consumer<JobStatusListener> jobStatusListenerRegistrar,
+            long initializationTimestamp,
+            MetricOptions.JobStatusMetricsSettings jobStatusMetricsSettings) {
+        metrics.gauge(DownTimeGauge.METRIC_NAME, new DownTimeGauge(jobStatusProvider));
+        metrics.gauge(UpTimeGauge.METRIC_NAME, new UpTimeGauge(jobStatusProvider));
+        metrics.gauge(MetricNames.NUM_RESTARTS, numberOfRestarts);
+        metrics.gauge(MetricNames.FULL_RESTARTS, numberOfRestarts);
+
+        final JobStatusMetrics jobStatusMetrics =
+                new JobStatusMetrics(initializationTimestamp, jobStatusMetricsSettings);
+        jobStatusMetrics.registerMetrics(metrics);
+        jobStatusListenerRegistrar.accept(jobStatusMetrics);
+
+        deploymentTimeMetrics.registerMetrics(metrics);
     }
 
     protected abstract void startSchedulingInternal();

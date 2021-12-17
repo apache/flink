@@ -15,12 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.executiongraph;
+package org.apache.flink.runtime.scheduler.metrics;
 
-import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.metrics.MetricGroup;
 
-/** A listener that is called when an execution switched to a new state. */
-public interface ExecutionStateUpdateListener {
-    void onStateUpdate(
-            ExecutionAttemptID execution, ExecutionState previousState, ExecutionState newState);
+/** A component that can register metrics. */
+public interface MetricsRegistrar {
+    void registerMetrics(MetricGroup metricGroup);
 }

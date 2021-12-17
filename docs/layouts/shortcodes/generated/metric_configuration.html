@@ -27,6 +27,12 @@
             <td>The thread priority used for Flink's internal metric query service. The thread is created by Akka's thread pool executor. The range of the priority is from 1 (MIN_PRIORITY) to 10 (MAX_PRIORITY). Warning, increasing this value may bring the main Flink components down.</td>
         </tr>
         <tr>
+            <td><h5>metrics.job.status.enable</h5></td>
+            <td style="word-wrap: break-word;">CURRENT_TIME</td>
+            <td><p>List&lt;Enum&gt;</p></td>
+            <td>The selection of job status metrics that should be reported.<br /><br />Possible values:<ul><li>"STATE": For a given state, return 1 if the job is currently in that state, otherwise return 0.</li><li>"CURRENT_TIME": For a given state, if the job is currently in that state, return the time since the job transitioned into that state, otherwise return 0.</li><li>"TOTAL_TIME": For a given state, return how much time the job has spent in that state in total.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>metrics.latency.granularity</h5></td>
             <td style="word-wrap: break-word;">"operator"</td>
             <td>String</td>

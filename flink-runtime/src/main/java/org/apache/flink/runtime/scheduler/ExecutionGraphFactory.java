@@ -23,6 +23,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.executiongraph.VertexAttemptNumberStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
@@ -57,6 +58,7 @@ public interface ExecutionGraphFactory {
             long initializationTimestamp,
             VertexAttemptNumberStore vertexAttemptNumberStore,
             VertexParallelismStore vertexParallelismStore,
+            ExecutionStateUpdateListener executionStateUpdateListener,
             Logger log)
             throws Exception;
 }

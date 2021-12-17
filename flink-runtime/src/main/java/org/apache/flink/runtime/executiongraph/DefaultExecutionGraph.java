@@ -1441,8 +1441,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     @Override
     public void notifyExecutionChange(
-            final Execution execution, final ExecutionState newExecutionState) {
-        executionStateUpdateListener.onStateUpdate(execution.getAttemptId(), newExecutionState);
+            final Execution execution,
+            ExecutionState previousState,
+            final ExecutionState newExecutionState) {
+        executionStateUpdateListener.onStateUpdate(
+                execution.getAttemptId(), previousState, newExecutionState);
     }
 
     private void assertRunningInJobMasterMainThread() {

@@ -48,6 +48,11 @@ public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetric
         this.hostname = hostname;
     }
 
+    public static JobManagerMetricGroup createJobManagerMetricGroup(
+            final MetricRegistry metricRegistry, final String hostname) {
+        return new JobManagerMetricGroup(metricRegistry, hostname);
+    }
+
     public String hostname() {
         return hostname;
     }
