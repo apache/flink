@@ -21,8 +21,11 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.InlineElement;
+import org.apache.flink.configuration.description.TextElement;
 
 import java.time.Duration;
+import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -214,6 +217,90 @@ public class MetricOptions {
                             "Update interval for the metric fetcher used by the web UI in milliseconds. Decrease this value for "
                                     + "faster updating metrics. Increase this value if the metric fetcher causes too much load. Setting this value to 0 "
                                     + "disables the metric fetching completely.");
+
+    /** Controls which job status metrics will be exposed. */
+    public static final ConfigOption<List<JobStatusMetrics>> JOB_STATUS_METRICS =
+            key("metrics.job.status.enable")
+                    .enumType(JobStatusMetrics.class)
+                    .asList()
+                    .defaultValues(JobStatusMetrics.CURRENT_TIME)
+                    .withDescription(
+                            "The selection of job status metrics that should be reported.");
+
+    /** Enum describing the different kinds of job status metrics. */
+    public enum JobStatusMetrics implements DescribedEnum {
+        STATE(
+                "For a given state, return 1 if the job is currently in that state, otherwise return 0."),
+        CURRENT_TIME(
+                "For a given state, if the job is currently in that state, return the time since the job transitioned into that state, otherwise return 0."),
+        TOTAL_TIME(
+                "For a given state, return how much time the job has spent in that state in total."),
+        ;
+
+        private final String description;
+
+        JobStatusMetrics(String description) {
+            this.description = description;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return TextElement.text(description);
+        }
+    }
+
+    /** Describes which job status metrics have been enabled. */
+    public static final class JobStatusMetricsSettings {
+
+        private final boolean stateMetricsEnabled;
+        private final boolean currentTimeMetricsEnabled;
+        private final boolean totalTimeMetricsEnabled;
+
+        private JobStatusMetricsSettings(
+                boolean stateMetricsEnabled,
+                boolean currentTimeMetricsEnabled,
+                boolean totalTimeMetricsEnabled) {
+            this.stateMetricsEnabled = stateMetricsEnabled;
+            this.currentTimeMetricsEnabled = currentTimeMetricsEnabled;
+            this.totalTimeMetricsEnabled = totalTimeMetricsEnabled;
+        }
+
+        public boolean isStateMetricsEnabled() {
+            return stateMetricsEnabled;
+        }
+
+        public boolean isCurrentTimeMetricsEnabled() {
+            return currentTimeMetricsEnabled;
+        }
+
+        public boolean isTotalTimeMetricsEnabled() {
+            return totalTimeMetricsEnabled;
+        }
+
+        public static JobStatusMetricsSettings fromConfiguration(Configuration configuration) {
+            final List<JobStatusMetrics> jobStatusMetrics = configuration.get(JOB_STATUS_METRICS);
+            boolean stateMetricsEnabled = false;
+            boolean currentTimeMetricsEnabled = false;
+            boolean totalTimeMetricsEnabled = false;
+
+            for (JobStatusMetrics jobStatusMetric : jobStatusMetrics) {
+                switch (jobStatusMetric) {
+                    case STATE:
+                        stateMetricsEnabled = true;
+                        break;
+                    case CURRENT_TIME:
+                        currentTimeMetricsEnabled = true;
+                        break;
+                    case TOTAL_TIME:
+                        totalTimeMetricsEnabled = true;
+                        break;
+                }
+            }
+
+            return new JobStatusMetricsSettings(
+                    stateMetricsEnabled, currentTimeMetricsEnabled, totalTimeMetricsEnabled);
+        }
+    }
 
     private MetricOptions() {}
 }

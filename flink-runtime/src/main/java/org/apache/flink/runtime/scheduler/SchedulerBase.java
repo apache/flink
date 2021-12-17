@@ -24,6 +24,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
@@ -55,7 +56,6 @@ import org.apache.flink.runtime.executiongraph.JobStatusProvider;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
-import org.apache.flink.runtime.executiongraph.metrics.RestartTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -92,6 +92,8 @@ import org.apache.flink.runtime.util.IntArrayList;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
@@ -105,6 +107,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -112,6 +115,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -155,6 +159,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     private final BoundedFIFOQueue<RootExceptionHistoryEntry> exceptionHistory;
 
     private final ExecutionGraphFactory executionGraphFactory;
+
+    private final MetricOptions.JobStatusMetricsSettings jobStatusMetricsSettings;
 
     public SchedulerBase(
             final Logger log,
@@ -223,6 +229,9 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         this.exceptionHistory =
                 new BoundedFIFOQueue<>(
                         jobMasterConfiguration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
+
+        this.jobStatusMetricsSettings =
+                MetricOptions.JobStatusMetricsSettings.fromConfiguration(jobMasterConfiguration);
     }
 
     private void shutDownCheckpointServices(JobStatus jobStatus) {
@@ -599,7 +608,13 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     @Override
     public final void startScheduling() {
         mainThreadExecutor.assertRunningInMainThread();
-        registerJobMetrics(jobManagerJobMetricGroup, executionGraph, this::getNumberOfRestarts);
+        registerJobMetrics(
+                jobManagerJobMetricGroup,
+                executionGraph,
+                this::getNumberOfRestarts,
+                executionGraph::registerJobStatusListener,
+                executionGraph.getStatusTimestamp(JobStatus.INITIALIZING),
+                jobStatusMetricsSettings);
         operatorCoordinatorHandler.startAllOperatorCoordinators();
         startSchedulingInternal();
     }
@@ -607,12 +622,103 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     public static void registerJobMetrics(
             MetricGroup metrics,
             JobStatusProvider jobStatusProvider,
-            Gauge<Long> numberOfRestarts) {
-        metrics.gauge(RestartTimeGauge.METRIC_NAME, new RestartTimeGauge(jobStatusProvider));
+            Gauge<Long> numberOfRestarts,
+            Consumer<JobStatusListener> jobStatusListenerRegistrar,
+            long initializationTimestamp,
+            MetricOptions.JobStatusMetricsSettings jobStatusMetricsSettings) {
         metrics.gauge(DownTimeGauge.METRIC_NAME, new DownTimeGauge(jobStatusProvider));
         metrics.gauge(UpTimeGauge.METRIC_NAME, new UpTimeGauge(jobStatusProvider));
         metrics.gauge(MetricNames.NUM_RESTARTS, numberOfRestarts);
         metrics.gauge(MetricNames.FULL_RESTARTS, numberOfRestarts);
+
+        jobStatusListenerRegistrar.accept(
+                new JobStatusMetrics(metrics, initializationTimestamp, jobStatusMetricsSettings));
+    }
+
+    @VisibleForTesting
+    static class JobStatusMetrics implements JobStatusListener {
+
+        private JobStatus currentStatus = JobStatus.INITIALIZING;
+        private long currentStatusTimestamp;
+        private final long[] cumulativeStatusTimes;
+
+        public JobStatusMetrics(
+                MetricGroup metricGroup,
+                long initializationTimestamp,
+                MetricOptions.JobStatusMetricsSettings jobStatusMetricsSettings) {
+
+            currentStatus = JobStatus.INITIALIZING;
+            currentStatusTimestamp = initializationTimestamp;
+            cumulativeStatusTimes = new long[JobStatus.values().length];
+
+            for (JobStatus jobStatus : JobStatus.values()) {
+                if (!jobStatus.isTerminalState() && jobStatus != JobStatus.RECONCILING) {
+
+                    if (jobStatusMetricsSettings.isStateMetricsEnabled()) {
+                        metricGroup.gauge(
+                                getStateMetricName(jobStatus), createStateMetric(jobStatus));
+                    }
+
+                    if (jobStatusMetricsSettings.isCurrentTimeMetricsEnabled()) {
+                        metricGroup.gauge(
+                                getCurrentTimeMetricName(jobStatus),
+                                createCurrentTimeMetric(jobStatus, SystemClock.getInstance()));
+                    }
+
+                    if (jobStatusMetricsSettings.isTotalTimeMetricsEnabled()) {
+                        metricGroup.gauge(
+                                getTotalTimeMetricName(jobStatus),
+                                createTotalTimeMetric(jobStatus, SystemClock.getInstance()));
+                    }
+                }
+            }
+        }
+
+        @VisibleForTesting
+        Gauge<Long> createStateMetric(JobStatus jobStatus) {
+            return () -> currentStatus == jobStatus ? 1L : 0L;
+        }
+
+        @VisibleForTesting
+        Gauge<Long> createCurrentTimeMetric(JobStatus jobStatus, Clock clock) {
+            return () ->
+                    currentStatus == jobStatus
+                            ? Math.max(clock.absoluteTimeMillis() - currentStatusTimestamp, 0)
+                            : 0;
+        }
+
+        @VisibleForTesting
+        Gauge<Long> createTotalTimeMetric(JobStatus jobStatus, Clock clock) {
+            return () ->
+                    currentStatus == jobStatus
+                            ? cumulativeStatusTimes[jobStatus.ordinal()]
+                                    + Math.max(
+                                            clock.absoluteTimeMillis() - currentStatusTimestamp, 0)
+                            : cumulativeStatusTimes[jobStatus.ordinal()];
+        }
+
+        @VisibleForTesting
+        static String getStateMetricName(JobStatus jobStatus) {
+            return jobStatus.name().toLowerCase(Locale.ROOT) + "State";
+        }
+
+        @VisibleForTesting
+        static String getCurrentTimeMetricName(JobStatus jobStatus) {
+            return jobStatus.name().toLowerCase(Locale.ROOT) + "Time";
+        }
+
+        @VisibleForTesting
+        static String getTotalTimeMetricName(JobStatus jobStatus) {
+            return jobStatus.name().toLowerCase(Locale.ROOT) + "TimeTotal";
+        }
+
+        @Override
+        public void jobStatusChanges(JobID jobId, JobStatus newJobStatus, long timestamp) {
+            cumulativeStatusTimes[currentStatus.ordinal()] += timestamp - currentStatusTimestamp;
+
+            currentStatus = newJobStatus;
+            currentStatusTimestamp = timestamp;
+        }
     }
 
     protected abstract void startSchedulingInternal();

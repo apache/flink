@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
@@ -115,8 +116,9 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Duration;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -189,6 +191,7 @@ public class AdaptiveScheduler
     private final Duration resourceStabilizationTimeout;
 
     private final ExecutionGraphFactory executionGraphFactory;
+    private final JobStatusStore jobStatusStore;
 
     private State state = new Created(this, LOG);
 
@@ -258,9 +261,7 @@ public class AdaptiveScheduler
 
         this.componentMainThreadExecutor = mainThreadExecutor;
 
-        final JobStatusStore jobStatusStore = new JobStatusStore(initializationTimestamp);
-        this.jobStatusListeners =
-                Arrays.asList(Preconditions.checkNotNull(jobStatusListener), jobStatusStore);
+        this.jobStatusStore = new JobStatusStore(initializationTimestamp);
 
         this.scaleUpController = new ReactiveScaleUpController(configuration);
 
@@ -270,8 +271,19 @@ public class AdaptiveScheduler
 
         this.executionGraphFactory = executionGraphFactory;
 
+        final Collection<JobStatusListener> tmpJobStatusListeners = new ArrayList<>();
+        tmpJobStatusListeners.add(Preconditions.checkNotNull(jobStatusListener));
+        tmpJobStatusListeners.add(jobStatusStore);
+
         SchedulerBase.registerJobMetrics(
-                jobManagerJobMetricGroup, jobStatusStore, () -> (long) numRestarts);
+                jobManagerJobMetricGroup,
+                jobStatusStore,
+                () -> (long) numRestarts,
+                tmpJobStatusListeners::add,
+                initializationTimestamp,
+                MetricOptions.JobStatusMetricsSettings.fromConfiguration(configuration));
+
+        jobStatusListeners = Collections.unmodifiableCollection(tmpJobStatusListeners);
     }
 
     private static void assertPreconditions(JobGraph jobGraph) throws RuntimeException {
