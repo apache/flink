@@ -25,8 +25,13 @@ import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.utils.PassThroughPythonAggregateFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
@@ -216,57 +221,85 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
     public AbstractArrowPythonAggregateFunctionOperator getTestOperator(
             Configuration config,
             PythonFunctionInfo[] pandasAggregateFunctions,
-            RowType inputType,
-            RowType outputType,
+            RowType inputRowType,
+            RowType outputRowType,
             int[] groupingSet,
             int[] udafInputOffsets) {
+        RowType userDefinedFunctionInputType =
+                (RowType) Projection.of(udafInputOffsets).project(inputRowType);
+        RowType userDefinedFunctionOutputType =
+                new RowType(
+                        outputRowType
+                                .getFields()
+                                .subList(
+                                        inputRowType.getFieldCount(),
+                                        outputRowType.getFieldCount()));
+
         return new PassThroughBatchArrowPythonOverWindowAggregateFunctionOperator(
                 config,
                 pandasAggregateFunctions,
-                inputType,
-                outputType,
+                inputRowType,
+                userDefinedFunctionInputType,
+                userDefinedFunctionOutputType,
                 new long[] {0L, Long.MIN_VALUE},
                 new long[] {0L, 2L},
                 new boolean[] {true, false},
                 new int[] {0},
-                groupingSet,
-                groupingSet,
-                udafInputOffsets,
                 3,
-                true);
+                true,
+                ProjectionCodeGenerator.generateProjection(
+                        CodeGeneratorContext.apply(new TableConfig()),
+                        "UdafInputProjection",
+                        inputRowType,
+                        userDefinedFunctionInputType,
+                        udafInputOffsets),
+                ProjectionCodeGenerator.generateProjection(
+                        CodeGeneratorContext.apply(new TableConfig()),
+                        "GroupKey",
+                        inputRowType,
+                        (RowType) Projection.of(groupingSet).project(inputRowType),
+                        groupingSet),
+                ProjectionCodeGenerator.generateProjection(
+                        CodeGeneratorContext.apply(new TableConfig()),
+                        "GroupSet",
+                        inputRowType,
+                        (RowType) Projection.of(groupingSet).project(inputRowType),
+                        groupingSet));
     }
 
     private static class PassThroughBatchArrowPythonOverWindowAggregateFunctionOperator
             extends BatchArrowPythonOverWindowAggregateFunctionOperator {
 
-        PassThroughBatchArrowPythonOverWindowAggregateFunctionOperator(
+        public PassThroughBatchArrowPythonOverWindowAggregateFunctionOperator(
                 Configuration config,
                 PythonFunctionInfo[] pandasAggFunctions,
                 RowType inputType,
-                RowType outputType,
+                RowType userDefinedFunctionInputType,
+                RowType userDefinedFunctionOutputType,
                 long[] lowerBoundary,
                 long[] upperBoundary,
-                boolean[] isRangeWindow,
+                boolean[] isRangeWindows,
                 int[] aggWindowIndex,
-                int[] groupKey,
-                int[] groupingSet,
-                int[] udafInputOffsets,
                 int inputTimeFieldIndex,
-                boolean asc) {
+                boolean asc,
+                GeneratedProjection inputGeneratedProjection,
+                GeneratedProjection groupKeyGeneratedProjection,
+                GeneratedProjection groupSetGeneratedProjection) {
             super(
                     config,
                     pandasAggFunctions,
                     inputType,
-                    outputType,
+                    userDefinedFunctionInputType,
+                    userDefinedFunctionOutputType,
                     lowerBoundary,
                     upperBoundary,
-                    isRangeWindow,
+                    isRangeWindows,
                     aggWindowIndex,
-                    groupKey,
-                    groupingSet,
-                    udafInputOffsets,
                     inputTimeFieldIndex,
-                    asc);
+                    asc,
+                    inputGeneratedProjection,
+                    groupKeyGeneratedProjection,
+                    groupSetGeneratedProjection);
         }
 
         @Override

@@ -26,6 +26,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.python.scalar.AbstractPythonScalarFunctionOperator;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -49,10 +50,18 @@ public class ArrowPythonScalarFunctionOperator extends AbstractPythonScalarFunct
             Configuration config,
             PythonFunctionInfo[] scalarFunctions,
             RowType inputType,
-            RowType outputType,
-            int[] udfInputOffsets,
-            int[] forwardedFields) {
-        super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+            RowType userDefinedFunctionInputType,
+            RowType userDefinedFunctionOutputType,
+            GeneratedProjection udfInputGeneratedProjection,
+            GeneratedProjection forwardedFieldGeneratedProjection) {
+        super(
+                config,
+                scalarFunctions,
+                inputType,
+                userDefinedFunctionInputType,
+                userDefinedFunctionOutputType,
+                udfInputGeneratedProjection,
+                forwardedFieldGeneratedProjection);
     }
 
     @Override

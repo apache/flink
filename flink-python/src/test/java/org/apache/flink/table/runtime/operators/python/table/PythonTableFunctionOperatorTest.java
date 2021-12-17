@@ -21,9 +21,15 @@ package org.apache.flink.table.runtime.operators.python.table;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.plan.utils.JoinTypeUtil;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.runtime.utils.PassThroughPythonTableFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
@@ -33,6 +39,7 @@ import org.apache.flink.types.RowKind;
 
 import org.apache.calcite.rel.core.JoinRelType;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 
@@ -76,27 +83,51 @@ public class PythonTableFunctionOperatorTest
             RowType outputType,
             int[] udfInputOffsets,
             JoinRelType joinRelType) {
+        final RowType userDefinedFunctionInputType =
+                (RowType) Projection.of(udfInputOffsets).project(inputType);
+        final RowType userDefinedFunctionOutputType =
+                new RowType(
+                        new ArrayList<>(
+                                outputType
+                                        .getFields()
+                                        .subList(
+                                                inputType.getFieldCount(),
+                                                outputType.getFieldCount())));
+
         return new PassThroughPythonTableFunctionOperator(
-                config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
+                config,
+                tableFunction,
+                inputType,
+                userDefinedFunctionInputType,
+                userDefinedFunctionOutputType,
+                JoinTypeUtil.getFlinkJoinType(joinRelType),
+                ProjectionCodeGenerator.generateProjection(
+                        CodeGeneratorContext.apply(new TableConfig()),
+                        "UdtfInputProjection",
+                        inputType,
+                        userDefinedFunctionInputType,
+                        udfInputOffsets));
     }
 
     private static class PassThroughPythonTableFunctionOperator
             extends PythonTableFunctionOperator {
 
-        PassThroughPythonTableFunctionOperator(
+        public PassThroughPythonTableFunctionOperator(
                 Configuration config,
                 PythonFunctionInfo tableFunction,
                 RowType inputType,
-                RowType outputType,
-                int[] udfInputOffsets,
-                JoinRelType joinRelType) {
+                RowType userDefinedFunctionInputType,
+                RowType userDefinedFunctionOutputType,
+                FlinkJoinType joinType,
+                GeneratedProjection udtfInputGeneratedProjection) {
             super(
                     config,
                     tableFunction,
                     inputType,
-                    outputType,
-                    udfInputOffsets,
-                    JoinTypeUtil.getFlinkJoinType(joinRelType));
+                    userDefinedFunctionInputType,
+                    userDefinedFunctionOutputType,
+                    joinType,
+                    udtfInputGeneratedProjection);
         }
 
         @Override

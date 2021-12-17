@@ -25,8 +25,13 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.utils.PassThroughPythonAggregateFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
@@ -233,40 +238,54 @@ public class StreamArrowPythonRowTimeBoundedRowsOperatorTest
             RowType outputType,
             int[] groupingSet,
             int[] udafInputOffsets) {
+        RowType userDefinedFunctionInputType =
+                (RowType) Projection.of(udafInputOffsets).project(inputType);
+        RowType userDefinedFunctionOutputType =
+                new RowType(
+                        outputType
+                                .getFields()
+                                .subList(inputType.getFieldCount(), outputType.getFieldCount()));
+        GeneratedProjection generatedProjection =
+                ProjectionCodeGenerator.generateProjection(
+                        CodeGeneratorContext.apply(new TableConfig()),
+                        "UdafInputProjection",
+                        inputType,
+                        userDefinedFunctionInputType,
+                        udafInputOffsets);
         return new PassThroughStreamArrowPythonRowTimeBoundedRowsOperator(
                 config,
                 pandasAggregateFunctions,
                 inputType,
-                outputType,
+                userDefinedFunctionInputType,
+                userDefinedFunctionOutputType,
                 3,
                 1,
-                groupingSet,
-                udafInputOffsets);
+                generatedProjection);
     }
 
     private static class PassThroughStreamArrowPythonRowTimeBoundedRowsOperator
             extends StreamArrowPythonRowTimeBoundedRowsOperator {
 
-        PassThroughStreamArrowPythonRowTimeBoundedRowsOperator(
+        public PassThroughStreamArrowPythonRowTimeBoundedRowsOperator(
                 Configuration config,
                 PythonFunctionInfo[] pandasAggFunctions,
                 RowType inputType,
-                RowType outputType,
+                RowType userDefinedFunctionInputType,
+                RowType userDefinedFunctionOutputType,
                 int inputTimeFieldIndex,
                 long lowerBoundary,
-                int[] groupingSet,
-                int[] udafInputOffsets) {
+                GeneratedProjection inputGeneratedProjection) {
             super(
                     config,
                     1000,
                     2000,
                     pandasAggFunctions,
                     inputType,
-                    outputType,
+                    userDefinedFunctionInputType,
+                    userDefinedFunctionOutputType,
                     inputTimeFieldIndex,
                     lowerBoundary,
-                    groupingSet,
-                    udafInputOffsets);
+                    inputGeneratedProjection);
         }
 
         @Override

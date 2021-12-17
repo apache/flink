@@ -33,9 +33,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.stream.Collectors;
 
 /**
  * Base class for all stream operators to execute Python Stateless Functions.
@@ -53,17 +51,11 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
     /** The input logical type. */
     protected final RowType inputType;
 
-    /** The output logical type. */
-    protected final RowType outputType;
-
-    /** The offsets of user-defined function inputs. */
-    protected final int[] userDefinedFunctionInputOffsets;
-
     /** The user-defined function input logical type. */
-    protected transient RowType userDefinedFunctionInputType;
+    protected final RowType userDefinedFunctionInputType;
 
     /** The user-defined function output logical type. */
-    protected transient RowType userDefinedFunctionOutputType;
+    protected final RowType userDefinedFunctionOutputType;
 
     /**
      * The queue holding the input elements for which the execution results have not been received.
@@ -85,24 +77,19 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
     public AbstractStatelessFunctionOperator(
             Configuration config,
             RowType inputType,
-            RowType outputType,
-            int[] userDefinedFunctionInputOffsets) {
+            RowType userDefinedFunctionInputType,
+            RowType userDefinedFunctionOutputType) {
         super(config);
         this.inputType = Preconditions.checkNotNull(inputType);
-        this.outputType = Preconditions.checkNotNull(outputType);
-        this.userDefinedFunctionInputOffsets =
-                Preconditions.checkNotNull(userDefinedFunctionInputOffsets);
+        this.userDefinedFunctionInputType =
+                Preconditions.checkNotNull(userDefinedFunctionInputType);
+        this.userDefinedFunctionOutputType =
+                Preconditions.checkNotNull(userDefinedFunctionOutputType);
     }
 
     @Override
     public void open() throws Exception {
         forwardedInputQueue = new LinkedList<>();
-        userDefinedFunctionInputType =
-                new RowType(
-                        Arrays.stream(userDefinedFunctionInputOffsets)
-                                .mapToObj(i -> inputType.getFields().get(i))
-                                .collect(Collectors.toList()));
-        userDefinedFunctionOutputType = createUserDefinedFunctionOutputType();
         bais = new ByteArrayInputStreamWithPos();
         baisWrapper = new DataInputViewStreamWrapper(bais);
         baos = new ByteArrayOutputStreamWithPos();
@@ -157,8 +144,6 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
     public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
 
     public abstract String getFunctionUrn();
-
-    public abstract RowType createUserDefinedFunctionOutputType();
 
     public abstract FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(
             RowType runnerInputType);
