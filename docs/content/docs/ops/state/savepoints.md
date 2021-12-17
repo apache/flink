@@ -185,9 +185,85 @@ This submits a job and specifies a savepoint to resume from. You may give a path
 
 By default the resume operation will try to map all state of the savepoint back to the program you are restoring with. If you dropped an operator, you can allow to skip state that cannot be mapped to the new program via `--allowNonRestoredState` (short: `-n`) option:
 
+#### Restore mode
+
+Flink 1.15 changed and at the same time added a possibility to choose a mode in which savepoints or 
+[externalized checkpoints]({{< ref "docs/ops/state/checkpoints" >}}/#resuming-from-a-retained-checkpoint)
+can be restored. Both savepoints and externalized checkpoints behave similarly in that context and
+will be referenced as snapshots, unless we need to explain specific properties of one of the two.
+
+The restore mode determines who takes ownership of the files of the snapshots that we are restoring
+from. Snapshots can be owned either by a user or Flink itself. If a snapshot is owned by a user,
+Flink will not delete its files, moreover, Flink can not depend on the existence of the files from
+such a snapshot, as it might be deleted outside of Flink's control. 
+
+There is no one perfect restore mode, each comes with its own price, but they can serve different
+purposes. Nevertheless, we believe the default *NO_CLAIM* mode is a good tradeoff for most usages,
+as it provides clear ownership with a small price for the first checkpoint after the restore.
+
+You can pass the restore mode as:
 ```shell
-$ bin/flink run -s :savepointPath -n [:runArgs]
+$ bin/flink run -s :savepointPath -restoreMode :mode -n [:runArgs]
 ```
+
+**NO_CLAIM (default)**
+
+In the *NO_CLAIM* mode Flink will not assume ownership of the snapshot. It will leave the files in
+user's control and never delete any of the files. In this mode you can start multiple jobs from the
+same snapshot.
+
+In order to make sure Flink does not depend on any of the files from that snapshot,
+it will force the first, completed checkpoint after the restore to be a full one. What it means,
+depends on the chosen state backend. For example, it makes no difference for the hashmap state
+backend, as there checkpoints never share files. On the other hand, RocksDB state backend might need
+to either reupload or duplicate some files that were previously uploaded for the restored snapshot,
+making the first checkpoint after restore non-incremental. 
+
+Once the first full checkpoint completes, all subsequent checkpoints will be taken as usual.
+Consequently, once a checkpoint succeeds it is safe to delete the original snapshot. We can not do
+that earlier, because if we do not have any completed checkpoints, we will try to fail over to the
+one we restored from.
+
+<div style="text-align: center">
+  {{< img src="/fig/restore-mode-no_claim.svg" alt="NO_CLAIM restore mode" width="70%" >}}
+</div>
+
+**CLAIM**
+
+The other available mode is the *CLAIM* mode. In this mode Flink will claim the ownership of the snapshot
+and might delete it at a certain point in time, once it becomes subsumed. Flink keeps around
+a [configured number]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}/#state-checkpoints-num-retained)
+of checkpoints. Moreover, the snapshot becomes owned by Flink, it is no longer safe to remove it
+manually. Moreover, Flink might immediately build an incremental checkpoint on top of the initial
+snapshot.
+
+{{< hint warning >}}
+You should not start multiple jobs from the same snapshot, if you claim it. One of the jobs can remove
+the snapshot, while others still depend on it.
+{{< /hint >}}
+
+<div style="text-align: center">
+  {{< img src="/fig/restore-mode-claim.svg" alt="CLAIM restore mode" width="70%" >}}
+</div>
+
+{{< hint info >}}
+Retained checkpoints are stored in a path like `<checkpoint_dir>/<job_id>/chk_<x>`. Flink does not
+take ownership of the `<checkpoint_dir>/<job_id>` directory, but only the `chk_<x>`. The directory
+of the old job will not be deleted by Flink
+{{< /hint >}}
+
+**LEGACY**
+
+The legacy is mode is how Flink worked until 1.15. The biggest downside of the mode is that it is
+not clear who owns the snapshot that is restored. In the mode Flink will never delete the initial
+checkpoint. At the same time, it is not clear if a user can ever delete it as well. The problem here,
+is that Flink might immediately build an incremental checkpoint on top of the restored one. Therefore,
+subsequent checkpoints depend on the restored checkpoint.
+
+<div style="text-align: center">
+  {{< img src="/fig/restore-mode-legacy.svg" alt="LEGACY restore mode" width="70%" >}}
+</div>
+
 
 ### Disposing Savepoints
 
