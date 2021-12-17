@@ -1269,10 +1269,6 @@ public class CheckpointCoordinator {
                     completedCheckpoint.getTimestamp(),
                     extractIdIfDiscardedOnSubsumed(lastSubsumed));
         }
-
-        // reset the force full snapshot flag, we should've completed at least on full snapshot by
-        // now
-        this.forceFullSnapshot = false;
     }
 
     private void logCheckpointInfo(CompletedCheckpoint completedCheckpoint) {
@@ -1345,8 +1341,13 @@ public class CheckpointCoordinator {
             List<ExecutionVertex> tasksToAbort)
             throws CheckpointException {
         try {
-            return completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
-                    completedCheckpoint, checkpointsCleaner, this::scheduleTriggerRequest);
+            final CompletedCheckpoint subsumedCheckpoint =
+                    completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
+                            completedCheckpoint, checkpointsCleaner, this::scheduleTriggerRequest);
+            // reset the force full snapshot flag, we should've completed at least one full
+            // snapshot by now
+            this.forceFullSnapshot = false;
+            return subsumedCheckpoint;
         } catch (Exception exception) {
             if (exception instanceof PossibleInconsistentStateException) {
                 LOG.warn(

@@ -226,6 +226,56 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
                 is(CheckpointType.FULL_CHECKPOINT));
     }
 
+    @Test
+    public void testTriggeringFullCheckpoints() throws Exception {
+        CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
+
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .setTaskManagerGateway(gateway)
+                        .build();
+
+        ExecutionVertex vertex = graph.getJobVertex(jobVertexID).getTaskVertices()[0];
+        ExecutionAttemptID attemptID = vertex.getCurrentExecutionAttempt().getAttemptId();
+
+        // create a savepoint, we can restore from later
+        final CompletedCheckpoint savepoint = takeSavepoint(graph, attemptID);
+
+        // restore from a savepoint in NO_CLAIM mode
+        final StandaloneCompletedCheckpointStore checkpointStore =
+                new StandaloneCompletedCheckpointStore(1);
+        final StandaloneCheckpointIDCounter checkpointIDCounter =
+                new StandaloneCheckpointIDCounter();
+        CheckpointCoordinator checkpointCoordinator =
+                createCheckpointCoordinator(graph, checkpointStore, checkpointIDCounter);
+        checkpointCoordinator.restoreSavepoint(
+                SavepointRestoreSettings.forPath(
+                        savepoint.getExternalPointer(), true, RestoreMode.NO_CLAIM),
+                graph.getAllVertices(),
+                this.getClass().getClassLoader());
+
+        // trigger a savepoint before any checkpoint completes
+        // next triggered checkpoint should still be a full one
+        takeSavepoint(graph, attemptID, checkpointCoordinator, 2);
+        checkpointCoordinator.startCheckpointScheduler();
+        gateway.resetCount();
+        // the checkpoint should be a FULL_CHECKPOINT
+        final CompletableFuture<CompletedCheckpoint> checkpoint =
+                checkpointCoordinator.triggerCheckpoint(true);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        checkpointCoordinator.receiveAcknowledgeMessage(
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID, 3),
+                TASK_MANAGER_LOCATION_INFO);
+        checkpoint.get();
+
+        assertThat(
+                gateway.getOnlyTriggeredCheckpoint(attemptID).checkpointOptions.getCheckpointType(),
+                is(CheckpointType.FULL_CHECKPOINT));
+    }
+
     private CompletedCheckpoint takeSavepoint(ExecutionGraph graph, ExecutionAttemptID attemptID)
             throws Exception {
         CheckpointCoordinator checkpointCoordinator =
@@ -233,15 +283,25 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
                         graph,
                         new StandaloneCompletedCheckpointStore(1),
                         new StandaloneCheckpointIDCounter());
+        final CompletedCheckpoint savepoint =
+                takeSavepoint(graph, attemptID, checkpointCoordinator, 1);
+        checkpointCoordinator.shutdown();
+        return savepoint;
+    }
+
+    private CompletedCheckpoint takeSavepoint(
+            ExecutionGraph graph,
+            ExecutionAttemptID attemptID,
+            CheckpointCoordinator checkpointCoordinator,
+            int savepointId)
+            throws Exception {
         final CompletableFuture<CompletedCheckpoint> savepointFuture =
                 checkpointCoordinator.triggerSavepoint(temporaryFolder.newFolder().getPath());
         manuallyTriggeredScheduledExecutor.triggerAll();
         checkpointCoordinator.receiveAcknowledgeMessage(
-                new AcknowledgeCheckpoint(graph.getJobID(), attemptID, 1),
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID, savepointId),
                 TASK_MANAGER_LOCATION_INFO);
-        final CompletedCheckpoint savepoint = savepointFuture.get();
-        checkpointCoordinator.shutdown();
-        return savepoint;
+        return savepointFuture.get();
     }
 
     private CheckpointCoordinator createCheckpointCoordinator(
