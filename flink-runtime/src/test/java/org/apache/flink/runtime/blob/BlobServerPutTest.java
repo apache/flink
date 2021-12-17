@@ -53,6 +53,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -63,16 +64,12 @@ import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEquals;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.get;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 /**
  * Tests for successful and failing PUT operations against the BLOB server, and successful GET
@@ -643,10 +640,18 @@ public class BlobServerPutTest extends TestLogger {
             @Nullable final JobID jobId, final BlobKey.BlobType blobType)
             throws IOException, InterruptedException, ExecutionException {
         final Configuration config = new Configuration();
+        final int concurrentPutOperations = 2;
+        final int dataSize = 1024;
 
-        BlobStore blobStore = mock(BlobStore.class);
-        int concurrentPutOperations = 2;
-        int dataSize = 1024;
+        Collection<BlobKey> persistedBlobs = ConcurrentHashMap.newKeySet();
+        TestingBlobStore blobStore =
+                new TestingBlobStoreBuilder()
+                        .setPutFunction(
+                                (file, jobID, blobKey) -> {
+                                    persistedBlobs.add(blobKey);
+                                    return true;
+                                })
+                        .createTestingBlobStore();
 
         final CountDownLatch countDownLatch = new CountDownLatch(concurrentPutOperations);
         final byte[] data = new byte[dataSize];
@@ -704,12 +709,12 @@ public class BlobServerPutTest extends TestLogger {
 
             // check that we only uploaded the file once to the blob store
             if (blobType == PERMANENT_BLOB) {
-                verify(blobStore, times(1)).put(any(File.class), eq(jobId), eq(blobKey));
+                assertThat(persistedBlobs).hasSameElementsAs(blobKeys);
             } else {
                 // can't really verify much in the other cases other than that the put operations
                 // should
                 // work and not corrupt files
-                verify(blobStore, times(0)).put(any(File.class), eq(jobId), eq(blobKey));
+                assertThat(persistedBlobs).isEmpty();
             }
         } finally {
             executor.shutdownNow();
