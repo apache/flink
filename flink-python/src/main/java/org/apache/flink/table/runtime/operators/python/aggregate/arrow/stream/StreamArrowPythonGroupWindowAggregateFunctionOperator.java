@@ -47,6 +47,7 @@ import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
 import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
 import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
 import org.apache.flink.table.planner.expressions.PlannerWindowStart;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.Window;
@@ -144,16 +145,22 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
             Configuration config,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType outputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             int inputTimeFieldIndex,
             WindowAssigner<W> windowAssigner,
             Trigger<W> trigger,
             long allowedLateness,
             PlannerNamedWindowProperty[] namedProperties,
-            int[] groupingSet,
-            int[] udafInputOffsets,
-            ZoneId shiftTimeZone) {
-        super(config, pandasAggFunctions, inputType, outputType, groupingSet, udafInputOffsets);
+            ZoneId shiftTimeZone,
+            GeneratedProjection generatedProjection) {
+        super(
+                config,
+                pandasAggFunctions,
+                inputType,
+                udfInputType,
+                udfOutputType,
+                generatedProjection);
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.windowAssigner = windowAssigner;
         this.trigger = trigger;
@@ -211,16 +218,6 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
                 windowRetractData.add(input);
             }
         }
-    }
-
-    @Override
-    public RowType createUserDefinedFunctionOutputType() {
-        return new RowType(
-                outputType
-                        .getFields()
-                        .subList(
-                                groupingSet.length,
-                                outputType.getFieldCount() - namedProperties.length));
     }
 
     @Override

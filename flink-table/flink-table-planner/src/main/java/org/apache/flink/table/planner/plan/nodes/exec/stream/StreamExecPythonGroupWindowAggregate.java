@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
@@ -33,6 +34,8 @@ import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
@@ -52,6 +55,7 @@ import org.apache.flink.table.planner.plan.utils.PythonUtil;
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.window.assigners.CountSlidingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.CountTumblingWindowAssigner;
@@ -232,7 +236,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                 generateWindowAssignerAndTrigger();
         WindowAssigner<?> windowAssigner = windowAssignerAndTrigger.f0;
         Trigger<?> trigger = windowAssignerAndTrigger.f1;
-        Configuration config = CommonPythonUtil.getMergedConfig(planner.getExecEnv(), tableConfig);
+        Configuration mergedConfig =
+                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), tableConfig);
         boolean isGeneralPythonUDAF =
                 Arrays.stream(aggCalls)
                         .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.GENERAL));
@@ -258,7 +263,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                             windowAssigner,
                             aggInfoList,
                             emitStrategy.getAllowLateness(),
-                            config,
+                            mergedConfig,
                             shiftTimeZone);
         } else {
             transform =
@@ -270,11 +275,12 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                             windowAssigner,
                             trigger,
                             emitStrategy.getAllowLateness(),
-                            config,
+                            mergedConfig,
+                            planner.getTableConfig(),
                             shiftTimeZone);
         }
 
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(mergedConfig)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
         // set KeyType and Selector for state
@@ -359,7 +365,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                     WindowAssigner<?> windowAssigner,
                     Trigger<?> trigger,
                     long allowance,
-                    Configuration config,
+                    Configuration mergedConfig,
+                    TableConfig tableConfig,
                     ZoneId shiftTimeZone) {
 
         Tuple2<int[], PythonFunctionInfo[]> aggInfos =
@@ -368,7 +375,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
         PythonFunctionInfo[] pythonFunctionInfos = aggInfos.f1;
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPandasPythonStreamGroupWindowAggregateFunctionOperator(
-                        config,
+                        tableConfig,
+                        mergedConfig,
                         inputRowType,
                         outputRowType,
                         windowAssigner,
@@ -380,8 +388,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                         shiftTimeZone);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(config),
-                getOperatorDescription(config),
+                getOperatorName(mergedConfig),
+                getOperatorDescription(mergedConfig),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());
@@ -432,7 +440,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
     @SuppressWarnings({"unchecked", "rawtypes"})
     private OneInputStreamOperator<RowData, RowData>
             getPandasPythonStreamGroupWindowAggregateFunctionOperator(
-                    Configuration config,
+                    TableConfig tableConfig,
+                    Configuration mergedConfig,
                     RowType inputRowType,
                     RowType outputRowType,
                     WindowAssigner<?> windowAssigner,
@@ -445,6 +454,16 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
         Class clazz =
                 CommonPythonUtil.loadClass(
                         ARROW_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME);
+        RowType userDefinedFunctionInputType =
+                (RowType) Projection.of(udafInputOffsets).project(inputRowType);
+        RowType userDefinedFunctionOutputType =
+                (RowType)
+                        Projection.range(
+                                        grouping.length,
+                                        outputRowType.getFieldCount()
+                                                - namedWindowProperties.length)
+                                .project(outputRowType);
+
         try {
             Constructor<OneInputStreamOperator<RowData, RowData>> ctor =
                     clazz.getConstructor(
@@ -452,27 +471,32 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                             PythonFunctionInfo[].class,
                             RowType.class,
                             RowType.class,
+                            RowType.class,
                             int.class,
                             WindowAssigner.class,
                             Trigger.class,
                             long.class,
                             PlannerNamedWindowProperty[].class,
-                            int[].class,
-                            int[].class,
-                            ZoneId.class);
+                            ZoneId.class,
+                            GeneratedProjection.class);
             return ctor.newInstance(
-                    config,
+                    mergedConfig,
                     pythonFunctionInfos,
                     inputRowType,
-                    outputRowType,
+                    userDefinedFunctionInputType,
+                    userDefinedFunctionOutputType,
                     inputTimeFieldIndex,
                     windowAssigner,
                     trigger,
                     allowance,
                     namedWindowProperties,
-                    grouping,
-                    udafInputOffsets,
-                    shiftTimeZone);
+                    shiftTimeZone,
+                    ProjectionCodeGenerator.generateProjection(
+                            CodeGeneratorContext.apply(tableConfig),
+                            "UdafInputProjection",
+                            inputRowType,
+                            userDefinedFunctionInputType,
+                            udafInputOffsets));
         } catch (NoSuchMethodException
                 | IllegalAccessException
                 | InstantiationException

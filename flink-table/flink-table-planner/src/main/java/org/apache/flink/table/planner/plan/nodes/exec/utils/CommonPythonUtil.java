@@ -91,6 +91,7 @@ public class CommonPythonUtil {
 
     private static final String PYTHON_CONFIG_UTILS_CLASS =
             "org.apache.flink.python.util.PythonConfigUtil";
+    private static final String PYTHON_OPTIONS_CLASS = "org.apache.flink.python.PythonOptions";
 
     private CommonPythonUtil() {}
 
@@ -145,7 +146,7 @@ public class CommonPythonUtil {
 
     @SuppressWarnings("unchecked")
     public static boolean isPythonWorkerUsingManagedMemory(Configuration config) {
-        Class clazz = loadClass("org.apache.flink.python.PythonOptions");
+        Class clazz = loadClass(PYTHON_OPTIONS_CLASS);
         try {
             return config.getBoolean(
                     (ConfigOption<Boolean>) (clazz.getField("USE_MANAGED_MEMORY").get(null)));

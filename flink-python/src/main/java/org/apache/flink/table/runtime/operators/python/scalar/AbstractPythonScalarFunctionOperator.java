@@ -22,24 +22,18 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.utils.ProtoUtils;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
-import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.operators.python.AbstractStatelessFunctionOperator;
 import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowDataWrappingCollector;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
-
-import java.util.Arrays;
-import java.util.stream.Collectors;
 
 /**
  * Base class for all stream operators to execute Python {@link ScalarFunction}s. It executes the
@@ -68,8 +62,8 @@ public abstract class AbstractPythonScalarFunctionOperator
     /** The Python {@link ScalarFunction}s to be executed. */
     protected final PythonFunctionInfo[] scalarFunctions;
 
-    /** The offset of the fields which should be forwarded. */
-    protected final int[] forwardedFields;
+    private final GeneratedProjection udfInputGeneratedProjection;
+    private final GeneratedProjection forwardedFieldGeneratedProjection;
 
     /** The collector used to collect records. */
     protected transient StreamRecordRowDataWrappingCollector rowDataWrapper;
@@ -87,22 +81,30 @@ public abstract class AbstractPythonScalarFunctionOperator
             Configuration config,
             PythonFunctionInfo[] scalarFunctions,
             RowType inputType,
-            RowType outputType,
-            int[] udfInputOffsets,
-            int[] forwardedFields) {
-        super(config, inputType, outputType, udfInputOffsets);
+            RowType udfInputType,
+            RowType udfOutputType,
+            GeneratedProjection udfInputGeneratedProjection,
+            GeneratedProjection forwardedFieldGeneratedProjection) {
+        super(config, inputType, udfInputType, udfOutputType);
         this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
-        this.forwardedFields = Preconditions.checkNotNull(forwardedFields);
+        this.udfInputGeneratedProjection = Preconditions.checkNotNull(udfInputGeneratedProjection);
+        this.forwardedFieldGeneratedProjection =
+                Preconditions.checkNotNull(forwardedFieldGeneratedProjection);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void open() throws Exception {
         super.open();
         rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);
         reuseJoinedRow = new JoinedRowData();
 
-        udfInputProjection = createUdfInputProjection();
-        forwardedFieldProjection = createForwardedFieldProjection();
+        udfInputProjection =
+                udfInputGeneratedProjection.newInstance(
+                        Thread.currentThread().getContextClassLoader());
+        forwardedFieldProjection =
+                forwardedFieldGeneratedProjection.newInstance(
+                        Thread.currentThread().getContextClassLoader());
     }
 
     @Override
@@ -141,40 +143,5 @@ public abstract class AbstractPythonScalarFunctionOperator
     @Override
     public RowData getFunctionInput(RowData element) {
         return udfInputProjection.apply(element);
-    }
-
-    @Override
-    public RowType createUserDefinedFunctionOutputType() {
-        return new RowType(
-                outputType.getFields().subList(forwardedFields.length, outputType.getFieldCount()));
-    }
-
-    private Projection<RowData, BinaryRowData> createUdfInputProjection() {
-        final GeneratedProjection generatedProjection =
-                ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new TableConfig()),
-                        "UdfInputProjection",
-                        inputType,
-                        userDefinedFunctionInputType,
-                        userDefinedFunctionInputOffsets);
-        // noinspection unchecked
-        return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
-    }
-
-    private Projection<RowData, BinaryRowData> createForwardedFieldProjection() {
-        final RowType forwardedFieldType =
-                new RowType(
-                        Arrays.stream(forwardedFields)
-                                .mapToObj(i -> inputType.getFields().get(i))
-                                .collect(Collectors.toList()));
-        final GeneratedProjection generatedProjection =
-                ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new TableConfig()),
-                        "ForwardedFieldProjection",
-                        inputType,
-                        forwardedFieldType,
-                        forwardedFields);
-        // noinspection unchecked
-        return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
     }
 }
