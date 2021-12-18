@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 
 import java.util.Arrays;
 import java.util.Collection;
