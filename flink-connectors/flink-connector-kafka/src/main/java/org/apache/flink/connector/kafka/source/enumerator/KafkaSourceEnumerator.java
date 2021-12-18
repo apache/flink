@@ -31,12 +31,13 @@ import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsOptions;
+import org.apache.kafka.clients.admin.ListOffsetsResult;
+import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +55,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /** The enumerator class for Kafka source. */
 @Internal
@@ -81,7 +83,6 @@ public class KafkaSourceEnumerator
     private final String consumerGroupId;
 
     // Lazily instantiated or mutable fields.
-    private KafkaConsumer<byte[], byte[]> consumer;
     private AdminClient adminClient;
 
     // This flag will be marked as true if periodically partition discovery is disabled AND the
@@ -147,7 +148,6 @@ public class KafkaSourceEnumerator
      */
     @Override
     public void start() {
-        consumer = getKafkaConsumer();
         adminClient = getKafkaAdminClient();
         if (partitionDiscoveryIntervalMs > 0) {
             LOG.info(
@@ -200,9 +200,6 @@ public class KafkaSourceEnumerator
 
     @Override
     public void close() {
-        if (consumer != null) {
-            consumer.close();
-        }
         if (adminClient != null) {
             adminClient.close();
         }
@@ -402,25 +399,6 @@ public class KafkaSourceEnumerator
         return new PartitionChange(fetchedPartitions, removedPartitions);
     }
 
-    private KafkaConsumer<byte[], byte[]> getKafkaConsumer() {
-        Properties consumerProps = new Properties();
-        deepCopyProperties(properties, consumerProps);
-        // set client id prefix
-        String clientIdPrefix =
-                consumerProps.getProperty(KafkaSourceOptions.CLIENT_ID_PREFIX.key());
-        consumerProps.setProperty(
-                ConsumerConfig.CLIENT_ID_CONFIG, clientIdPrefix + "-enumerator-consumer");
-        consumerProps.setProperty(
-                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-                ByteArrayDeserializer.class.getName());
-        consumerProps.setProperty(
-                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                ByteArrayDeserializer.class.getName());
-        // Disable auto topic creation.
-        consumerProps.setProperty(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, "false");
-        return new KafkaConsumer<>(consumerProps);
-    }
-
     private AdminClient getKafkaAdminClient() {
         Properties adminClientProps = new Properties();
         deepCopyProperties(properties, adminClientProps);
@@ -434,7 +412,7 @@ public class KafkaSourceEnumerator
 
     private OffsetsInitializer.PartitionOffsetsRetriever getOffsetsRetriever() {
         String groupId = properties.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
-        return new PartitionOffsetsRetrieverImpl(consumer, adminClient, groupId);
+        return new PartitionOffsetsRetrieverImpl(adminClient, groupId);
     }
 
     /**
@@ -514,13 +492,10 @@ public class KafkaSourceEnumerator
     @VisibleForTesting
     public static class PartitionOffsetsRetrieverImpl
             implements OffsetsInitializer.PartitionOffsetsRetriever, AutoCloseable {
-        private final KafkaConsumer<?, ?> consumer;
         private final AdminClient adminClient;
         private final String groupId;
 
-        public PartitionOffsetsRetrieverImpl(
-                KafkaConsumer<?, ?> consumer, AdminClient adminClient, String groupId) {
-            this.consumer = consumer;
+        public PartitionOffsetsRetrieverImpl(AdminClient adminClient, String groupId) {
             this.adminClient = adminClient;
             this.groupId = groupId;
         }
@@ -547,6 +522,7 @@ public class KafkaSourceEnumerator
                                 })
                         .get();
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new FlinkRuntimeException(
                         "Interrupted while listing offsets for consumer group " + groupId, e);
             } catch (ExecutionException e) {
@@ -558,25 +534,96 @@ public class KafkaSourceEnumerator
             }
         }
 
+        /**
+         * List offsets for the specified partitions and OffsetSpec. This operation enables to find
+         * the beginning offset, end offset as well as the offset matching a timestamp in
+         * partitions.
+         *
+         * @see KafkaAdminClient#listOffsets(Map)
+         * @param topicPartitionOffsets The mapping from partition to the OffsetSpec to look up.
+         * @return The list offsets result.
+         */
+        private Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> listOffsets(
+                Map<TopicPartition, OffsetSpec> topicPartitionOffsets) {
+            try {
+                return adminClient
+                        .listOffsets(topicPartitionOffsets)
+                        .all()
+                        .thenApply(
+                                result -> {
+                                    Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo>
+                                            offsets = new HashMap<>();
+                                    result.forEach(
+                                            (tp, listOffsetsResultInfo) -> {
+                                                if (listOffsetsResultInfo != null) {
+                                                    offsets.put(tp, listOffsetsResultInfo);
+                                                }
+                                            });
+                                    return offsets;
+                                })
+                        .get();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new FlinkRuntimeException(
+                        "Interrupted while listing offsets for topic partitions: "
+                                + topicPartitionOffsets,
+                        e);
+            } catch (ExecutionException e) {
+                throw new FlinkRuntimeException(
+                        "Failed to list offsets for topic partitions: "
+                                + topicPartitionOffsets
+                                + " due to",
+                        e);
+            }
+        }
+
+        private Map<TopicPartition, Long> listOffsets(
+                Collection<TopicPartition> partitions, OffsetSpec offsetSpec) {
+            return listOffsets(
+                            partitions.stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    partition -> partition, __ -> offsetSpec)))
+                    .entrySet().stream()
+                    .collect(
+                            Collectors.toMap(
+                                    Map.Entry::getKey, entry -> entry.getValue().offset()));
+        }
+
         @Override
         public Map<TopicPartition, Long> endOffsets(Collection<TopicPartition> partitions) {
-            return consumer.endOffsets(partitions);
+            return listOffsets(partitions, OffsetSpec.latest());
         }
 
         @Override
         public Map<TopicPartition, Long> beginningOffsets(Collection<TopicPartition> partitions) {
-            return consumer.beginningOffsets(partitions);
+            return listOffsets(partitions, OffsetSpec.earliest());
         }
 
         @Override
         public Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes(
                 Map<TopicPartition, Long> timestampsToSearch) {
-            return consumer.offsetsForTimes(timestampsToSearch);
+            return listOffsets(
+                            timestampsToSearch.entrySet().stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    Map.Entry::getKey,
+                                                    entry ->
+                                                            OffsetSpec.forTimestamp(
+                                                                    entry.getValue()))))
+                    .entrySet().stream()
+                    .collect(
+                            Collectors.toMap(
+                                    Map.Entry::getKey,
+                                    entry ->
+                                            new OffsetAndTimestamp(
+                                                    entry.getValue().offset(),
+                                                    entry.getValue().timestamp(),
+                                                    entry.getValue().leaderEpoch())));
         }
 
         @Override
         public void close() throws Exception {
-            consumer.close(Duration.ZERO);
             adminClient.close(Duration.ZERO);
         }
     }
