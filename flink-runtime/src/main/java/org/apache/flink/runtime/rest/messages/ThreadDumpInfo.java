@@ -18,12 +18,15 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.runtime.util.JvmUtils;
+
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /** Class containing thread dump information. */
 public final class ThreadDumpInfo implements ResponseBody, Serializable {
@@ -46,6 +49,16 @@ public final class ThreadDumpInfo implements ResponseBody, Serializable {
     public static ThreadDumpInfo create(
             @JsonProperty(FIELD_NAME_THREAD_INFOS) Collection<ThreadInfo> threadInfos) {
         return new ThreadDumpInfo(threadInfos);
+    }
+
+    public static ThreadDumpInfo dumpAndCreate() {
+        return create(
+                JvmUtils.createThreadDump().stream()
+                        .map(
+                                threadInfo ->
+                                        ThreadDumpInfo.ThreadInfo.create(
+                                                threadInfo.getThreadName(), threadInfo.toString()))
+                        .collect(Collectors.toList()));
     }
 
     /** Class containing information about a thread. */

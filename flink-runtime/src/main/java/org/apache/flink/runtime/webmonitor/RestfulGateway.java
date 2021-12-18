@@ -36,6 +36,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
+import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -132,6 +133,14 @@ public interface RestfulGateway extends RpcGateway {
      */
     CompletableFuture<Collection<Tuple2<ResourceID, String>>>
             requestTaskManagerMetricQueryServiceAddresses(@RpcTimeout Time timeout);
+
+    /**
+     * Requests the thread dump from the JobManager.
+     *
+     * @param timeout timeout of the asynchronous operation
+     * @return Future containing the thread dump information
+     */
+    CompletableFuture<ThreadDumpInfo> requestThreadDump(@RpcTimeout Time timeout);
 
     /**
      * Triggers a savepoint with the given savepoint directory as a target, returning a future that
