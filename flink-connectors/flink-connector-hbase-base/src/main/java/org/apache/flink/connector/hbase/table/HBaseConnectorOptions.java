@@ -34,7 +34,10 @@ public class HBaseConnectorOptions {
             ConfigOptions.key("table-name")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("The name of HBase table to connect.");
+                    .withDescription(
+                            "The name of HBase table to connect. "
+                                    + "By default, the table is in 'default' namespace. "
+                                    + "To assign the table a specified namespace you need to use 'namespace:table'.");
 
     public static final ConfigOption<String> ZOOKEEPER_QUORUM =
             ConfigOptions.key("zookeeper.quorum")
