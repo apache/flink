@@ -203,7 +203,10 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
         final long now = System.currentTimeMillis();
 
         final TaskManagerLocation location = execution.getAssignedResourceLocation();
-        final String locationString = location == null ? "(unassigned)" : location.getHostname();
+        final String locationString =
+                location == null
+                        ? "(unassigned)"
+                        : location.getHostname() + ":" + location.dataPort();
         String taskmanagerId =
                 location == null ? "(unassigned)" : location.getResourceID().toString();
 
