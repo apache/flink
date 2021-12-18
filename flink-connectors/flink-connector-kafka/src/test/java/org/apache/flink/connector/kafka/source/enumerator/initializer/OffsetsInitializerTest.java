@@ -51,9 +51,7 @@ public class OffsetsInitializerTest {
         KafkaSourceTestEnv.setupTopic(TOPIC2, false, false, KafkaSourceTestEnv::getRecordsForTopic);
         retriever =
                 new KafkaSourceEnumerator.PartitionOffsetsRetrieverImpl(
-                        KafkaSourceTestEnv.getConsumer(),
-                        KafkaSourceTestEnv.getAdminClient(),
-                        KafkaSourceTestEnv.GROUP_ID);
+                        KafkaSourceTestEnv.getAdminClient(), KafkaSourceTestEnv.GROUP_ID);
     }
 
     @AfterClass
