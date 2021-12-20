@@ -41,13 +41,13 @@ the network buffers. The larger the amount of in-flight data, the longer the che
 
 ## The Buffer Debloating Mechanism
 
-Previously, the only way to configure the amount of in-flight data was to specify both the amount and the buffer size. However, ideal values can be difficult to choose since they are different for every
+Previously, the only way to configure the amount of in-flight data was to specify both the buffer amount and the buffer size. However, ideal values can be difficult to choose since they are different for every
 deployment. The buffer debloating mechanism added in Flink 1.14 attempts to address this issue by automatically adjusting the amount of in-flight data to reasonable values.
 
 The buffer debloating feature calculates the maximum possible throughput for the subtask (in the scenario that it is always busy) and adjusts the amount of in-flight data such that the consumption time of those in-flight data will be equal to the configured value.
 
 The buffer debloat mechanism can be enabled by setting the property `taskmanager.network.memory.buffer-debloat.enabled` to `true`. 
-The targeted time to consume the in-flight data can be configured by setting `taskmanager.network.memory.buffer-debloat.target` to `duration`.
+The targeted time to consume the in-flight data can be configured by setting `taskmanager.network.memory.buffer-debloat.target` to a `duration`.
 The default value of the debloat target should be good enough for most cases.
 
 This feature uses past throughput data to predict the time required to consume the remaining
@@ -114,7 +114,7 @@ Unlike the input buffer pool, the output buffer pool has only one type of buffer
 
 In order to avoid excessive data skew, the number of buffers for each subpartition is limited by the `taskmanager.network.memory.max-buffers-per-channel` setting.
 
-Like the input buffer pool, the configured amount of exclusive buffers and floating buffers is only treated as recommended values. If there are not enough buffers available, Flink can make progress with only a single exclusive buffer per output subpartition and zero floating buffers.
+Unlike the input buffer pool, the configured amount of exclusive buffers and floating buffers is only treated as recommended values. If there are not enough buffers available, Flink can make progress with only a single exclusive buffer per output subpartition and zero floating buffers.
 
 ## The number of in-flight buffers 
 
