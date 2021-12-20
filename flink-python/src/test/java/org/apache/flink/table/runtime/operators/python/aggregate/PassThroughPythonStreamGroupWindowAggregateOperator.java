@@ -39,12 +39,12 @@ import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerProctimeAttribute;
-import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
-import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
-import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerWindowStart;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
+import org.apache.flink.table.runtime.groupwindow.ProctimeAttribute;
+import org.apache.flink.table.runtime.groupwindow.RowtimeAttribute;
+import org.apache.flink.table.runtime.groupwindow.WindowEnd;
+import org.apache.flink.table.runtime.groupwindow.WindowProperty;
+import org.apache.flink.table.runtime.groupwindow.WindowStart;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
@@ -109,7 +109,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
             WindowAssigner<TimeWindow> windowAssigner,
             LogicalWindow window,
             long allowedLateness,
-            PlannerNamedWindowProperty[] namedProperties,
+            NamedWindowProperty[] namedProperties,
             ZoneId shiftTimeZone) {
         super(
                 config,
@@ -199,17 +199,17 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                 this);
     }
 
-    private void buildWindow(PlannerNamedWindowProperty[] namedProperties) {
+    private void buildWindow(NamedWindowProperty[] namedProperties) {
         this.namedProperties = new FlinkFnApi.GroupWindow.WindowProperty[namedProperties.length];
         for (int i = 0; i < namedProperties.length; i++) {
-            PlannerWindowProperty namedProperty = namedProperties[i].getProperty();
-            if (namedProperty instanceof PlannerWindowStart) {
+            WindowProperty namedProperty = namedProperties[i].getProperty();
+            if (namedProperty instanceof WindowStart) {
                 this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.WINDOW_START;
-            } else if (namedProperty instanceof PlannerWindowEnd) {
+            } else if (namedProperty instanceof WindowEnd) {
                 this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.WINDOW_END;
-            } else if (namedProperty instanceof PlannerRowtimeAttribute) {
+            } else if (namedProperty instanceof RowtimeAttribute) {
                 this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.ROW_TIME_ATTRIBUTE;
-            } else if (namedProperty instanceof PlannerProctimeAttribute) {
+            } else if (namedProperty instanceof ProctimeAttribute) {
                 this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.PROC_TIME_ATTRIBUTE;
 
             } else {

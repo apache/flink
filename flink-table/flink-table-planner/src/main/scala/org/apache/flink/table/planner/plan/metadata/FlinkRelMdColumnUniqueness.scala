@@ -20,13 +20,13 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.JBoolean
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RankUtil}
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 import org.apache.flink.table.runtime.operators.rank.RankType
 
 import org.apache.calcite.plan.volcano.RelSubset
@@ -395,7 +395,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
 
   private def areColumnsUniqueOnWindowAggregate(
       grouping: Array[Int],
-      namedProperties: Seq[PlannerNamedWindowProperty],
+      namedProperties: Seq[NamedWindowProperty],
       outputFieldCount: Int,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,

@@ -16,31 +16,43 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.expressions;
+package org.apache.flink.table.runtime.groupwindow;
 
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.annotation.Internal;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
-/** Slice end property. */
-@JsonTypeName("SliceEnd")
-public class PlannerSliceEnd extends AbstractPlannerWindowProperty {
+/**
+ * Information necessary to create a window aggregate.
+ *
+ * @deprecated The POJOs in this package are used to represent the deprecated Group Window feature
+ */
+@Deprecated
+@Internal
+public class NamedWindowProperty {
+    public static final String FIELD_NAME_NAME = "name";
+    public static final String FIELD_NAME_PROPERTY = "property";
+
+    @JsonProperty(FIELD_NAME_NAME)
+    private final String name;
+
+    @JsonProperty(FIELD_NAME_PROPERTY)
+    private final WindowProperty property;
 
     @JsonCreator
-    public PlannerSliceEnd(@JsonProperty(FIELD_NAME_REFERENCE) PlannerWindowReference reference) {
-        super(reference);
+    public NamedWindowProperty(
+            @JsonProperty(FIELD_NAME_NAME) String name,
+            @JsonProperty(FIELD_NAME_PROPERTY) WindowProperty property) {
+        this.name = name;
+        this.property = property;
     }
 
-    @Override
-    public LogicalType getResultType() {
-        return new TimestampType(3);
+    public String getName() {
+        return name;
     }
 
-    @Override
-    public String toString() {
-        return String.format("slice_end(%s)", reference);
+    public WindowProperty getProperty() {
+        return property;
     }
 }

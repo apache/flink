@@ -34,11 +34,6 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.codegen.agg.batch.WindowCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
-import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
-import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerWindowStart;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -48,6 +43,11 @@ import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTransl
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
+import org.apache.flink.table.runtime.groupwindow.RowtimeAttribute;
+import org.apache.flink.table.runtime.groupwindow.WindowEnd;
+import org.apache.flink.table.runtime.groupwindow.WindowProperty;
+import org.apache.flink.table.runtime.groupwindow.WindowStart;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -71,7 +71,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
     private final AggregateCall[] aggCalls;
     private final LogicalWindow window;
     private final int inputTimeFieldIndex;
-    private final PlannerNamedWindowProperty[] namedWindowProperties;
+    private final NamedWindowProperty[] namedWindowProperties;
 
     public BatchExecPythonGroupWindowAggregate(
             int[] grouping,
@@ -79,7 +79,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
             AggregateCall[] aggCalls,
             LogicalWindow window,
             int inputTimeFieldIndex,
-            PlannerNamedWindowProperty[] namedWindowProperties,
+            NamedWindowProperty[] namedWindowProperties,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -138,14 +138,14 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                 Arrays.stream(namedWindowProperties)
                         .mapToInt(
                                 p -> {
-                                    PlannerWindowProperty property = p.getProperty();
-                                    if (property instanceof PlannerWindowStart) {
+                                    WindowProperty property = p.getProperty();
+                                    if (property instanceof WindowStart) {
                                         return 0;
                                     }
-                                    if (property instanceof PlannerWindowEnd) {
+                                    if (property instanceof WindowEnd) {
                                         return 1;
                                     }
-                                    if (property instanceof PlannerRowtimeAttribute) {
+                                    if (property instanceof RowtimeAttribute) {
                                         return 2;
                                     }
                                     throw new TableException("Unexpected property " + property);

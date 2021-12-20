@@ -21,11 +21,11 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.table.planner.expressions.PlannerWindowReference;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
+import org.apache.flink.table.runtime.groupwindow.WindowReference;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -74,9 +74,8 @@ public class LogicalWindowJsonDeserializer extends StdDeserializer<LogicalWindow
         ObjectMapper mapper = flinkDeserializationContext.getObjectMapper();
         JsonNode jsonNode = jsonParser.readValueAsTree();
         String kind = jsonNode.get(FIELD_NAME_KIND).asText().toUpperCase();
-        PlannerWindowReference alias =
-                mapper.readValue(
-                        jsonNode.get(FIELD_NAME_ALIAS).toString(), PlannerWindowReference.class);
+        WindowReference alias =
+                mapper.readValue(jsonNode.get(FIELD_NAME_ALIAS).toString(), WindowReference.class);
         FieldReferenceExpression timeField =
                 deserializeFieldReferenceExpression(jsonNode.get(FIELD_NAME_TIME_FIELD), mapper);
 

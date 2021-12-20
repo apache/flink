@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.expressions;
+package org.apache.flink.table.runtime.groupwindow;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -29,8 +30,14 @@ import javax.annotation.Nullable;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Indicate timeField type. */
-public class PlannerWindowReference {
+/**
+ * Indicate timeField type.
+ *
+ * @deprecated The POJOs in this package are used to represent the deprecated Group Window feature
+ */
+@Deprecated
+@Internal
+public class WindowReference {
 
     public static final String FIELD_NAME_NAME = "name";
     public static final String FIELD_NAME_TYPE = "type";
@@ -42,7 +49,7 @@ public class PlannerWindowReference {
     private final @Nullable LogicalType type;
 
     @JsonCreator
-    public PlannerWindowReference(
+    public WindowReference(
             @JsonProperty(FIELD_NAME_NAME) String name,
             @JsonProperty(FIELD_NAME_TYPE) @Nullable LogicalType type) {
         this.name = name;
@@ -66,7 +73,7 @@ public class PlannerWindowReference {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        PlannerWindowReference that = (PlannerWindowReference) o;
+        WindowReference that = (WindowReference) o;
         return Objects.equals(name, that.name) && Objects.equals(type, that.type);
     }
 

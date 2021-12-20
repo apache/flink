@@ -29,10 +29,10 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
-import org.apache.flink.table.planner.expressions.PlannerWindowReference;
-import org.apache.flink.table.planner.expressions.PlannerWindowStart;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
+import org.apache.flink.table.runtime.groupwindow.WindowEnd;
+import org.apache.flink.table.runtime.groupwindow.WindowReference;
+import org.apache.flink.table.runtime.groupwindow.WindowStart;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
@@ -298,7 +298,7 @@ public class PythonStreamGroupWindowAggregateOperatorTest
         SlidingWindowAssigner windowAssigner =
                 SlidingWindowAssigner.of(Duration.ofMillis(size), Duration.ofMillis(slide))
                         .withEventTime();
-        PlannerWindowReference windowRef = new PlannerWindowReference("w$", new TimestampType(3));
+        WindowReference windowRef = new WindowReference("w$", new TimestampType(3));
         LogicalWindow window =
                 new SlidingGroupWindow(
                         windowRef,
@@ -329,9 +329,9 @@ public class PythonStreamGroupWindowAggregateOperatorTest
                 windowAssigner,
                 window,
                 0L,
-                new PlannerNamedWindowProperty[] {
-                    new PlannerNamedWindowProperty("start", new PlannerWindowStart(null)),
-                    new PlannerNamedWindowProperty("end", new PlannerWindowEnd(null))
+                new NamedWindowProperty[] {
+                    new NamedWindowProperty("start", new WindowStart(null)),
+                    new NamedWindowProperty("end", new WindowEnd(null))
                 },
                 UTC_ZONE_ID);
     }

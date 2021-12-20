@@ -37,7 +37,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
@@ -129,7 +129,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
     private final LogicalWindow window;
 
     @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
-    private final PlannerNamedWindowProperty[] namedWindowProperties;
+    private final NamedWindowProperty[] namedWindowProperties;
 
     @JsonProperty(FIELD_NAME_NEED_RETRACTION)
     private final boolean needRetraction;
@@ -141,7 +141,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
             int[] grouping,
             AggregateCall[] aggCalls,
             LogicalWindow window,
-            PlannerNamedWindowProperty[] namedWindowProperties,
+            NamedWindowProperty[] namedWindowProperties,
             boolean generateUpdateBefore,
             boolean needRetraction,
             InputProperty inputProperty,
@@ -166,7 +166,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
             @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
             @JsonProperty(FIELD_NAME_WINDOW) LogicalWindow window,
             @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
-                    PlannerNamedWindowProperty[] namedWindowProperties,
+                    NamedWindowProperty[] namedWindowProperties,
             @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
             @JsonProperty(FIELD_NAME_NEED_RETRACTION) boolean needRetraction,
             @JsonProperty(FIELD_NAME_ID) int id,
@@ -476,7 +476,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                             WindowAssigner.class,
                             Trigger.class,
                             long.class,
-                            PlannerNamedWindowProperty[].class,
+                            NamedWindowProperty[].class,
                             ZoneId.class,
                             GeneratedProjection.class);
             return ctor.newInstance(
@@ -541,7 +541,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                             WindowAssigner.class,
                             LogicalWindow.class,
                             long.class,
-                            PlannerNamedWindowProperty[].class,
+                            NamedWindowProperty[].class,
                             ZoneId.class);
             return ctor.newInstance(
                     config,

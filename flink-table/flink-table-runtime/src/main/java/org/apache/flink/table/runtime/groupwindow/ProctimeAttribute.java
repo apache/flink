@@ -16,31 +16,39 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.expressions;
+package org.apache.flink.table.runtime.groupwindow;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.TimestampKind;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
-/** Window end property. */
-@JsonTypeName("WindowEnd")
-public class PlannerWindowEnd extends AbstractPlannerWindowProperty {
+/**
+ * Proctime property.
+ *
+ * @deprecated The POJOs in this package are used to represent the deprecated Group Window feature
+ */
+@Deprecated
+@Internal
+@JsonTypeName("Proctime")
+public class ProctimeAttribute extends AbstractWindowProperty {
 
     @JsonCreator
-    public PlannerWindowEnd(@JsonProperty(FIELD_NAME_REFERENCE) PlannerWindowReference reference) {
+    public ProctimeAttribute(@JsonProperty(FIELD_NAME_REFERENCE) WindowReference reference) {
         super(reference);
     }
 
     @Override
     public LogicalType getResultType() {
-        return new TimestampType(false, 3);
+        return new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3);
     }
 
     @Override
     public String toString() {
-        return String.format("end(%s)", reference);
+        return String.format("proctime(%s)", reference);
     }
 }

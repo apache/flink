@@ -28,15 +28,14 @@ import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.TableSourceQueryOperation
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.delegation.PlannerContext
-import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowReference, PlannerWindowStart}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
-import org.apache.flink.table.planner.plan.logical.{CumulativeWindowSpec, HoppingWindowSpec, LogicalWindow, TimeAttributeWindowingStrategy, TumblingGroupWindow, TumblingWindowSpec, WindowSpec}
+import org.apache.flink.table.planner.plan.logical.{LogicalWindow, _}
+import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.calcite._
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalWindowTableFunction
-import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
@@ -44,6 +43,7 @@ import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, Inte
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.Top3
+import org.apache.flink.table.runtime.groupwindow._
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType, VariableRankRange}
 import org.apache.flink.table.types.AtomicDataType
 import org.apache.flink.table.types.logical._
@@ -62,12 +62,12 @@ import org.apache.calcite.rel.logical._
 import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery, RelMetadataQueryBase}
 import org.apache.calcite.rex._
 import org.apache.calcite.schema.SchemaPlus
-import org.apache.calcite.sql.{SqlAggFunction, SqlWindow}
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
+import org.apache.calcite.sql.{SqlAggFunction, SqlWindow}
 import org.apache.calcite.util._
 import org.junit.{Before, BeforeClass}
 
@@ -1475,8 +1475,8 @@ class FlinkRelMdHandlerTestBase {
   // For window start/end/proc_time the windowAttribute inferred type is a hard code val,
   // only for row_time we distinguish by batch row time, for what we hard code DataTypes.TIMESTAMP,
   // which is ok here for testing.
-  private lazy val windowRef: PlannerWindowReference =
-    new PlannerWindowReference("w$", new TimestampType(3))
+  private lazy val windowRef: WindowReference =
+    new WindowReference("w$", new TimestampType(3))
 
   protected lazy val tumblingGroupWindow: LogicalWindow =
     TumblingGroupWindow(
@@ -1489,11 +1489,11 @@ class FlinkRelMdHandlerTestBase {
       intervalOfMillis(900000)
     )
 
-  protected lazy val namedPropertiesOfWindowAgg: Seq[PlannerNamedWindowProperty] =
-    Seq(new PlannerNamedWindowProperty("w$start", new PlannerWindowStart(windowRef)),
-      new PlannerNamedWindowProperty("w$end", new PlannerWindowStart(windowRef)),
-      new PlannerNamedWindowProperty("w$rowtime", new PlannerRowtimeAttribute(windowRef)),
-      new PlannerNamedWindowProperty("w$proctime", new PlannerProctimeAttribute(windowRef)))
+  protected lazy val namedPropertiesOfWindowAgg: Seq[NamedWindowProperty] =
+    Seq(new NamedWindowProperty("w$start", new WindowStart(windowRef)),
+      new NamedWindowProperty("w$end", new WindowStart(windowRef)),
+      new NamedWindowProperty("w$rowtime", new RowtimeAttribute(windowRef)),
+      new NamedWindowProperty("w$proctime", new ProctimeAttribute(windowRef)))
 
   // equivalent SQL is
   // select a, b, count(c) as s,
