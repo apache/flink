@@ -39,7 +39,7 @@ import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
-import org.apache.flink.table.planner.typeutils.DataViewUtils;
+import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
@@ -120,7 +120,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                 inputType,
                 outputType,
                 aggregateFunctions,
-                new DataViewUtils.DataViewSpec[0][0],
+                new DataViewSpec[0][0],
                 grouping,
                 indexOfCountStar,
                 generateUpdateBefore,

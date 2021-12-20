@@ -34,7 +34,7 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.UpdatableRowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
-import org.apache.flink.table.planner.typeutils.DataViewUtils;
+import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.groupwindow.ProctimeAttribute;
 import org.apache.flink.table.runtime.groupwindow.RowtimeAttribute;
@@ -146,7 +146,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
             RowType inputType,
             RowType outputType,
             PythonAggregateFunctionInfo[] aggregateFunctions,
-            DataViewUtils.DataViewSpec[][] dataViewSpecs,
+            DataViewSpec[][] dataViewSpecs,
             int[] grouping,
             int indexOfCountStar,
             boolean generateUpdateBefore,
@@ -211,7 +211,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
                             RowType inputType,
                             RowType outputType,
                             PythonAggregateFunctionInfo[] aggregateFunctions,
-                            DataViewUtils.DataViewSpec[][] dataViewSpecs,
+                            DataViewSpec[][] dataViewSpecs,
                             int[] grouping,
                             int indexOfCountStar,
                             boolean generateUpdateBefore,
@@ -254,7 +254,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
                             RowType inputType,
                             RowType outputType,
                             PythonAggregateFunctionInfo[] aggregateFunctions,
-                            DataViewUtils.DataViewSpec[][] dataViewSpecs,
+                            DataViewSpec[][] dataViewSpecs,
                             int[] grouping,
                             int indexOfCountStar,
                             boolean generateUpdateBefore,
@@ -298,7 +298,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
                             RowType inputType,
                             RowType outputType,
                             PythonAggregateFunctionInfo[] aggregateFunctions,
-                            DataViewUtils.DataViewSpec[][] dataViewSpecs,
+                            DataViewSpec[][] dataViewSpecs,
                             int[] grouping,
                             int indexOfCountStar,
                             boolean generateUpdateBefore,
