@@ -30,9 +30,7 @@ import java.util.Map;
 
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ACCESS_KEY_ID;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_SECRET_ACCESS_KEY;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link GlueSchemaRegistryJsonSchemaCoder}. */
 public class GlueSchemaRegistryJsonSchemaCoderTest {
@@ -46,7 +44,7 @@ public class GlueSchemaRegistryJsonSchemaCoderTest {
                 getField("glueSchemaRegistryDeserializationFacade", coder);
 
         AwsCredentialsProvider credentialsProvider = facade.getCredentialsProvider();
-        assertThat(credentialsProvider, instanceOf(DefaultCredentialsProvider.class));
+        assertThat(credentialsProvider).isInstanceOf(DefaultCredentialsProvider.class);
     }
 
     @Test
@@ -62,8 +60,8 @@ public class GlueSchemaRegistryJsonSchemaCoderTest {
                 getField("glueSchemaRegistryDeserializationFacade", coder);
 
         AwsCredentialsProvider credentialsProvider = facade.getCredentialsProvider();
-        assertThat(credentialsProvider.resolveCredentials().accessKeyId(), equalTo("ak"));
-        assertThat(credentialsProvider.resolveCredentials().secretAccessKey(), equalTo("sk"));
+        assertThat(credentialsProvider.resolveCredentials().accessKeyId()).isEqualTo("ak");
+        assertThat(credentialsProvider.resolveCredentials().secretAccessKey()).isEqualTo("sk");
     }
 
     private <T> T getField(final String fieldName, final Object instance) throws Exception {

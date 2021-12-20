@@ -32,7 +32,6 @@ import org.apache.flink.util.TestLogger;
 import com.amazonaws.services.schemaregistry.serializers.json.JsonDataWithSchema;
 import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -54,6 +53,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_POSITION;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** End-to-end test for Glue Schema Registry Json format using Kinesalite. */
 public class GlueSchemaRegistryJsonKinesisITCase extends TestLogger {
@@ -128,11 +128,7 @@ public class GlueSchemaRegistryJsonKinesisITCase extends TestLogger {
         }
         log.info("results: {}", results);
 
-        Assert.assertEquals(
-                "Results received from '" + OUTPUT_STREAM + "': " + results,
-                messages.size(),
-                results.size());
-        Assert.assertTrue(messages.containsAll(results));
+        assertThat(results).containsExactlyInAnyOrderElementsOf(messages);
     }
 
     private FlinkKinesisConsumer<JsonDataWithSchema> createSource() {
@@ -141,13 +137,11 @@ public class GlueSchemaRegistryJsonKinesisITCase extends TestLogger {
                 STREAM_INITIAL_POSITION,
                 ConsumerConfigConstants.InitialPosition.TRIM_HORIZON.name());
 
-        FlinkKinesisConsumer<JsonDataWithSchema> consumer =
-                new FlinkKinesisConsumer<>(
-                        INPUT_STREAM,
-                        new GlueSchemaRegistryJsonDeserializationSchema<>(
-                                JsonDataWithSchema.class, INPUT_STREAM, getConfigs()),
-                        properties);
-        return consumer;
+        return new FlinkKinesisConsumer<>(
+                INPUT_STREAM,
+                new GlueSchemaRegistryJsonDeserializationSchema<>(
+                        JsonDataWithSchema.class, INPUT_STREAM, getConfigs()),
+                properties);
     }
 
     private FlinkKinesisProducer<JsonDataWithSchema> createSink() throws Exception {
@@ -208,7 +202,7 @@ public class GlueSchemaRegistryJsonKinesisITCase extends TestLogger {
     }
 
     private Map<String, Object> getConfigs() {
-        Map<String, Object> configs = new HashMap();
+        Map<String, Object> configs = new HashMap<>();
         configs.put(AWSSchemaRegistryConstants.AWS_REGION, "ca-central-1");
         configs.put(AWSSchemaRegistryConstants.SCHEMA_AUTO_REGISTRATION_SETTING, true);
 

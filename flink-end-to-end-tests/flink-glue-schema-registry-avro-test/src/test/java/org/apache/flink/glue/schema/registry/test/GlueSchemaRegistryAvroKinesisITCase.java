@@ -35,7 +35,6 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -60,6 +59,7 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ACCESS_KEY_ID;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_SECRET_ACCESS_KEY;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_POSITION;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** End-to-end test for Glue Schema Registry AVRO format using Kinesalite. */
 public class GlueSchemaRegistryAvroKinesisITCase extends TestLogger {
@@ -133,11 +133,7 @@ public class GlueSchemaRegistryAvroKinesisITCase extends TestLogger {
         }
         log.info("results: {}", results);
 
-        Assert.assertEquals(
-                "Results received from '" + OUTPUT_STREAM + "': " + results,
-                messages.size(),
-                results.size());
-        Assert.assertTrue(messages.containsAll(results));
+        assertThat(results).containsExactlyInAnyOrderElementsOf(messages);
     }
 
     private FlinkKinesisConsumer<GenericRecord> createSource() throws Exception {
