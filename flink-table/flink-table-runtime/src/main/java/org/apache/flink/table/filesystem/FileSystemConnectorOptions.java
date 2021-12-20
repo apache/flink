@@ -167,7 +167,7 @@ public class FileSystemConnectorOptions {
                                                     + "you can specify a pattern to get a timestamp from partitions.")
                                     .list(
                                             text(
-                                                    "By default, a format of 'yyyy-mm-dd hh:mm:ss' is read from the first field."),
+                                                    "By default, a format of 'yyyy-MM-dd hh:mm:ss' is read from the first field."),
                                             text(
                                                     "If the timestamp in the partition is a single field called 'dt', you can use '$dt'."),
                                             text(
