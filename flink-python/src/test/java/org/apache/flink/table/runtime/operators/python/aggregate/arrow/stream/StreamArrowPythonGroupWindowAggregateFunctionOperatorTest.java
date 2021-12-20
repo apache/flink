@@ -453,20 +453,18 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                         .withEventTime();
         EventTimeTriggers.AfterEndOfWindow<Window> trigger = EventTimeTriggers.afterEndOfWindow();
 
-        RowType userDefinedFunctionInputType =
-                (RowType) Projection.of(udafInputOffsets).project(inputType);
-        RowType userDefinedFunctionOutputType =
-                new RowType(
-                        outputType
-                                .getFields()
-                                .subList(groupingSet.length, outputType.getFieldCount() - 2));
+        RowType udfInputType = (RowType) Projection.of(udafInputOffsets).project(inputType);
+        RowType udfOutputType =
+                (RowType)
+                        Projection.range(groupingSet.length, outputType.getFieldCount() - 2)
+                                .project(outputType);
 
         return new PassThroughStreamArrowPythonGroupWindowAggregateFunctionOperator(
                 config,
                 pandasAggregateFunctions,
                 inputType,
-                userDefinedFunctionInputType,
-                userDefinedFunctionOutputType,
+                udfInputType,
+                udfOutputType,
                 3,
                 windowAssigner,
                 trigger,
@@ -480,19 +478,19 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                         CodeGeneratorContext.apply(new TableConfig()),
                         "UdafInputProjection",
                         inputType,
-                        userDefinedFunctionInputType,
+                        udfInputType,
                         udafInputOffsets));
     }
 
     private static class PassThroughStreamArrowPythonGroupWindowAggregateFunctionOperator
             extends StreamArrowPythonGroupWindowAggregateFunctionOperator {
 
-        public PassThroughStreamArrowPythonGroupWindowAggregateFunctionOperator(
+        PassThroughStreamArrowPythonGroupWindowAggregateFunctionOperator(
                 Configuration config,
                 PythonFunctionInfo[] pandasAggFunctions,
                 RowType inputType,
-                RowType userDefinedFunctionInputType,
-                RowType userDefinedFunctionOutputType,
+                RowType udfInputType,
+                RowType udfOutputType,
                 int inputTimeFieldIndex,
                 WindowAssigner windowAssigner,
                 Trigger trigger,
@@ -504,8 +502,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                     config,
                     pandasAggFunctions,
                     inputType,
-                    userDefinedFunctionInputType,
-                    userDefinedFunctionOutputType,
+                    udfInputType,
+                    udfOutputType,
                     inputTimeFieldIndex,
                     windowAssigner,
                     trigger,
@@ -520,8 +518,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
             return new PassThroughPythonAggregateFunctionRunner(
                     getRuntimeContext().getTaskName(),
                     PythonTestUtils.createTestEnvironmentManager(),
-                    userDefinedFunctionInputType,
-                    userDefinedFunctionOutputType,
+                    udfInputType,
+                    udfOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
                     new HashMap<>(),

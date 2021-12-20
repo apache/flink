@@ -92,11 +92,11 @@ public class PythonTableFunctionOperator
             Configuration config,
             PythonFunctionInfo tableFunction,
             RowType inputType,
-            RowType userDefinedFunctionInputType,
-            RowType userDefinedFunctionOutputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             FlinkJoinType joinType,
             GeneratedProjection udtfInputGeneratedProjection) {
-        super(config, inputType, userDefinedFunctionInputType, userDefinedFunctionOutputType);
+        super(config, inputType, udfInputType, udfOutputType);
         this.tableFunction = Preconditions.checkNotNull(tableFunction);
         Preconditions.checkArgument(
                 joinType == FlinkJoinType.INNER || joinType == FlinkJoinType.LEFT,
@@ -117,10 +117,8 @@ public class PythonTableFunctionOperator
                 udtfInputGeneratedProjection.newInstance(
                         Thread.currentThread().getContextClassLoader());
         forwardedInputSerializer = new RowDataSerializer(inputType);
-        udtfInputTypeSerializer =
-                PythonTypeUtils.toInternalSerializer(userDefinedFunctionInputType);
-        udtfOutputTypeSerializer =
-                PythonTypeUtils.toInternalSerializer(userDefinedFunctionOutputType);
+        udtfInputTypeSerializer = PythonTypeUtils.toInternalSerializer(udfInputType);
+        udtfOutputTypeSerializer = PythonTypeUtils.toInternalSerializer(udfOutputType);
         input = null;
         hasJoined = false;
         isFinishResult = true;
@@ -205,8 +203,7 @@ public class PythonTableFunctionOperator
                 resultTuple = pythonFunctionRunner.pollResult();
                 hasJoined = true;
             } else if (joinType == FlinkJoinType.LEFT && !hasJoined) {
-                GenericRowData udtfResult =
-                        new GenericRowData(userDefinedFunctionOutputType.getFieldCount());
+                GenericRowData udtfResult = new GenericRowData(udfOutputType.getFieldCount());
                 for (int i = 0; i < udtfResult.getArity(); i++) {
                     udtfResult.setField(i, null);
                 }

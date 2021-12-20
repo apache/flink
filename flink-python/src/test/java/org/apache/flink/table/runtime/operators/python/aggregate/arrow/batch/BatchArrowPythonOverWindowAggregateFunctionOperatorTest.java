@@ -225,22 +225,19 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
             RowType outputRowType,
             int[] groupingSet,
             int[] udafInputOffsets) {
-        RowType userDefinedFunctionInputType =
-                (RowType) Projection.of(udafInputOffsets).project(inputRowType);
-        RowType userDefinedFunctionOutputType =
-                new RowType(
-                        outputRowType
-                                .getFields()
-                                .subList(
-                                        inputRowType.getFieldCount(),
-                                        outputRowType.getFieldCount()));
+        RowType udfInputType = (RowType) Projection.of(udafInputOffsets).project(inputRowType);
+        RowType udfOutputType =
+                (RowType)
+                        Projection.range(
+                                        inputRowType.getFieldCount(), outputRowType.getFieldCount())
+                                .project(outputRowType);
 
         return new PassThroughBatchArrowPythonOverWindowAggregateFunctionOperator(
                 config,
                 pandasAggregateFunctions,
                 inputRowType,
-                userDefinedFunctionInputType,
-                userDefinedFunctionOutputType,
+                udfInputType,
+                udfOutputType,
                 new long[] {0L, Long.MIN_VALUE},
                 new long[] {0L, 2L},
                 new boolean[] {true, false},
@@ -251,7 +248,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
                         CodeGeneratorContext.apply(new TableConfig()),
                         "UdafInputProjection",
                         inputRowType,
-                        userDefinedFunctionInputType,
+                        udfInputType,
                         udafInputOffsets),
                 ProjectionCodeGenerator.generateProjection(
                         CodeGeneratorContext.apply(new TableConfig()),
@@ -270,15 +267,15 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
     private static class PassThroughBatchArrowPythonOverWindowAggregateFunctionOperator
             extends BatchArrowPythonOverWindowAggregateFunctionOperator {
 
-        public PassThroughBatchArrowPythonOverWindowAggregateFunctionOperator(
+        PassThroughBatchArrowPythonOverWindowAggregateFunctionOperator(
                 Configuration config,
                 PythonFunctionInfo[] pandasAggFunctions,
                 RowType inputType,
-                RowType userDefinedFunctionInputType,
-                RowType userDefinedFunctionOutputType,
+                RowType udfInputType,
+                RowType udfOutputType,
                 long[] lowerBoundary,
                 long[] upperBoundary,
-                boolean[] isRangeWindows,
+                boolean[] isRangeWindow,
                 int[] aggWindowIndex,
                 int inputTimeFieldIndex,
                 boolean asc,
@@ -289,11 +286,11 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
                     config,
                     pandasAggFunctions,
                     inputType,
-                    userDefinedFunctionInputType,
-                    userDefinedFunctionOutputType,
+                    udfInputType,
+                    udfOutputType,
                     lowerBoundary,
                     upperBoundary,
-                    isRangeWindows,
+                    isRangeWindow,
                     aggWindowIndex,
                     inputTimeFieldIndex,
                     asc,
@@ -307,8 +304,8 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
             return new PassThroughPythonAggregateFunctionRunner(
                     getRuntimeContext().getTaskName(),
                     PythonTestUtils.createTestEnvironmentManager(),
-                    userDefinedFunctionInputType,
-                    userDefinedFunctionOutputType,
+                    udfInputType,
+                    udfOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
                     new HashMap<>(),

@@ -145,8 +145,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
             Configuration config,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType userDefinedFunctionInputType,
-            RowType userDefinedFunctionOutputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             int inputTimeFieldIndex,
             WindowAssigner<W> windowAssigner,
             Trigger<W> trigger,
@@ -158,8 +158,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
                 config,
                 pandasAggFunctions,
                 inputType,
-                userDefinedFunctionInputType,
-                userDefinedFunctionOutputType,
+                udfInputType,
+                udfOutputType,
                 generatedProjection);
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.windowAssigner = windowAssigner;

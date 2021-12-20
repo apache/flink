@@ -65,27 +65,25 @@ public class PythonScalarFunctionOperatorTest
             RowType outputType,
             int[] udfInputOffsets,
             int[] forwardedFields) {
-        final RowType userDefinedFunctionInputType =
-                (RowType) Projection.of(udfInputOffsets).project(inputType);
+        final RowType udfInputType = (RowType) Projection.of(udfInputOffsets).project(inputType);
         final RowType forwardedFieldType =
                 (RowType) Projection.of(forwardedFields).project(inputType);
-        final RowType userDefinedFunctionOutputType =
-                new RowType(
-                        outputType
-                                .getFields()
-                                .subList(forwardedFields.length, outputType.getFieldCount()));
+        final RowType udfOutputType =
+                (RowType)
+                        Projection.range(forwardedFields.length, outputType.getFieldCount())
+                                .project(outputType);
 
         return new PassThroughPythonScalarFunctionOperator(
                 config,
                 scalarFunctions,
                 inputType,
-                userDefinedFunctionInputType,
-                userDefinedFunctionOutputType,
+                udfInputType,
+                udfOutputType,
                 ProjectionCodeGenerator.generateProjection(
                         CodeGeneratorContext.apply(new TableConfig()),
                         "UdfInputProjection",
                         inputType,
-                        userDefinedFunctionInputType,
+                        udfInputType,
                         udfInputOffsets),
                 ProjectionCodeGenerator.generateProjection(
                         CodeGeneratorContext.apply(new TableConfig()),
@@ -131,16 +129,16 @@ public class PythonScalarFunctionOperatorTest
                 Configuration config,
                 PythonFunctionInfo[] scalarFunctions,
                 RowType inputType,
-                RowType userDefinedFunctionInputType,
-                RowType userDefinedFunctionOutputType,
+                RowType udfInputType,
+                RowType udfOutputType,
                 GeneratedProjection udfInputGeneratedProjection,
                 GeneratedProjection forwardedFieldGeneratedProjection) {
             super(
                     config,
                     scalarFunctions,
                     inputType,
-                    userDefinedFunctionInputType,
-                    userDefinedFunctionOutputType,
+                    udfInputType,
+                    udfOutputType,
                     udfInputGeneratedProjection,
                     forwardedFieldGeneratedProjection);
         }
@@ -150,8 +148,8 @@ public class PythonScalarFunctionOperatorTest
             return new PassThroughPythonScalarFunctionRunner(
                     getRuntimeContext().getTaskName(),
                     PythonTestUtils.createTestEnvironmentManager(),
-                    userDefinedFunctionInputType,
-                    userDefinedFunctionOutputType,
+                    udfInputType,
+                    udfOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
                     new HashMap<>(),

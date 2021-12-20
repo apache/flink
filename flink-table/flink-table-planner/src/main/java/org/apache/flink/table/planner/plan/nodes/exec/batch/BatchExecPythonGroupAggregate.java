@@ -136,13 +136,11 @@ public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
         final Class<?> clazz =
                 CommonPythonUtil.loadClass(ARROW_PYTHON_AGGREGATE_FUNCTION_OPERATOR_NAME);
 
-        RowType userDefinedFunctionInputType =
-                (RowType) Projection.of(udafInputOffsets).project(inputRowType);
-        RowType userDefinedFunctionOutputType =
-                new RowType(
-                        outputRowType
-                                .getFields()
-                                .subList(auxGrouping.length, outputRowType.getFieldCount()));
+        RowType udfInputType = (RowType) Projection.of(udafInputOffsets).project(inputRowType);
+        RowType udfOutputType =
+                (RowType)
+                        Projection.range(auxGrouping.length, outputRowType.getFieldCount())
+                                .project(outputRowType);
 
         try {
             Constructor<?> ctor =
@@ -160,13 +158,13 @@ public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
                             mergedConfig,
                             pythonFunctionInfos,
                             inputRowType,
-                            userDefinedFunctionInputType,
-                            userDefinedFunctionOutputType,
+                            udfInputType,
+                            udfOutputType,
                             ProjectionCodeGenerator.generateProjection(
                                     CodeGeneratorContext.apply(tableConfig),
                                     "UdafInputProjection",
                                     inputRowType,
-                                    userDefinedFunctionInputType,
+                                    udfInputType,
                                     udafInputOffsets),
                             ProjectionCodeGenerator.generateProjection(
                                     CodeGeneratorContext.apply(tableConfig),

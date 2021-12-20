@@ -52,10 +52,10 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
     protected final RowType inputType;
 
     /** The user-defined function input logical type. */
-    protected final RowType userDefinedFunctionInputType;
+    protected final RowType udfInputType;
 
     /** The user-defined function output logical type. */
-    protected final RowType userDefinedFunctionOutputType;
+    protected final RowType udfOutputType;
 
     /**
      * The queue holding the input elements for which the execution results have not been received.
@@ -75,16 +75,11 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
     protected transient DataOutputViewStreamWrapper baosWrapper;
 
     public AbstractStatelessFunctionOperator(
-            Configuration config,
-            RowType inputType,
-            RowType userDefinedFunctionInputType,
-            RowType userDefinedFunctionOutputType) {
+            Configuration config, RowType inputType, RowType udfInputType, RowType udfOutputType) {
         super(config);
         this.inputType = Preconditions.checkNotNull(inputType);
-        this.userDefinedFunctionInputType =
-                Preconditions.checkNotNull(userDefinedFunctionInputType);
-        this.userDefinedFunctionOutputType =
-                Preconditions.checkNotNull(userDefinedFunctionOutputType);
+        this.udfInputType = Preconditions.checkNotNull(udfInputType);
+        this.udfOutputType = Preconditions.checkNotNull(udfOutputType);
     }
 
     @Override
@@ -128,8 +123,8 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
                                         .getEnvironment()
                                         .getUserCodeClassLoader()
                                         .asClassLoader()),
-                createInputCoderInfoDescriptor(userDefinedFunctionInputType),
-                createOutputCoderInfoDescriptor(userDefinedFunctionOutputType));
+                createInputCoderInfoDescriptor(udfInputType),
+                createOutputCoderInfoDescriptor(udfOutputType));
     }
 
     /**

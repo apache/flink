@@ -81,11 +81,11 @@ public abstract class AbstractPythonScalarFunctionOperator
             Configuration config,
             PythonFunctionInfo[] scalarFunctions,
             RowType inputType,
-            RowType userDefinedFunctionInputType,
-            RowType userDefinedFunctionOutputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             GeneratedProjection udfInputGeneratedProjection,
             GeneratedProjection forwardedFieldGeneratedProjection) {
-        super(config, inputType, userDefinedFunctionInputType, userDefinedFunctionOutputType);
+        super(config, inputType, udfInputType, udfOutputType);
         this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
         this.udfInputGeneratedProjection = Preconditions.checkNotNull(udfInputGeneratedProjection);
         this.forwardedFieldGeneratedProjection =

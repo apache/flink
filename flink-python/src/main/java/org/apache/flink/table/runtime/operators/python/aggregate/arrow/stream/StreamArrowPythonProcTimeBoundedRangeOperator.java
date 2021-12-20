@@ -44,8 +44,8 @@ public class StreamArrowPythonProcTimeBoundedRangeOperator<K>
             Configuration config,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType userDefinedFunctionInputType,
-            RowType userDefinedFunctionOutputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             int inputTimeFieldIndex,
             long lowerBoundary,
             GeneratedProjection generatedProjection) {
@@ -53,8 +53,8 @@ public class StreamArrowPythonProcTimeBoundedRangeOperator<K>
                 config,
                 pandasAggFunctions,
                 inputType,
-                userDefinedFunctionInputType,
-                userDefinedFunctionOutputType,
+                udfInputType,
+                udfOutputType,
                 inputTimeFieldIndex,
                 lowerBoundary,
                 generatedProjection);

@@ -264,12 +264,10 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         RowType userDefinedFunctionInputType =
                 (RowType) Projection.of(udafInputOffsets).project(inputRowType);
         RowType userDefinedFunctionOutputType =
-                new RowType(
-                        outputRowType
-                                .getFields()
-                                .subList(
-                                        inputRowType.getFieldCount(),
-                                        outputRowType.getFieldCount()));
+                (RowType)
+                        Projection.range(
+                                        inputRowType.getFieldCount(), outputRowType.getFieldCount())
+                                .project(outputRowType);
         GeneratedProjection generatedProjection =
                 ProjectionCodeGenerator.generateProjection(
                         CodeGeneratorContext.apply(tableConfig),

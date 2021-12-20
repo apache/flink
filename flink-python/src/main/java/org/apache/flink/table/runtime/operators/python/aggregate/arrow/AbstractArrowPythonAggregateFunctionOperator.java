@@ -72,10 +72,10 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
             Configuration config,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType userDefinedFunctionInputType,
-            RowType userDefinedFunctionOutputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             GeneratedProjection udafInputGeneratedProjection) {
-        super(config, inputType, userDefinedFunctionInputType, userDefinedFunctionOutputType);
+        super(config, inputType, udfInputType, udfOutputType);
         this.pandasAggFunctions = Preconditions.checkNotNull(pandasAggFunctions);
         this.udafInputGeneratedProjection =
                 Preconditions.checkNotNull(udafInputGeneratedProjection);
@@ -91,8 +91,7 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
         udafInputProjection =
                 udafInputGeneratedProjection.newInstance(
                         Thread.currentThread().getContextClassLoader());
-        arrowSerializer =
-                new ArrowSerializer(userDefinedFunctionInputType, userDefinedFunctionOutputType);
+        arrowSerializer = new ArrowSerializer(udfInputType, udfOutputType);
         arrowSerializer.open(bais, baos);
         currentBatchCount = 0;
     }

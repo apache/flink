@@ -63,8 +63,8 @@ public abstract class AbstractStreamArrowPythonBoundedRowsOperator<K>
             long maxRetentionTime,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType userDefinedFunctionInputType,
-            RowType userDefinedFunctionOutputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             int inputTimeFieldIndex,
             long lowerBoundary,
             GeneratedProjection inputGeneratedProjection) {
@@ -72,8 +72,8 @@ public abstract class AbstractStreamArrowPythonBoundedRowsOperator<K>
                 config,
                 pandasAggFunctions,
                 inputType,
-                userDefinedFunctionInputType,
-                userDefinedFunctionOutputType,
+                udfInputType,
+                udfOutputType,
                 inputTimeFieldIndex,
                 lowerBoundary,
                 inputGeneratedProjection);

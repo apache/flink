@@ -79,8 +79,8 @@ public abstract class AbstractStreamArrowPythonOverWindowAggregateFunctionOperat
             Configuration config,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType userDefinedFunctionInputType,
-            RowType userDefinedFunctionOutputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             int inputTimeFieldIndex,
             long lowerBoundary,
             GeneratedProjection inputGeneratedProjection) {
@@ -88,8 +88,8 @@ public abstract class AbstractStreamArrowPythonOverWindowAggregateFunctionOperat
                 config,
                 pandasAggFunctions,
                 inputType,
-                userDefinedFunctionInputType,
-                userDefinedFunctionOutputType,
+                udfInputType,
+                udfOutputType,
                 inputGeneratedProjection);
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.lowerBoundary = lowerBoundary;

@@ -327,21 +327,19 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperatorTest
             int[] groupingSet,
             int[] udafInputOffsets) {
 
-        RowType userDefinedFunctionInputType =
-                (RowType) Projection.of(udafInputOffsets).project(inputRowType);
-        RowType userDefinedFunctionOutputType =
-                new RowType(
-                        outputRowType
-                                .getFields()
-                                .subList(groupingSet.length, outputRowType.getFieldCount() - 2));
+        RowType udfInputType = (RowType) Projection.of(udafInputOffsets).project(inputRowType);
+        RowType udfOutputType =
+                (RowType)
+                        Projection.range(groupingSet.length, outputRowType.getFieldCount() - 2)
+                                .project(outputRowType);
 
         // SlidingWindow(10000L, 5000L)
         return new PassThroughBatchArrowPythonGroupWindowAggregateFunctionOperator(
                 config,
                 pandasAggregateFunctions,
                 inputRowType,
-                userDefinedFunctionInputType,
-                userDefinedFunctionOutputType,
+                udfInputType,
+                udfOutputType,
                 3,
                 100000,
                 10000L,
@@ -351,7 +349,7 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperatorTest
                         CodeGeneratorContext.apply(new TableConfig()),
                         "UdafInputProjection",
                         inputRowType,
-                        userDefinedFunctionInputType,
+                        udfInputType,
                         udafInputOffsets),
                 ProjectionCodeGenerator.generateProjection(
                         CodeGeneratorContext.apply(new TableConfig()),
@@ -370,12 +368,12 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperatorTest
     private static class PassThroughBatchArrowPythonGroupWindowAggregateFunctionOperator
             extends BatchArrowPythonGroupWindowAggregateFunctionOperator {
 
-        public PassThroughBatchArrowPythonGroupWindowAggregateFunctionOperator(
+        PassThroughBatchArrowPythonGroupWindowAggregateFunctionOperator(
                 Configuration config,
                 PythonFunctionInfo[] pandasAggFunctions,
                 RowType inputType,
-                RowType userDefinedFunctionInputType,
-                RowType userDefinedFunctionOutputType,
+                RowType udfInputType,
+                RowType udfOutputType,
                 int inputTimeFieldIndex,
                 int maxLimitSize,
                 long windowSize,
@@ -388,8 +386,8 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperatorTest
                     config,
                     pandasAggFunctions,
                     inputType,
-                    userDefinedFunctionInputType,
-                    userDefinedFunctionOutputType,
+                    udfInputType,
+                    udfOutputType,
                     inputTimeFieldIndex,
                     maxLimitSize,
                     windowSize,
@@ -405,8 +403,8 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperatorTest
             return new PassThroughPythonAggregateFunctionRunner(
                     getRuntimeContext().getTaskName(),
                     PythonTestUtils.createTestEnvironmentManager(),
-                    userDefinedFunctionInputType,
-                    userDefinedFunctionOutputType,
+                    udfInputType,
+                    udfOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
                     new HashMap<>(),

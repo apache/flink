@@ -192,16 +192,14 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                 CommonPythonUtil.loadClass(
                         ARROW_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME);
 
-        RowType userDefinedFunctionInputType =
-                (RowType) Projection.of(udafInputOffsets).project(inputRowType);
-        RowType userDefinedFunctionOutputType =
-                new RowType(
-                        outputRowType
-                                .getFields()
-                                .subList(
+        RowType udfInputType = (RowType) Projection.of(udafInputOffsets).project(inputRowType);
+        RowType udfOutputType =
+                (RowType)
+                        Projection.range(
                                         auxGrouping.length,
                                         outputRowType.getFieldCount()
-                                                - namePropertyTypeArray.length));
+                                                - namePropertyTypeArray.length)
+                                .project(outputRowType);
 
         try {
             Constructor<?> ctor =
@@ -224,8 +222,8 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             mergedConfig,
                             pythonFunctionInfos,
                             inputRowType,
-                            userDefinedFunctionInputType,
-                            userDefinedFunctionOutputType,
+                            udfInputType,
+                            udfOutputType,
                             inputTimeFieldIndex,
                             maxLimitSize,
                             windowSize,
@@ -235,7 +233,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                                     CodeGeneratorContext.apply(tableConfig),
                                     "UdafInputProjection",
                                     inputRowType,
-                                    userDefinedFunctionInputType,
+                                    udfInputType,
                                     udafInputOffsets),
                             ProjectionCodeGenerator.generateProjection(
                                     CodeGeneratorContext.apply(tableConfig),

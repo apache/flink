@@ -39,8 +39,8 @@ public class BatchArrowPythonGroupAggregateFunctionOperator
             Configuration config,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType userDefinedFunctionInputType,
-            RowType userDefinedFunctionOutputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             GeneratedProjection inputGeneratedProjection,
             GeneratedProjection groupKeyGeneratedProjection,
             GeneratedProjection groupSetGeneratedProjection) {
@@ -48,8 +48,8 @@ public class BatchArrowPythonGroupAggregateFunctionOperator
                 config,
                 pandasAggFunctions,
                 inputType,
-                userDefinedFunctionInputType,
-                userDefinedFunctionOutputType,
+                udfInputType,
+                udfOutputType,
                 inputGeneratedProjection,
                 groupKeyGeneratedProjection,
                 groupSetGeneratedProjection);

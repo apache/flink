@@ -457,13 +457,12 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
         RowType userDefinedFunctionInputType =
                 (RowType) Projection.of(udafInputOffsets).project(inputRowType);
         RowType userDefinedFunctionOutputType =
-                new RowType(
-                        outputRowType
-                                .getFields()
-                                .subList(
+                (RowType)
+                        Projection.range(
                                         grouping.length,
                                         outputRowType.getFieldCount()
-                                                - namedWindowProperties.length));
+                                                - namedWindowProperties.length)
+                                .project(outputRowType);
 
         try {
             Constructor<OneInputStreamOperator<RowData, RowData>> ctor =

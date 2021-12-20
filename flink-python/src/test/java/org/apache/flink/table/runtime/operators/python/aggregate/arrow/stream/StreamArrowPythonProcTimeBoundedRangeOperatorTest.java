@@ -114,41 +114,37 @@ public class StreamArrowPythonProcTimeBoundedRangeOperatorTest
             RowType outputType,
             int[] groupingSet,
             int[] udafInputOffsets) {
-        RowType userDefinedFunctionInputType =
-                (RowType) Projection.of(udafInputOffsets).project(inputType);
-        RowType userDefinedFunctionOutputType =
-                new RowType(
-                        outputType
-                                .getFields()
-                                .subList(inputType.getFieldCount(), outputType.getFieldCount()));
-        GeneratedProjection generatedProjection =
-                ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new TableConfig()),
-                        "UdafInputProjection",
-                        inputType,
-                        userDefinedFunctionInputType,
-                        udafInputOffsets);
+        RowType udfInputType = (RowType) Projection.of(udafInputOffsets).project(inputType);
+        RowType udfOutputType =
+                (RowType)
+                        Projection.range(inputType.getFieldCount(), outputType.getFieldCount())
+                                .project(outputType);
 
         return new PassThroughStreamArrowPythonProcTimeBoundedRangeOperator(
                 config,
                 pandasAggregateFunctions,
                 inputType,
-                userDefinedFunctionInputType,
-                userDefinedFunctionOutputType,
+                udfInputType,
+                udfOutputType,
                 -1,
                 100L,
-                generatedProjection);
+                ProjectionCodeGenerator.generateProjection(
+                        CodeGeneratorContext.apply(new TableConfig()),
+                        "UdafInputProjection",
+                        inputType,
+                        udfInputType,
+                        udafInputOffsets));
     }
 
     private static class PassThroughStreamArrowPythonProcTimeBoundedRangeOperator
             extends StreamArrowPythonProcTimeBoundedRangeOperator {
 
-        public PassThroughStreamArrowPythonProcTimeBoundedRangeOperator(
+        PassThroughStreamArrowPythonProcTimeBoundedRangeOperator(
                 Configuration config,
                 PythonFunctionInfo[] pandasAggFunctions,
                 RowType inputType,
-                RowType userDefinedFunctionInputType,
-                RowType userDefinedFunctionOutputType,
+                RowType udfInputType,
+                RowType udfOutputType,
                 int inputTimeFieldIndex,
                 long lowerBoundary,
                 GeneratedProjection generatedProjection) {
@@ -156,8 +152,8 @@ public class StreamArrowPythonProcTimeBoundedRangeOperatorTest
                     config,
                     pandasAggFunctions,
                     inputType,
-                    userDefinedFunctionInputType,
-                    userDefinedFunctionOutputType,
+                    udfInputType,
+                    udfOutputType,
                     inputTimeFieldIndex,
                     lowerBoundary,
                     generatedProjection);
@@ -168,8 +164,8 @@ public class StreamArrowPythonProcTimeBoundedRangeOperatorTest
             return new PassThroughPythonAggregateFunctionRunner(
                     getRuntimeContext().getTaskName(),
                     PythonTestUtils.createTestEnvironmentManager(),
-                    userDefinedFunctionInputType,
-                    userDefinedFunctionOutputType,
+                    udfInputType,
+                    udfOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
                     new HashMap<>(),

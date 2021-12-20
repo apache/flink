@@ -60,8 +60,8 @@ abstract class AbstractBatchArrowPythonAggregateFunctionOperator
             Configuration config,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType userDefinedFunctionInputType,
-            RowType userDefinedFunctionOutputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             GeneratedProjection inputGeneratedProjection,
             GeneratedProjection groupKeyGeneratedProjection,
             GeneratedProjection groupSetGeneratedProjection) {
@@ -69,8 +69,8 @@ abstract class AbstractBatchArrowPythonAggregateFunctionOperator
                 config,
                 pandasAggFunctions,
                 inputType,
-                userDefinedFunctionInputType,
-                userDefinedFunctionOutputType,
+                udfInputType,
+                udfOutputType,
                 inputGeneratedProjection);
         this.groupKeyGeneratedProjection = Preconditions.checkNotNull(groupKeyGeneratedProjection);
         this.groupSetGeneratedProjection = Preconditions.checkNotNull(groupSetGeneratedProjection);

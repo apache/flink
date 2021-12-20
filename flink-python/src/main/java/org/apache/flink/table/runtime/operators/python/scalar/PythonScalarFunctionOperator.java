@@ -51,16 +51,16 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
             Configuration config,
             PythonFunctionInfo[] scalarFunctions,
             RowType inputType,
-            RowType userDefinedFunctionInputType,
-            RowType userDefinedFunctionOutputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             GeneratedProjection udfInputGeneratedProjection,
             GeneratedProjection forwardedFieldGeneratedProjection) {
         super(
                 config,
                 scalarFunctions,
                 inputType,
-                userDefinedFunctionInputType,
-                userDefinedFunctionOutputType,
+                udfInputType,
+                udfOutputType,
                 udfInputGeneratedProjection,
                 forwardedFieldGeneratedProjection);
     }
@@ -69,9 +69,8 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
     @SuppressWarnings("unchecked")
     public void open() throws Exception {
         super.open();
-        udfInputTypeSerializer = PythonTypeUtils.toInternalSerializer(userDefinedFunctionInputType);
-        udfOutputTypeSerializer =
-                PythonTypeUtils.toInternalSerializer(userDefinedFunctionOutputType);
+        udfInputTypeSerializer = PythonTypeUtils.toInternalSerializer(udfInputType);
+        udfOutputTypeSerializer = PythonTypeUtils.toInternalSerializer(udfOutputType);
     }
 
     @Override

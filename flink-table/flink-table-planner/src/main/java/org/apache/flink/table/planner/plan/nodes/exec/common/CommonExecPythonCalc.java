@@ -215,15 +215,13 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
 
         final RowType inputType = inputRowTypeInfo.toRowType();
         final RowType outputType = outputRowTypeInfo.toRowType();
-        final RowType userDefinedFunctionInputType =
-                (RowType) Projection.of(udfInputOffsets).project(inputType);
+        final RowType udfInputType = (RowType) Projection.of(udfInputOffsets).project(inputType);
         final RowType forwardedFieldType =
                 (RowType) Projection.of(forwardedFields).project(inputType);
-        final RowType userDefinedFunctionOutputType =
-                new RowType(
-                        outputType
-                                .getFields()
-                                .subList(forwardedFields.length, outputType.getFieldCount()));
+        final RowType udfOutputType =
+                (RowType)
+                        Projection.range(forwardedFields.length, outputType.getFieldCount())
+                                .project(outputType);
 
         try {
             Constructor<?> ctor =
@@ -240,13 +238,13 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                             mergedConfig,
                             pythonFunctionInfos,
                             inputType,
-                            userDefinedFunctionInputType,
-                            userDefinedFunctionOutputType,
+                            udfInputType,
+                            udfOutputType,
                             ProjectionCodeGenerator.generateProjection(
                                     CodeGeneratorContext.apply(tableConfig),
                                     "UdfInputProjection",
                                     inputType,
-                                    userDefinedFunctionInputType,
+                                    udfInputType,
                                     udfInputOffsets),
                             ProjectionCodeGenerator.generateProjection(
                                     CodeGeneratorContext.apply(tableConfig),

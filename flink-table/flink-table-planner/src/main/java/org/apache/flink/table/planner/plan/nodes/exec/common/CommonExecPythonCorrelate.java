@@ -52,7 +52,6 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 
 import java.lang.reflect.Constructor;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -158,16 +157,11 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
 
         final RowType inputType = inputRowType.toRowType();
         final RowType outputType = outputRowType.toRowType();
-        final RowType userDefinedFunctionInputType =
-                (RowType) Projection.of(udtfInputOffsets).project(inputType);
-        final RowType userDefinedFunctionOutputType =
-                new RowType(
-                        new ArrayList<>(
-                                outputType
-                                        .getFields()
-                                        .subList(
-                                                inputType.getFieldCount(),
-                                                outputType.getFieldCount())));
+        final RowType udfInputType = (RowType) Projection.of(udtfInputOffsets).project(inputType);
+        final RowType udfOutputType =
+                (RowType)
+                        Projection.range(inputType.getFieldCount(), outputType.getFieldCount())
+                                .project(outputType);
 
         try {
             Constructor ctor =
@@ -184,14 +178,14 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                             config,
                             pythonFunctionInfo,
                             inputType,
-                            userDefinedFunctionInputType,
-                            userDefinedFunctionOutputType,
+                            udfInputType,
+                            udfOutputType,
                             joinType,
                             ProjectionCodeGenerator.generateProjection(
                                     CodeGeneratorContext.apply(tableConfig),
                                     "UdtfInputProjection",
                                     inputType,
-                                    userDefinedFunctionInputType,
+                                    udfInputType,
                                     udtfInputOffsets));
         } catch (Exception e) {
             throw new TableException("Python Table Function Operator constructed failed.", e);

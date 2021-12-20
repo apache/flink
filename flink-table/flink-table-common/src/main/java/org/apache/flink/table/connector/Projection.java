@@ -174,6 +174,11 @@ public abstract class Projection {
                 IntStream.range(0, DataType.getFieldCount(dataType)).toArray());
     }
 
+    /** Create a {@link Projection} of a field range. */
+    public static Projection range(int startInclusive, int endExclusive) {
+        return new TopLevelProjection(IntStream.range(startInclusive, endExclusive).toArray());
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {

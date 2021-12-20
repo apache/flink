@@ -50,16 +50,16 @@ public class ArrowPythonScalarFunctionOperator extends AbstractPythonScalarFunct
             Configuration config,
             PythonFunctionInfo[] scalarFunctions,
             RowType inputType,
-            RowType userDefinedFunctionInputType,
-            RowType userDefinedFunctionOutputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             GeneratedProjection udfInputGeneratedProjection,
             GeneratedProjection forwardedFieldGeneratedProjection) {
         super(
                 config,
                 scalarFunctions,
                 inputType,
-                userDefinedFunctionInputType,
-                userDefinedFunctionOutputType,
+                udfInputType,
+                udfOutputType,
                 udfInputGeneratedProjection,
                 forwardedFieldGeneratedProjection);
     }
@@ -68,8 +68,7 @@ public class ArrowPythonScalarFunctionOperator extends AbstractPythonScalarFunct
     public void open() throws Exception {
         super.open();
         maxArrowBatchSize = Math.min(pythonConfig.getMaxArrowBatchSize(), maxBundleSize);
-        arrowSerializer =
-                new ArrowSerializer(userDefinedFunctionInputType, userDefinedFunctionOutputType);
+        arrowSerializer = new ArrowSerializer(udfInputType, udfOutputType);
         arrowSerializer.open(bais, baos);
         currentBatchCount = 0;
     }
