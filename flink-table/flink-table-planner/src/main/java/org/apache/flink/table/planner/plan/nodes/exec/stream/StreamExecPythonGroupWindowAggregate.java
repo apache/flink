@@ -53,8 +53,8 @@ import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy;
-import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -417,11 +417,10 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                     ZoneId shiftTimeZone) {
         final int inputCountIndex = aggInfoList.getIndexOfCountStar();
         final boolean countStarInserted = aggInfoList.countStarInserted();
-        final Tuple2<PythonAggregateFunctionInfo[], DataViewUtils.DataViewSpec[][]>
-                aggInfosAndDataViewSpecs =
-                        CommonPythonUtil.extractPythonAggregateFunctionInfos(aggInfoList, aggCalls);
+        final Tuple2<PythonAggregateFunctionInfo[], DataViewSpec[][]> aggInfosAndDataViewSpecs =
+                CommonPythonUtil.extractPythonAggregateFunctionInfos(aggInfoList, aggCalls);
         PythonAggregateFunctionInfo[] pythonFunctionInfos = aggInfosAndDataViewSpecs.f0;
-        DataViewUtils.DataViewSpec[][] dataViewSpecs = aggInfosAndDataViewSpecs.f1;
+        DataViewSpec[][] dataViewSpecs = aggInfosAndDataViewSpecs.f1;
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getGeneralPythonStreamGroupWindowAggregateFunctionOperator(
                         config,
@@ -524,7 +523,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                     RowType outputType,
                     WindowAssigner<?> windowAssigner,
                     PythonAggregateFunctionInfo[] aggregateFunctions,
-                    DataViewUtils.DataViewSpec[][] dataViewSpecs,
+                    DataViewSpec[][] dataViewSpecs,
                     int inputTimeFieldIndex,
                     int indexOfCountStar,
                     boolean generateUpdateBefore,
@@ -548,7 +547,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                                 RowType.class,
                                 RowType.class,
                                 PythonAggregateFunctionInfo[].class,
-                                DataViewUtils.DataViewSpec[][].class,
+                                DataViewSpec[][].class,
                                 int[].class,
                                 int.class,
                                 boolean.class,
@@ -592,7 +591,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                                 RowType.class,
                                 RowType.class,
                                 PythonAggregateFunctionInfo[].class,
-                                DataViewUtils.DataViewSpec[][].class,
+                                DataViewSpec[][].class,
                                 int[].class,
                                 int.class,
                                 boolean.class,
@@ -637,7 +636,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                                 RowType.class,
                                 RowType.class,
                                 PythonAggregateFunctionInfo[].class,
-                                DataViewUtils.DataViewSpec[][].class,
+                                DataViewSpec[][].class,
                                 int[].class,
                                 int.class,
                                 boolean.class,

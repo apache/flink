@@ -57,8 +57,10 @@ import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
 import org.apache.flink.table.planner.plan.utils.AggregateInfo;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
-import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment;
+import org.apache.flink.table.runtime.dataview.DataViewSpec;
+import org.apache.flink.table.runtime.dataview.ListViewSpec;
+import org.apache.flink.table.runtime.dataview.MapViewSpec;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -155,11 +157,11 @@ public class CommonPythonUtil {
         }
     }
 
-    public static Tuple2<PythonAggregateFunctionInfo[], DataViewUtils.DataViewSpec[][]>
+    public static Tuple2<PythonAggregateFunctionInfo[], DataViewSpec[][]>
             extractPythonAggregateFunctionInfos(
                     AggregateInfoList pythonAggregateInfoList, AggregateCall[] aggCalls) {
         List<PythonAggregateFunctionInfo> pythonAggregateFunctionInfoList = new ArrayList<>();
-        List<DataViewUtils.DataViewSpec[]> dataViewSpecList = new ArrayList<>();
+        List<DataViewSpec[]> dataViewSpecList = new ArrayList<>();
         AggregateInfo[] aggInfos = pythonAggregateInfoList.aggInfos();
         for (int i = 0; i < aggInfos.length; i++) {
             AggregateInfo aggInfo = aggInfos[i];
@@ -195,12 +197,12 @@ public class CommonPythonUtil {
                                 distinct));
                 // The data views of the built in Python Aggregate Function are different from Java
                 // side, we will create the spec at Python side.
-                dataViewSpecList.add(new DataViewUtils.DataViewSpec[0]);
+                dataViewSpecList.add(new DataViewSpec[0]);
             }
         }
         return Tuple2.of(
                 pythonAggregateFunctionInfoList.toArray(new PythonAggregateFunctionInfo[0]),
-                dataViewSpecList.toArray(new DataViewUtils.DataViewSpec[0][0]));
+                dataViewSpecList.toArray(new DataViewSpec[0][0]));
     }
 
     public static Tuple2<int[], PythonFunctionInfo[]>
@@ -241,9 +243,9 @@ public class CommonPythonUtil {
         return Tuple2.of(udafInputOffsets, pythonFunctionInfos.toArray(new PythonFunctionInfo[0]));
     }
 
-    public static DataViewUtils.DataViewSpec[] extractDataViewSpecs(int index, DataType accType) {
+    public static DataViewSpec[] extractDataViewSpecs(int index, DataType accType) {
         if (!(accType instanceof FieldsDataType)) {
-            return new DataViewUtils.DataViewSpec[0];
+            return new DataViewSpec[0];
         }
         FieldsDataType compositeAccType = (FieldsDataType) accType;
         if (includesDataView(compositeAccType)) {
@@ -265,7 +267,7 @@ public class CommonPythonUtil {
                                                     ((StructuredType) childLogicalType)
                                                             .getImplementationClass()
                                                             .get())) {
-                                        return new DataViewUtils.ListViewSpec(
+                                        return new ListViewSpec(
                                                 "agg"
                                                         + index
                                                         + "$"
@@ -279,7 +281,7 @@ public class CommonPythonUtil {
                                                     ((StructuredType) childLogicalType)
                                                             .getImplementationClass()
                                                             .get())) {
-                                        return new DataViewUtils.MapViewSpec(
+                                        return new MapViewSpec(
                                                 "agg"
                                                         + index
                                                         + "$"
@@ -293,13 +295,13 @@ public class CommonPythonUtil {
                                     return null;
                                 })
                         .filter(Objects::nonNull)
-                        .toArray(DataViewUtils.DataViewSpec[]::new);
+                        .toArray(DataViewSpec[]::new);
             } else {
                 throw new TableException(
                         "For Python AggregateFunction you can only use DataView in " + "Row type.");
             }
         } else {
-            return new DataViewUtils.DataViewSpec[0];
+            return new DataViewSpec[0];
         }
     }
 
