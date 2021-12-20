@@ -131,8 +131,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * conditions: 1. field name is in filterable-fields, which are defined in with properties. 2. the
  * field type all should be comparable. 3. UDF is UPPER or LOWER.
  */
-public final class TestValuesTableFactory
-        implements DynamicTableSourceFactory, DynamicTableSinkFactory {
+public class TestValuesTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
     // --------------------------------------------------------------------------------------------
     // Data Registration

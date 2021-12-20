@@ -36,6 +36,41 @@ import static org.apache.flink.table.factories.ManagedTableFactory.discoverManag
 @Internal
 public class ManagedTableListener {
 
+    public static boolean isManagedTable(
+            @Nullable Catalog catalog, ResolvedCatalogBaseTable<?> table) {
+        if (catalog == null || !catalog.supportsManagedTable()) {
+            // catalog not support managed table
+            return false;
+        }
+
+        if (table.getTableKind() == CatalogBaseTable.TableKind.VIEW) {
+            // view is not managed table
+            return false;
+        }
+
+        Map<String, String> options;
+        try {
+            options = table.getOptions();
+        } catch (TableException ignore) {
+            // exclude abnormal tables, such as InlineCatalogTable that does not have the options
+            return false;
+        }
+
+        if (!StringUtils.isNullOrWhitespaceOnly(
+                options.get(ConnectorDescriptorValidator.CONNECTOR_TYPE))) {
+            // legacy connector is not managed table
+            return false;
+        }
+
+        if (!StringUtils.isNullOrWhitespaceOnly(options.get(FactoryUtil.CONNECTOR.key()))) {
+            // with connector is not managed table
+            return false;
+        }
+
+        // ConnectorCatalogTable is not managed table
+        return !(table.getOrigin() instanceof ConnectorCatalogTable);
+    }
+
     private final ClassLoader classLoader;
 
     private final ReadableConfig config;
@@ -77,40 +112,6 @@ public class ManagedTableListener {
                                     identifier, (ResolvedCatalogTable) table, isTemporary),
                             ignoreIfNotExists);
         }
-    }
-
-    private boolean isManagedTable(@Nullable Catalog catalog, ResolvedCatalogBaseTable<?> table) {
-        if (catalog == null || !catalog.supportsManagedTable()) {
-            // catalog not support managed table
-            return false;
-        }
-
-        if (table.getTableKind() == CatalogBaseTable.TableKind.VIEW) {
-            // view is not managed table
-            return false;
-        }
-
-        Map<String, String> options;
-        try {
-            options = table.getOptions();
-        } catch (TableException ignore) {
-            // exclude abnormal tables, such as InlineCatalogTable that does not have the options
-            return false;
-        }
-
-        if (!StringUtils.isNullOrWhitespaceOnly(
-                options.get(ConnectorDescriptorValidator.CONNECTOR_TYPE))) {
-            // legacy connector is not managed table
-            return false;
-        }
-
-        if (!StringUtils.isNullOrWhitespaceOnly(options.get(FactoryUtil.CONNECTOR.key()))) {
-            // with connector is not managed table
-            return false;
-        }
-
-        // ConnectorCatalogTable is not managed table
-        return !(table.getOrigin() instanceof ConnectorCatalogTable);
     }
 
     /** Enrich options for creating managed table. */

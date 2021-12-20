@@ -34,9 +34,9 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
 import org.apache.flink.types.RowKind
-
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.util.ImmutableBitSet
+import org.apache.flink.table.catalog.ManagedTableListener
 
 import scala.collection.JavaConversions._
 
@@ -45,14 +45,13 @@ import scala.collection.JavaConversions._
  */
 class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOptimizeContext] {
 
-  private val SATISFY_MODIFY_KIND_SET_TRAIT_VISITOR = new SatisfyModifyKindSetTraitVisitor
-  private val SATISFY_UPDATE_KIND_TRAIT_VISITOR = new SatisfyUpdateKindTraitVisitor
-
   override def optimize(
       root: RelNode,
       context: StreamOptimizeContext): RelNode = {
     // step1: satisfy ModifyKindSet trait
     val physicalRoot = root.asInstanceOf[StreamPhysicalRel]
+    val SATISFY_MODIFY_KIND_SET_TRAIT_VISITOR = new SatisfyModifyKindSetTraitVisitor
+    val SATISFY_UPDATE_KIND_TRAIT_VISITOR = new SatisfyUpdateKindTraitVisitor(context)
     val rootWithModifyKindSet = SATISFY_MODIFY_KIND_SET_TRAIT_VISITOR.visit(
       physicalRoot,
       // we do not propagate the ModifyKindSet requirement and requester among blocks
@@ -407,8 +406,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
    * <p>After traversed by this visitor, every node should have a correct [[UpdateKindTrait]]
    * or returns None if the planner doesn't support to satisfy the required [[UpdateKindTrait]].
    */
-  private class SatisfyUpdateKindTraitVisitor {
-
+  private class SatisfyUpdateKindTraitVisitor(private val context: StreamOptimizeContext) {
     /**
      * Try to satisfy the required [[UpdateKindTrait]] from root.
      *
@@ -630,6 +628,24 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         }
 
       case normalize: StreamPhysicalChangelogNormalize =>
+        val tableIdentifier = normalize.tableIdentifier
+        if (tableIdentifier != null && requiredTrait == UpdateKindTrait.ONLY_UPDATE_AFTER) {
+          val catalogName = tableIdentifier.getCatalogName
+          val catalog = context.getCatalogManager.getCatalog(catalogName).orElse(null)
+          val catalogTable = normalize.table
+          if (ManagedTableListener.isManagedTable(catalog, catalogTable)) {
+            // if requiredTrait is ONLY_UPDATE_AFTER and table is ManagedTable,
+            // we can eliminate current normalize stage,
+            // cuz ManagedTable has preserved complete delete messages.
+            val input = if(normalize.getInput.isInstanceOf[StreamPhysicalExchange]) {
+              normalize.getInput.asInstanceOf[StreamPhysicalExchange].getInput
+            } else {
+              normalize.getInput
+            }
+            val inputPhysicalRel = input.asInstanceOf[StreamPhysicalRel]
+            return this.visit(inputPhysicalRel, UpdateKindTrait.ONLY_UPDATE_AFTER)
+          }
+        }
         // changelog normalize currently only supports input only sending UPDATE_AFTER
         val children = visitChildren(normalize, UpdateKindTrait.ONLY_UPDATE_AFTER)
         // use requiredTrait as providedTrait,

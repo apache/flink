@@ -796,7 +796,9 @@ class FlinkRelMdHandlerTestBase {
       cluster,
       streamPhysicalTraits,
       streamExchange,
-      key)
+      key,
+      null,
+      null)
   }
 
   protected lazy val streamDropUpdateBefore = {
