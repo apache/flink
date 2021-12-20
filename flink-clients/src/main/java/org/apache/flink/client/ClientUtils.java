@@ -81,10 +81,11 @@ public enum ClientUtils {
         while (factoryIt.hasNext()) {
             factory = factoryIt.next();
             return factory.buildClientLoaderFactory(
-                    resolveOrder,
-                    alwaysParentFirstLoaderPatterns,
-                    NOOP_EXCEPTION_HANDLER,
-                    checkClassloaderLeak).createClassLoader(urls);
+                            resolveOrder,
+                            alwaysParentFirstLoaderPatterns,
+                            NOOP_EXCEPTION_HANDLER,
+                            checkClassloaderLeak)
+                    .createClassLoader(urls);
         }
 
         return FlinkUserCodeClassLoaders.create(

@@ -24,10 +24,10 @@ import javax.annotation.Nullable;
 
 import java.util.function.Consumer;
 
-
-
 /**
- * Provides facilities to customize {@link ClassLoaderFactory} by user ,it is instantinate by ServiceLoader.
+ * Provides facilities to customize {@link ClassLoaderFactory} by user ,it is instantinate by
+ * ServiceLoader.
+ *
  * @see java.util.ServiceLoader
  */
 public interface ClassLoaderFactoryBuilder {
@@ -36,7 +36,7 @@ public interface ClassLoaderFactoryBuilder {
             FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
             String[] alwaysParentFirstPatterns,
             @Nullable Consumer<Throwable> exceptionHander,
-            boolean checkClassLoaderLeak){
+            boolean checkClassLoaderLeak) {
         throw new UnsupportedOperationException();
     }
 
@@ -44,7 +44,7 @@ public interface ClassLoaderFactoryBuilder {
             FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
             String[] alwaysParentFirstPatterns,
             @Nullable Consumer<Throwable> exceptionHander,
-            boolean checkClassLoaderLeak){
+            boolean checkClassLoaderLeak) {
         throw new UnsupportedOperationException();
     }
 }
