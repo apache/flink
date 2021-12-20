@@ -39,16 +39,15 @@ import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
+import org.apache.flink.table.planner.typeutils.DataViewUtils;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.groupwindow.ProctimeAttribute;
 import org.apache.flink.table.runtime.groupwindow.RowtimeAttribute;
 import org.apache.flink.table.runtime.groupwindow.WindowEnd;
 import org.apache.flink.table.runtime.groupwindow.WindowProperty;
 import org.apache.flink.table.runtime.groupwindow.WindowStart;
-import org.apache.flink.table.planner.plan.logical.LogicalWindow;
-import org.apache.flink.table.planner.typeutils.DataViewUtils;
-import org.apache.flink.table.runtime.generated.GeneratedProjection;
-import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
@@ -96,7 +95,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
     private transient ByteArrayOutputStreamWithPos windowBaos;
     private transient DataOutputViewStreamWrapper windowBaosWrapper;
 
-    public PassThroughPythonStreamGroupWindowAggregateOperator(
+    protected PassThroughPythonStreamGroupWindowAggregateOperator(
             Configuration config,
             RowType inputType,
             RowType outputType,
@@ -107,7 +106,12 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
             boolean countStarInserted,
             int inputTimeFieldIndex,
             WindowAssigner<TimeWindow> windowAssigner,
-            LogicalWindow window,
+            FlinkFnApi.GroupWindow.WindowType windowType,
+            boolean isRowTime,
+            boolean isTimeWindow,
+            long size,
+            long slide,
+            long gap,
             long allowedLateness,
             NamedWindowProperty[] namedProperties,
             ZoneId shiftTimeZone) {
@@ -123,7 +127,12 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                 countStarInserted,
                 inputTimeFieldIndex,
                 windowAssigner,
-                window,
+                windowType,
+                isRowTime,
+                isTimeWindow,
+                size,
+                slide,
+                gap,
                 allowedLateness,
                 namedProperties,
                 shiftTimeZone);

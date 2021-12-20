@@ -37,7 +37,6 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
@@ -50,12 +49,14 @@ import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonSer
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
+import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.window.assigners.CountSlidingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.CountTumblingWindowAssigner;
@@ -83,6 +84,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
@@ -113,6 +115,16 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
             GENERAL_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME =
                     "org.apache.flink.table.runtime.operators.python.aggregate."
                             + "PythonStreamGroupWindowAggregateOperator";
+
+    private static final String
+            GENERAL_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_CREATE_TUMBLING_WINDOW_METHOD_NAME =
+                    "createTumblingGroupWindowAggregateOperator";
+    private static final String
+            GENERAL_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_CREATE_SLIDING_WINDOW_METHOD_NAME =
+                    "createSlidingGroupWindowAggregateOperator";
+    private static final String
+            GENERAL_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_CREATE_SESSION_WINDOW_METHOD_NAME =
+                    "createSessionGroupWindowAggregateOperator";
 
     public static final String FIELD_NAME_WINDOW = "window";
     public static final String FIELD_NAME_NAMED_WINDOW_PROPERTIES = "namedWindowProperties";
@@ -525,46 +537,145 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
         Class clazz =
                 CommonPythonUtil.loadClass(
                         GENERAL_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME);
+
+        boolean isRowTime = AggregateUtil.isRowtimeAttribute(window.timeAttribute());
+
         try {
-            Constructor<OneInputStreamOperator<RowData, RowData>> ctor =
-                    clazz.getConstructor(
-                            Configuration.class,
-                            RowType.class,
-                            RowType.class,
-                            PythonAggregateFunctionInfo[].class,
-                            DataViewUtils.DataViewSpec[][].class,
-                            int[].class,
-                            int.class,
-                            boolean.class,
-                            boolean.class,
-                            int.class,
-                            WindowAssigner.class,
-                            LogicalWindow.class,
-                            long.class,
-                            NamedWindowProperty[].class,
-                            ZoneId.class);
-            return ctor.newInstance(
-                    config,
-                    inputType,
-                    outputType,
-                    aggregateFunctions,
-                    dataViewSpecs,
-                    grouping,
-                    indexOfCountStar,
-                    generateUpdateBefore,
-                    countStarInserted,
-                    inputTimeFieldIndex,
-                    windowAssigner,
-                    window,
-                    allowance,
-                    namedWindowProperties,
-                    shiftTimeZone);
-        } catch (NoSuchMethodException
-                | IllegalAccessException
-                | InstantiationException
-                | InvocationTargetException e) {
+            if (window instanceof TumblingGroupWindow) {
+                ValueLiteralExpression size = ((TumblingGroupWindow) window).size();
+
+                Method create =
+                        clazz.getMethod(
+                                GENERAL_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_CREATE_TUMBLING_WINDOW_METHOD_NAME,
+                                Configuration.class,
+                                RowType.class,
+                                RowType.class,
+                                PythonAggregateFunctionInfo[].class,
+                                DataViewUtils.DataViewSpec[][].class,
+                                int[].class,
+                                int.class,
+                                boolean.class,
+                                boolean.class,
+                                int.class,
+                                WindowAssigner.class,
+                                boolean.class,
+                                boolean.class,
+                                long.class,
+                                long.class,
+                                NamedWindowProperty[].class,
+                                ZoneId.class);
+                return (OneInputStreamOperator<RowData, RowData>)
+                        create.invoke(
+                                null,
+                                config,
+                                inputType,
+                                outputType,
+                                aggregateFunctions,
+                                dataViewSpecs,
+                                grouping,
+                                indexOfCountStar,
+                                generateUpdateBefore,
+                                countStarInserted,
+                                inputTimeFieldIndex,
+                                windowAssigner,
+                                isRowTime,
+                                AggregateUtil.hasTimeIntervalType(size),
+                                AggregateUtil.toDuration(size).toMillis(),
+                                allowance,
+                                namedWindowProperties,
+                                shiftTimeZone);
+            } else if (window instanceof SlidingGroupWindow) {
+                ValueLiteralExpression size = ((SlidingGroupWindow) window).size();
+                ValueLiteralExpression slide = ((SlidingGroupWindow) window).slide();
+
+                Method create =
+                        clazz.getMethod(
+                                GENERAL_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_CREATE_SLIDING_WINDOW_METHOD_NAME,
+                                Configuration.class,
+                                RowType.class,
+                                RowType.class,
+                                PythonAggregateFunctionInfo[].class,
+                                DataViewUtils.DataViewSpec[][].class,
+                                int[].class,
+                                int.class,
+                                boolean.class,
+                                boolean.class,
+                                int.class,
+                                WindowAssigner.class,
+                                boolean.class,
+                                boolean.class,
+                                long.class,
+                                long.class,
+                                long.class,
+                                NamedWindowProperty[].class,
+                                ZoneId.class);
+                return (OneInputStreamOperator<RowData, RowData>)
+                        create.invoke(
+                                null,
+                                config,
+                                inputType,
+                                outputType,
+                                aggregateFunctions,
+                                dataViewSpecs,
+                                grouping,
+                                indexOfCountStar,
+                                generateUpdateBefore,
+                                countStarInserted,
+                                inputTimeFieldIndex,
+                                windowAssigner,
+                                isRowTime,
+                                AggregateUtil.hasTimeIntervalType(size),
+                                AggregateUtil.toDuration(size).toMillis(),
+                                AggregateUtil.toDuration(slide).toMillis(),
+                                allowance,
+                                namedWindowProperties,
+                                shiftTimeZone);
+            } else if (window instanceof SessionGroupWindow) {
+                ValueLiteralExpression gap = ((SessionGroupWindow) window).gap();
+
+                Method create =
+                        clazz.getMethod(
+                                GENERAL_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_CREATE_SESSION_WINDOW_METHOD_NAME,
+                                Configuration.class,
+                                RowType.class,
+                                RowType.class,
+                                PythonAggregateFunctionInfo[].class,
+                                DataViewUtils.DataViewSpec[][].class,
+                                int[].class,
+                                int.class,
+                                boolean.class,
+                                boolean.class,
+                                int.class,
+                                WindowAssigner.class,
+                                boolean.class,
+                                long.class,
+                                long.class,
+                                NamedWindowProperty[].class,
+                                ZoneId.class);
+                return (OneInputStreamOperator<RowData, RowData>)
+                        create.invoke(
+                                null,
+                                config,
+                                inputType,
+                                outputType,
+                                aggregateFunctions,
+                                dataViewSpecs,
+                                grouping,
+                                indexOfCountStar,
+                                generateUpdateBefore,
+                                countStarInserted,
+                                inputTimeFieldIndex,
+                                windowAssigner,
+                                isRowTime,
+                                AggregateUtil.toDuration(gap).toMillis(),
+                                allowance,
+                                namedWindowProperties,
+                                shiftTimeZone);
+            }
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
             throw new TableException(
                     "Python PythonStreamGroupWindowAggregateOperator constructed failed.", e);
         }
+        throw new RuntimeException(String.format("Unsupported LogicWindow Type %s", window));
     }
 }
