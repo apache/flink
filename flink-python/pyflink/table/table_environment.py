@@ -1591,7 +1591,7 @@ class TableEnvironment(object):
             PythonTableUtils = gateway.jvm \
                 .org.apache.flink.table.planner.utils.python.PythonTableUtils
             PythonInputFormatTableSource = gateway.jvm \
-                .org.apache.flink.table.planner.utils.python.PythonInputFormatTableSource
+                .org.apache.flink.table.utils.python.PythonInputFormatTableSource
             j_input_format = PythonTableUtils.getInputFormat(
                 j_objs, row_type_info, execution_config)
             j_table_source = PythonInputFormatTableSource(
