@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.expressions;
+package org.apache.flink.table.runtime.groupwindow;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
 
@@ -25,22 +26,29 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
-/** Window end property. */
-@JsonTypeName("WindowEnd")
-public class PlannerWindowEnd extends AbstractPlannerWindowProperty {
+/**
+ * Slice end property.
+ *
+ * @deprecated The POJOs in this package are used to represent the deprecated Group Window feature.
+ *     Currently, they also used to configure Python operators.
+ */
+@Deprecated
+@Internal
+@JsonTypeName("SliceEnd")
+public class SliceEnd extends AbstractWindowProperty {
 
     @JsonCreator
-    public PlannerWindowEnd(@JsonProperty(FIELD_NAME_REFERENCE) PlannerWindowReference reference) {
+    public SliceEnd(@JsonProperty(FIELD_NAME_REFERENCE) WindowReference reference) {
         super(reference);
     }
 
     @Override
     public LogicalType getResultType() {
-        return new TimestampType(false, 3);
+        return new TimestampType(3);
     }
 
     @Override
     public String toString() {
-        return String.format("end(%s)", reference);
+        return String.format("slice_end(%s)", reference);
     }
 }

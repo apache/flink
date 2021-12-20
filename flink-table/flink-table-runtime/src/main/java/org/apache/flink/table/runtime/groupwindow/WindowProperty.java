@@ -16,24 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.expressions;
+package org.apache.flink.table.runtime.groupwindow;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSubTypes;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-/** The interface that describes window's property. */
+/**
+ * The interface that describes window's property.
+ *
+ * @deprecated The POJOs in this package are used to represent the deprecated Group Window feature.
+ *     Currently, they also used to configure Python operators.
+ */
+@Deprecated
+@Internal
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "kind")
 @JsonSubTypes({
-    @JsonSubTypes.Type(value = PlannerProctimeAttribute.class),
-    @JsonSubTypes.Type(value = PlannerRowtimeAttribute.class),
-    @JsonSubTypes.Type(value = PlannerWindowStart.class),
-    @JsonSubTypes.Type(value = PlannerWindowEnd.class),
-    @JsonSubTypes.Type(value = PlannerSliceEnd.class)
+    @JsonSubTypes.Type(value = ProctimeAttribute.class),
+    @JsonSubTypes.Type(value = RowtimeAttribute.class),
+    @JsonSubTypes.Type(value = WindowStart.class),
+    @JsonSubTypes.Type(value = WindowEnd.class),
+    @JsonSubTypes.Type(value = SliceEnd.class)
 })
-public interface PlannerWindowProperty {
+public interface WindowProperty {
 
     @JsonIgnore
     LogicalType getResultType();

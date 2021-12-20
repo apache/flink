@@ -20,10 +20,10 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.CalcitePair
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import com.google.common.collect.ImmutableMap
 import org.apache.calcite.rel.`type`.RelDataType
@@ -272,7 +272,7 @@ object RelExplainUtil {
       outputRowType: RelDataType,
       aggInfoList: AggregateInfoList,
       grouping: Array[Int],
-      windowProperties: Seq[PlannerNamedWindowProperty],
+      windowProperties: Seq[NamedWindowProperty],
       isLocal: Boolean = false,
       isGlobal: Boolean = false): String = {
     stringifyStreamAggregationToString(
@@ -311,7 +311,7 @@ object RelExplainUtil {
       aggInfoList: AggregateInfoList,
       grouping: Array[Int],
       shuffleKey: Option[Array[Int]],
-      windowProperties: Seq[PlannerNamedWindowProperty],
+      windowProperties: Seq[NamedWindowProperty],
       isLocal: Boolean,
       isGlobal: Boolean): String = {
 
@@ -792,7 +792,7 @@ object RelExplainUtil {
       grouping: Array[Int],
       rowType: RelDataType,
       aggs: Seq[AggregateCall],
-      namedProperties: Seq[PlannerNamedWindowProperty],
+      namedProperties: Seq[NamedWindowProperty],
       withOutputFieldNames: Boolean = true): String = {
     val inFields = inputType.getFieldNames
     val isTableAggregate = AggregateUtil.isTableAggregate(aggs)

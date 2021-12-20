@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.expressions;
+package org.apache.flink.table.runtime.groupwindow;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -29,13 +30,19 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
-/** Rowtime property. */
+/**
+ * Rowtime property.
+ *
+ * @deprecated The POJOs in this package are used to represent the deprecated Group Window feature.
+ *     Currently, they also used to configure Python operators.
+ */
+@Deprecated
+@Internal
 @JsonTypeName("Rowtime")
-public class PlannerRowtimeAttribute extends AbstractPlannerWindowProperty {
+public class RowtimeAttribute extends AbstractWindowProperty {
 
     @JsonCreator
-    public PlannerRowtimeAttribute(
-            @JsonProperty(FIELD_NAME_REFERENCE) PlannerWindowReference reference) {
+    public RowtimeAttribute(@JsonProperty(FIELD_NAME_REFERENCE) WindowReference reference) {
         super(reference);
     }
 

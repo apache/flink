@@ -32,10 +32,10 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
-import org.apache.flink.table.planner.expressions.PlannerWindowStart;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
+import org.apache.flink.table.runtime.groupwindow.WindowEnd;
+import org.apache.flink.table.runtime.groupwindow.WindowStart;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.SlidingWindowAssigner;
@@ -469,9 +469,9 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                 windowAssigner,
                 trigger,
                 0,
-                new PlannerNamedWindowProperty[] {
-                    new PlannerNamedWindowProperty("start", new PlannerWindowStart(null)),
-                    new PlannerNamedWindowProperty("end", new PlannerWindowEnd(null))
+                new NamedWindowProperty[] {
+                    new NamedWindowProperty("start", new WindowStart(null)),
+                    new NamedWindowProperty("end", new WindowEnd(null))
                 },
                 UTC_ZONE_ID,
                 ProjectionCodeGenerator.generateProjection(
@@ -495,7 +495,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                 WindowAssigner windowAssigner,
                 Trigger trigger,
                 long allowedLateness,
-                PlannerNamedWindowProperty[] namedProperties,
+                NamedWindowProperty[] namedProperties,
                 ZoneId shiftTimeZone,
                 GeneratedProjection generatedProjection) {
             super(

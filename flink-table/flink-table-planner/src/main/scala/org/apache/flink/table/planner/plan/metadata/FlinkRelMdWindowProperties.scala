@@ -18,16 +18,16 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
 import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, WatermarkAssigner}
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalAggregate, FlinkLogicalCorrelate, FlinkLogicalJoin, FlinkLogicalRank}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalCorrelateBase, StreamPhysicalMiniBatchAssigner, StreamPhysicalTemporalJoin, StreamPhysicalWindowAggregate, StreamPhysicalWindowJoin, StreamPhysicalWindowRank, StreamPhysicalWindowTableFunction}
+import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.satisfyWindowJoin
 import org.apache.flink.table.planner.plan.utils.WindowUtil.{convertToWindowingStrategy, groupingContainsWindowStartEnd, isWindowTableFunctionCall}
 import org.apache.flink.table.planner.{JArrayList, JHashMap, JList}
+import org.apache.flink.table.runtime.groupwindow._
 
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
@@ -251,13 +251,13 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
     val propertyOffset = rel.grouping.length + rel.aggCalls.size()
     rel.namedWindowProperties.map(_.getProperty).zipWithIndex.foreach { case (p, index) =>
       p match {
-        case _: PlannerWindowStart =>
+        case _: WindowStart =>
           starts += propertyOffset + index
 
-        case _: PlannerWindowEnd =>
+        case _: WindowEnd =>
           ends += propertyOffset + index
 
-        case _: PlannerRowtimeAttribute | _: PlannerProctimeAttribute =>
+        case _: RowtimeAttribute | _: ProctimeAttribute =>
           times += propertyOffset + index
       }
     }

@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.logical
 
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.planner.expressions.PlannerWindowReference
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.{hasTimeIntervalType, toLong}
+import org.apache.flink.table.runtime.groupwindow.WindowReference
 
 import java.time.Duration
 import java.util.Objects
@@ -32,7 +32,7 @@ import java.util.Objects
  * @param timeAttribute time field indicating event-time or processing-time
  */
 abstract class LogicalWindow(
-    val aliasAttribute: PlannerWindowReference,
+    val aliasAttribute: WindowReference,
     val timeAttribute: FieldReferenceExpression) {
 
   override def equals(o: Any): Boolean = {
@@ -75,7 +75,7 @@ abstract class LogicalWindow(
 // ------------------------------------------------------------------------------------------------
 
 case class TumblingGroupWindow(
-    alias: PlannerWindowReference,
+    alias: WindowReference,
     timeField: FieldReferenceExpression,
     size: ValueLiteralExpression)
   extends LogicalWindow(
@@ -98,7 +98,7 @@ case class TumblingGroupWindow(
 // ------------------------------------------------------------------------------------------------
 
 case class SlidingGroupWindow(
-    alias: PlannerWindowReference,
+    alias: WindowReference,
     timeField: FieldReferenceExpression,
     size: ValueLiteralExpression,
     slide: ValueLiteralExpression)
@@ -123,7 +123,7 @@ case class SlidingGroupWindow(
 // ------------------------------------------------------------------------------------------------
 
 case class SessionGroupWindow(
-    alias: PlannerWindowReference,
+    alias: WindowReference,
     timeField: FieldReferenceExpression,
     gap: ValueLiteralExpression)
   extends LogicalWindow(
