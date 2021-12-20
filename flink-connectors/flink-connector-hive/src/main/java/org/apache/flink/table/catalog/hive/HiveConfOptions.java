@@ -37,7 +37,7 @@ public class HiveConfOptions {
             key("flink.hive.lock-check-max-sleep")
                     .durationType()
                     .defaultValue(Duration.ofSeconds(8))
-                    .withDescription("the maximum sleep time when retrying to check the lock.");
+                    .withDescription("The maximum sleep time when retrying to check the lock.");
 
     public static final ConfigOption<Duration> LOCK_ACQUIRE_TIMEOUT =
             key("flink.hive.lock-acquire-timeout")
