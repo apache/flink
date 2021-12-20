@@ -907,7 +907,7 @@ class StreamExecutionEnvironment(object):
             # Since flink python module depends on table module, we can make use of utils of it when
             # implementing python DataStream API.
             PythonTableUtils = gateway.jvm\
-                .org.apache.flink.table.planner.utils.python.PythonTableUtils
+                .org.apache.flink.table.utils.python.PythonTableUtils
             execution_config = self._j_stream_execution_environment.getConfig()
             j_input_format = PythonTableUtils.getCollectionInputFormat(
                 j_objs,

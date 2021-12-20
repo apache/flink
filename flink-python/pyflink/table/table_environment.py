@@ -1589,7 +1589,7 @@ class TableEnvironment(object):
             gateway = get_gateway()
             j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, True)
             PythonTableUtils = gateway.jvm \
-                .org.apache.flink.table.planner.utils.python.PythonTableUtils
+                .org.apache.flink.table.utils.python.PythonTableUtils
             PythonInputFormatTableSource = gateway.jvm \
                 .org.apache.flink.table.utils.python.PythonInputFormatTableSource
             j_input_format = PythonTableUtils.getInputFormat(
