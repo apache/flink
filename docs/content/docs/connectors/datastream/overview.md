@@ -44,7 +44,7 @@ Connectors provide code for interfacing with various third-party systems. Curren
  * [Elasticsearch]({{< ref "docs/connectors/datastream/elasticsearch" >}}) (sink)
  * [FileSystem (Hadoop included) - Streaming only sink]({{< ref "docs/connectors/datastream/streamfile_sink" >}}) (sink)
  * [FileSystem (Hadoop included) - Streaming and Batch sink]({{< ref "docs/connectors/datastream/file_sink" >}}) (sink)
- * [FileSystem (Hadoop included) - Batch source] ({{< ref "docs/connectors/datastream/formats" >}}) (source)
+ * [FileSystem (Hadoop included) - Batch source]({{< ref "docs/connectors/datastream/formats" >}}) (source)
  * [RabbitMQ]({{< ref "docs/connectors/datastream/rabbitmq" >}}) (source/sink)
  * [Google PubSub]({{< ref "docs/connectors/datastream/pubsub" >}}) (source/sink)
  * [Hybrid Source]({{< ref "docs/connectors/datastream/hybridsource" >}}) (source)
