@@ -26,6 +26,7 @@ import com.amazonaws.services.schemaregistry.common.GlueSchemaRegistryDefaultCom
 import com.amazonaws.services.schemaregistry.deserializers.GlueSchemaRegistryDeserializationFacade;
 import com.amazonaws.services.schemaregistry.exception.AWSSchemaRegistryException;
 import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
+import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants.COMPRESSION;
 import lombok.NonNull;
 import org.apache.avro.Schema;
 import org.apache.avro.io.BinaryEncoder;
@@ -49,11 +50,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants.COMPRESSION.NONE;
+import static com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants.COMPRESSION_DEFAULT_BYTE;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ACCESS_KEY_ID;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_SECRET_ACCESS_KEY;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link GlueSchemaRegistryInputStreamDeserializer}. */
 public class GlueSchemaRegistryInputStreamDeserializerTest extends TestLogger {
@@ -64,10 +65,10 @@ public class GlueSchemaRegistryInputStreamDeserializerTest extends TestLogger {
     private static Schema userSchema;
     private static com.amazonaws.services.schemaregistry.common.Schema glueSchema;
     private static User userDefinedPojo;
-    private static Map<String, Object> configs = new HashMap<>();
-    private static Map<String, String> metadata = new HashMap<>();
+    private static final Map<String, Object> configs = new HashMap<>();
+    private static final Map<String, String> metadata = new HashMap<>();
     private static GlueSchemaRegistryCompressionHandler compressionHandler;
-    private static AwsCredentialsProvider credentialsProvider =
+    private static final AwsCredentialsProvider credentialsProvider =
             DefaultCredentialsProvider.builder().build();
     @Rule public ExpectedException thrown = ExpectedException.none();
     private GlueSchemaRegistryDeserializationFacade glueSchemaRegistryDeserializationFacade;
@@ -99,9 +100,8 @@ public class GlueSchemaRegistryInputStreamDeserializerTest extends TestLogger {
     public void testConstructor_withConfigs_succeeds() {
         GlueSchemaRegistryInputStreamDeserializer glueSchemaRegistryInputStreamDeserializer =
                 new GlueSchemaRegistryInputStreamDeserializer(configs);
-        assertThat(
-                glueSchemaRegistryInputStreamDeserializer,
-                instanceOf(GlueSchemaRegistryInputStreamDeserializer.class));
+        assertThat(glueSchemaRegistryInputStreamDeserializer)
+                .isInstanceOf(GlueSchemaRegistryInputStreamDeserializer.class);
     }
 
     @Test
@@ -115,7 +115,7 @@ public class GlueSchemaRegistryInputStreamDeserializerTest extends TestLogger {
                         glueSchemaRegistryInputStreamDeserializer);
 
         AwsCredentialsProvider credentialsProvider = facade.getCredentialsProvider();
-        assertThat(credentialsProvider, instanceOf(DefaultCredentialsProvider.class));
+        assertThat(credentialsProvider).isInstanceOf(DefaultCredentialsProvider.class);
     }
 
     @Test
@@ -133,8 +133,8 @@ public class GlueSchemaRegistryInputStreamDeserializerTest extends TestLogger {
                         glueSchemaRegistryInputStreamDeserializer);
 
         AwsCredentialsProvider credentialsProvider = facade.getCredentialsProvider();
-        assertThat(credentialsProvider.resolveCredentials().accessKeyId(), equalTo("ak"));
-        assertThat(credentialsProvider.resolveCredentials().secretAccessKey(), equalTo("sk"));
+        assertThat(credentialsProvider.resolveCredentials().accessKeyId()).isEqualTo("ak");
+        assertThat(credentialsProvider.resolveCredentials().secretAccessKey()).isEqualTo("sk");
     }
 
     /** Test whether constructor works with AWS de-serializer input. */
@@ -143,21 +143,15 @@ public class GlueSchemaRegistryInputStreamDeserializerTest extends TestLogger {
         GlueSchemaRegistryInputStreamDeserializer glueSchemaRegistryInputStreamDeserializer =
                 new GlueSchemaRegistryInputStreamDeserializer(
                         glueSchemaRegistryDeserializationFacade);
-        assertThat(
-                glueSchemaRegistryInputStreamDeserializer,
-                instanceOf(GlueSchemaRegistryInputStreamDeserializer.class));
+        assertThat(glueSchemaRegistryInputStreamDeserializer)
+                .isInstanceOf(GlueSchemaRegistryInputStreamDeserializer.class);
     }
 
     /** Test whether getSchemaAndDeserializedStream method when compression is not enabled works. */
     @Test
     public void testGetSchemaAndDeserializedStream_withoutCompression_succeeds()
             throws IOException {
-        AWSSchemaRegistryConstants.COMPRESSION compressionType =
-                AWSSchemaRegistryConstants.COMPRESSION.NONE;
-        compressionByte =
-                compressionType.equals(AWSSchemaRegistryConstants.COMPRESSION.NONE)
-                        ? AWSSchemaRegistryConstants.COMPRESSION_DEFAULT_BYTE
-                        : AWSSchemaRegistryConstants.COMPRESSION_BYTE;
+        compressionByte = COMPRESSION_DEFAULT_BYTE;
         compressionHandler = new GlueSchemaRegistryDefaultCompression();
 
         ByteArrayOutputStream byteArrayOutputStream =
@@ -166,17 +160,12 @@ public class GlueSchemaRegistryInputStreamDeserializerTest extends TestLogger {
         byte[] bytes =
                 writeToExistingStream(
                         byteArrayOutputStream,
-                        compressionType.equals(AWSSchemaRegistryConstants.COMPRESSION.NONE)
-                                ? encodeData(userDefinedPojo, new SpecificDatumWriter<>(userSchema))
-                                : compressData(
-                                        encodeData(
-                                                userDefinedPojo,
-                                                new SpecificDatumWriter<>(userSchema))));
+                        encodeData(userDefinedPojo, new SpecificDatumWriter<>(userSchema)));
 
         MutableByteArrayInputStream mutableByteArrayInputStream = new MutableByteArrayInputStream();
         mutableByteArrayInputStream.setBuffer(bytes);
         glueSchemaRegistryDeserializationFacade =
-                new MockGlueSchemaRegistryDeserializationFacade(bytes, glueSchema, compressionType);
+                new MockGlueSchemaRegistryDeserializationFacade(bytes, glueSchema, NONE);
 
         GlueSchemaRegistryInputStreamDeserializer glueSchemaRegistryInputStreamDeserializer =
                 new GlueSchemaRegistryInputStreamDeserializer(
@@ -185,18 +174,14 @@ public class GlueSchemaRegistryInputStreamDeserializerTest extends TestLogger {
                 glueSchemaRegistryInputStreamDeserializer.getSchemaAndDeserializedStream(
                         mutableByteArrayInputStream);
 
-        assertThat(resultSchema.toString(), equalTo(glueSchema.getSchemaDefinition()));
+        assertThat(resultSchema.toString()).isEqualTo(glueSchema.getSchemaDefinition());
     }
 
     /** Test whether getSchemaAndDeserializedStream method when compression is enabled works. */
     @Test
     public void testGetSchemaAndDeserializedStream_withCompression_succeeds() throws IOException {
-        AWSSchemaRegistryConstants.COMPRESSION compressionType =
-                AWSSchemaRegistryConstants.COMPRESSION.ZLIB;
-        compressionByte =
-                compressionType.equals(AWSSchemaRegistryConstants.COMPRESSION.NONE)
-                        ? AWSSchemaRegistryConstants.COMPRESSION_DEFAULT_BYTE
-                        : AWSSchemaRegistryConstants.COMPRESSION_BYTE;
+        COMPRESSION compressionType = COMPRESSION.ZLIB;
+        compressionByte = AWSSchemaRegistryConstants.COMPRESSION_BYTE;
         compressionHandler = new GlueSchemaRegistryDefaultCompression();
 
         ByteArrayOutputStream byteArrayOutputStream =
@@ -205,12 +190,9 @@ public class GlueSchemaRegistryInputStreamDeserializerTest extends TestLogger {
         byte[] bytes =
                 writeToExistingStream(
                         byteArrayOutputStream,
-                        compressionType.equals(AWSSchemaRegistryConstants.COMPRESSION.NONE)
-                                ? encodeData(userDefinedPojo, new SpecificDatumWriter<>(userSchema))
-                                : compressData(
-                                        encodeData(
-                                                userDefinedPojo,
-                                                new SpecificDatumWriter<>(userSchema))));
+                        compressData(
+                                encodeData(
+                                        userDefinedPojo, new SpecificDatumWriter<>(userSchema))));
 
         MutableByteArrayInputStream mutableByteArrayInputStream = new MutableByteArrayInputStream();
         mutableByteArrayInputStream.setBuffer(bytes);
@@ -224,7 +206,7 @@ public class GlueSchemaRegistryInputStreamDeserializerTest extends TestLogger {
                 glueSchemaRegistryInputStreamDeserializer.getSchemaAndDeserializedStream(
                         mutableByteArrayInputStream);
 
-        assertThat(resultSchema.toString(), equalTo(glueSchema.getSchemaDefinition()));
+        assertThat(resultSchema.toString()).isEqualTo(glueSchema.getSchemaDefinition());
     }
 
     /** Test whether getSchemaAndDeserializedStream method throws exception with invalid schema. */
@@ -248,8 +230,7 @@ public class GlueSchemaRegistryInputStreamDeserializerTest extends TestLogger {
                 new com.amazonaws.services.schemaregistry.common.Schema(
                         schemaDefinition, DataFormat.AVRO.name(), testTopic);
         glueSchemaRegistryDeserializationFacade =
-                new MockGlueSchemaRegistryDeserializationFacade(
-                        new byte[20], glueSchema, AWSSchemaRegistryConstants.COMPRESSION.NONE);
+                new MockGlueSchemaRegistryDeserializationFacade(new byte[20], glueSchema, NONE);
         GlueSchemaRegistryInputStreamDeserializer awsSchemaRegistryInputStreamDeserializer =
                 new GlueSchemaRegistryInputStreamDeserializer(
                         glueSchemaRegistryDeserializationFacade);
@@ -299,14 +280,14 @@ public class GlueSchemaRegistryInputStreamDeserializerTest extends TestLogger {
 
     private static class MockGlueSchemaRegistryDeserializationFacade
             extends GlueSchemaRegistryDeserializationFacade {
-        private byte[] bytes;
-        private com.amazonaws.services.schemaregistry.common.Schema schema;
-        private AWSSchemaRegistryConstants.COMPRESSION compressionType;
+        private final byte[] bytes;
+        private final com.amazonaws.services.schemaregistry.common.Schema schema;
+        private final COMPRESSION compressionType;
 
         public MockGlueSchemaRegistryDeserializationFacade(
                 byte[] bytes,
                 com.amazonaws.services.schemaregistry.common.Schema schema,
-                AWSSchemaRegistryConstants.COMPRESSION compressionType) {
+                COMPRESSION compressionType) {
             super(configs, null, credentialsProvider, null);
             this.bytes = bytes;
             this.schema = schema;
