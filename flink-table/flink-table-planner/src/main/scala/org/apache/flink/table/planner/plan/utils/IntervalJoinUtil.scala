@@ -464,7 +464,7 @@ object IntervalJoinUtil {
       newRight,
       join.getJoinType(),
       join.isSemiJoinDone())
-    val rowType = JoinUtil.getAllRowType(newJoin)
+    val rowType = JoinUtil.combineJoinInputsRowType(newJoin)
     val (windowBounds, _) = extractWindowBoundsFromPredicate(
       join.getCondition,
       newLeft.getRowType.getFieldCount,
@@ -476,7 +476,7 @@ object IntervalJoinUtil {
 
   def extractWindowBounds(join: FlinkLogicalJoin): (Option[WindowBounds], Option[RexNode]) = {
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
-    val rowType = JoinUtil.getAllRowType(join)
+    val rowType = JoinUtil.combineJoinInputsRowType(join)
     extractWindowBoundsFromPredicate(
       join.getCondition,
       join.getLeft.getRowType.getFieldCount,

@@ -45,7 +45,7 @@ abstract class StreamPhysicalJoinRuleBase(description: String)
   protected def extractWindowBounds(join: FlinkLogicalJoin):
     (Option[WindowBounds], Option[RexNode]) = {
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
-    val rowType = JoinUtil.getAllRowType(join)
+    val rowType = JoinUtil.combineJoinInputsRowType(join)
     IntervalJoinUtil.extractWindowBoundsFromPredicate(
       join.getCondition,
       join.getLeft.getRowType.getFieldCount,

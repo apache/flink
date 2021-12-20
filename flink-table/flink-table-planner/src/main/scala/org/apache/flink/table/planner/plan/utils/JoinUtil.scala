@@ -260,22 +260,4 @@ object JoinUtil {
       true
     }
   }
-
-  /**
-   * Get all row type fields.
-   * When the join type is semi or anti,
-   * the result is rowType of the left node plus rowType of the right node.
-   */
-  def getAllRowType(join: Join): RelDataType ={
-    if(join.getJoinType == JoinRelType.SEMI || join.getJoinType == JoinRelType.ANTI){
-      SqlValidatorUtil.createJoinType(
-        join.getCluster.getTypeFactory,
-        join.getLeft.getRowType,
-        join.getRight.getRowType,
-        null,
-        join.getSystemFieldList)
-    }else{
-      join.getRowType
-    }
-  }
 }

@@ -84,7 +84,7 @@ class StreamPhysicalIntervalJoin(
       .item("windowBounds", windowBoundsDesc)
       .item("where", getExpressionString(
         originalCondition,
-        JoinUtil.getAllRowType(this).getFieldNames.toList,
+        JoinUtil.combineJoinInputsRowType(this).getFieldNames.toList,
         None,
         preferExpressionFormat(pw),
         pw.getDetailLevel))

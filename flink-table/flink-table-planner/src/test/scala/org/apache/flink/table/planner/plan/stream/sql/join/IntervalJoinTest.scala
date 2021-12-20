@@ -684,7 +684,7 @@ class IntervalJoinTest extends TableTestBase {
     val relNode = TableTestUtil.toRelNode(table)
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
     val rexNode = joinNode.getCondition
-    val rowType = JoinUtil.getAllRowType(joinNode)
+    val rowType = JoinUtil.combineJoinInputsRowType(joinNode)
     val (windowBounds, _) = IntervalJoinUtil.extractWindowBoundsFromPredicate(
       rexNode,
       joinNode.getLeft.getRowType.getFieldCount,
@@ -707,7 +707,7 @@ class IntervalJoinTest extends TableTestBase {
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
     val joinInfo = joinNode.analyzeCondition
     val rexNode = joinInfo.getRemaining(joinNode.getCluster.getRexBuilder)
-    val rowType = JoinUtil.getAllRowType(joinNode)
+    val rowType = JoinUtil.combineJoinInputsRowType(joinNode)
     val (_, remainCondition) =
       IntervalJoinUtil.extractWindowBoundsFromPredicate(
         rexNode,
