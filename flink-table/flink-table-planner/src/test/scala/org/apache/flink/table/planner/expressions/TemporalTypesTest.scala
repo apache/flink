@@ -737,7 +737,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     )
 
     testSqlApi(
-      "TO_TIMESTAMP(f14, 'yyyy-mm-dd')",
+      "TO_TIMESTAMP(f14, 'yyyy-MM-dd')",
       "NULL"
     )
   }
@@ -1065,7 +1065,7 @@ class TemporalTypesTest extends ExpressionTestBase {
   def testInvalidInputCase(): Unit = {
     val invalidStr = "invalid value"
     testSqlApi(s"DATE_FORMAT('$invalidStr', 'yyyy/MM/dd HH:mm:ss')", nullable)
-    testSqlApi(s"TO_TIMESTAMP('$invalidStr', 'yyyy-mm-dd')", nullable)
+    testSqlApi(s"TO_TIMESTAMP('$invalidStr', 'yyyy-MM-dd')", nullable)
     testSqlApi(s"TO_DATE('$invalidStr')", nullable)
     testSqlApi(
       s"CONVERT_TZ('$invalidStr', 'UTC', 'Asia/Shanghai')",
@@ -1077,7 +1077,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     val invalidStr = "invalid value"
     val cases = Seq(
       s"DATE_FORMAT('$invalidStr', 'yyyy/MM/dd HH:mm:ss')",
-      s"TO_TIMESTAMP('$invalidStr', 'yyyy-mm-dd')",
+      s"TO_TIMESTAMP('$invalidStr', 'yyyy-MM-dd')",
       s"TO_DATE('$invalidStr')",
       s"CONVERT_TZ('$invalidStr', 'UTC', 'Asia/Shanghai')")
 
