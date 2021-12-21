@@ -20,17 +20,25 @@ package org.apache.flink.client;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.client.TestingClientClassLoaderFactoryBuilder.TestingURLClassLoader;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.util.FlinkUserCodeClassLoader;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.net.URLClassLoader;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
+
+import static org.junit.Assert.assertTrue;
 
 /** Test for the ClientUtils. */
 public class ClientUtilsTest extends TestLogger {
@@ -127,5 +135,48 @@ public class ClientUtilsTest extends TestLogger {
                     return null;
                 },
                 ClassLoader.getSystemClassLoader());
+    }
+
+    @Test
+    public void testClassLoader_by_customized_classLoaderFactory() throws Exception {
+        System.getProperties()
+                .setProperty(
+                        TestingClientClassLoaderFactoryBuilder
+                                .TESTING_CLASSLOADER_FACTORY_BUILDER_ENABLE,
+                        Boolean.TRUE.toString());
+        URLClassLoader classLoader = null;
+        try {
+            Configuration configuration = new Configuration();
+            classLoader =
+                    ClientUtils.buildUserCodeClassLoader(
+                            Collections.emptyList(),
+                            Collections.emptyList(),
+                            this.getClass().getClassLoader(),
+                            configuration);
+            assertTrue(
+                    "The impl class must be " + TestingURLClassLoader.class.getName(),
+                    classLoader instanceof TestingURLClassLoader);
+        } finally {
+            System.clearProperty(
+                    TestingClientClassLoaderFactoryBuilder
+                            .TESTING_CLASSLOADER_FACTORY_BUILDER_ENABLE);
+        }
+    }
+
+    @Test
+    public void testClassLoader_without_customized_classLoaderFactory() {
+        URLClassLoader classLoader = null;
+
+        Configuration configuration = new Configuration();
+        configuration.setBoolean(CoreOptions.CHECK_LEAKED_CLASSLOADER, false);
+        classLoader =
+                ClientUtils.buildUserCodeClassLoader(
+                        Collections.emptyList(),
+                        Collections.emptyList(),
+                        this.getClass().getClassLoader(),
+                        configuration);
+        assertTrue(
+                "The impl class must be " + FlinkUserCodeClassLoader.class.getName(),
+                classLoader instanceof FlinkUserCodeClassLoader);
     }
 }

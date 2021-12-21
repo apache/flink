@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.execution.librarycache;
+package org.apache.flink.client;
 
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager.ClassLoaderFactory;
+import org.apache.flink.runtime.execution.librarycache.ClassLoaderFactoryBuilder;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders.ResolveOrder;
 
 import javax.annotation.Nullable;
@@ -28,7 +29,7 @@ import java.net.URLClassLoader;
 import java.util.function.Consumer;
 
 /** Testing implementation of {@link ClassLoaderFactoryBuilder}. */
-public class TestingClassLoaderFactoryBuilder implements ClassLoaderFactoryBuilder {
+public class TestingClientClassLoaderFactoryBuilder implements ClassLoaderFactoryBuilder {
     public static final String TESTING_CLASSLOADER_FACTORY_BUILDER_ENABLE =
             "testing_classloader_factory_builder_enable";
 
@@ -44,7 +45,7 @@ public class TestingClassLoaderFactoryBuilder implements ClassLoaderFactoryBuild
             String[] alwaysParentFirstPatterns,
             @Nullable Consumer<Throwable> exceptionHander,
             boolean checkClassLoaderLeak) {
-        return new TestingClassLoaderFactory();
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -53,13 +54,21 @@ public class TestingClassLoaderFactoryBuilder implements ClassLoaderFactoryBuild
             String[] alwaysParentFirstPatterns,
             @Nullable Consumer<Throwable> exceptionHander,
             boolean checkClassLoaderLeak) {
-        throw new UnsupportedOperationException();
+        return new TestingClassLoaderFactory();
     }
 
-    public static class TestingClassLoaderFactory implements ClassLoaderFactory {
+    private static class TestingClassLoaderFactory implements ClassLoaderFactory {
         @Override
         public URLClassLoader createClassLoader(URL[] libraryURLs) {
-            throw new UnsupportedOperationException();
+            return new TestingURLClassLoader(
+                    libraryURLs, Thread.currentThread().getContextClassLoader());
+        }
+    }
+
+    public static class TestingURLClassLoader extends URLClassLoader {
+
+        public TestingURLClassLoader(URL[] urls, ClassLoader parent) {
+            super(urls, parent);
         }
     }
 }
