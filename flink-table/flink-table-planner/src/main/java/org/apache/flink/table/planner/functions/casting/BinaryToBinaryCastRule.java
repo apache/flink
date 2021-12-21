@@ -63,6 +63,7 @@ class BinaryToBinaryCastRule extends AbstractExpressionCodeGeneratorCastRule<byt
         if (context.legacyBehaviour()) {
             return inputTerm;
         } else {
+            // Assume input length is respected by the source
             if (inputLength <= targetLength) {
                 return inputTerm;
             } else {
