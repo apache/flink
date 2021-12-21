@@ -23,12 +23,12 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
-import java.util.Arrays;
-
 import static org.apache.flink.table.codesplit.CodeSplitUtil.newName;
+import static org.apache.flink.table.planner.functions.casting.BinaryToBinaryCastRule.couldPad;
+import static org.apache.flink.table.planner.functions.casting.BinaryToBinaryCastRule.couldTrim;
+import static org.apache.flink.table.planner.functions.casting.BinaryToBinaryCastRule.trimOrPadByteArray;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.arrayLength;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
 /** {@link LogicalTypeRoot#RAW} to {@link LogicalTypeFamily#BINARY_STRING} cast rule. */
 class RawToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object, byte[]> {
@@ -61,7 +61,7 @@ class RawToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
         if (deserializedByteArray$76.length <= 3) {
             result$291 = deserializedByteArray$76;
         } else {
-            result$291 = java.util.Arrays.copyOfRange(deserializedByteArray$76, 0, 3);
+            result$291 = java.util.Arrays.copyOf(deserializedByteArray$76, 3);
         }
         isNull$290 = result$291 == null;
     } else {
@@ -83,7 +83,8 @@ class RawToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
         final String typeSerializer = context.declareTypeSerializer(inputLogicalType);
         final String deserializedByteArrayTerm = newName("deserializedByteArray");
 
-        if (context.legacyBehaviour()) {
+        if (context.legacyBehaviour()
+                || !(couldTrim(targetLength) || (couldPad(targetLogicalType, targetLength)))) {
             return new CastRuleUtils.CodeWriter()
                     .assignStmt(returnVariable, methodCall(inputTerm, "toBytes", typeSerializer))
                     .toString();
@@ -95,18 +96,24 @@ class RawToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
                             methodCall(inputTerm, "toBytes", typeSerializer))
                     .ifStmt(
                             arrayLength(deserializedByteArrayTerm) + " <= " + targetLength,
-                            thenWriter ->
-                                    thenWriter.assignStmt(
-                                            returnVariable, deserializedByteArrayTerm),
-                            elseWriter ->
-                                    elseWriter.assignStmt(
+                            thenWriter -> {
+                                if (couldPad(targetLogicalType, targetLength)) {
+                                    trimOrPadByteArray(
                                             returnVariable,
-                                            staticCall(
-                                                    Arrays.class,
-                                                    "copyOfRange",
-                                                    deserializedByteArrayTerm,
-                                                    0,
-                                                    targetLength)))
+                                            targetLength,
+                                            deserializedByteArrayTerm,
+                                            thenWriter);
+                                } else {
+                                    thenWriter.assignStmt(
+                                            returnVariable, deserializedByteArrayTerm);
+                                }
+                            },
+                            elseWriter ->
+                                    trimOrPadByteArray(
+                                            returnVariable,
+                                            targetLength,
+                                            deserializedByteArrayTerm,
+                                            elseWriter))
                     .toString();
         }
     }
