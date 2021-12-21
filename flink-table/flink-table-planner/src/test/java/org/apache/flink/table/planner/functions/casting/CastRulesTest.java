@@ -771,6 +771,13 @@ class CastRulesTest {
                         .fromCaseLegacy(CHAR(6), fromString("Apache"), fromString("Apache"))
                         .fromCase(VARCHAR(5), fromString("Flink"), fromString("Fli"))
                         .fromCaseLegacy(VARCHAR(5), fromString("Flink"), fromString("Flink"))
+                        // We assume that the input length is respected, therefore, no trimming is
+                        // applied
+                        .fromCase(CHAR(2), fromString("Apache"), fromString("Apache"))
+                        .fromCaseLegacy(CHAR(2), fromString("Apache"), fromString("Apache"))
+                        .fromCase(VARCHAR(2), fromString("Apache"), fromString("Apache"))
+                        .fromCaseLegacy(VARCHAR(2), fromString("Apache"), fromString("Apache"))
+                        //
                         .fromCase(STRING(), fromString("Apache Flink"), fromString("Apa"))
                         .fromCaseLegacy(
                                 STRING(), fromString("Apache Flink"), fromString("Apache Flink"))
@@ -962,7 +969,13 @@ class CastRulesTest {
                         .fromCaseLegacy(
                                 STRING(),
                                 fromString("Apache"),
-                                new byte[] {65, 112, 97, 99, 104, 101}),
+                                new byte[] {65, 112, 97, 99, 104, 101})
+                        // We assume that the input length is respected, therefore, no trimming is
+                        // applied
+                        .fromCase(BINARY(2), new byte[] {1, 2, 3}, new byte[] {1, 2, 3})
+                        .fromCaseLegacy(BINARY(2), new byte[] {1, 2, 3}, new byte[] {1, 2, 3})
+                        .fromCase(VARBINARY(2), new byte[] {1, 2, 3}, new byte[] {1, 2, 3})
+                        .fromCaseLegacy(VARBINARY(2), new byte[] {1, 2, 3}, new byte[] {1, 2, 3}),
                 CastTestSpecBuilder.testCastTo(VARBINARY(4))
                         .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
                         .fromCaseLegacy(
@@ -974,7 +987,20 @@ class CastRulesTest {
                         .fromCaseLegacy(
                                 STRING(),
                                 fromString("Apache"),
-                                new byte[] {65, 112, 97, 99, 104, 101}),
+                                new byte[] {65, 112, 97, 99, 104, 101})
+                        // We assume that the input length is respected, therefore, no trimming is
+                        // applied
+                        .fromCase(BINARY(2), new byte[] {1, 2, 3, 4, 5}, new byte[] {1, 2, 3, 4, 5})
+                        .fromCaseLegacy(
+                                BINARY(2), new byte[] {1, 2, 3, 4, 5}, new byte[] {1, 2, 3, 4, 5})
+                        .fromCase(
+                                VARBINARY(2),
+                                new byte[] {1, 2, 3, 4, 5},
+                                new byte[] {1, 2, 3, 4, 5})
+                        .fromCaseLegacy(
+                                VARBINARY(2),
+                                new byte[] {1, 2, 3, 4, 5},
+                                new byte[] {1, 2, 3, 4, 5}),
                 CastTestSpecBuilder.testCastTo(BYTES())
                         .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
                         .fromCase(

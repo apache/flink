@@ -88,7 +88,11 @@ class CharVarCharTrimPadCastRule
             String returnVariable,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        final int length = LogicalTypeChecks.getLength(targetLogicalType);
+        final int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
+        Integer inputLength = null;
+        if (inputLogicalType.is(LogicalTypeFamily.CHARACTER_STRING)) {
+            inputLength = LogicalTypeChecks.getLength(inputLogicalType);
+        }
         CastRule<?, ?> castRule =
                 CastRuleProvider.resolve(inputLogicalType, VarCharType.STRING_TYPE);
 
@@ -103,27 +107,32 @@ class CharVarCharTrimPadCastRule
 
             final CastRuleUtils.CodeWriter writer = new CastRuleUtils.CodeWriter();
             if (context.legacyBehaviour()
-                    || !(couldTrim(length) || couldPad(targetLogicalType, length))) {
+                    || ((!couldTrim(targetLength)
+                                    // Assume input length is respected by the source
+                                    || (inputLength != null && inputLength <= targetLength))
+                            && !couldPad(targetLogicalType, targetLength))) {
                 return writer.assignStmt(returnVariable, stringExpr).toString();
             }
             return writer.ifStmt(
-                            methodCall(stringExpr, "numChars") + " > " + length,
+                            methodCall(stringExpr, "numChars") + " > " + targetLength,
                             thenWriter ->
                                     thenWriter.assignStmt(
                                             returnVariable,
-                                            methodCall(stringExpr, "substring", 0, length)),
+                                            methodCall(stringExpr, "substring", 0, targetLength)),
                             elseWriter -> {
-                                if (couldPad(targetLogicalType, length)) {
+                                if (couldPad(targetLogicalType, targetLength)) {
                                     final String padLength = newName("padLength");
                                     final String padString = newName("padString");
                                     elseWriter.ifStmt(
-                                            methodCall(stringExpr, "numChars") + " < " + length,
+                                            methodCall(stringExpr, "numChars")
+                                                    + " < "
+                                                    + targetLength,
                                             thenInnerWriter ->
                                                     thenInnerWriter
                                                             .declStmt(int.class, padLength)
                                                             .assignStmt(
                                                                     padLength,
-                                                                    length
+                                                                    targetLength
                                                                             + " - "
                                                                             + methodCall(
                                                                                     stringExpr,
