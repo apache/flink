@@ -19,6 +19,9 @@ package org.apache.flink.streaming.connectors.cassandra;
 
 import org.apache.flink.api.java.tuple.Tuple;
 
+import com.datastax.driver.core.ResultSet;
+import com.google.common.util.concurrent.FutureCallback;
+
 /**
  * Sink to write Flink {@link Tuple}s into a Cassandra cluster.
  *
@@ -29,16 +32,26 @@ public class CassandraTupleSink<IN extends Tuple> extends AbstractCassandraTuple
         this(insertQuery, builder, CassandraSinkBaseConfig.newBuilder().build());
     }
 
-    CassandraTupleSink(String insertQuery, ClusterBuilder builder, CassandraSinkBaseConfig config) {
+    public CassandraTupleSink(
+            String insertQuery, ClusterBuilder builder, CassandraSinkBaseConfig config) {
         this(insertQuery, builder, config, new NoOpCassandraFailureHandler());
     }
 
-    CassandraTupleSink(
+    public CassandraTupleSink(
             String insertQuery,
             ClusterBuilder builder,
             CassandraSinkBaseConfig config,
             CassandraFailureHandler failureHandler) {
         super(insertQuery, builder, config, failureHandler);
+    }
+
+    public CassandraTupleSink(
+            String insertQuery,
+            ClusterBuilder builder,
+            CassandraSinkBaseConfig config,
+            CassandraFailureHandler failureHandler,
+            FutureCallback<ResultSet> callback) {
+        super(insertQuery, builder, config, failureHandler, callback);
     }
 
     @Override

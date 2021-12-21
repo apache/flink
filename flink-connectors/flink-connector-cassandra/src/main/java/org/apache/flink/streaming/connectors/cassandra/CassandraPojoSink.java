@@ -23,6 +23,7 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.MappingManager;
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import javax.annotation.Nullable;
@@ -72,7 +73,7 @@ public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, ResultSet> {
         this(clazz, builder, options, keyspace, CassandraSinkBaseConfig.newBuilder().build());
     }
 
-    CassandraPojoSink(
+    public CassandraPojoSink(
             Class<IN> clazz,
             ClusterBuilder builder,
             @Nullable MapperOptions options,
@@ -81,7 +82,7 @@ public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, ResultSet> {
         this(clazz, builder, options, keyspace, config, new NoOpCassandraFailureHandler());
     }
 
-    CassandraPojoSink(
+    public CassandraPojoSink(
             Class<IN> clazz,
             ClusterBuilder builder,
             @Nullable MapperOptions options,
@@ -89,6 +90,20 @@ public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, ResultSet> {
             CassandraSinkBaseConfig config,
             CassandraFailureHandler failureHandler) {
         super(builder, config, failureHandler);
+        this.clazz = clazz;
+        this.options = options;
+        this.keyspace = keyspace;
+    }
+
+    public CassandraPojoSink(
+            Class<IN> clazz,
+            ClusterBuilder builder,
+            @Nullable MapperOptions options,
+            String keyspace,
+            CassandraSinkBaseConfig config,
+            CassandraFailureHandler failureHandler,
+            FutureCallback<ResultSet> callback) {
+        super(builder, config, failureHandler, callback);
         this.clazz = clazz;
         this.options = options;
         this.keyspace = keyspace;

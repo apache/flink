@@ -18,6 +18,9 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
+import com.datastax.driver.core.ResultSet;
+import com.google.common.util.concurrent.FutureCallback;
+
 import scala.Product;
 
 /**
@@ -30,17 +33,26 @@ public class CassandraScalaProductSink<IN extends Product> extends AbstractCassa
         this(insertQuery, builder, CassandraSinkBaseConfig.newBuilder().build());
     }
 
-    CassandraScalaProductSink(
+    public CassandraScalaProductSink(
             String insertQuery, ClusterBuilder builder, CassandraSinkBaseConfig config) {
         this(insertQuery, builder, config, new NoOpCassandraFailureHandler());
     }
 
-    CassandraScalaProductSink(
+    public CassandraScalaProductSink(
             String insertQuery,
             ClusterBuilder builder,
             CassandraSinkBaseConfig config,
             CassandraFailureHandler failureHandler) {
         super(insertQuery, builder, config, failureHandler);
+    }
+
+    public CassandraScalaProductSink(
+            String insertQuery,
+            ClusterBuilder builder,
+            CassandraSinkBaseConfig config,
+            CassandraFailureHandler failureHandler,
+            FutureCallback<ResultSet> callback) {
+        super(insertQuery, builder, config, failureHandler, callback);
     }
 
     @Override

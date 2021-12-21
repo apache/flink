@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
 
 /**
@@ -34,12 +35,23 @@ public abstract class AbstractCassandraTupleSink<IN> extends CassandraSinkBase<I
     private transient PreparedStatement ps;
     private final boolean ignoreNullFields;
 
-    public AbstractCassandraTupleSink(
+    AbstractCassandraTupleSink(
             String insertQuery,
             ClusterBuilder builder,
             CassandraSinkBaseConfig config,
             CassandraFailureHandler failureHandler) {
         super(builder, config, failureHandler);
+        this.insertQuery = insertQuery;
+        this.ignoreNullFields = config.getIgnoreNullFields();
+    }
+
+    AbstractCassandraTupleSink(
+            String insertQuery,
+            ClusterBuilder builder,
+            CassandraSinkBaseConfig config,
+            CassandraFailureHandler failureHandler,
+            FutureCallback<ResultSet> callback) {
+        super(builder, config, failureHandler, callback);
         this.insertQuery = insertQuery;
         this.ignoreNullFields = config.getIgnoreNullFields();
     }

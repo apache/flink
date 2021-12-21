@@ -72,22 +72,34 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN>
         ClosureCleaner.clean(builder, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
     }
 
+    CassandraSinkBase(
+            ClusterBuilder builder,
+            CassandraSinkBaseConfig config,
+            CassandraFailureHandler failureHandler,
+            FutureCallback<V> customCallback) {
+        this(builder, config, failureHandler);
+        Preconditions.checkNotNull(customCallback, "Callback cannot be null");
+        this.callback = customCallback;
+    }
+
     @Override
     public void open(Configuration configuration) {
-        this.callback =
-                new FutureCallback<V>() {
-                    @Override
-                    public void onSuccess(V ignored) {
-                        semaphore.release();
-                    }
+        if (this.callback == null) {
+            this.callback =
+                    new FutureCallback<V>() {
+                        @Override
+                        public void onSuccess(V ignored) {
+                            semaphore.release();
+                        }
 
-                    @Override
-                    public void onFailure(Throwable t) {
-                        throwable.compareAndSet(null, t);
-                        log.error("Error while sending value.", t);
-                        semaphore.release();
-                    }
-                };
+                        @Override
+                        public void onFailure(Throwable t) {
+                            throwable.compareAndSet(null, t);
+                            log.error("Error while sending value.", t);
+                            semaphore.release();
+                        }
+                    };
+        }
         this.cluster = builder.getCluster();
         this.session = createSession();
 
@@ -130,7 +142,7 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN>
     }
 
     @Override
-    public void invoke(IN value) throws Exception {
+    public void invoke(IN value, Context context) throws Exception {
         checkAsyncErrors();
         tryAcquire(1);
         final ListenableFuture<V> result;

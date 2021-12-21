@@ -37,6 +37,7 @@ import org.apache.flink.batch.connectors.cassandra.CassandraPojoOutputFormat;
 import org.apache.flink.batch.connectors.cassandra.CassandraRowOutputFormat;
 import org.apache.flink.batch.connectors.cassandra.CassandraTupleOutputFormat;
 import org.apache.flink.batch.connectors.cassandra.CustomCassandraAnnotatedPojo;
+import org.apache.flink.batch.connectors.cassandra.CustomCassandraAnnotatedPojo2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -55,6 +56,7 @@ import com.datastax.driver.core.QueryOptions;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.mapping.Mapper;
+import com.google.common.util.concurrent.FutureCallback;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -141,6 +143,7 @@ public class CassandraConnectorITCase
     private static final ArrayList<Tuple3<String, Integer, Integer>> collection =
             new ArrayList<>(20);
     private static final ArrayList<Row> rowCollection = new ArrayList<>(20);
+    private static final ArrayList<String> successWrites = new ArrayList<>();
 
     private static final TypeInformation[] FIELD_TYPES = {
         BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO
@@ -527,6 +530,55 @@ public class CassandraConnectorITCase
                 Comparator.comparingInt(CustomCassandraAnnotatedPojo::getCounter));
 
         assertThat(result, samePropertyValuesAs(customCassandraAnnotatedPojos));
+    }
+
+    @Test
+    public void testCassandraBatchPojoFormatWithCustomCallback() throws Exception {
+
+        session.execute(
+                CREATE_TABLE_QUERY.replace(
+                        TABLE_NAME_VARIABLE, CustomCassandraAnnotatedPojo2.TABLE_NAME));
+
+        FutureCallback<Void> callback =
+                new FutureCallback<Void>() {
+                    @Override
+                    public void onSuccess(Void ignored) {
+                        onWriteSuccess();
+                    }
+
+                    @Override
+                    public void onFailure(Throwable t) {}
+                };
+
+        OutputFormat<CustomCassandraAnnotatedPojo2> sink =
+                new CassandraPojoOutputFormat<CustomCassandraAnnotatedPojo2>(
+                        builderForWriting,
+                        CustomCassandraAnnotatedPojo2.class,
+                        () -> new Mapper.Option[] {Mapper.Option.saveNullFields(true)},
+                        callback);
+
+        List<CustomCassandraAnnotatedPojo2> customCassandraAnnotatedPojos =
+                IntStream.range(0, 20)
+                        .mapToObj(
+                                x ->
+                                        new CustomCassandraAnnotatedPojo2(
+                                                UUID.randomUUID().toString(), x, 0))
+                        .collect(Collectors.toList());
+        try {
+            sink.configure(new Configuration());
+            sink.open(0, 1);
+            for (CustomCassandraAnnotatedPojo2 customCassandraAnnotatedPojo :
+                    customCassandraAnnotatedPojos) {
+                sink.writeRecord(customCassandraAnnotatedPojo);
+            }
+        } finally {
+            sink.close();
+        }
+        Assert.assertEquals(20, successWrites.size());
+    }
+
+    private void onWriteSuccess() {
+        successWrites.add("Successful writing");
     }
 
     @Test

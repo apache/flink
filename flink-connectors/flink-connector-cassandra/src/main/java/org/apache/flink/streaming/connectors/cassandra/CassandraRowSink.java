@@ -19,6 +19,9 @@ package org.apache.flink.streaming.connectors.cassandra;
 
 import org.apache.flink.types.Row;
 
+import com.datastax.driver.core.ResultSet;
+import com.google.common.util.concurrent.FutureCallback;
+
 /** A SinkFunction to write Row records into a Cassandra table. */
 public class CassandraRowSink extends AbstractCassandraTupleSink<Row> {
 
@@ -28,7 +31,7 @@ public class CassandraRowSink extends AbstractCassandraTupleSink<Row> {
         this(rowArity, insertQuery, builder, CassandraSinkBaseConfig.newBuilder().build());
     }
 
-    CassandraRowSink(
+    public CassandraRowSink(
             int rowArity,
             String insertQuery,
             ClusterBuilder builder,
@@ -36,13 +39,24 @@ public class CassandraRowSink extends AbstractCassandraTupleSink<Row> {
         this(rowArity, insertQuery, builder, config, new NoOpCassandraFailureHandler());
     }
 
-    CassandraRowSink(
+    public CassandraRowSink(
             int rowArity,
             String insertQuery,
             ClusterBuilder builder,
             CassandraSinkBaseConfig config,
             CassandraFailureHandler failureHandler) {
         super(insertQuery, builder, config, failureHandler);
+        this.rowArity = rowArity;
+    }
+
+    public CassandraRowSink(
+            int rowArity,
+            String insertQuery,
+            ClusterBuilder builder,
+            CassandraSinkBaseConfig config,
+            CassandraFailureHandler failureHandler,
+            FutureCallback<ResultSet> callback) {
+        super(insertQuery, builder, config, failureHandler, callback);
         this.rowArity = rowArity;
     }
 

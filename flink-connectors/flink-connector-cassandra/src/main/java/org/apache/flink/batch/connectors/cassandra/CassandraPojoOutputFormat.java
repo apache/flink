@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 import org.apache.flink.streaming.connectors.cassandra.MapperOptions;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.Executors;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Session;
@@ -69,6 +70,16 @@ public class CassandraPojoOutputFormat<OUT> extends RichOutputFormat<OUT> {
         this.outputClass = outputClass;
     }
 
+    public CassandraPojoOutputFormat(
+            ClusterBuilder builder,
+            Class<OUT> outputClass,
+            MapperOptions mapperOptions,
+            FutureCallback<Void> customCallback) {
+        this(builder, outputClass, mapperOptions);
+        Preconditions.checkNotNull(customCallback, "Callback cannot be null");
+        this.callback = customCallback;
+    }
+
     @Override
     public void configure(Configuration parameters) {
         this.cluster = builder.getCluster();
@@ -90,18 +101,20 @@ public class CassandraPojoOutputFormat<OUT> extends RichOutputFormat<OUT> {
                 mapper.setDefaultSaveOptions(optionsArray);
             }
         }
-        this.callback =
-                new FutureCallback<Void>() {
-                    @Override
-                    public void onSuccess(Void ignored) {
-                        onWriteSuccess();
-                    }
+        if (this.callback == null) {
+            this.callback =
+                    new FutureCallback<Void>() {
+                        @Override
+                        public void onSuccess(Void ignored) {
+                            onWriteSuccess();
+                        }
 
-                    @Override
-                    public void onFailure(Throwable t) {
-                        onWriteFailure(t);
-                    }
-                };
+                        @Override
+                        public void onFailure(Throwable t) {
+                            onWriteFailure(t);
+                        }
+                    };
+        }
     }
 
     @Override
@@ -111,7 +124,7 @@ public class CassandraPojoOutputFormat<OUT> extends RichOutputFormat<OUT> {
         }
 
         ListenableFuture<Void> result = mapper.saveAsync(record);
-        Futures.addCallback(result, callback);
+        Futures.addCallback(result, callback, Executors.directExecutor());
     }
 
     /**
