@@ -773,16 +773,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         AbstractRocksDBState<?, ?, SV> rocksDBState = (AbstractRocksDBState<?, ?, SV>) state;
 
         Snapshot rocksDBSnapshot = db.getSnapshot();
-        try (RocksIteratorWrapper iterator =
+        try (RocksIteratorWrapper iteratorRocks =
                         RocksDBOperationUtils.getRocksIterator(db, stateMetaInfo.f0, readOptions);
                 RocksDBWriteBatchWrapper batchWriter =
                         new RocksDBWriteBatchWrapper(db, getWriteOptions(), getWriteBatchSize())) {
-            iterator.seekToFirst();
+            iteratorRocks.seekToFirst();
 
             DataInputDeserializer serializedValueInput = new DataInputDeserializer();
             DataOutputSerializer migratedSerializedValueOutput = new DataOutputSerializer(512);
-            while (iterator.isValid()) {
-                serializedValueInput.setBuffer(iterator.value());
+            while (iteratorRocks.isValid()) {
+                serializedValueInput.setBuffer(iteratorRocks.value());
 
                 rocksDBState.migrateSerializedValue(
                         serializedValueInput,
@@ -792,11 +792,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
                 batchWriter.put(
                         stateMetaInfo.f0,
-                        iterator.key(),
+                        iteratorRocks.key(),
                         migratedSerializedValueOutput.getCopyOfBuffer());
 
                 migratedSerializedValueOutput.clear();
-                iterator.next();
+                iteratorRocks.next();
             }
         } finally {
             db.releaseSnapshot(rocksDBSnapshot);
