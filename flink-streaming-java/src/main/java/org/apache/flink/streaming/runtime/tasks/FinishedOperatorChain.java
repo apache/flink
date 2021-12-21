@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
@@ -28,7 +27,6 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -107,20 +105,7 @@ public class FinishedOperatorChain<OUT, OP extends StreamOperator<OUT>>
 
             if (operator == getMainOperator() || operator == getTailOperator()) {
                 OperatorSnapshotFutures snapshotInProgress = new OperatorSnapshotFutures();
-                if (operator == getMainOperator()) {
-                    snapshotInProgress.setInputChannelStateFuture(
-                            channelStateWriteResult
-                                    .getInputChannelStateHandles()
-                                    .thenApply(StateObjectCollection::new)
-                                    .thenApply(SnapshotResult::of));
-                }
-                if (operator == getTailOperator()) {
-                    snapshotInProgress.setResultSubpartitionStateFuture(
-                            channelStateWriteResult
-                                    .getResultSubpartitionStateHandles()
-                                    .thenApply(StateObjectCollection::new)
-                                    .thenApply(SnapshotResult::of));
-                }
+                snapshotChannelStates(operator, channelStateWriteResult, snapshotInProgress);
                 operatorSnapshotsInProgress.put(
                         operatorWrapper.getStreamOperator().getOperatorID(), snapshotInProgress);
             }
