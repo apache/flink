@@ -42,24 +42,71 @@ import java.util.function.Supplier;
 /** {@link MiniCluster} extension which allows to set a custom {@link HighAvailabilityServices}. */
 public class TestingMiniCluster extends MiniCluster {
 
+    public static Builder newBuilder(TestingMiniClusterConfiguration configuration) {
+        return new Builder(configuration);
+    }
+
+    /** Builder for {@link TestingMiniCluster}. */
+    public static class Builder {
+
+        private final TestingMiniClusterConfiguration configuration;
+
+        @Nullable private Supplier<HighAvailabilityServices> highAvailabilityServicesSupplier;
+
+        @Nullable
+        private Supplier<DispatcherResourceManagerComponentFactory>
+                dispatcherResourceManagerComponentFactorySupplier;
+
+        public Builder(TestingMiniClusterConfiguration configuration) {
+            this.configuration = configuration;
+        }
+
+        public Builder setHighAvailabilityServicesSupplier(
+                @Nullable Supplier<HighAvailabilityServices> highAvailabilityServicesSupplier) {
+            this.highAvailabilityServicesSupplier = highAvailabilityServicesSupplier;
+            return this;
+        }
+
+        public Builder setDispatcherResourceManagerComponentFactorySupplier(
+                @Nullable
+                        Supplier<DispatcherResourceManagerComponentFactory>
+                                dispatcherResourceManagerComponentFactorySupplier) {
+            this.dispatcherResourceManagerComponentFactorySupplier =
+                    dispatcherResourceManagerComponentFactorySupplier;
+            return this;
+        }
+
+        public TestingMiniCluster build() {
+            return new TestingMiniCluster(
+                    configuration,
+                    highAvailabilityServicesSupplier,
+                    dispatcherResourceManagerComponentFactorySupplier);
+        }
+    }
+
     private final int numberDispatcherResourceManagerComponents;
 
     private final boolean localCommunication;
 
     @Nullable private final Supplier<HighAvailabilityServices> highAvailabilityServicesSupplier;
 
-    public TestingMiniCluster(
+    @Nullable
+    private final Supplier<DispatcherResourceManagerComponentFactory>
+            dispatcherResourceManagerComponentFactorySupplier;
+
+    private TestingMiniCluster(
             TestingMiniClusterConfiguration miniClusterConfiguration,
-            @Nullable Supplier<HighAvailabilityServices> highAvailabilityServicesSupplier) {
+            @Nullable Supplier<HighAvailabilityServices> highAvailabilityServicesSupplier,
+            @Nullable
+                    Supplier<DispatcherResourceManagerComponentFactory>
+                            dispatcherResourceManagerComponentFactorySupplier) {
         super(miniClusterConfiguration);
         this.numberDispatcherResourceManagerComponents =
                 miniClusterConfiguration.getNumberDispatcherResourceManagerComponents();
         this.highAvailabilityServicesSupplier = highAvailabilityServicesSupplier;
+        this.dispatcherResourceManagerComponentFactorySupplier =
+                dispatcherResourceManagerComponentFactorySupplier;
         this.localCommunication = miniClusterConfiguration.isLocalCommunication();
-    }
-
-    public TestingMiniCluster(TestingMiniClusterConfiguration miniClusterConfiguration) {
-        this(miniClusterConfiguration, null);
     }
 
     @Override
@@ -74,6 +121,16 @@ public class TestingMiniCluster extends MiniCluster {
             return highAvailabilityServicesSupplier.get();
         } else {
             return super.createHighAvailabilityServices(configuration, executor);
+        }
+    }
+
+    @Override
+    protected DispatcherResourceManagerComponentFactory
+            createDispatcherResourceManagerComponentFactory() {
+        if (dispatcherResourceManagerComponentFactorySupplier != null) {
+            return dispatcherResourceManagerComponentFactorySupplier.get();
+        } else {
+            return super.createDispatcherResourceManagerComponentFactory();
         }
     }
 
