@@ -1395,7 +1395,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
 #### Kafka Connectors
 Please refer to [Kafka monitoring]({{< ref "docs/connectors/datastream/kafka" >}}/#monitoring).
 
-#### Kinesis Connectors
+#### Kinesis Source
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -1483,6 +1483,34 @@ Please refer to [Kafka monitoring]({{< ref "docs/connectors/datastream/kafka" >}
       <td>stream, shardId</td>
       <td>The bytes requested (2 Mbps / loopFrequencyHz) in a single call to getRecords.
       </td>
+      <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
+
+#### Kinesis Sink
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 15%">Scope</th>
+      <th class="text-left" style="width: 18%">Metrics</th>
+      <th class="text-left" style="width: 39%">Description</th>
+      <th class="text-left" style="width: 10%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>numRecordsOutErrors</td>
+      <td>Number of rejected record writes.</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>CurrentSendTime</td>
+      <td>Number of ms taken for 1 round trip of the last request batch.</td>
       <td>Gauge</td>
     </tr>
   </tbody>
