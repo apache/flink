@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
+import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import java.util.Arrays;
@@ -47,7 +49,7 @@ class BinaryToBinaryCastRule extends AbstractExpressionCodeGeneratorCastRule<byt
     ((byte[])(inputValue))
 
     // new behavior
-    ((((byte[])(inputValue)).length <= 2) ? (((byte[])(inputValue))) : (java.util.Arrays.copyOfRange(((byte[])(inputValue)), 0, 2)))
+    ((((byte[])(inputValue)).length == 2) ? (((byte[])(inputValue))) : (java.util.Arrays.copyOf(((byte[])(inputValue)), 2)))
 
     */
 
@@ -60,18 +62,35 @@ class BinaryToBinaryCastRule extends AbstractExpressionCodeGeneratorCastRule<byt
         int inputLength = LogicalTypeChecks.getLength(inputLogicalType);
         int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
 
-        if (context.legacyBehaviour()) {
+        if (context.legacyBehaviour()
+                || ((!couldTrim(targetLength)
+                                // Assume input length is respected by the source
+                                || (inputLength <= targetLength))
+                        && !couldPad(targetLogicalType, targetLength))) {
             return inputTerm;
         } else {
-            // Assume input length is respected by the source
-            if (inputLength <= targetLength) {
-                return inputTerm;
-            } else {
-                return ternaryOperator(
-                        arrayLength(inputTerm) + " <= " + targetLength,
-                        inputTerm,
-                        staticCall(Arrays.class, "copyOfRange", inputTerm, 0, targetLength));
-            }
+            return ternaryOperator(
+                    arrayLength(inputTerm) + " == " + targetLength,
+                    inputTerm,
+                    staticCall(Arrays.class, "copyOf", inputTerm, targetLength));
         }
+    }
+
+    static boolean couldTrim(int targetLength) {
+        return targetLength < BinaryType.MAX_LENGTH;
+    }
+
+    static boolean couldPad(LogicalType targetType, int targetLength) {
+        return targetType.is(LogicalTypeRoot.BINARY) && targetLength < BinaryType.MAX_LENGTH;
+    }
+
+    static void trimOrPadByteArray(
+            String returnVariable,
+            int targetLength,
+            String deserializedByteArrayTerm,
+            CastRuleUtils.CodeWriter writer) {
+        writer.assignStmt(
+                returnVariable,
+                staticCall(Arrays.class, "copyOf", deserializedByteArrayTerm, targetLength));
     }
 }

@@ -169,6 +169,16 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 BYTES()),
                 TestSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
+                                "cast from RAW(Integer) to BINARY(6)")
+                        .onFieldsWithData(123456)
+                        .andDataTypes(INT())
+                        .withFunction(IntegerToRaw.class)
+                        .testTableApiResult(
+                                call("IntegerToRaw", $("f0")).cast(BINARY(6)),
+                                new byte[] {0, 1, -30, 64, 0, 0},
+                                BINARY(6)),
+                TestSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST,
                                 "cast from RAW(UserPojo) to VARBINARY")
                         .onFieldsWithData(123456, "Flink")
                         .andDataTypes(INT(), STRING())
