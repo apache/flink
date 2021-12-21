@@ -27,6 +27,9 @@ import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager.ClassLoaderFactory;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager.DefaultClassLoaderFactory;
+import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderFactoryBuilder.TestingClassLoaderFactory;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.UserCodeClassLoader;
@@ -576,6 +579,43 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
         // this will wait forever if the second hook gets registered
         releaseHookLatch.await();
+    }
+
+    @Test
+    public void testDefaultClassLoaderFactory_by_customized_classLoaderFactory() {
+        System.getProperties()
+                .setProperty(
+                        TestingClassLoaderFactoryBuilder.TESTING_CLASSLOADER_FACTORY_BUILDER_ENABLE,
+                        Boolean.TRUE.toString());
+        ClassLoaderFactory classLoaderFactory = null;
+        try {
+            classLoaderFactory =
+                    BlobLibraryCacheManager.defaultClassLoaderFactory(
+                            FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
+                            new String[0],
+                            null,
+                            true);
+            assertTrue(
+                    "The impl class must be " + TestingClassLoaderFactory.class.getName(),
+                    classLoaderFactory instanceof TestingClassLoaderFactory);
+        } finally {
+            System.clearProperty(
+                    TestingClassLoaderFactoryBuilder.TESTING_CLASSLOADER_FACTORY_BUILDER_ENABLE);
+        }
+    }
+
+    @Test
+    public void testDefaultClassLoaderFactory_without_customized_classLoaderFactory() {
+        ClassLoaderFactory classLoaderFactory = null;
+        classLoaderFactory =
+                BlobLibraryCacheManager.defaultClassLoaderFactory(
+                        FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
+                        new String[0],
+                        null,
+                        true);
+        assertTrue(
+                "The impl class must be " + DefaultClassLoaderFactory.class.getName(),
+                classLoaderFactory instanceof DefaultClassLoaderFactory);
     }
 
     private BlobLibraryCacheManager createSimpleBlobLibraryCacheManager() throws IOException {

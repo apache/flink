@@ -191,11 +191,13 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
         ClassLoaderFactoryBuilder factory = null;
         while (factoryIt.hasNext()) {
             factory = factoryIt.next();
-            return factory.buildServerLoaderFactory(
-                    classLoaderResolveOrder,
-                    alwaysParentFirstPatterns,
-                    exceptionHandler,
-                    checkClassLoaderLeak);
+            if (factory.isCompatible()) {
+                return factory.buildServerLoaderFactory(
+                        classLoaderResolveOrder,
+                        alwaysParentFirstPatterns,
+                        exceptionHandler,
+                        checkClassLoaderLeak);
+            }
         }
 
         return new DefaultClassLoaderFactory(

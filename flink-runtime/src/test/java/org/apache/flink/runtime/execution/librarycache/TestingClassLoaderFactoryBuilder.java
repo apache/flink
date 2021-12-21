@@ -19,36 +19,48 @@
 package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager.ClassLoaderFactory;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders.ResolveOrder;
 
 import javax.annotation.Nullable;
 
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.function.Consumer;
 
-/**
- * Provides facilities to customize {@link ClassLoaderFactory} by user ,it is instantinate by
- * ServiceLoader.
- *
- * @see java.util.ServiceLoader
- */
-public interface ClassLoaderFactoryBuilder {
+/** Testing implementation of {@link ClassLoaderFactoryBuilder}. */
+public class TestingClassLoaderFactoryBuilder implements ClassLoaderFactoryBuilder {
+    public static final String TESTING_CLASSLOADER_FACTORY_BUILDER_ENABLE =
+            "testing_classloader_factory_builder_enable";
 
-    public default boolean isCompatible() {
-        return false;
+    @Override
+    public boolean isCompatible() {
+        return Boolean.parseBoolean(
+                System.getProperties().getProperty(TESTING_CLASSLOADER_FACTORY_BUILDER_ENABLE));
     }
 
-    public default ClassLoaderFactory buildServerLoaderFactory(
-            FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
+    @Override
+    public ClassLoaderFactory buildServerLoaderFactory(
+            ResolveOrder classLoaderResolveOrder,
             String[] alwaysParentFirstPatterns,
             @Nullable Consumer<Throwable> exceptionHander,
             boolean checkClassLoaderLeak) {
-        throw new UnsupportedOperationException();
+      return new TestingClassLoaderFactory();
     }
 
-    public default ClassLoaderFactory buildClientLoaderFactory(
-            FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
+    @Override
+    public ClassLoaderFactory buildClientLoaderFactory(
+            ResolveOrder classLoaderResolveOrder,
             String[] alwaysParentFirstPatterns,
             @Nullable Consumer<Throwable> exceptionHander,
             boolean checkClassLoaderLeak) {
-        throw new UnsupportedOperationException();
+        return new TestingClassLoaderFactory();
+    }
+
+
+    public static class TestingClassLoaderFactory implements ClassLoaderFactory{
+        @Override
+        public URLClassLoader createClassLoader(URL[] libraryURLs) {
+            throw new UnsupportedOperationException();
+        }
     }
 }
