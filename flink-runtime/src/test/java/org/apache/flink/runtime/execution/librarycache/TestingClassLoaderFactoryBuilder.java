@@ -44,7 +44,7 @@ public class TestingClassLoaderFactoryBuilder implements ClassLoaderFactoryBuild
             String[] alwaysParentFirstPatterns,
             @Nullable Consumer<Throwable> exceptionHander,
             boolean checkClassLoaderLeak) {
-      return new TestingClassLoaderFactory();
+        return new TestingClassLoaderFactory();
     }
 
     @Override
@@ -56,8 +56,7 @@ public class TestingClassLoaderFactoryBuilder implements ClassLoaderFactoryBuild
         return new TestingClassLoaderFactory();
     }
 
-
-    public static class TestingClassLoaderFactory implements ClassLoaderFactory{
+    public static class TestingClassLoaderFactory implements ClassLoaderFactory {
         @Override
         public URLClassLoader createClassLoader(URL[] libraryURLs) {
             throw new UnsupportedOperationException();
