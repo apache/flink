@@ -136,6 +136,9 @@ public class KafkaDynamicSource
      */
     protected final Map<KafkaTopicPartition, Long> specificStartupOffsets;
 
+    /** Specific bounded offsets. */
+    protected final Map<KafkaTopicPartition, Long> boundedEndOffsets;
+
     /**
      * The start timestamp to locate partition offsets; only relevant when startup mode is {@link
      * StartupMode#TIMESTAMP}.
@@ -146,7 +149,6 @@ public class KafkaDynamicSource
     protected final boolean upsertMode;
 
     protected final String tableIdentifier;
-    protected final Map<KafkaTopicPartition, Long> boundedEndOffsets;
 
     public KafkaDynamicSource(
             DataType physicalDataType,
@@ -162,7 +164,7 @@ public class KafkaDynamicSource
             Map<KafkaTopicPartition, Long> specificStartupOffsets,
             long startupTimestampMillis,
             boolean upsertMode,
-            @Nullable Map<KafkaTopicPartition, Long> boundedEndOffsets,
+            Map<KafkaTopicPartition, Long> boundedEndOffsets,
             String tableIdentifier) {
         // Format attributes
         this.physicalDataType =
@@ -197,7 +199,9 @@ public class KafkaDynamicSource
         this.startupTimestampMillis = startupTimestampMillis;
         this.upsertMode = upsertMode;
         this.tableIdentifier = tableIdentifier;
-        this.boundedEndOffsets = boundedEndOffsets;
+        this.boundedEndOffsets =
+                Preconditions.checkNotNull(
+                        boundedEndOffsets, "Specific bounded offsets must not be null.");
     }
 
     @Override

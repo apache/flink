@@ -167,6 +167,76 @@ public class KafkaTableITCase extends KafkaTableTestBase {
     }
 
     @Test
+    public void testKafkaSourceSinkWithBoundedOffsets() throws Exception {
+        // we always use a different topic name for each parameterized topic,
+        // in order to make sure the topic can be created.
+        final String topic = "bounded_" + format;
+        createTestTopic(topic, 1, 1);
+
+        // ---------- Produce an event time stream into Kafka -------------------
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
+
+        final String createTable =
+                String.format(
+                        "CREATE TABLE kafka (\n"
+                                + "  `user_id` INT,\n"
+                                + "  `item_id` INT,\n"
+                                + "  `behavior` STRING\n"
+                                + ") WITH (\n"
+                                + "  'connector' = '%s',\n"
+                                + "  'topic' = '%s',\n"
+                                + "  'properties.bootstrap.servers' = '%s',\n"
+                                + "  'properties.group.id' = '%s',\n"
+                                + "  'scan.startup.mode' = 'earliest-offset',\n"
+                                + "  'scan.bounded.specific-offsets' = 'partition:0,offset:2',\n"
+                                + "  %s\n"
+                                + ")\n",
+                        KafkaDynamicTableFactory.IDENTIFIER,
+                        topic,
+                        bootstraps,
+                        groupId,
+                        formatOptions());
+
+        tEnv.executeSql(createTable);
+
+        String initialValues =
+                "INSERT INTO kafka\n"
+                        + "VALUES\n"
+                        + " (1,1102,'behavior 1'),\n"
+                        + " (2,1103,'behavior 2'),\n"
+                        + " (3,1104,'behavior 3')";
+        tEnv.executeSql(initialValues).await();
+
+        // ---------- Consume stream from Kafka -------------------
+
+        DataStream<RowData> result =
+                tEnv.toAppendStream(tEnv.sqlQuery("SELECT * FROM kafka"), RowData.class);
+        TestingSinkFunction sink = new TestingSinkFunction(2);
+        result.addSink(sink).setParallelism(1);
+
+        try {
+            env.execute("Job_4");
+        } catch (Throwable e) {
+            // we have to use a specific exception to indicate the job is finished,
+            // because the registered Kafka source is infinite.
+            if (!isCausedByJobFinished(e)) {
+                // re-throw
+                throw e;
+            }
+        }
+
+        final List<String> expected =
+                Arrays.asList("+I(1,1102,behavior 1)", "+I(2,1103,behavior 2)");
+
+        assertEquals(expected, TestingSinkFunction.rows);
+
+        // ------------- cleanup -------------------
+
+        deleteTestTopic(topic);
+    }
+
+    @Test
     public void testKafkaTableWithMultipleTopics() throws Exception {
         // ---------- create source and sink tables -------------------
         String tableTemp =

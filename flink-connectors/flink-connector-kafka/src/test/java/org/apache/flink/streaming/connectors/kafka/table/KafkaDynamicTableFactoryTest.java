@@ -117,10 +117,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
     private static final String DEFAULT_KEY_SUBJECT = TOPIC + "-key";
     private static final int PARTITION_0 = 0;
     private static final long OFFSET_0 = 100L;
-    private static final long END_OFFSET_0 = 200L;
     private static final int PARTITION_1 = 1;
     private static final long OFFSET_1 = 123L;
-    private static final long END_OFFSET_1 = 223L;
     private static final String NAME = "name";
     private static final String COUNT = "count";
     private static final String TIME = "time";
@@ -159,11 +157,6 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
             String.format(
                     "partition:%d,offset:%d;partition:%d,offset:%d",
                     PARTITION_0, OFFSET_0, PARTITION_1, OFFSET_1);
-
-    private static final String PROPS_SCAN_BOUNDED_OFFSETS =
-            String.format(
-                    "partition:%d,offset:%d;partition:%d,offset:%d",
-                    PARTITION_0, END_OFFSET_0, PARTITION_1, END_OFFSET_1);
 
     private static final ResolvedSchema SCHEMA =
             new ResolvedSchema(
@@ -204,10 +197,6 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_0), OFFSET_0);
         specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_1), OFFSET_1);
 
-        final Map<KafkaTopicPartition, Long> boundedEndOffsets = new HashMap<>();
-        boundedEndOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_0), END_OFFSET_0);
-        boundedEndOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_1), END_OFFSET_1);
-
         final DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
                 new DecodingFormatMock(",", true);
 
@@ -225,8 +214,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         KAFKA_SOURCE_PROPERTIES,
                         StartupMode.SPECIFIC_OFFSETS,
                         specificOffsets,
-                        0,
-                        boundedEndOffsets);
+                        0);
         assertEquals(actualKafkaSource, expectedKafkaSource);
 
         ScanTableSource.ScanRuntimeProvider provider =
@@ -268,8 +256,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         KAFKA_SOURCE_PROPERTIES,
                         StartupMode.EARLIEST,
                         specificOffsets,
-                        0,
-                        Collections.emptyMap());
+                        0);
         final KafkaDynamicSource actualKafkaSource = (KafkaDynamicSource) actualSource;
         assertEquals(actualKafkaSource, expectedKafkaSource);
 
@@ -310,8 +297,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         KAFKA_FINAL_SOURCE_PROPERTIES,
                         StartupMode.GROUP_OFFSETS,
                         Collections.emptyMap(),
-                        0,
-                        Collections.emptyMap());
+                        0);
 
         assertEquals(actualSource, expectedKafkaSource);
     }
@@ -362,8 +348,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         KAFKA_FINAL_SOURCE_PROPERTIES,
                         StartupMode.GROUP_OFFSETS,
                         Collections.emptyMap(),
-                        0,
-                        Collections.emptyMap());
+                        0);
         expectedKafkaSource.producedDataType = SCHEMA_WITH_METADATA.toSourceRowDataType();
         expectedKafkaSource.metadataKeys = Collections.singletonList("timestamp");
 
@@ -909,8 +894,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
             Properties properties,
             StartupMode startupMode,
             Map<KafkaTopicPartition, Long> specificStartupOffsets,
-            long startupTimestampMillis,
-            Map<KafkaTopicPartition, Long> boundedEndOffsets) {
+            long startupTimestampMillis) {
         return new KafkaDynamicSource(
                 physicalDataType,
                 keyDecodingFormat,
@@ -925,7 +909,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                 specificStartupOffsets,
                 startupTimestampMillis,
                 false,
-                boundedEndOffsets,
+                Collections.emptyMap(),
                 FactoryMocks.IDENTIFIER.asSummaryString());
     }
 
@@ -980,7 +964,6 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         tableOptions.put("properties.bootstrap.servers", "dummy");
         tableOptions.put("scan.startup.mode", "specific-offsets");
         tableOptions.put("scan.startup.specific-offsets", PROPS_SCAN_OFFSETS);
-        tableOptions.put("scan.end.specific-offsets", PROPS_SCAN_BOUNDED_OFFSETS);
         tableOptions.put("scan.topic-partition-discovery.interval", DISCOVERY_INTERVAL);
         // Format options.
         tableOptions.put("format", TestFormatFactory.IDENTIFIER);

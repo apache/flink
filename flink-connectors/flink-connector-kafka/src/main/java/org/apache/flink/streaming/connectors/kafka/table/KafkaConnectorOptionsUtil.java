@@ -58,7 +58,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FORMAT;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_END_SPECIFIC_OFFSETS;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_BOUNDED_SPECIFIC_OFFSETS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_MODE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_SPECIFIC_OFFSETS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_TIMESTAMP_MILLIS;
@@ -261,11 +261,11 @@ class KafkaConnectorOptionsUtil {
 
     public static Map<KafkaTopicPartition, Long> buildBoundedOffsets(ReadableConfig tableOptions) {
         Map<KafkaTopicPartition, Long> boundedOffsets = new HashMap<>();
-        if (tableOptions.getOptional(SCAN_END_SPECIFIC_OFFSETS).isPresent()) {
+        if (tableOptions.getOptional(SCAN_BOUNDED_SPECIFIC_OFFSETS).isPresent()) {
             final Map<Integer, Long> offsetMap =
                     parseSpecificOffsets(
-                            tableOptions.get(SCAN_END_SPECIFIC_OFFSETS),
-                            SCAN_END_SPECIFIC_OFFSETS.key());
+                            tableOptions.get(SCAN_BOUNDED_SPECIFIC_OFFSETS),
+                            SCAN_BOUNDED_SPECIFIC_OFFSETS.key());
             offsetMap.forEach(
                     (partition, offset) -> {
                         final KafkaTopicPartition topicPartition =

@@ -158,8 +158,8 @@ public class KafkaConnectorOptions {
                     .withDescription(
                             "Optional offsets used in case of \"specific-offsets\" startup mode");
 
-    public static final ConfigOption<String> SCAN_END_SPECIFIC_OFFSETS =
-            ConfigOptions.key("scan.end.specific-offsets")
+    public static final ConfigOption<String> SCAN_BOUNDED_SPECIFIC_OFFSETS =
+            ConfigOptions.key("scan.bounded.specific-offsets")
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
