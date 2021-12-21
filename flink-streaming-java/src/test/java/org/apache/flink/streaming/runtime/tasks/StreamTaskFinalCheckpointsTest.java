@@ -46,6 +46,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -77,6 +78,8 @@ import static org.junit.Assert.assertTrue;
 
 /** Tests the behavior of {@link StreamTask} related to final checkpoint. */
 public class StreamTaskFinalCheckpointsTest {
+
+    private static final long CONCURRENT_EVENT_WAIT_PERIOD_MS = 500L;
 
     @Test
     public void testCheckpointDoneOnFinishedOperator() throws Exception {
@@ -340,7 +343,7 @@ public class StreamTaskFinalCheckpointsTest {
                                 try {
                                     // Give some potential time for the task to finish before the
                                     // savepoint is notified complete
-                                    Thread.sleep(500);
+                                    Thread.sleep(CONCURRENT_EVENT_WAIT_PERIOD_MS);
                                 } catch (InterruptedException e) {
                                     throw new FlinkRuntimeException(e);
                                 }
@@ -440,7 +443,7 @@ public class StreamTaskFinalCheckpointsTest {
                             try {
                                 // Give some potential time for the task to finish before the
                                 // savepoint is notified complete
-                                Thread.sleep(500);
+                                Thread.sleep(CONCURRENT_EVENT_WAIT_PERIOD_MS);
                             } catch (InterruptedException e) {
                                 throw new FlinkRuntimeException(e);
                             }
@@ -751,7 +754,7 @@ public class StreamTaskFinalCheckpointsTest {
                             try {
                                 // Give some potential time for the task to finish before the
                                 // checkpoint is acknowledged, also do not notify its completion
-                                Thread.sleep(500);
+                                Thread.sleep(CONCURRENT_EVENT_WAIT_PERIOD_MS);
                             } catch (InterruptedException e) {
                                 throw new FlinkRuntimeException(e);
                             }
@@ -883,21 +886,18 @@ public class StreamTaskFinalCheckpointsTest {
             // part. We slightly extend the process to make the asynchronous part start executing
             // before the other barriers arrived.
             harness.processEvent(unalignedBarrier, 0, 0);
-            Thread.sleep(1000);
+            Thread.sleep(CONCURRENT_EVENT_WAIT_PERIOD_MS);
 
             // Finish the unaligned checkpoint.
             harness.processEvent(unalignedBarrier, 0, 1);
             harness.processEvent(unalignedBarrier, 0, 2);
 
             // Wait till the asynchronous part finished either normally or exceptionally.
-            Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
-            while (deadline.hasTimeLeft()) {
-                if (checkpointResponder.getAcknowledgeLatch().isTriggered()
-                        || checkpointResponder.getDeclinedLatch().isTriggered()) {
-                    break;
-                }
-                Thread.sleep(1000);
-            }
+            CommonTestUtils.waitUntilCondition(
+                    () ->
+                            checkpointResponder.getAcknowledgeLatch().isTriggered()
+                                    || checkpointResponder.getDeclinedLatch().isTriggered(),
+                    Deadline.fromNow(Duration.ofSeconds(10)));
 
             assertEquals(
                     Collections.singletonList(2L),
