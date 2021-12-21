@@ -116,15 +116,12 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                     "org.apache.flink.table.runtime.operators.python.aggregate."
                             + "PythonStreamGroupWindowAggregateOperator";
 
-    private static final String
-            GENERAL_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_CREATE_TUMBLING_WINDOW_METHOD_NAME =
-                    "createTumblingGroupWindowAggregateOperator";
-    private static final String
-            GENERAL_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_CREATE_SLIDING_WINDOW_METHOD_NAME =
-                    "createSlidingGroupWindowAggregateOperator";
-    private static final String
-            GENERAL_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_CREATE_SESSION_WINDOW_METHOD_NAME =
-                    "createSessionGroupWindowAggregateOperator";
+    private static final String GENERAL_STREAM_PYTHON_CREATE_TUMBLING_GROUP_WINDOW_METHOD =
+            "createTumblingGroupWindowAggregateOperator";
+    private static final String GENERAL_STREAM_PYTHON_CREATE_SLIDING_GROUP_WINDOW_METHOD =
+            "createSlidingGroupWindowAggregateOperator";
+    private static final String GENERAL_STREAM_PYTHON_CREATE_SESSION_GROUP_WINDOW_METHOD =
+            "createSessionGroupWindowAggregateOperator";
 
     public static final String FIELD_NAME_WINDOW = "window";
     public static final String FIELD_NAME_NAMED_WINDOW_PROPERTIES = "namedWindowProperties";
@@ -546,7 +543,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
 
                 Method create =
                         clazz.getMethod(
-                                GENERAL_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_CREATE_TUMBLING_WINDOW_METHOD_NAME,
+                                GENERAL_STREAM_PYTHON_CREATE_TUMBLING_GROUP_WINDOW_METHOD,
                                 Configuration.class,
                                 RowType.class,
                                 RowType.class,
@@ -590,7 +587,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
 
                 Method create =
                         clazz.getMethod(
-                                GENERAL_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_CREATE_SLIDING_WINDOW_METHOD_NAME,
+                                GENERAL_STREAM_PYTHON_CREATE_SLIDING_GROUP_WINDOW_METHOD,
                                 Configuration.class,
                                 RowType.class,
                                 RowType.class,
@@ -635,7 +632,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
 
                 Method create =
                         clazz.getMethod(
-                                GENERAL_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_CREATE_SESSION_WINDOW_METHOD_NAME,
+                                GENERAL_STREAM_PYTHON_CREATE_SESSION_GROUP_WINDOW_METHOD,
                                 Configuration.class,
                                 RowType.class,
                                 RowType.class,

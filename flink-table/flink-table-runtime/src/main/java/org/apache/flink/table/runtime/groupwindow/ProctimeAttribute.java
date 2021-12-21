@@ -30,7 +30,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 /**
  * Proctime property.
  *
- * @deprecated The POJOs in this package are used to represent the deprecated Group Window feature
+ * @deprecated The POJOs in this package are used to represent the deprecated Group Window feature.
+ *     Currently, they also used to configure Python operators.
  */
 @Deprecated
 @Internal
