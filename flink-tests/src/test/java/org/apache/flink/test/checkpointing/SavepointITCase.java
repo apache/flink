@@ -47,6 +47,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.core.fs.local.LocalRecoverableWriter;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -1771,6 +1772,12 @@ public class SavepointITCase extends TestLogger {
                 throws IOException {
             failPath(filePath);
             return super.create(filePath, overwrite);
+        }
+
+        @Override
+        public LocalRecoverableWriter createRecoverableWriter() throws IOException {
+            throw new UnsupportedOperationException(
+                    "This file system does not support recoverable writers.");
         }
 
         private void failPath(org.apache.flink.core.fs.Path filePath) throws IOException {
