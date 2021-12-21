@@ -79,6 +79,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -89,7 +90,7 @@ import java.util.stream.IntStream;
 
 /** A utility class used in PyFlink. */
 public class CommonPythonUtil {
-    private static Method convertLiteralToPython = null;
+    private static Method pickleValue = null;
 
     private static final String PYTHON_CONFIG_UTILS_CLASS =
             "org.apache.flink.python.util.PythonConfigUtil";
@@ -141,7 +142,7 @@ public class CommonPythonUtil {
                         ((BridgingSqlFunction) operator).getDefinition());
             }
         } catch (InvocationTargetException | IllegalAccessException e) {
-            throw new TableException("Method convertLiteralToPython accessed failed. ", e);
+            throw new TableException("Method pickleValue accessed failed. ", e);
         }
         throw new TableException(String.format("Unsupported Python SqlFunction %s.", operator));
     }
@@ -323,20 +324,79 @@ public class CommonPythonUtil {
                         });
     }
 
+    private static byte[] convertLiteralToPython(RexLiteral o, SqlTypeName typeName)
+            throws InvocationTargetException, IllegalAccessException {
+        byte type;
+        Object value;
+        if (o.getValue3() == null) {
+            type = 0;
+            value = null;
+        } else {
+            switch (typeName) {
+                case TINYINT:
+                    type = 0;
+                    value = ((BigDecimal) o.getValue3()).byteValueExact();
+                    break;
+                case SMALLINT:
+                    type = 0;
+                    value = ((BigDecimal) o.getValue3()).shortValueExact();
+                    break;
+                case INTEGER:
+                    type = 0;
+                    value = ((BigDecimal) o.getValue3()).intValueExact();
+                    break;
+                case BIGINT:
+                    type = 0;
+                    value = ((BigDecimal) o.getValue3()).longValueExact();
+                    break;
+                case FLOAT:
+                    type = 0;
+                    value = ((BigDecimal) o.getValue3()).floatValue();
+                    break;
+                case DOUBLE:
+                    type = 0;
+                    value = ((BigDecimal) o.getValue3()).doubleValue();
+                    break;
+                case DECIMAL:
+                case BOOLEAN:
+                    type = 0;
+                    value = o.getValue3();
+                    break;
+                case CHAR:
+                case VARCHAR:
+                    type = 0;
+                    value = o.getValue3().toString();
+                    break;
+                case DATE:
+                    type = 1;
+                    value = o.getValue3();
+                    break;
+                case TIME:
+                    type = 2;
+                    value = o.getValue3();
+                    break;
+                case TIMESTAMP:
+                    type = 3;
+                    value = o.getValue3();
+                    break;
+                default:
+                    throw new RuntimeException("Unsupported type " + typeName);
+            }
+        }
+        loadPickleValue();
+        return (byte[]) pickleValue.invoke(null, value, type);
+    }
+
     @SuppressWarnings("unchecked")
-    private static void loadConvertLiteralToPythonMethod() {
-        if (convertLiteralToPython == null) {
+    private static void loadPickleValue() {
+        if (pickleValue == null) {
             synchronized (CommonPythonUtil.class) {
-                if (convertLiteralToPython == null) {
+                if (pickleValue == null) {
                     Class clazz = loadClass("org.apache.flink.api.common.python.PythonBridgeUtils");
                     try {
-                        convertLiteralToPython =
-                                clazz.getMethod(
-                                        "convertLiteralToPython",
-                                        RexLiteral.class,
-                                        SqlTypeName.class);
+                        pickleValue = clazz.getMethod("pickleValue", Object.class, byte.class);
                     } catch (NoSuchMethodException e) {
-                        throw new TableException("Method convertLiteralToPython loaded failed.", e);
+                        throw new TableException("Method pickleValue loaded failed.", e);
                     }
                 }
             }
@@ -357,10 +417,7 @@ public class CommonPythonUtil {
                 inputs.add(argPythonInfo);
             } else if (operand instanceof RexLiteral) {
                 RexLiteral literal = (RexLiteral) operand;
-                loadConvertLiteralToPythonMethod();
-                inputs.add(
-                        convertLiteralToPython.invoke(
-                                null, literal, literal.getType().getSqlTypeName()));
+                inputs.add(convertLiteralToPython(literal, literal.getType().getSqlTypeName()));
             } else {
                 if (inputNodes.containsKey(operand)) {
                     inputs.add(inputNodes.get(operand));
