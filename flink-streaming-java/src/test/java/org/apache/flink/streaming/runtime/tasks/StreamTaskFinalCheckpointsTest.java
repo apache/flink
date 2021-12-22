@@ -884,7 +884,10 @@ public class StreamTaskFinalCheckpointsTest {
             checkpointResponder.setDeclinedLatch(new OneShotLatch());
 
             CheckpointBarrier unalignedBarrier =
-                    new CheckpointBarrier(2, 2, CheckpointOptions.unaligned(getDefault()));
+                    new CheckpointBarrier(
+                            2,
+                            2,
+                            CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault()));
 
             // On first unaligned barrier, the task would take snapshot and start the asynchronous
             // part. We slightly extend the process to make the asynchronous part start executing
