@@ -1374,7 +1374,7 @@ public class StreamTaskTest extends TestLogger {
                             completeFutureTask,
                             sleepTimeInsideMail,
                             sleepTimeOutsideMail,
-                            ioMetricGroup.getBackPressuredTimePerSecond());
+                            ioMetricGroup.getSoftBackPressuredTimePerSecond());
             // Make sure WaitingThread is started after Task starts processing.
             executor.submit(
                     waitingThread::start,
@@ -1385,10 +1385,10 @@ public class StreamTaskTest extends TestLogger {
             task.invoke();
             long totalDuration = System.currentTimeMillis() - startTs;
             assertThat(
-                    ioMetricGroup.getBackPressuredTimePerSecond().getCount(),
+                    ioMetricGroup.getSoftBackPressuredTimePerSecond().getCount(),
                     greaterThanOrEqualTo(sleepTimeOutsideMail));
             assertThat(
-                    ioMetricGroup.getBackPressuredTimePerSecond().getCount(),
+                    ioMetricGroup.getSoftBackPressuredTimePerSecond().getCount(),
                     Matchers.lessThanOrEqualTo(totalDuration - sleepTimeInsideMail));
             assertThat(ioMetricGroup.getIdleTimeMsPerSecond().getCount(), is(0L));
             assertEquals(numberOfProcessCalls, inputProcessor.currentNumProcessCalls);
@@ -1447,7 +1447,8 @@ public class StreamTaskTest extends TestLogger {
             assertThat(
                     ioMetricGroup.getIdleTimeMsPerSecond().getCount(),
                     Matchers.lessThanOrEqualTo(totalDuration - sleepTimeInsideMail));
-            assertThat(ioMetricGroup.getBackPressuredTimePerSecond().getCount(), is(0L));
+            assertThat(ioMetricGroup.getSoftBackPressuredTimePerSecond().getCount(), is(0L));
+            assertThat(ioMetricGroup.getHardBackPressuredTimePerSecond().getCount(), is(0L));
         } finally {
             if (waitingThread != null) {
                 waitingThread.join();
