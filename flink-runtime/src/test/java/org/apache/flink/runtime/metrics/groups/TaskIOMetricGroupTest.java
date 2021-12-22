@@ -58,11 +58,16 @@ public class TaskIOMetricGroupTest {
         taskIO.getNumBytesOutCounter().inc(250L);
         taskIO.getNumBuffersOutCounter().inc(3L);
         taskIO.getIdleTimeMsPerSecond().markStart();
-        taskIO.getBackPressuredTimePerSecond().markStart();
-        long sleepTime = 2L;
-        Thread.sleep(sleepTime);
+        taskIO.getSoftBackPressuredTimePerSecond().markStart();
+        long softSleepTime = 2L;
+        Thread.sleep(softSleepTime);
         taskIO.getIdleTimeMsPerSecond().markEnd();
-        taskIO.getBackPressuredTimePerSecond().markEnd();
+        taskIO.getSoftBackPressuredTimePerSecond().markEnd();
+
+        long hardSleepTime = 4L;
+        taskIO.getHardBackPressuredTimePerSecond().markStart();
+        Thread.sleep(hardSleepTime);
+        taskIO.getHardBackPressuredTimePerSecond().markEnd();
 
         IOMetrics io = taskIO.createSnapshot();
         assertEquals(32L, io.getNumRecordsIn());
@@ -70,9 +75,13 @@ public class TaskIOMetricGroupTest {
         assertEquals(100L, io.getNumBytesIn());
         assertEquals(250L, io.getNumBytesOut());
         assertEquals(3L, taskIO.getNumBuffersOutCounter().getCount());
-        assertThat(taskIO.getIdleTimeMsPerSecond().getCount(), greaterThanOrEqualTo(sleepTime));
+        assertThat(taskIO.getIdleTimeMsPerSecond().getCount(), greaterThanOrEqualTo(softSleepTime));
         assertThat(
-                taskIO.getBackPressuredTimePerSecond().getCount(), greaterThanOrEqualTo(sleepTime));
+                taskIO.getSoftBackPressuredTimePerSecond().getCount(),
+                greaterThanOrEqualTo(softSleepTime));
+        assertThat(
+                taskIO.getHardBackPressuredTimePerSecond().getCount(),
+                greaterThanOrEqualTo(hardSleepTime));
     }
 
     @Test

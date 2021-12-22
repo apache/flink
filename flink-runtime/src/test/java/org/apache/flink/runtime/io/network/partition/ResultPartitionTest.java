@@ -502,7 +502,7 @@ public class ResultPartitionTest {
         assertNotNull(buffer);
 
         // back-pressured time is zero when there is buffer available.
-        assertThat(resultPartition.getBackPressuredTimeMsPerSecond().getValue(), equalTo(0L));
+        assertThat(resultPartition.getHardBackPressuredTimeMsPerSecond().getValue(), equalTo(0L));
 
         CountDownLatch syncLock = new CountDownLatch(1);
         final Thread requestThread =
@@ -528,7 +528,7 @@ public class ResultPartitionTest {
         requestThread.join();
 
         Assert.assertThat(
-                resultPartition.getBackPressuredTimeMsPerSecond().getCount(),
+                resultPartition.getHardBackPressuredTimeMsPerSecond().getCount(),
                 Matchers.greaterThan(0L));
         assertNotNull(readView.getNextBuffer().buffer());
     }

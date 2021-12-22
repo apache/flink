@@ -62,7 +62,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     /** For broadcast mode, a single BufferBuilder is shared by all subpartitions. */
     private BufferBuilder broadcastBufferBuilder;
 
-    private TimerGauge backPressuredTimeMsPerSecond = new TimerGauge();
+    private TimerGauge hardBackPressuredTimeMsPerSecond = new TimerGauge();
 
     private long totalWrittenBytes;
 
@@ -209,7 +209,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     @Override
     public void setMetricGroup(TaskIOMetricGroup metrics) {
         super.setMetricGroup(metrics);
-        backPressuredTimeMsPerSecond = metrics.getBackPressuredTimePerSecond();
+        hardBackPressuredTimeMsPerSecond = metrics.getHardBackPressuredTimePerSecond();
     }
 
     @Override
@@ -396,10 +396,10 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
             return bufferBuilder;
         }
 
-        backPressuredTimeMsPerSecond.markStart();
+        hardBackPressuredTimeMsPerSecond.markStart();
         try {
             bufferBuilder = bufferPool.requestBufferBuilderBlocking(targetSubpartition);
-            backPressuredTimeMsPerSecond.markEnd();
+            hardBackPressuredTimeMsPerSecond.markEnd();
             return bufferBuilder;
         } catch (InterruptedException e) {
             throw new IOException("Interrupted while waiting for buffer");
@@ -444,8 +444,8 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     @VisibleForTesting
-    public TimerGauge getBackPressuredTimeMsPerSecond() {
-        return backPressuredTimeMsPerSecond;
+    public TimerGauge getHardBackPressuredTimeMsPerSecond() {
+        return hardBackPressuredTimeMsPerSecond;
     }
 
     @VisibleForTesting
