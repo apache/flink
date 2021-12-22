@@ -243,7 +243,7 @@ class LocalBufferPool implements BufferPool {
 
             if (numberOfRequestedMemorySegments < numberOfSegmentsToReserve) {
                 availableMemorySegments.addAll(
-                        networkBufferPool.requestMemorySegmentsBlocking(
+                        networkBufferPool.requestPooledMemorySegmentsBlocking(
                                 numberOfSegmentsToReserve - numberOfRequestedMemorySegments));
                 toNotify = availabilityHelper.getUnavailableToResetAvailable();
             }
@@ -403,7 +403,7 @@ class LocalBufferPool implements BufferPool {
                 !isDestroyed,
                 "Destroyed buffer pools should never acquire segments - this will lead to buffer leaks.");
 
-        MemorySegment segment = networkBufferPool.requestMemorySegment();
+        MemorySegment segment = networkBufferPool.requestPooledMemorySegment();
         if (segment != null) {
             availableMemorySegments.add(segment);
             numberOfRequestedMemorySegments++;
@@ -647,7 +647,7 @@ class LocalBufferPool implements BufferPool {
         assert Thread.holdsLock(availableMemorySegments);
 
         numberOfRequestedMemorySegments--;
-        networkBufferPool.recycle(segment);
+        networkBufferPool.recyclePooledMemorySegment(segment);
     }
 
     private void returnExcessMemorySegments() {
