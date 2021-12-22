@@ -20,7 +20,9 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.api.common.typeutils.base.LocalDateSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
@@ -32,6 +34,7 @@ import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.data.utils.CastExecutor;
 import org.apache.flink.table.planner.functions.CastFunctionITCase;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.utils.DateTimeUtils;
 
 import org.junit.jupiter.api.DynamicTest;
@@ -134,6 +137,20 @@ class CastRulesTest {
                     FIELD("b", BIGINT()),
                     FIELD("c", STRING()),
                     FIELD("d", ARRAY(STRING())));
+    private static final DataType MY_STRUCTURED_TYPE_WITHOUT_IMPLEMENTATION_CLASS =
+            DataTypes.of(
+                    StructuredType.newBuilder(ObjectIdentifier.of("a", "b", "c"))
+                            .attributes(
+                                    Arrays.asList(
+                                            new StructuredType.StructuredAttribute(
+                                                    "a", BIGINT().notNull().getLogicalType()),
+                                            new StructuredType.StructuredAttribute(
+                                                    "b", BIGINT().getLogicalType()),
+                                            new StructuredType.StructuredAttribute(
+                                                    "c", STRING().getLogicalType()),
+                                            new StructuredType.StructuredAttribute(
+                                                    "d", ARRAY(STRING()).getLogicalType())))
+                            .build());
 
     Stream<CastTestSpecBuilder> testCases() {
         return Stream.of(
@@ -650,7 +667,20 @@ class CastRulesTest {
                                                     fromString("b"),
                                                     fromString("c")
                                                 })),
-                                fromString("(10, NULL, 12:34:56.123, [a, b, c])")),
+                                fromString("(a=10, b=NULL, c=12:34:56.123, d=[a, b, c])"))
+                        .fromCase(
+                                MY_STRUCTURED_TYPE_WITHOUT_IMPLEMENTATION_CLASS,
+                                GenericRowData.of(
+                                        10L,
+                                        null,
+                                        TIME_STRING,
+                                        new GenericArrayData(
+                                                new Object[] {
+                                                    fromString("a"),
+                                                    fromString("b"),
+                                                    fromString("c")
+                                                })),
+                                fromString("(a=10, b=NULL, c=12:34:56.123, d=[a, b, c])")),
                 CastTestSpecBuilder.testCastTo(CHAR(6))
                         .fromCase(STRING(), null, EMPTY_UTF8)
                         .fromCaseLegacy(STRING(), null, EMPTY_UTF8)
@@ -1194,6 +1224,28 @@ class CastRulesTest {
         public Long b;
         public String c;
         public String[] d;
+
+        public MyStructuredType(long a, Long b, String c, String[] d) {
+            this.a = a;
+            this.b = b;
+            this.c = c;
+            this.d = d;
+        }
+
+        @Override
+        public String toString() {
+            return "My fancy string representation{"
+                    + "a="
+                    + a
+                    + ", b="
+                    + b
+                    + ", c='"
+                    + c
+                    + '\''
+                    + ", d="
+                    + Arrays.toString(d)
+                    + '}';
+        }
     }
 
     @SuppressWarnings({"rawtypes"})
