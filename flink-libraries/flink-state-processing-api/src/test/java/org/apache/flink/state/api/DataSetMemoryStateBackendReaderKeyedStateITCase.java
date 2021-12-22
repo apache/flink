@@ -18,13 +18,14 @@
 
 package org.apache.flink.state.api;
 
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 
 /** IT Case for reading keyed state from a memory state backend. */
-public class HashMapStateBackendReaderKeyedStateITCase
-        extends SavepointReaderKeyedStateITCase<HashMapStateBackend> {
+public class DataSetMemoryStateBackendReaderKeyedStateITCase
+        extends DataSetSavepointReaderKeyedStateITCase<MemoryStateBackend> {
+
     @Override
-    protected HashMapStateBackend getStateBackend() {
-        return new HashMapStateBackend();
+    protected MemoryStateBackend getStateBackend() {
+        return new MemoryStateBackend();
     }
 }

@@ -170,6 +170,10 @@ abstract class OperatorStateInputFormat<OT> extends RichInputFormat<OT, Operator
 
     @Override
     public void close() {
+        if (registry == null) {
+            return;
+        }
+
         registry.unregisterCloseable(restoredBackend);
         IOUtils.closeQuietly(restoredBackend);
         IOUtils.closeQuietly(registry);

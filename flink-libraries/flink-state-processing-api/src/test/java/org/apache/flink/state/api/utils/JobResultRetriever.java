@@ -16,15 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api;
+package org.apache.flink.state.api.utils;
 
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.util.CloseableIterator;
 
-/** IT Case for reading keyed state from a memory state backend. */
-public class HashMapStateBackendReaderKeyedStateITCase
-        extends SavepointReaderKeyedStateITCase<HashMapStateBackend> {
-    @Override
-    protected HashMapStateBackend getStateBackend() {
-        return new HashMapStateBackend();
+import java.util.ArrayList;
+import java.util.List;
+
+/** A utility for collecting job results. */
+public class JobResultRetriever {
+
+    public static <T> List<T> collect(DataStream<T> input) throws Exception {
+        List<T> results = new ArrayList<>();
+        try (CloseableIterator<T> iterator = input.executeAndCollect()) {
+            while (iterator.hasNext()) {
+                results.add(iterator.next());
+            }
+        }
+
+        return results;
     }
 }
