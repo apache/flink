@@ -36,7 +36,16 @@ public class TimerGauge implements Gauge<Long>, View {
 
     private long previousCount;
     private long currentCount;
-    private long currentMeasurementStart;
+    private long currentMeasurementStartTS;
+    /**
+     * This differ from {@link #currentMeasurementStartTS} that {@link #currentUpdateTS} is bumped
+     * on every {@link #update()} call, while {@link #currentMeasurementStartTS} always marks the
+     * last {@link #markStart()} call.
+     */
+    private long currentUpdateTS;
+
+    private long previousMaxSingleMeasurement;
+    private long currentMaxSingleMeasurement;
 
     public TimerGauge() {
         this(SystemClock.getInstance());
@@ -47,32 +56,52 @@ public class TimerGauge implements Gauge<Long>, View {
     }
 
     public synchronized void markStart() {
-        if (currentMeasurementStart == 0) {
-            currentMeasurementStart = clock.absoluteTimeMillis();
+        if (currentMeasurementStartTS == 0) {
+            currentUpdateTS = clock.absoluteTimeMillis();
+            currentMeasurementStartTS = currentUpdateTS;
         }
     }
 
     public synchronized void markEnd() {
-        if (currentMeasurementStart != 0) {
-            currentCount += clock.absoluteTimeMillis() - currentMeasurementStart;
-            currentMeasurementStart = 0;
+        if (currentMeasurementStartTS != 0) {
+            long currentMeasurement = clock.absoluteTimeMillis() - currentMeasurementStartTS;
+            currentCount += currentMeasurement;
+            currentMaxSingleMeasurement = Math.max(currentMaxSingleMeasurement, currentMeasurement);
+            currentUpdateTS = 0;
+            currentMeasurementStartTS = 0;
         }
     }
 
     @Override
     public synchronized void update() {
-        if (currentMeasurementStart != 0) {
+        if (currentMeasurementStartTS != 0) {
             long now = clock.absoluteTimeMillis();
-            currentCount += now - currentMeasurementStart;
-            currentMeasurementStart = now;
+            // we adding to the current count only the time elapsed since last markStart or update
+            // call
+            currentCount += now - currentUpdateTS;
+            currentUpdateTS = now;
+            // on the other hand, max measurement has to be always checked against last markStart
+            // call
+            currentMaxSingleMeasurement =
+                    Math.max(currentMaxSingleMeasurement, now - currentMeasurementStartTS);
         }
         previousCount = Math.max(Math.min(currentCount / UPDATE_INTERVAL_SECONDS, 1000), 0);
+        previousMaxSingleMeasurement = currentMaxSingleMeasurement;
         currentCount = 0;
+        currentMaxSingleMeasurement = 0;
     }
 
     @Override
     public synchronized Long getValue() {
         return previousCount;
+    }
+
+    /**
+     * @return the longest marked period as measured by the given * TimerGauge. For example the
+     *     longest consecutive back pressured period.
+     */
+    public synchronized long getMaxSingleMeasurement() {
+        return previousMaxSingleMeasurement;
     }
 
     @VisibleForTesting
@@ -82,6 +111,6 @@ public class TimerGauge implements Gauge<Long>, View {
 
     @VisibleForTesting
     public synchronized boolean isMeasuring() {
-        return currentMeasurementStart != 0;
+        return currentMeasurementStartTS != 0;
     }
 }
