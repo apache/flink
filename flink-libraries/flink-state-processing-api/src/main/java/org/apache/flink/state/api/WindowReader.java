@@ -43,6 +43,7 @@ import java.io.IOException;
  * @param <W> The type of {@code Window}.
  */
 @PublicEvolving
+@Deprecated
 public class WindowReader<W extends Window> {
 
     /** The batch execution environment. Used for creating inputs for reading state. */
