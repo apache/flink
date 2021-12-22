@@ -547,11 +547,11 @@ public class LocalBufferPoolTest extends TestLogger {
 
         @Nullable
         @Override
-        public MemorySegment requestMemorySegment() {
+        public MemorySegment requestPooledMemorySegment() {
             if (requestCounter++ == 1) {
                 return null;
             }
-            return super.requestMemorySegment();
+            return super.requestPooledMemorySegment();
         }
     }
 }
