@@ -55,6 +55,8 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     private final Gauge<Long> backPressuredTimePerSecond;
     private final TimerGauge softBackPressuredTimePerSecond;
     private final TimerGauge hardBackPressuredTimePerSecond;
+    private final Gauge<Long> maxSoftBackPressuredTime;
+    private final Gauge<Long> maxHardBackPressuredTime;
 
     private volatile boolean busyTimeEnabled;
 
@@ -87,6 +89,15 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
                 gauge(MetricNames.TASK_HARD_BACK_PRESSURED_TIME, new TimerGauge());
         this.backPressuredTimePerSecond =
                 gauge(MetricNames.TASK_BACK_PRESSURED_TIME, this::getBackPressuredTimeMsPerSecond);
+
+        this.maxSoftBackPressuredTime =
+                gauge(
+                        MetricNames.TASK_MAX_SOFT_BACK_PRESSURED_TIME,
+                        softBackPressuredTimePerSecond::getMaxSingleMeasurement);
+        this.maxHardBackPressuredTime =
+                gauge(
+                        MetricNames.TASK_MAX_HARD_BACK_PRESSURED_TIME,
+                        hardBackPressuredTimePerSecond::getMaxSingleMeasurement);
 
         this.busyTimePerSecond = gauge(MetricNames.TASK_BUSY_TIME, this::getBusyTimePerSecond);
     }
