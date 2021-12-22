@@ -405,9 +405,9 @@ public class KafkaDynamicTableFactory
             @Nullable String keyPrefix,
             String topic,
             Properties properties,
-            FlinkKafkaPartitioner<RowData> partitioner,
+            @Nullable FlinkKafkaPartitioner<RowData> partitioner,
             DeliveryGuarantee deliveryGuarantee,
-            Integer parallelism,
+            @Nullable Integer parallelism,
             @Nullable String transactionalIdPrefix) {
         return new KafkaDynamicSink(
                 physicalDataType,
