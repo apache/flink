@@ -75,6 +75,8 @@ public class MetricNames {
             "softBackPressuredTimeMs" + SUFFIX_RATE;
     public static final String TASK_HARD_BACK_PRESSURED_TIME =
             "hardBackPressuredTimeMs" + SUFFIX_RATE;
+    public static final String TASK_MAX_SOFT_BACK_PRESSURED_TIME = "maxSoftBackPressureTimeMs";
+    public static final String TASK_MAX_HARD_BACK_PRESSURED_TIME = "maxHardBackPressureTimeMs";
 
     public static final String ESTIMATED_TIME_TO_CONSUME_BUFFERS =
             "estimatedTimeToConsumeBuffersMs";
