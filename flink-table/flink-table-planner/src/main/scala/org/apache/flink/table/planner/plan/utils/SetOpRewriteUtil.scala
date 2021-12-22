@@ -22,9 +22,9 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.functions.FunctionIdentifier
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalRowType
-import org.apache.flink.table.planner.functions.tablefunctions.ReplicateRows
 import org.apache.flink.table.planner.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
 import org.apache.flink.table.planner.plan.schema.TypedFlinkTableFunction
+import org.apache.flink.table.runtime.functions.table.ReplicateRows
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
