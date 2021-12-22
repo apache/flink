@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
@@ -48,6 +49,7 @@ import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.UPPER_BOUND
  * A {@code SavepointWriter} can create new savepoints from bounded data streams. This can allow for
  * boostrapping state for new applications or modifying the savepoints of existing jobs.
  */
+@PublicEvolving
 public class SavepointWriter {
 
     /**
