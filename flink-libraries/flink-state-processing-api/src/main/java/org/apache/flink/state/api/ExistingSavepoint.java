@@ -57,9 +57,14 @@ import java.io.IOException;
  * This means that both savepoints share state and one cannot be deleted without corrupting the
  * other!
  *
- * @see WritableSavepoint
+ * @see SavepointReader
+ * @see SavepointWriter
+ * @deprecated For creating a new savepoint, use {@link SavepointWriter} and the data stream api
+ *     under batch execution. For reading a savepoint, use {@link SavepointReader} and the data
+ *     stream api under batch execution.
  */
 @PublicEvolving
+@Deprecated
 @SuppressWarnings("WeakerAccess")
 public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
 
