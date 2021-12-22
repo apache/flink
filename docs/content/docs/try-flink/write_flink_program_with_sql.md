@@ -71,19 +71,15 @@ You should see something like this:
 
 Like with any Flink program, you will need a data source to connect to so that Flink can process it. There are many popular data sources but for the interest of this tutorial, you will be using [flink-faker](https://github.com/knaufk/flink-faker).  This custom [table source]({{< ref "docs/connectors/table/overview" >}}) is based on [Java Faker](https://github.com/DiUS/java-faker) and can generate fake data continuously in memory and in a realistic format. 
 
-Java Faker is a tool for generating this data and flink-faker exposes that as a source in Flink by implementing the [DynamicTableSource interface]({{< javadoc file="org/apache/flink/table/connector/source/DynamicTableSource.html" name="DynamicTableSource">}}). The dynamic table source has the logic of how to create a table source (in this case, from flink-faker), and then by adding a [factory]({{< javadoc file="org/apache/flink/table/factories/DynamicTableSourceFactory.html" name="DynamicTableSourceFactory">}}) for it you can expose it in the SQL API by referencing it with `"connector" = "faker"`.
-
-
-
 The next step is to make `flink-faker` discoverable by the Flink SQL client by following these [instructions](https://github.com/knaufk/flink-faker#adding-flink-faker-to-flink-sql-client).
 
 Once you have done that, create a table using this table source to confirm that the factory is loaded by executing the following query in the SQL client: 
 
 ```sql
-CREATE TABLE test WITH ('connector' = 'faker');
+CREATE TABLE test (`test_field` STRING) WITH ('connector' = 'faker');
 ```
 
-If you see `[INFO] Execute statement succeed.`, then the table source has been loaded correctly.
+If you see `[INFO] Execute statement succeed.`, then a table definition has been stored in the in-memory catalog successfully.
 
 You are ready to start writing your first Flink program with SQL. 
 
@@ -92,17 +88,17 @@ You are ready to start writing your first Flink program with SQL.
 
 For this tutorial, you are going to create a table that models a [Twitch](https://www.twitch.tv) gaming stream. This table will contain the following fields: user_name, game_name,viewer_count, started_at, location, and a timestamp.
 
-Use the [DDL syntax](https://www.geeksforgeeks.org/sql-ddl-dql-dml-dcl-tcl-commands/) `CREATE TABLE` to create this table containing these fields. You will also use the `WITH` clause to configure the connector (i.e. flink-faker). 
+Use the [DDL syntax](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sql/overview/) `CREATE TABLE` to create this table containing these fields. You will also use the `WITH` clause to configure the connector (i.e. flink-faker). 
 
 Execute the following query in the SQL client:
 
 ```sql
 CREATE TEMPORARY TABLE twitch_stream (
-  `user_name` VARCHAR(2147483647),
-  `game_name` VARCHAR(2147483647),
+  `user_name` STRING,
+  `game_name` STRING,
   `viewer_count` INT,
   `started_at` TIMESTAMP_LTZ(3),
-  `location` VARCHAR(2147483647),
+  `location` STRING,
   proctime AS PROCTIME()
 ) WITH (
   'connector' = 'faker',
@@ -146,9 +142,11 @@ To find gaming streams for games whose names end with an exclamation mark, try t
 SELECT *
 FROM twitch_stream
 WHERE game_name LIKE '%!';
+```
 
 You should now see a new table with new datastream results.  
 
+## Step 6: Use a Top-N query
 
 Now try a [Top-N]({{< ref "docs/dev/table/sql/queries/topn" >}}) query to find the 10 most popular games.
 
@@ -172,9 +170,9 @@ Note that Flink uses the combination of an OVER window clause and a filter condi
 You should now see a new dynamic table with the results from this query.  Notice how the top 10 games are constantly being revised as new data is processed.
 
 
-## Step 6: Aggregate the data and learn about windowing 
+## Step 7: Aggregate the data and learn about windowing 
 
-Now try an aggregate function (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`) to find the most popular games based on location with the following query: 
+Now try an aggregate function (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`) to find out how many times each game has been played in each location:
 
 ```sql
 SELECT location,
@@ -185,7 +183,7 @@ WHERE location IS NOT NULL
 GROUP BY location, game_name;
 ```
 
-You should see a table result of continously changing data that tells you the most popular games for each country and the count for each game. 
+You should see a table result of continously changing data that tells you how many times a game has been played in each location.
 
 For the last example, let's try a very commonly used function in streaming SQL: computing windowed aggregations.
 
@@ -203,14 +201,14 @@ SELECT window_start,
        game_name,
        SUM(viewer_count) AS TotalViewerCount
   FROM TABLE(
-    TUMBLE(TABLE twitch_stream, DESCRIPTOR(proctime), INTERVAL '1' MINUTE))
+    TUMBLE(TABLE twitch_stream, DESCRIPTOR(proctime), INTERVAL '10' SECONDS))
   GROUP BY window_start, window_end, game_name;
 ```
 
-Fresh results will appear every minute, showing the sum of the viewer counts for each game.
+Fresh results will appear 10 seconds, showing the sum of the viewer counts for each game.
 
 
-## Step 7: Write the updated stream to persistant storage
+## Step 8: Write the updated stream to persistant storage
 
 Now that you have written a program with Flink SQL to process all that streaming data, you probably want to store it somewhere. Since you are dealing with unbounded data sets, you can think of it as maintaining materialized views (or snapshots of the data) in external storage systems.
 
@@ -225,7 +223,7 @@ To store the results of the last example query (tumble window), you need to crea
 CREATE TABLE twitch_stream_viewer_count (
   `window_start` TIMESTAMP_LTZ(3),
   `window_end` TIMESTAMP_LTZ(3),
-  `game_name` VARCHAR(2147483647),
+  `game_name` STRING,
   `TotalViewerCount` INT
 ) WITH (
   'connector' = 'filesystem',
@@ -241,9 +239,11 @@ INSERT INTO twitch_stream_viewer_count
 SELECT 
   `window_start` TIMESTAMP_LTZ(3),
   `window_end` TIMESTAMP_LTZ(3),
-  `game_name` VARCHAR(2147483647),
+  `game_name` STRING,
   `TotalViewerCount` INT
-FROM twitch_stream;
+FROM TABLE(
+    TUMBLE(TABLE twitch_stream, DESCRIPTOR(proctime), INTERVAL '10' SECONDS))
+GROUP BY window_start, window_end, game_name;
 ```
 
 ## Summary
