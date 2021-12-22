@@ -21,7 +21,7 @@ package org.apache.flink.state.api.runtime.metadata;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.state.api.runtime.BootstrapTransformationWithID;
+import org.apache.flink.state.api.runtime.StateBootstrapTransformationWithID;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -32,31 +32,30 @@ import javax.annotation.Nullable;
  * org.apache.flink.state.api.BootstrapTransformation} that will be used to create it.
  */
 @Internal
-@Deprecated
-class OperatorStateSpec {
+class OperatorStateSpecV2 {
 
     private final OperatorID id;
 
     @Nullable private final OperatorState existingState;
 
-    @Nullable private final BootstrapTransformationWithID<?> newOperatorStateTransformation;
+    @Nullable private final StateBootstrapTransformationWithID<?> newOperatorStateTransformation;
 
-    static OperatorStateSpec existing(OperatorState existingState) {
-        return new OperatorStateSpec(Preconditions.checkNotNull(existingState));
+    static OperatorStateSpecV2 existing(OperatorState existingState) {
+        return new OperatorStateSpecV2(Preconditions.checkNotNull(existingState));
     }
 
-    static OperatorStateSpec newWithTransformation(
-            BootstrapTransformationWithID<?> transformation) {
-        return new OperatorStateSpec(Preconditions.checkNotNull(transformation));
+    static OperatorStateSpecV2 newWithTransformation(
+            StateBootstrapTransformationWithID<?> transformation) {
+        return new OperatorStateSpecV2(Preconditions.checkNotNull(transformation));
     }
 
-    private OperatorStateSpec(OperatorState existingState) {
+    private OperatorStateSpecV2(OperatorState existingState) {
         this.id = existingState.getOperatorID();
         this.existingState = existingState;
         this.newOperatorStateTransformation = null;
     }
 
-    private OperatorStateSpec(BootstrapTransformationWithID<?> transformation) {
+    private OperatorStateSpecV2(StateBootstrapTransformationWithID<?> transformation) {
         this.id = transformation.getOperatorID();
         this.newOperatorStateTransformation = transformation;
         this.existingState = null;
@@ -77,11 +76,11 @@ class OperatorStateSpec {
     }
 
     @SuppressWarnings("unchecked")
-    <T> BootstrapTransformationWithID<T> asNewStateTransformation() {
+    <T> StateBootstrapTransformationWithID<T> asNewStateTransformation() {
         Preconditions.checkState(
                 isNewStateTransformation(),
                 "OperatorState %s is not a new state defined with BootstrapTransformation",
                 id);
-        return (BootstrapTransformationWithID<T>) newOperatorStateTransformation;
+        return (StateBootstrapTransformationWithID<T>) newOperatorStateTransformation;
     }
 }

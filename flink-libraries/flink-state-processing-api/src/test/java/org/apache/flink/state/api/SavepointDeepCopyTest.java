@@ -196,7 +196,8 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
                 stateFiles1,
                 everyItem(isIn(stateFiles2)));
 
-        // Try to load savepoint2 and read the state of "Operator1" (which has not been
+        // Try to fromExistingSavepoint savepoint2 and read the state of "Operator1" (which has not
+        // been
         // touched/changed when savepoint2
         // was created) and make sure the number of keys remain same
         long actuallyKeyNum =

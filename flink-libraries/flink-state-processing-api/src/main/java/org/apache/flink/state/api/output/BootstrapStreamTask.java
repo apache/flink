@@ -18,58 +18,49 @@
 
 package org.apache.flink.state.api.output;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.state.api.functions.Timestamper;
 import org.apache.flink.state.api.runtime.NeverFireProcessingTimeService;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
-import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
-import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
-import org.apache.flink.util.Collector;
-import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Iterator;
 import java.util.Optional;
+import java.util.concurrent.BlockingQueue;
 
 /**
- * A stream task that pulls elements from an {@link Iterable} instead of the network. After all
- * elements are processed the task takes a snapshot of the subtask operator state. This is a shim
- * until stream tasks support bounded inputs.
+ * A stream task that pulls elements from a {@link BlockingQueue} instead of the network. After all
+ * elements are processed the task takes a snapshot of the subtask operator state.
  *
  * @param <IN> Type of the input.
  * @param <OUT> Type of the output.
  * @param <OP> Type of the operator this task runs.
  */
-@Deprecated
-class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & BoundedOneInput>
+@Internal
+class BootstrapStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & BoundedOneInput>
         extends StreamTask<OUT, OP> {
 
-    private final Iterator<IN> input;
+    private final BlockingQueue<StreamElement> input;
 
-    private final Collector<OUT> collector;
+    private final Output<StreamRecord<OUT>> output;
 
-    private final Timestamper<IN> timestamper;
-
-    BoundedStreamTask(
+    BootstrapStreamTask(
             Environment environment,
-            Iterable<IN> input,
-            Timestamper<IN> timestamper,
-            Collector<OUT> collector)
+            BlockingQueue<StreamElement> input,
+            Output<StreamRecord<OUT>> output)
             throws Exception {
         super(environment, new NeverFireProcessingTimeService());
-        this.input = input.iterator();
-        this.collector = collector;
-        this.timestamper = timestamper;
+        this.input = input;
+        this.output = output;
     }
 
     @Override
@@ -86,7 +77,7 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
                         operatorFactory,
                         this,
                         configuration,
-                        new CollectorWrapper<>(collector),
+                        output,
                         operatorChain.getOperatorEventDispatcher());
         mainOperator = mainOperatorAndTimeService.f0;
         mainOperator.initializeState(createStreamTaskStateInitializer());
@@ -95,13 +86,9 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 
     @Override
     protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
-        if (input.hasNext()) {
-            StreamRecord<IN> streamRecord = new StreamRecord<>(input.next());
-
-            if (timestamper != null) {
-                long timestamp = timestamper.timestamp(streamRecord.getValue());
-                streamRecord.setTimestamp(timestamp);
-            }
+        StreamElement element = input.take();
+        if (element.isRecord()) {
+            StreamRecord<IN> streamRecord = element.asRecord();
 
             mainOperator.setKeyContextElement1(streamRecord);
             mainOperator.processElement(streamRecord);
@@ -119,34 +106,5 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
     @Override
     protected void cleanUpInternal() throws Exception {
         mainOperator.close();
-    }
-
-    private static class CollectorWrapper<OUT> implements Output<StreamRecord<OUT>> {
-
-        private final Collector<OUT> inner;
-
-        private CollectorWrapper(Collector<OUT> inner) {
-            this.inner = inner;
-        }
-
-        @Override
-        public void emitWatermark(Watermark mark) {}
-
-        @Override
-        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {}
-
-        @Override
-        public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {}
-
-        @Override
-        public void emitLatencyMarker(LatencyMarker latencyMarker) {}
-
-        @Override
-        public void collect(StreamRecord<OUT> record) {
-            inner.collect(record.getValue());
-        }
-
-        @Override
-        public void close() {}
     }
 }
