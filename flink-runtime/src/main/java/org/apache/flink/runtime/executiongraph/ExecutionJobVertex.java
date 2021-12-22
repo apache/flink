@@ -284,6 +284,10 @@ public class ExecutionJobVertex
         return graph;
     }
 
+    public void setParallelism(int parallelism) {
+        parallelismInfo.setParallelism(parallelism);
+    }
+
     public JobVertex getJobVertex() {
         return jobVertex;
     }

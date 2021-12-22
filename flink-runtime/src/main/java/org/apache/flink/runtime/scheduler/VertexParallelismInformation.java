@@ -38,6 +38,14 @@ public interface VertexParallelismInformation {
     int getMaxParallelism();
 
     /**
+     * Set a given vertex's parallelism property. The parallelism can be changed only if the vertex
+     * parallelism was not decided yet (i.e. was -1).
+     *
+     * @param parallelism the parallelism for the vertex
+     */
+    void setParallelism(int parallelism);
+
+    /**
      * Changes a given vertex's max parallelism property. The caller should first check the validity
      * of the new setting via {@link #canRescaleMaxParallelism}, otherwise this operation may fail.
      *

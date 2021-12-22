@@ -150,7 +150,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 initializationTimestamp,
                 mainThreadExecutor,
                 jobStatusListener,
-                executionGraphFactory);
+                executionGraphFactory,
+                computeVertexParallelismStore(jobGraph));
 
         this.log = log;
 
