@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
@@ -150,26 +151,35 @@ public class NetworkBufferPool
     }
 
     @Nullable
-    public MemorySegment requestMemorySegment() {
+    public MemorySegment requestPooledMemorySegment() {
         synchronized (availableMemorySegments) {
             return internalRequestMemorySegment();
         }
     }
 
-    public List<MemorySegment> requestMemorySegmentsBlocking(int numberOfSegmentsToRequest)
+    public List<MemorySegment> requestPooledMemorySegmentsBlocking(int numberOfSegmentsToRequest)
             throws IOException {
         return internalRequestMemorySegments(numberOfSegmentsToRequest);
     }
 
-    public void recycle(MemorySegment segment) {
+    public void recyclePooledMemorySegment(MemorySegment segment) {
         // Adds the segment back to the queue, which does not immediately free the memory
         // however, since this happens when references to the global pool are also released,
         // making the availableMemorySegments queue and its contained object reclaimable
         internalRecycleMemorySegments(Collections.singleton(checkNotNull(segment)));
     }
 
+    /**
+     * Unpooled memory segments are requested directly from {@link NetworkBufferPool}, as opposed to
+     * pooled segments, that are requested through {@link BufferPool} that was created from this
+     * {@link NetworkBufferPool} (see {@link #createBufferPool}). They are used for example for
+     * exclusive {@link RemoteInputChannel} credits, that are permanently assigned to that channel,
+     * and never returned to any {@link BufferPool}. As opposed to pooled segments, when requested,
+     * unpooled segments needs to be accounted against {@link #numTotalRequiredBuffers}, which might
+     * require redistribution of the segments.
+     */
     @Override
-    public List<MemorySegment> requestMemorySegments(int numberOfSegmentsToRequest)
+    public List<MemorySegment> requestUnpooledMemorySegments(int numberOfSegmentsToRequest)
             throws IOException {
         checkArgument(
                 numberOfSegmentsToRequest >= 0,
@@ -246,7 +256,7 @@ public class NetworkBufferPool
     }
 
     @Override
-    public void recycleMemorySegments(Collection<MemorySegment> segments) {
+    public void recycleUnpooledMemorySegments(Collection<MemorySegment> segments) {
         recycleMemorySegments(segments, segments.size());
     }
 
