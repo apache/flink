@@ -16,33 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.output.partitioner;
+package org.apache.flink.state.api.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 
-/**
- * A wrapper around a {@link KeySelector} that returns the {@link Object#hashCode()} of the returned
- * key.
- *
- * @param <IN> Type of objects to extract the key from.
- */
-@Deprecated
+/** A utility for creating a mutable {@link Configuration} from a {@link ReadableConfig}. */
 @Internal
-public class HashSelector<IN> implements KeySelector<IN, Integer> {
+public final class MutableConfig {
 
-    private static final long serialVersionUID = 1L;
+    private MutableConfig() {}
 
-    private final KeySelector<IN, ?> keySelector;
+    /**
+     * Creates a new {@link Configuration}.
+     *
+     * @param config A readable configuration.
+     * @return A mutable Configuration.
+     */
+    public static Configuration of(ReadableConfig config) {
+        if (!(config instanceof UnmodifiableConfiguration)) {
+            throw new IllegalStateException(
+                    "Unexpected implementation of ReadableConfig: " + config.getClass());
+        }
 
-    public HashSelector(KeySelector<IN, ?> keySelector) {
-        Preconditions.checkNotNull(keySelector);
-        this.keySelector = keySelector;
-    }
-
-    @Override
-    public Integer getKey(IN value) throws Exception {
-        return keySelector.getKey(value).hashCode();
+        return new Configuration((UnmodifiableConfiguration) config);
     }
 }

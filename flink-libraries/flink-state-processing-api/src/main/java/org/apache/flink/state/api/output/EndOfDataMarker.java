@@ -16,33 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.output.partitioner;
+package org.apache.flink.state.api.output;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 
-/**
- * A wrapper around a {@link KeySelector} that returns the {@link Object#hashCode()} of the returned
- * key.
- *
- * @param <IN> Type of objects to extract the key from.
- */
-@Deprecated
+/** A marker element that there is no more data to process. */
 @Internal
-public class HashSelector<IN> implements KeySelector<IN, Integer> {
+class EndOfDataMarker extends StreamElement {
 
-    private static final long serialVersionUID = 1L;
+    static final EndOfDataMarker INSTANCE = new EndOfDataMarker();
 
-    private final KeySelector<IN, ?> keySelector;
-
-    public HashSelector(KeySelector<IN, ?> keySelector) {
-        Preconditions.checkNotNull(keySelector);
-        this.keySelector = keySelector;
-    }
-
-    @Override
-    public Integer getKey(IN value) throws Exception {
-        return keySelector.getKey(value).hashCode();
-    }
+    private EndOfDataMarker() {}
 }
