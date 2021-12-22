@@ -33,22 +33,12 @@
 	<artifactId>flink-table-planner-loader</artifactId>
 	<name>Flink : Table : Planner Loader</name>
 	<packaging>jar</packaging>
-	<description>This module contains the mechanism for loading flink-table-planner through a separate classloader.
-		This allows arbitrary Scala versions in the classpath, hiding the Scala version used by the planner.</description>
+	<description>
+		This module contains the mechanism for loading flink-table-planner through a separate classloader.
+		This allows arbitrary Scala versions in the classpath, hiding the Scala version used by the planner.
+	</description>
 
 	<dependencies>
-		<dependency>
-			<!-- Component class loader -->
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<!-- org.apache.flink.table.delegation interfaces -->
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-java</artifactId>
-			<version>${project.version}</version>
-		</dependency>
 		<dependency>
 			<!-- StreamExecutorFactory -->
 			<groupId>org.apache.flink</groupId>

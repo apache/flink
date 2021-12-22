@@ -17,7 +17,6 @@ If you want to use Table API & SQL, check out the [documentation](https://nightl
   * Extension points for catalogs, formats, connectors
   * Core APIs for extension points such as `Schema`
   * Utilities to deal with type system, internal data types and printing
-  * When implementing a format, you usually need to depend only on this module
 
 ### API
 
@@ -28,10 +27,10 @@ If you want to use Table API & SQL, check out the [documentation](https://nightl
 * `flink-table-api-bridge-base`: Base classes for APIs to bridge between Table API and DataStream API
 * `flink-table-api-java-bridge`: 
   * Java APIs to bridge between Table API and DataStream API
-  * When implementing a connector, you usually need to depend only on this module, in order to bridge your connector implementation developed with DataStream to Table API
+  * Connectors that are developed using DataStream API, usually need to depend only on this module.
 * `flink-table-api-scala-bridge`: Scala APIs to bridge between Table API and DataStream API
 * `flink-table-api-java-uber`: 
-  * Uber JAR bundling `flink-table-common` and all the Java API modules, including 3rd party dependencies.
+  * Uber JAR bundling `flink-table-common` and all the Java API modules, including the bridging to DataStream API and 3rd party dependencies.
   * This module is intended to be used by the flink-dist, rather than from the users directly.
 
 ### Runtime
@@ -51,7 +50,7 @@ If you want to use Table API & SQL, check out the [documentation](https://nightl
 * `flink-table-planner`:
   * AST and Semantic tree
   * SQL validator
-  * Planner and rules implementation
+  * Query planner, optimizer and rules implementation
   * Code generator
   * Two jars are produced: one doesn't have any classifier and bundles all the classes from this module together with the two parsers, including 3rd party dependencies, while the other jar, classified as `loader-bundle`, extends the first jar including scala dependencies.
 * `flink-table-planner-loader`: Loader for `flink-table-planner` that loads the planner in a separate classpath, isolating the Scala version used to compile the planner.
@@ -64,4 +63,5 @@ If you want to use Table API & SQL, check out the [documentation](https://nightl
 
 No module except `flink-table-planner` should depend on `flink-table-runtime` in production classpath, 
 and similarly no module should depend on `flink-table-planner` or `flink-table-planner-loader` in production classpath.
+For testing, you should depend on `flink-table-planner-loader` and `flink-table-runtime`.
 These are already shipped by the Flink distribution.

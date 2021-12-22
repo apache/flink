@@ -23,7 +23,6 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.classloading.ComponentClassLoader;
 import org.apache.flink.core.classloading.SubmoduleClassLoader;
-import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.ExpressionParserFactory;
@@ -63,7 +62,7 @@ class PlannerModule {
 
     private PlannerModule() {
         try {
-            final ClassLoader flinkClassLoader = RpcSystem.class.getClassLoader();
+            final ClassLoader flinkClassLoader = PlannerModule.class.getClassLoader();
 
             final Path tmpDirectory =
                     Paths.get(ConfigurationUtils.parseTempDirectories(new Configuration())[0]);

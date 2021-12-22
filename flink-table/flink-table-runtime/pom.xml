@@ -65,12 +65,6 @@ under the License.
 		<!-- Flink dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-cep</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -85,7 +79,7 @@ under the License.
 			<artifactId>commons-compiler</artifactId>
 		</dependency>
 
-		<!-- Jackson and JsonPath (used by calcite) -->
+		<!-- JsonPath -->
 
 		<dependency>
 			<groupId>com.jayway.jsonpath</groupId>
@@ -155,7 +149,6 @@ under the License.
 							<artifactSet>
 								<includes combine.children="append">
 									<include>com.jayway.jsonpath:json-path</include>
-
 									<include>org.codehaus.janino:*</include>
 									<include>org.apache.flink:flink-table-code-splitter</include>
 								</includes>

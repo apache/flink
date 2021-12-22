@@ -54,20 +54,7 @@ under the License.
 			<artifactId>janino</artifactId>
 		</dependency>
 
-		<!-- Table dependencies -->
-
 		<!-- Table API Java dependencies (not included in the uber) -->
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-common</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-java</artifactId>
-			<version>${project.version}</version>
-		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-java-bridge</artifactId>
@@ -238,7 +225,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Table API Scala dependencies (included in the uber) -->
+		<!-- Table API Scala dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>

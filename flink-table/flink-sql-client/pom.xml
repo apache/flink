@@ -38,15 +38,7 @@ under the License.
 
 	<dependencies>
 
-		<!-- core dependencies -->
-
-		<!-- Flink modules -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
+		<!-- Flink client to submit jobs -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>
