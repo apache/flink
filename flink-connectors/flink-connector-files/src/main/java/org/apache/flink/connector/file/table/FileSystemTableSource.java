@@ -19,10 +19,12 @@
 package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.FileSourceSplit;
@@ -272,7 +274,17 @@ public class FileSystemTableSource extends AbstractFileSystemTable
     }
 
     private SourceProvider createSourceProvider(BulkFormat<RowData, FileSourceSplit> bulkFormat) {
-        return SourceProvider.of(FileSource.forBulkFileFormat(bulkFormat, paths()).build());
+        FileSource.FileSourceBuilder<RowData> fileSourceBuilder =
+                FileSource.forBulkFileFormat(bulkFormat, paths());
+
+        // If streaming, enable directory watching
+        if (tableOptions.get(ExecutionOptions.RUNTIME_MODE) == RuntimeExecutionMode.STREAMING) {
+            fileSourceBuilder =
+                    fileSourceBuilder.monitorContinuously(
+                            tableOptions.get(FileSystemConnectorOptions.SOURCE_WATCH_INTERVAL));
+        }
+
+        return SourceProvider.of(fileSourceBuilder.build());
     }
 
     private Path[] paths() {

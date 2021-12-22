@@ -46,6 +46,16 @@ public class FileSystemConnectorOptions {
                             "The default partition name in case the dynamic partition"
                                     + " column value is null/empty string.");
 
+    public static final ConfigOption<Duration> SOURCE_WATCH_INTERVAL =
+            key("source.monitor-interval")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(1))
+                    .withDescription(
+                            "The interval in which the source checks for new files. "
+                                    + "Shorter intervals mean that files are discovered more quickly, "
+                                    + "but also imply more frequent listing or directory traversal of the file system / object store."
+                                    + "This option is used only if the execution mode is STREAMING.");
+
     public static final ConfigOption<MemorySize> SINK_ROLLING_POLICY_FILE_SIZE =
             key("sink.rolling-policy.file-size")
                     .memoryType()
