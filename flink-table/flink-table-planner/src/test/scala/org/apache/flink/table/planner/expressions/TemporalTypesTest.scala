@@ -834,6 +834,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("EXTRACT(MONTH FROM TO_DATE('2018-01-01'))", "1")
     testSqlApi("EXTRACT(YEAR FROM TO_DATE('2018-01-01'))", "2018")
     testSqlApi("EXTRACT(QUARTER FROM TO_DATE('2018-01-01'))", "1")
+    testSqlApi("EXTRACT(EPOCH FROM TO_DATE('2018-01-01'))", "1514764800")
 
     // Floor & Ceil
     // TODO: fix this legacy bug
@@ -914,6 +915,8 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(s"EXTRACT(ISODOW FROM ${timestampLtz("2005-01-02 00:00:00")})", "7")
     testSqlApi(s"EXTRACT(ISOYEAR FROM ${timestampLtz("2005-01-03 00:00:00")})", "2005")
     testSqlApi(s"EXTRACT(ISODOW FROM ${timestampLtz("2005-01-03 00:00:00")})", "1")
+
+    testSqlApi(s"EXTRACT(EPOCH FROM ${timestampLtz("2021-12-22 12:13:14")})", "1640175194")
 
     // FLOOR & CEIL
     testSqlApi("FLOOR(TIME '12:44:31' TO MINUTE)", "12:44:00")

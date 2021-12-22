@@ -2001,6 +2001,14 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "SECOND(f19)",
       "33")
+
+    testSqlApi(
+      "EXTRACT(EPOCH FROM f18)",
+      "847608944")
+
+    testSqlApi(
+      "EXTRACT(EPOCH FROM f16)",
+      "847584000")
   }
 
   @Test

@@ -168,6 +168,12 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testSqlApi("EXTRACT(ISOYEAR FROM TIME '12:42:25')", "0")
   }
 
+  @Test
+  def testEpochWithTimeWhichIsUnsupported(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    testSqlApi("EXTRACT(EPOCH FROM TIME '12:42:25')", "0")
+  }
+
   private def testExtractFromTimeZeroResult(unit: TimeUnit): Unit = {
     thrown.expect(classOf[ValidationException])
     testSqlApi("EXTRACT(" + unit + " FROM TIME '00:00:00')", "0")

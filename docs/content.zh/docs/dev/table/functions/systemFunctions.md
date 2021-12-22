@@ -125,7 +125,7 @@ Known Limitations:
 
 | 时间间隔单位                | 时间点单位                        |
 | :------------------------ | :------------------------------ |
-| `MILLENIUM` _（仅适用SQL）_ |                                 |
+| `MILLENNIUM` _（仅适用SQL）_ |                                 |
 | `CENTURY` _（仅适用SQL）_   |                                 |
 | `YEAR`                    | `YEAR`                          |
 | `YEAR TO MONTH`           |                                 |
@@ -146,6 +146,9 @@ Known Limitations:
 |                           | `MICROSECOND`                   |
 | `DOY` _（仅适用SQL）_       |                                 |
 | `DOW` _（仅适用SQL）_       |                                 |
+| `EPOCH` _（仅适用SQL）_     |                                 |
+| `ISODOW` _（仅适用SQL）_    |                                 |
+| `ISOYEAR` _（仅适用SQL）_   |                                 |
 |                           | `SQL_TSI_YEAR` _（仅适用SQL）_    |
 |                           | `SQL_TSI_QUARTER` _（仅适用SQL）_ |
 |                           | `SQL_TSI_MONTH` _（仅适用SQL）_   |

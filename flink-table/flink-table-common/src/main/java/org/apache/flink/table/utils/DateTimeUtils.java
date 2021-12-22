@@ -1114,25 +1114,29 @@ public class DateTimeUtils {
                     return divide(utcTs, TimeUnit.DAY.multiplier);
                 } else {
                     // TODO support it
-                    throw new TableException(type + " is unsupported now.");
+                    throw new TableException(startUnit + " for " + type + " is unsupported now.");
                 }
             case EPOCH:
-                // TODO support it
-                throw new TableException("EPOCH is unsupported now.");
+                if (type instanceof TimestampType || type instanceof DateType) {
+                    return utcTs / 1000;
+                } else {
+                    // TODO support it
+                    throw new TableException(startUnit + " for " + type + " is unsupported now.");
+                }
             case MICROSECOND:
                 if (type instanceof TimestampType) {
                     long millis = divide(mod(utcTs, getFactor(startUnit)), startUnit.multiplier);
                     int micros = nanoOfMillisecond / 1000;
                     return millis + micros;
                 } else {
-                    throw new TableException(type + " is unsupported now.");
+                    throw new TableException(startUnit + " for " + type + " is unsupported now.");
                 }
             case NANOSECOND:
                 if (type instanceof TimestampType) {
                     long millis = divide(mod(utcTs, getFactor(startUnit)), startUnit.multiplier);
                     return millis + nanoOfMillisecond;
                 } else {
-                    throw new TableException(type + " is unsupported now.");
+                    throw new TableException(startUnit + " for " + type + " is unsupported now.");
                 }
             default:
                 // fall through

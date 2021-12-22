@@ -67,6 +67,24 @@ class ExtractCallGen(method: Method)
 
           case _ => // do nothing
         }
+      case TimeUnit.EPOCH =>
+        tpe.getTypeRoot match {
+          case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE =>
+            return generateCallIfArgsNotNull(ctx, returnType, operands) {
+              (terms) =>
+                s"""
+                   |${terms(1)}.getMillisecond() / ${TimeUnit.SECOND.multiplier.intValue()}
+                   |""".stripMargin
+            }
+
+          case LogicalTypeRoot.DATE =>
+            return super.generate(ctx, operands, returnType)
+
+          case LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE =>
+            throw new ValidationException("unit " + unit + " can not be applied to time variable")
+
+          case _ => // do nothing
+        }
 
       case _ => // do nothing
     }
