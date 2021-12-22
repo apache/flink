@@ -43,7 +43,7 @@ LogicalProject(c=[$2])
    :           +- LogicalProject(f=[$0], vcol_marker=[-1:BIGINT])
    :              +- LogicalProject(f=[$2])
    :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
-   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$a5a5fb35ffda8b52251be55e3ceaee69($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)], elementType=[class [Ljava.lang.Object;])
+   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$runtime$functions$table$ReplicateRows$cb0cc50dfc1a7a346db5f9f547bf8342($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
   </TestCase>
@@ -76,7 +76,7 @@ LogicalProject(c=[$2])
    :           +- LogicalProject(f=[$0], vcol_marker=[-1:BIGINT])
    :              +- LogicalProject(f=[$2])
    :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
-   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$a5a5fb35ffda8b52251be55e3ceaee69($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)], elementType=[class [Ljava.lang.Object;])
+   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$runtime$functions$table$ReplicateRows$cb0cc50dfc1a7a346db5f9f547bf8342($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
   </TestCase>
@@ -109,7 +109,7 @@ LogicalProject(c=[$2])
    :              +- LogicalProject(f=[$2])
    :                 +- LogicalFilter(condition=[=(1, 0)])
    :                    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
-   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$a5a5fb35ffda8b52251be55e3ceaee69($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)], elementType=[class [Ljava.lang.Object;])
+   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$runtime$functions$table$ReplicateRows$cb0cc50dfc1a7a346db5f9f547bf8342($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
   </TestCase>
@@ -144,7 +144,7 @@ LogicalProject(c=[$2])
          :           +- LogicalProject(d=[$0], e=[$1], f=[$2], vcol_marker=[-1:BIGINT])
          :              +- LogicalProject(d=[$0], e=[$1], f=[$2])
          :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
-         +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$211d2b2fa33c76ac8407a4e802c302c0($0, $1, $2, $3)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)], elementType=[class [Ljava.lang.Object;])
+         +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$runtime$functions$table$ReplicateRows$95afb438fe6172b6c86dc9db12c8a5de($0, $1, $2, $3)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
   </TestCase>
