@@ -22,6 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.rules.physical.common.{BaseSnapshotOnCalcTableScanRule, BaseSnapshotOnTableScanRule}
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 
 import org.apache.calcite.plan.{RelOptRule, RelOptTable}
 import org.apache.calcite.rex.RexProgram
@@ -46,8 +47,9 @@ object StreamPhysicalLookupJoinRule {
         join: FlinkLogicalJoin,
         input: FlinkLogicalRel,
         temporalTable: RelOptTable,
+        enablePartitionedJoin: Boolean,
         calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin = {
-      doTransform(join, input, temporalTable, calcProgram)
+      doTransform(join, input, temporalTable, enablePartitionedJoin, calcProgram)
     }
   }
 
@@ -58,8 +60,9 @@ object StreamPhysicalLookupJoinRule {
         join: FlinkLogicalJoin,
         input: FlinkLogicalRel,
         temporalTable: RelOptTable,
+        enablePartitionedJoin: Boolean,
         calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin = {
-      doTransform(join, input, temporalTable, calcProgram)
+      doTransform(join, input, temporalTable, enablePartitionedJoin, calcProgram)
     }
   }
 
@@ -67,6 +70,7 @@ object StreamPhysicalLookupJoinRule {
     join: FlinkLogicalJoin,
     input: FlinkLogicalRel,
     temporalTable: RelOptTable,
+    enablePartitionedJoin: Boolean,
     calcProgram: Option[RexProgram]): StreamPhysicalLookupJoin = {
 
     val joinInfo = join.analyzeCondition
@@ -74,7 +78,12 @@ object StreamPhysicalLookupJoinRule {
     val cluster = join.getCluster
 
     val providedTrait = join.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val requiredTrait = input.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
+    var requiredTrait = input.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
+
+    // if partitioning enabled, use the join key as partition key
+    if (enablePartitionedJoin && !joinInfo.pairs().isEmpty) {
+      requiredTrait = requiredTrait.plus(FlinkRelDistribution.hash(joinInfo.leftKeys))
+    }
 
     val convInput = RelOptRule.convert(input, requiredTrait)
     new StreamPhysicalLookupJoin(

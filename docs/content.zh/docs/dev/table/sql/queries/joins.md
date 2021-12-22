@@ -324,6 +324,17 @@ FROM Orders AS o
 
 In the example above, the Orders table is enriched with data from the Customers table which resides in a MySQL database. The `FOR SYSTEM_TIME AS OF` clause with the subsequent processing time attribute ensures that each row of the `Orders` table is joined with those Customers rows that match the join predicate at the point in time when the `Orders` row is processed by the join operator. It also prevents that the join result is updated when a joined `Customer` row is updated in the future. The lookup join also requires a mandatory equality join predicate, in the example above `o.customer_id = c.id`.
 
+### Partitioned Lookup Join
+Some lookup source connectors use cache to reduce RPC call times. In order to raise cache hit ratio for those connectors, user could use a hint to enable partitioned lookup join which enforces input of lookup join to hash shuffle by look up keys.
+
+```sql
+-- enable partitioned lookup join by partitioned hint
+SELECT o.order_id, o.total, c.country, c.zip
+FROM Orders AS o
+  JOIN Customers /*+ PARTITIONED_JOIN */ FOR SYSTEM_TIME AS OF o.proc_time AS c
+    ON o.customer_id = c.id;
+```
+
 Array Expansion
 --------------
 

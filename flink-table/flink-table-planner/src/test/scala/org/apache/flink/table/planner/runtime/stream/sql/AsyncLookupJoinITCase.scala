@@ -37,7 +37,8 @@ import java.util.{Collection => JCollection}
 import scala.collection.JavaConversions._
 
 @RunWith(classOf[Parameterized])
-class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMode)
+class AsyncLookupJoinITCase(
+    legacyTableSource: Boolean, partitionedJoin: Boolean, backend: StateBackendMode)
   extends StreamingWithStateTestBase(backend) {
 
   val data = List(
@@ -52,15 +53,23 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
     rowOf(22, 2L, "Jark"),
     rowOf(33, 3L, "Fabian"))
 
+  private var userTableSubClause: String = _
+
   @Before
   override def before(): Unit = {
     super.before()
     // TODO: remove this until [FLINK-12351] is fixed.
     //  currently AsyncWaitOperator doesn't copy input element which is a bug
     env.getConfig.disableObjectReuse()
-    
+
     createScanTable("src", data)
     createLookupTable("user_table", userData)
+
+    if (partitionedJoin) {
+      userTableSubClause = "user_table /*+ PARTITIONED_JOIN */"
+    } else {
+      userTableSubClause = "user_table"
+    }
   }
 
   @After
@@ -119,11 +128,11 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
   def testAsyncJoinTemporalTableOnMultiKeyFields(): Unit = {
     // test left table's join key define order diffs from right's
     val sql =
-      """
-        |SELECT t1.id, t1.len, D.name
-        |FROM (select content, id, len, proctime FROM src AS T) t1
-        |JOIN user_table for system_time as of t1.proctime AS D
-        |ON t1.content = D.name AND t1.id = D.id
+      s"""
+         |SELECT t1.id, t1.len, D.name
+         |FROM (select content, id, len, proctime FROM src AS T) t1
+         |JOIN $userTableSubClause for system_time as of t1.proctime AS D
+         |ON t1.content = D.name AND t1.id = D.id
       """.stripMargin
 
     val sink = new TestingAppendSink
@@ -138,8 +147,11 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
 
   @Test
   def testAsyncJoinTemporalTable(): Unit = {
-    val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.id = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -154,8 +166,11 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
 
   @Test
   def testAsyncJoinTemporalTableWithPushDown(): Unit = {
-    val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -169,8 +184,11 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
 
   @Test
   def testAsyncJoinTemporalTableWithNonEqualFilter(): Unit = {
-    val sql = "SELECT T.id, T.len, T.content, D.name, D.age FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.id = D.id WHERE T.len <= D.age"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name, D.age FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id WHERE T.len <= D.age
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -184,10 +202,13 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
 
   @Test
   def testAsyncLeftJoinTemporalTableWithLocalPredicate(): Unit = {
-    val sql = "SELECT T.id, T.len, T.content, D.name, D.age FROM src AS T LEFT JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.id = D.id " +
-      "AND T.len > 1 AND D.age > 20 AND D.name = 'Fabian' " +
-      "WHERE T.id > 1"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name, D.age FROM src AS T LEFT JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id
+         |AND T.len > 1 AND D.age > 20 AND D.name = 'Fabian'
+         |WHERE T.id > 1
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -203,8 +224,11 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
 
   @Test
   def testAsyncJoinTemporalTableOnMultiFields(): Unit = {
-    val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.id = D.id AND T.content = D.name"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id AND T.content = D.name
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -221,9 +245,12 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
     tEnv.registerFunction("mod1", TestMod)
     tEnv.registerFunction("wrapper1", TestWrapperUdf)
 
-    val sql = "SELECT T.id, T.len, wrapper1(D.name) as name FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D " +
-      "ON mod1(T.id, 4) = D.id AND T.content = D.name"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, wrapper1(D.name) as name FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D
+         |ON mod1(T.id, 4) = D.id AND T.content = D.name
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -239,9 +266,12 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
   def testAsyncJoinTemporalTableWithUdfFilter(): Unit = {
     tEnv.registerFunction("add", new TestAddWithOpen)
 
-    val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.id = D.id " +
-      "WHERE add(T.id, D.id) > 3 AND add(T.id, 2) > 3 AND add (D.id, 2) > 3"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id
+         |WHERE add(T.id, D.id) > 3 AND add(T.id, 2) > 3 AND add (D.id, 2) > 3
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -261,8 +291,11 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
     val table1 = tEnv.sqlQuery(sql1)
     tEnv.registerTable("t1", table1)
 
-    val sql2 = "SELECT t1.id, D.name, D.age FROM t1 LEFT JOIN user_table " +
-      "for system_time as of t1.proctime AS D ON t1.id = D.id"
+    val sql2 =
+      s"""
+         |SELECT t1.id, D.name, D.age FROM t1 LEFT JOIN $userTableSubClause
+         |for system_time as of t1.proctime AS D ON t1.id = D.id
+         |""".stripMargin
 
     val sink = new TestingRetractSink
     tEnv.sqlQuery(sql2).toRetractStream[Row].addSink(sink).setParallelism(1)
@@ -278,8 +311,11 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
 
   @Test
   def testAsyncLeftJoinTemporalTable(): Unit = {
-    val sql = "SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.id = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -298,9 +334,13 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
   def testExceptionThrownFromAsyncJoinTemporalTable(): Unit = {
     tEnv.registerFunction("errorFunc", TestExceptionThrown)
 
-    val sql = "SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.id = D.id " +
-      "where errorFunc(D.name) > cast(1000 as decimal(10,4))"  // should exception here
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id
+         |where errorFunc(D.name) > cast(1000 as decimal(10,4))
+         |""".stripMargin
+    // should exception here
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -320,13 +360,17 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
 }
 
 object AsyncLookupJoinITCase {
-  @Parameterized.Parameters(name = "LegacyTableSource={0}, StateBackend={1}")
+  @Parameterized.Parameters(name = "LegacyTableSource={0}, partitionedJoin={1}, StateBackend={2}")
   def parameters(): JCollection[Array[Object]] = {
     Seq[Array[AnyRef]](
-      Array(JBoolean.TRUE, HEAP_BACKEND),
-      Array(JBoolean.TRUE, ROCKSDB_BACKEND),
-      Array(JBoolean.FALSE, HEAP_BACKEND),
-      Array(JBoolean.FALSE, ROCKSDB_BACKEND)
+      Array(JBoolean.TRUE, JBoolean.TRUE, HEAP_BACKEND),
+      Array(JBoolean.TRUE, JBoolean.TRUE, ROCKSDB_BACKEND),
+      Array(JBoolean.FALSE, JBoolean.TRUE, HEAP_BACKEND),
+      Array(JBoolean.FALSE, JBoolean.TRUE, ROCKSDB_BACKEND),
+      Array(JBoolean.TRUE, JBoolean.FALSE, HEAP_BACKEND),
+      Array(JBoolean.TRUE, JBoolean.FALSE, ROCKSDB_BACKEND),
+      Array(JBoolean.FALSE, JBoolean.FALSE, HEAP_BACKEND),
+      Array(JBoolean.FALSE, JBoolean.FALSE, ROCKSDB_BACKEND)
     )
   }
 }

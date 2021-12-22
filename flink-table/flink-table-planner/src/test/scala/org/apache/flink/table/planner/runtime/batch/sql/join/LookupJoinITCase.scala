@@ -33,7 +33,8 @@ import java.util
 import scala.collection.JavaConversions._
 
 @RunWith(classOf[Parameterized])
-class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends BatchTestBase {
+class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, partitionedJoin: Boolean)
+  extends BatchTestBase {
 
   val data = List(
     rowOf(1L, 12L, "Julian"),
@@ -59,6 +60,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
     rowOf(33, 3L, "Fabian"),
     rowOf(44, null, "Hello world"))
 
+  private var userTableSubClause: String = _
+  private var userTableWithNullSubClause: String = _
+  private var userTableWithComputedColumnSubClause: String = _
+
   @Before
   override def before() {
     super.before()
@@ -68,6 +73,16 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
     createLookupTable("userTable", userData)
     createLookupTable("userTableWithNull", userDataWithNull)
     createLookupTableWithComputedColumn("userTableWithComputedColumn", userData)
+
+    if (partitionedJoin) {
+      userTableSubClause = "userTable /*+ PARTITIONED_JOIN */"
+      userTableWithNullSubClause = "userTableWithNull /*+ PARTITIONED_JOIN */"
+      userTableWithComputedColumnSubClause = "userTableWithComputedColumn /*+ PARTITIONED_JOIN */"
+    } else {
+      userTableSubClause = "userTable"
+      userTableWithNullSubClause = "userTableWithNull"
+      userTableWithComputedColumnSubClause = "userTableWithComputedColumn"
+    }
 
     // TODO: enable object reuse until [FLINK-12351] is fixed.
     env.getConfig.disableObjectReuse()
@@ -148,10 +163,13 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testLeftJoinTemporalTableWithLocalPredicate(): Unit = {
-    val sql = s"SELECT T.id, T.len, T.content, D.name, D.age FROM T LEFT JOIN userTable " +
-      "for system_time as of T.proctime AS D ON T.id = D.id " +
-      "AND T.len > 1 AND D.age > 20 AND D.name = 'Fabian' " +
-      "WHERE T.id > 1"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name, D.age FROM T LEFT JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id
+         |AND T.len > 1 AND D.age > 20 AND D.name = 'Fabian'
+         |WHERE T.id > 1
+         |""".stripMargin
 
     val expected = Seq(
       BatchTestBase.row(2, 15, "Hello", null, null),
@@ -163,8 +181,11 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testJoinTemporalTable(): Unit = {
-    val sql = s"SELECT T.id, T.len, T.content, D.name FROM T JOIN userTable " +
-      "for system_time as of T.proctime AS D ON T.id = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name FROM T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id
+         |""".stripMargin
 
     val expected = Seq(
       BatchTestBase.row(1, 12, "Julian", "Julian"),
@@ -175,8 +196,11 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testJoinTemporalTableWithPushDown(): Unit = {
-    val sql = s"SELECT T.id, T.len, T.content, D.name FROM T JOIN userTable " +
-      "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name FROM T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20
+         |""".stripMargin
 
     val expected = Seq(
       BatchTestBase.row(2, 15, "Hello", "Jark"),
@@ -186,8 +210,11 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testJoinTemporalTableWithNonEqualFilter(): Unit = {
-    val sql = s"SELECT T.id, T.len, T.content, D.name, D.age FROM T JOIN userTable " +
-      "for system_time as of T.proctime AS D ON T.id = D.id WHERE T.len <= D.age"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name, D.age FROM T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id WHERE T.len <= D.age
+         |""".stripMargin
 
     val expected = Seq(
       BatchTestBase.row(2, 15, "Hello", "Jark", 22),
@@ -197,8 +224,11 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testJoinTemporalTableOnMultiFields(): Unit = {
-    val sql = s"SELECT T.id, T.len, D.name FROM T JOIN userTable " +
-      "for system_time as of T.proctime AS D ON T.id = D.id AND T.content = D.name"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name FROM T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id AND T.content = D.name
+         |""".stripMargin
 
     val expected = Seq(
       BatchTestBase.row(1, 12, "Julian"),
@@ -208,8 +238,11 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testJoinTemporalTableOnMultiFieldsWithUdf(): Unit = {
-    val sql = s"SELECT T.id, T.len, D.name FROM T JOIN userTable " +
-      "for system_time as of T.proctime AS D ON mod(T.id, 4) = D.id AND T.content = D.name"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name FROM T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON mod(T.id, 4) = D.id AND T.content = D.name
+         |""".stripMargin
 
     val expected = Seq(
       BatchTestBase.row(1, 12, "Julian"),
@@ -219,8 +252,11 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testJoinTemporalTableOnMultiKeyFields(): Unit = {
-    val sql = s"SELECT T.id, T.len, D.name FROM T JOIN userTable " +
-      "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name FROM T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id
+         |""".stripMargin
 
     val expected = Seq(
       BatchTestBase.row(1, 12, "Julian"),
@@ -230,8 +266,11 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testLeftJoinTemporalTable(): Unit = {
-    val sql = s"SELECT T.id, T.len, D.name, D.age FROM T LEFT JOIN userTable " +
-      "for system_time as of T.proctime AS D ON T.id = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name, D.age FROM T LEFT JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id
+         |""".stripMargin
 
     val expected = Seq(
       BatchTestBase.row(1, 12, "Julian", 11),
@@ -244,8 +283,11 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithNullData(): Unit = {
-    val sql = s"SELECT T.id, T.len, D.name FROM nullableT T JOIN userTableWithNull " +
-      "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name FROM nullableT T JOIN $userTableWithNullSubClause
+         |for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id
+         |""".stripMargin
 
     val expected = Seq(
       BatchTestBase.row(3,15,"Fabian"))
@@ -254,8 +296,12 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testLeftJoinTemporalTableOnMultiKeyFieldsWithNullData(): Unit = {
-    val sql = s"SELECT D.id, T.len, D.name FROM nullableT T LEFT JOIN userTableWithNull " +
-      "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
+    val sql =
+      s"""
+         |SELECT D.id, T.len, D.name FROM nullableT T LEFT JOIN $userTableWithNullSubClause
+         |for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id
+         |""".stripMargin
+
     val expected = Seq(
       BatchTestBase.row(null,15,null),
       BatchTestBase.row(3,15,"Fabian"),
@@ -266,16 +312,24 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testJoinTemporalTableOnNullConstantKey(): Unit = {
-    val sql = s"SELECT T.id, T.len, T.content FROM T JOIN userTable " +
-      "for system_time as of T.proctime AS D ON D.id = null"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content FROM T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON D.id = null
+         |""".stripMargin
+
     val expected = Seq()
     checkResult(sql, expected)
   }
 
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithNullConstantKey(): Unit = {
-    val sql = s"SELECT T.id, T.len, D.name FROM T JOIN userTable " +
-      "for system_time as of T.proctime AS D ON T.content = D.name AND null = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name FROM T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.content = D.name AND null = D.id
+         |""".stripMargin
+
     val expected = Seq()
     checkResult(sql, expected)
   }
@@ -285,9 +339,12 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
     //Computed column do not support in legacyTableSource.
     Assume.assumeFalse(legacyTableSource)
 
-    val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
-      "FROM T JOIN userTableWithComputedColumn " +
-      "for system_time as of T.proctime AS D ON T.id = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age
+         |FROM T JOIN $userTableWithComputedColumnSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id
+         |""".stripMargin
 
     val expected = Seq(
       BatchTestBase.row(1, 12, "Julian", "Julian", 11, 12),
@@ -301,9 +358,12 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
     //Computed column do not support in legacyTableSource.
     Assume.assumeFalse(legacyTableSource)
 
-    val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
-      "FROM T JOIN userTableWithComputedColumn " +
-      "for system_time as of T.proctime AS D ON T.id = D.id and D.nominal_age > 12"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age
+         |FROM T JOIN $userTableWithComputedColumnSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id and D.nominal_age > 12
+         |""".stripMargin
 
     val expected = Seq(
       BatchTestBase.row(2, 15, "Hello", "Jark", 22, 23),
@@ -314,13 +374,18 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
 object LookupJoinITCase {
 
-  @Parameterized.Parameters(name = "LegacyTableSource={0}, isAsyncMode = {1}")
+  @Parameterized.Parameters(
+    name = "LegacyTableSource={0}, isAsyncMode = {1}, partitionedJoin={2}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
-      Array(JBoolean.TRUE, JBoolean.TRUE),
-      Array(JBoolean.TRUE, JBoolean.FALSE),
-      Array(JBoolean.FALSE, JBoolean.TRUE),
-      Array(JBoolean.FALSE, JBoolean.FALSE)
+      Array(JBoolean.TRUE, JBoolean.TRUE, JBoolean.TRUE),
+      Array(JBoolean.TRUE, JBoolean.FALSE, JBoolean.TRUE),
+      Array(JBoolean.FALSE, JBoolean.TRUE, JBoolean.TRUE),
+      Array(JBoolean.FALSE, JBoolean.FALSE, JBoolean.TRUE),
+      Array(JBoolean.TRUE, JBoolean.TRUE, JBoolean.FALSE),
+      Array(JBoolean.TRUE, JBoolean.FALSE, JBoolean.FALSE),
+      Array(JBoolean.FALSE, JBoolean.TRUE, JBoolean.FALSE),
+      Array(JBoolean.FALSE, JBoolean.FALSE, JBoolean.FALSE)
     )
   }
 }

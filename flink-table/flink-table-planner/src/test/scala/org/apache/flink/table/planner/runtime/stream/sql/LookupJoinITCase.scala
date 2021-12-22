@@ -37,7 +37,8 @@ import java.util.{Collection => JCollection}
 import scala.collection.JavaConversions._
 
 @RunWith(classOf[Parameterized])
-class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
+class LookupJoinITCase(legacyTableSource: Boolean, partitionedJoin: Boolean)
+  extends StreamingTestBase {
 
   val data = List(
     rowOf(1L, 12, "Julian"),
@@ -65,6 +66,10 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     rowOf(33, 3L, "Fabian"),
     rowOf(44, null, "Hello world"))
 
+  private var userTableSubClause: String = _
+  private var userTableWithNullSubClause: String = _
+  private var userTableWithComputedColumnSubClause: String = _
+
   @Before
   override def before(): Unit = {
     super.before()
@@ -73,6 +78,16 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     createLookupTable("user_table", userData)
     createLookupTable("nullable_user_table", userDataWithNull)
     createLookupTableWithComputedColumn("userTableWithComputedColumn", userData)
+
+    if (partitionedJoin) {
+      userTableSubClause = "user_table /*+ PARTITIONED_JOIN */"
+      userTableWithNullSubClause = "nullable_user_table /*+ PARTITIONED_JOIN */"
+      userTableWithComputedColumnSubClause = "userTableWithComputedColumn /*+ PARTITIONED_JOIN */"
+    } else {
+      userTableSubClause = "user_table"
+      userTableWithNullSubClause = "nullable_user_table"
+      userTableWithComputedColumnSubClause = "userTableWithComputedColumn"
+    }
   }
   
   @After
@@ -145,8 +160,11 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTable(): Unit = {
-    val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.id = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -163,9 +181,12 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
   def testJoinTemporalTableWithUdfFilter(): Unit = {
     tEnv.registerFunction("add", new TestAddWithOpen)
 
-    val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.id = D.id " +
-      "WHERE add(T.id, D.id) > 3 AND add(T.id, 2) > 3 AND add (D.id, 2) > 3"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id
+         |WHERE add(T.id, D.id) > 3 AND add(T.id, 2) > 3 AND add (D.id, 2) > 3
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -181,14 +202,14 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
   @Test
   def testJoinTemporalTableWithUdfEqualFilter(): Unit = {
     val sql =
-      """
-        |SELECT
-        |  T.id, T.len, T.content, D.name
-        |FROM
-        |  src AS T JOIN user_table for system_time as of T.proctime AS D
-        |ON T.id = D.id
-        |WHERE CONCAT('Hello-', D.name) = 'Hello-Jark'
-        |""".stripMargin
+      s"""
+         |SELECT
+         |  T.id, T.len, T.content, D.name
+         |FROM
+         |  src AS T JOIN $userTableSubClause for system_time as of T.proctime AS D
+         |ON T.id = D.id
+         |WHERE CONCAT('Hello-', D.name) = 'Hello-Jark'
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -200,8 +221,11 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnConstantKey(): Unit = {
-    val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D ON D.id = 1"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON D.id = 1
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -215,8 +239,11 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnNullableKey(): Unit = {
-    val sql = "SELECT T.id, T.len, D.name FROM nullable_src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.id = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name FROM nullable_src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -228,8 +255,11 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableWithPushDown(): Unit = {
-    val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -243,8 +273,11 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableWithNonEqualFilter(): Unit = {
-    val sql = "SELECT T.id, T.len, T.content, D.name, D.age FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.id = D.id WHERE T.len <= D.age"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name, D.age FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id WHERE T.len <= D.age
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -258,8 +291,11 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiFields(): Unit = {
-    val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.id = D.id AND T.content = D.name"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id AND T.content = D.name
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -273,8 +309,11 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiKeyFields(): Unit = {
-    val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -289,10 +328,13 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
   @Test
   def testJoinTemporalTableOnMultiKeyFields2(): Unit = {
     // test left table's join key define order diffs from right's
-    val sql = "SELECT t1.id, t1.len, D.name FROM " +
-      "(select proctime, content, id, len FROM src) t1 " +
-      "JOIN user_table for system_time as of t1.proctime AS D " +
-      "ON t1.content = D.name AND t1.id = D.id"
+    val sql =
+      s"""
+         |SELECT t1.id, t1.len, D.name FROM
+         |(select proctime, content, id, len FROM src) t1
+         |JOIN $userTableSubClause for system_time as of t1.proctime AS D
+         |ON t1.content = D.name AND t1.id = D.id
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -306,8 +348,11 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithConstantKey(): Unit = {
-    val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.content = D.name AND 3 = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.content = D.name AND 3 = D.id
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -319,8 +364,11 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithStringConstantKey(): Unit = {
-    val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D ON D.name = 'Fabian' AND T.id = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON D.name = 'Fabian' AND T.id = D.id
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -332,8 +380,11 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiConstantKey(): Unit = {
-    val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D ON D.name = 'Fabian' AND 3 = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON D.name = 'Fabian' AND 3 = D.id
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -351,8 +402,11 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testLeftJoinTemporalTable(): Unit = {
-    val sql = "SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.id = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -369,8 +423,11 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testLeftJoinTemporalTableOnNullableKey(): Unit = {
-    val sql = "SELECT T.id, T.len, D.name FROM nullable_src AS T LEFT OUTER JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.id = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name FROM nullable_src AS T LEFT OUTER JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -386,8 +443,11 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testLeftJoinTemporalTableOnMultKeyFields(): Unit = {
-    val sql = "SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.id = D.id and T.content = D.name"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id and T.content = D.name
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -404,8 +464,11 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithNullData(): Unit = {
-    val sql = "SELECT T.id, T.len, D.name FROM nullable_src AS T JOIN nullable_user_table " +
-      "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name FROM nullable_src AS T JOIN $userTableWithNullSubClause
+         |for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -418,8 +481,12 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testLeftJoinTemporalTableOnMultiKeyFieldsWithNullData(): Unit = {
-    val sql = "SELECT D.id, T.len, D.name FROM nullable_src AS T LEFT JOIN nullable_user_table " +
-      "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
+    val sql =
+      s"""
+         |SELECT D.id, T.len, D.name FROM nullable_src AS T LEFT
+         |JOIN $userTableWithNullSubClause
+         |for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -435,9 +502,11 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnNullConstantKey(): Unit = {
-    val sql = "SELECT T.id, T.len, T.content FROM nullable_src AS T JOIN nullable_user_table " +
-      "for system_time as of T.proctime AS D ON D.id = null"
-
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content FROM nullable_src AS T JOIN $userTableWithNullSubClause
+         |for system_time as of T.proctime AS D ON D.id = null
+         |""".stripMargin
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
@@ -447,8 +516,13 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithNullConstantKey(): Unit = {
-    val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D ON T.content = D.name AND null = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, D.name FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D ON T.content = D.name AND null = D.id
+         |""".stripMargin
+      " " +
+      ""
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -459,9 +533,12 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithUDF(): Unit = {
-    val sql = "SELECT T.id, T.content, D.age, D.id FROM src AS T JOIN user_table " +
-      "for system_time as of T.proctime AS D " +
-      "ON T.id = D.id + 4 AND T.content = concat(D.name, '!') AND D.age = 11"
+    val sql =
+      s"""
+         |SELECT T.id, T.content, D.age, D.id FROM src AS T JOIN $userTableSubClause
+         |for system_time as of T.proctime AS D
+         |ON T.id = D.id + 4 AND T.content = concat(D.name, '!') AND D.age = 11
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -478,9 +555,12 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
       //Computed column do not support in legacyTableSource.
       return
     }
-    val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
-      "FROM src AS T JOIN userTableWithComputedColumn " +
-      "for system_time as of T.proctime AS D ON T.id = D.id"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age
+         |FROM src AS T JOIN $userTableWithComputedColumnSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -499,9 +579,12 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
       //Computed column do not support in legacyTableSource.
       return
     }
-    val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
-      "FROM src AS T JOIN userTableWithComputedColumn " +
-      "for system_time as of T.proctime AS D ON T.id = D.id and D.nominal_age > 12"
+    val sql =
+      s"""
+         |SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age
+         |FROM src AS T JOIN $userTableWithComputedColumnSubClause
+         |for system_time as of T.proctime AS D ON T.id = D.id and D.nominal_age > 12
+         |""".stripMargin
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
@@ -566,8 +649,12 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 }
 
 object LookupJoinITCase {
-  @Parameterized.Parameters(name = "LegacyTableSource={0}")
+  @Parameterized.Parameters(name = "LegacyTableSource={0}, partitionedJoin={1}")
   def parameters(): JCollection[Array[Object]] = {
-    Seq[Array[AnyRef]](Array(JBoolean.TRUE), Array(JBoolean.FALSE))
+    Seq[Array[AnyRef]](
+      Array(JBoolean.TRUE, JBoolean.TRUE),
+      Array(JBoolean.FALSE, JBoolean.TRUE),
+      Array(JBoolean.TRUE, JBoolean.FALSE),
+      Array(JBoolean.FALSE, JBoolean.FALSE))
   }
 }

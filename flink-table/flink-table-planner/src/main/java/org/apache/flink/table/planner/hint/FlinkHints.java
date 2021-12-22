@@ -33,6 +33,8 @@ public abstract class FlinkHints {
 
     public static final String HINT_NAME_OPTIONS = "OPTIONS";
 
+    public static final String HINT_NAME_PARTITIONED_JOIN = "PARTITIONED_JOIN";
+
     /**
      * Internal hint that JSON aggregation function arguments have been wrapped already. See {@link
      * WrapJsonAggFunctionArgumentsRule}.

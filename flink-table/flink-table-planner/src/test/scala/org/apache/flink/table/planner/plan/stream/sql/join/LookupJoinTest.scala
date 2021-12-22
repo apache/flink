@@ -53,12 +53,15 @@ import _root_.scala.collection.JavaConversions._
  * [[org.apache.flink.table.connector.source.LookupTableSource]] should be identical.
  */
 @RunWith(classOf[Parameterized])
-class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Serializable {
+class LookupJoinTest(legacyTableSource: Boolean, partitionedJoin: Boolean)
+  extends TableTestBase with Serializable {
 
   private val util = streamTestUtil()
+  private var lookupTableSubClause: String = _
+  private var lookupTableWithComputedColumnSubClause: String = _
 
   @Before
-  def before(): Unit ={
+  def before(): Unit = {
     util.addDataStream[(Int, String, Long)](
       "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
     util.addDataStream[(Int, String, Long, Double)]("T1", 'a, 'b, 'c, 'd)
@@ -90,6 +93,14 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
           |  'bounded' = 'true'
           |)
           |""".stripMargin)
+    }
+    if (partitionedJoin) {
+      lookupTableSubClause = "LookupTable /*+ PARTITIONED_JOIN */"
+      lookupTableWithComputedColumnSubClause =
+        "LookupTableWithComputedColumn /*+ PARTITIONED_JOIN */"
+    } else {
+      lookupTableSubClause = "LookupTable"
+      lookupTableWithComputedColumnSubClause = "LookupTableWithComputedColumn"
     }
   }
 
@@ -267,26 +278,34 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
 
   @Test
   def testJoinTemporalTable(): Unit = {
-    val sql = "SELECT * FROM MyTable AS T JOIN LookupTable " +
-      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    val sql =
+      s"""
+         |SELECT * FROM MyTable AS T JOIN $lookupTableSubClause
+         |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+         |""".stripMargin
 
     util.verifyExecPlan(sql)
   }
 
   @Test
   def testLeftJoinTemporalTable(): Unit = {
-    val sql = "SELECT * FROM MyTable AS T LEFT JOIN LookupTable " +
-      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    val sql =
+      s"""
+         |SELECT * FROM MyTable AS T LEFT JOIN $lookupTableSubClause
+         |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+         |""".stripMargin
 
     util.verifyExecPlan(sql)
   }
 
   @Test
   def testJoinTemporalTableWithNestedQuery(): Unit = {
-    val sql = "SELECT * FROM " +
-      "(SELECT a, b, proctime FROM MyTable WHERE c > 1000) AS T " +
-      "JOIN LookupTable " +
-      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    val sql =
+      s"""
+         |SELECT * FROM
+         |(SELECT a, b, proctime FROM MyTable WHERE c > 1000) AS T
+         |JOIN $lookupTableSubClause FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+         |""".stripMargin
 
     util.verifyExecPlan(sql)
   }
@@ -294,11 +313,11 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
   @Test
   def testJoinTemporalTableWithProjectionPushDown(): Unit = {
     val sql =
-      """
-        |SELECT T.*, D.id
-        |FROM MyTable AS T
-        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
-        |ON T.a = D.id
+      s"""
+         |SELECT T.*, D.id
+         |FROM MyTable AS T
+         |JOIN $lookupTableSubClause FOR SYSTEM_TIME AS OF T.proctime AS D
+         |ON T.a = D.id
       """.stripMargin
 
     util.verifyExecPlan(sql)
@@ -307,11 +326,11 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
   @Test
   def testJoinTemporalTableWithFilterPushDown(): Unit = {
     val sql =
-      """
-        |SELECT * FROM MyTable AS T
-        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
-        |ON T.a = D.id AND D.age = 10
-        |WHERE T.c > 1000
+      s"""
+         |SELECT * FROM MyTable AS T
+         |JOIN $lookupTableSubClause FOR SYSTEM_TIME AS OF T.proctime AS D
+         |ON T.a = D.id AND D.age = 10
+         |WHERE T.c > 1000
       """.stripMargin
 
     util.verifyExecPlan(sql)
@@ -320,11 +339,11 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
   @Test
   def testJoinTemporalTableWithCalcPushDown(): Unit = {
     val sql =
-      """
-        |SELECT * FROM MyTable AS T
-        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
-        |ON T.a = D.id AND D.age = 10
-        |WHERE cast(D.name as bigint) > 1000
+      s"""
+         |SELECT * FROM MyTable AS T
+         |JOIN $lookupTableSubClause FOR SYSTEM_TIME AS OF T.proctime AS D
+         |ON T.a = D.id AND D.age = 10
+         |WHERE cast(D.name as bigint) > 1000
       """.stripMargin
 
     util.verifyExecPlan(sql)
@@ -333,11 +352,11 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
   @Test
   def testJoinTemporalTableWithMultiIndexColumn(): Unit = {
     val sql =
-      """
-        |SELECT * FROM MyTable AS T
-        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
-        |ON T.a = D.id AND D.age = 10 AND D.name = 'AAA'
-        |WHERE T.c > 1000
+      s"""
+         |SELECT * FROM MyTable AS T
+         |JOIN $lookupTableSubClause FOR SYSTEM_TIME AS OF T.proctime AS D
+         |ON T.a = D.id AND D.age = 10 AND D.name = 'AAA'
+         |WHERE T.c > 1000
       """.stripMargin
 
     util.verifyExecPlan(sql)
@@ -355,7 +374,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     val sql2 =
       s"""
          |SELECT T.* FROM ($sql1) AS T
-         |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proc AS D
+         |JOIN $lookupTableSubClause FOR SYSTEM_TIME AS OF T.proc AS D
          |ON T.a = D.id
          |WHERE D.age > 10
       """.stripMargin
@@ -390,10 +409,10 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
   def testJoinTemporalTableWithFunctionAndConstantCondition(): Unit = {
 
     val sql =
-      """
-        |SELECT * FROM MyTable AS T
-        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
-        |ON T.b = concat(D.name, '!') AND D.age = 11
+      s"""
+         |SELECT * FROM MyTable AS T
+         |JOIN $lookupTableSubClause FOR SYSTEM_TIME AS OF T.proctime AS D
+         |ON T.b = concat(D.name, '!') AND D.age = 11
       """.stripMargin
 
     util.verifyExecPlan(sql)
@@ -403,10 +422,10 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
   def testJoinTemporalTableWithMultiFunctionAndConstantCondition(): Unit = {
 
     val sql =
-      """
-        |SELECT * FROM MyTable AS T
-        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
-        |ON T.a = D.id + 1 AND T.b = concat(D.name, '!') AND D.age = 11
+      s"""
+         |SELECT * FROM MyTable AS T
+         |JOIN $lookupTableSubClause FOR SYSTEM_TIME AS OF T.proctime AS D
+         |ON T.a = D.id + 1 AND T.b = concat(D.name, '!') AND D.age = 11
       """.stripMargin
 
     util.verifyExecPlan(sql)
@@ -415,11 +434,11 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
   @Test
   def testJoinTemporalTableWithFunctionAndReferenceCondition(): Unit = {
     val sql =
-      """
-        |SELECT * FROM MyTable AS T
-        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
-        |ON T.a = D.id AND T.b = concat(D.name, '!')
-        |WHERE D.name LIKE 'Jack%'
+      s"""
+         |SELECT * FROM MyTable AS T
+         |JOIN $lookupTableSubClause FOR SYSTEM_TIME AS OF T.proctime AS D
+         |ON T.a = D.id AND T.b = concat(D.name, '!')
+         |WHERE D.name LIKE 'Jack%'
       """.stripMargin
 
     util.verifyExecPlan(sql)
@@ -428,12 +447,13 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
   @Test
   def testJoinTemporalTableWithUdfEqualFilter(): Unit = {
     val sql =
-      """
-        |SELECT
-        |  T.a, T.b, T.c, D.name
-        |FROM
-        |  MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
-        |WHERE CONCAT('Hello-', D.name) = 'Hello-Jark'
+      s"""
+         |SELECT
+         |  T.a, T.b, T.c, D.name
+         |FROM
+         |  MyTable AS T JOIN $lookupTableSubClause
+         |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+         |WHERE CONCAT('Hello-', D.name) = 'Hello-Jark'
       """.stripMargin
 
     util.verifyExecPlan(sql)
@@ -444,13 +464,14 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     //Computed column do not support in legacyTableSource.
     Assume.assumeFalse(legacyTableSource)
     val sql =
-      """
-        |SELECT
-        |  T.a, T.b, T.c, D.name, D.age, D.nominal_age
-        |FROM
-        |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
-        |  ON T.a = D.id
-        |""".stripMargin
+      s"""
+         |SELECT
+         |  T.a, T.b, T.c, D.name, D.age, D.nominal_age
+         |FROM
+         |  MyTable AS T JOIN $lookupTableWithComputedColumnSubClause
+         |FOR SYSTEM_TIME AS OF T.proctime AS D
+         |ON T.a = D.id
+         |""".stripMargin
     util.verifyExecPlan(sql)
   }
 
@@ -459,20 +480,24 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     //Computed column do not support in legacyTableSource.
     Assume.assumeFalse(legacyTableSource)
     val sql =
-      """
-        |SELECT
-        |  T.a, T.b, T.c, D.name, D.age, D.nominal_age
-        |FROM
-        |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
-        |  ON T.a = D.id and D.nominal_age > 12
-        |""".stripMargin
+      s"""
+         |SELECT
+         |  T.a, T.b, T.c, D.name, D.age, D.nominal_age
+         |FROM
+         |  MyTable AS T JOIN $lookupTableWithComputedColumnSubClause
+         |FOR SYSTEM_TIME AS OF T.proctime AS D
+         |ON T.a = D.id and D.nominal_age > 12
+         |""".stripMargin
     util.verifyExecPlan(sql)
   }
 
   @Test
   def testJoinTemporalTableWithMultiConditionOnSameDimField(): Unit = {
-    val sql = "SELECT * FROM MyTable AS T JOIN LookupTable " +
-      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id and CAST(T.c as INT) = D.id"
+    val sql =
+      s"""
+         |SELECT * FROM MyTable AS T JOIN $lookupTableSubClause
+         |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id and CAST(T.c as INT) = D.id
+         |""".stripMargin
 
     util.verifyExecPlan(sql)
   }
@@ -577,9 +602,13 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
 }
 
 object LookupJoinTest {
-  @Parameterized.Parameters(name = "LegacyTableSource={0}")
+  @Parameterized.Parameters(name = "LegacyTableSource={0}, partitionedJoin={1}")
   def parameters(): JCollection[Array[Object]] = {
-    Seq[Array[AnyRef]](Array(JBoolean.TRUE), Array(JBoolean.FALSE))
+    Seq[Array[AnyRef]](
+      Array(JBoolean.TRUE, JBoolean.TRUE),
+      Array(JBoolean.FALSE, JBoolean.TRUE),
+      Array(JBoolean.TRUE, JBoolean.FALSE),
+      Array(JBoolean.FALSE, JBoolean.FALSE))
   }
 }
 

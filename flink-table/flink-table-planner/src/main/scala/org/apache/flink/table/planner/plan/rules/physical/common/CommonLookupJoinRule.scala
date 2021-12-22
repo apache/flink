@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.plan.rules.physical.common
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.connector.source.LookupTableSource
+import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.common.{CommonPhysicalLegacyTableSourceScan, CommonPhysicalLookupJoin, CommonPhysicalTableSourceScan}
 import org.apache.flink.table.planner.plan.rules.common.CommonTemporalTableJoinRule
@@ -31,7 +32,6 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptTable}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rex.RexProgram
-
 import java.util
 
 import scala.collection.JavaConversions._
@@ -107,10 +107,17 @@ trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
     }
   }
 
+  protected def enablePartitionedJoinTrait(rel: RelNode): Boolean = rel match {
+    case tableScan: TableScan => tableScan.getHints.exists(
+      _.hintName == FlinkHints.HINT_NAME_PARTITIONED_JOIN)
+    case _ => false
+  }
+
   protected def transform(
     join: FlinkLogicalJoin,
     input: FlinkLogicalRel,
     temporalTable: RelOptTable,
+    enablePartitionedJoinTrait: Boolean,
     calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin
 }
 
@@ -136,7 +143,12 @@ abstract class BaseSnapshotOnTableScanRule(description: String)
     val tableScan = call.rel[RelNode](3)
 
     validateJoin(join)
-    val temporalJoin = transform(join, input, tableScan.getTable, None)
+    val temporalJoin = transform(
+      join,
+      input,
+      tableScan.getTable,
+      enablePartitionedJoinTrait(tableScan),
+      None)
     call.transformTo(temporalJoin)
   }
 
@@ -167,7 +179,11 @@ abstract class BaseSnapshotOnCalcTableScanRule(description: String)
 
     validateJoin(join)
     val temporalJoin = transform(
-      join, input, tableScan.getTable, Some(calc.getProgram))
+      join,
+      input,
+      tableScan.getTable,
+      enablePartitionedJoinTrait(tableScan),
+      Some(calc.getProgram))
     call.transformTo(temporalJoin)
   }
 
