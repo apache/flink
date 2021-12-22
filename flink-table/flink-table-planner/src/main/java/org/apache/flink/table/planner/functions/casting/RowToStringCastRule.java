@@ -36,10 +36,7 @@ import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.met
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.nullLiteral;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.strLiteral;
 
-/**
- * {@link LogicalTypeRoot#ROW} and {@link LogicalTypeRoot#STRUCTURED_TYPE} to {@link
- * LogicalTypeFamily#CHARACTER_STRING} cast rule.
- */
+/** {@link LogicalTypeRoot#ROW} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
 class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, String> {
 
     static final RowToStringCastRule INSTANCE = new RowToStringCastRule();
