@@ -109,6 +109,34 @@ The file system connector can be used to read single files or entire directories
 
 When using a directory as the source path, there is **no defined order of ingestion** for the files inside the directory.
 
+### Directory watching
+
+The file system connector automatically watches the input directory when the runtime mode is configured as STREAMING.
+
+You can modify the watch interval using the following option.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+        <th class="text-left" style="width: 20%">Key</th>
+        <th class="text-left" style="width: 15%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 55%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td><h5>source.monitor-interval</h5></td>
+        <td style="word-wrap: break-word;">1 min</td>
+        <td>Duration</td>
+        <td>The interval in which the source checks for new files. 
+        Shorter intervals mean that files are discovered more quickly, 
+        but also imply more frequent listing or directory traversal of the file system / object store. 
+        This option is used only if the execution mode is STREAMING.</td>
+    </tr>
+  </tbody>
+</table>
+
 ### Available Metadata
 
 The following connector metadata can be accessed as metadata columns in a table definition. All the metadata are read only.
