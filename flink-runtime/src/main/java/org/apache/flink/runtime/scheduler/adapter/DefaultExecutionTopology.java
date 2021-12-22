@@ -167,7 +167,7 @@ public class DefaultExecutionTopology implements SchedulingTopology {
 
         IndexedPipelinedRegions indexedPipelinedRegions =
                 computePipelinedRegions(
-                        logicalPipelinedRegions,
+                        executionGraphIndex.sortedExecutionVerticesInPipelinedRegion.keySet(),
                         executionGraphIndex.sortedExecutionVerticesInPipelinedRegion::get,
                         executionGraphIndex.executionVerticesById::get,
                         executionGraphIndex.resultPartitionsById::get);
