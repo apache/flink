@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.topology.LogicalEdge;
 import org.apache.flink.runtime.jobgraph.topology.LogicalVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.scheduler.SchedulingTopologyListener;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
@@ -87,6 +88,9 @@ public class DefaultExecutionTopology implements SchedulingTopology {
     private final Map<JobVertexID, DefaultLogicalPipelinedRegion>
             logicalPipelinedRegionsByJobVertexId;
 
+    /** Listeners that will be notified whenever the scheduling topology is updated. */
+    private final List<SchedulingTopologyListener> schedulingTopologyListeners = new ArrayList<>();
+
     private DefaultExecutionTopology(
             Supplier<List<ExecutionVertexID>> sortedExecutionVertexIds,
             EdgeManager edgeManager,
@@ -127,6 +131,12 @@ public class DefaultExecutionTopology implements SchedulingTopology {
                     "can not find partition: " + intermediateResultPartitionId);
         }
         return resultPartition;
+    }
+
+    @Override
+    public void registerSchedulingTopologyListener(SchedulingTopologyListener listener) {
+        checkNotNull(listener);
+        schedulingTopologyListeners.add(listener);
     }
 
     @Override
@@ -208,6 +218,18 @@ public class DefaultExecutionTopology implements SchedulingTopology {
         generateNewPipelinedRegions(newExecutionVertices);
 
         ensureCoLocatedVerticesInSameRegion(pipelinedRegions, executionGraph);
+
+        notifySchedulingTopologyUpdated(newExecutionVertices);
+    }
+
+    private void notifySchedulingTopologyUpdated(Iterable<ExecutionVertex> newExecutionVertices) {
+        List<ExecutionVertexID> newVertexIds =
+                IterableUtils.toStream(newExecutionVertices)
+                        .map(ExecutionVertex::getID)
+                        .collect(Collectors.toList());
+        for (SchedulingTopologyListener listener : schedulingTopologyListeners) {
+            listener.notifySchedulingTopologyUpdated(this, newVertexIds);
+        }
     }
 
     public static DefaultExecutionTopology fromExecutionGraph(
