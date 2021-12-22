@@ -93,7 +93,9 @@ class PlannerModule {
                                             // flink-table-runtime or flink-dist itself
                                             "org.codehaus.janino",
                                             "org.codehaus.commons",
-                                            "org.apache.commons.lang3"))
+                                            "org.apache.commons.lang3",
+                                            // Used by org.reflections
+                                            "javassist"))
                             .toArray(String[]::new);
             String[] componentClassPath = new String[] {"org.apache.flink"};
 
