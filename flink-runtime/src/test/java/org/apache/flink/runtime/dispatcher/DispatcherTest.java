@@ -758,6 +758,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         queue.offer(Optional.of(testException));
         try {
             dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+            fail("A FlinkException is expected");
         } catch (Throwable expectedException) {
             assertThat(expectedException, containsCause(FlinkException.class));
             assertThat(expectedException, containsMessage(testException.getMessage()));
