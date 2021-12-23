@@ -49,6 +49,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -229,6 +230,22 @@ public class BlobServer extends Thread
         }
 
         checkStoredBlobsForCorruption();
+        registerBlobExpiryTimes();
+    }
+
+    private void registerBlobExpiryTimes() throws IOException {
+        if (storageDir.deref().exists()) {
+            final Collection<BlobUtils.TransientBlob> transientBlobs =
+                    BlobUtils.listTransientBlobsInDirectory(storageDir.deref().toPath());
+
+            final long expiryTime = System.currentTimeMillis() + cleanupInterval;
+
+            for (BlobUtils.TransientBlob transientBlob : transientBlobs) {
+                blobExpiryTimes.put(
+                        Tuple2.of(transientBlob.getJobId(), transientBlob.getBlobKey()),
+                        expiryTime);
+            }
+        }
     }
 
     private void checkStoredBlobsForCorruption() throws IOException {

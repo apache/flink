@@ -19,9 +19,11 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -34,6 +36,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -183,6 +186,37 @@ public class BlobServerCleanupTest extends TestLogger {
 
             // HA content should be unaffected
             verifyContents(server, jobIdHA, keyHA, data);
+        }
+    }
+
+    @Test
+    public void testBlobServerExpiresRecoveredTransientJobBlob() throws Exception {
+        runBlobServerExpiresRecoveredTransientBlob(new JobID());
+    }
+
+    @Test
+    public void testBlobServerExpiresRecoveredTransientNoJobBlob() throws Exception {
+        runBlobServerExpiresRecoveredTransientBlob(null);
+    }
+
+    private void runBlobServerExpiresRecoveredTransientBlob(@Nullable JobID jobId)
+            throws Exception {
+        final long cleanupInterval = 1L;
+        final Configuration configuration = new Configuration();
+        configuration.set(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
+        final File storageDirectory = temporaryFolder.newFolder();
+
+        final TransientBlobKey transientBlobKey =
+                TestingBlobUtils.writeTransientBlob(
+                        storageDirectory.toPath(), jobId, new byte[] {1, 2, 3, 4});
+        final File blob = BlobUtils.getStorageLocation(storageDirectory, jobId, transientBlobKey);
+
+        try (final BlobServer blobServer =
+                new BlobServer(configuration, storageDirectory, new VoidBlobStore())) {
+            CommonTestUtils.waitUntilCondition(
+                    () -> !blob.exists(),
+                    Deadline.fromNow(Duration.ofSeconds(cleanupInterval * 5L)),
+                    "The transient blob has not been cleaned up automatically.");
         }
     }
 
