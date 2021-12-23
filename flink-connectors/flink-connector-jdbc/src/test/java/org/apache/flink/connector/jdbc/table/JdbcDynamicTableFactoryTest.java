@@ -28,7 +28,11 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.LookupTableSource;
+import org.apache.flink.table.connector.source.TableFunctionProvider;
+import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderContext;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
@@ -419,6 +423,50 @@ public class JdbcDynamicTableFactoryTest {
                         SCHEMA.toPhysicalRowDataType());
 
         assertEquals(expected, actual);
+    }
+
+    @Test
+    public void testJdbcAsyncLookupProvider() {
+        JdbcLookupOptions lookupOptions =
+                JdbcLookupOptions.builder()
+                        .setLookupAsync(true)
+                        .setLookupAsyncParallelism(3)
+                        .build();
+        JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
+                        .setDBUrl("jdbc:derby:memory:mydb")
+                        .setTableName("mytable")
+                        .build();
+        JdbcDynamicTableSource tableSource =
+                new JdbcDynamicTableSource(
+                        options,
+                        JdbcReadOptions.builder().build(),
+                        lookupOptions,
+                        SCHEMA.toPhysicalRowDataType());
+        int[][] lookupKey = {{0}};
+        LookupTableSource.LookupRuntimeProvider actualLookupProvider =
+                tableSource.getLookupRuntimeProvider(new LookupRuntimeProviderContext(lookupKey));
+        assertTrue(actualLookupProvider instanceof AsyncTableFunctionProvider);
+    }
+
+    @Test
+    public void testJdbcLookupProvider() {
+        JdbcLookupOptions lookupOptions = JdbcLookupOptions.builder().build();
+        JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
+                        .setDBUrl("jdbc:derby:memory:mydb")
+                        .setTableName("mytable")
+                        .build();
+        JdbcDynamicTableSource tableSource =
+                new JdbcDynamicTableSource(
+                        options,
+                        JdbcReadOptions.builder().build(),
+                        lookupOptions,
+                        SCHEMA.toPhysicalRowDataType());
+        int[][] lookupKey = {{0}};
+        LookupTableSource.LookupRuntimeProvider actualLookupProvider =
+                tableSource.getLookupRuntimeProvider(new LookupRuntimeProviderContext(lookupKey));
+        assertTrue(actualLookupProvider instanceof TableFunctionProvider);
     }
 
     private Map<String, String> getAllOptions() {
