@@ -40,10 +40,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -166,14 +164,8 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
 
     private void registerDetectedJobs() throws IOException {
         if (storageDir.deref().exists()) {
-            final Collection<BlobUtils.PermanentBlob> permanentBlobs =
-                    BlobUtils.listPermanentBlobsInDirectory(storageDir.deref().toPath());
-
             final Collection<JobID> jobIds =
-                    permanentBlobs.stream()
-                            .map(BlobUtils.PermanentBlob::getJobId)
-                            .filter(Objects::nonNull)
-                            .collect(Collectors.toSet());
+                    BlobUtils.listExistingJobs(storageDir.deref().toPath());
 
             final long expiryTimeout = System.currentTimeMillis() + cleanupInterval;
             for (JobID jobId : jobIds) {

@@ -58,6 +58,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -169,16 +170,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                         temporaryFolder.newFolder(),
                         testingBlobStore,
                         cleanupJobFuture);
-
-        // upload a blob to the blob server
-        permanentBlobKey = blobServer.putPermanent(jobId, new byte[256]);
-        jobGraph.addUserJarBlobKey(permanentBlobKey);
-        blobFile = blobServer.getStorageLocation(jobId, permanentBlobKey);
-
-        assertThat(blobFile.exists(), is(true));
-
-        // verify that we stored the blob also in the BlobStore
-        assertThat(storedHABlobFuture.get(), equalTo(permanentBlobKey));
     }
 
     private TestingJobManagerRunnerFactory startDispatcherAndSubmitJob() throws Exception {
@@ -190,7 +181,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         final TestingJobManagerRunnerFactory testingJobManagerRunnerFactoryNG =
                 new TestingJobManagerRunnerFactory(numBlockingJobManagerRunners);
         startDispatcher(testingJobManagerRunnerFactoryNG);
-        submitJob();
+        submitJobAndWait();
 
         return testingJobManagerRunnerFactoryNG;
     }
@@ -263,10 +254,25 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         assertThat(blobFile.exists(), is(false));
     }
 
-    private void submitJob() throws InterruptedException, ExecutionException {
-        final CompletableFuture<Acknowledge> submissionFuture =
-                dispatcherGateway.submitJob(jobGraph, timeout);
-        submissionFuture.get();
+    private CompletableFuture<Acknowledge> submitJob() {
+        try {
+            // upload a blob to the blob server
+            permanentBlobKey = blobServer.putPermanent(jobId, new byte[256]);
+            jobGraph.addUserJarBlobKey(permanentBlobKey);
+            blobFile = blobServer.getStorageLocation(jobId, permanentBlobKey);
+
+            assertThat(blobFile.exists(), is(true));
+
+            // verify that we stored the blob also in the BlobStore
+            assertThat(storedHABlobFuture.join(), equalTo(permanentBlobKey));
+            return dispatcherGateway.submitJob(jobGraph, timeout);
+        } catch (IOException ioe) {
+            return FutureUtils.completedExceptionally(ioe);
+        }
+    }
+
+    private void submitJobAndWait() {
+        submitJob().join();
     }
 
     @Test
@@ -298,8 +304,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     @Test
     public void testBlobServerCleanupWhenJobSubmissionFails() throws Exception {
         startDispatcher(new FailingJobManagerRunnerFactory(new FlinkException("Test exception")));
-        final CompletableFuture<Acknowledge> submissionFuture =
-                dispatcherGateway.submitJob(jobGraph, timeout);
+        final CompletableFuture<Acknowledge> submissionFuture = submitJob();
 
         try {
             submissionFuture.get();
@@ -344,7 +349,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                 new ArrayDeque<>(Arrays.asList(testingJobManagerRunner));
 
         startDispatcher(new QueueJobManagerRunnerFactory(jobManagerRunners));
-        submitJob();
+        submitJobAndWait();
 
         final CompletableFuture<Void> dispatcherTerminationFuture = dispatcher.closeAsync();
 

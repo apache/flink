@@ -195,6 +195,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         this.dispatcherBootstrapFactory = checkNotNull(dispatcherBootstrapFactory);
 
         this.recoveredJobs = new HashSet<>(recoveredJobs);
+        this.blobServer.retainJobs(
+                recoveredJobs.stream().map(JobGraph::getJobID).collect(Collectors.toSet()));
 
         this.dispatcherCachedOperationsHandler =
                 new DispatcherCachedOperationsHandler(

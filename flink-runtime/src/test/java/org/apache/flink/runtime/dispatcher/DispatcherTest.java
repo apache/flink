@@ -26,6 +26,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
@@ -98,6 +100,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -1043,6 +1046,27 @@ public class DispatcherTest extends AbstractDispatcherTest {
     @Test
     public void testJobDataAreCleanedUpInCorrectOrderOnFailedJob() throws Exception {
         testJobDataAreCleanedUpInCorrectOrder(JobStatus.FAILED);
+    }
+
+    @Test
+    public void testOnlyRecoveredJobsAreRetainedInTheBlobServer() throws Exception {
+        final JobID jobId1 = new JobID();
+        final JobID jobId2 = new JobID();
+        final byte[] fileContent = {1, 2, 3, 4};
+        final BlobServer blobServer = getBlobServer();
+        final PermanentBlobKey blobKey1 = blobServer.putPermanent(jobId1, fileContent);
+        final PermanentBlobKey blobKey2 = blobServer.putPermanent(jobId2, fileContent);
+
+        final TestingDispatcher dispatcher =
+                new TestingDispatcherBuilder()
+                        .setInitialJobGraphs(Collections.singleton(new JobGraph(jobId1, "foobar")))
+                        .build();
+
+        org.assertj.core.api.Assertions.assertThat(blobServer.getFile(jobId1, blobKey1))
+                .hasBinaryContent(fileContent);
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> blobServer.getFile(jobId2, blobKey2))
+                .isInstanceOf(NoSuchFileException.class);
     }
 
     private void testJobDataAreCleanedUpInCorrectOrder(JobStatus jobStatus) throws Exception {

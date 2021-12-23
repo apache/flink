@@ -907,6 +907,18 @@ public class BlobServer extends Thread
         }
     }
 
+    public void retainJobs(Collection<JobID> jobsToRetain) throws IOException {
+        if (storageDir.deref().exists()) {
+            final Set<JobID> jobsToRemove = BlobUtils.listExistingJobs(storageDir.deref().toPath());
+
+            jobsToRemove.removeAll(jobsToRetain);
+
+            for (JobID jobToRemove : jobsToRemove) {
+                cleanupJob(jobToRemove, true);
+            }
+        }
+    }
+
     @Override
     public PermanentBlobService getPermanentBlobService() {
         return this;

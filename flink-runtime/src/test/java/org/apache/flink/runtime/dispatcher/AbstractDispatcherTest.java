@@ -122,6 +122,10 @@ public class AbstractDispatcherTest extends TestLogger {
         }
     }
 
+    protected BlobServer getBlobServer() {
+        return blobServer;
+    }
+
     /** A convenient builder for the {@link TestingDispatcher}. */
     public class TestingDispatcherBuilder {
 

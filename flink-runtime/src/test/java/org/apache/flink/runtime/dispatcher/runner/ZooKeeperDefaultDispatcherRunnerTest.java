@@ -173,8 +173,6 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                             ForkJoinPool.commonPool(),
                             new DispatcherOperationCaches());
 
-            final JobGraph jobGraph = createJobGraphWithBlobs();
-
             final DefaultDispatcherRunnerFactory defaultDispatcherRunnerFactory =
                     DefaultDispatcherRunnerFactory.createSessionRunner(
                             SessionDispatcherFactory.INSTANCE);
@@ -191,6 +189,7 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                 DispatcherGateway dispatcherGateway =
                         grantLeadership(dispatcherLeaderElectionService);
 
+                final JobGraph jobGraph = createJobGraphWithBlobs();
                 LOG.info("Initial job submission {}.", jobGraph.getJobID());
                 dispatcherGateway.submitJob(jobGraph, TESTING_TIMEOUT).get();
 

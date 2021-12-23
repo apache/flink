@@ -50,7 +50,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -589,6 +591,13 @@ public class BlobUtils {
                 .filter(blob -> blob.getBlobKey() instanceof PermanentBlobKey)
                 .map(blob -> (PermanentBlob) blob)
                 .collect(Collectors.toList());
+    }
+
+    static Set<JobID> listExistingJobs(java.nio.file.Path directory) throws IOException {
+        return listBlobsInDirectory(directory).stream()
+                .map(Blob::getJobId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
     }
 
     abstract static class Blob<T extends BlobKey> {
