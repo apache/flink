@@ -42,7 +42,8 @@ public class BlobCacheService implements TaskExecutorBlobService {
             final Configuration blobClientConfig,
             final File storageDir,
             final BlobView blobView,
-            @Nullable final InetSocketAddress serverAddress) {
+            @Nullable final InetSocketAddress serverAddress)
+            throws IOException {
         this(blobClientConfig, Reference.owned(storageDir), blobView, serverAddress);
     }
 
@@ -61,7 +62,8 @@ public class BlobCacheService implements TaskExecutorBlobService {
             final Configuration blobClientConfig,
             final Reference<File> storageDir,
             final BlobView blobView,
-            @Nullable final InetSocketAddress serverAddress) {
+            @Nullable final InetSocketAddress serverAddress)
+            throws IOException {
 
         this(
                 new PermanentBlobCache(blobClientConfig, storageDir, blobView, serverAddress),

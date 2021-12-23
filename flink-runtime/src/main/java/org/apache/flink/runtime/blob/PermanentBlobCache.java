@@ -88,7 +88,8 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
             final Configuration blobClientConfig,
             final File storageDir,
             final BlobView blobView,
-            @Nullable final InetSocketAddress serverAddress) {
+            @Nullable final InetSocketAddress serverAddress)
+            throws IOException {
         this(blobClientConfig, Reference.owned(storageDir), blobView, serverAddress);
     }
 
@@ -98,7 +99,8 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
             final File storageDir,
             final BlobView blobView,
             @Nullable final InetSocketAddress serverAddress,
-            BlobCacheSizeTracker blobCacheSizeTracker) {
+            BlobCacheSizeTracker blobCacheSizeTracker)
+            throws IOException {
         this(
                 blobClientConfig,
                 Reference.owned(storageDir),
@@ -122,7 +124,8 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
             final Configuration blobClientConfig,
             final Reference<File> storageDir,
             final BlobView blobView,
-            @Nullable final InetSocketAddress serverAddress) {
+            @Nullable final InetSocketAddress serverAddress)
+            throws IOException {
         this(
                 blobClientConfig,
                 storageDir,
@@ -137,7 +140,8 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
             final Reference<File> storageDir,
             final BlobView blobView,
             @Nullable final InetSocketAddress serverAddress,
-            BlobCacheSizeTracker blobCacheSizeTracker) {
+            BlobCacheSizeTracker blobCacheSizeTracker)
+            throws IOException {
         super(
                 blobClientConfig,
                 storageDir,

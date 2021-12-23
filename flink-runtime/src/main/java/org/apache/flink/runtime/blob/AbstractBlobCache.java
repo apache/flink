@@ -80,7 +80,8 @@ public abstract class AbstractBlobCache implements Closeable {
             final Reference<File> storageDir,
             final BlobView blobView,
             final Logger logger,
-            @Nullable final InetSocketAddress serverAddress) {
+            @Nullable final InetSocketAddress serverAddress)
+            throws IOException {
 
         this.log = checkNotNull(logger);
         this.blobClientConfig = checkNotNull(blobClientConfig);
@@ -106,6 +107,14 @@ public abstract class AbstractBlobCache implements Closeable {
         shutdownHook = ShutdownHookUtil.addShutdownHook(this, getClass().getSimpleName(), log);
 
         this.serverAddress = serverAddress;
+
+        checkStoredBlobsForCorruption();
+    }
+
+    private void checkStoredBlobsForCorruption() throws IOException {
+        if (storageDir.deref().exists()) {
+            BlobUtils.checkAndDeleteCorruptedBlobs(storageDir.deref().toPath(), log);
+        }
     }
 
     public File getStorageDir() {

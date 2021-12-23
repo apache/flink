@@ -65,7 +65,8 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
     public TransientBlobCache(
             final Configuration blobClientConfig,
             final File storageDir,
-            @Nullable final InetSocketAddress serverAddress) {
+            @Nullable final InetSocketAddress serverAddress)
+            throws IOException {
         this(blobClientConfig, Reference.owned(storageDir), serverAddress);
     }
 
@@ -82,7 +83,8 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
     public TransientBlobCache(
             final Configuration blobClientConfig,
             final Reference<File> storageDir,
-            @Nullable final InetSocketAddress serverAddress) {
+            @Nullable final InetSocketAddress serverAddress)
+            throws IOException {
 
         super(
                 blobClientConfig,
