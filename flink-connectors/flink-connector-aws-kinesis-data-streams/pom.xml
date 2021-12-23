@@ -70,18 +70,6 @@ under the License.
 			<version>${aws.sdk.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>software.amazon.awssdk</groupId>
-			<artifactId>netty-nio-client</artifactId>
-			<version>${aws.sdk.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>software.amazon.awssdk</groupId>
-			<artifactId>sts</artifactId>
-			<version>${aws.sdk.version}</version>
-		</dependency>
-
 		<!--Table API dependencies-->
 		<dependency>
 			<groupId>org.apache.flink</groupId>

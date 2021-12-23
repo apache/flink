@@ -17,22 +17,8 @@
 
 package org.apache.flink.connector.base.sink.writer;
 
-import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
-import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
-import org.apache.flink.metrics.testutils.MetricListener;
-import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
-import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
-import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
-import org.apache.flink.util.UserCodeClassLoader;
-import org.apache.flink.util.function.RunnableWithException;
-import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -42,10 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
-import java.util.OptionalLong;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -66,12 +49,12 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class AsyncSinkWriterTest {
 
     private final List<Integer> res = new ArrayList<>();
-    private SinkInitContext sinkInitContext;
+    private TestSinkInitContext sinkInitContext;
 
     @Before
     public void before() {
         res.clear();
-        sinkInitContext = new SinkInitContext();
+        sinkInitContext = new TestSinkInitContext();
     }
 
     private void performNormalWriteOfEightyRecordsToMock()
@@ -1005,105 +988,6 @@ public class AsyncSinkWriterTest {
                     maxRecordSizeInBytes,
                     simulateFailures,
                     delay);
-        }
-    }
-
-    private static class SinkInitContext implements Sink.InitContext {
-
-        private static final TestProcessingTimeService processingTimeService;
-        private final MetricListener metricListener = new MetricListener();
-        private final OperatorIOMetricGroup operatorIOMetricGroup =
-                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup().getIOMetricGroup();
-        private final SinkWriterMetricGroup metricGroup =
-                InternalSinkWriterMetricGroup.mock(
-                        metricListener.getMetricGroup(), operatorIOMetricGroup);
-
-        static {
-            processingTimeService = new TestProcessingTimeService();
-        }
-
-        @Override
-        public UserCodeClassLoader getUserCodeClassLoader() {
-            return null;
-        }
-
-        @Override
-        public MailboxExecutor getMailboxExecutor() {
-            StreamTaskActionExecutor streamTaskActionExecutor =
-                    new StreamTaskActionExecutor() {
-                        @Override
-                        public void run(RunnableWithException e) throws Exception {
-                            e.run();
-                        }
-
-                        @Override
-                        public <E extends Throwable> void runThrowing(
-                                ThrowingRunnable<E> throwingRunnable) throws E {
-                            throwingRunnable.run();
-                        }
-
-                        @Override
-                        public <R> R call(Callable<R> callable) throws Exception {
-                            return callable.call();
-                        }
-                    };
-            return new MailboxExecutorImpl(
-                    new TaskMailboxImpl(Thread.currentThread()),
-                    Integer.MAX_VALUE,
-                    streamTaskActionExecutor);
-        }
-
-        @Override
-        public Sink.ProcessingTimeService getProcessingTimeService() {
-            return new Sink.ProcessingTimeService() {
-                @Override
-                public long getCurrentProcessingTime() {
-                    return processingTimeService.getCurrentProcessingTime();
-                }
-
-                @Override
-                public void registerProcessingTimer(
-                        long time, ProcessingTimeCallback processingTimerCallback) {
-                    processingTimeService.registerTimer(
-                            time, processingTimerCallback::onProcessingTime);
-                }
-            };
-        }
-
-        @Override
-        public int getSubtaskId() {
-            return 0;
-        }
-
-        @Override
-        public int getNumberOfParallelSubtasks() {
-            return 0;
-        }
-
-        @Override
-        public SinkWriterMetricGroup metricGroup() {
-            return metricGroup;
-        }
-
-        @Override
-        public OptionalLong getRestoredCheckpointId() {
-            return OptionalLong.empty();
-        }
-
-        public TestProcessingTimeService getTestProcessingTimeService() {
-            return processingTimeService;
-        }
-
-        private Optional<Gauge<Long>> getCurrentSendTimeGauge() {
-            return metricListener.getGauge("currentSendTime");
-        }
-
-        private Counter getNumRecordsOutCounter() {
-            return metricGroup.getIOMetricGroup().getNumRecordsOutCounter();
-        }
-
-        private Counter getNumBytesOutCounter() {
-            return metricGroup.getIOMetricGroup().getNumBytesOutCounter();
         }
     }
 

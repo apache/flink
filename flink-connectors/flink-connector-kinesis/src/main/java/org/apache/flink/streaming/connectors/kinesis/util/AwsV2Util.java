@@ -20,6 +20,8 @@ package org.apache.flink.streaming.connectors.kinesis.util;
 import org.apache.flink.annotation.Internal;
 
 import software.amazon.awssdk.http.SdkHttpConfigurationOption;
+import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
+import software.amazon.awssdk.services.kinesis.model.ProvisionedThroughputExceededException;
 import software.amazon.awssdk.utils.AttributeMap;
 
 import java.time.Duration;
@@ -69,5 +71,11 @@ public class AwsV2Util {
 
     public static boolean isNoneEfoRegistrationType(final Properties properties) {
         return NONE.name().equals(properties.get(EFO_REGISTRATION_TYPE));
+    }
+
+    public static boolean isRecoverableException(Exception e) {
+        Throwable cause = e.getCause();
+        return cause instanceof LimitExceededException
+                || cause instanceof ProvisionedThroughputExceededException;
     }
 }

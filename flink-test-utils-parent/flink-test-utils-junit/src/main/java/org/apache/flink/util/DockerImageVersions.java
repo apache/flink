@@ -37,6 +37,8 @@ public class DockerImageVersions {
 
     public static final String KINESALITE = "instructure/kinesalite:latest";
 
+    public static final String LOCALSTACK = "localstack/localstack:latest";
+
     public static final String PULSAR = "apachepulsar/pulsar:2.8.0";
 
     public static final String CASSANDRA_3 = "cassandra:3.0";

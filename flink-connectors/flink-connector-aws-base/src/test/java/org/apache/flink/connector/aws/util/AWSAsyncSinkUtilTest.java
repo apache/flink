@@ -15,13 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.kinesis.util;
-
-import org.apache.flink.connector.aws.util.TestUtil;
-import org.apache.flink.connector.kinesis.config.AWSKinesisDataStreamsConfigConstants;
+package org.apache.flink.connector.aws.util;
 
 import org.junit.Test;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.awscore.client.builder.AwsAsyncClientBuilder;
+import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
+import software.amazon.awssdk.core.SdkClient;
+import software.amazon.awssdk.core.client.config.ClientAsyncConfiguration;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
 import software.amazon.awssdk.core.client.config.SdkClientConfiguration;
@@ -29,18 +31,14 @@ import software.amazon.awssdk.core.client.config.SdkClientOption;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.kinesis.KinesisAsyncClientBuilder;
-import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
 
 import java.net.URI;
 import java.time.Duration;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ENDPOINT;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_REGION;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.connector.aws.util.AWSAsyncSinkUtil.formatFlinkUserAgentPrefix;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
@@ -48,20 +46,23 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Tests for {@link AWSKinesisDataStreamsUtil}. */
-public class AWSKinesisDataStreamsUtilTest {
+/** Tests for {@link AWSAsyncSinkUtil}. */
+public class AWSAsyncSinkUtilTest {
+
     private static final String DEFAULT_USER_AGENT_PREFIX_FORMAT =
-            AWSKinesisDataStreamsConfigConstants.BASE_KINESIS_USER_AGENT_PREFIX_FORMAT + " V2";
+            "Apache Flink %s (%s) *Destination* Connector";
+    private static final String DEFAULT_USER_AGENT_PREFIX_FORMAT_V2 =
+            "Apache Flink %s (%s) *Destination* Connector V2";
 
     @Test
     public void testCreateKinesisAsyncClient() {
         Properties properties = TestUtil.properties(AWS_REGION, "eu-west-2");
-        KinesisAsyncClientBuilder builder = mockKinesisAsyncClientBuilder();
+        MockAsyncClientBuilder builder = mockKinesisAsyncClientBuilder();
         ClientOverrideConfiguration clientOverrideConfiguration =
                 ClientOverrideConfiguration.builder().build();
         SdkAsyncHttpClient httpClient = NettyNioAsyncHttpClient.builder().build();
 
-        AWSKinesisDataStreamsUtil.createKinesisAsyncClient(
+        AWSAsyncSinkUtil.createAwsAsyncClient(
                 properties, builder, httpClient, clientOverrideConfiguration);
 
         verify(builder).overrideConfiguration(clientOverrideConfiguration);
@@ -77,12 +78,12 @@ public class AWSKinesisDataStreamsUtilTest {
         Properties properties = TestUtil.properties(AWS_REGION, "eu-west-2");
         properties.setProperty(AWS_ENDPOINT, "https://localhost");
 
-        KinesisAsyncClientBuilder builder = mockKinesisAsyncClientBuilder();
+        MockAsyncClientBuilder builder = mockKinesisAsyncClientBuilder();
         ClientOverrideConfiguration clientOverrideConfiguration =
                 ClientOverrideConfiguration.builder().build();
         SdkAsyncHttpClient httpClient = NettyNioAsyncHttpClient.builder().build();
 
-        AWSKinesisDataStreamsUtil.createKinesisAsyncClient(
+        AWSAsyncSinkUtil.createAwsAsyncClient(
                 properties, builder, httpClient, clientOverrideConfiguration);
 
         verify(builder).endpointOverride(URI.create("https://localhost"));
@@ -94,14 +95,17 @@ public class AWSKinesisDataStreamsUtilTest {
 
         ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
 
-        AWSKinesisDataStreamsUtil.createClientOverrideConfiguration(clientConfiguration, builder);
+        AWSAsyncSinkUtil.createClientOverrideConfiguration(
+                clientConfiguration,
+                builder,
+                formatFlinkUserAgentPrefix(
+                        DEFAULT_USER_AGENT_PREFIX_FORMAT + AWSAsyncSinkUtil.V2_USER_AGENT_SUFFIX));
 
         verify(builder).build();
         verify(builder)
                 .putAdvancedOption(
                         SdkAdvancedClientOption.USER_AGENT_PREFIX,
-                        AWSKinesisDataStreamsUtil.formatFlinkUserAgentPrefix(
-                                DEFAULT_USER_AGENT_PREFIX_FORMAT));
+                        formatFlinkUserAgentPrefix(DEFAULT_USER_AGENT_PREFIX_FORMAT_V2));
         verify(builder).putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_SUFFIX, null);
         verify(builder, never()).apiCallAttemptTimeout(any());
         verify(builder, never()).apiCallTimeout(any());
@@ -116,7 +120,11 @@ public class AWSKinesisDataStreamsUtilTest {
 
         ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
 
-        AWSKinesisDataStreamsUtil.createClientOverrideConfiguration(clientConfiguration, builder);
+        AWSAsyncSinkUtil.createClientOverrideConfiguration(
+                clientConfiguration,
+                builder,
+                formatFlinkUserAgentPrefix(
+                        DEFAULT_USER_AGENT_PREFIX_FORMAT + AWSAsyncSinkUtil.V2_USER_AGENT_SUFFIX));
 
         verify(builder).putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_SUFFIX, "suffix");
     }
@@ -130,7 +138,12 @@ public class AWSKinesisDataStreamsUtilTest {
 
         ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
 
-        AWSKinesisDataStreamsUtil.createClientOverrideConfiguration(clientConfiguration, builder);
+        AWSAsyncSinkUtil.createClientOverrideConfiguration(
+                clientConfiguration,
+                builder,
+                formatFlinkUserAgentPrefix(
+                        DEFAULT_USER_AGENT_PREFIX_FORMAT_V2
+                                + AWSAsyncSinkUtil.V2_USER_AGENT_SUFFIX));
 
         verify(builder).apiCallAttemptTimeout(Duration.ofMillis(500));
     }
@@ -144,49 +157,18 @@ public class AWSKinesisDataStreamsUtilTest {
 
         ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
 
-        AWSKinesisDataStreamsUtil.createClientOverrideConfiguration(clientConfiguration, builder);
+        AWSAsyncSinkUtil.createClientOverrideConfiguration(
+                clientConfiguration,
+                builder,
+                formatFlinkUserAgentPrefix(
+                        DEFAULT_USER_AGENT_PREFIX_FORMAT_V2
+                                + AWSAsyncSinkUtil.V2_USER_AGENT_SUFFIX));
 
         verify(builder).apiCallTimeout(Duration.ofMillis(600));
     }
 
-    @Test
-    public void testIsRecoverableExceptionForRecoverable() {
-        Exception recoverable = LimitExceededException.builder().build();
-        assertTrue(
-                AWSKinesisDataStreamsUtil.isRecoverableException(
-                        new ExecutionException(recoverable)));
-    }
-
-    @Test
-    public void testIsRecoverableExceptionForNonRecoverable() {
-        Exception nonRecoverable = new IllegalArgumentException("abc");
-        assertFalse(
-                AWSKinesisDataStreamsUtil.isRecoverableException(
-                        new ExecutionException(nonRecoverable)));
-    }
-
-    @Test
-    public void testIsRecoverableExceptionForRuntimeExceptionWrappingRecoverable() {
-        Exception recoverable = LimitExceededException.builder().build();
-        Exception runtime = new RuntimeException("abc", recoverable);
-        assertTrue(AWSKinesisDataStreamsUtil.isRecoverableException(runtime));
-    }
-
-    @Test
-    public void testIsRecoverableExceptionForRuntimeExceptionWrappingNonRecoverable() {
-        Exception nonRecoverable = new IllegalArgumentException("abc");
-        Exception runtime = new RuntimeException("abc", nonRecoverable);
-        assertFalse(AWSKinesisDataStreamsUtil.isRecoverableException(runtime));
-    }
-
-    @Test
-    public void testIsRecoverableExceptionForNullCause() {
-        Exception nonRecoverable = new IllegalArgumentException("abc");
-        assertFalse(AWSKinesisDataStreamsUtil.isRecoverableException(nonRecoverable));
-    }
-
-    private KinesisAsyncClientBuilder mockKinesisAsyncClientBuilder() {
-        KinesisAsyncClientBuilder builder = mock(KinesisAsyncClientBuilder.class);
+    private MockAsyncClientBuilder mockKinesisAsyncClientBuilder() {
+        MockAsyncClientBuilder builder = mock(MockAsyncClientBuilder.class);
         when(builder.overrideConfiguration(any(ClientOverrideConfiguration.class)))
                 .thenReturn(builder);
         when(builder.httpClient(any())).thenReturn(builder);
@@ -204,5 +186,53 @@ public class AWSKinesisDataStreamsUtilTest {
         when(builder.apiCallTimeout(any())).thenReturn(builder);
 
         return builder;
+    }
+
+    private static class MockAsyncClientBuilder
+            implements AwsAsyncClientBuilder<MockAsyncClientBuilder, SdkClient>,
+                    AwsClientBuilder<MockAsyncClientBuilder, SdkClient> {
+
+        @Override
+        public MockAsyncClientBuilder asyncConfiguration(
+                ClientAsyncConfiguration clientAsyncConfiguration) {
+            return null;
+        }
+
+        @Override
+        public MockAsyncClientBuilder httpClient(SdkAsyncHttpClient sdkAsyncHttpClient) {
+            return null;
+        }
+
+        @Override
+        public MockAsyncClientBuilder httpClientBuilder(SdkAsyncHttpClient.Builder builder) {
+            return null;
+        }
+
+        @Override
+        public MockAsyncClientBuilder credentialsProvider(
+                AwsCredentialsProvider awsCredentialsProvider) {
+            return null;
+        }
+
+        @Override
+        public MockAsyncClientBuilder region(Region region) {
+            return null;
+        }
+
+        @Override
+        public MockAsyncClientBuilder overrideConfiguration(
+                ClientOverrideConfiguration clientOverrideConfiguration) {
+            return null;
+        }
+
+        @Override
+        public MockAsyncClientBuilder endpointOverride(URI uri) {
+            return null;
+        }
+
+        @Override
+        public SdkClient build() {
+            return null;
+        }
     }
 }
