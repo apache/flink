@@ -15,24 +15,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.kinesis.util;
+package org.apache.flink.connector.aws.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
-import org.apache.flink.connector.aws.util.AWSGeneralUtil;
-import org.apache.flink.connector.kinesis.config.AWSKinesisDataStreamsConfigConstants;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
+import software.amazon.awssdk.awscore.client.builder.AwsAsyncClientBuilder;
+import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
+import software.amazon.awssdk.core.SdkClient;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
 import software.amazon.awssdk.core.client.config.SdkClientConfiguration;
 import software.amazon.awssdk.core.client.config.SdkClientOption;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
-import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
-import software.amazon.awssdk.services.kinesis.KinesisAsyncClientBuilder;
-import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
-import software.amazon.awssdk.services.kinesis.model.ProvisionedThroughputExceededException;
 
 import java.net.URI;
 import java.util.Optional;
@@ -40,11 +37,10 @@ import java.util.Properties;
 
 /** Some utilities specific to Amazon Web Service. */
 @Internal
-public class AWSKinesisDataStreamsUtil extends AWSGeneralUtil {
+public class AWSAsyncSinkUtil extends AWSGeneralUtil {
 
-    /** Used for formatting Flink-specific user agent string when creating Kinesis client. */
-    private static final String USER_AGENT_FORMAT =
-            AWSKinesisDataStreamsConfigConstants.BASE_KINESIS_USER_AGENT_PREFIX_FORMAT + " V2";
+    /** V2 suffix to denote the unified sinks. V1 sinks are based on KPL etc. */
+    static final String V2_USER_AGENT_SUFFIX = " V2";
 
     /**
      * Creates a user agent prefix for Flink. This can be used by HTTP Clients.
@@ -62,51 +58,61 @@ public class AWSKinesisDataStreamsUtil extends AWSGeneralUtil {
 
     /**
      * @param configProps configuration properties
-     * @param httpClient the underlying HTTP client used to talk to Kinesis
-     * @return a new Amazon Kinesis Client
+     * @param httpClient the underlying HTTP client used to talk to AWS
+     * @return a new AWS Client
      */
-    public static KinesisAsyncClient createKinesisAsyncClient(
-            final Properties configProps, final SdkAsyncHttpClient httpClient) {
+    public static <
+                    S extends SdkClient,
+                    T extends
+                            AwsAsyncClientBuilder<? extends T, S>
+                                    & AwsClientBuilder<? extends T, S>>
+            S createAwsAsyncClient(
+                    final Properties configProps,
+                    final SdkAsyncHttpClient httpClient,
+                    final T clientBuilder,
+                    final String awsUserAgentPrefixFormat,
+                    final String awsClientUserAgentPrefix) {
         SdkClientConfiguration clientConfiguration = SdkClientConfiguration.builder().build();
-        return createKinesisAsyncClient(configProps, clientConfiguration, httpClient);
+        return createAwsAsyncClient(
+                configProps,
+                clientConfiguration,
+                httpClient,
+                clientBuilder,
+                awsUserAgentPrefixFormat,
+                awsClientUserAgentPrefix);
     }
 
     /**
      * @param configProps configuration properties
      * @param clientConfiguration the AWS SDK v2 config to instantiate the client
-     * @param httpClient the underlying HTTP client used to talk to Kinesis
-     * @return a new Amazon Kinesis Client
+     * @param httpClient the underlying HTTP client used to talk to AWS
+     * @return a new AWS Client
      */
-    public static KinesisAsyncClient createKinesisAsyncClient(
-            final Properties configProps,
-            final SdkClientConfiguration clientConfiguration,
-            final SdkAsyncHttpClient httpClient) {
+    public static <
+                    S extends SdkClient,
+                    T extends
+                            AwsAsyncClientBuilder<? extends T, S>
+                                    & AwsClientBuilder<? extends T, S>>
+            S createAwsAsyncClient(
+                    final Properties configProps,
+                    final SdkClientConfiguration clientConfiguration,
+                    final SdkAsyncHttpClient httpClient,
+                    final T clientBuilder,
+                    final String awsUserAgentPrefixFormat,
+                    final String awsClientUserAgentPrefix) {
         String flinkUserAgentPrefix =
-                Optional.ofNullable(
-                                configProps.getProperty(
-                                        AWSKinesisDataStreamsConfigConstants
-                                                .KINESIS_CLIENT_USER_AGENT_PREFIX))
-                        .orElse(formatFlinkUserAgentPrefix(USER_AGENT_FORMAT));
+                Optional.ofNullable(configProps.getProperty(awsClientUserAgentPrefix))
+                        .orElse(
+                                formatFlinkUserAgentPrefix(
+                                        awsUserAgentPrefixFormat + V2_USER_AGENT_SUFFIX));
 
         final ClientOverrideConfiguration overrideConfiguration =
                 createClientOverrideConfiguration(
                         clientConfiguration,
                         ClientOverrideConfiguration.builder(),
                         flinkUserAgentPrefix);
-        final KinesisAsyncClientBuilder clientBuilder = KinesisAsyncClient.builder();
 
-        return createKinesisAsyncClient(
-                configProps, clientBuilder, httpClient, overrideConfiguration);
-    }
-
-    @VisibleForTesting
-    static ClientOverrideConfiguration createClientOverrideConfiguration(
-            final SdkClientConfiguration config,
-            final ClientOverrideConfiguration.Builder overrideConfigurationBuilder) {
-        return createClientOverrideConfiguration(
-                config,
-                overrideConfigurationBuilder,
-                formatFlinkUserAgentPrefix(USER_AGENT_FORMAT));
+        return createAwsAsyncClient(configProps, clientBuilder, httpClient, overrideConfiguration);
     }
 
     @VisibleForTesting
@@ -131,11 +137,16 @@ public class AWSKinesisDataStreamsUtil extends AWSGeneralUtil {
     }
 
     @VisibleForTesting
-    static KinesisAsyncClient createKinesisAsyncClient(
-            final Properties configProps,
-            final KinesisAsyncClientBuilder clientBuilder,
-            final SdkAsyncHttpClient httpClient,
-            final ClientOverrideConfiguration overrideConfiguration) {
+    static <
+                    S extends SdkClient,
+                    T extends
+                            AwsAsyncClientBuilder<? extends T, S>
+                                    & AwsClientBuilder<? extends T, S>>
+            S createAwsAsyncClient(
+                    final Properties configProps,
+                    final T clientBuilder,
+                    final SdkAsyncHttpClient httpClient,
+                    final ClientOverrideConfiguration overrideConfiguration) {
 
         if (configProps.containsKey(AWSConfigConstants.AWS_ENDPOINT)) {
             final URI endpointOverride =
@@ -149,11 +160,5 @@ public class AWSKinesisDataStreamsUtil extends AWSGeneralUtil {
                 .credentialsProvider(getCredentialsProvider(configProps))
                 .region(getRegion(configProps))
                 .build();
-    }
-
-    public static boolean isRecoverableException(Exception e) {
-        Throwable cause = e.getCause();
-        return cause instanceof LimitExceededException
-                || cause instanceof ProvisionedThroughputExceededException;
     }
 }
