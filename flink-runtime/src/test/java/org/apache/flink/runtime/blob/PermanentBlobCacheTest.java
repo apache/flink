@@ -19,7 +19,10 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.commons.io.FileUtils;
@@ -32,6 +35,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -84,6 +88,29 @@ public class PermanentBlobCacheTest {
                         null)) {
             assertThatThrownBy(() -> permanentBlobCache.getFile(jobId, blobKey))
                     .isInstanceOf(IOException.class);
+        }
+    }
+
+    @Test
+    public void permanentBlobCacheTimesOutRecoveredBlobs(@TempDir Path storageDirectory)
+            throws Exception {
+        final JobID jobId = new JobID();
+        final PermanentBlobKey permanentBlobKey =
+                TestingBlobUtils.writePermanentBlob(
+                        storageDirectory, jobId, new byte[] {1, 2, 3, 4});
+        final File blobFile =
+                BlobUtils.getStorageLocation(storageDirectory.toFile(), jobId, permanentBlobKey);
+        final Configuration configuration = new Configuration();
+        final long cleanupInterval = 1L;
+        configuration.set(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
+
+        try (final PermanentBlobCache permanentBlobCache =
+                new PermanentBlobCache(
+                        configuration, storageDirectory.toFile(), new VoidBlobStore(), null)) {
+            CommonTestUtils.waitUntilCondition(
+                    () -> !blobFile.exists(),
+                    Deadline.fromNow(Duration.ofSeconds(cleanupInterval * 5L)),
+                    "The permanent blob file was not cleaned up automatically.");
         }
     }
 }

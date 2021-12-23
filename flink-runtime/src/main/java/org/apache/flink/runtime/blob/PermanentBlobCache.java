@@ -35,12 +35,15 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -157,6 +160,36 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
                 new PermanentBlobCleanupTask(), cleanupInterval, cleanupInterval);
 
         this.blobCacheSizeTracker = blobCacheSizeTracker;
+
+        registerDetectedJobs();
+    }
+
+    private void registerDetectedJobs() throws IOException {
+        if (storageDir.deref().exists()) {
+            final Collection<BlobUtils.PermanentBlob> permanentBlobs =
+                    BlobUtils.listPermanentBlobsInDirectory(storageDir.deref().toPath());
+
+            final Collection<JobID> jobIds =
+                    permanentBlobs.stream()
+                            .map(BlobUtils.PermanentBlob::getJobId)
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toSet());
+
+            final long expiryTimeout = System.currentTimeMillis() + cleanupInterval;
+            for (JobID jobId : jobIds) {
+                registerJobWithExpiry(jobId, expiryTimeout);
+            }
+        }
+    }
+
+    private void registerJobWithExpiry(JobID jobId, long expiryTimeout) {
+        checkNotNull(jobId);
+        synchronized (jobRefCounters) {
+            final RefCount refCount =
+                    jobRefCounters.computeIfAbsent(jobId, ignored -> new RefCount());
+
+            refCount.keepUntil = expiryTimeout;
+        }
     }
 
     /**

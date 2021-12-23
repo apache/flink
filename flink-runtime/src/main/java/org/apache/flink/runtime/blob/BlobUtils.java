@@ -582,6 +582,15 @@ public class BlobUtils {
                 .collect(Collectors.toList());
     }
 
+    @Nonnull
+    static Collection<PermanentBlob> listPermanentBlobsInDirectory(java.nio.file.Path directory)
+            throws IOException {
+        return listBlobsInDirectory(directory).stream()
+                .filter(blob -> blob.getBlobKey() instanceof PermanentBlobKey)
+                .map(blob -> (PermanentBlob) blob)
+                .collect(Collectors.toList());
+    }
+
     abstract static class Blob<T extends BlobKey> {
         private final T blobKey;
         private final java.nio.file.Path path;
