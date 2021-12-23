@@ -36,6 +36,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -100,10 +101,11 @@ public class BlobUtilsTest extends TestLogger {
 
         BlobUtils.checkAndDeleteCorruptedBlobs(storageDir.toPath(), log);
 
-        assertThat(
-                        BlobUtils.listBlobsInDirectory(storageDir.toPath()).stream()
-                                .map(BlobUtils.Blob::getBlobKey)
-                                .collect(Collectors.toList()))
+        final List<BlobKey> blobKeys =
+                BlobUtils.listBlobsInDirectory(storageDir.toPath()).stream()
+                        .map(BlobUtils.Blob::getBlobKey)
+                        .collect(Collectors.toList());
+        assertThat(blobKeys)
                 .containsExactlyInAnyOrder(validPermanentBlobKey, validTransientBlobKey);
     }
 

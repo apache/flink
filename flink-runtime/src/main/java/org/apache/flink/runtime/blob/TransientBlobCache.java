@@ -33,6 +33,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.util.Collection;
 import java.util.Timer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -101,6 +102,23 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
                 new TransientBlobCleanupTask(blobExpiryTimes, this::deleteInternal, log),
                 cleanupInterval,
                 cleanupInterval);
+
+        registerBlobExpiryTimes();
+    }
+
+    private void registerBlobExpiryTimes() throws IOException {
+        if (storageDir.deref().exists()) {
+            final Collection<BlobUtils.TransientBlob> transientBlobs =
+                    BlobUtils.listTransientBlobsInDirectory(storageDir.deref().toPath());
+
+            final long expiryTime = System.currentTimeMillis() + cleanupInterval;
+
+            for (BlobUtils.TransientBlob transientBlob : transientBlobs) {
+                blobExpiryTimes.put(
+                        Tuple2.of(transientBlob.getJobId(), transientBlob.getBlobKey()),
+                        expiryTime);
+            }
+        }
     }
 
     @Override

@@ -530,7 +530,8 @@ public class BlobUtils {
     }
 
     @Nonnull
-    static Collection<Blob> listBlobsInDirectory(java.nio.file.Path directory) throws IOException {
+    static Collection<Blob<?>> listBlobsInDirectory(java.nio.file.Path directory)
+            throws IOException {
         return listBlobFilesInDirectory(directory).stream()
                 .map(
                         blobPath -> {
@@ -539,26 +540,82 @@ public class BlobUtils {
                                             blobPath.getFileName()
                                                     .toString()
                                                     .substring(BLOB_FILE_PREFIX.length()));
-                            return new Blob(blobKey, blobPath);
+                            final String jobDirectory =
+                                    blobPath.getParent().getFileName().toString();
+
+                            @Nullable final JobID jobId;
+
+                            if (jobDirectory.equals(NO_JOB_DIR_PREFIX)) {
+                                jobId = null;
+                            } else if (jobDirectory.startsWith(JOB_DIR_PREFIX)) {
+                                jobId =
+                                        new JobID(
+                                                StringUtils.hexStringToByte(
+                                                        jobDirectory.substring(
+                                                                JOB_DIR_PREFIX.length())));
+                            } else {
+                                throw new IllegalStateException(
+                                        String.format("Unknown job path %s.", jobDirectory));
+                            }
+
+                            if (blobKey instanceof TransientBlobKey) {
+                                return new TransientBlob(
+                                        (TransientBlobKey) blobKey, blobPath, jobId);
+                            } else if (blobKey instanceof PermanentBlobKey) {
+                                return new PermanentBlob(
+                                        (PermanentBlobKey) blobKey, blobPath, jobId);
+                            } else {
+                                throw new IllegalStateException(
+                                        String.format(
+                                                "Unknown blob key format %s.", blobKey.getClass()));
+                            }
                         })
                 .collect(Collectors.toList());
     }
 
-    static final class Blob {
-        private final BlobKey blobKey;
-        private final java.nio.file.Path path;
+    @Nonnull
+    static Collection<TransientBlob> listTransientBlobsInDirectory(java.nio.file.Path directory)
+            throws IOException {
+        return listBlobsInDirectory(directory).stream()
+                .filter(blob -> blob.getBlobKey() instanceof TransientBlobKey)
+                .map(blob -> (TransientBlob) blob)
+                .collect(Collectors.toList());
+    }
 
-        Blob(BlobKey blobKey, java.nio.file.Path path) {
+    abstract static class Blob<T extends BlobKey> {
+        private final T blobKey;
+        private final java.nio.file.Path path;
+        @Nullable private final JobID jobId;
+
+        Blob(T blobKey, java.nio.file.Path path, @Nullable JobID jobId) {
             this.blobKey = blobKey;
             this.path = path;
+            this.jobId = jobId;
         }
 
-        public BlobKey getBlobKey() {
+        public T getBlobKey() {
             return blobKey;
         }
 
         public java.nio.file.Path getPath() {
             return path;
+        }
+
+        @Nullable
+        public JobID getJobId() {
+            return jobId;
+        }
+    }
+
+    static final class TransientBlob extends Blob<TransientBlobKey> {
+        TransientBlob(TransientBlobKey blobKey, java.nio.file.Path path, @Nullable JobID jobId) {
+            super(blobKey, path, jobId);
+        }
+    }
+
+    static final class PermanentBlob extends Blob<PermanentBlobKey> {
+        PermanentBlob(PermanentBlobKey blobKey, java.nio.file.Path path, @Nullable JobID jobId) {
+            super(blobKey, path, jobId);
         }
     }
 }
