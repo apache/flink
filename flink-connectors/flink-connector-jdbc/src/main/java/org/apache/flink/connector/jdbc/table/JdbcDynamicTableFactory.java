@@ -44,6 +44,8 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.DRIVER;
+import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.LOOKUP_ASYNC;
+import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.LOOKUP_ASYNC_PARALLELISM;
 import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.LOOKUP_CACHE_MAX_ROWS;
 import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.LOOKUP_CACHE_MISSING_KEY;
 import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.LOOKUP_CACHE_TTL;
@@ -152,7 +154,9 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
                 readableConfig.get(LOOKUP_CACHE_MAX_ROWS),
                 readableConfig.get(LOOKUP_CACHE_TTL).toMillis(),
                 readableConfig.get(LOOKUP_MAX_RETRIES),
-                readableConfig.get(LOOKUP_CACHE_MISSING_KEY));
+                readableConfig.get(LOOKUP_CACHE_MISSING_KEY),
+                readableConfig.get(LOOKUP_ASYNC_PARALLELISM),
+                readableConfig.get(LOOKUP_ASYNC));
     }
 
     private JdbcExecutionOptions getJdbcExecutionOptions(ReadableConfig config) {
@@ -208,6 +212,8 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
         optionalOptions.add(LOOKUP_CACHE_TTL);
         optionalOptions.add(LOOKUP_MAX_RETRIES);
         optionalOptions.add(LOOKUP_CACHE_MISSING_KEY);
+        optionalOptions.add(LOOKUP_ASYNC_PARALLELISM);
+        optionalOptions.add(LOOKUP_ASYNC);
         optionalOptions.add(SINK_BUFFER_FLUSH_MAX_ROWS);
         optionalOptions.add(SINK_BUFFER_FLUSH_INTERVAL);
         optionalOptions.add(SINK_MAX_RETRIES);
@@ -253,6 +259,17 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
                     String.format(
                             "The value of '%s' option shouldn't be negative, but is %s.",
                             LOOKUP_MAX_RETRIES.key(), config.get(LOOKUP_MAX_RETRIES)));
+        }
+
+        if (config.get(LOOKUP_ASYNC)) {
+            if (config.get(LOOKUP_ASYNC_PARALLELISM) < 1) {
+                throw new IllegalArgumentException(
+                        String.format(
+                                "The value of '%s' option shouldn't be negative, but is %s."
+                                        + " The value should  > 1  ",
+                                LOOKUP_ASYNC_PARALLELISM.key(),
+                                config.get(LOOKUP_ASYNC_PARALLELISM)));
+            }
         }
 
         if (config.get(SINK_MAX_RETRIES) < 0) {

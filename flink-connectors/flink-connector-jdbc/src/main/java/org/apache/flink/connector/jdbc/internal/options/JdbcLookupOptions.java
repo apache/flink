@@ -30,13 +30,30 @@ public class JdbcLookupOptions implements Serializable {
     private final long cacheExpireMs;
     private final int maxRetryTimes;
     private final boolean cacheMissingKey;
+    private int lookupAsyncParallelism;
+    private boolean lookupAsync;
 
     public JdbcLookupOptions(
-            long cacheMaxSize, long cacheExpireMs, int maxRetryTimes, boolean cacheMissingKey) {
+            long cacheMaxSize,
+            long cacheExpireMs,
+            int maxRetryTimes,
+            boolean cacheMissingKey,
+            int lookupAsyncParallelism,
+            boolean lookupAsync) {
         this.cacheMaxSize = cacheMaxSize;
         this.cacheExpireMs = cacheExpireMs;
         this.maxRetryTimes = maxRetryTimes;
         this.cacheMissingKey = cacheMissingKey;
+        this.lookupAsyncParallelism = lookupAsyncParallelism;
+        this.lookupAsync = lookupAsync;
+    }
+
+    public boolean isLookupAsync() {
+        return lookupAsync;
+    }
+
+    public int getLookupAsyncParallelism() {
+        return lookupAsyncParallelism;
     }
 
     public long getCacheMaxSize() {
@@ -78,6 +95,8 @@ public class JdbcLookupOptions implements Serializable {
         private long cacheExpireMs = -1L;
         private int maxRetryTimes = JdbcExecutionOptions.DEFAULT_MAX_RETRY_TIMES;
         private boolean cacheMissingKey = true;
+        private int lookupAsyncParallelism = 1;
+        private boolean lookupAsync = false;
 
         /** optional, lookup cache max size, over this value, the old data will be eliminated. */
         public Builder setCacheMaxSize(long cacheMaxSize) {
@@ -103,9 +122,26 @@ public class JdbcLookupOptions implements Serializable {
             return this;
         }
 
+        /** optional, async join lookup parallelism. */
+        public Builder setLookupAsyncParallelism(int lookupAsyncParallelism) {
+            this.lookupAsyncParallelism = lookupAsyncParallelism;
+            return this;
+        }
+
+        /** optional, is open async lookup join,false is default. */
+        public Builder setLookupAsync(boolean lookupAsync) {
+            this.lookupAsync = lookupAsync;
+            return this;
+        }
+
         public JdbcLookupOptions build() {
             return new JdbcLookupOptions(
-                    cacheMaxSize, cacheExpireMs, maxRetryTimes, cacheMissingKey);
+                    cacheMaxSize,
+                    cacheExpireMs,
+                    maxRetryTimes,
+                    cacheMissingKey,
+                    lookupAsyncParallelism,
+                    lookupAsync);
         }
     }
 }

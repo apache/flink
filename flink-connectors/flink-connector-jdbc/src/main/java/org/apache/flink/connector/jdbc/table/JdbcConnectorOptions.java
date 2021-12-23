@@ -143,6 +143,20 @@ public class JdbcConnectorOptions {
                     .defaultValue(true)
                     .withDescription("Flag to cache missing key. true by default");
 
+    public static final ConfigOption<Boolean> LOOKUP_ASYNC =
+            ConfigOptions.key("lookup.async")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Flag to run async loop up join, false by default");
+
+    public static final ConfigOption<Integer> LOOKUP_ASYNC_PARALLELISM =
+            ConfigOptions.key("lookup.async.parallelism")
+                    .intType()
+                    .defaultValue(4)
+                    .withDescription(
+                            "The max jdbc connections."
+                                    + "it's should less than the 'table.exec.async-lookup.buffer-capacity'");
+
     // write config options
     public static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS =
             ConfigOptions.key("sink.buffer-flush.max-rows")
