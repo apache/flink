@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Reference;
 import org.apache.flink.util.TestLogger;
@@ -31,15 +32,15 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.startsWith;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link BlobUtils}. */
 public class BlobUtilsTest extends TestLogger {
@@ -58,7 +59,7 @@ public class BlobUtilsTest extends TestLogger {
         config.setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
 
         File dir = BlobUtils.createBlobStorageDirectory(config, null).deref();
-        assertThat(dir.getAbsolutePath(), startsWith(blobStorageDir));
+        assertThat(dir.getAbsolutePath()).startsWith(blobStorageDir);
     }
 
     /** Tests {@link BlobUtils#createBlobStorageDirectory}'s fallback to the fall back directory. */
@@ -70,7 +71,7 @@ public class BlobUtilsTest extends TestLogger {
         File dir =
                 BlobUtils.createBlobStorageDirectory(config, Reference.borrowed(fallbackDirectory))
                         .deref();
-        assertThat(dir, is(equalTo(fallbackDirectory)));
+        assertThat(dir).isEqualTo(fallbackDirectory);
     }
 
     @Test(expected = IOException.class)
@@ -100,9 +101,75 @@ public class BlobUtilsTest extends TestLogger {
         BlobUtils.checkAndDeleteCorruptedBlobs(storageDir.toPath(), log);
 
         assertThat(
-                BlobUtils.listBlobsInDirectory(storageDir.toPath()).stream()
-                        .map(BlobUtils.Blob::getBlobKey)
-                        .collect(Collectors.toList()),
-                containsInAnyOrder(validPermanentBlobKey, validTransientBlobKey));
+                        BlobUtils.listBlobsInDirectory(storageDir.toPath()).stream()
+                                .map(BlobUtils.Blob::getBlobKey)
+                                .collect(Collectors.toList()))
+                .containsExactlyInAnyOrder(validPermanentBlobKey, validTransientBlobKey);
+    }
+
+    @Test
+    public void testMoveTempFileToStoreSucceeds() throws IOException {
+        final FileSystemBlobStore blobStore =
+                new FileSystemBlobStore(
+                        new LocalFileSystem(), temporaryFolder.newFolder().toString());
+        final JobID jobId = new JobID();
+        final File storageFile = new File(temporaryFolder.getRoot(), UUID.randomUUID().toString());
+        final File incomingFile = temporaryFolder.newFile();
+        final byte[] fileContent = {1, 2, 3, 4};
+        final BlobKey blobKey =
+                BlobKey.createKey(
+                        BlobKey.BlobType.PERMANENT_BLOB,
+                        BlobUtils.createMessageDigest().digest(fileContent));
+        Files.write(incomingFile.toPath(), fileContent);
+
+        BlobUtils.moveTempFileToStore(incomingFile, jobId, blobKey, storageFile, log, blobStore);
+
+        assertThat(incomingFile).doesNotExist();
+        assertThat(storageFile).hasBinaryContent(fileContent);
+
+        final File blobStoreFile =
+                new File(temporaryFolder.getRoot(), UUID.randomUUID().toString());
+        assertThat(blobStore.get(jobId, blobKey, blobStoreFile)).isTrue();
+        assertThat(blobStoreFile).hasBinaryContent(fileContent);
+    }
+
+    @Test
+    public void testCleanupIfMoveTempFileToStoreFails() throws IOException {
+        final File storageFile = new File(temporaryFolder.getRoot(), UUID.randomUUID().toString());
+
+        final File incomingFile = temporaryFolder.newFile();
+        Files.write(incomingFile.toPath(), new byte[] {1, 2, 3, 4});
+
+        final FileSystemBlobStore blobStore =
+                new FileSystemBlobStore(
+                        new LocalFileSystem(), temporaryFolder.newFolder().getAbsolutePath());
+
+        final JobID jobId = new JobID();
+        final BlobKey blobKey = BlobKey.createKey(BlobKey.BlobType.PERMANENT_BLOB);
+        assertThatThrownBy(
+                        () ->
+                                BlobUtils.internalMoveTempFileToStore(
+                                        incomingFile,
+                                        jobId,
+                                        blobKey,
+                                        storageFile,
+                                        log,
+                                        blobStore,
+                                        (source, target) -> {
+                                            throw new IOException("Test Failure");
+                                        }))
+                .isInstanceOf(IOException.class);
+
+        assertThatThrownBy(
+                        () ->
+                                blobStore.get(
+                                        jobId,
+                                        blobKey,
+                                        new File(
+                                                temporaryFolder.getRoot(),
+                                                UUID.randomUUID().toString())))
+                .isInstanceOf(FileNotFoundException.class);
+        assertThat(incomingFile).doesNotExist();
+        assertThat(storageFile).doesNotExist();
     }
 }

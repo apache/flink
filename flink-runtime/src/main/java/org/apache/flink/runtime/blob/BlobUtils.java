@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -409,32 +410,44 @@ public class BlobUtils {
             Logger log,
             @Nullable BlobStore blobStore)
             throws IOException {
+        internalMoveTempFileToStore(
+                incomingFile,
+                jobId,
+                blobKey,
+                storageFile,
+                log,
+                blobStore,
+                (source, target) -> Files.move(source.toPath(), target.toPath()));
+    }
 
+    @VisibleForTesting
+    static void internalMoveTempFileToStore(
+            File incomingFile,
+            @Nullable JobID jobId,
+            BlobKey blobKey,
+            File storageFile,
+            Logger log,
+            @Nullable BlobStore blobStore,
+            MoveFileOperation moveFileOperation)
+            throws IOException {
+
+        boolean success = false;
         try {
             // first check whether the file already exists
             if (!storageFile.exists()) {
-                try {
-                    // only move the file if it does not yet exist
-                    Files.move(incomingFile.toPath(), storageFile.toPath());
+                // persist the blob via the blob store
+                if (blobStore != null) {
+                    blobStore.put(incomingFile, jobId, blobKey);
+                }
 
+                try {
+                    moveFileOperation.moveFile(incomingFile, storageFile);
                     incomingFile = null;
 
                 } catch (FileAlreadyExistsException ignored) {
                     log.warn(
                             "Detected concurrent file modifications. This should only happen if multiple"
                                     + "BlobServer use the same storage directory.");
-                    // we cannot be sure at this point whether the file has already been uploaded to
-                    // the blob
-                    // store or not. Even if the blobStore might shortly be in an inconsistent
-                    // state, we have
-                    // to persist the blob. Otherwise we might not be able to recover the job.
-                }
-
-                if (blobStore != null) {
-                    // only the one moving the incoming file to its final destination is allowed to
-                    // upload the
-                    // file to the blob store
-                    blobStore.put(storageFile, jobId, blobKey);
                 }
             } else {
                 log.warn(
@@ -442,14 +455,18 @@ public class BlobUtils {
                         blobKey,
                         jobId);
             }
-            storageFile = null;
+            success = true;
         } finally {
-            // we failed to either create the local storage file or to upload it --> try to delete
-            // the local file
-            // while still having the write lock
-            if (storageFile != null && !storageFile.delete() && storageFile.exists()) {
-                log.warn("Could not delete the storage file {}.", storageFile);
+            if (!success) {
+                if (blobStore != null) {
+                    blobStore.delete(jobId, blobKey);
+                }
+
+                if (!storageFile.delete() && storageFile.exists()) {
+                    log.warn("Could not delete the storage file {}.", storageFile);
+                }
             }
+
             if (incomingFile != null && !incomingFile.delete() && incomingFile.exists()) {
                 log.warn(
                         "Could not delete the staging file {} for blob key {} and job {}.",
@@ -458,6 +475,10 @@ public class BlobUtils {
                         jobId);
             }
         }
+    }
+
+    interface MoveFileOperation {
+        void moveFile(File source, File target) throws IOException;
     }
 
     public static byte[] calculateMessageDigest(File file) throws IOException {
