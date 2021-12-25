@@ -21,12 +21,7 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.entrypoint.ClusterInformation;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
-import org.apache.flink.runtime.io.network.partition.NoOpResourceManagerPartitionTracker;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
@@ -34,15 +29,11 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerBuilder;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
-import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
@@ -54,7 +45,6 @@ import org.junit.Test;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertTrue;
@@ -69,19 +59,13 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 
     private JobID jobId;
 
-    private TestingJobMasterGateway jobMasterGateway;
-
     private ResourceID jobMasterResourceId;
+
+    private TestingJobMasterGateway jobMasterGateway;
 
     private SettableLeaderRetrievalService jobMasterLeaderRetrievalService;
 
-    private TestingLeaderElectionService resourceManagerLeaderElectionService;
-
-    private TestingHighAvailabilityServices haServices;
-
-    private TestingFatalErrorHandler testingFatalErrorHandler;
-
-    private ResourceManager<?> resourceManager;
+    private TestingResourceManagerService resourceManagerService;
 
     private ResourceManagerGateway resourceManagerGateway;
 
@@ -90,18 +74,28 @@ public class ResourceManagerJobMasterTest extends TestLogger {
         rpcService = new TestingRpcService();
 
         jobId = new JobID();
-
-        createAndRegisterJobMasterGateway();
         jobMasterResourceId = ResourceID.generate();
 
+        createAndRegisterJobMasterGateway();
+
+        createAndStartResourceManagerService();
+    }
+
+    private void createAndRegisterJobMasterGateway() {
+        jobMasterGateway = new TestingJobMasterGatewayBuilder().build();
+        rpcService.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
         jobMasterLeaderRetrievalService =
                 new SettableLeaderRetrievalService(
                         jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
-        resourceManagerLeaderElectionService = new TestingLeaderElectionService();
+    }
 
-        haServices =
-                new TestingHighAvailabilityServicesBuilder()
-                        .setJobMasterLeaderRetrieverFunction(
+    private void createAndStartResourceManagerService() throws Exception {
+        final TestingLeaderElectionService leaderElectionService =
+                new TestingLeaderElectionService();
+        resourceManagerService =
+                TestingResourceManagerService.newBuilder()
+                        .setRpcService(rpcService)
+                        .setJmLeaderRetrieverFunction(
                                 requestedJobId -> {
                                     if (requestedJobId.equals(jobId)) {
                                         return jobMasterLeaderRetrievalService;
@@ -110,76 +104,36 @@ public class ResourceManagerJobMasterTest extends TestLogger {
                                                 String.format("Unknown job id %s", jobId));
                                     }
                                 })
-                        .setResourceManagerLeaderElectionService(
-                                resourceManagerLeaderElectionService)
+                        .setRmLeaderElectionService(leaderElectionService)
                         .build();
 
-        testingFatalErrorHandler = new TestingFatalErrorHandler();
+        resourceManagerService.start();
+        resourceManagerService.isLeader(UUID.randomUUID());
 
-        resourceManager = createAndStartResourceManager();
-
-        // wait until the leader election has been completed
-        resourceManagerLeaderElectionService.isLeader(UUID.randomUUID()).get();
-
-        resourceManagerGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
-    }
-
-    private void createAndRegisterJobMasterGateway() {
-        jobMasterGateway = new TestingJobMasterGatewayBuilder().build();
-        rpcService.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
-    }
-
-    private ResourceManager<?> createAndStartResourceManager() throws Exception {
-        ResourceID rmResourceId = ResourceID.generate();
-
-        HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
-
-        JobLeaderIdService jobLeaderIdService =
-                new DefaultJobLeaderIdService(
-                        haServices, rpcService.getScheduledExecutor(), Time.minutes(5L));
-
-        final SlotManager slotManager =
-                SlotManagerBuilder.newBuilder()
-                        .setScheduledExecutor(rpcService.getScheduledExecutor())
-                        .build();
-
-        ResourceManager<?> resourceManager =
-                new StandaloneResourceManager(
-                        rpcService,
-                        rmResourceId,
-                        haServices,
-                        heartbeatServices,
-                        slotManager,
-                        NoOpResourceManagerPartitionTracker::get,
-                        jobLeaderIdService,
-                        new ClusterInformation("localhost", 1234),
-                        testingFatalErrorHandler,
-                        UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
-                        Time.minutes(5L),
-                        RpcUtils.INF_TIMEOUT,
-                        ForkJoinPool.commonPool());
-
-        resourceManager.start();
-
-        return resourceManager;
+        leaderElectionService
+                .getConfirmationFuture()
+                .thenRun(
+                        () -> {
+                            resourceManagerGateway =
+                                    resourceManagerService
+                                            .getResourceManagerGateway()
+                                            .orElseThrow(
+                                                    () ->
+                                                            new AssertionError(
+                                                                    "RM not available after confirming leadership."));
+                        })
+                .get(TIMEOUT.getSize(), TIMEOUT.getUnit());
     }
 
     @After
     public void teardown() throws Exception {
-        if (resourceManager != null) {
-            RpcUtils.terminateRpcEndpoint(resourceManager, TIMEOUT);
-        }
-
-        if (haServices != null) {
-            haServices.closeAndCleanupAllData();
+        if (resourceManagerService != null) {
+            resourceManagerService.rethrowFatalErrorIfAny();
+            resourceManagerService.cleanUp();
         }
 
         if (rpcService != null) {
             RpcUtils.terminateRpcService(rpcService, TIMEOUT);
-        }
-
-        if (testingFatalErrorHandler != null && testingFatalErrorHandler.hasExceptionOccurred()) {
-            testingFatalErrorHandler.rethrowError();
         }
     }
 
@@ -191,7 +145,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
     public void testRegisterJobMaster() throws Exception {
         // test response successful
         CompletableFuture<RegistrationResponse> successfulFuture =
-                resourceManagerGateway.registerJobManager(
+                resourceManagerGateway.registerJobMaster(
                         jobMasterGateway.getFencingToken(),
                         jobMasterResourceId,
                         jobMasterGateway.getAddress(),
@@ -208,7 +162,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
         final ResourceManagerGateway wronglyFencedGateway =
                 rpcService
                         .connect(
-                                resourceManager.getAddress(),
+                                resourceManagerGateway.getAddress(),
                                 ResourceManagerId.generate(),
                                 ResourceManagerGateway.class)
                         .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
@@ -216,7 +170,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
         // test throw exception when receive a registration from job master which takes unmatched
         // leaderSessionId
         CompletableFuture<RegistrationResponse> unMatchedLeaderFuture =
-                wronglyFencedGateway.registerJobManager(
+                wronglyFencedGateway.registerJobMaster(
                         jobMasterGateway.getFencingToken(),
                         jobMasterResourceId,
                         jobMasterGateway.getAddress(),
@@ -238,7 +192,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
         // leaderSessionId
         JobMasterId differentJobMasterId = JobMasterId.generate();
         CompletableFuture<RegistrationResponse> unMatchedLeaderFuture =
-                resourceManagerGateway.registerJobManager(
+                resourceManagerGateway.registerJobMaster(
                         differentJobMasterId,
                         jobMasterResourceId,
                         jobMasterGateway.getAddress(),
@@ -254,7 +208,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
         // address
         String invalidAddress = "/jobMasterAddress2";
         CompletableFuture<RegistrationResponse> invalidAddressFuture =
-                resourceManagerGateway.registerJobManager(
+                resourceManagerGateway.registerJobMaster(
                         new JobMasterId(HighAvailabilityServices.DEFAULT_LEADER_ID),
                         jobMasterResourceId,
                         invalidAddress,
@@ -275,7 +229,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 
         // this should fail because we try to register a job leader listener for an unknown job id
         CompletableFuture<RegistrationResponse> registrationFuture =
-                resourceManagerGateway.registerJobManager(
+                resourceManagerGateway.registerJobMaster(
                         jobMasterGateway.getFencingToken(),
                         jobMasterResourceId,
                         jobMasterGateway.getAddress(),
@@ -291,6 +245,6 @@ public class ResourceManagerJobMasterTest extends TestLogger {
         }
 
         // ignore the reported error
-        testingFatalErrorHandler.clearError();
+        resourceManagerService.ignoreFatalErrors();
     }
 }

@@ -25,7 +25,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfo;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoEntry;
@@ -42,7 +41,7 @@ import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.util.TestUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.net.HostAndPort;
+import org.apache.flink.shaded.guava30.com.google.common.net.HostAndPort;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -134,10 +133,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
         startYARNWithConfig(YARN_CONFIGURATION);
 
         restClientExecutor = Executors.newSingleThreadExecutor();
-        restClient =
-                new RestClient(
-                        RestClientConfiguration.fromConfiguration(new Configuration()),
-                        restClientExecutor);
+        restClient = new RestClient(new Configuration(), restClientExecutor);
     }
 
     @AfterClass
@@ -322,7 +318,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                     try {
                         final String logs = outContent.toString();
                         final HostAndPort hostAndPort = parseJobManagerHostname(logs);
-                        final String host = hostAndPort.getHostText();
+                        final String host = hostAndPort.getHost();
                         final int port = hostAndPort.getPort();
                         LOG.info("Extracted hostname:port: {}:{}", host, port);
 
@@ -679,18 +675,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                     content += FileUtils.readFileToString(f) + "\n";
                 }
             }
-            // String content = FileUtils.readFileToString(taskmanagerOut);
-            // check for some of the wordcount outputs.
-            Assert.assertTrue(
-                    "Expected string 'da 5' or '(all,2)' not found in string '" + content + "'",
-                    content.contains("da 5")
-                            || content.contains("(da,5)")
-                            || content.contains("(all,2)"));
-            Assert.assertTrue(
-                    "Expected string 'der 29' or '(mind,1)' not found in string'" + content + "'",
-                    content.contains("der 29")
-                            || content.contains("(der,29)")
-                            || content.contains("(mind,1)"));
 
             // check if the heap size for the TaskManager was set correctly
             File jobmanagerLog =

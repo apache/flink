@@ -42,7 +42,7 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

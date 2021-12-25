@@ -20,8 +20,8 @@ import unittest
 from pyflink.table import DataTypes
 from pyflink.table.udf import TableFunction, udtf, ScalarFunction, udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkOldStreamTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase, PyFlinkOldBatchTableTestCase, PyFlinkBlinkBatchTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
+    PyFlinkBatchTableTestCase
 
 
 class UserDefinedTableFunctionTests(object):
@@ -35,7 +35,7 @@ class UserDefinedTableFunctionTests(object):
         multi_num = udf(MultiNum(), result_type=DataTypes.BIGINT())
 
         t = self.t_env.from_elements([(1, 1, 3), (2, 1, 6), (3, 2, 9)], ['a', 'b', 'c'])
-        t = t.join_lateral(multi_emit(t.a, multi_num(t.b)).alias('x', 'y'))
+        t = t.join_lateral(multi_emit((t.a + t.a) / 2, multi_num(t.b)).alias('x', 'y'))
         t = t.left_outer_join_lateral(condition_multi_emit(t.x, t.y).alias('m')) \
             .select("x, y, m")
         t = t.left_outer_join_lateral(identity(t.m).alias('n')) \
@@ -71,13 +71,8 @@ class UserDefinedTableFunctionTests(object):
         return source_sink_utils.results()
 
 
-class PyFlinkStreamUserDefinedTableFunctionTests(UserDefinedTableFunctionTests,
-                                                 PyFlinkOldStreamTableTestCase):
-    pass
-
-
-class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,
-                                                 PyFlinkBlinkStreamTableTestCase):
+class PyFlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,
+                                            PyFlinkStreamTableTestCase):
     def test_execute_from_json_plan(self):
         # create source file path
         tmp_dir = self.tempdir
@@ -129,29 +124,9 @@ class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,
         self.assertEqual(lines, ['1,1,0', '2,2,0', '3,3,0', '3,3,1'])
 
 
-class PyFlinkBlinkBatchUserDefinedFunctionTests(UserDefinedTableFunctionTests,
-                                                PyFlinkBlinkBatchTableTestCase):
+class PyFlinkBatchUserDefinedFunctionTests(UserDefinedTableFunctionTests,
+                                           PyFlinkBatchTableTestCase):
     pass
-
-
-class PyFlinkBatchUserDefinedTableFunctionTests(UserDefinedTableFunctionTests,
-                                                PyFlinkOldBatchTableTestCase):
-    def _register_table_sink(self, field_names: list, field_types: list):
-        pass
-
-    def _get_output(self, t):
-        return self.collect(t)
-
-    def test_row_type_as_input_types_and_result_types(self):
-        # test input_types and result_types are DataTypes.ROW
-        a = udtf(lambda i: i,
-                 input_types=DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())]),
-                 result_types=DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())]))
-
-        self.assertEqual(a._input_types,
-                         [DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())])])
-        self.assertEqual(a._result_types,
-                         [DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())])])
 
 
 class MultiEmit(TableFunction, unittest.TestCase):

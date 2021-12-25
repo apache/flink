@@ -28,7 +28,7 @@ import java.math.BigDecimal;
  * This column vector is used to adapt hive's DecimalColumnVector to Flink's DecimalColumnVector.
  */
 public class OrcNoHiveDecimalVector extends AbstractOrcNoHiveVector
-        implements org.apache.flink.table.data.vector.DecimalColumnVector {
+        implements org.apache.flink.table.data.columnar.vector.DecimalColumnVector {
 
     private DecimalColumnVector vector;
 

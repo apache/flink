@@ -23,28 +23,17 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.14-SNAPSHOT</version>
+		<version>1.15-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-kubernetes_${scala.binary.version}</artifactId>
+	<artifactId>flink-kubernetes</artifactId>
 	<name>Flink : Kubernetes</name>
 	<packaging>jar</packaging>
 
 	<properties>
-		<kubernetes.client.version>4.9.2</kubernetes.client.version>
+		<kubernetes.client.version>5.5.0</kubernetes.client.version>
 	</properties>
-
-	<!-- Set dependency version for transitive dependencies -->
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>com.squareup.okhttp3</groupId>
-				<artifactId>okhttp</artifactId>
-				<version>3.12.1</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
 
 	<dependencies>
 
@@ -52,14 +41,14 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -86,7 +75,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -94,7 +83,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -102,7 +91,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -133,8 +122,7 @@ under the License.
 							<artifactSet>
 								<includes combine.children="append">
 									<include>io.fabric8:kubernetes-client</include>
-									<include>io.fabric8:kubernetes-model</include>
-									<include>io.fabric8:kubernetes-model-common</include>
+									<include>io.fabric8:kubernetes-model-*</include>
 									<include>io.fabric8:zjsonpatch</include>
 
 									<!-- Shade all the dependencies of kubernetes client  -->
@@ -172,6 +160,13 @@ under the License.
 								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
 									<shadedPattern>org.apache.flink.kubernetes.shaded.com.fasterxml.jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>okhttp3/internal/publicsuffix</pattern>
+									<shadedPattern>META-INF</shadedPattern>
+									<includes>
+										<include>**/NOTICE</include>
+									</includes>
 								</relocation>
 								<relocation>
 									<pattern>okhttp3</pattern>

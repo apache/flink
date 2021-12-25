@@ -22,11 +22,15 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
 import java.io.IOException;
+import java.util.List;
 
 /** An {@link InputGate} with a specific index. */
 public abstract class IndexedInputGate extends InputGate implements CheckpointableInput {
     /** Returns the index of this input gate. Only supported on */
     public abstract int getGateIndex();
+
+    /** Returns the list of channels that have not received EndOfPartitionEvent. */
+    public abstract List<InputChannelInfo> getUnfinishedChannels();
 
     @Override
     public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
@@ -60,4 +64,6 @@ public abstract class IndexedInputGate extends InputGate implements Checkpointab
     public void convertToPriorityEvent(int channelIndex, int sequenceNumber) throws IOException {
         getChannel(channelIndex).convertToPriorityEvent(sequenceNumber);
     }
+
+    public abstract void triggerDebloating();
 }

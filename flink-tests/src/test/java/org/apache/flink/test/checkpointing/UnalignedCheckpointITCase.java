@@ -52,7 +52,7 @@ import java.util.Arrays;
 import java.util.stream.Stream;
 
 import static org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks;
-import static org.apache.flink.shaded.guava18.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.LOCAL;
 import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.MIXED;
 import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.REMOTE;
@@ -224,7 +224,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         }
     }
 
-    @Parameterized.Parameters(name = "{0} with {2} channels, p = {1}, timeout = {3}")
+    @Parameterized.Parameters(
+            name = "{0} with {2} channels, p = {1}, timeout = {3}, buffersPerChannel = {4}")
     public static Object[][] parameters() {
         Object[] defaults = {Topology.PIPELINE, 1, MIXED, 0};
 
@@ -243,6 +244,13 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         };
         return Stream.of(runs)
                 .map(params -> addDefaults(params, defaults))
+                .map(
+                        params ->
+                                new Object[][] {
+                                    ArrayUtils.add(params, 0),
+                                    ArrayUtils.add(params, BUFFER_PER_CHANNEL)
+                                })
+                .flatMap(Arrays::stream)
                 .toArray(Object[][]::new);
     }
 
@@ -254,7 +262,11 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
     private final UnalignedSettings settings;
 
     public UnalignedCheckpointITCase(
-            Topology topology, int parallelism, ChannelType channelType, int timeout) {
+            Topology topology,
+            int parallelism,
+            ChannelType channelType,
+            int timeout,
+            int buffersPerChannel) {
         settings =
                 new UnalignedSettings(topology)
                         .setParallelism(parallelism)
@@ -266,7 +278,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                         // after triggering)
                         .setCheckpointTimeout(Duration.ofSeconds(30))
                         .setTolerableCheckpointFailures(3)
-                        .setAlignmentTimeout(timeout);
+                        .setAlignmentTimeout(timeout)
+                        .setBuffersPerChannel(buffersPerChannel);
     }
 
     @Test

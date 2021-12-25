@@ -16,16 +16,16 @@
   ~ limitations under the License.
   -->
 
-<nz-tabset [nzTabBarGutter]="4" [nzSize]="'small'">
+<nz-tabset [nzTabBarGutter]="16" [nzSize]="'small'">
   <nz-tab nzTitle="Vertex Accumulators">
     <nz-table
-      class="no-border small full-height"
       [nzSize]="'small'"
       [nzLoading]="isLoading"
       [nzData]="listOfAccumulator"
-      [nzScroll]="{y:'calc( 100% - 72px )'}"
+      [nzScroll]="{ y: 'calc( 100% - 72px )' }"
       [nzFrontPagination]="false"
-      [nzShowPagination]="false">
+      [nzShowPagination]="false"
+    >
       <thead>
         <tr>
           <th nzWidth="33.33%">Name</th>
@@ -34,41 +34,41 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let accumulator of listOfAccumulator; trackBy:trackAccumulatorBy;">
+        <tr *ngFor="let accumulator of listOfAccumulator; trackBy: trackByName">
           <td>{{ accumulator.name }}</td>
           <td>{{ accumulator.type }}</td>
-          <td>{{ (accumulator.value | number:'1.0-3' ) || accumulator.value }}</td>
+          <td>{{ (accumulator.value | number: '1.0-3') || accumulator.value }}</td>
         </tr>
       </tbody>
     </nz-table>
   </nz-tab>
   <nz-tab nzTitle="SubTask Accumulators">
     <nz-table
-      class="no-border small full-height"
       [nzSize]="'small'"
       [nzLoading]="isLoading"
       [nzData]="listOfSubTaskAccumulator"
-      [nzScroll]="{x:'800px',y:'calc( 100% - 72px )'}"
+      [nzScroll]="{ y: 'calc( 100% - 72px )' }"
       [nzFrontPagination]="false"
-      [nzShowPagination]="false">
+      [nzShowPagination]="false"
+    >
       <thead>
         <tr>
-          <th nzWidth="200px" nzLeft="0px">SubTask</th>
-          <th nzWidth="300px">Name</th>
-          <th nzWidth="100px">Type</th>
-          <th nzWidth="200px" nzRight="0px">Value</th>
+          <th nzWidth="25%" nzLeft="0px">SubTask</th>
+          <th nzWidth="25%">Name</th>
+          <th nzWidth="25%">Type</th>
+          <th nzWidth="25%" nzRight="0px">Value</th>
         </tr>
       </thead>
       <tbody>
-        <ng-container *ngFor="let accumulator of listOfSubTaskAccumulator; trackBy:trackSubtaskBy;">
-          <tr *ngFor="let data of accumulator['user-accumulators']; trackBy:trackAccumulatorBy;">
-            <td nzLeft="0px">({{ accumulator.subtask }}) {{ accumulator.host }}, attempt: {{ accumulator.attempt + 1 }}</td>
-            <td>{{ data.name }}</td>
-            <td>{{ data.type }}</td>
-            <td nzRight="0px">{{ data.value }}</td>
-          </tr>
-        </ng-container>
-
+        <tr *ngFor="let data of listOfSubTaskAccumulator; trackBy: trackByName">
+          <td nzLeft="0px">
+            ({{ data.subtask }}) {{ data.host }}, attempt:
+            {{ data.attempt + 1 }}
+          </td>
+          <td>{{ data.name }}</td>
+          <td>{{ data.type }}</td>
+          <td nzRight="0px">{{ data.value }}</td>
+        </tr>
       </tbody>
     </nz-table>
   </nz-tab>

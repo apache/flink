@@ -38,6 +38,11 @@ the local Python environment, download the machine learning model to local, etc.
 However, this approach doesn't work well when users want to submit the PyFlink jobs to remote clusters.
 In the following sections, we will introduce the options provided in PyFlink for these requirements.
 
+<span class="label label-info">Note</span> Both Python DataStream API and Python Table API have provided
+APIs for each kind of dependency. If you are mixing use of Python DataStream API and Python Table API
+in a single job, you should specify the dependencies via Python DataStream API to make them work for
+both the Python DataStream API and Python Table API.
+
 ## JAR Dependencies
 
 If third-party JARs are used, you can specify the JARs in the Python Table API as following:
@@ -228,7 +233,8 @@ or via [command line arguments]({{< ref "docs/deployment/cli" >}}#submitting-pyf
 <span class="label label-info">Note</span> If the archive file contains a Python virtual environment,
 please make sure that the Python virtual environment matches the platform that the cluster is running on.
 
-<span class="label label-info">Note</span> Currently, only zip-format is supported, i.e. zip, jar, whl, egg, etc.
+<span class="label label-info">Note</span> Currently, only zip files (i.e., zip, jar, whl, egg, etc)
+and tar files (i.e., tar, tar.gz, tgz) are supported.
 
 ### Python interpreter
 
@@ -279,8 +285,9 @@ source my_env/bin/activate
 ```
 
 or specify it using configuration
-[`python.client.executable`]({{< ref "docs/dev/python/python_config" >}}#python-client-executable)
-or environment variable [PYFLINK_CLIENT_EXECUTABLE]({{< ref "docs/dev/python/environment_variables" >}})
+[`python.client.executable`]({{< ref "docs/dev/python/python_config" >}}#python-client-executable),
+[command line arguments]({{< ref "docs/deployment/cli" >}}#submitting-pyflink-jobs) `-pyclientexec` or `--pyClientExecutable`,
+environment variable [PYFLINK_CLIENT_EXECUTABLE]({{< ref "docs/dev/python/environment_variables" >}})
 
 ## How to specify Python Dependencies in Java/Scala Program
 
@@ -294,7 +301,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 
 TableEnvironment tEnv = TableEnvironment.create(
-    EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build());
+    EnvironmentSettings.inBatchMode());
 tEnv.getConfig().getConfiguration().set(CoreOptions.DEFAULT_PARALLELISM, 1);
 
 // register the Python UDF

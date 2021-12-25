@@ -17,8 +17,9 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
-import { JobConfigInterface } from 'interfaces';
-import { flatMap } from 'rxjs/operators';
+import { mergeMap } from 'rxjs/operators';
+
+import { JobConfig } from 'interfaces';
 import { JobService } from 'services';
 
 @Component({
@@ -28,13 +29,13 @@ import { JobService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobConfigurationComponent implements OnInit {
-  config: JobConfigInterface;
-  listOfUserConfig: Array<{ key: string; value: string }> = [];
+  public config: JobConfig;
+  public listOfUserConfig: Array<{ key: string; value: string }> = [];
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
+  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
-    this.jobService.jobDetail$.pipe(flatMap(job => this.jobService.loadJobConfig(job.jid))).subscribe(data => {
+  public ngOnInit(): void {
+    this.jobService.jobDetail$.pipe(mergeMap(job => this.jobService.loadJobConfig(job.jid))).subscribe(data => {
       this.config = data;
       const userConfig = this.config['execution-config']['user-config'];
       const array = [];

@@ -25,6 +25,7 @@ import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 
 import java.util.concurrent.Executor;
 import java.util.function.Function;
@@ -70,18 +71,23 @@ public class KubernetesCheckpointRecoveryFactory implements CheckpointRecoveryFa
     }
 
     @Override
-    public CompletedCheckpointStore createCheckpointStore(
-            JobID jobID, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader)
+    public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
+            JobID jobID,
+            int maxNumberOfCheckpointsToRetain,
+            ClassLoader userClassLoader,
+            SharedStateRegistryFactory sharedStateRegistryFactory,
+            Executor ioExecutor)
             throws Exception {
 
-        final String configMapName = getConfigMapNameFunction.apply(jobID);
         return KubernetesUtils.createCompletedCheckpointStore(
                 configuration,
                 kubeClient,
                 executor,
-                configMapName,
+                getConfigMapNameFunction.apply(jobID),
                 lockIdentity,
-                maxNumberOfCheckpointsToRetain);
+                maxNumberOfCheckpointsToRetain,
+                sharedStateRegistryFactory,
+                ioExecutor);
     }
 
     @Override

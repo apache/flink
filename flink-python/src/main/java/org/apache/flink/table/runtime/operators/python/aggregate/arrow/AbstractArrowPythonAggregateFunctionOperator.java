@@ -22,17 +22,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
-import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
-import org.apache.flink.table.runtime.arrow.serializers.RowDataArrowSerializer;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.operators.python.AbstractStatelessFunctionOperator;
@@ -40,7 +36,8 @@ import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowData
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
-import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedFunctionProto;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.getUserDefinedFunctionProto;
 
 /** The Abstract class of Arrow Aggregate Operator for Pandas {@link AggregateFunction}. */
 @Internal
@@ -49,17 +46,15 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
 
     private static final long serialVersionUID = 1L;
 
-    private static final String SCHEMA_ARROW_CODER_URN = "flink:coder:schema:arrow:v1";
-
     private static final String PANDAS_AGGREGATE_FUNCTION_URN =
             "flink:transform:aggregate_function:arrow:v1";
 
     /** The Pandas {@link AggregateFunction}s to be executed. */
     protected final PythonFunctionInfo[] pandasAggFunctions;
 
-    protected final int[] groupingSet;
+    private final GeneratedProjection udafInputGeneratedProjection;
 
-    protected transient ArrowSerializer<RowData> arrowSerializer;
+    protected transient ArrowSerializer arrowSerializer;
 
     /** The collector used to collect records. */
     protected transient StreamRecordRowDataWrappingCollector rowDataWrapper;
@@ -77,31 +72,33 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
             Configuration config,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType outputType,
-            int[] groupingSet,
-            int[] udafInputOffsets) {
-        super(config, inputType, outputType, udafInputOffsets);
+            RowType udfInputType,
+            RowType udfOutputType,
+            GeneratedProjection udafInputGeneratedProjection) {
+        super(config, inputType, udfInputType, udfOutputType);
         this.pandasAggFunctions = Preconditions.checkNotNull(pandasAggFunctions);
-        this.groupingSet = Preconditions.checkNotNull(groupingSet);
+        this.udafInputGeneratedProjection =
+                Preconditions.checkNotNull(udafInputGeneratedProjection);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void open() throws Exception {
         super.open();
         rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);
         reuseJoinedRow = new JoinedRowData();
 
-        udafInputProjection = createUdafInputProjection();
-        arrowSerializer =
-                new RowDataArrowSerializer(
-                        userDefinedFunctionInputType, userDefinedFunctionOutputType);
+        udafInputProjection =
+                udafInputGeneratedProjection.newInstance(
+                        Thread.currentThread().getContextClassLoader());
+        arrowSerializer = new ArrowSerializer(udfInputType, udfOutputType);
         arrowSerializer.open(bais, baos);
         currentBatchCount = 0;
     }
 
     @Override
-    public void dispose() throws Exception {
-        super.dispose();
+    public void close() throws Exception {
+        super.close();
         if (arrowSerializer != null) {
             arrowSerializer.close();
             arrowSerializer = null;
@@ -132,8 +129,15 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
     }
 
     @Override
-    public String getInputOutputCoderUrn() {
-        return SCHEMA_ARROW_CODER_URN;
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(RowType runnerInputType) {
+        return createArrowTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(RowType runnerOutType) {
+        return createArrowTypeCoderInfoDescriptorProto(
+                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false);
     }
 
     @Override
@@ -149,19 +153,8 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
         for (PythonFunctionInfo pythonFunctionInfo : pandasAggFunctions) {
             builder.addUdfs(getUserDefinedFunctionProto(pythonFunctionInfo));
         }
-        builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
+        builder.setMetricEnabled(pythonConfig.isMetricEnabled());
+        builder.setProfileEnabled(pythonConfig.isProfileEnabled());
         return builder.build();
-    }
-
-    private Projection<RowData, BinaryRowData> createUdafInputProjection() {
-        final GeneratedProjection generatedProjection =
-                ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new TableConfig()),
-                        "UadfInputProjection",
-                        inputType,
-                        userDefinedFunctionInputType,
-                        userDefinedFunctionInputOffsets);
-        // noinspection unchecked
-        return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
     }
 }

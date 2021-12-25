@@ -29,7 +29,6 @@ import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.code;
-import static org.apache.flink.configuration.description.TextElement.text;
 
 /** The {@link ConfigOption configuration options} for job execution. */
 @PublicEvolving
@@ -106,20 +105,7 @@ public class PipelineOptions {
             key("pipeline.closure-cleaner-level")
                     .enumType(ClosureCleanerLevel.class)
                     .defaultValue(ClosureCleanerLevel.RECURSIVE)
-                    .withDescription(
-                            Description.builder()
-                                    .text("Configures the mode in which the closure cleaner works")
-                                    .list(
-                                            text(
-                                                    "%s - disables the closure cleaner completely",
-                                                    code(ClosureCleanerLevel.NONE.toString())),
-                                            text(
-                                                    "%s - cleans only the top-level class without recursing into fields",
-                                                    code(ClosureCleanerLevel.TOP_LEVEL.toString())),
-                                            text(
-                                                    "%s - cleans all the fields recursively",
-                                                    code(ClosureCleanerLevel.RECURSIVE.toString())))
-                                    .build());
+                    .withDescription("Configures the mode in which the closure cleaner works.");
 
     public static final ConfigOption<Boolean> FORCE_AVRO =
             key("pipeline.force-avro")

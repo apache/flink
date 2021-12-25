@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.cluster;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -30,6 +29,7 @@ import org.apache.flink.runtime.rest.messages.LogListInfo;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -63,8 +63,7 @@ public class JobManagerLogListHandler
 
     @Override
     protected CompletableFuture<LogListInfo> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
-            @Nonnull RestfulGateway gateway)
+            @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
         if (logDir == null) {
             return CompletableFuture.completedFuture(new LogListInfo(Collections.emptyList()));
@@ -74,11 +73,16 @@ public class JobManagerLogListHandler
             return FutureUtils.completedExceptionally(
                     new IOException("Could not list files in " + logDir));
         }
-        final List<LogInfo> logsWithLength =
+        final List<LogInfo> logs =
                 Arrays.stream(logFiles)
                         .filter(File::isFile)
-                        .map(logFile -> new LogInfo(logFile.getName(), logFile.length()))
+                        .map(
+                                logFile ->
+                                        new LogInfo(
+                                                logFile.getName(),
+                                                logFile.length(),
+                                                logFile.lastModified()))
                         .collect(Collectors.toList());
-        return CompletableFuture.completedFuture(new LogListInfo(logsWithLength));
+        return CompletableFuture.completedFuture(new LogListInfo(logs));
     }
 }

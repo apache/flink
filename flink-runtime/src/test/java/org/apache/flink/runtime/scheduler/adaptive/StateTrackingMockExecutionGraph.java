@@ -143,11 +143,6 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     // --- interface implementations: methods for creating an archived execution graph
 
     @Override
-    public int getTotalNumberOfVertices() {
-        return 0;
-    }
-
-    @Override
     public Iterable<ExecutionJobVertex> getVerticesTopologically() {
         return Collections.emptyList();
     }
@@ -310,7 +305,7 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     }
 
     @Override
-    public void attachJobGraph(List<JobVertex> topologiallySorted) throws JobException {
+    public void attachJobGraph(List<JobVertex> topologicallySorted) throws JobException {
         throw new UnsupportedOperationException();
     }
 

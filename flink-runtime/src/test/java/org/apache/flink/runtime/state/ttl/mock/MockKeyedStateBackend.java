@@ -19,13 +19,10 @@
 package org.apache.flink.runtime.state.ttl.mock;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -69,28 +66,31 @@ import java.util.stream.Stream;
 /** State backend which produces in memory mock state objects. */
 public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
+    /** Whether to create empty snapshot ({@link MockKeyedStateHandle} isn't recognized by JM). */
+    private final boolean emptySnapshot;
+
     private interface StateFactory {
         <N, SV, S extends State, IS extends S> IS createInternalState(
                 TypeSerializer<N> namespaceSerializer, StateDescriptor<S, SV> stateDesc)
                 throws Exception;
     }
 
-    private static final Map<Class<? extends StateDescriptor>, StateFactory> STATE_FACTORIES =
+    private static final Map<StateDescriptor.Type, StateFactory> STATE_FACTORIES =
             Stream.of(
                             Tuple2.of(
-                                    ValueStateDescriptor.class,
+                                    StateDescriptor.Type.VALUE,
                                     (StateFactory) MockInternalValueState::createState),
                             Tuple2.of(
-                                    ListStateDescriptor.class,
+                                    StateDescriptor.Type.LIST,
                                     (StateFactory) MockInternalListState::createState),
                             Tuple2.of(
-                                    MapStateDescriptor.class,
+                                    StateDescriptor.Type.MAP,
                                     (StateFactory) MockInternalMapState::createState),
                             Tuple2.of(
-                                    ReducingStateDescriptor.class,
+                                    StateDescriptor.Type.REDUCING,
                                     (StateFactory) MockInternalReducingState::createState),
                             Tuple2.of(
-                                    AggregatingStateDescriptor.class,
+                                    StateDescriptor.Type.AGGREGATING,
                                     (StateFactory) MockInternalAggregatingState::createState))
                     .collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
@@ -108,7 +108,8 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             Map<String, Map<K, Map<Object, Object>>> stateValues,
             Map<String, StateSnapshotTransformer<Object>> stateSnapshotFilters,
             CloseableRegistry cancelStreamRegistry,
-            InternalKeyContext<K> keyContext) {
+            InternalKeyContext<K> keyContext,
+            boolean emptySnapshot) {
         super(
                 kvStateRegistry,
                 keySerializer,
@@ -120,6 +121,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 keyContext);
         this.stateValues = stateValues;
         this.stateSnapshotFilters = stateSnapshotFilters;
+        this.emptySnapshot = emptySnapshot;
     }
 
     @Override
@@ -130,7 +132,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             @Nonnull StateDescriptor<S, SV> stateDesc,
             @Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory)
             throws Exception {
-        StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
+        StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getType());
         if (stateFactory == null) {
             String message =
                     String.format(
@@ -224,9 +226,11 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             @Nonnull CheckpointOptions checkpointOptions) {
         return new FutureTask<>(
                 () ->
-                        SnapshotResult.of(
-                                new MockKeyedStateHandle<>(
-                                        copy(stateValues, stateSnapshotFilters))));
+                        emptySnapshot
+                                ? SnapshotResult.empty()
+                                : SnapshotResult.of(
+                                        new MockKeyedStateHandle<>(
+                                                copy(stateValues, stateSnapshotFilters))));
     }
 
     @Nonnull
@@ -312,11 +316,11 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
         @Override
         public long getStateSize() {
-            throw new UnsupportedOperationException();
+            return 0; // state size unknown
         }
 
         @Override
-        public void registerSharedStates(SharedStateRegistry stateRegistry) {}
+        public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {}
 
         @Override
         public KeyGroupRange getKeyGroupRange() {

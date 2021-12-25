@@ -28,6 +28,8 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 
 import java.time.Duration;
 
+import static org.apache.flink.configuration.description.LinkElement.link;
+
 /**
  * Execution {@link ConfigOption} for configuring checkpointing related parameters.
  *
@@ -77,14 +79,6 @@ public class ExecutionCheckpointingOptions {
                                                     + "sure that a minimum amount of time passes where no checkpoint is in progress at all.")
                                     .build());
 
-    public static final ConfigOption<Boolean> PREFER_CHECKPOINT_FOR_RECOVERY =
-            ConfigOptions.key("execution.checkpointing.prefer-checkpoint-for-recovery")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "If enabled, a job recovery should fallback to checkpoint when there is a more recent "
-                                    + "savepoint.");
-
     public static final ConfigOption<Integer> TOLERABLE_FAILURE_NUMBER =
             ConfigOptions.key("execution.checkpointing.tolerable-failed-checkpoints")
                     .intType()
@@ -97,13 +91,15 @@ public class ExecutionCheckpointingOptions {
             EXTERNALIZED_CHECKPOINT =
                     ConfigOptions.key("execution.checkpointing.externalized-checkpoint-retention")
                             .enumType(CheckpointConfig.ExternalizedCheckpointCleanup.class)
-                            .noDefaultValue()
+                            .defaultValue(
+                                    CheckpointConfig.ExternalizedCheckpointCleanup
+                                            .NO_EXTERNALIZED_CHECKPOINTS)
                             .withDescription(
                                     Description.builder()
                                             .text(
                                                     "Externalized checkpoints write their meta data out to persistent storage and are not "
                                                             + "automatically cleaned up when the owning job fails or is suspended (terminating with job "
-                                                            + "status %s or %s. In this case, you have to manually clean up the checkpoint state, both the "
+                                                            + "status %s or %s). In this case, you have to manually clean up the checkpoint state, both the "
                                                             + "meta data and actual program state.",
                                                     TextElement.code("JobStatus#FAILED"),
                                                     TextElement.code("JobStatus#SUSPENDED"))
@@ -166,6 +162,30 @@ public class ExecutionCheckpointingOptions {
                                             TextElement.code(MAX_CONCURRENT_CHECKPOINTS.key()))
                                     .build());
 
+    public static final ConfigOption<Duration> ALIGNED_CHECKPOINT_TIMEOUT =
+            ConfigOptions.key("execution.checkpointing.aligned-checkpoint-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(0L))
+                    .withDeprecatedKeys("execution.checkpointing.alignment-timeout")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Only relevant if %s is enabled.",
+                                            TextElement.code(ENABLE_UNALIGNED.key()))
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "If timeout is 0, checkpoints will always start unaligned.")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "If timeout has a positive value, checkpoints will start aligned. "
+                                                    + "If during checkpointing, checkpoint start delay exceeds this timeout, alignment "
+                                                    + "will timeout and checkpoint barrier will start working as unaligned checkpoint.")
+                                    .build());
+
+    /** @deprecated Use {@link #ALIGNED_CHECKPOINT_TIMEOUT} instead. */
+    @Deprecated
     public static final ConfigOption<Duration> ALIGNMENT_TIMEOUT =
             ConfigOptions.key("execution.checkpointing.alignment-timeout")
                     .durationType()
@@ -173,7 +193,8 @@ public class ExecutionCheckpointingOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Only relevant if %s is enabled.",
+                                            "Deprecated. %s should be used instead. Only relevant if %s is enabled.",
+                                            TextElement.code(ALIGNED_CHECKPOINT_TIMEOUT.key()),
                                             TextElement.code(ENABLE_UNALIGNED.key()))
                                     .linebreak()
                                     .linebreak()
@@ -212,5 +233,19 @@ public class ExecutionCheckpointingOptions {
                                                     + "there is explicit needs to restore from "
                                                     + "the specific checkpoint without in-flight data.")
                                     .linebreak()
+                                    .build());
+
+    public static final ConfigOption<Boolean> ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH =
+            ConfigOptions.key("execution.checkpointing.checkpoints-after-tasks-finish.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Feature toggle for enabling checkpointing even if some of tasks"
+                                                    + " have finished. Before you enable it, please take a look at %s ",
+                                            link(
+                                                    "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/dev/datastream/fault-tolerance/checkpointing/#checkpointing-with-parts-of-the-graph-finished-beta",
+                                                    "the important considerations"))
                                     .build());
 }

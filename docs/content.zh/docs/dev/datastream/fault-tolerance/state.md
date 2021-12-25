@@ -263,7 +263,7 @@ class CountWindowAverage(FlatMapFunction):
     def open(self, runtime_context: RuntimeContext):
         descriptor = ValueStateDescriptor(
             "average",  # the state name
-            Types.TUPLE([Types.LONG(), Types.LONG()])  # type information
+            Types.PICKLED_BYTE_ARRAY()  # type information
         )
         self.sum = runtime_context.get_state(descriptor)
 
@@ -342,6 +342,22 @@ val stateDescriptor = new ValueStateDescriptor[String]("text state", classOf[Str
 stateDescriptor.enableTimeToLive(ttlConfig)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.common.time import Time
+from pyflink.common.typeinfo import Types
+from pyflink.datastream.state import ValueStateDescriptor, StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .set_update_type(StateTtlConfig.UpdateType.OnCreateAndWrite) \
+  .set_state_visibility(StateTtlConfig.StateVisibility.NeverReturnExpired) \
+  .build()
+
+state_descriptor = ValueStateDescriptor("text state", Types.STRING())
+state_descriptor.enable_time_to_live(ttl_config)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 TTL 配置有以下几个选项：
@@ -351,10 +367,16 @@ TTL 的更新策略（默认是 `OnCreateAndWrite`）：
 
  - `StateTtlConfig.UpdateType.OnCreateAndWrite` - 仅在创建和写入时更新
  - `StateTtlConfig.UpdateType.OnReadAndWrite` - 读取时也更新
+
+    (**注意:** 如果你同时将状态的可见性配置为 `StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp`，
+    那么在PyFlink作业中，状态的读缓存将会失效，这将导致一部分的性能损失)
  
 数据在过期但还未被清理时的可见性配置如下（默认为 `NeverReturnExpired`):
 
  - `StateTtlConfig.StateVisibility.NeverReturnExpired` - 不返回过期数据
+
+    (**注意:** 在PyFlink作业中，状态的读写缓存都将失效，这将导致一部分的性能损失)
+
  - `StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp` - 会返回过期但未清理的数据
  
 `NeverReturnExpired` 情况下，过期数据就像不存在一样，不管是否被物理删除。这对于不能访问过期数据的场景下非常有用，比如敏感数据。
@@ -373,8 +395,6 @@ Heap state backend 会额外存储一个包括用户状态以及时间戳的 Jav
 
 - 当前开启 TTL 的 map state 仅在用户值序列化器支持 null 的情况下，才支持用户值为 null。如果用户值序列化器不支持 null，
 可以用 `NullableSerializer` 包装一层。
-
-- State TTL 当前在 PyFlink DataStream API 中还不支持。
 
 #### 过期数据的清理
 
@@ -404,7 +424,13 @@ val ttlConfig = StateTtlConfig
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-State TTL 当前在 PyFlink DataStream API 中还不支持。
+from pyflink.common.time import Time
+from pyflink.datastream.state import StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .disable_cleanup_in_background() \
+  .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -441,7 +467,13 @@ val ttlConfig = StateTtlConfig
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-State TTL 当前在 PyFlink DataStream API 中还不支持。
+from pyflink.common.time import Time
+from pyflink.datastream.state import StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .cleanup_full_snapshot() \
+  .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -479,7 +511,13 @@ val ttlConfig = StateTtlConfig
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-State TTL 当前在 PyFlink DataStream API 中还不支持。
+from pyflink.common.time import Time
+from pyflink.datastream.state import StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .cleanup_incrementally(10, True) \
+  .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -524,7 +562,13 @@ val ttlConfig = StateTtlConfig
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-State TTL 当前在 PyFlink DataStream API 中还不支持。
+from pyflink.common.time import Time
+from pyflink.datastream.state import StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .cleanup_in_rocksdb_compact_filter(1000) \
+  .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -648,7 +692,7 @@ public class BufferingSink
     @Override
     public void invoke(Tuple2<String, Integer> value, Context contex) throws Exception {
         bufferedElements.add(value);
-        if (bufferedElements.size() == threshold) {
+        if (bufferedElements.size() >= threshold) {
             for (Tuple2<String, Integer> element: bufferedElements) {
                 // send it to the sink
             }
@@ -695,7 +739,7 @@ class BufferingSink(threshold: Int = 0)
 
   override def invoke(value: (String, Int), context: Context): Unit = {
     bufferedElements += value
-    if (bufferedElements.size == threshold) {
+    if (bufferedElements.size >= threshold) {
       for (element <- bufferedElements) {
         // send it to the sink
       }
@@ -719,7 +763,7 @@ class BufferingSink(threshold: Int = 0)
     checkpointedState = context.getOperatorStateStore.getListState(descriptor)
 
     if(context.isRestored) {
-      for(element <- checkpointedState.get()) {
+      for(element <- checkpointedState.get().asScala) {
         bufferedElements += element
       }
     }

@@ -50,3 +50,9 @@ pyflink.table.catalog module
 .. automodule:: pyflink.table.catalog
     :members:
     :undoc-members:
+
+pyflink.table.module module
+-------------------------------------
+.. automodule:: pyflink.table.module
+    :members:
+    :undoc-members:

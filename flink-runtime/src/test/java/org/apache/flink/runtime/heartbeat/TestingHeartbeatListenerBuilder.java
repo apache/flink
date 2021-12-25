@@ -28,6 +28,7 @@ class TestingHeartbeatListenerBuilder<I, O> {
     private Consumer<ResourceID> notifyHeartbeatTimeoutConsumer = ignored -> {};
     private BiConsumer<ResourceID, I> reportPayloadConsumer = (ignoredA, ignoredB) -> {};
     private Function<ResourceID, O> retrievePayloadFunction = ignored -> null;
+    private Consumer<ResourceID> notifyTargetUnreachableConsumer = ignored -> {};
 
     public TestingHeartbeatListenerBuilder<I, O> setNotifyHeartbeatTimeoutConsumer(
             Consumer<ResourceID> notifyHeartbeatTimeoutConsumer) {
@@ -47,8 +48,17 @@ class TestingHeartbeatListenerBuilder<I, O> {
         return this;
     }
 
+    public TestingHeartbeatListenerBuilder<I, O> setNotifyTargetUnreachableConsumer(
+            Consumer<ResourceID> notifyTargetUnreachableConsumer) {
+        this.notifyTargetUnreachableConsumer = notifyTargetUnreachableConsumer;
+        return this;
+    }
+
     public TestingHeartbeatListener<I, O> createNewTestingHeartbeatListener() {
         return new TestingHeartbeatListener<>(
-                notifyHeartbeatTimeoutConsumer, reportPayloadConsumer, retrievePayloadFunction);
+                notifyHeartbeatTimeoutConsumer,
+                reportPayloadConsumer,
+                retrievePayloadFunction,
+                notifyTargetUnreachableConsumer);
     }
 }

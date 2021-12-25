@@ -179,19 +179,8 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
             LOG.warn("Could not properly discard misc file states.", e);
         }
 
-        // If this was not registered, we can delete the shared state. We can simply apply this
-        // to all handles, because all handles that have not been created for the first time for
-        // this
-        // are only placeholders at this point (disposing them is a NOP).
-        if (isRegistered) {
-            // If this was registered, we only unregister all our referenced shared states
-            // from the registry.
-            for (StateHandleID stateHandleID : sharedState.keySet()) {
-                registry.unregisterReference(
-                        createSharedStateRegistryKeyFromFileName(stateHandleID));
-            }
-        } else {
-            // Otherwise, we assume to own those handles and dispose them directly.
+        // discard only on TM; on JM, shared state is removed on subsumption
+        if (!isRegistered) {
             try {
                 StateUtil.bestEffortDiscardAllStateObjects(sharedState.values());
             } catch (Exception e) {
@@ -216,7 +205,7 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry stateRegistry) {
+    public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
 
         // This is a quick check to avoid that we register twice with the same registry. However,
         // the code allows to
@@ -244,8 +233,9 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
             SharedStateRegistryKey registryKey =
                     createSharedStateRegistryKeyFromFileName(sharedStateHandle.getKey());
 
-            SharedStateRegistry.Result result =
-                    stateRegistry.registerReference(registryKey, sharedStateHandle.getValue());
+            StreamStateHandle reference =
+                    stateRegistry.registerReference(
+                            registryKey, sharedStateHandle.getValue(), checkpointID);
 
             // This step consolidates our shared handles with the registry, which does two things:
             //
@@ -259,7 +249,7 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
             // following checkpoint (n + x) wants to reference the same state before the backend got
             // notified that checkpoint n completed. In this case, the shared registry did
             // deduplication and returns the previous reference.
-            sharedStateHandle.setValue(result.getReference());
+            sharedStateHandle.setValue(reference);
         }
     }
 

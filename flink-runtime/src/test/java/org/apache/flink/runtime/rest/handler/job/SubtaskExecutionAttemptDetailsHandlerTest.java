@@ -45,8 +45,8 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptPathParameter;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.EvictingBoundedList;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -138,12 +138,13 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
         receivedPathParameters.put(SubtaskIndexPathParameter.KEY, Integer.toString(subtaskIndex));
         receivedPathParameters.put(SubtaskAttemptPathParameter.KEY, Integer.toString(attempt));
 
-        final HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request =
-                new HandlerRequest<>(
+        final HandlerRequest<EmptyRequestBody> request =
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         new SubtaskAttemptMessageParameters(),
                         receivedPathParameters,
-                        Collections.emptyMap());
+                        Collections.emptyMap(),
+                        Collections.emptyList());
 
         // Handle request.
         final SubtaskExecutionAttemptDetailsInfo detailsInfo =

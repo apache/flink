@@ -164,7 +164,12 @@ public abstract class YarnTestBase extends TestLogger {
                 "org\\.apache\\.flink.util\\.FlinkException: JobManager is shutting down\\."),
         Pattern.compile("lost the leadership."),
         Pattern.compile(
-                "akka.remote.transport.netty.NettyTransport.*Remote connection to \\[[^]]+\\] failed with java.io.IOException: Broken pipe")
+                "akka.remote.transport.netty.NettyTransport.*Remote connection to \\[[^]]+\\] failed with java.io.IOException: Broken pipe"),
+
+        // this can happen during cluster shutdown, if AMRMClient happens to be heartbeating
+        Pattern.compile("Exception on heartbeat"),
+        Pattern.compile("java\\.io\\.InterruptedIOException: Call interrupted"),
+        Pattern.compile("java\\.lang\\.InterruptedException")
     };
 
     // Temp directory which is deleted after the unit test.
@@ -213,12 +218,8 @@ public abstract class YarnTestBase extends TestLogger {
         YARN_CONFIGURATION.setInt(
                 YarnConfiguration.NM_VCORES, 666); // memory is overwritten in the MiniYARNCluster.
         // so we have to change the number of cores for testing.
-        YARN_CONFIGURATION.setInt(
-                YarnConfiguration.RM_AM_EXPIRY_INTERVAL_MS,
-                20000); // 20 seconds expiry (to ensure we properly heartbeat with YARN).
         YARN_CONFIGURATION.setFloat(
                 YarnConfiguration.NM_MAX_PER_DISK_UTILIZATION_PERCENTAGE, 99.0F);
-
         YARN_CONFIGURATION.set(YarnConfiguration.YARN_APPLICATION_CLASSPATH, getYarnClasspath());
     }
 
@@ -1215,7 +1216,7 @@ public abstract class YarnTestBase extends TestLogger {
         // to <flinkRoot>/target/flink-yarn-tests-*.
         // The files from there are picked up by the tools/ci/* scripts to upload them.
         if (isOnCI()) {
-            File target = new File("../target" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
+            File target = new File("../target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
             if (!target.mkdirs()) {
                 LOG.warn("Error creating dirs to {}", target);
             }

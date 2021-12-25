@@ -25,9 +25,13 @@
   </div>
 </ng-container>
 
-
-<nz-alert *ngIf="isError" nzShowIcon nzType="warning" nzMessage="Job failed during initialization of JobManager" [nzDescription]=descriptionTemplateRef></nz-alert>
+<nz-alert
+  *ngIf="isError"
+  nzShowIcon
+  nzType="warning"
+  nzMessage="Job failed during initialization of JobManager"
+  [nzDescription]="descriptionTemplateRef"
+></nz-alert>
 <ng-template #descriptionTemplateRef>
-  <pre>{{errorDetails}}</pre>
+  <pre>{{ errorDetails }}</pre>
 </ng-template>
-

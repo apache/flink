@@ -34,8 +34,8 @@ import java.util.Arrays;
 import java.util.Collection;
 
 import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum;
-import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.FILE_ASYNC;
-import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_FULLY_ASYNC;
+import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.FILE;
+import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_FULL;
 import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL_ZK;
 
 /**
@@ -54,7 +54,7 @@ public class LocalRecoveryITCase extends TestLogger {
 
     @Parameterized.Parameters(name = "statebackend type ={0}")
     public static Collection<StateBackendEnum> parameter() {
-        return Arrays.asList(ROCKSDB_FULLY_ASYNC, ROCKSDB_INCREMENTAL_ZK, FILE_ASYNC);
+        return Arrays.asList(ROCKSDB_FULL, ROCKSDB_INCREMENTAL_ZK, FILE);
     }
 
     @Test
@@ -101,6 +101,8 @@ public class LocalRecoveryITCase extends TestLogger {
 
         public EventTimeWindowCheckpointingITCaseInstance(
                 StateBackendEnum backendEnum, boolean localRecoveryEnabled) {
+            super(backendEnum, 2);
+
             this.backendEnum = backendEnum;
             this.localRecoveryEnabled = localRecoveryEnabled;
         }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -26,7 +27,6 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
@@ -36,20 +36,26 @@ import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumStateSe
 import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumerator;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriber;
+import org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics;
 import org.apache.flink.connector.kafka.source.reader.KafkaPartitionSplitReader;
 import org.apache.flink.connector.kafka.source.reader.KafkaRecordEmitter;
 import org.apache.flink.connector.kafka.source.reader.KafkaSourceReader;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
+import org.apache.flink.connector.kafka.source.reader.fetcher.KafkaSourceFetcherManager;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplitSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Properties;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -119,8 +125,15 @@ public class KafkaSource<OUT>
     @Override
     public SourceReader<OUT, KafkaPartitionSplit> createReader(SourceReaderContext readerContext)
             throws Exception {
-        FutureCompletingBlockingQueue<RecordsWithSplitIds<Tuple3<OUT, Long, Long>>> elementsQueue =
-                new FutureCompletingBlockingQueue<>();
+        return createReader(readerContext, (ignore) -> {});
+    }
+
+    @VisibleForTesting
+    SourceReader<OUT, KafkaPartitionSplit> createReader(
+            SourceReaderContext readerContext, Consumer<Collection<String>> splitFinishedHook)
+            throws Exception {
+        FutureCompletingBlockingQueue<RecordsWithSplitIds<ConsumerRecord<byte[], byte[]>>>
+                elementsQueue = new FutureCompletingBlockingQueue<>();
         deserializationSchema.open(
                 new DeserializationSchema.InitializationContext() {
                     @Override
@@ -133,19 +146,21 @@ public class KafkaSource<OUT>
                         return readerContext.getUserCodeClassLoader();
                     }
                 });
+        final KafkaSourceReaderMetrics kafkaSourceReaderMetrics =
+                new KafkaSourceReaderMetrics(readerContext.metricGroup());
 
-        Supplier<KafkaPartitionSplitReader<OUT>> splitReaderSupplier =
-                () ->
-                        new KafkaPartitionSplitReader<>(
-                                props, deserializationSchema, readerContext.getIndexOfSubtask());
-        KafkaRecordEmitter<OUT> recordEmitter = new KafkaRecordEmitter<>();
+        Supplier<KafkaPartitionSplitReader> splitReaderSupplier =
+                () -> new KafkaPartitionSplitReader(props, readerContext, kafkaSourceReaderMetrics);
+        KafkaRecordEmitter<OUT> recordEmitter = new KafkaRecordEmitter<>(deserializationSchema);
 
         return new KafkaSourceReader<>(
                 elementsQueue,
-                splitReaderSupplier,
+                new KafkaSourceFetcherManager(
+                        elementsQueue, splitReaderSupplier::get, splitFinishedHook),
                 recordEmitter,
                 toConfiguration(props),
-                readerContext);
+                readerContext,
+                kafkaSourceReaderMetrics);
     }
 
     @Override
@@ -156,7 +171,8 @@ public class KafkaSource<OUT>
                 startingOffsetsInitializer,
                 stoppingOffsetsInitializer,
                 props,
-                enumContext);
+                enumContext,
+                boundedness);
     }
 
     @Override
@@ -170,6 +186,7 @@ public class KafkaSource<OUT>
                 stoppingOffsetsInitializer,
                 props,
                 enumContext,
+                boundedness,
                 checkpoint.assignedPartitions());
     }
 
@@ -194,5 +211,10 @@ public class KafkaSource<OUT>
         Configuration config = new Configuration();
         props.stringPropertyNames().forEach(key -> config.setString(key, props.getProperty(key)));
         return config;
+    }
+
+    @VisibleForTesting
+    Configuration getConfiguration() {
+        return toConfiguration(props);
     }
 }

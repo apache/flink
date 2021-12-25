@@ -20,6 +20,8 @@ package org.apache.flink.runtime.concurrent;
 
 import org.apache.flink.runtime.rpc.MainThreadValidatorUtil;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import javax.annotation.Nonnull;
 
@@ -83,6 +85,9 @@ public class ComponentMainThreadExecutorServiceAdapter implements ComponentMainT
     public void assertRunningInMainThread() {
         mainThreadCheck.run();
     }
+
+    @Override
+    public void close() {}
 
     @Override
     public ScheduledFuture<?> schedule(

@@ -173,7 +173,7 @@ public class AbstractHandlerTest extends TestLogger {
         protected CompletableFuture<Void> respondToRequest(
                 ChannelHandlerContext ctx,
                 HttpRequest httpRequest,
-                HandlerRequest<EmptyRequestBody, EmptyMessageParameters> handlerRequest,
+                HandlerRequest<EmptyRequestBody> handlerRequest,
                 RestfulGateway gateway)
                 throws RestHandlerException {
             return completionFuture;

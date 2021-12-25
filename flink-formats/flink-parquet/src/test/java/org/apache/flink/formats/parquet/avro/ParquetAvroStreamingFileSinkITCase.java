@@ -25,6 +25,7 @@ import org.apache.flink.formats.parquet.generated.Address;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
 import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.util.AbstractTestBase;
 
@@ -87,6 +88,7 @@ public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
                 StreamingFileSink.forBulkFormat(
                                 Path.fromLocalFile(folder),
                                 ParquetAvroWriters.forSpecificRecord(Address.class))
+                        .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .build());
 
         env.execute();
@@ -114,6 +116,7 @@ public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
                 StreamingFileSink.forBulkFormat(
                                 Path.fromLocalFile(folder),
                                 ParquetAvroWriters.forGenericRecord(schema))
+                        .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .build());
 
         env.execute();
@@ -145,6 +148,7 @@ public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
                 StreamingFileSink.forBulkFormat(
                                 Path.fromLocalFile(folder),
                                 ParquetAvroWriters.forReflectRecord(Datum.class))
+                        .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .build());
 
         env.execute();
@@ -220,37 +224,4 @@ public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
 
     // ------------------------------------------------------------------------
 
-    /** Test datum. */
-    public static class Datum implements Serializable {
-
-        public String a;
-        public int b;
-
-        public Datum() {}
-
-        public Datum(String a, int b) {
-            this.a = a;
-            this.b = b;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-
-            Datum datum = (Datum) o;
-            return b == datum.b && (a != null ? a.equals(datum.a) : datum.a == null);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = a != null ? a.hashCode() : 0;
-            result = 31 * result + b;
-            return result;
-        }
-    }
 }

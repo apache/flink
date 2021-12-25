@@ -33,7 +33,6 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
-import org.apache.flink.table.client.config.YamlConfigUtils;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
@@ -51,8 +50,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Context describing a session, it's mainly used for user to open a new session in the backend. If
@@ -153,16 +154,6 @@ public class SessionContext {
         } else {
             ConfigOption<String> keyToDelete = ConfigOptions.key(key).stringType().noDefaultValue();
             sessionConfiguration.removeConfig(keyToDelete);
-            // need to remove compatible key
-            if (YamlConfigUtils.isDeprecatedKey(key)) {
-                String optionKey = YamlConfigUtils.getOptionNameWithDeprecatedKey(key);
-                sessionConfiguration.removeConfig(
-                        ConfigOptions.key(optionKey).stringType().noDefaultValue());
-            } else if (YamlConfigUtils.isOptionHasDeprecatedKey(key)) {
-                String deprecatedKey = YamlConfigUtils.getDeprecatedNameWithOptionKey(key);
-                sessionConfiguration.removeConfig(
-                        ConfigOptions.key(deprecatedKey).stringType().noDefaultValue());
-            }
             // It's safe to build ExecutionContext directly because origin configuration is legal.
             this.executionContext = new ExecutionContext(executionContext);
         }
@@ -172,7 +163,7 @@ public class SessionContext {
     public void set(String key, String value) {
         Configuration originConfiguration = sessionConfiguration.clone();
 
-        YamlConfigUtils.setKeyToConfiguration(sessionConfiguration, key, value);
+        sessionConfiguration.setString(key, value);
         try {
             // Renew the ExecutionContext.
             // Book keep all the session states of current ExecutionContext then
@@ -254,10 +245,6 @@ public class SessionContext {
 
         ExecutionContext executionContext =
                 new ExecutionContext(configuration, classLoader, sessionState);
-        LegacyTableEnvironmentInitializer.initializeSessionState(
-                executionContext.getTableEnvironment(),
-                defaultContext.getDefaultEnv(),
-                classLoader);
 
         return new SessionContext(
                 defaultContext,
@@ -269,7 +256,7 @@ public class SessionContext {
     }
 
     public void addJar(String jarPath) {
-        URL jarURL = getURLFromPath(jarPath);
+        URL jarURL = getURLFromPath(jarPath, "SQL Client only supports to add local jars.");
         if (dependencies.contains(jarURL)) {
             return;
         }
@@ -280,6 +267,28 @@ public class SessionContext {
 
         // renew the execution context
         executionContext = new ExecutionContext(sessionConfiguration, classLoader, sessionState);
+    }
+
+    public void removeJar(String jarPath) {
+        URL jarURL = getURLFromPath(jarPath, "SQL Client only supports to remove local jars.");
+        if (!dependencies.contains(jarURL)) {
+            LOG.warn(
+                    String.format(
+                            "Could not remove the specified jar because the jar path(%s) is not found in session classloader.",
+                            jarPath));
+            return;
+        }
+
+        Set<URL> newDependencies = new HashSet<>(dependencies);
+        newDependencies.remove(jarURL);
+        updateClassLoaderAndDependencies(newDependencies);
+
+        // renew the execution context
+        executionContext = new ExecutionContext(sessionConfiguration, classLoader, sessionState);
+    }
+
+    public List<String> listJars() {
+        return dependencies.stream().map(URL::getPath).collect(Collectors.toList());
     }
 
     // --------------------------------------------------------------------------------------------
@@ -333,7 +342,7 @@ public class SessionContext {
                 new ArrayList<>(jarsInConfig),
                 URL::toString);
 
-        // TODO: update the the classloader in CatalogManager.
+        // TODO: update the classloader in CatalogManager.
         classLoader =
                 ClientUtils.buildUserCodeClassLoader(
                         new ArrayList<>(newDependencies),
@@ -343,11 +352,11 @@ public class SessionContext {
         dependencies = new HashSet<>(newDependencies);
     }
 
-    private URL getURLFromPath(String jarPath) {
+    private URL getURLFromPath(String jarPath, String message) {
         Path path = new Path(jarPath);
         String scheme = path.toUri().getScheme();
         if (scheme != null && !scheme.equals("file")) {
-            throw new SqlExecutionException("SQL Client only supports to add local jars.");
+            throw new SqlExecutionException(message);
         }
 
         Path qualifiedPath = path.makeQualified(FileSystem.getLocalFileSystem());

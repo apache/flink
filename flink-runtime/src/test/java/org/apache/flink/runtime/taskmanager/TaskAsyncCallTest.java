@@ -257,7 +257,7 @@ public class TaskAsyncCallTest extends TestLogger {
         }
 
         @Override
-        public Future<Boolean> triggerCheckpointAsync(
+        public CompletableFuture<Boolean> triggerCheckpointAsync(
                 CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
             lastCheckpointId++;
             if (checkpointMetaData.getCheckpointId() == lastCheckpointId) {

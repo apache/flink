@@ -20,6 +20,9 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.util.TimeUtils;
+
+import java.time.Duration;
 
 import static org.apache.flink.configuration.description.LinkElement.link;
 
@@ -39,14 +42,24 @@ public class AkkaOptions {
                                     + "memory footprint.");
 
     /** Timeout for akka ask calls. */
-    public static final ConfigOption<String> ASK_TIMEOUT =
+    public static final ConfigOption<Duration> ASK_TIMEOUT_DURATION =
             ConfigOptions.key("akka.ask.timeout")
-                    .stringType()
-                    .defaultValue("10 s")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(10))
                     .withDescription(
                             "Timeout used for all futures and blocking Akka calls. If Flink fails due to timeouts then you"
                                     + " should try to increase this value. Timeouts can be caused by slow machines or a congested network. The"
                                     + " timeout value requires a time-unit specifier (ms/s/min/h/d).");
+
+    /** @deprecated Use {@link #ASK_TIMEOUT_DURATION} */
+    @Deprecated
+    public static final ConfigOption<String> ASK_TIMEOUT =
+            ConfigOptions.key(ASK_TIMEOUT_DURATION.key())
+                    .stringType()
+                    .defaultValue(
+                            TimeUtils.formatWithHighestUnit(ASK_TIMEOUT_DURATION.defaultValue()))
+                    .withDescription(ASK_TIMEOUT_DURATION.description());
+
     /** The Akka tcp connection timeout. */
     public static final ConfigOption<String> TCP_TIMEOUT =
             ConfigOptions.key("akka.tcp.timeout")
@@ -101,13 +114,22 @@ public class AkkaOptions {
                             "Turns on the Akka’s remote logging of events. Set this value to 'true' in case of debugging.");
 
     /** Timeout for all blocking calls that look up remote actors. */
-    public static final ConfigOption<String> LOOKUP_TIMEOUT =
+    public static final ConfigOption<Duration> LOOKUP_TIMEOUT_DURATION =
             ConfigOptions.key("akka.lookup.timeout")
-                    .stringType()
-                    .defaultValue("10 s")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(10))
                     .withDescription(
                             "Timeout used for the lookup of the JobManager. The timeout value has to contain a time-unit"
                                     + " specifier (ms/s/min/h/d).");
+
+    /** @deprecated use {@link #LOOKUP_TIMEOUT_DURATION} */
+    @Deprecated
+    public static final ConfigOption<String> LOOKUP_TIMEOUT =
+            ConfigOptions.key(LOOKUP_TIMEOUT_DURATION.key())
+                    .stringType()
+                    .defaultValue(
+                            TimeUtils.formatWithHighestUnit(LOOKUP_TIMEOUT_DURATION.defaultValue()))
+                    .withDescription(LOOKUP_TIMEOUT_DURATION.description());
 
     /**
      * Timeout for all blocking calls on the client side.

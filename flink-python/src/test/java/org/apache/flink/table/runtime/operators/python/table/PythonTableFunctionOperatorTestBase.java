@@ -47,9 +47,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the output elements.
- * @param <UDTFIN> Type of the UDTF input type.
  */
-public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN> {
+public abstract class PythonTableFunctionOperatorTestBase<IN, OUT> {
 
     @Test
     public void testRetractionFieldKept() throws Exception {
@@ -206,7 +205,7 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN> {
                                 new RowType.RowField("f2", new VarCharType()),
                                 new RowType.RowField("f3", new BigIntType()),
                                 new RowType.RowField("f4", new BigIntType())));
-        AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN> operator =
+        PythonTableFunctionOperator operator =
                 getTestOperator(
                         config,
                         new PythonFunctionInfo(
@@ -218,7 +217,7 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN> {
                         joinRelType);
 
         OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
-                new OneInputStreamOperatorTestHarness<>(operator);
+                new OneInputStreamOperatorTestHarness(operator);
         testHarness
                 .getStreamConfig()
                 .setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.PYTHON, 0.5);
@@ -230,7 +229,7 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN> {
     public abstract void assertOutputEquals(
             String message, Collection<Object> expected, Collection<Object> actual);
 
-    public abstract AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN> getTestOperator(
+    public abstract PythonTableFunctionOperator getTestOperator(
             Configuration config,
             PythonFunctionInfo tableFunction,
             RowType inputType,

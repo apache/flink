@@ -23,7 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.eventtime.{TimestampAssigner, WatermarkGenerator, WatermarkStrategy}
 import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner}
 import org.apache.flink.api.common.io.OutputFormat
-import org.apache.flink.api.common.operators.ResourceSpec
+import org.apache.flink.api.common.operators.{ResourceSpec, SlotSharingGroup}
 import org.apache.flink.api.common.serialization.SerializationSchema
 import org.apache.flink.api.common.state.MapStateDescriptor
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -319,6 +319,29 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   @PublicEvolving
   def slotSharingGroup(slotSharingGroup: String): DataStream[T] = {
+    stream match {
+      case ds: SingleOutputStreamOperator[T] => ds.slotSharingGroup(slotSharingGroup)
+      case _ =>
+        throw new UnsupportedOperationException("Only supported for operators.")
+    }
+    this
+  }
+
+  /**
+   * Sets the slot sharing group of this operation. Parallel instances of
+   * operations that are in the same slot sharing group will be co-located in the same
+   * TaskManager slot, if possible.
+   *
+   * Operations inherit the slot sharing group of input operations if all input operations
+   * are in the same slot sharing group and no slot sharing group was explicitly specified.
+   *
+   * Initially an operation is in the default slot sharing group. An operation can be put into
+   * the default group explicitly by setting the slot sharing group to `"default"`.
+   *
+   * @param slotSharingGroup Which contains name and its resource spec.
+   */
+  @PublicEvolving
+  def slotSharingGroup(slotSharingGroup: SlotSharingGroup): DataStream[T] = {
     stream match {
       case ds: SingleOutputStreamOperator[T] => ds.slotSharingGroup(slotSharingGroup)
       case _ =>
@@ -933,7 +956,7 @@ class DataStream[T](stream: JavaStream[T]) {
   def print(): DataStreamSink[T] = stream.print()
 
   /**
-   * Writes a DataStream to the standard output stream (stderr).
+   * Writes a DataStream to the standard error stream (stderr).
    *
    * For each element of the DataStream the result of
    * [[AnyRef.toString()]] is written.
@@ -955,7 +978,7 @@ class DataStream[T](stream: JavaStream[T]) {
   def print(sinkIdentifier: String): DataStreamSink[T] = stream.print(sinkIdentifier)
 
   /**
-    * Writes a DataStream to the standard output stream (stderr).
+    * Writes a DataStream to the standard error stream (stderr).
     *
     * For each element of the DataStream the result of
     * [[AnyRef.toString()]] is written.
@@ -1201,5 +1224,23 @@ class DataStream[T](stream: JavaStream[T]) {
       operatorName: String,
       operator: OneInputStreamOperator[T, R]): DataStream[R] = {
     asScalaStream(stream.transform(operatorName, implicitly[TypeInformation[R]], operator))
+  }
+
+  /**
+   * Sets the description of this data stream.
+   *
+   * <p>Description is used in json plan and web ui, but not in logging and metrics where only
+   * name is available. Description is expected to provide detailed information about
+   * this operation, while name is expected to be more simple, providing summary information only,
+   * so that we can have more user-friendly logging messages and metric tags
+   * without losing useful messages for debugging.
+   *
+   * @return The operator with new description
+   */
+  @PublicEvolving
+  def setDescription(description: String) : DataStream[T] = stream match {
+    case stream : SingleOutputStreamOperator[T] => asScalaStream(stream.setDescription(description))
+    case _ => throw new UnsupportedOperationException("Only supported for operators.")
+      this
   }
 }

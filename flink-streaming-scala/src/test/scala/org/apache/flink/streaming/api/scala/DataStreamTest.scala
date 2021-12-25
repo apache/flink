@@ -97,6 +97,38 @@ class DataStreamTest extends AbstractTestBase {
     assert(plan contains "testWindowReduce")
   }
 
+  @Test
+  def testUserDefinedDescription(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val dataStream1 = env.generateSequence(0, 0)
+      .setDescription("this is test source 1")
+      .map(x => x)
+      .setDescription("this is test map 1")
+    val dataStream2 = env.generateSequence(0, 0)
+      .setDescription("this is test source 2")
+      .map(x => x)
+      .setDescription("this is test map 2")
+
+    val func: (((Long, Long), (Long, Long)) => (Long, Long)) =
+      (x: (Long, Long), y: (Long, Long)) => (0L, 0L)
+    dataStream1.connect(dataStream2)
+      .flatMap({ (in, out: Collector[(Long, Long)]) => }, { (in, out: Collector[(Long, Long)]) => })
+      .setDescription("this is test co flat map")
+      .windowAll(GlobalWindows.create)
+      .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](10)))
+      .reduce(func)
+      .setDescription("this is test window reduce")
+      .print
+    // test functionality through the operator names in the execution plan
+    val plan = env.getExecutionPlan
+    assertTrue(plan.contains("this is test source 1"))
+    assertTrue(plan.contains("this is test source 2"))
+    assertTrue(plan.contains("this is test map 1"))
+    assertTrue(plan.contains("this is test map 2"))
+    assertTrue(plan.contains("this is test co flat map"))
+    assertTrue(plan.contains("this is test window reduce"))
+  }
+
   /**
    * Tests that [[DataStream.keyBy]] and [[DataStream.partitionCustom]] result in
    * different and correct topologies. Does the some for the [[ConnectedStreams]].
@@ -676,14 +708,13 @@ class DataStreamTest extends AbstractTestBase {
   private def getOperatorForDataStream(dataStream: DataStream[_]): StreamOperator[_] = {
     dataStream.print()
     val env = dataStream.javaStream.getExecutionEnvironment
-    val streamGraph: StreamGraph =
-      env.getStreamGraph(JStreamExecutionEnvironment.DEFAULT_JOB_NAME, false)
+    val streamGraph: StreamGraph = env.getStreamGraph(false)
     streamGraph.getStreamNode(dataStream.getId).getOperator
   }
 
   /** Returns the StreamGraph without clearing the transformations. */
   private def getStreamGraph(sEnv: StreamExecutionEnvironment): StreamGraph = {
-    sEnv.getStreamGraph(JStreamExecutionEnvironment.DEFAULT_JOB_NAME, clearTransformations = false)
+    sEnv.getStreamGraph(false)
   }
 
   private def isPartitioned(edges: java.util.List[StreamEdge]) = {

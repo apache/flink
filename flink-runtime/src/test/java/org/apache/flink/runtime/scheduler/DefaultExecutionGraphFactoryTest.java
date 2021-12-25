@@ -36,9 +36,9 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.TestUtils;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.MatcherAssert;
@@ -107,7 +107,7 @@ public class DefaultExecutionGraphFactoryTest extends TestLogger {
                 SchedulerBase.computeVertexParallelismStore(jobGraphWithNewOperator),
                 log);
 
-        final CompletedCheckpoint savepoint = completedCheckpointStore.getLatestCheckpoint(false);
+        final CompletedCheckpoint savepoint = completedCheckpointStore.getLatestCheckpoint();
 
         MatcherAssert.assertThat(savepoint, notNullValue());
 
@@ -126,7 +126,7 @@ public class DefaultExecutionGraphFactoryTest extends TestLogger {
                         Time.milliseconds(0L),
                         UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup(),
                         VoidBlobWriter.getInstance(),
-                        NettyShuffleMaster.INSTANCE,
+                        ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER,
                         NoOpJobMasterPartitionTracker.INSTANCE);
         return executionGraphFactory;
     }

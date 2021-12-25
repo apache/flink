@@ -17,18 +17,20 @@
  */
 
 import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   OnDestroy,
   OnInit,
-  ChangeDetectionStrategy,
-  ViewChildren,
   QueryList,
-  ChangeDetectorRef
+  ViewChildren
 } from '@angular/core';
 import { Subject } from 'rxjs';
-import { distinctUntilChanged, filter, flatMap, takeUntil } from 'rxjs/operators';
-import { JobService, MetricsService } from 'services';
+import { distinctUntilChanged, filter, mergeMap, takeUntil } from 'rxjs/operators';
+
 import { JobChartComponent } from 'share/customize/job-chart/job-chart.component';
+
+import { JobService, MetricsService } from 'services';
 
 @Component({
   selector: 'flink-job-overview-drawer-chart',
@@ -37,43 +39,23 @@ import { JobChartComponent } from 'share/customize/job-chart/job-chart.component
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
-  destroy$ = new Subject();
-  data = [];
-  listOfMetricName: string[] = [];
-  listOfSelectedMetric: string[] = [];
-  listOfUnselectedMetric: string[] = [];
-  cacheMetricKey: string;
-  @ViewChildren(JobChartComponent) listOfJobChartComponent: QueryList<JobChartComponent>;
+  public data = [];
+  public listOfMetricName: string[] = [];
+  public listOfSelectedMetric: string[] = [];
+  public listOfUnselectedMetric: string[] = [];
+  public cacheMetricKey: string;
 
-  loadMetricList(jobId: string, vertexId: string) {
-    this.cacheMetricKey = `${jobId}/${vertexId}`;
-    this.metricsService.getAllAvailableMetrics(jobId, vertexId).subscribe(data => {
-      this.listOfMetricName = data.map(item => item.id);
-      this.listOfSelectedMetric = this.jobService.metricsCacheMap.get(this.cacheMetricKey) || [];
-      this.updateUnselectedMetricList();
-      this.cdr.markForCheck();
-    });
-  }
+  @ViewChildren(JobChartComponent) private readonly listOfJobChartComponent: QueryList<JobChartComponent>;
 
-  updateMetric(metric: string) {
-    this.listOfSelectedMetric = [...this.listOfSelectedMetric, metric];
-    this.jobService.metricsCacheMap.set(this.cacheMetricKey, this.listOfSelectedMetric);
-    this.updateUnselectedMetricList();
-  }
+  private readonly destroy$ = new Subject<void>();
 
-  closeMetric(metric: string) {
-    this.listOfSelectedMetric = this.listOfSelectedMetric.filter(item => item !== metric);
-    this.jobService.metricsCacheMap.set(this.cacheMetricKey, this.listOfSelectedMetric);
-    this.updateUnselectedMetricList();
-  }
+  constructor(
+    private readonly metricsService: MetricsService,
+    private readonly jobService: JobService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
-  updateUnselectedMetricList() {
-    this.listOfUnselectedMetric = this.listOfMetricName.filter(item => this.listOfSelectedMetric.indexOf(item) === -1);
-  }
-
-  constructor(private metricsService: MetricsService, private jobService: JobService, private cdr: ChangeDetectorRef) {}
-
-  ngOnInit() {
+  public ngOnInit(): void {
     this.jobService.jobWithVertex$
       .pipe(
         takeUntil(this.destroy$),
@@ -86,7 +68,7 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
       .pipe(
         takeUntil(this.destroy$),
         filter(() => this.listOfSelectedMetric.length > 0),
-        flatMap(data => this.metricsService.getMetrics(data.job.jid, data.vertex!.id, this.listOfSelectedMetric))
+        mergeMap(data => this.metricsService.getMetrics(data.job.jid, data.vertex!.id, this.listOfSelectedMetric))
       )
       .subscribe(res => {
         if (this.listOfJobChartComponent && this.listOfJobChartComponent.length) {
@@ -98,8 +80,34 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
       });
   }
 
-  ngOnDestroy() {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  public loadMetricList(jobId: string, vertexId: string): void {
+    this.cacheMetricKey = `${jobId}/${vertexId}`;
+    this.metricsService.getAllAvailableMetrics(jobId, vertexId).subscribe(data => {
+      this.listOfMetricName = data.map(item => item.id);
+      this.listOfSelectedMetric = this.jobService.metricsCacheMap.get(this.cacheMetricKey) || [];
+      this.updateUnselectedMetricList();
+      this.cdr.markForCheck();
+    });
+  }
+
+  public updateMetric(metric: string): void {
+    this.listOfSelectedMetric = [...this.listOfSelectedMetric, metric];
+    this.jobService.metricsCacheMap.set(this.cacheMetricKey, this.listOfSelectedMetric);
+    this.updateUnselectedMetricList();
+  }
+
+  public closeMetric(metric: string): void {
+    this.listOfSelectedMetric = this.listOfSelectedMetric.filter(item => item !== metric);
+    this.jobService.metricsCacheMap.set(this.cacheMetricKey, this.listOfSelectedMetric);
+    this.updateUnselectedMetricList();
+  }
+
+  public updateUnselectedMetricList(): void {
+    this.listOfUnselectedMetric = this.listOfMetricName.filter(item => this.listOfSelectedMetric.indexOf(item) === -1);
   }
 }

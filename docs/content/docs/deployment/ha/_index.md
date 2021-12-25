@@ -1,5 +1,5 @@
 ---
-title: High Availablity
+title: High Availability
 bookCollapseSection: true
 weight: 6
 ---

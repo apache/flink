@@ -64,7 +64,7 @@ final class MemoryMappedBoundedData implements BoundedData {
     private static final int PAGE_SIZE = PageSizeUtil.getSystemPageSizeOrConservativeMultiple();
 
     /**
-     * The the current memory mapped region we are writing to. This value is null once writing has
+     * The current memory mapped region we are writing to. This value is null once writing has
      * finished or the buffers are disposed.
      */
     @Nullable private ByteBuffer currentBuffer;

@@ -28,12 +28,13 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
+import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -54,6 +55,7 @@ public class TaskManagerServicesBuilder {
     private JobTable jobTable;
     private JobLeaderService jobLeaderService;
     private TaskExecutorLocalStateStoresManager taskStateManager;
+    private TaskExecutorStateChangelogStoragesManager taskChangelogStoragesManager;
     private TaskEventDispatcher taskEventDispatcher;
     private ExecutorService ioExecutor;
     private LibraryCacheManager libraryCacheManager;
@@ -76,6 +78,7 @@ public class TaskManagerServicesBuilder {
                         unresolvedTaskManagerLocation,
                         RetryingRegistrationConfiguration.defaultConfiguration());
         taskStateManager = mock(TaskExecutorLocalStateStoresManager.class);
+        taskChangelogStoragesManager = mock(TaskExecutorStateChangelogStoragesManager.class);
         ioExecutor = TestingUtils.defaultExecutor();
         libraryCacheManager = TestingLibraryCacheManager.newBuilder().build();
         managedMemorySize = MemoryManager.MIN_PAGE_SIZE;
@@ -130,6 +133,12 @@ public class TaskManagerServicesBuilder {
         return this;
     }
 
+    public TaskManagerServicesBuilder setTaskChangelogStoragesManager(
+            TaskExecutorStateChangelogStoragesManager taskChangelogStoragesManager) {
+        this.taskChangelogStoragesManager = taskChangelogStoragesManager;
+        return this;
+    }
+
     public TaskManagerServicesBuilder setIOExecutorService(ExecutorService ioExecutor) {
         this.ioExecutor = ioExecutor;
         return this;
@@ -158,6 +167,7 @@ public class TaskManagerServicesBuilder {
                 jobTable,
                 jobLeaderService,
                 taskStateManager,
+                taskChangelogStoragesManager,
                 taskEventDispatcher,
                 ioExecutor,
                 libraryCacheManager);

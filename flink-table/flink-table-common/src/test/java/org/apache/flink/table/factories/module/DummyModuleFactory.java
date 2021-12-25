@@ -18,49 +18,39 @@
 
 package org.apache.flink.table.factories.module;
 
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.ModuleDescriptorValidator;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.module.Module;
 
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
+import java.util.Set;
 
 /** Test implementation for {@link ModuleFactory}. */
 public class DummyModuleFactory implements ModuleFactory {
 
+    public static final String IDENTIFIER = "dummy";
+
+    private static final ConfigOption<String> DUMMY_VERSION =
+            ConfigOptions.key("dummy-version").stringType().noDefaultValue();
+
     @Override
-    public Module createModule(Map<String, String> properties) {
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
+
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return Collections.emptySet();
+    }
+
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        return Collections.singleton(DUMMY_VERSION);
+    }
+
+    @Override
+    public Module createModule(Context context) {
         return new Module() {};
-    }
-
-    @Override
-    public Map<String, String> requiredContext() {
-        Map<String, String> context = new HashMap<>();
-        context.put(MODULE_TYPE, DummyModuleDescriptorValidator.MODULE_TYPE_DUMMY);
-
-        return context;
-    }
-
-    @Override
-    public List<String> supportedProperties() {
-        return Collections.singletonList(DummyModuleDescriptorValidator.MODULE_DUMMY_VERSION);
-    }
-
-    /** Test implementation for {@link ModuleDescriptorValidator}. */
-    public static class DummyModuleDescriptorValidator extends ModuleDescriptorValidator {
-        public static final String MODULE_TYPE_DUMMY = "dummy";
-        public static final String MODULE_DUMMY_VERSION = "dummy-version";
-
-        @Override
-        public void validate(DescriptorProperties properties) {
-            super.validate(properties);
-            properties.validateValue(MODULE_TYPE, MODULE_TYPE_DUMMY, false);
-            properties.validateString(MODULE_DUMMY_VERSION, true, 1);
-        }
     }
 }

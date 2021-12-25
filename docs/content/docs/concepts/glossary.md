@@ -172,6 +172,10 @@ A Sub-Task is a [Task](#task) responsible for processing a [partition](#partitio
 the data stream. The term "Sub-Task" emphasizes that there are multiple parallel Tasks for the same
 [Operator](#operator) or [Operator Chain](#operator-chain).
 
+#### Table Program
+
+A generic term for pipelines declared with Flink's relational APIs (Table API or SQL).
+
 #### Task
 
 Node of a [Physical Graph](#physical-graph). A task is the basic unit of work, which is executed by

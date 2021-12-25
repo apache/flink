@@ -21,11 +21,11 @@ from abc import ABC, abstractmethod
 from typing import TypeVar, Generic, List, Dict
 
 import pytz
-from apache_beam.coders import PickleCoder, Coder
 
 from pyflink.common import Row, RowKind
-from pyflink.datastream.timerservice import InternalTimer
-from pyflink.fn_execution.timerservice_impl import InternalTimerServiceImpl
+from pyflink.fn_execution.datastream.timerservice import InternalTimer
+from pyflink.fn_execution.datastream.timerservice_impl import LegacyInternalTimerServiceImpl
+from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.aggregate_slow import DistinctViewDescriptor, RowKeySelector
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerWindowStateDataViewStore
@@ -58,20 +58,20 @@ class NamespaceAggsHandleFunctionBase(Generic[N], ABC):
         pass
 
     @abstractmethod
-    def accumulate(self, input_data: List):
+    def accumulate(self, input_data: Row):
         """
         Accumulates the input values to the accumulators.
 
-        :param input_data: Input values bundled in a List.
+        :param input_data: Input values bundled in a Row.
         """
         pass
 
     @abstractmethod
-    def retract(self, input_data: List):
+    def retract(self, input_data: Row):
         """
         Retracts the input values from the accumulators.
 
-        :param input_data: Input values bundled in a List.
+        :param input_data: Input values bundled in a Row.
         """
 
     @abstractmethod
@@ -173,13 +173,13 @@ class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction[N]):
                     data_views[data_view_spec.field_index] = \
                         state_data_view_store.get_state_list_view(
                             data_view_spec.state_id,
-                            PickleCoder())
+                            data_view_spec.element_coder)
                 elif isinstance(data_view_spec, MapViewSpec):
                     data_views[data_view_spec.field_index] = \
                         state_data_view_store.get_state_map_view(
                             data_view_spec.state_id,
-                            PickleCoder(),
-                            PickleCoder())
+                            data_view_spec.key_coder,
+                            data_view_spec.value_coder)
             self._udf_data_views.append(data_views)
         for key in self._distinct_view_descriptors.keys():
             self._distinct_data_views[key] = state_data_view_store.get_state_map_view(
@@ -187,7 +187,7 @@ class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction[N]):
                 PickleCoder(),
                 PickleCoder())
 
-    def accumulate(self, input_data: List):
+    def accumulate(self, input_data: Row):
         for i in range(len(self._udfs)):
             if i in self._distinct_data_views:
                 if len(self._distinct_view_descriptors[i].get_filter_args()) == 0:
@@ -218,7 +218,7 @@ class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction[N]):
                         "The args are not in the distinct data view, this should not happen.")
             self._udfs[i].accumulate(self._accumulators[i], *args)
 
-    def retract(self, input_data: List):
+    def retract(self, input_data: Row):
         for i in range(len(self._udfs)):
             if i in self._distinct_data_views:
                 if len(self._distinct_view_descriptors[i].get_filter_args()) == 0:
@@ -290,7 +290,7 @@ class GroupWindowAggFunctionBase(Generic[K, W]):
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
                  state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
+                 state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunctionBase[W],
                  trigger: Trigger[W],
@@ -305,14 +305,14 @@ class GroupWindowAggFunctionBase(Generic[K, W]):
         self._rowtime_index = rowtime_index
         self._shift_timezone = shift_timezone
         self._window_function = None  # type: InternalWindowProcessFunction[K, W]
-        self._internal_timer_service = None  # type: InternalTimerServiceImpl
+        self._internal_timer_service = None  # type: LegacyInternalTimerServiceImpl
         self._window_context = None  # type: WindowContext
         self._trigger = trigger
         self._trigger_context = None  # type: TriggerContext
         self._window_state = self._state_backend.get_value_state("window_state", state_value_coder)
 
     def open(self, function_context: FunctionContext):
-        self._internal_timer_service = InternalTimerServiceImpl(self._state_backend)
+        self._internal_timer_service = LegacyInternalTimerServiceImpl(self._state_backend)
         self._window_aggregator.open(
             PerWindowStateDataViewStore(function_context, self._state_backend))
 
@@ -359,9 +359,9 @@ class GroupWindowAggFunctionBase(Generic[K, W]):
             self._window_aggregator.set_accumulators(window, acc)
 
             if input_row._is_accumulate_msg():
-                self._window_aggregator.accumulate(input_value)
+                self._window_aggregator.accumulate(input_row)
             else:
-                self._window_aggregator.retract(input_value)
+                self._window_aggregator.retract(input_row)
             acc = self._window_aggregator.get_accumulators()
             self._window_state.update(acc)
 
@@ -457,7 +457,7 @@ class GroupWindowAggFunction(GroupWindowAggFunctionBase[K, W]):
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
                  state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
+                 state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunction[W],
                  trigger: Trigger[W],

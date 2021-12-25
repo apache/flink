@@ -23,6 +23,7 @@ import org.junit.Test;
 import java.util.UUID;
 
 import static org.apache.flink.api.common.eventtime.WatermarkMatchers.watermark;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertEquals;
@@ -139,6 +140,9 @@ public class WatermarkOutputMultiplexerTest {
      * This test makes sure that we don't output any update if there are zero outputs. Due to how
      * aggregation of deferred updates in the KafkaConsumer works we had a bug there that caused a
      * Long.MAX_VALUE watermark to be emitted in case of zero partitions.
+     *
+     * <p>Additionally it verifies that the combined output is not IDLE during the initial phase
+     * when there are no splits assigned and the combined watermark is at its initial value.
      */
     @Test
     public void noCombinedDeferredUpdateWhenWeHaveZeroOutputs() {
@@ -149,6 +153,7 @@ public class WatermarkOutputMultiplexerTest {
         multiplexer.onPeriodicEmit();
 
         assertThat(underlyingWatermarkOutput.lastWatermark(), is(nullValue()));
+        assertThat(underlyingWatermarkOutput.isIdle(), is(false));
     }
 
     @Test
@@ -374,6 +379,24 @@ public class WatermarkOutputMultiplexerTest {
         final boolean unregistered = multiplexer.unregisterOutput("does-not-exist");
 
         assertFalse(unregistered);
+    }
+
+    @Test
+    public void testNotEmittingIdleAfterAllSplitsRemoved() {
+        final TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
+        final WatermarkOutputMultiplexer multiplexer =
+                new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+
+        Watermark emittedWatermark = new Watermark(1);
+        final String id = UUID.randomUUID().toString();
+        multiplexer.registerNewOutput(id);
+        WatermarkOutput immediateOutput = multiplexer.getImmediateOutput(id);
+        immediateOutput.emitWatermark(emittedWatermark);
+        multiplexer.unregisterOutput(id);
+
+        multiplexer.onPeriodicEmit();
+        assertThat(underlyingWatermarkOutput.lastWatermark(), equalTo(emittedWatermark));
+        assertThat(underlyingWatermarkOutput.isIdle(), equalTo(false));
     }
 
     /**

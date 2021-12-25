@@ -938,7 +938,7 @@ public class DataStream<T> {
     }
 
     /**
-     * Writes a DataStream to the standard output stream (stderr).
+     * Writes a DataStream to the standard error stream (stderr).
      *
      * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
      *
@@ -971,7 +971,7 @@ public class DataStream<T> {
     }
 
     /**
-     * Writes a DataStream to the standard output stream (stderr).
+     * Writes a DataStream to the standard error stream (stderr).
      *
      * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
      *
@@ -1244,7 +1244,7 @@ public class DataStream<T> {
 
         DataStreamSink<T> sink = new DataStreamSink<>(this, sinkOperator);
 
-        getExecutionEnvironment().addOperator(sink.getTransformation());
+        getExecutionEnvironment().addOperator(sink.getLegacyTransformation());
         return sink;
     }
 
@@ -1317,7 +1317,7 @@ public class DataStream<T> {
         try (ClientAndIterator<T> clientAndIterator =
                 executeAndCollectWithClient(jobExecutionName)) {
             List<T> results = new ArrayList<>(limit);
-            while (clientAndIterator.iterator.hasNext() && limit > 0) {
+            while (limit > 0 && clientAndIterator.iterator.hasNext()) {
                 results.add(clientAndIterator.iterator.next());
                 limit--;
             }

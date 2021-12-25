@@ -23,8 +23,13 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.utils.PassThroughPythonAggregateFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
@@ -109,15 +114,26 @@ public class StreamArrowPythonProcTimeBoundedRangeOperatorTest
             RowType outputType,
             int[] groupingSet,
             int[] udafInputOffsets) {
+        RowType udfInputType = (RowType) Projection.of(udafInputOffsets).project(inputType);
+        RowType udfOutputType =
+                (RowType)
+                        Projection.range(inputType.getFieldCount(), outputType.getFieldCount())
+                                .project(outputType);
+
         return new PassThroughStreamArrowPythonProcTimeBoundedRangeOperator(
                 config,
                 pandasAggregateFunctions,
                 inputType,
-                outputType,
+                udfInputType,
+                udfOutputType,
                 -1,
                 100L,
-                groupingSet,
-                udafInputOffsets);
+                ProjectionCodeGenerator.generateProjection(
+                        CodeGeneratorContext.apply(new TableConfig()),
+                        "UdafInputProjection",
+                        inputType,
+                        udfInputType,
+                        udafInputOffsets));
     }
 
     private static class PassThroughStreamArrowPythonProcTimeBoundedRangeOperator
@@ -127,20 +143,20 @@ public class StreamArrowPythonProcTimeBoundedRangeOperatorTest
                 Configuration config,
                 PythonFunctionInfo[] pandasAggFunctions,
                 RowType inputType,
-                RowType outputType,
+                RowType udfInputType,
+                RowType udfOutputType,
                 int inputTimeFieldIndex,
                 long lowerBoundary,
-                int[] groupingSet,
-                int[] udafInputOffsets) {
+                GeneratedProjection generatedProjection) {
             super(
                     config,
                     pandasAggFunctions,
                     inputType,
-                    outputType,
+                    udfInputType,
+                    udfOutputType,
                     inputTimeFieldIndex,
                     lowerBoundary,
-                    groupingSet,
-                    udafInputOffsets);
+                    generatedProjection);
         }
 
         @Override
@@ -148,11 +164,10 @@ public class StreamArrowPythonProcTimeBoundedRangeOperatorTest
             return new PassThroughPythonAggregateFunctionRunner(
                     getRuntimeContext().getTaskName(),
                     PythonTestUtils.createTestEnvironmentManager(),
-                    userDefinedFunctionInputType,
-                    userDefinedFunctionOutputType,
+                    udfInputType,
+                    udfOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
-                    getInputOutputCoderUrn(),
                     new HashMap<>(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     false);

@@ -38,20 +38,4 @@ public interface NetworkClientHandler extends ChannelHandler {
     RemoteInputChannel getInputChannel(InputChannelID inputChannelId);
 
     void cancelRequestFor(InputChannelID inputChannelId);
-
-    /**
-     * The credit begins to announce after receiving the sender's backlog from buffer response. Than
-     * means it should only happen after some interactions with the channel to make sure the context
-     * will not be null.
-     *
-     * @param inputChannel The input channel with unannounced credits.
-     */
-    void notifyCreditAvailable(final RemoteInputChannel inputChannel);
-
-    /**
-     * Resumes data consumption from the producer after an exactly once checkpoint.
-     *
-     * @param inputChannel The input channel to resume data consumption.
-     */
-    void resumeConsumption(RemoteInputChannel inputChannel);
 }

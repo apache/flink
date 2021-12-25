@@ -77,6 +77,19 @@ public final class ProcedureNamespace extends AbstractNamespace {
         return type;
     }
 
+    /** Converts a type to a struct if it is not already. */
+    protected RelDataType toStruct(RelDataType type, SqlNode unnest) {
+        if (type.isStruct()) {
+            return validator.getTypeFactory().createTypeWithNullability(type, false);
+        }
+        return validator
+                .getTypeFactory()
+                .builder()
+                .kind(type.getStructKind())
+                .add(validator.deriveAlias(unnest, 0), type)
+                .build();
+    }
+
     public SqlNode getNode() {
         return call;
     }

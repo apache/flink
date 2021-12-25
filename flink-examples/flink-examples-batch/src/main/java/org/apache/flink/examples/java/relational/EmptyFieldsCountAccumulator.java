@@ -236,7 +236,7 @@ public class EmptyFieldsCountAccumulator {
     /**
      * It is recommended to use POJOs (Plain old Java objects) instead of TupleX for data types with
      * many fields. Also, POJOs can be used to give large Tuple-types a name. <a
-     * href="https://ci.apache.org/projects/flink/flink-docs-master/apis/best_practices.html#naming-large-tuplex-types">Source
+     * href="https://nightlies.apache.org/flink/flink-docs-master/apis/best_practices.html#naming-large-tuplex-types">Source
      * (docs)</a>
      */
     public static class StringTriple extends Tuple3<String, String, String> {

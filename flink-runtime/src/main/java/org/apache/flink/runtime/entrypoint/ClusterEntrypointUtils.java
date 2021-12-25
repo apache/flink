@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.entrypoint.parser.ParserResultFactory;
+import org.apache.flink.runtime.util.ClusterUncaughtExceptionHandler;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.util.Preconditions;
 
@@ -115,5 +116,16 @@ public final class ClusterEntrypointUtils {
                         "Illegal pool size (%s) of io-executor, please re-configure '%s'.",
                         poolSize, ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE.key()));
         return poolSize;
+    }
+
+    /**
+     * Sets the uncaught exception handler for current thread based on configuration.
+     *
+     * @param config the configuration to read.
+     */
+    public static void configureUncaughtExceptionHandler(Configuration config) {
+        Thread.setDefaultUncaughtExceptionHandler(
+                new ClusterUncaughtExceptionHandler(
+                        config.get(ClusterOptions.UNCAUGHT_EXCEPTION_HANDLING)));
     }
 }

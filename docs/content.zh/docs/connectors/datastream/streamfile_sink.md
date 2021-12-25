@@ -4,6 +4,7 @@ weight: 6
 type: docs
 aliases:
   - /zh/dev/connectors/streamfile_sink.html
+bookHidden: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -26,9 +27,11 @@ under the License.
 
 # Streaming File Sink
 
-
-
 这个连接器提供了一个 Sink 来将分区文件写入到支持 [Flink `FileSystem`]({{< ref "docs/deployment/filesystems/overview" >}}) 接口的文件系统中。
+
+{{< hint warning >}}
+This Streaming File Sink is in the process of being phased out. Please use the unified [File Sink]({{< ref "docs/connectors/datastream/file_sink" >}}) as a drop-in replacement.
+{{< /hint >}}
 
 Streaming File Sink 会将数据写入到桶中。由于输入流可能是无界的，因此每个桶中的数据被划分为多个有限大小的文件。如何分桶是可以配置的，默认使用基于时间的分桶策略，这种策略每个小时创建一个新的桶，桶中包含的文件将记录所有该小时内从流中接收到的数据。
 
@@ -101,9 +104,9 @@ val sink: StreamingFileSink[String] = StreamingFileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder[String]("UTF-8"))
     .withRollingPolicy(
         DefaultRollingPolicy.builder()
-            .withRolloverInterval(TimeUnit.MINUTES.toMillis(15))
-            .withInactivityInterval(TimeUnit.MINUTES.toMillis(5))
-            .withMaxPartSize(1024 * 1024 * 1024)
+            .withRolloverInterval(Duration.ofSeconds(10))
+            .withInactivityInterval(Duration.ofSeconds(10))
+            .withMaxPartSize(MemorySize.ofMebiBytes(1))
             .build())
     .build()
 
@@ -513,7 +516,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
 在应用中使用 SequenceFile 批量编码器，你需要添加以下依赖：
 
-{{< artifact flink-sequence-file withScalaVersion >}}
+{{< artifact flink-sequence-file >}}
 
 简单的 SequenceFile 写入示例：
 
@@ -599,10 +602,10 @@ Flink 有两个内置的滚动策略：
 
 处于 Finished 状态的文件不会再被修改，可以被下游系统安全地读取。
 
-<div class="alert alert-info">
-     <b>重要:</b> 部分文件的索引在每个 subtask 内部是严格递增的（按文件创建顺序）。但是索引并不总是连续的。当 Job 重启后，所有部分文件的索引从 `max part index + 1` 开始，
-     这里的 `max part index` 是所有 subtask 中索引的最大值。
-</div>
+{{< hint info >}}
+**重要:** 部分文件的索引在每个 subtask 内部是严格递增的（按文件创建顺序）。但是索引并不总是连续的。当 Job 重启后，所有部分文件的索引从 `max part index + 1` 开始，
+这里的 `max part index` 是所有 subtask 中索引的最大值。
+{{< /hint >}}
 
 对于每个活动的桶，Writer 在任何时候都只有一个处于 In-progress 状态的部分文件（part file），但是可能有几个 Penging 和 Finished 状态的部分文件（part file）。
 

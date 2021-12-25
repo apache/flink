@@ -24,9 +24,8 @@ import pytz
 from pyflink.table import DataTypes, expressions as expr
 from pyflink.table.udf import ScalarFunction, udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkOldStreamTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase, PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkOldBatchTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
+    PyFlinkBatchTableTestCase
 
 
 class UserDefinedFunctionTests(object):
@@ -640,25 +639,7 @@ def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):
 
 
 class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
-                                            PyFlinkOldStreamTableTestCase):
-    pass
-
-
-class PyFlinkBatchUserDefinedFunctionTests(PyFlinkOldBatchTableTestCase):
-
-    def test_chaining_scalar_function(self):
-        add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
-        subtract_one = udf(SubtractOne(), result_type=DataTypes.BIGINT())
-
-        t = self.t_env.from_elements([(1, 2, 1), (2, 5, 2), (3, 1, 3)], ['a', 'b', 'c'])
-        t = t.select(add(add_one(t.a), subtract_one(t.b)), t.c, expr.lit(1))
-
-        result = self.collect(t)
-        self.assertEqual(result, ["+I[3, 1, 1]", "+I[7, 2, 1]", "+I[4, 3, 1]"])
-
-
-class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
-                                                 PyFlinkBlinkStreamTableTestCase):
+                                            PyFlinkStreamTableTestCase):
     def test_deterministic(self):
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
         self.assertTrue(add_one._deterministic)
@@ -723,7 +704,7 @@ class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
             self.t_env.create_temporary_system_function(
                 "non-callable-udf", udf(Plus(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
-    def test_data_types_only_supported_in_blink_planner(self):
+    def test_data_types(self):
         timezone = self.t_env.get_config().get_local_timezone()
         local_datetime = pytz.timezone(timezone).localize(
             datetime.datetime(1970, 1, 1, 0, 0, 0, 123000))
@@ -797,8 +778,8 @@ class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
         self.assertEqual(lines, ['1,2', '2,3', '3,4'])
 
 
-class PyFlinkBlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
-                                                PyFlinkBlinkBatchTableTestCase):
+class PyFlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
+                                           PyFlinkBatchTableTestCase):
     pass
 
 

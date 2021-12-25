@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 
 import java.util.Collections;
 import java.util.List;
@@ -33,10 +34,7 @@ public final class TestingCompletedCheckpointStore implements CompletedCheckpoin
     }
 
     @Override
-    public void recover() {}
-
-    @Override
-    public void addCheckpoint(
+    public CompletedCheckpoint addCheckpointAndSubsumeOldestOne(
             CompletedCheckpoint checkpoint,
             CheckpointsCleaner checkpointsCleaner,
             Runnable postCleanup) {
@@ -44,7 +42,7 @@ public final class TestingCompletedCheckpointStore implements CompletedCheckpoin
     }
 
     @Override
-    public CompletedCheckpoint getLatestCheckpoint(boolean isPreferCheckpointForRecovery) {
+    public CompletedCheckpoint getLatestCheckpoint() {
         return null;
     }
 
@@ -70,6 +68,11 @@ public final class TestingCompletedCheckpointStore implements CompletedCheckpoin
 
     @Override
     public boolean requiresExternalizedCheckpoints() {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
+    public SharedStateRegistry getSharedStateRegistry() {
         throw new UnsupportedOperationException("Not implemented.");
     }
 }

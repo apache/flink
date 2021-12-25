@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
+import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 
@@ -84,6 +84,7 @@ public class BlockingShuffleITCase {
 
     private JobGraph createJobGraph(int numRecordsToSend) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setBufferTimeout(-1);
         env.setParallelism(numTaskManagers * numSlotsPerTaskManager);
         DataStream<String> source = env.addSource(new StringSource(numRecordsToSend));
         source.rebalance()
@@ -92,7 +93,7 @@ public class BlockingShuffleITCase {
                 .addSink(new VerifySink());
 
         StreamGraph streamGraph = env.getStreamGraph();
-        streamGraph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_BLOCKING);
+        streamGraph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING);
         // a scheduler supporting batch jobs is required for this job graph, because it contains
         // blocking data exchanges.
         // The scheduler is selected based on the JobType.

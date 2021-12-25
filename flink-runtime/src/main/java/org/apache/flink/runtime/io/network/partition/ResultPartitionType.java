@@ -42,7 +42,7 @@ public enum ResultPartitionType {
      * ResourceManager, rather than by the scheduler.
      *
      * <p>Otherwise, the partition may only be dropped by safety-nets during failure handling
-     * scenarios, like when the TaskManager exits or when the TaskManager looses connection to
+     * scenarios, like when the TaskManager exits or when the TaskManager loses connection to
      * JobManager / ResourceManager for too long.
      */
     BLOCKING_PERSISTENT(false, false, false, true, true),

@@ -21,6 +21,7 @@ package org.apache.flink.orc.writer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.vector.RowDataVectorizer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.ArrayData;
@@ -100,6 +101,7 @@ public class OrcBulkRowDataWriterTest {
 
         StreamingFileSink<RowData> sink =
                 StreamingFileSink.forBulkFormat(new Path(outDir.toURI()), writer)
+                        .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .withBucketCheckInterval(10000)
                         .build();
 

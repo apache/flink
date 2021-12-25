@@ -17,13 +17,9 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
-import {
-  CheckPointConfigInterface,
-  CheckPointHistoryInterface,
-  CheckPointInterface,
-  JobDetailCorrectInterface
-} from 'interfaces';
 import { distinctUntilChanged } from 'rxjs/operators';
+
+import { CheckpointConfig, CheckpointHistory, Checkpoint, JobDetailCorrect } from 'interfaces';
 import { JobService } from 'services';
 
 @Component({
@@ -33,22 +29,17 @@ import { JobService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobCheckpointsComponent implements OnInit {
-  checkPointStats: CheckPointInterface;
-  checkPointConfig: CheckPointConfigInterface;
-  jobDetail: JobDetailCorrectInterface;
+  public readonly trackById = (_: number, node: CheckpointHistory): number => node.id;
 
-  trackHistoryBy(_: number, node: CheckPointHistoryInterface) {
-    return node.id;
-  }
+  public checkPointStats: Checkpoint;
+  public checkPointConfig: CheckpointConfig;
+  public jobDetail: JobDetailCorrect;
 
-  refresh() {
-    this.jobService.loadCheckpointStats(this.jobDetail.jid).subscribe(data => (this.checkPointStats = data));
-    this.jobService.loadCheckpointConfig(this.jobDetail.jid).subscribe(data => (this.checkPointConfig = data));
-  }
+  public moreDetailsPanel = { active: false, disabled: false };
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
+  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  public ngOnInit(): void {
     this.jobService.jobDetail$.pipe(distinctUntilChanged((pre, next) => pre.jid === next.jid)).subscribe(data => {
       this.jobDetail = data;
       this.jobService.loadCheckpointStats(this.jobDetail.jid).subscribe(stats => {
@@ -60,5 +51,10 @@ export class JobCheckpointsComponent implements OnInit {
         this.cdr.markForCheck();
       });
     });
+  }
+
+  public refresh(): void {
+    this.jobService.loadCheckpointStats(this.jobDetail.jid).subscribe(data => (this.checkPointStats = data));
+    this.jobService.loadCheckpointConfig(this.jobDetail.jid).subscribe(data => (this.checkPointConfig = data));
   }
 }

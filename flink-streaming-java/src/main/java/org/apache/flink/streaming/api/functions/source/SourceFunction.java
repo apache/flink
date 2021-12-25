@@ -20,9 +20,11 @@ package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.functions.TimestampAssigner;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
 import java.io.Serializable;
@@ -73,7 +75,7 @@ import java.io.Serializable;
  *
  *          if (context.isRestored()) {
  *              for (Long count : this.checkpointedCount.get()) {
- *                  this.count = count;
+ *                  this.count += count;
  *              }
  *          }
  *      }
@@ -87,65 +89,27 @@ import java.io.Serializable;
  *
  * <h3>Timestamps and watermarks:</h3>
  *
- * <p>Sources may assign timestamps to elements and may manually emit watermarks. However, these are
- * only interpreted if the streaming program runs on {@link TimeCharacteristic#EventTime}. On other
- * time characteristics ({@link TimeCharacteristic#IngestionTime} and {@link
- * TimeCharacteristic#ProcessingTime}), the watermarks from the source function are ignored.
+ * <p>Sources may assign timestamps to elements and may manually emit watermarks via the methods
+ * {@link SourceContext#collectWithTimestamp(Object, long)} and {@link
+ * SourceContext#emitWatermark(Watermark)}.
  *
  * @param <T> The type of the elements produced by this source.
- * @see org.apache.flink.streaming.api.TimeCharacteristic
  */
 @Public
 public interface SourceFunction<T> extends Function, Serializable {
 
     /**
-     * Starts the source. Implementations can use the {@link SourceContext} emit elements.
+     * Starts the source. Implementations use the {@link SourceContext} to emit elements. Sources
+     * that checkpoint their state for fault tolerance should use the {@link
+     * SourceContext#getCheckpointLock()} checkpoint lock} to ensure consistency between the
+     * bookkeeping and emitting the elements.
      *
-     * <p>Sources that implement {@link
-     * org.apache.flink.streaming.api.checkpoint.CheckpointedFunction} must lock on the checkpoint
-     * lock (using a synchronized block) before updating internal state and emitting elements, to
-     * make both an atomic operation:
+     * <p>Sources that implement {@link CheckpointedFunction} must lock on the {@link
+     * SourceContext#getCheckpointLock()} checkpoint lock} checkpoint lock (using a synchronized
+     * block) before updating internal state and emitting elements, to make both an atomic
+     * operation.
      *
-     * <pre>{@code
-     *  public class ExampleCountSource implements SourceFunction<Long>, CheckpointedFunction {
-     *      private long count = 0L;
-     *      private volatile boolean isRunning = true;
-     *
-     *      private transient ListState<Long> checkpointedCount;
-     *
-     *      public void run(SourceContext<T> ctx) {
-     *          while (isRunning && count < 1000) {
-     *              // this synchronized block ensures that state checkpointing,
-     *              // internal state updates and emission of elements are an atomic operation
-     *              synchronized (ctx.getCheckpointLock()) {
-     *                  ctx.collect(count);
-     *                  count++;
-     *              }
-     *          }
-     *      }
-     *
-     *      public void cancel() {
-     *          isRunning = false;
-     *      }
-     *
-     *      public void initializeState(FunctionInitializationContext context) {
-     *          this.checkpointedCount = context
-     *              .getOperatorStateStore()
-     *              .getListState(new ListStateDescriptor<>("count", Long.class));
-     *
-     *          if (context.isRestored()) {
-     *              for (Long count : this.checkpointedCount.get()) {
-     *                  this.count = count;
-     *              }
-     *          }
-     *      }
-     *
-     *      public void snapshotState(FunctionSnapshotContext context) {
-     *          this.checkpointedCount.clear();
-     *          this.checkpointedCount.add(count);
-     *      }
-     * }
-     * }</pre>
+     * <p>Refer to the {@link SourceFunction top-level class docs} for an example.
      *
      * @param ctx The context to emit elements to and for accessing locks.
      */
@@ -159,11 +123,27 @@ public interface SourceFunction<T> extends Function, Serializable {
      * <p>A typical pattern is to have an {@code "volatile boolean isRunning"} flag that is set to
      * {@code false} in this method. That flag is checked in the loop condition.
      *
-     * <p>When a source is canceled, the executing thread will also be interrupted (via {@link
-     * Thread#interrupt()}). The interruption happens strictly after this method has been called, so
-     * any interruption handler can rely on the fact that this method has completed. It is good
-     * practice to make any flags altered by this method "volatile", in order to guarantee the
-     * visibility of the effects of this method to any interruption handler.
+     * <p>In case of an ungraceful shutdown (cancellation of the source operator, possibly for
+     * failover), the thread that calls {@link #run(SourceContext)} will also be {@link
+     * Thread#interrupt() interrupted}) by the Flink runtime, in order to speed up the cancellation
+     * (to ensure threads exit blocking methods fast, like I/O, blocking queues, etc.). The
+     * interruption happens strictly after this method has been called, so any interruption handler
+     * can rely on the fact that this method has completed (for example to ignore exceptions that
+     * happen after cancellation).
+     *
+     * <p>During graceful shutdown (for example stopping a job with a savepoint), the program must
+     * cleanly exit the {@link #run(SourceContext)} method soon after this method was called. The
+     * Flink runtime will NOT interrupt the source thread during graceful shutdown. Source
+     * implementors must ensure that no thread interruption happens on any thread that emits records
+     * through the {@code SourceContext} from the {@link #run(SourceContext)} method; otherwise the
+     * clean shutdown may fail when threads are interrupted while processing the final records.
+     *
+     * <p>Because the {@code SourceFunction} cannot easily differentiate whether the shutdown should
+     * be graceful or ungraceful, we recommend that implementors refrain from interrupting any
+     * threads that interact with the {@code SourceContext} at all. You can rely on the Flink
+     * runtime to interrupt the source thread in case of ungraceful cancellation. Any additionally
+     * spawned threads that directly emit records through the {@code SourceContext} should use a
+     * shutdown method that does not rely on thread interruption.
      */
     void cancel();
 
@@ -183,39 +163,18 @@ public interface SourceFunction<T> extends Function, Serializable {
          * Emits one element from the source, without attaching a timestamp. In most cases, this is
          * the default way of emitting elements.
          *
-         * <p>The timestamp that the element will get assigned depends on the time characteristic of
-         * the streaming program:
-         *
-         * <ul>
-         *   <li>On {@link TimeCharacteristic#ProcessingTime}, the element has no timestamp.
-         *   <li>On {@link TimeCharacteristic#IngestionTime}, the element gets the system's current
-         *       time as the timestamp.
-         *   <li>On {@link TimeCharacteristic#EventTime}, the element will have no timestamp
-         *       initially. It needs to get a timestamp (via a {@link TimestampAssigner}) before any
-         *       time-dependent operation (like time windows).
-         * </ul>
+         * <p>The element will have no timestamp initially. If timestamps and watermarks are
+         * required, for example for event-time windows, timers, or joins, then you need to assign a
+         * timestamp via {@link DataStream#assignTimestampsAndWatermarks(WatermarkStrategy)} and set
+         * a strategy that assigns timestamps (for example using {@link
+         * WatermarkStrategy#withTimestampAssigner(TimestampAssignerSupplier)}).
          *
          * @param element The element to emit
          */
         void collect(T element);
 
         /**
-         * Emits one element from the source, and attaches the given timestamp. This method is
-         * relevant for programs using {@link TimeCharacteristic#EventTime}, where the sources
-         * assign timestamps themselves, rather than relying on a {@link TimestampAssigner} on the
-         * stream.
-         *
-         * <p>On certain time characteristics, this timestamp may be ignored or overwritten. This
-         * allows programs to switch between the different time characteristics and behaviors
-         * without changing the code of the source functions.
-         *
-         * <ul>
-         *   <li>On {@link TimeCharacteristic#ProcessingTime}, the timestamp will be ignored,
-         *       because processing time never works with element timestamps.
-         *   <li>On {@link TimeCharacteristic#IngestionTime}, the timestamp is overwritten with the
-         *       system's current time, to realize proper ingestion time semantics.
-         *   <li>On {@link TimeCharacteristic#EventTime}, the timestamp will be used.
-         * </ul>
+         * Emits one element from the source, and attaches the given timestamp.
          *
          * @param element The element to emit
          * @param timestamp The timestamp in milliseconds since the Epoch
@@ -228,11 +187,6 @@ public interface SourceFunction<T> extends Function, Serializable {
          * elements with a timestamp {@code t' <= t} will occur any more. If further such elements
          * will be emitted, those elements are considered <i>late</i>.
          *
-         * <p>This method is only relevant when running on {@link TimeCharacteristic#EventTime}. On
-         * {@link TimeCharacteristic#ProcessingTime},Watermarks will be ignored. On {@link
-         * TimeCharacteristic#IngestionTime}, the Watermarks will be replaced by the automatic
-         * ingestion time watermarks.
-         *
          * @param mark The Watermark to emit
          */
         @PublicEvolving
@@ -240,10 +194,7 @@ public interface SourceFunction<T> extends Function, Serializable {
 
         /**
          * Marks the source to be temporarily idle. This tells the system that this source will
-         * temporarily stop emitting records and watermarks for an indefinite amount of time. This
-         * is only relevant when running on {@link TimeCharacteristic#IngestionTime} and {@link
-         * TimeCharacteristic#EventTime}, allowing downstream tasks to advance their watermarks
-         * without the need to wait for watermarks from this source while it is idle.
+         * temporarily stop emitting records and watermarks for an indefinite amount of time.
          *
          * <p>Source functions should make a best effort to call this method as soon as they
          * acknowledge themselves to be idle. The system will consider the source to resume activity

@@ -18,17 +18,24 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.BulkWriter;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.file.src.FileSourceSplit;
+import org.apache.flink.connector.file.src.reader.BulkFormat;
+import org.apache.flink.connector.file.table.factories.BulkReaderFormatFactory;
+import org.apache.flink.connector.file.table.factories.BulkWriterFormatFactory;
+import org.apache.flink.connector.file.table.format.BulkDecodingFormat;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.factories.BulkWriterFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
@@ -36,6 +43,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
@@ -45,16 +53,31 @@ import java.io.OutputStream;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.formats.avro.AvroFormatOptions.AVRO_OUTPUT_CODEC;
+
 /** Avro format factory for file system. */
-public class AvroFileFormatFactory implements BulkWriterFormatFactory {
+@Internal
+public class AvroFileFormatFactory implements BulkReaderFormatFactory, BulkWriterFormatFactory {
 
     public static final String IDENTIFIER = "avro";
 
-    public static final ConfigOption<String> AVRO_OUTPUT_CODEC =
-            ConfigOptions.key("codec")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("The compression codec for avro");
+    @Override
+    public BulkDecodingFormat<RowData> createDecodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        return new BulkDecodingFormat<RowData>() {
+            @Override
+            public BulkFormat<RowData, FileSourceSplit> createRuntimeDecoder(
+                    DynamicTableSource.Context sourceContext, DataType producedDataType) {
+                return new AvroGenericRecordBulkFormat(
+                        sourceContext, (RowType) producedDataType.getLogicalType().copy(false));
+            }
+
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.insertOnly();
+            }
+        };
+    }
 
     @Override
     public EncodingFormat<BulkWriter.Factory<RowData>> createEncodingFormat(
@@ -91,6 +114,46 @@ public class AvroFileFormatFactory implements BulkWriterFormatFactory {
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(AVRO_OUTPUT_CODEC);
         return options;
+    }
+
+    private static class AvroGenericRecordBulkFormat
+            extends AbstractAvroBulkFormat<GenericRecord, RowData, FileSourceSplit> {
+
+        private static final long serialVersionUID = 1L;
+
+        private final RowType producedRowType;
+        private final TypeInformation<RowData> producedTypeInfo;
+
+        private transient AvroToRowDataConverters.AvroToRowDataConverter converter;
+        private transient GenericRecord reusedAvroRecord;
+
+        public AvroGenericRecordBulkFormat(
+                DynamicTableSource.Context context, RowType producedRowType) {
+            super(AvroSchemaConverter.convertToSchema(producedRowType));
+            this.producedRowType = producedRowType;
+            this.producedTypeInfo = context.createTypeInformation(producedRowType);
+        }
+
+        @Override
+        protected void open(FileSourceSplit split) {
+            converter = AvroToRowDataConverters.createRowConverter(producedRowType);
+            reusedAvroRecord = new GenericData.Record(readerSchema);
+        }
+
+        @Override
+        protected RowData convert(GenericRecord record) {
+            return record == null ? null : (GenericRowData) converter.convert(record);
+        }
+
+        @Override
+        protected GenericRecord createReusedAvroRecord() {
+            return reusedAvroRecord;
+        }
+
+        @Override
+        public TypeInformation<RowData> getProducedType() {
+            return producedTypeInfo;
+        }
     }
 
     /**

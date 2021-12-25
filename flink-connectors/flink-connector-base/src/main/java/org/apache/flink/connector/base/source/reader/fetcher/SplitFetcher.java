@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.base.source.reader.fetcher;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -28,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +39,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /** The internal fetcher runnable responsible for polling message from the external system. */
+@Internal
 public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
     private static final Logger LOG = LoggerFactory.getLogger(SplitFetcher.class);
     private static final SplitFetcherTask WAKEUP_TASK = new DummySplitFetcherTask("WAKEUP_TASK");
@@ -69,8 +72,8 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             SplitReader<E, SplitT> splitReader,
             Consumer<Throwable> errorHandler,
-            Runnable shutdownHook) {
-
+            Runnable shutdownHook,
+            Consumer<Collection<String>> splitFinishedHook) {
         this.id = id;
         this.taskQueue = new LinkedBlockingDeque<>();
         this.elementsQueue = elementsQueue;
@@ -88,6 +91,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
                         elementsQueue,
                         ids -> {
                             ids.forEach(assignedSplits::remove);
+                            splitFinishedHook.accept(ids);
                             LOG.info("Finished reading from splits {}", ids);
                         },
                         id);
@@ -180,6 +184,10 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 
     public SplitReader<E, SplitT> getSplitReader() {
         return splitReader;
+    }
+
+    public int fetcherId() {
+        return id;
     }
 
     /** Shutdown the split fetcher. */

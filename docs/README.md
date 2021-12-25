@@ -6,21 +6,29 @@ https://flink.apache.org/ is also generated from the files found here.
 
 # Requirements
 
-### Build the site locally
+### Build the documentation and serve it locally
 
-Make sure you have installed [Hugo](https://gohugo.io/getting-started/installing/) on your
-system. To build the Flink docs, you need the *extended version* of Hugo with Sass/SCSS support.
+The Flink documentation uses [Hugo](https://gohugo.io/getting-started/installing/) to generate HTML files.  More specifically, it uses the *extended version* of Hugo with Sass/SCSS support. 
 
-From this directory:
+To build the documentation, you can install Hugo locally or use a Docker image. 
 
-  * Fetch the theme submodule
-	```sh
-	git submodule update --init --recursive
-	```
-  * Start local server
-	```sh
-	hugo -b "" serve
-	```
+Both methods require you to execute commands in the directory of this module (`docs/`). The built site is served at http://localhost:1313/.
+
+#### Using Hugo Docker image:
+
+```sh
+$ git submodule update --init --recursive
+$ docker run -v $(pwd):/src -p 1313:1313 jakejarvis/hugo-extended:latest server --buildDrafts --buildFuture --bind 0.0.0.0
+```
+
+#### Local Hugo installation:
+
+Make sure you have installed [Hugo](https://gohugo.io/getting-started/installing/) on your system.
+
+```sh
+$ git submodule update --init --recursive
+$ ./build_docs.sh
+```
 
 The site can be viewed at http://localhost:1313/
 
@@ -52,7 +60,7 @@ In addition to Markdown, every page contains a Jekyll front matter, which specif
     ---
     title: "Title of the Page"
     ---
-
+    
     ---
     title: "Title of the Page" <-- Title rendered in the side nave
     weight: 1 <-- Weight controls the ordering of pages in the side nav. 
@@ -82,7 +90,7 @@ Please stick to the "logical order" when using the headlines, e.g. start with le
 #### Table of Contents
 
 Table of contents are added automatically to every page, based on heading levels 2 - 4. 
-The ToC can be ommitted by adding the following to the front matter of the page:
+The ToC can be omitted by adding the following to the front matter of the page:
 
     ---
     bookToc: false
@@ -95,14 +103,14 @@ to its documentation markdown. The following are available for use:
 
 #### Flink Artifact
 
-    {{< artfiact flink-streaming-java withScalaVersion >}}
+    {{< artifact flink-streaming-scala withScalaVersion >}}
 
-This will be replaced by the maven artifact for flink-streaming-java that users should copy into their pom.xml file. It will render out to:
+This will be replaced by the maven artifact for flink-streaming-scala that users should copy into their pom.xml file. It will render out to:
 
 ```xml
 <dependency>
-    <groupdId>org.apache.flink</groupId>
-    <artifactId>flink-streaming-java_2.11</artifactId>
+    <groupId>org.apache.flink</groupId>
+    <artifactId>flink-streaming-scala_2.12</artifactId>
     <version><!-- current flink version --></version>
 </dependency>
 ```
@@ -124,7 +132,7 @@ This will be replaced by a back to top link. It is recommended to use these link
 	{{< hint info >}}
 	Some interesting information
 	{{< /hint >}}
-	
+
 The hint will be rendered in a blue box. This hint is useful when providing 
 additional information for the user that does not fit into the flow of the documentation.
 
@@ -150,20 +158,20 @@ functionality.
 #### Label
 
     {{< label "My Label" >}}
-    
+
 The label will be rendered in an inlined blue box. This is useful for labeling functionality
 such as whether a SQL feature works for only batch or streaming execution. 
 
 #### Flink version 
 
     {{< version >}}
-    
+
 Interpolates the current Flink version
 
 #### Scala Version
 
-    {{< scala_verison >}}
-    
+    {{< scala_version >}}
+
 Interpolates the default scala version
 
 #### Stable
@@ -171,7 +179,7 @@ Interpolates the default scala version
     {{< stable >}}
      Some content
     {{< /stable >}}
-    
+
 This shortcode will only render its content if the site is marked as stable. 
 
 #### Unstable 
@@ -179,13 +187,13 @@ This shortcode will only render its content if the site is marked as stable.
     {{< unstable >}}
     Some content 
     {{< /unstable >}}
-    
+
 This shortcode will only render its content if the site is marked as unstable. 
 
 #### Query State Warning
 
     {{< query_state_warning >}}
-    
+
 Will render a warning the current SQL feature may have unbounded state requirements.
 
 #### tab
@@ -202,22 +210,22 @@ Will render a warning the current SQL feature may have unbounded state requireme
     ```
     {< /tab >}}
     {{< /tabs }}
-    
+
 Prints the content in tabs. IMPORTANT: The label in the outermost "tabs" shortcode must
 be unique for the page. 
 
 #### Github Repo
 
     {{< github_repo >}}
-    
+
 Renders a link to the apache flink repo. 
 
 #### Github Link
 
     {{< gh_link file="/some/file.java" name="Some file" >}}
-    
+
 Renders a link to a file in the Apache Flink repo with a given name. 
- 
+
 #### JavaDocs Link
     {{< javadoc file="some/file" name="Some file" >}}
 
@@ -227,3 +235,11 @@ Renders a link to a file in the Apache Flink Java Documentation.
     {< pythondoc file="some/file" name="Some file" >}}
 
 Renders a link to a file in the Apache Flink Python Documentation. 
+
+#### FlinkDownloads Link
+
+```
+{{< downloads >}}
+```
+
+Renders a link to the apache flink download page. 

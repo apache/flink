@@ -22,28 +22,46 @@ import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.execution.librarycache.ContextClassLoaderLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
+import org.apache.flink.testutils.TestingUtils;
 
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Builder for the {@link JobManagerSharedServices}. */
 public class TestingJobManagerSharedServicesBuilder {
 
-    private ScheduledExecutorService scheduledExecutorService;
+    private ScheduledExecutorService futureExecutor;
+
+    private ScheduledExecutorService ioExecutor;
 
     private LibraryCacheManager libraryCacheManager;
+
+    private ShuffleMaster<?> shuffleMaster;
 
     private BlobWriter blobWriter;
 
     public TestingJobManagerSharedServicesBuilder() {
-        scheduledExecutorService = TestingUtils.defaultExecutor();
+        futureExecutor = TestingUtils.defaultExecutor();
+        ioExecutor = TestingUtils.defaultExecutor();
         libraryCacheManager = ContextClassLoaderLibraryCacheManager.INSTANCE;
+        shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
         blobWriter = VoidBlobWriter.getInstance();
     }
 
-    public TestingJobManagerSharedServicesBuilder setScheduledExecutorService(
-            ScheduledExecutorService scheduledExecutorService) {
-        this.scheduledExecutorService = scheduledExecutorService;
+    public TestingJobManagerSharedServicesBuilder futureExecutor(
+            ScheduledExecutorService futureExecutor) {
+        this.futureExecutor = futureExecutor;
+        return this;
+    }
+
+    public TestingJobManagerSharedServicesBuilder ioExecutor(ScheduledExecutorService ioExecutor) {
+        this.ioExecutor = ioExecutor;
+        return this;
+    }
+
+    public TestingJobManagerSharedServicesBuilder setShuffleMaster(ShuffleMaster<?> shuffleMaster) {
+        this.shuffleMaster = shuffleMaster;
         return this;
     }
 
@@ -59,6 +77,6 @@ public class TestingJobManagerSharedServicesBuilder {
 
     public JobManagerSharedServices build() {
         return new JobManagerSharedServices(
-                scheduledExecutorService, libraryCacheManager, blobWriter);
+                futureExecutor, ioExecutor, libraryCacheManager, shuffleMaster, blobWriter);
     }
 }

@@ -22,14 +22,13 @@ import org.apache.flink.api.connector.sink.Committer;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The state fo the {@link AbstractStreamingCommitterOperator}.
+ * The state for the {@link AbstractStreamingCommitterHandler}.
  *
  * @param <CommT> The committable type of the {@link Committer}.
  */
@@ -43,8 +42,8 @@ final class StreamingCommitterState<CommT> {
 
     StreamingCommitterState(NavigableMap<Long, List<CommT>> committablesPerCheckpoint) {
         committables = new ArrayList<>();
-        for (Map.Entry<Long, List<CommT>> item : committablesPerCheckpoint.entrySet()) {
-            committables.addAll(item.getValue());
+        for (List<CommT> committables : committablesPerCheckpoint.values()) {
+            this.committables.addAll(committables);
         }
     }
 

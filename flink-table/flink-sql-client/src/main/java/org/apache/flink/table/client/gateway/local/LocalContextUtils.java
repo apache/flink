@@ -24,7 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.CliOptions;
-import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.context.SessionContext;
 import org.apache.flink.util.JarUtils;
@@ -35,24 +35,17 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-
-import static org.apache.flink.table.client.config.entries.ConfigurationEntry.create;
-import static org.apache.flink.table.client.config.entries.ConfigurationEntry.merge;
 
 /** Utils to build a {@link DefaultContext} and {@link SessionContext}. */
 public class LocalContextUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalContextUtils.class);
-
-    private static final String DEFAULT_ENV_FILE = "sql-client-defaults.yaml";
 
     private static final String DEFAULT_SESSION_ID = "default";
 
@@ -81,16 +74,10 @@ public class LocalContextUtils {
         List<CustomCommandLine> commandLines =
                 CliFrontend.loadCustomCommandLines(configuration, flinkConfigDir);
 
-        // try to find a environment if not found use the default env;
-        Environment defaultEnvironment =
-                getLocalDefaultEnvironment(flinkConfigDir, options.getDefaults());
-        Environment sessionEnvironment =
-                getSessionEnvironment(defaultEnvironment, options.getEnvironment());
-
-        appendPythonConfig(sessionEnvironment, options.getPythonConfiguration());
+        configuration.addAll(options.getPythonConfiguration());
         final List<URL> dependencies = discoverDependencies(jars, libDirs);
 
-        return new DefaultContext(sessionEnvironment, dependencies, configuration, commandLines);
+        return new DefaultContext(dependencies, configuration, commandLines);
     }
 
     public static SessionContext buildSessionContext(
@@ -102,56 +89,6 @@ public class LocalContextUtils {
             context = SessionContext.create(defaultContext, sessionId);
         }
         return context;
-    }
-
-    // --------------------------------------------------------------------------------------------
-
-    private static Environment getLocalDefaultEnvironment(
-            String flinkConfigDir, @Nullable URL defaultUrl) {
-        // try to find a default environment
-        URL defaultEnv = null;
-        if (defaultUrl == null) {
-            final String defaultFilePath = flinkConfigDir + "/" + DEFAULT_ENV_FILE;
-            System.out.println("No default environment specified.");
-            System.out.print("Searching for '" + defaultFilePath + "'...");
-            final File file = new File(defaultFilePath);
-            if (file.exists()) {
-                System.out.println("found.");
-                try {
-                    defaultEnv = org.apache.flink.core.fs.Path.fromLocalFile(file).toUri().toURL();
-                } catch (MalformedURLException e) {
-                    throw new SqlClientException(e);
-                }
-                LOG.info("Using default environment file: {}", defaultEnv);
-            } else {
-                System.out.println("not found.");
-            }
-        }
-
-        // inform user
-        Environment defaultEnvironment;
-        if (defaultEnv != null) {
-            System.out.println("Reading default environment from: " + defaultEnv);
-            try {
-                defaultEnvironment = Environment.parse(defaultEnv);
-            } catch (IOException e) {
-                throw new SqlClientException(
-                        "Could not read default environment file at: " + defaultEnv, e);
-            }
-        } else {
-            defaultEnvironment = new Environment();
-        }
-        return defaultEnvironment;
-    }
-
-    private static Environment getSessionEnvironment(
-            Environment defaultEnvironment, @Nullable URL sessionEnvironmentURL) {
-        if (sessionEnvironmentURL == null) {
-            return defaultEnvironment;
-        }
-
-        Environment sessionEnvironment = readSessionEnvironment(sessionEnvironmentURL);
-        return Environment.merge(defaultEnvironment, sessionEnvironment);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -190,34 +127,32 @@ public class LocalContextUtils {
             throw new SqlClientException("Could not load all required JAR files.", e);
         }
 
+        // add python dependencies by default
+        try {
+            URL location =
+                    Class.forName(
+                                    "org.apache.flink.python.PythonFunctionRunner",
+                                    false,
+                                    Thread.currentThread().getContextClassLoader())
+                            .getProtectionDomain()
+                            .getCodeSource()
+                            .getLocation();
+            if (Paths.get(location.toURI()).toFile().isFile()) {
+                dependencies.add(location);
+            }
+        } catch (URISyntaxException | ClassNotFoundException e) {
+            // TODO: Introduce user jar analyzer to determine user jar whether contains the python
+            // function or not. If user jar contains python function, manually add the python
+            // dependencies
+            throw new SqlExecutionException(
+                    "Don't find python dependencies. Please add the flink-python jar via `--jar` command option manually.",
+                    e);
+        }
+
         if (LOG.isDebugEnabled()) {
             LOG.debug("Using the following dependencies: {}", dependencies);
         }
 
         return dependencies;
-    }
-
-    private static Environment readSessionEnvironment(@Nullable URL envUrl) {
-        // use an empty environment by default
-        if (envUrl == null) {
-            System.out.println("No session environment specified.");
-            return new Environment();
-        }
-
-        System.out.println("Reading session environment from: " + envUrl);
-        LOG.info("Using session environment file: {}", envUrl);
-        try {
-            return Environment.parse(envUrl);
-        } catch (IOException e) {
-            throw new SqlClientException(
-                    "Could not read session environment file at: " + envUrl, e);
-        }
-    }
-
-    private static void appendPythonConfig(Environment env, Configuration pythonConfiguration) {
-        Map<String, Object> pythonConfig = new HashMap<>(pythonConfiguration.toMap());
-        Map<String, Object> combinedConfig =
-                new HashMap<>(merge(env.getConfiguration(), create(pythonConfig)).asMap());
-        env.setConfiguration(combinedConfig);
     }
 }

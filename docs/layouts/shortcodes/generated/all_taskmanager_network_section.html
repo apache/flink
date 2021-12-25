@@ -27,10 +27,40 @@
             <td>Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.network.memory.buffer-debloat.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>The switch of the automatic buffered debloating feature. If enabled the amount of in-flight data will be adjusted automatically accordingly to the measured throughput.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.buffer-debloat.period</h5></td>
+            <td style="word-wrap: break-word;">200 ms</td>
+            <td>Duration</td>
+            <td>The minimum period of time after which the buffer size will be debloated if required. The low value provides a fast reaction to the load fluctuation but can influence the performance.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.buffer-debloat.samples</h5></td>
+            <td style="word-wrap: break-word;">20</td>
+            <td>Integer</td>
+            <td>The number of the last buffer size values that will be taken for the correct calculation of the new one.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.buffer-debloat.target</h5></td>
+            <td style="word-wrap: break-word;">1 s</td>
+            <td>Duration</td>
+            <td>The target total time after which buffered in-flight data should be fully consumed. This configuration option will be used, in combination with the measured throughput, to adjust the amount of in-flight data.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.buffer-debloat.threshold-percentages</h5></td>
+            <td style="word-wrap: break-word;">25</td>
+            <td>Integer</td>
+            <td>The minimum difference in percentage between the newly calculated buffer size and the old one to announce the new value. Can be used to avoid constant back and forth small adjustments.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.network.memory.buffers-per-channel</h5></td>
             <td style="word-wrap: break-word;">2</td>
             <td>Integer</td>
-            <td>Number of exclusive network buffers to use for each outgoing/incoming channel (subpartition/inputchannel) in the credit-based flow control model. It should be configured at least 2 for good performance. 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is for parallel serialization.</td>
+            <td>Number of exclusive network buffers to use for each outgoing/incoming channel (subpartition/input channel) in the credit-based flow control model. It should be configured at least 2 for good performance. 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is for parallel serialization. The minimum valid value that can be configured is 0. When 0 buffers-per-channel is configured, the exclusive network buffers used per downstream incoming channel will be 0, but for each upstream outgoing channel, max(1, configured value) will be used. In other words we ensure that, for performance reasons, there is at least one buffer per outgoing channel regardless of the configuration.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.memory.floating-buffers-per-gate</h5></td>

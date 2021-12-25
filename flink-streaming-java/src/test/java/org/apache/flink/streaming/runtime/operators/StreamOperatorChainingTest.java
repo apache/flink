@@ -21,11 +21,13 @@ package org.apache.flink.streaming.runtime.operators;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -34,8 +36,10 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
+import org.apache.flink.streaming.runtime.tasks.RegularOperatorChain;
 import org.apache.flink.streaming.runtime.tasks.StreamOperatorWrapper;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
@@ -133,10 +137,7 @@ public class StreamOperatorChainingTest {
 
             headOperator.setup(mockTask, streamConfig, operatorChain.getMainOperatorOutput());
 
-            for (StreamOperatorWrapper<?, ?> operatorWrapper :
-                    operatorChain.getAllOperators(true)) {
-                operatorWrapper.getStreamOperator().open();
-            }
+            operatorChain.initializeStateAndOpenOperators(null);
 
             headOperator.processElement(new StreamRecord<>(1));
             headOperator.processElement(new StreamRecord<>(2));
@@ -262,10 +263,7 @@ public class StreamOperatorChainingTest {
 
             headOperator.setup(mockTask, streamConfig, operatorChain.getMainOperatorOutput());
 
-            for (StreamOperatorWrapper<?, ?> operatorWrapper :
-                    operatorChain.getAllOperators(true)) {
-                operatorWrapper.getStreamOperator().open();
-            }
+            operatorChain.initializeStateAndOpenOperators(null);
 
             headOperator.processElement(new StreamRecord<>(1));
             headOperator.processElement(new StreamRecord<>(2));
@@ -279,7 +277,7 @@ public class StreamOperatorChainingTest {
 
     private <IN, OT extends StreamOperator<IN>> OperatorChain<IN, OT> createOperatorChain(
             StreamConfig streamConfig, Environment environment, StreamTask<IN, OT> task) {
-        return new OperatorChain<>(
+        return new TestOperatorChain<>(
                 task, StreamTask.createRecordWriterDelegate(streamConfig, environment));
     }
 
@@ -291,5 +289,24 @@ public class StreamOperatorChainingTest {
                 .setConfig(streamConfig)
                 .setExecutionConfig(new ExecutionConfig().enableObjectReuse())
                 .build();
+    }
+
+    private static class TestOperatorChain<IN, OUT extends StreamOperator<IN>>
+            extends RegularOperatorChain<IN, OUT> {
+        public TestOperatorChain(
+                StreamTask<IN, OUT> task,
+                RecordWriterDelegate<SerializationDelegate<StreamRecord<IN>>>
+                        recordWriterDelegate) {
+            super(task, recordWriterDelegate);
+        }
+
+        @Override
+        public void initializeStateAndOpenOperators(
+                StreamTaskStateInitializer streamTaskStateInitializer) throws Exception {
+            for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
+                StreamOperator<?> operator = operatorWrapper.getStreamOperator();
+                operator.open();
+            }
+        }
     }
 }

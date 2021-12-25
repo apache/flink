@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.deployment.application.ApplicationRunner;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
@@ -25,6 +26,8 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -39,6 +42,7 @@ import javax.annotation.Nonnull;
 
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -47,7 +51,7 @@ import java.util.function.Supplier;
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.fromRequestBodyOrQueryParameter;
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.getQueryParameter;
-import static org.apache.flink.shaded.guava18.com.google.common.base.Strings.emptyToNull;
+import static org.apache.flink.shaded.guava30.com.google.common.base.Strings.emptyToNull;
 
 /** Handler to submit jobs uploaded via the Web UI. */
 public class JarRunHandler
@@ -82,8 +86,9 @@ public class JarRunHandler
     }
 
     @Override
-    protected CompletableFuture<JarRunResponseBody> handleRequest(
-            @Nonnull final HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request,
+    @VisibleForTesting
+    public CompletableFuture<JarRunResponseBody> handleRequest(
+            @Nonnull final HandlerRequest<JarRunRequestBody> request,
             @Nonnull final DispatcherGateway gateway)
             throws RestHandlerException {
 
@@ -121,8 +126,7 @@ public class JarRunHandler
     }
 
     private SavepointRestoreSettings getSavepointRestoreSettings(
-            final @Nonnull HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request)
-            throws RestHandlerException {
+            final @Nonnull HandlerRequest<JarRunRequestBody> request) throws RestHandlerException {
 
         final JarRunRequestBody requestBody = request.getRequestBody();
 
@@ -141,10 +145,14 @@ public class JarRunHandler
                                                 request, SavepointPathQueryParameter.class)),
                         null,
                         log);
+        final RestoreMode restoreMode =
+                Optional.ofNullable(requestBody.getRestoreMode())
+                        .orElseGet(SavepointConfigOptions.RESTORE_MODE::defaultValue);
         final SavepointRestoreSettings savepointRestoreSettings;
         if (savepointPath != null) {
             savepointRestoreSettings =
-                    SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState);
+                    SavepointRestoreSettings.forPath(
+                            savepointPath, allowNonRestoredState, restoreMode);
         } else {
             savepointRestoreSettings = SavepointRestoreSettings.none();
         }

@@ -69,7 +69,6 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
             JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
             FatalErrorHandler fatalErrorHandler,
             ClassLoader userCodeClassloader,
-            ShuffleMaster<?> shuffleMaster,
             long initializationTimestamp) {
         this.executor = executor;
         this.rpcService = rpcService;
@@ -82,7 +81,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
         this.jobManagerJobMetricGroupFactory = jobManagerJobMetricGroupFactory;
         this.fatalErrorHandler = fatalErrorHandler;
         this.userCodeClassloader = userCodeClassloader;
-        this.shuffleMaster = shuffleMaster;
+        this.shuffleMaster = jobManagerSharedServices.getShuffleMaster();
         this.initializationTimestamp = initializationTimestamp;
     }
 

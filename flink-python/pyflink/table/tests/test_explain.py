@@ -15,12 +15,13 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import json
 
-from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 from pyflink.table.explain_detail import ExplainDetail
 
 
-class StreamTableExplainTests(PyFlinkBlinkStreamTableTestCase):
+class StreamTableExplainTests(PyFlinkStreamTableTestCase):
 
     def test_explain(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
@@ -28,6 +29,14 @@ class StreamTableExplainTests(PyFlinkBlinkStreamTableTestCase):
             ExplainDetail.CHANGELOG_MODE)
 
         assert isinstance(result, str)
+
+        result = t.group_by("c").select(t.a.sum, t.c.alias('b')).explain(
+            ExplainDetail.JSON_EXECUTION_PLAN)
+        assert isinstance(result, str)
+        try:
+            json.loads(result.split('== Physical Execution Plan ==')[1])
+        except:
+            self.fail('The execution plan of explain detail is not in json format.')
 
 
 if __name__ == '__main__':

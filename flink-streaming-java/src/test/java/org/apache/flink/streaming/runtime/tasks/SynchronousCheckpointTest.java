@@ -39,7 +39,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -74,24 +73,6 @@ public class SynchronousCheckpointTest {
 
         // Wait until task has been initialized.
         assertThat(eventQueue.take(), is(Event.TASK_INITIALIZED));
-    }
-
-    @Test(timeout = 20_000)
-    public void synchronousCheckpointBlocksUntilNotificationForCorrectCheckpointComes()
-            throws Exception {
-        launchSynchronousSavepointAndWaitForSyncSavepointIdToBeSet();
-        assertTrue(streamTaskUnderTest.getSynchronousSavepointId().isPresent());
-
-        streamTaskUnderTest.notifyCheckpointCompleteAsync(41).get();
-        assertTrue(streamTaskUnderTest.getSynchronousSavepointId().isPresent());
-
-        streamTaskUnderTest.notifyCheckpointCompleteAsync(42).get();
-        assertFalse(streamTaskUnderTest.getSynchronousSavepointId().isPresent());
-
-        streamTaskUnderTest.stopTask();
-        waitUntilMainExecutionThreadIsFinished();
-
-        assertFalse(streamTaskUnderTest.isCanceled());
     }
 
     @Test(timeout = 10_000)
@@ -159,7 +140,8 @@ public class SynchronousCheckpointTest {
         @Override
         protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
             if (stopped || isCanceled()) {
-                controller.allActionsCompleted();
+                controller.suspendDefaultAction();
+                mailboxProcessor.suspend();
             }
         }
 

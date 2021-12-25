@@ -18,15 +18,23 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
+import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionJobVertex;
+import java.util.concurrent.ScheduledExecutorService;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -61,27 +69,31 @@ public class IntermediateResultPartitionTest extends TestLogger {
         IntermediateResultPartition partition1 = result.getPartitions()[0];
         IntermediateResultPartition partition2 = result.getPartitions()[1];
 
+        ConsumedPartitionGroup consumedPartitionGroup =
+                partition1.getConsumedPartitionGroups().get(0);
+
         // Not consumable on init
         assertFalse(partition1.isConsumable());
         assertFalse(partition2.isConsumable());
+        assertFalse(consumedPartitionGroup.areAllPartitionsFinished());
 
         // Not consumable if only one partition is FINISHED
         partition1.markFinished();
-        assertFalse(partition1.isConsumable());
+        assertTrue(partition1.isConsumable());
         assertFalse(partition2.isConsumable());
-        assertFalse(result.areAllPartitionsFinished());
+        assertFalse(consumedPartitionGroup.areAllPartitionsFinished());
 
         // Consumable after all partitions are FINISHED
         partition2.markFinished();
         assertTrue(partition1.isConsumable());
         assertTrue(partition2.isConsumable());
-        assertTrue(result.areAllPartitionsFinished());
+        assertTrue(consumedPartitionGroup.areAllPartitionsFinished());
 
         // Not consumable if failover happens
         result.resetForNewExecution();
         assertFalse(partition1.isConsumable());
         assertFalse(partition2.isConsumable());
-        assertFalse(result.areAllPartitionsFinished());
+        assertFalse(consumedPartitionGroup.areAllPartitionsFinished());
     }
 
     @Test
@@ -90,53 +102,70 @@ public class IntermediateResultPartitionTest extends TestLogger {
         IntermediateResultPartition partition1 = result.getPartitions()[0];
         IntermediateResultPartition partition2 = result.getPartitions()[1];
 
+        ConsumedPartitionGroup consumedPartitionGroup =
+                partition1.getConsumedPartitionGroups().get(0);
+
         // Not consumable on init
         assertFalse(partition1.isConsumable());
         assertFalse(partition2.isConsumable());
 
         // Not consumable if partition1 is FINISHED
         partition1.markFinished();
-        assertEquals(1, result.getNumberOfRunningProducers());
-        assertFalse(partition1.isConsumable());
+        assertEquals(1, consumedPartitionGroup.getNumberOfUnfinishedPartitions());
+        assertTrue(partition1.isConsumable());
         assertFalse(partition2.isConsumable());
-        assertFalse(result.areAllPartitionsFinished());
+        assertFalse(consumedPartitionGroup.areAllPartitionsFinished());
 
         // Reset the result and mark partition2 FINISHED, the result should still not be consumable
         result.resetForNewExecution();
-        assertEquals(2, result.getNumberOfRunningProducers());
+        assertEquals(2, consumedPartitionGroup.getNumberOfUnfinishedPartitions());
         partition2.markFinished();
-        assertEquals(1, result.getNumberOfRunningProducers());
+        assertEquals(1, consumedPartitionGroup.getNumberOfUnfinishedPartitions());
         assertFalse(partition1.isConsumable());
-        assertFalse(partition2.isConsumable());
-        assertFalse(result.areAllPartitionsFinished());
+        assertTrue(partition2.isConsumable());
+        assertFalse(consumedPartitionGroup.areAllPartitionsFinished());
 
         // Consumable after all partitions are FINISHED
         partition1.markFinished();
-        assertEquals(0, result.getNumberOfRunningProducers());
+        assertEquals(0, consumedPartitionGroup.getNumberOfUnfinishedPartitions());
         assertTrue(partition1.isConsumable());
         assertTrue(partition2.isConsumable());
-        assertTrue(result.areAllPartitionsFinished());
+        assertTrue(consumedPartitionGroup.areAllPartitionsFinished());
 
         // Not consumable again if failover happens
         result.resetForNewExecution();
-        assertEquals(2, result.getNumberOfRunningProducers());
+        assertEquals(2, consumedPartitionGroup.getNumberOfUnfinishedPartitions());
         assertFalse(partition1.isConsumable());
         assertFalse(partition2.isConsumable());
-        assertFalse(result.areAllPartitionsFinished());
+        assertFalse(consumedPartitionGroup.areAllPartitionsFinished());
     }
 
     private static IntermediateResult createResult(
-            ResultPartitionType resultPartitionType, int producerCount) throws Exception {
+            ResultPartitionType resultPartitionType, int parallelism) throws Exception {
 
-        JobVertex jobVertex = new JobVertex("v1");
-        jobVertex.setInvokableClass(NoOpInvokable.class);
-        jobVertex.setParallelism(producerCount);
-        jobVertex.createAndAddResultDataSet(resultPartitionType);
+        JobVertex source = new JobVertex("v1");
+        source.setInvokableClass(NoOpInvokable.class);
+        source.setParallelism(parallelism);
 
-        ExecutionJobVertex ejv =
-                getExecutionJobVertex(jobVertex, new DirectScheduledExecutorService());
-        IntermediateResult result = ejv.getProducedDataSets()[0];
+        JobVertex sink = new JobVertex("v2");
+        sink.setInvokableClass(NoOpInvokable.class);
+        sink.setParallelism(parallelism);
 
-        return result;
+        sink.connectNewDataSetAsInput(source, DistributionPattern.ALL_TO_ALL, resultPartitionType);
+
+        ScheduledExecutorService executorService = new DirectScheduledExecutorService();
+
+        JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(source, sink);
+
+        SchedulerBase scheduler =
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                        .setIoExecutor(executorService)
+                        .setFutureExecutor(executorService)
+                        .build();
+
+        ExecutionJobVertex ejv = scheduler.getExecutionJobVertex(source.getID());
+
+        return ejv.getProducedDataSets()[0];
     }
 }

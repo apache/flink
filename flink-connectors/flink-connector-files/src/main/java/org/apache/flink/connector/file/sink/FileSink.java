@@ -50,6 +50,8 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -159,6 +161,12 @@ public class FileSink<IN> implements Sink<IN, FileSinkCommittable, FileWriterBuc
     @Override
     public Optional<SimpleVersionedSerializer<Void>> getGlobalCommittableSerializer() {
         return Optional.empty();
+    }
+
+    @Override
+    public Collection<String> getCompatibleStateNames() {
+        // StreamingFileSink
+        return Collections.singleton("bucket-states");
     }
 
     public static <IN> DefaultRowFormatBuilder<IN> forRowFormat(
@@ -279,6 +287,7 @@ public class FileSink<IN> implements Sink<IN, FileSinkCommittable, FileWriterBuc
         FileWriter<IN> createWriter(InitContext context) throws IOException {
             return new FileWriter<>(
                     basePath,
+                    context.metricGroup(),
                     bucketAssigner,
                     bucketFactory,
                     createBucketWriter(),
@@ -427,6 +436,7 @@ public class FileSink<IN> implements Sink<IN, FileSinkCommittable, FileWriterBuc
         FileWriter<IN> createWriter(InitContext context) throws IOException {
             return new FileWriter<>(
                     basePath,
+                    context.metricGroup(),
                     bucketAssigner,
                     bucketFactory,
                     createBucketWriter(),

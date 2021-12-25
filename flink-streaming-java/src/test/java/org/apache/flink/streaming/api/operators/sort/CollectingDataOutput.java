@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,8 +40,8 @@ final class CollectingDataOutput<E> implements PushingAsyncDataInput.DataOutput<
     }
 
     @Override
-    public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
-        events.add(streamStatus);
+    public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+        events.add(watermarkStatus);
     }
 
     @Override

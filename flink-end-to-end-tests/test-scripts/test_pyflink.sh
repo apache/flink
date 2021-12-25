@@ -20,11 +20,12 @@
 set -Eeuo pipefail
 
 KAFKA_VERSION="2.2.0"
-CONFLUENT_VERSION="5.0.0"
-CONFLUENT_MAJOR_VERSION="5.0"
+CONFLUENT_VERSION="5.2.6"
+CONFLUENT_MAJOR_VERSION="5.2"
+# Check the Confluent Platform <> Apache Kafka compatibility matrix when updating KAFKA_VERSION
 KAFKA_SQL_VERSION="universal"
 SQL_JARS_DIR=${END_TO_END_DIR}/flink-sql-client-test/target/sql-jars
-KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka_" )
+KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka" )
 
 function create_data_stream_kafka_source {
     topicName="test-python-data-stream-source"
@@ -136,7 +137,7 @@ PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \
     -py "${FLINK_PYTHON_TEST_DIR}/python/python_job.py" \
     pipeline.classpaths "file://${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar"
 
-echo "Test blink stream python udf sql job:\n"
+echo "Test stream python udf sql job:\n"
 PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \
     -p 2 \
     -pyfs "${FLINK_PYTHON_TEST_DIR}/python/add_one.py" \
@@ -145,69 +146,37 @@ PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \
     -pyexec "venv.zip/.conda/bin/python" \
     "${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar"
 
-echo "Test blink batch python udf sql job:\n"
+echo "Test batch python udf sql job:\n"
 PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \
     -p 2 \
     -pyfs "${FLINK_PYTHON_TEST_DIR}/python/add_one.py" \
     -pyreq "${REQUIREMENTS_PATH}" \
     -pyarch "${TEST_DATA_DIR}/venv.zip" \
     -pyexec "venv.zip/.conda/bin/python" \
-    -c org.apache.flink.python.tests.BlinkBatchPythonUdfSqlJob \
-    "${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar"
-
-echo "Test flink stream python udf sql job:\n"
-PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \
-    -p 2 \
-    -pyfs "${FLINK_PYTHON_TEST_DIR}/python/add_one.py" \
-    -pyreq "${REQUIREMENTS_PATH}" \
-    -pyarch "${TEST_DATA_DIR}/venv.zip" \
-    -pyexec "venv.zip/.conda/bin/python" \
-    -c org.apache.flink.python.tests.FlinkStreamPythonUdfSqlJob \
-    "${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar"
-
-echo "Test flink batch python udf sql job:\n"
-PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \
-    -p 2 \
-    -pyfs "${FLINK_PYTHON_TEST_DIR}/python/add_one.py" \
-    -pyreq "${REQUIREMENTS_PATH}" \
-    -pyarch "${TEST_DATA_DIR}/venv.zip" \
-    -pyexec "venv.zip/.conda/bin/python" \
-    -c org.apache.flink.python.tests.FlinkBatchPythonUdfSqlJob \
+    -c org.apache.flink.python.tests.BatchPythonUdfSqlJob \
     "${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar"
 
 echo "Test using python udf in sql client:\n"
-SQL_CONF=$TEST_DATA_DIR/sql-client-session.conf
+INIT_SQL=$TEST_DATA_DIR/sql-client-init.sql
 
-cat >> $SQL_CONF << EOF
-tables:
-- name: sink
-  type: sink-table
-  update-mode: append
-  schema:
-  - name: a
-    type: BIGINT
-  connector:
-    type: filesystem
-    path: "$TEST_DATA_DIR/sql-client-test.csv"
-  format:
-    type: csv
-    fields:
-    - name: a
-      type: BIGINT
+cat >> $INIT_SQL << EOF
+CREATE TABLE sink (
+  a BIGINT
+) WITH (
+  'connector' = 'filesystem',
+  'path' = '$TEST_DATA_DIR/sql-client-test',
+  'format' = 'csv'
+);
 
-functions:
-- name: add_one
-  from: python
-  fully-qualified-name: add_one.add_one
+CREATE FUNCTION add_one AS 'add_one.add_one' LANGUAGE PYTHON;
 
-configuration:
-  python.client.executable: "$PYTHON_EXEC"
+SET 'python.client.executable'='$PYTHON_EXEC';
 EOF
 
 SQL_STATEMENT="insert into sink select add_one(a) from (VALUES (1), (2), (3)) as source (a)"
 
 JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
-  --environment $SQL_CONF \
+  --init $INIT_SQL \
   -pyfs "${FLINK_PYTHON_TEST_DIR}/python/add_one.py" \
   -pyreq "${REQUIREMENTS_PATH}" \
   -pyarch "${TEST_DATA_DIR}/venv.zip" \

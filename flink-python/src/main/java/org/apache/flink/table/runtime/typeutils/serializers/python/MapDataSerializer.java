@@ -41,7 +41,7 @@ import java.io.IOException;
 /**
  * A {@link TypeSerializer} for {@link MapData}. It should be noted that the header will not be
  * encoded. Currently Python doesn't support BinaryMapData natively, so we can't use
- * BaseArraySerializer in blink directly.
+ * BaseArraySerializer directly.
  */
 @Internal
 public class MapDataSerializer extends org.apache.flink.table.runtime.typeutils.MapDataSerializer {
@@ -56,9 +56,15 @@ public class MapDataSerializer extends org.apache.flink.table.runtime.typeutils.
 
     private final TypeSerializer valueTypeSerializer;
 
+    private final BinaryWriter.ValueSetter keySetter;
+
+    private final BinaryWriter.ValueSetter valueSetter;
+
     private final ArrayData.ElementGetter keyGetter;
 
     private final ArrayData.ElementGetter valueGetter;
+
+    private final BinaryArrayWriter.NullSetter nullValueSetter;
 
     private final int keySize;
 
@@ -78,6 +84,9 @@ public class MapDataSerializer extends org.apache.flink.table.runtime.typeutils.
         this.valueSize = BinaryArrayData.calculateFixLengthPartSize(this.valueType);
         this.keyGetter = ArrayData.createElementGetter(keyType);
         this.valueGetter = ArrayData.createElementGetter(valueType);
+        this.nullValueSetter = BinaryArrayWriter.createNullSetter(valueType);
+        this.keySetter = BinaryWriter.createValueSetter(keyType);
+        this.valueSetter = BinaryWriter.createValueSetter(valueType);
     }
 
     @Override
@@ -127,13 +136,13 @@ public class MapDataSerializer extends org.apache.flink.table.runtime.typeutils.
         BinaryArrayWriter valueWriter = new BinaryArrayWriter(valueArray, size, valueSize);
         for (int i = 0; i < size; i++) {
             Object key = keyTypeSerializer.deserialize(source);
-            BinaryWriter.write(keyWriter, i, key, keyType, keyTypeSerializer);
+            keySetter.setValue(keyWriter, i, key);
             boolean isNull = source.readBoolean();
             if (isNull) {
-                valueWriter.setNullAt(i);
+                nullValueSetter.setNull(valueWriter, i);
             } else {
                 Object value = valueTypeSerializer.deserialize(source);
-                BinaryWriter.write(valueWriter, i, value, valueType, valueTypeSerializer);
+                valueSetter.setValue(valueWriter, i, value);
             }
         }
         keyWriter.complete();

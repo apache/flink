@@ -21,6 +21,7 @@ package org.apache.flink.api.dag;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
@@ -118,6 +119,8 @@ public abstract class Transformation<T> {
 
     protected String name;
 
+    protected String description;
+
     protected TypeInformation<T> outputType;
     // This is used to handle MissingTypeInfo. As long as the outputType has not been queried
     // it can still be changed using setOutputType(). Afterwards an exception is thrown when
@@ -167,7 +170,7 @@ public abstract class Transformation<T> {
 
     protected long bufferTimeout = -1;
 
-    private String slotSharingGroup;
+    private Optional<SlotSharingGroup> slotSharingGroup;
 
     @Nullable private String coLocationGroupKey;
 
@@ -184,7 +187,7 @@ public abstract class Transformation<T> {
         this.name = Preconditions.checkNotNull(name);
         this.outputType = outputType;
         this.parallelism = parallelism;
-        this.slotSharingGroup = null;
+        this.slotSharingGroup = Optional.empty();
     }
 
     /** Returns the unique ID of this {@code Transformation}. */
@@ -200,6 +203,16 @@ public abstract class Transformation<T> {
     /** Returns the name of this {@code Transformation}. */
     public String getName() {
         return name;
+    }
+
+    /** Changes the description of this {@code Transformation}. */
+    public void setDescription(String description) {
+        this.description = Preconditions.checkNotNull(description);
+    }
+
+    /** Returns the description of this {@code Transformation}. */
+    public String getDescription() {
+        return description;
     }
 
     /** Returns the parallelism of this {@code Transformation}. */
@@ -272,7 +285,8 @@ public abstract class Transformation<T> {
      * @param managedMemoryUseCase The use case that this transformation declares needing managed
      *     memory for.
      * @param weight Use-case-specific weights for this transformation. Used for sharing managed
-     *     memory across transformations for OPERATOR scope use cases.
+     *     memory across transformations for OPERATOR scope use cases. Check the individual {@link
+     *     ManagedMemoryUseCase} for the specific weight definition.
      * @return The previous weight, if exist.
      */
     public Optional<Integer> declareManagedMemoryUseCaseAtOperatorScope(
@@ -312,7 +326,8 @@ public abstract class Transformation<T> {
     /**
      * Get operator scope use cases that this transformation needs managed memory for, and the
      * use-case-specific weights for this transformation. The weights are used for sharing managed
-     * memory across transformations for the use cases.
+     * memory across transformations for the use cases. Check the individual {@link
+     * ManagedMemoryUseCase} for the specific weight definition.
      */
     public Map<ManagedMemoryUseCase, Integer> getManagedMemoryOperatorScopeUseCaseWeights() {
         return Collections.unmodifiableMap(managedMemoryOperatorScopeUseCaseWeights);
@@ -390,11 +405,11 @@ public abstract class Transformation<T> {
     }
 
     /**
-     * Returns the slot sharing group of this transformation.
+     * Returns the slot sharing group of this transformation if present.
      *
-     * @see #setSlotSharingGroup(String)
+     * @see #setSlotSharingGroup(SlotSharingGroup)
      */
-    public String getSlotSharingGroup() {
+    public Optional<SlotSharingGroup> getSlotSharingGroup() {
         return slotSharingGroup;
     }
 
@@ -405,10 +420,24 @@ public abstract class Transformation<T> {
      * <p>Initially, an operation is in the default slot sharing group. This can be explicitly set
      * using {@code setSlotSharingGroup("default")}.
      *
-     * @param slotSharingGroup The slot sharing group name.
+     * @param slotSharingGroupName The slot sharing group's name.
      */
-    public void setSlotSharingGroup(String slotSharingGroup) {
-        this.slotSharingGroup = slotSharingGroup;
+    public void setSlotSharingGroup(String slotSharingGroupName) {
+        this.slotSharingGroup =
+                Optional.of(SlotSharingGroup.newBuilder(slotSharingGroupName).build());
+    }
+
+    /**
+     * Sets the slot sharing group of this transformation. Parallel instances of operations that are
+     * in the same slot sharing group will be co-located in the same TaskManager slot, if possible.
+     *
+     * <p>Initially, an operation is in the default slot sharing group. This can be explicitly set
+     * with constructing a {@link SlotSharingGroup} with name {@code "default"}.
+     *
+     * @param slotSharingGroup which contains name and its resource spec.
+     */
+    public void setSlotSharingGroup(SlotSharingGroup slotSharingGroup) {
+        this.slotSharingGroup = Optional.of(slotSharingGroup);
     }
 
     /**

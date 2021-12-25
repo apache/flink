@@ -18,21 +18,21 @@
 
 package org.apache.flink.connector.jdbc.dialect;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
-import static java.lang.String.format;
-
-/** Handle the SQL dialect of jdbc driver. */
-@Internal
+/**
+ * Represents a dialect of SQL implemented by a particular JDBC system. Dialects should be immutable
+ * and stateless.
+ *
+ * @see JdbcDialectFactory
+ */
+@PublicEvolving
 public interface JdbcDialect extends Serializable {
 
     /**
@@ -41,14 +41,6 @@ public interface JdbcDialect extends Serializable {
      * @return the dialect name.
      */
     String dialectName();
-
-    /**
-     * Check if this dialect instance can handle a certain jdbc url.
-     *
-     * @param url the jdbc url.
-     * @return True if the dialect can be applied on the given jdbc url.
-     */
-    boolean canHandle(String url);
 
     /**
      * Get converter that convert jdbc object and Flink internal object each other.
@@ -69,116 +61,85 @@ public interface JdbcDialect extends Serializable {
     /**
      * Check if this dialect instance support a specific data type in table schema.
      *
-     * @param schema the table schema.
+     * @param rowType the physical table datatype of a row in the database table.
      * @exception ValidationException in case of the table schema contains unsupported type.
      */
-    default void validate(TableSchema schema) throws ValidationException {}
+    void validate(RowType rowType) throws ValidationException;
 
     /**
-     * @return the default driver class name, if user not configure the driver class name, then will
-     *     use this one.
+     * @return the default driver class name, if user has not configured the driver class name, then
+     *     this one will be used.
      */
     default Optional<String> defaultDriverName() {
         return Optional.empty();
     }
 
     /**
-     * Quotes the identifier. This is used to put quotes around the identifier in case the column
-     * name is a reserved keyword, or in case it contains characters that require quotes (e.g.
-     * space). Default using double quotes {@code "} to quote.
-     */
-    default String quoteIdentifier(String identifier) {
-        return "\"" + identifier + "\"";
-    }
-
-    /**
-     * Get dialect upsert statement, the database has its own upsert syntax, such as Mysql using
-     * DUPLICATE KEY UPDATE, and PostgresSQL using ON CONFLICT... DO UPDATE SET..
+     * Quotes the identifier.
      *
-     * @return None if dialect does not support upsert statement, the writer will degrade to the use
-     *     of select + update/insert, this performance is poor.
+     * <p>Used to put quotes around the identifier if the column name is a reserved keyword or
+     * contains characters requiring quotes (e.g., space).
+     *
+     * @return the quoted identifier.
      */
-    default Optional<String> getUpsertStatement(
-            String tableName, String[] fieldNames, String[] uniqueKeyFields) {
-        return Optional.empty();
-    }
-
-    /** Get row exists statement by condition fields. Default use SELECT. */
-    default String getRowExistsStatement(String tableName, String[] conditionFields) {
-        String fieldExpressions =
-                Arrays.stream(conditionFields)
-                        .map(f -> format("%s = :%s", quoteIdentifier(f), f))
-                        .collect(Collectors.joining(" AND "));
-        return "SELECT 1 FROM " + quoteIdentifier(tableName) + " WHERE " + fieldExpressions;
-    }
-
-    /** Get insert into statement. */
-    default String getInsertIntoStatement(String tableName, String[] fieldNames) {
-        String columns =
-                Arrays.stream(fieldNames)
-                        .map(this::quoteIdentifier)
-                        .collect(Collectors.joining(", "));
-        String placeholders =
-                Arrays.stream(fieldNames).map(f -> ":" + f).collect(Collectors.joining(", "));
-        return "INSERT INTO "
-                + quoteIdentifier(tableName)
-                + "("
-                + columns
-                + ")"
-                + " VALUES ("
-                + placeholders
-                + ")";
-    }
+    String quoteIdentifier(String identifier);
 
     /**
-     * Get update one row statement by condition fields, default not use limit 1, because limit 1 is
-     * a sql dialect.
+     * Constructs the dialects upsert statement if supported; such as MySQL's {@code DUPLICATE KEY
+     * UPDATE}, or PostgreSQL's {@code ON CONFLICT... DO UPDATE SET..}. If supported, the returned
+     * string will be used as a {@link java.sql.PreparedStatement}. Fields in the statement must be
+     * in the same order as the {@code fieldNames} parameter.
+     *
+     * <p>If the dialect does not support native upsert statements, the writer will fallback to
+     * {@code SELECT} + {@code UPDATE}/{@code INSERT} which may have poor performance.
+     *
+     * @return The upsert statement if supported, otherwise None.
      */
-    default String getUpdateStatement(
-            String tableName, String[] fieldNames, String[] conditionFields) {
-        String setClause =
-                Arrays.stream(fieldNames)
-                        .map(f -> format("%s = :%s", quoteIdentifier(f), f))
-                        .collect(Collectors.joining(", "));
-        String conditionClause =
-                Arrays.stream(conditionFields)
-                        .map(f -> format("%s = :%s", quoteIdentifier(f), f))
-                        .collect(Collectors.joining(" AND "));
-        return "UPDATE "
-                + quoteIdentifier(tableName)
-                + " SET "
-                + setClause
-                + " WHERE "
-                + conditionClause;
-    }
+    Optional<String> getUpsertStatement(
+            String tableName, String[] fieldNames, String[] uniqueKeyFields);
 
     /**
-     * Get delete one row statement by condition fields, default not use limit 1, because limit 1 is
-     * a sql dialect.
+     * Generates a query to determine if a row exists in the table. The returned string will be used
+     * as a {@link java.sql.PreparedStatement}.
+     *
+     * <p>By default, the dialect will fallback to a simple {@code SELECT} query.
      */
-    default String getDeleteStatement(String tableName, String[] conditionFields) {
-        String conditionClause =
-                Arrays.stream(conditionFields)
-                        .map(f -> format("%s = :%s", quoteIdentifier(f), f))
-                        .collect(Collectors.joining(" AND "));
-        return "DELETE FROM " + quoteIdentifier(tableName) + " WHERE " + conditionClause;
-    }
+    String getRowExistsStatement(String tableName, String[] conditionFields);
 
-    /** Get select fields statement by condition fields. Default use SELECT. */
-    default String getSelectFromStatement(
-            String tableName, String[] selectFields, String[] conditionFields) {
-        String selectExpressions =
-                Arrays.stream(selectFields)
-                        .map(this::quoteIdentifier)
-                        .collect(Collectors.joining(", "));
-        String fieldExpressions =
-                Arrays.stream(conditionFields)
-                        .map(f -> format("%s = :%s", quoteIdentifier(f), f))
-                        .collect(Collectors.joining(" AND "));
-        return "SELECT "
-                + selectExpressions
-                + " FROM "
-                + quoteIdentifier(tableName)
-                + (conditionFields.length > 0 ? " WHERE " + fieldExpressions : "");
-    }
+    /**
+     * Generates a string that will be used as a {@link java.sql.PreparedStatement} to insert a row
+     * into a database table. Fields in the statement must be in the same order as the {@code
+     * fieldNames} parameter.
+     *
+     * @return the dialects {@code INSERT INTO} statement.
+     */
+    String getInsertIntoStatement(String tableName, String[] fieldNames);
+
+    /**
+     * Constructs the dialects update statement for a single row with the given condition. The
+     * returned string will be used as a {@link java.sql.PreparedStatement}. Fields in the statement
+     * must be in the same order as the {@code fieldNames} parameter.
+     *
+     * @return A single row update statement.
+     */
+    String getUpdateStatement(String tableName, String[] fieldNames, String[] conditionFields);
+
+    /**
+     * Constructs the dialects delete statement for a single row with the given condition. The
+     * returned string will be used as a {@link java.sql.PreparedStatement}. Fields in the statement
+     * must be in the same order as the {@code fieldNames} parameter.
+     *
+     * @return A single row delete statement.
+     */
+    String getDeleteStatement(String tableName, String[] conditionFields);
+
+    /**
+     * Constructs the dialects select statement for fields with given conditions. The returned
+     * string will be used as a {@link java.sql.PreparedStatement}. Fields in the statement must be
+     * in the same order as the {@code fieldNames} parameter.
+     *
+     * @return A select statement.
+     */
+    String getSelectFromStatement(
+            String tableName, String[] selectFields, String[] conditionFields);
 }

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherBootstrapFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.DispatcherOperationCaches;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
 import org.apache.flink.runtime.dispatcher.JobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
@@ -46,12 +47,14 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import org.junit.After;
 import org.junit.Before;
@@ -69,6 +72,7 @@ import java.util.concurrent.TimeUnit;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /** Integration tests for the {@link DefaultDispatcherRunner}. */
@@ -117,7 +121,8 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
                         fatalErrorHandler,
                         VoidHistoryServerArchivist.INSTANCE,
                         null,
-                        ForkJoinPool.commonPool());
+                        ForkJoinPool.commonPool(),
+                        new DispatcherOperationCaches());
     }
 
     @After
@@ -207,6 +212,19 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
             assertThat(
                     leaderFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS),
                     is(equalTo(leaderSessionId)));
+
+            // Wait for job to recover...
+            final DispatcherGateway leaderGateway =
+                    rpcServiceResource
+                            .getTestingRpcService()
+                            .connect(
+                                    dispatcherLeaderElectionService.getAddress(),
+                                    DispatcherId.fromUuid(leaderSessionId),
+                                    DispatcherGateway.class)
+                            .get();
+            assertEquals(
+                    jobGraph.getJobID(),
+                    Iterables.getOnlyElement(leaderGateway.listJobs(TIMEOUT).get()));
         }
     }
 

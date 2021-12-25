@@ -1,0 +1,10 @@
+{
+  "type": "account",
+  "age": 42,
+  "activated": true,
+  "address": {
+    "city": "Munich"
+  },
+  "roles": ["user", "viewer"],
+  "balance": 13.37
+}

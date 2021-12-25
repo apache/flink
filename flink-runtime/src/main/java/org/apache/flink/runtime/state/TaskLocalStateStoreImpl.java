@@ -57,7 +57,7 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
     private static final Logger LOG = LoggerFactory.getLogger(TaskLocalStateStoreImpl.class);
 
     /** Dummy value to use instead of null to satisfy {@link ConcurrentHashMap}. */
-    @VisibleForTesting static final TaskStateSnapshot NULL_DUMMY = new TaskStateSnapshot(0);
+    @VisibleForTesting static final TaskStateSnapshot NULL_DUMMY = new TaskStateSnapshot(0, false);
 
     /** JobID from the owning subtask. */
     @Nonnull private final JobID jobID;

@@ -23,7 +23,9 @@ import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
@@ -78,7 +80,10 @@ public class SortMergeResultPartition extends ResultPartition {
 
     /** Buffers cut from the network buffer pool for data writing. */
     @GuardedBy("lock")
-    private final List<MemorySegment> writeBuffers = new ArrayList<>();
+    private final List<MemorySegment> writeSegments = new ArrayList<>();
+
+    @GuardedBy("lock")
+    private boolean hasNotifiedEndOfUserRecords;
 
     /** Size of network buffer and write buffer. */
     private final int networkBufferSize;
@@ -172,9 +177,8 @@ public class SortMergeResultPartition extends ResultPartition {
         synchronized (lock) {
             try {
                 for (int i = 0; i < numWriteBuffers; ++i) {
-                    MemorySegment segment =
-                            bufferPool.requestBufferBuilderBlocking().getMemorySegment();
-                    writeBuffers.add(segment);
+                    MemorySegment segment = bufferPool.requestMemorySegmentBlocking();
+                    writeSegments.add(segment);
                 }
             } catch (InterruptedException exception) {
                 // the setup method does not allow InterruptedException
@@ -310,13 +314,13 @@ public class SortMergeResultPartition extends ResultPartition {
             fileWriter.startNewRegion(isBroadcast);
 
             List<BufferWithChannel> toWrite = new ArrayList<>();
-            Queue<MemorySegment> segments = getWriteBuffers();
+            Queue<MemorySegment> segments = getWriteSegments();
 
             while (sortBuffer.hasRemaining()) {
                 if (segments.isEmpty()) {
                     fileWriter.writeBuffers(toWrite);
                     toWrite.clear();
-                    segments = getWriteBuffers();
+                    segments = getWriteSegments();
                 }
 
                 BufferWithChannel bufferWithChannel =
@@ -339,10 +343,10 @@ public class SortMergeResultPartition extends ResultPartition {
         flushSortBuffer(unicastSortBuffer, false);
     }
 
-    private Queue<MemorySegment> getWriteBuffers() {
+    private Queue<MemorySegment> getWriteSegments() {
         synchronized (lock) {
-            checkState(!writeBuffers.isEmpty(), "Task has been canceled.");
-            return new ArrayDeque<>(writeBuffers);
+            checkState(!writeSegments.isEmpty(), "Task has been canceled.");
+            return new ArrayDeque<>(writeSegments);
         }
     }
 
@@ -359,6 +363,7 @@ public class SortMergeResultPartition extends ResultPartition {
     private void updateStatistics(Buffer buffer, boolean isBroadcast) {
         numBuffersOut.inc(isBroadcast ? numSubpartitions : 1);
         long readableBytes = buffer.readableBytes();
+        numBytesProduced.inc(readableBytes);
         numBytesOut.inc(isBroadcast ? readableBytes * numSubpartitions : readableBytes);
     }
 
@@ -371,13 +376,13 @@ public class SortMergeResultPartition extends ResultPartition {
         fileWriter.startNewRegion(isBroadcast);
 
         List<BufferWithChannel> toWrite = new ArrayList<>();
-        Queue<MemorySegment> segments = getWriteBuffers();
+        Queue<MemorySegment> segments = getWriteSegments();
 
         while (record.hasRemaining()) {
             if (segments.isEmpty()) {
                 fileWriter.writeBuffers(toWrite);
                 toWrite.clear();
-                segments = getWriteBuffers();
+                segments = getWriteSegments();
             }
 
             int toCopy = Math.min(record.remaining(), networkBufferSize);
@@ -391,6 +396,16 @@ public class SortMergeResultPartition extends ResultPartition {
         }
 
         fileWriter.writeBuffers(toWrite);
+    }
+
+    @Override
+    public void notifyEndOfData(StopMode mode) throws IOException {
+        synchronized (lock) {
+            if (!hasNotifiedEndOfUserRecords) {
+                broadcastEvent(new EndOfData(mode), false);
+                hasNotifiedEndOfUserRecords = true;
+            }
+        }
     }
 
     @Override
@@ -414,10 +429,10 @@ public class SortMergeResultPartition extends ResultPartition {
     private void releaseWriteBuffers() {
         synchronized (lock) {
             if (bufferPool != null) {
-                for (MemorySegment segment : writeBuffers) {
+                for (MemorySegment segment : writeSegments) {
                     bufferPool.recycle(segment);
                 }
-                writeBuffers.clear();
+                writeSegments.clear();
             }
         }
     }

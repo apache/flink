@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
 import org.apache.flink.util.Preconditions;
@@ -60,7 +60,7 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
     }
 
     public boolean isIdle() {
-        return mailboxProcessor.isDefaultActionUnavailable()
+        return !mailboxProcessor.isDefaultActionAvailable()
                 && !mailbox.hasMail()
                 && mailbox.getState().isAcceptingMails();
     }

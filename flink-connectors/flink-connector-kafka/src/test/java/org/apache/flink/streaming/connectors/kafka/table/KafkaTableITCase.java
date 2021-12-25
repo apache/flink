@@ -24,7 +24,6 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 
@@ -37,6 +36,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -61,22 +61,11 @@ public class KafkaTableITCase extends KafkaTableTestBase {
     private static final String AVRO_FORMAT = "avro";
     private static final String CSV_FORMAT = "csv";
 
-    @Parameterized.Parameter public boolean isLegacyConnector;
+    @Parameterized.Parameter public String format;
 
-    @Parameterized.Parameter(1)
-    public String format;
-
-    @Parameterized.Parameters(name = "legacy = {0}, format = {1}")
-    public static Object[] parameters() {
-        return new Object[][] {
-            // cover all 3 formats for new and old connector
-            new Object[] {false, JSON_FORMAT},
-            new Object[] {false, AVRO_FORMAT},
-            new Object[] {false, CSV_FORMAT},
-            new Object[] {true, JSON_FORMAT},
-            new Object[] {true, AVRO_FORMAT},
-            new Object[] {true, CSV_FORMAT}
-        };
+    @Parameterized.Parameters(name = "format = {0}")
+    public static Collection<String> parameters() {
+        return Arrays.asList(JSON_FORMAT, AVRO_FORMAT, CSV_FORMAT);
     }
 
     @Before
@@ -90,67 +79,37 @@ public class KafkaTableITCase extends KafkaTableTestBase {
     public void testKafkaSourceSink() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
-        final String topic = "tstopic_" + format + "_" + isLegacyConnector;
+        final String topic = "tstopic_" + format;
         createTestTopic(topic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
         String groupId = getStandardProps().getProperty("group.id");
         String bootstraps = getBootstrapServers();
 
-        final String createTable;
-        if (!isLegacyConnector) {
-            createTable =
-                    String.format(
-                            "create table kafka (\n"
-                                    + "  `computed-price` as price + 1.0,\n"
-                                    + "  price decimal(38, 18),\n"
-                                    + "  currency string,\n"
-                                    + "  log_date date,\n"
-                                    + "  log_time time(3),\n"
-                                    + "  log_ts timestamp(3),\n"
-                                    + "  ts as log_ts + INTERVAL '1' SECOND,\n"
-                                    + "  watermark for ts as ts\n"
-                                    + ") with (\n"
-                                    + "  'connector' = '%s',\n"
-                                    + "  'topic' = '%s',\n"
-                                    + "  'properties.bootstrap.servers' = '%s',\n"
-                                    + "  'properties.group.id' = '%s',\n"
-                                    + "  'scan.startup.mode' = 'earliest-offset',\n"
-                                    + "  %s\n"
-                                    + ")",
-                            KafkaDynamicTableFactory.IDENTIFIER,
-                            topic,
-                            bootstraps,
-                            groupId,
-                            formatOptions());
-        } else {
-            createTable =
-                    String.format(
-                            "create table kafka (\n"
-                                    + "  `computed-price` as price + 1.0,\n"
-                                    + "  price decimal(38, 18),\n"
-                                    + "  currency string,\n"
-                                    + "  log_date date,\n"
-                                    + "  log_time time(3),\n"
-                                    + "  log_ts timestamp(3),\n"
-                                    + "  ts as log_ts + INTERVAL '1' SECOND,\n"
-                                    + "  watermark for ts as ts\n"
-                                    + ") with (\n"
-                                    + "  'connector.type' = 'kafka',\n"
-                                    + "  'connector.version' = '%s',\n"
-                                    + "  'connector.topic' = '%s',\n"
-                                    + "  'connector.properties.bootstrap.servers' = '%s',\n"
-                                    + "  'connector.properties.group.id' = '%s',\n"
-                                    + "  'connector.startup-mode' = 'earliest-offset',\n"
-                                    + "  'update-mode' = 'append',\n"
-                                    + "  %s\n"
-                                    + ")",
-                            KafkaValidator.CONNECTOR_VERSION_VALUE_UNIVERSAL,
-                            topic,
-                            bootstraps,
-                            groupId,
-                            formatOptions());
-        }
+        final String createTable =
+                String.format(
+                        "create table kafka (\n"
+                                + "  `computed-price` as price + 1.0,\n"
+                                + "  price decimal(38, 18),\n"
+                                + "  currency string,\n"
+                                + "  log_date date,\n"
+                                + "  log_time time(3),\n"
+                                + "  log_ts timestamp(3),\n"
+                                + "  ts as log_ts + INTERVAL '1' SECOND,\n"
+                                + "  watermark for ts as ts\n"
+                                + ") with (\n"
+                                + "  'connector' = '%s',\n"
+                                + "  'topic' = '%s',\n"
+                                + "  'properties.bootstrap.servers' = '%s',\n"
+                                + "  'properties.group.id' = '%s',\n"
+                                + "  'scan.startup.mode' = 'earliest-offset',\n"
+                                + "  %s\n"
+                                + ")",
+                        KafkaDynamicTableFactory.IDENTIFIER,
+                        topic,
+                        bootstraps,
+                        groupId,
+                        formatOptions());
 
         tEnv.executeSql(createTable);
 
@@ -209,9 +168,6 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
     @Test
     public void testKafkaTableWithMultipleTopics() throws Exception {
-        if (isLegacyConnector) {
-            return;
-        }
         // ---------- create source and sink tables -------------------
         String tableTemp =
                 "create table %s (\n"
@@ -302,9 +258,6 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
     @Test
     public void testKafkaSourceSinkWithMetadata() throws Exception {
-        if (isLegacyConnector) {
-            return;
-        }
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
         final String topic = "metadata_topic_" + format;
@@ -402,9 +355,6 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
     @Test
     public void testKafkaSourceSinkWithKeyAndPartialValue() throws Exception {
-        if (isLegacyConnector) {
-            return;
-        }
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
         final String topic = "key_partial_value_topic_" + format;
@@ -486,9 +436,6 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
     @Test
     public void testKafkaSourceSinkWithKeyAndFullValue() throws Exception {
-        if (isLegacyConnector) {
-            return;
-        }
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
         final String topic = "key_full_value_topic_" + format;
@@ -567,10 +514,6 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
     @Test
     public void testKafkaTemporalJoinChangelog() throws Exception {
-        if (isLegacyConnector) {
-            return;
-        }
-
         // Set the session time zone to UTC, because the next `METADATA FROM
         // 'value.source.timestamp'` DDL
         // will use the session time zone when convert the changelog time from milliseconds to
@@ -713,9 +656,6 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
     @Test
     public void testPerPartitionWatermarkKafka() throws Exception {
-        if (isLegacyConnector) {
-            return;
-        }
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
         final String topic = "per_partition_watermark_topic_" + format;
@@ -806,9 +746,6 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
     @Test
     public void testPerPartitionWatermarkWithIdleSource() throws Exception {
-        if (isLegacyConnector) {
-            return;
-        }
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
         final String topic = "idle_partition_watermark_topic_" + format;
@@ -902,25 +839,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
     }
 
     private String formatOptions() {
-        if (!isLegacyConnector) {
-            return String.format("'format' = '%s'", format);
-        } else {
-            String formatType = String.format("'format.type' = '%s'", format);
-            if (format.equals(AVRO_FORMAT)) {
-                // legacy connector requires to specify avro-schema
-                String avroSchema =
-                        "{\"type\":\"record\",\"name\":\"row_0\",\"fields\":"
-                                + "[{\"name\":\"price\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\","
-                                + "\"precision\":38,\"scale\":18}},{\"name\":\"currency\",\"type\":[\"string\","
-                                + "\"null\"]},{\"name\":\"log_date\",\"type\":{\"type\":\"int\",\"logicalType\":"
-                                + "\"date\"}},{\"name\":\"log_time\",\"type\":{\"type\":\"int\",\"logicalType\":"
-                                + "\"time-millis\"}},{\"name\":\"log_ts\",\"type\":{\"type\":\"long\","
-                                + "\"logicalType\":\"timestamp-millis\"}}]}";
-                return formatType + String.format(", 'format.avro-schema' = '%s'", avroSchema);
-            } else {
-                return formatType;
-            }
-        }
+        return String.format("'format' = '%s'", format);
     }
 
     private static final class TestingSinkFunction implements SinkFunction<RowData> {

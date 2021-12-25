@@ -59,6 +59,22 @@ public class ChannelStateChunkReaderTest {
     }
 
     @Test
+    public void testBufferRecycledOnSuccess() throws IOException, InterruptedException {
+        ChannelStateSerializer serializer = new ChannelStateSerializerImpl();
+        TestRecoveredChannelStateHandler handler = new TestRecoveredChannelStateHandler();
+
+        try (FSDataInputStream stream = getStream(serializer, 10)) {
+            new ChannelStateChunkReader(serializer)
+                    .readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo", 0);
+        } finally {
+            checkState(!handler.requestedBuffers.isEmpty());
+            assertTrue(
+                    handler.requestedBuffers.stream()
+                            .allMatch(TestChannelStateByteBuffer::isRecycled));
+        }
+    }
+
+    @Test
     public void testBuffersNotRequestedForEmptyStream() throws IOException, InterruptedException {
         ChannelStateSerializer serializer = new ChannelStateSerializerImpl();
         TestRecoveredChannelStateHandler handler = new TestRecoveredChannelStateHandler();
@@ -109,7 +125,10 @@ public class ChannelStateChunkReaderTest {
         }
 
         @Override
-        public void recover(Object o, int oldSubtaskIndex, Object o2) {}
+        public void recover(
+                Object o, int oldSubtaskIndex, BufferWithContext<Object> bufferWithContext) {
+            bufferWithContext.close();
+        }
 
         @Override
         public void close() throws Exception {}
@@ -151,7 +170,7 @@ public class ChannelStateChunkReaderTest {
         }
 
         @Override
-        public void recycle() {
+        public void close() {
             checkArgument(!recycled);
             recycled = true;
         }

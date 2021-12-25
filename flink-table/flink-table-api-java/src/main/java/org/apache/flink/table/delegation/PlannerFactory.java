@@ -22,9 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.factories.ComponentFactory;
-
-import java.util.Map;
+import org.apache.flink.table.factories.Factory;
+import org.apache.flink.table.module.ModuleManager;
 
 /**
  * Factory that creates {@link Planner}.
@@ -36,23 +35,76 @@ import java.util.Map;
  * mode.
  */
 @Internal
-public interface PlannerFactory extends ComponentFactory {
+public interface PlannerFactory extends Factory {
 
-    /**
-     * Creates a corresponding {@link Planner}.
-     *
-     * @param properties Static properties of the {@link Planner}, the same that were used for
-     *     factory lookup.
-     * @param executor The executor required by the planner.
-     * @param tableConfig The configuration of the planner to use.
-     * @param functionCatalog The function catalog to look up user defined functions.
-     * @param catalogManager The catalog manager to look up tables and views.
-     * @return instance of a {@link Planner}
-     */
-    Planner create(
-            Map<String, String> properties,
-            Executor executor,
-            TableConfig tableConfig,
-            FunctionCatalog functionCatalog,
-            CatalogManager catalogManager);
+    /** {@link #factoryIdentifier()} for the default {@link Planner}. */
+    String DEFAULT_IDENTIFIER = "default";
+
+    /** Creates a corresponding {@link Planner}. */
+    Planner create(Context context);
+
+    /** Context used when creating a planner. */
+    interface Context {
+        /** The executor required by the planner. */
+        Executor getExecutor();
+
+        /** The configuration of the planner to use. */
+        TableConfig getTableConfig();
+
+        /** The module manager. */
+        ModuleManager getModuleManager();
+
+        /** The catalog manager to look up tables and views. */
+        CatalogManager getCatalogManager();
+
+        /** The function catalog to look up user defined functions. */
+        FunctionCatalog getFunctionCatalog();
+    }
+
+    /** Default implementation of {@link Context}. */
+    class DefaultPlannerContext implements Context {
+        private final Executor executor;
+        private final TableConfig tableConfig;
+        private final ModuleManager moduleManager;
+        private final CatalogManager catalogManager;
+        private final FunctionCatalog functionCatalog;
+
+        public DefaultPlannerContext(
+                Executor executor,
+                TableConfig tableConfig,
+                ModuleManager moduleManager,
+                CatalogManager catalogManager,
+                FunctionCatalog functionCatalog) {
+            this.executor = executor;
+            this.tableConfig = tableConfig;
+            this.moduleManager = moduleManager;
+            this.catalogManager = catalogManager;
+            this.functionCatalog = functionCatalog;
+        }
+
+        @Override
+        public Executor getExecutor() {
+            return executor;
+        }
+
+        @Override
+        public TableConfig getTableConfig() {
+            return tableConfig;
+        }
+
+        @Override
+        public ModuleManager getModuleManager() {
+            return moduleManager;
+        }
+
+        @Override
+        public CatalogManager getCatalogManager() {
+            return catalogManager;
+        }
+
+        @Override
+        public FunctionCatalog getFunctionCatalog() {
+            return functionCatalog;
+        }
+    }
 }

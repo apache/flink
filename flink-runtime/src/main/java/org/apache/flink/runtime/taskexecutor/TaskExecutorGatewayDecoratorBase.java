@@ -131,16 +131,25 @@ public class TaskExecutorGatewayDecoratorBase implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<Acknowledge> confirmCheckpoint(
-            ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp) {
+            ExecutionAttemptID executionAttemptID,
+            long completedCheckpointId,
+            long completedCheckpointTimestamp,
+            long lastSubsumedCheckpointId) {
         return originalGateway.confirmCheckpoint(
-                executionAttemptID, checkpointId, checkpointTimestamp);
+                executionAttemptID,
+                completedCheckpointId,
+                completedCheckpointTimestamp,
+                lastSubsumedCheckpointId);
     }
 
     @Override
     public CompletableFuture<Acknowledge> abortCheckpoint(
-            ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp) {
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            long latestCompletedCheckpointId,
+            long checkpointTimestamp) {
         return originalGateway.abortCheckpoint(
-                executionAttemptID, checkpointId, checkpointTimestamp);
+                executionAttemptID, checkpointId, latestCompletedCheckpointId, checkpointTimestamp);
     }
 
     @Override
@@ -150,14 +159,14 @@ public class TaskExecutorGatewayDecoratorBase implements TaskExecutorGateway {
     }
 
     @Override
-    public void heartbeatFromJobManager(
+    public CompletableFuture<Void> heartbeatFromJobManager(
             ResourceID heartbeatOrigin, AllocatedSlotReport allocatedSlotReport) {
-        originalGateway.heartbeatFromJobManager(heartbeatOrigin, allocatedSlotReport);
+        return originalGateway.heartbeatFromJobManager(heartbeatOrigin, allocatedSlotReport);
     }
 
     @Override
-    public void heartbeatFromResourceManager(ResourceID heartbeatOrigin) {
-        originalGateway.heartbeatFromResourceManager(heartbeatOrigin);
+    public CompletableFuture<Void> heartbeatFromResourceManager(ResourceID heartbeatOrigin) {
+        return originalGateway.heartbeatFromResourceManager(heartbeatOrigin);
     }
 
     @Override

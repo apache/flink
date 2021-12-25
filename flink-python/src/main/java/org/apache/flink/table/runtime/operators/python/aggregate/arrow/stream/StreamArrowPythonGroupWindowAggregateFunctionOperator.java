@@ -41,12 +41,12 @@ import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerProctimeAttribute;
-import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
-import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
-import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerWindowStart;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
+import org.apache.flink.table.runtime.groupwindow.ProctimeAttribute;
+import org.apache.flink.table.runtime.groupwindow.RowtimeAttribute;
+import org.apache.flink.table.runtime.groupwindow.WindowEnd;
+import org.apache.flink.table.runtime.groupwindow.WindowStart;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.Window;
@@ -144,16 +144,22 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
             Configuration config,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType outputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             int inputTimeFieldIndex,
             WindowAssigner<W> windowAssigner,
             Trigger<W> trigger,
             long allowedLateness,
-            PlannerNamedWindowProperty[] namedProperties,
-            int[] groupingSet,
-            int[] udafInputOffsets,
-            ZoneId shiftTimeZone) {
-        super(config, pandasAggFunctions, inputType, outputType, groupingSet, udafInputOffsets);
+            NamedWindowProperty[] namedProperties,
+            ZoneId shiftTimeZone,
+            GeneratedProjection generatedProjection) {
+        super(
+                config,
+                pandasAggFunctions,
+                inputType,
+                udfInputType,
+                udfOutputType,
+                generatedProjection);
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.windowAssigner = windowAssigner;
         this.trigger = trigger;
@@ -164,13 +170,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 
     @Override
     public void open() throws Exception {
-        userDefinedFunctionOutputType =
-                new RowType(
-                        outputType
-                                .getFields()
-                                .subList(
-                                        groupingSet.length,
-                                        outputType.getFieldCount() - namedProperties.length));
+        super.open();
         windowSerializer = windowAssigner.getWindowSerializer(new ExecutionConfig());
 
         internalTimerService = getInternalTimerService("window-timers", windowSerializer, this);
@@ -194,7 +194,6 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 
         WindowContext windowContext = new WindowContext();
         windowAssigner.open(windowContext);
-        super.open();
     }
 
     @Override
@@ -287,18 +286,27 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         }
     }
 
-    private void buildWindow(PlannerNamedWindowProperty[] namedProperties) {
+    private void buildWindow(NamedWindowProperty[] namedProperties) {
         this.namedProperties = new WindowProperty[namedProperties.length];
         for (int i = 0; i < namedProperties.length; i++) {
-            PlannerWindowProperty property = namedProperties[i].getProperty();
-            if (property instanceof PlannerWindowStart) {
-                this.namedProperties[i] = WindowProperty.WINDOW_START;
-            } else if (property instanceof PlannerWindowEnd) {
-                this.namedProperties[i] = WindowProperty.WINDOW_END;
-            } else if (property instanceof PlannerRowtimeAttribute) {
-                this.namedProperties[i] = WindowProperty.ROW_TIME_ATTRIBUTE;
-            } else if (property instanceof PlannerProctimeAttribute) {
-                this.namedProperties[i] = WindowProperty.PROC_TIME_ATTRIBUTE;
+            org.apache.flink.table.runtime.groupwindow.WindowProperty property =
+                    namedProperties[i].getProperty();
+            if (property instanceof WindowStart) {
+                this.namedProperties[i] =
+                        StreamArrowPythonGroupWindowAggregateFunctionOperator.WindowProperty
+                                .WINDOW_START;
+            } else if (property instanceof WindowEnd) {
+                this.namedProperties[i] =
+                        StreamArrowPythonGroupWindowAggregateFunctionOperator.WindowProperty
+                                .WINDOW_END;
+            } else if (property instanceof RowtimeAttribute) {
+                this.namedProperties[i] =
+                        StreamArrowPythonGroupWindowAggregateFunctionOperator.WindowProperty
+                                .ROW_TIME_ATTRIBUTE;
+            } else if (property instanceof ProctimeAttribute) {
+                this.namedProperties[i] =
+                        StreamArrowPythonGroupWindowAggregateFunctionOperator.WindowProperty
+                                .PROC_TIME_ATTRIBUTE;
             } else {
                 throw new RuntimeException("Unsupported Property " + property);
             }

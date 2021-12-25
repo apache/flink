@@ -43,19 +43,23 @@ FlinkCEP是在Flink上层实现的复杂事件处理库。
 
 {{< tabs "722d55a5-7f12-4bcc-b080-b28d5e8860ac" >}}
 {{< tab "Java" >}}
-{{< artifact flink-cep withScalaVersion >}}
+{{< artifact flink-cep >}}
 {{< /tab >}}
 {{< tab "Scala" >}}
 {{< artifact flink-cep-scala withScalaVersion >}}
 {{< /tab >}}
 {{< /tabs >}}
 
-{% info 提示 %} FlinkCEP不是二进制发布包的一部分。在集群上执行如何链接它可以看[这里]({{< ref "docs/dev/datastream/project-configuration" >}})。
+{{< hint info >}}
+FlinkCEP不是二进制发布包的一部分。在集群上执行如何链接它可以看[这里]({{< ref "docs/dev/datastream/project-configuration" >}})。
+{{< /hint >}}
 
 现在可以开始使用Pattern API写你的第一个CEP程序了。
 
-{% warn 注意 %} `DataStream`中的事件，如果你想在上面进行模式匹配的话，必须实现合适的 `equals()`和`hashCode()`方法，
+{{< hint warning >}} 
+`DataStream`中的事件，如果你想在上面进行模式匹配的话，必须实现合适的 `equals()`和`hashCode()`方法，
 因为FlinkCEP使用它们来比较和匹配事件。
+{{< /hint >}}
 
 {{< tabs "4fef83d9-e4c5-4073-9607-4c8cde1ebf1e" >}}
 {{< tab "Java" >}}
@@ -131,9 +135,13 @@ val result: DataStream[Alert] = patternStream.process(
 这些模式基于用户指定的**条件**从一个转换到另外一个，比如 `event.getName().equals("end")`。
 一个**匹配**是输入事件的一个序列，这些事件通过一系列有效的模式转换，能够访问到复杂模式图中的所有模式。
 
-{% warn 注意 %} 每个模式必须有一个独一无二的名字，你可以在后面使用它来识别匹配到的事件。
+{{< hint warning >}}
+每个模式必须有一个独一无二的名字，你可以在后面使用它来识别匹配到的事件。
+{{< /hint >}}
 
-{% warn 注意 %} 模式的名字不能包含字符`":"`.
+{{< hint danger >}}
+模式的名字不能包含字符`":"`.
+{{< /hint >}}
 
 这一节的剩余部分我们会先讲述如何定义[单个模式](#单个模式)，然后讲如何将单个模式组合成[复杂模式](#组合模式)。
 
@@ -294,8 +302,10 @@ middle.oneOrMore()
 {{< /tab >}}
 {{< /tabs >}}
 
-{% warn 注意 %} 调用`ctx.getEventsForPattern(...)`可以获得所有前面已经接受作为可能匹配的事件。
+{{< hint info >}}
+调用`ctx.getEventsForPattern(...)`可以获得所有前面已经接受作为可能匹配的事件。
 调用这个操作的代价可能很小也可能很大，所以在实现你的条件时，尽量少使用它。
+{{< /hint >}}
 
 描述的上下文提供了获取事件时间属性的方法。更多细节可以看[时间上下文](#时间上下文)。
 
@@ -669,9 +679,13 @@ val start : Pattern[Event, _] = Pattern.begin("start")
 1. `notNext()`，如果不想后面直接连着一个特定事件
 2. `notFollowedBy()`，如果不想一个特定事件发生在两个事件之间的任何地方。
 
-{% warn 注意 %} 模式序列不能以`notFollowedBy()`结尾。
+{{< hint warning >}}
+模式序列不能以`notFollowedBy()`结尾。
+{{< /hint >}}
 
-{% warn 注意 %} 一个`NOT`模式前面不能是可选的模式。
+{{< hint warning >}}
+一个 **NOT**　模式前面不能是可选的模式。
+{{< /hint >}}
 
 {{< tabs "c5c3a1fe-8ab4-45ae-8a97-c2c2e96b6bb3" >}}
 {{< tab "Java" >}}
@@ -729,7 +743,9 @@ val relaxedNot: Pattern[Event, _] = start.notFollowedBy("not").where(...)
 例如，你可以通过`pattern.within()`方法指定一个模式应该在10秒内发生。
 这种时间模式支持[处理时间和事件时间]({{< ref "docs/concepts/time" >}}).
 
-{% warn 注意 %} 一个模式序列只能有一个时间限制。如果限制了多个时间在不同的单个模式上，会使用最小的那个时间限制。
+{{< hint info >}}
+一个模式序列只能有一个时间限制。如果限制了多个时间在不同的单个模式上，会使用最小的那个时间限制。
+{{< /hint >}}
 
 {{< tabs "8228f5b0-b6b3-4ca6-a56b-e5a8fd5fdc3b" >}}
 {{< tab "Java" >}}
@@ -1374,9 +1390,11 @@ Pattern.begin("patternName", skipStrategy)
 {{< /tab >}}
 {{< /tabs >}}
 
-{% warn 注意 %} 使用SKIP_TO_FIRST/LAST时，有两个选项可以用来处理没有事件可以映射到对应的变量名上的情况。
+{{< hint info >}}
+使用SKIP_TO_FIRST/LAST时，有两个选项可以用来处理没有事件可以映射到对应的变量名上的情况。
 默认情况下会使用NO_SKIP策略，另外一个选项是抛出异常。
 可以使用如下的选项：
+{{< /hint >}}
 
 {{< tabs "48a6f23b-1861-4350-894d-0404d070cfb2" >}}
 {{< tab "Java" >}}
@@ -1420,7 +1438,9 @@ val patternStream: PatternStream[Event] = CEP.pattern(input, pattern, comparator
 
 输入流根据你的使用场景可以是*keyed*或者*non-keyed*。
 
-{% warn 注意 %} 在*non-keyed*流上使用模式将会使你的作业并发度被设为1。
+{{< hint info >}}
+在 *non-keyed* 流上使用模式将会使你的作业并发度被设为1。
+{{< /hint >}}
 
 ### 从模式中选取
 
@@ -1536,7 +1556,9 @@ val timeoutResult: DataStream[TimeoutEvent] = result.getSideOutput(outputTag)
 在`CEP`中，事件的处理顺序很重要。在使用事件时间时，为了保证事件按照正确的顺序被处理，一个事件到来后会先被放到一个缓冲区中，
 在缓冲区里事件都按照时间戳从小到大排序，当水位线到达后，缓冲区中所有小于水位线的事件被处理。这意味着水位线之间的数据都按照时间戳被顺序处理。
 
-{% warn 注意 %} 这个库假定按照事件时间时水位线一定是正确的。
+{{< hint info >}}
+这个库假定按照事件时间时水位线一定是正确的。
+{{< /hint >}}
 
 为了保证跨水位线的事件按照事件时间处理，Flink CEP库假定*水位线一定是正确的*，并且把时间戳小于最新水位线的事件看作是*晚到*的。
 晚到的事件不会被处理。你也可以指定一个侧输出标志来收集比最新水位线晚到的事件，你可以这样做：
@@ -1612,6 +1634,14 @@ public interface TimeContext {
 使用`EventTime`时，`TimeContext#timestamp()`返回的值等于分配的时间戳。
 使用`ProcessingTime`时，这个值等于事件进入CEP算子的时间点（在`PatternProcessFunction`中是匹配产生的时间）。
 这意味着多次调用这个方法得到的值是一致的。
+
+## 可选的参数设置
+
+用于配置 Flink CEP 的 `SharedBuffer` 缓存容量的选项。它可以加快 CEP 算子的处理速度，并限制内存中缓存的元素数量。
+
+<span class="label label-info">Note</span> 仅当 `state.backend` 设置为 `rocksdb` 时限制内存使用才有效，这会将超过缓存数量的元素传输到 `rocksdb` 状态存储而不是内存状态存储。当 `state.backend` 设置为 `rocksdb` 时，这些配置项有助于限制内存。相比之下，当 `state.backend` 设置为非 `rocksdb` 时，缓存会导致性能下降。与使用 `Map` 实现的旧缓存相比，状态部分将包含更多从 `guava-cache` 换出的元素，这将使得 `copy on write` 时的状态处理增加一些开销。
+
+{{< generated/cep_cache_configuration >}}
 
 ## 例子
 

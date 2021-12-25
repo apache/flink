@@ -41,8 +41,8 @@
         <tr>
             <td><h5>kubernetes.container.image.pull-policy</h5></td>
             <td style="word-wrap: break-word;">IfNotPresent</td>
-            <td><p>Enum</p>Possible values: [IfNotPresent, Always, Never]</td>
-            <td>The Kubernetes container image pull policy (IfNotPresent or Always or Never). The default policy is IfNotPresent to avoid putting pressure to image repository.</td>
+            <td><p>Enum</p></td>
+            <td>The Kubernetes container image pull policy. The default policy is IfNotPresent to avoid putting pressure to image repository.<br /><br />Possible values:<ul><li>"IfNotPresent"</li><li>"Always"</li><li>"Never"</li></ul></td>
         </tr>
         <tr>
             <td><h5>kubernetes.container.image.pull-secrets</h5></td>
@@ -114,7 +114,13 @@
             <td><h5>kubernetes.jobmanager.owner.reference</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;Map&gt;</td>
-            <td>The user-specified <a href="https://ci.apache.org/projects/flink/flink-docs-master/deployment/resource-providers/native_kubernetes.html#manual-resource-cleanup">Owner References</a> to be set to the JobManager Deployment. When all the owner resources are deleted, the JobManager Deployment will be deleted automatically, which also deletes all the resources created by this Flink cluster. The value should be formatted as a semicolon-separated list of owner references, where each owner reference is a comma-separated list of `key:value` pairs. E.g., apiVersion:v1,blockOwnerDeletion:true,controller:true,kind:FlinkApplication,name:flink-app-name,uid:flink-app-uid;apiVersion:v1,kind:Deployment,name:deploy-name,uid:deploy-uid</td>
+            <td>The user-specified <a href="https://nightlies.apache.org/flink/flink-docs-master/deployment/resource-providers/native_kubernetes.html#manual-resource-cleanup">Owner References</a> to be set to the JobManager Deployment. When all the owner resources are deleted, the JobManager Deployment will be deleted automatically, which also deletes all the resources created by this Flink cluster. The value should be formatted as a semicolon-separated list of owner references, where each owner reference is a comma-separated list of `key:value` pairs. E.g., apiVersion:v1,blockOwnerDeletion:true,controller:true,kind:FlinkApplication,name:flink-app-name,uid:flink-app-uid;apiVersion:v1,kind:Deployment,name:deploy-name,uid:deploy-uid</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.jobmanager.replicas</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>Specify how many JobManager pods will be started simultaneously. Configure the value to greater than 1 to start standby JobManagers. It will help to achieve faster recovery. Notice that high availability should be enabled when starting standby JobManagers.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.jobmanager.service-account</h5></td>
@@ -159,10 +165,16 @@
             <td>The user-specified annotations that are set to the rest Service. The value should be in the form of a1:v1,a2:v2</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.rest-service.exposed.node-port-address-type</h5></td>
+            <td style="word-wrap: break-word;">InternalIP</td>
+            <td><p>Enum</p></td>
+            <td>The user-specified <a href="https://kubernetes.io/docs/concepts/architecture/nodes/#addresses">address type</a> that is used for filtering node IPs when constructing a <a href="https://kubernetes.io/docs/concepts/services-networking/service/#nodeport">node port</a> connection string. This option is only considered when 'kubernetes.rest-service.exposed.type' is set to 'NodePort'.<br /><br />Possible values:<ul><li>"InternalIP"</li><li>"ExternalIP"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.rest-service.exposed.type</h5></td>
-            <td style="word-wrap: break-word;">LoadBalancer</td>
-            <td><p>Enum</p>Possible values: [ClusterIP, NodePort, LoadBalancer]</td>
-            <td>The exposed type of the rest service (ClusterIP or NodePort or LoadBalancer). The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.</td>
+            <td style="word-wrap: break-word;">ClusterIP</td>
+            <td><p>Enum</p></td>
+            <td>The exposed type of the rest service. The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.<br /><br />Possible values:<ul><li>"ClusterIP"</li><li>"NodePort"</li><li>"LoadBalancer"</li></ul></td>
         </tr>
         <tr>
             <td><h5>kubernetes.secrets</h5></td>

@@ -22,7 +22,10 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -38,15 +41,18 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteChannelState
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.WrappingRuntimeException;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.After;
 import org.junit.Before;
@@ -63,8 +69,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -99,12 +105,15 @@ public class TaskTest extends TestLogger {
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
+    private static boolean wasCleanedUp = false;
+
     @Before
     public void setup() {
         awaitLatch = new OneShotLatch();
         triggerLatch = new OneShotLatch();
 
         shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
+        wasCleanedUp = false;
     }
 
     @After
@@ -112,6 +121,54 @@ public class TaskTest extends TestLogger {
         if (shuffleEnvironment != null) {
             shuffleEnvironment.close();
         }
+    }
+
+    @Test
+    public void testCleanupWhenRestoreFails() throws Exception {
+        createTaskBuilder().setInvokable(InvokableWithExceptionInRestore.class).build().run();
+        assertTrue(wasCleanedUp);
+    }
+
+    @Test
+    public void testCleanupWhenInvokeFails() throws Exception {
+        createTaskBuilder().setInvokable(InvokableWithExceptionInInvoke.class).build().run();
+        assertTrue(wasCleanedUp);
+    }
+
+    @Test
+    public void testCleanupWhenCancelledAfterRestore() throws Exception {
+        Task task = createTaskBuilder().setInvokable(InvokableBlockingInRestore.class).build();
+        task.startTaskThread();
+        awaitLatch.await();
+        task.cancelExecution();
+        task.getExecutingThread().join();
+        assertTrue(wasCleanedUp);
+    }
+
+    @Test
+    public void testCleanupWhenAfterInvokeSucceeded() throws Exception {
+        createTaskBuilder().setInvokable(TestInvokableCorrect.class).build().run();
+        assertTrue(wasCleanedUp);
+    }
+
+    @Test
+    public void testCleanupWhenSwitchToInitializationFails() throws Exception {
+        createTaskBuilder()
+                .setInvokable(TestInvokableCorrect.class)
+                .setTaskManagerActions(
+                        new NoOpTaskManagerActions() {
+                            @Override
+                            public void updateTaskExecutionState(
+                                    TaskExecutionState taskExecutionState) {
+                                if (taskExecutionState.getExecutionState()
+                                        == ExecutionState.INITIALIZING) {
+                                    throw new ExpectedTestException();
+                                }
+                            }
+                        })
+                .build()
+                .run();
+        assertTrue(wasCleanedUp);
     }
 
     @Test
@@ -1081,6 +1138,71 @@ public class TaskTest extends TestLogger {
         assertFalse(task.isBackPressured());
     }
 
+    @Test
+    public void testDeclineCheckpoint() throws Exception {
+        TestCheckpointResponder testCheckpointResponder = new TestCheckpointResponder();
+        final Task task =
+                createTaskBuilder()
+                        .setInvokable(InvokableDeclingingCheckpoints.class)
+                        .setCheckpointResponder(testCheckpointResponder)
+                        .build();
+        assertCheckpointDeclined(
+                task,
+                testCheckpointResponder,
+                1,
+                CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY);
+
+        task.startTaskThread();
+        try {
+            awaitLatch.await();
+            assertEquals(ExecutionState.RUNNING, task.getExecutionState());
+
+            assertCheckpointDeclined(
+                    task,
+                    testCheckpointResponder,
+                    InvokableDeclingingCheckpoints.REJECTED_EXECUTION_CHECKPOINT_ID,
+                    CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_CLOSING);
+            assertCheckpointDeclined(
+                    task,
+                    testCheckpointResponder,
+                    InvokableDeclingingCheckpoints.THROWING_CHECKPOINT_ID,
+                    CheckpointFailureReason.TASK_FAILURE);
+            assertCheckpointDeclined(
+                    task,
+                    testCheckpointResponder,
+                    InvokableDeclingingCheckpoints.TRIGGERING_FAILED_CHECKPOINT_ID,
+                    CheckpointFailureReason.TASK_FAILURE);
+        } finally {
+            triggerLatch.trigger();
+            task.getExecutingThread().join();
+        }
+        assertEquals(ExecutionState.FINISHED, task.getTerminationFuture().getNow(null));
+    }
+
+    private void assertCheckpointDeclined(
+            Task task,
+            TestCheckpointResponder testCheckpointResponder,
+            long checkpointId,
+            CheckpointFailureReason failureReason) {
+        CheckpointOptions checkpointOptions =
+                CheckpointOptions.alignedNoTimeout(
+                        CheckpointType.CHECKPOINT, CheckpointStorageLocationReference.getDefault());
+        task.triggerCheckpointBarrier(checkpointId, 1, checkpointOptions);
+
+        assertEquals(1, testCheckpointResponder.getDeclineReports().size());
+        assertEquals(
+                checkpointId, testCheckpointResponder.getDeclineReports().get(0).getCheckpointId());
+        assertEquals(
+                failureReason,
+                testCheckpointResponder
+                        .getDeclineReports()
+                        .get(0)
+                        .getCause()
+                        .getCheckpointFailureReason());
+
+        testCheckpointResponder.clear();
+    }
+
     // ------------------------------------------------------------------------
     //  customized TaskManagerActions
     // ------------------------------------------------------------------------
@@ -1145,9 +1267,14 @@ public class TaskTest extends TestLogger {
         public void invoke() {}
 
         @Override
-        public Future<Void> cancel() {
+        public void cancel() {
             fail("This should not be called");
-            return null;
+        }
+
+        @Override
+        public void cleanUp(Throwable throwable) throws Exception {
+            wasCleanedUp = true;
+            super.cleanUp(throwable);
         }
     }
 
@@ -1166,6 +1293,12 @@ public class TaskTest extends TestLogger {
         public void invoke() throws Exception {
             throw new Exception("test");
         }
+
+        @Override
+        public void cleanUp(Throwable throwable) throws Exception {
+            wasCleanedUp = true;
+            super.cleanUp(throwable);
+        }
     }
 
     static final class InvokableWithExceptionInRestore extends AbstractInvokable {
@@ -1180,6 +1313,12 @@ public class TaskTest extends TestLogger {
 
         @Override
         public void invoke() throws Exception {}
+
+        @Override
+        public void cleanUp(Throwable throwable) throws Exception {
+            wasCleanedUp = true;
+            super.cleanUp(throwable);
+        }
     }
 
     private static final class FailingInvokableWithChainedException extends AbstractInvokable {
@@ -1193,12 +1332,10 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public Future<Void> cancel() {
-            return CompletableFuture.completedFuture(null);
-        }
+        public void cancel() {}
     }
 
-    private static final class InvokableBlockingWithTrigger extends AbstractInvokable {
+    private static class InvokableBlockingWithTrigger extends AbstractInvokable {
         public InvokableBlockingWithTrigger(Environment environment) {
             super(environment);
         }
@@ -1208,6 +1345,35 @@ public class TaskTest extends TestLogger {
             awaitLatch.trigger();
 
             triggerLatch.await();
+        }
+    }
+
+    private static class InvokableDeclingingCheckpoints extends InvokableBlockingWithTrigger {
+        public static final int REJECTED_EXECUTION_CHECKPOINT_ID = 2;
+        public static final int THROWING_CHECKPOINT_ID = 3;
+        public static final int TRIGGERING_FAILED_CHECKPOINT_ID = 4;
+
+        public InvokableDeclingingCheckpoints(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public CompletableFuture<Boolean> triggerCheckpointAsync(
+                CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
+            long checkpointId = checkpointMetaData.getCheckpointId();
+            switch (Math.toIntExact(checkpointId)) {
+                case REJECTED_EXECUTION_CHECKPOINT_ID:
+                    throw new RejectedExecutionException();
+                case THROWING_CHECKPOINT_ID:
+                    CompletableFuture<Boolean> result = new CompletableFuture<>();
+                    result.completeExceptionally(new ExpectedTestException());
+                    return result;
+                case TRIGGERING_FAILED_CHECKPOINT_ID:
+                    return CompletableFuture.completedFuture(false);
+                default:
+                    throw new UnsupportedOperationException(
+                            "Unsupported checkpointId: " + checkpointId);
+            }
         }
     }
 
@@ -1248,6 +1414,12 @@ public class TaskTest extends TestLogger {
 
         @Override
         public void invoke() throws Exception {}
+
+        @Override
+        public void cleanUp(Throwable throwable) throws Exception {
+            wasCleanedUp = true;
+            super.cleanUp(throwable);
+        }
     }
 
     /** {@link AbstractInvokable} which throws {@link RuntimeException} on invoke. */
@@ -1258,20 +1430,24 @@ public class TaskTest extends TestLogger {
 
         @Override
         public void invoke() {
-            awaitLatch.trigger();
-
-            // make sure that the interrupt call does not
-            // grab us out of the lock early
-            while (true) {
-                try {
-                    triggerLatch.await();
-                    break;
-                } catch (InterruptedException e) {
-                    // fall through the loop
-                }
-            }
+            awaitTriggerLatch();
 
             throw new RuntimeException("test");
+        }
+    }
+
+    private static void awaitTriggerLatch() {
+        awaitLatch.trigger();
+
+        // make sure that the interrupt call does not
+        // grab us out of the lock early
+        while (true) {
+            try {
+                triggerLatch.await();
+                break;
+            } catch (InterruptedException e) {
+                // fall through the loop
+            }
         }
     }
 
@@ -1283,12 +1459,7 @@ public class TaskTest extends TestLogger {
 
         @Override
         public void invoke() {
-            awaitLatch.trigger();
-
-            try {
-                triggerLatch.await();
-            } catch (Throwable ignored) {
-            }
+            awaitTriggerLatch();
 
             throw new CancelTaskException();
         }
@@ -1317,12 +1488,11 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public Future<Void> cancel() throws Exception {
+        public void cancel() throws Exception {
             synchronized (this) {
                 triggerLatch.trigger();
                 wait();
             }
-            return CompletableFuture.completedFuture(null);
         }
     }
 
@@ -1344,12 +1514,11 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public Future<Void> cancel() {
+        public void cancel() {
             synchronized (lock) {
                 // do nothing but a placeholder
                 triggerLatch.trigger();
             }
-            return CompletableFuture.completedFuture(null);
         }
     }
 
@@ -1373,9 +1542,7 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public Future<Void> cancel() {
-            return CompletableFuture.completedFuture(null);
-        }
+        public void cancel() {}
     }
 
     // ------------------------------------------------------------------------

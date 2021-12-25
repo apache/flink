@@ -121,8 +121,6 @@ public interface ExecutionGraph extends AccessExecutionGraph {
      */
     long getNumberOfRestarts();
 
-    int getTotalNumberOfVertices();
-
     Map<IntermediateDataSetID, IntermediateResult> getAllIntermediateResults();
 
     /**
@@ -142,7 +140,7 @@ public interface ExecutionGraph extends AccessExecutionGraph {
 
     void setInternalTaskFailuresListener(InternalFailuresListener internalTaskFailuresListener);
 
-    void attachJobGraph(List<JobVertex> topologiallySorted) throws JobException;
+    void attachJobGraph(List<JobVertex> topologicallySorted) throws JobException;
 
     void transitionToRunning();
 

@@ -19,7 +19,10 @@
 <div class="breadcrumb">
   <nz-breadcrumb>
     <nz-breadcrumb-item>
-      <a [routerLink]="['../']"><i nz-icon type="rollback" theme="outline"></i> Log List</a>
+      <a [routerLink]="['../']">
+        <i nz-icon nzType="rollback" nzTheme="outline"></i>
+        Log List
+      </a>
     </nz-breadcrumb-item>
     <nz-breadcrumb-item>
       {{ logName }}
@@ -30,7 +33,14 @@
     [downloadHref]="downloadUrl"
     [downloadName]="logName"
     (reload)="reload()"
-    (fullScreen)="toggleFullScreen($event)">
-  </flink-refresh-download>
+    (fullScreen)="toggleFullScreen($event)"
+  ></flink-refresh-download>
 </div>
-<flink-monaco-editor [value]="logs"></flink-monaco-editor>
+<div class="editor-container">
+  <nz-code-editor
+    flinkAutoResize
+    [nzLoading]="isLoading"
+    [ngModel]="logs"
+    [nzEditorOption]="editorOptions"
+  ></nz-code-editor>
+</div>

@@ -64,7 +64,6 @@ When deploying Flink, there are often multiple options available for each buildi
                     <li><a href="{{< ref "docs/ops/rest_api" >}}">REST Endpoint</a></li>
                     <li><a href="{{< ref "docs/dev/table/sqlClient" >}}">SQL Client</a></li>
                     <li><a href="{{< ref "docs/deployment/repls/python_shell" >}}">Python REPL</a></li>
-                    <li><a href="{{< ref "docs/deployment/repls/scala_shell" >}}">Scala REPL</a></li>
                 </ul>
             </td>
         </tr>
@@ -85,7 +84,6 @@ When deploying Flink, there are often multiple options available for each buildi
                     </li>
                     <li><a href="{{< ref "docs/deployment/resource-providers/native_kubernetes" >}}">Kubernetes</a></li>
                     <li><a href="{{< ref "docs/deployment/resource-providers/yarn" >}}">YARN</a></li>
-                    <li><a href="{{< ref "docs/deployment/resource-providers/mesos" >}}">Mesos</a></li>
                 </ul>
             </td>
         </tr>
@@ -124,7 +122,7 @@ When deploying Flink, there are often multiple options available for each buildi
         <tr>
             <td>Resource Provider</td>
             <td>
-                Flink can be deployed through different Resource Provider Frameworks, such as Kubernetes, YARN or Mesos.
+                Flink can be deployed through different Resource Provider Frameworks, such as Kubernetes or YARN.
             </td>
             <td>See <a href="#jmimpls">JobManager</a> implementations above.</td>
         </tr>
@@ -205,6 +203,10 @@ non-blocking, will lead to the "next" job starting before "this" job finishes.
 The Application Mode allows for multi-`execute()` applications but 
 High-Availability is not supported in these cases. High-Availability in Application Mode is only
 supported for single-`execute()` applications.
+
+Additionally, when any of multiple running jobs in Application Mode (submitted for example using 
+`executeAsync()`) gets cancelled, all jobs will be stopped and the JobManager will shut down. 
+Regular job completions (by the sources shutting down) are supported.
 {{< /hint >}}
 
 #### Per-Job Mode

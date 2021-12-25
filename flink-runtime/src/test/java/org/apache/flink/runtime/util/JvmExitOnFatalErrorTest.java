@@ -54,6 +54,8 @@ import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.NoOpPartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
@@ -199,11 +201,15 @@ public class JvmExitOnFatalErrorTest extends TestLogger {
                                 TestLocalRecoveryConfig.disabled(),
                                 executor);
 
+                final StateChangelogStorage<?> changelogStorage =
+                        new InMemoryStateChangelogStorage();
+
                 final TaskStateManager slotStateManager =
                         new TaskStateManagerImpl(
                                 jid,
                                 executionAttemptID,
                                 localStateStore,
+                                changelogStorage,
                                 null,
                                 mock(CheckpointResponder.class));
 

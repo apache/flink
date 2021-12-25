@@ -20,8 +20,6 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
-import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
-import org.apache.flink.runtime.io.network.netty.NettyMessage.ResumeConsumption;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.TransportException;
@@ -44,8 +42,6 @@ import java.util.ArrayDeque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Channel handler to read the messages of buffer response or error response from the producer, to
@@ -117,26 +113,6 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
         }
     }
 
-    @Override
-    public void notifyCreditAvailable(final RemoteInputChannel inputChannel) {
-        ctx.executor()
-                .execute(
-                        () ->
-                                ctx.pipeline()
-                                        .fireUserEventTriggered(
-                                                new AddCreditMessage(inputChannel)));
-    }
-
-    @Override
-    public void resumeConsumption(RemoteInputChannel inputChannel) {
-        ctx.executor()
-                .execute(
-                        () ->
-                                ctx.pipeline()
-                                        .fireUserEventTriggered(
-                                                new ResumeConsumptionMessage(inputChannel)));
-    }
-
     // ------------------------------------------------------------------------
     // Network events
     // ------------------------------------------------------------------------
@@ -184,8 +160,8 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             final TransportException tex;
 
             // Improve on the connection reset by peer error message
-            if (cause instanceof IOException
-                    && cause.getMessage().equals("Connection reset by peer")) {
+            if (cause.getMessage() != null
+                    && cause.getMessage().contains("Connection reset by peer")) {
                 tex =
                         new RemoteTransportException(
                                 "Lost connection to task manager '"
@@ -330,6 +306,20 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
                     }
                 }
             }
+        } else if (msgClazz == NettyMessage.BacklogAnnouncement.class) {
+            NettyMessage.BacklogAnnouncement announcement = (NettyMessage.BacklogAnnouncement) msg;
+
+            RemoteInputChannel inputChannel = inputChannels.get(announcement.receiverId);
+            if (inputChannel == null || inputChannel.isReleased()) {
+                cancelRequestFor(announcement.receiverId);
+                return;
+            }
+
+            try {
+                inputChannel.onSenderBacklog(announcement.backlog);
+            } catch (Throwable throwable) {
+                inputChannel.onError(throwable);
+            }
         } else {
             throw new IllegalStateException(
                     "Received unknown message from producer: " + msg.getClass());
@@ -373,6 +363,9 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             // It is no need to notify credit or resume data consumption for the released channel.
             if (!outboundMessage.inputChannel.isReleased()) {
                 Object msg = outboundMessage.buildMessage();
+                if (msg == null) {
+                    continue;
+                }
 
                 // Write and flush and wait until this is done before
                 // trying to continue with the next input channel.
@@ -399,41 +392,6 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             } catch (Throwable t) {
                 notifyAllChannelsOfErrorAndClose(t);
             }
-        }
-    }
-
-    private abstract static class ClientOutboundMessage {
-        protected final RemoteInputChannel inputChannel;
-
-        ClientOutboundMessage(RemoteInputChannel inputChannel) {
-            this.inputChannel = inputChannel;
-        }
-
-        abstract Object buildMessage();
-    }
-
-    private static class AddCreditMessage extends ClientOutboundMessage {
-
-        AddCreditMessage(RemoteInputChannel inputChannel) {
-            super(checkNotNull(inputChannel));
-        }
-
-        @Override
-        public Object buildMessage() {
-            return new AddCredit(
-                    inputChannel.getAndResetUnannouncedCredit(), inputChannel.getInputChannelId());
-        }
-    }
-
-    private static class ResumeConsumptionMessage extends ClientOutboundMessage {
-
-        ResumeConsumptionMessage(RemoteInputChannel inputChannel) {
-            super(checkNotNull(inputChannel));
-        }
-
-        @Override
-        Object buildMessage() {
-            return new ResumeConsumption(inputChannel.getInputChannelId());
         }
     }
 }

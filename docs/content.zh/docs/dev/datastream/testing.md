@@ -153,9 +153,9 @@ class IncrementFlatMapFunctionTest extends FlatSpec with MockFactory {
 
 要使用测试工具，还需要一组其他的依赖项（测试范围）。
 
-{{< artifact flink-test-utils withScalaVersion withTestScope >}}
-{{< artifact flink-runtime withScalaVersion withTestScope >}}
-{{< artifact flink-streaming-java withScalaVersion withTestScope withTestClassifier >}}
+{{< artifact flink-test-utils withTestScope >}}
+{{< artifact flink-runtime withTestScope >}}
+{{< artifact flink-streaming-java withTestScope withTestClassifier >}}
 
 现在，可以使用测试工具将记录和 watermark 推送到用户自定义函数或自定义算子中，控制处理时间，最后对算子的输出（包括旁路输出）进行校验。
 
@@ -401,7 +401,7 @@ Apache Flink 提供了一个名为 `MiniClusterWithClientResource` 的 Junit 规
 
 要使用 `MiniClusterWithClientResource`，需要添加一个额外的依赖项（测试范围）。
 
-{{< artifact flink-test-utils withScalaVersion withTestScope >}}
+{{< artifact flink-test-utils withTestScope >}}
 
 让我们采用与前面几节相同的简单 `MapFunction`来做示例。
 
@@ -473,7 +473,7 @@ public class ExampleIntegrationTest {
         public static final List<Long> values = Collections.synchronizedList(new ArrayList<>());
 
         @Override
-        public void invoke(Long value) throws Exception {
+        public void invoke(Long value, SinkFunction.Context context) throws Exception {
             values.add(value);
         }
     }
@@ -485,7 +485,7 @@ public class ExampleIntegrationTest {
 class StreamingJobIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter {
 
   val flinkCluster = new MiniClusterWithClientResource(new MiniClusterResourceConfiguration.Builder()
-    .setNumberSlotsPerTaskManager(1)
+    .setNumberSlotsPerTaskManager(2)
     .setNumberTaskManagers(1)
     .build)
 
@@ -509,7 +509,7 @@ class StreamingJobIntegrationTest extends FlatSpec with Matchers with BeforeAndA
     CollectSink.values.clear()
 
     // create a stream of custom elements and apply transformations
-    env.fromElements(1, 21, 22)
+    env.fromElements(1L, 21L, 22L)
        .map(new IncrementMapFunction())
        .addSink(new CollectSink())
 
@@ -520,10 +520,11 @@ class StreamingJobIntegrationTest extends FlatSpec with Matchers with BeforeAndA
     CollectSink.values should contain allOf (2, 22, 23)
     }
 }
+
 // create a testing sink
 class CollectSink extends SinkFunction[Long] {
 
-  override def invoke(value: Long): Unit = {
+  override def invoke(value: Long, context: SinkFunction.Context): Unit = {
     CollectSink.values.add(value)
   }
 }

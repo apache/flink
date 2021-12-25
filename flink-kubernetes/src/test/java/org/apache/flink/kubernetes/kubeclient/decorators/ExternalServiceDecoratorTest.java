@@ -34,10 +34,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 /** General tests for the {@link ExternalServiceDecorator}. */
 public class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
@@ -80,7 +80,7 @@ public class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
         assertEquals(expectedLabels, restService.getMetadata().getLabels());
 
         assertEquals(
-                KubernetesConfigOptions.ServiceExposedType.LoadBalancer.name(),
+                KubernetesConfigOptions.ServiceExposedType.ClusterIP.name(),
                 restService.getSpec().getType());
 
         final List<ServicePort> expectedServicePorts =
@@ -93,7 +93,6 @@ public class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
         assertEquals(expectedServicePorts, restService.getSpec().getPorts());
 
         expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
-        expectedLabels.putAll(userLabels);
         assertEquals(expectedLabels, restService.getSpec().getSelector());
 
         final Map<String, String> resultAnnotations = restService.getMetadata().getAnnotations();

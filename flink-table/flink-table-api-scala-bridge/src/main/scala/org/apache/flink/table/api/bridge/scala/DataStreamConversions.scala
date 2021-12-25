@@ -18,20 +18,140 @@
 package org.apache.flink.table.api.bridge.scala
 
 import org.apache.flink.annotation.PublicEvolving
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.table.api.Table
+import org.apache.flink.table.api.{Schema, Table, TableEnvironment, ValidationException}
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.expressions.Expression
+import org.apache.flink.types.Row
+import org.apache.flink.util.Preconditions
 
 /**
-  * Holds methods to convert a [[DataStream]] into a [[Table]].
-  *
-  * @param dataStream The [[DataStream]] to convert.
-  * @param inputType The [[TypeInformation]] for the type of the [[DataStream]].
-  * @tparam T The type of the [[DataStream]].
-  */
+ * Holds methods to convert a Scala [[DataStream]] into a [[Table]].
+ *
+ * @param dataStream The [[DataStream]] to convert.
+ * @tparam T The external type of the [[DataStream]].
+ */
 @PublicEvolving
-class DataStreamConversions[T](dataStream: DataStream[T], inputType: TypeInformation[T]) {
+class DataStreamConversions[T](dataStream: DataStream[T]) {
+
+  /**
+   * Converts the given [[DataStream]] into a [[Table]].
+   *
+   * See [[StreamTableEnvironment.fromDataStream(DataStream)]] for more information.
+   *
+   * @param tableEnv The [[StreamTableEnvironment]] in which the new [[Table]] is created.
+   * @return The converted [[Table]].
+   */
+  def toTable(tableEnv: StreamTableEnvironment): Table = {
+    Preconditions.checkNotNull(tableEnv, "Table environment must not be null.")
+    tableEnv.fromDataStream(dataStream)
+  }
+
+  /**
+   * Converts the given [[DataStream]] into a [[Table]].
+   *
+   * See [[StreamTableEnvironment.fromDataStream(DataStream, Schema)]] for more information.
+   *
+   * @param tableEnv The [[StreamTableEnvironment]] in which the new [[Table]] is created.
+   * @param schema The customized schema for the final table.
+   * @return The converted [[Table]].
+   */
+  def toTable(tableEnv: StreamTableEnvironment, schema: Schema): Table = {
+    Preconditions.checkNotNull(tableEnv, "Table environment must not be null.")
+    tableEnv.fromDataStream(dataStream, schema)
+  }
+
+  /**
+   * Creates a view from the given [[DataStream]] in a given path.
+   * Registered tables can be referenced in SQL queries.
+   *
+   * See [[StreamTableEnvironment.createTemporaryView(String, DataStream)]] for more information.
+   *
+   * @param tableEnv The [[StreamTableEnvironment]] in which the new [[Table]] is created.
+   * @param path The path under which the [[DataStream]] is created.
+   *             See also the [[TableEnvironment]] class description for the format of the path.
+   */
+  def createTemporaryView(tableEnv: StreamTableEnvironment, path: String): Unit = {
+    Preconditions.checkNotNull(tableEnv, "Table environment must not be null.")
+    tableEnv.createTemporaryView(path, dataStream)
+  }
+
+  /**
+   * Creates a view from the given [[DataStream]] in a given path.
+   * Registered tables can be referenced in SQL queries.
+   *
+   * See [[StreamTableEnvironment.createTemporaryView(String, DataStream, Schema)]] for more
+   * information.
+   *
+   * @param tableEnv The [[StreamTableEnvironment]] in which the new [[Table]] is created.
+   * @param path The path under which the [[DataStream]] is created.
+   *             See also the [[TableEnvironment]] class description for the format of the path.
+   */
+  def createTemporaryView(tableEnv: StreamTableEnvironment, path: String, schema: Schema): Unit = {
+    Preconditions.checkNotNull(tableEnv, "Table environment must not be null.")
+    tableEnv.createTemporaryView(path, dataStream, schema)
+  }
+
+  /**
+   * Converts the given [[DataStream]] of changelog entries into a [[Table]].
+   *
+   * See [[StreamTableEnvironment.fromChangelogStream(DataStream)]] for more information.
+   *
+   * @param tableEnv The [[StreamTableEnvironment]] in which the new [[Table]] is created.
+   * @return The converted [[Table]].
+   */
+  def toChangelogTable(tableEnv: StreamTableEnvironment): Table = {
+    Preconditions.checkNotNull(tableEnv, "Table environment must not be null.")
+    if (dataStream.dataType.getTypeClass != classOf[Row]) {
+      throw new ValidationException(
+        "DataStream cannot be converted to a Table. It must contain instances of Row.")
+    }
+    tableEnv.fromChangelogStream(dataStream.asInstanceOf[DataStream[Row]])
+  }
+
+  /**
+   * Converts the given [[DataStream]] of changelog entries into a [[Table]].
+   *
+   * See [[StreamTableEnvironment.fromChangelogStream(DataStream, Schema)]] for more information.
+   *
+   * @param tableEnv The [[StreamTableEnvironment]] in which the new [[Table]] is created.
+   * @param schema The customized schema for the final table.
+   * @return The converted [[Table]].
+   */
+  def toChangelogTable(tableEnv: StreamTableEnvironment, schema: Schema): Table = {
+    Preconditions.checkNotNull(tableEnv, "Table environment must not be null.")
+    if (dataStream.dataType.getTypeClass != classOf[Row]) {
+      throw new ValidationException(
+        "DataStream cannot be converted to a Table. It must contain instances of Row.")
+    }
+    tableEnv.fromChangelogStream(dataStream.asInstanceOf[DataStream[Row]], schema)
+  }
+
+  /**
+   * Converts the given [[DataStream]] of changelog entries into a [[Table]].
+   *
+   * See [[StreamTableEnvironment.fromChangelogStream(DataStream, Schema)]] for more information.
+   *
+   * @param tableEnv The [[StreamTableEnvironment]] in which the new [[Table]] is created.
+   * @param schema The customized schema for the final table.
+   * @param changelogMode The expected kinds of changes in the incoming changelog.
+   * @return The converted [[Table]].
+   */
+  def toChangelogTable(
+      tableEnv: StreamTableEnvironment,
+      schema: Schema,
+      changelogMode: ChangelogMode): Table = {
+    Preconditions.checkNotNull(tableEnv, "Table environment must not be null.")
+    if (dataStream.dataType.getTypeClass != classOf[Row]) {
+      throw new ValidationException(
+        "DataStream cannot be converted to a Table. It must contain instances of Row.")
+    }
+    tableEnv.fromChangelogStream(dataStream.asInstanceOf[DataStream[Row]], schema, changelogMode)
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Legacy before FLIP-136
+  // ----------------------------------------------------------------------------------------------
 
   /**
     * Converts the [[DataStream]] into a [[Table]].
@@ -55,7 +175,7 @@ class DataStreamConversions[T](dataStream: DataStream[T], inputType: TypeInforma
     */
   def toTable(tableEnv: StreamTableEnvironment, fields: Expression*): Table = {
     if (fields.isEmpty) {
-      tableEnv.fromDataStream(dataStream)
+      toTable(tableEnv)
     } else {
       tableEnv.fromDataStream(dataStream, fields:_*)
     }

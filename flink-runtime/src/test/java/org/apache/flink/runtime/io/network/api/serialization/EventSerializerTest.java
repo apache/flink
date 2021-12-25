@@ -23,9 +23,11 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.EventAnnouncement;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.SubtaskConnectionDescriptor;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
@@ -48,11 +50,19 @@ public class EventSerializerTest {
     private final AbstractEvent[] events = {
         EndOfPartitionEvent.INSTANCE,
         EndOfSuperstepEvent.INSTANCE,
+        new EndOfData(StopMode.DRAIN),
+        new EndOfData(StopMode.NO_DRAIN),
         new CheckpointBarrier(
                 1678L,
                 4623784L,
                 new CheckpointOptions(
                         CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault())),
+        new CheckpointBarrier(
+                1678L,
+                4623784L,
+                new CheckpointOptions(
+                        CheckpointType.FULL_CHECKPOINT,
                         CheckpointStorageLocationReference.getDefault())),
         new CheckpointBarrier(
                 1678L,
@@ -78,7 +88,9 @@ public class EventSerializerTest {
                         42L,
                         1337L,
                         CheckpointOptions.alignedWithTimeout(
-                                CheckpointStorageLocationReference.getDefault(), 10)),
+                                CheckpointType.CHECKPOINT,
+                                CheckpointStorageLocationReference.getDefault(),
+                                10)),
                 44),
         new SubtaskConnectionDescriptor(23, 42),
     };

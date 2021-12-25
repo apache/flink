@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.FlinkMatchers;
@@ -657,6 +658,30 @@ public class JobMasterServiceLeadershipRunnerTest extends TestLogger {
                                         .isPresent(),
                         Duration.ofMillis(5L),
                         "Result future should be completed exceptionally."));
+    }
+
+    @Test
+    public void testJobAlreadyDone() throws Exception {
+        JobID jobID = new JobID();
+        try (JobManagerRunner jobManagerRunner =
+                newJobMasterServiceLeadershipRunnerBuilder()
+                        .setJobMasterServiceProcessFactory(
+                                TestingJobMasterServiceProcessFactory.newBuilder()
+                                        .setJobId(jobID)
+                                        .build())
+                        .build()) {
+            runningJobsRegistry.setJobFinished(jobID);
+            jobManagerRunner.start();
+            leaderElectionService.isLeader(UUID.randomUUID());
+
+            final CompletableFuture<JobManagerRunnerResult> resultFuture =
+                    jobManagerRunner.getResultFuture();
+
+            JobManagerRunnerResult result = resultFuture.get();
+            assertEquals(
+                    JobStatus.FAILED,
+                    result.getExecutionGraphInfo().getArchivedExecutionGraph().getState());
+        }
     }
 
     private void assertJobNotFinished(CompletableFuture<JobManagerRunnerResult> resultFuture)

@@ -212,11 +212,10 @@ CREATE TABLE KafkaTable (
     </tr>
     <tr>
       <td><h5>properties.group.id</h5></td>
-      <td>required by source</td>
+      <td>对 source 可选，不适用于 sink</td>
       <td style="word-wrap: break-word;">（无）</td>
       <td>String</td>
-      <td>The id of the consumer group for Kafka source, optional for Kafka sink.</td>
-      <td>Kafka source 的 consumer 组 id，对于 Kafka sink 可选填。</td>
+      <td>Kafka source 的消费组 id。如果未指定消费组 ID，则会使用自动生成的 "KafkaSource-{tableIdentifier}" 作为消费组 ID。</td>
     </tr>
     <tr>
       <td><h5>properties.*</h5></td>
@@ -363,7 +362,7 @@ Kafka 消息的消息键和消息体部分都可以使用某种 [格式]({{< ref
 所有的格式配置使用格式识别符作为前缀。
 
 ```sql
-CREATE TABLE KafkaTable (,
+CREATE TABLE KafkaTable (
   `ts` TIMESTAMP(3) METADATA FROM 'timestamp',
   `user_id` BIGINT,
   `item_id` BIGINT,

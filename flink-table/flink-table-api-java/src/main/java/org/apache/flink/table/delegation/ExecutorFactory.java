@@ -19,38 +19,26 @@
 package org.apache.flink.table.delegation;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.factories.ComponentFactory;
-
-import java.util.Map;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.factories.Factory;
 
 /**
- * Factory that creates {@link Executor}.
+ * Factory that creates an {@link Executor} for submitting table programs.
  *
- * <p>This factory is used with Java's Service Provider Interfaces (SPI) for discovering. A factory
- * is called with a set of normalized properties that describe the desired configuration. Those
- * properties may include execution configurations such as watermark interval, max parallelism etc.,
- * table specific initialization configuration such as if the queries should be executed in batch
- * mode.
+ * <p>The factory is used with Java's Service Provider Interfaces (SPI) for discovering. See {@link
+ * Factory} for more information.
  *
- * <p><b>Important:</b> The implementations of this interface should also implement method
+ * <p>Usually, there should only be one executor factory in the class path. However, advanced users
+ * can implement a custom one for hooking into the submission process.
  *
- * <pre>
- * {@code public Executor create(Map<String, String> properties, StreamExecutionEnvironment executionEnvironment);}
- * </pre>
- *
- * <p>This method will be used when instantiating a {@link
- * org.apache.flink.table.api.TableEnvironment} from a bridging module which enables conversion
- * from/to {@code DataStream} API and requires a pre configured {@code StreamTableEnvironment}.
+ * <p><b>Important:</b> In order to support DataStream APIs, implementations of this interface must
+ * also implement {@code StreamExecutorFactory} from the {@code flink-table-api-bridge-base} module.
  */
 @Internal
-public interface ExecutorFactory extends ComponentFactory {
+public interface ExecutorFactory extends Factory {
 
-    /**
-     * Creates a corresponding {@link Executor}.
-     *
-     * @param properties Static properties of the {@link Executor}, the same that were used for
-     *     factory lookup.
-     * @return instance of a {@link Executor}
-     */
-    Executor create(Map<String, String> properties);
+    String DEFAULT_IDENTIFIER = "default";
+
+    /** Creates a corresponding {@link Executor}. */
+    Executor create(Configuration configuration);
 }

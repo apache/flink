@@ -422,7 +422,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             this.columnFamilyHandles = columnFamilyHandles;
             this.columnFamilyDescriptors = columnFamilyDescriptors;
             this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
-            this.readOptions = RocksDBOperationUtils.createTotalOrderSeekReadOptions();
+            this.readOptions = new ReadOptions();
         }
 
         @Override

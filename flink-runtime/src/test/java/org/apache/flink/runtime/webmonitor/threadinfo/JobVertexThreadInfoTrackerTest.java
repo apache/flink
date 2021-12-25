@@ -30,9 +30,14 @@ import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.JvmUtils;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava30.com.google.common.cache.RemovalListener;
+import org.apache.flink.shaded.guava30.com.google.common.cache.RemovalNotification;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -40,13 +45,18 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
+import javax.annotation.Nonnull;
+
 import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -57,7 +67,6 @@ import java.util.function.Function;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -117,71 +126,88 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
     /** Tests that cached result is reused within refresh interval. */
     @Test
     public void testCachedStatsNotUpdatedWithinRefreshInterval() throws Exception {
-        final int requestId2 = 1;
-
-        final JobVertexThreadInfoStats threadInfoStats2 =
-                createThreadInfoStats(requestId2, TIME_GAP, null);
+        final JobVertexThreadInfoStats unusedThreadInfoStats =
+                createThreadInfoStats(1, TIME_GAP, null);
 
         final JobVertexThreadInfoTracker<JobVertexThreadInfoStats> tracker =
                 createThreadInfoTracker(
-                        CLEAN_UP_INTERVAL,
                         STATS_REFRESH_INTERVAL,
                         threadInfoStatsDefaultSample,
-                        threadInfoStats2);
+                        unusedThreadInfoStats);
         // stores threadInfoStatsDefaultSample in cache
         doInitialRequestAndVerifyResult(tracker);
         Optional<JobVertexThreadInfoStats> result =
                 tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX);
-        // cached result is returned instead of threadInfoStats2
+        // cached result is returned instead of unusedThreadInfoStats
         assertEquals(threadInfoStatsDefaultSample, result.get());
     }
 
     /** Tests that cached result is NOT reused after refresh interval. */
     @Test
     public void testCachedStatsUpdatedAfterRefreshInterval() throws Exception {
-        final Duration threadInfoStatsRefreshInterval2 = Duration.ofMillis(10);
-        final long waitingTime = threadInfoStatsRefreshInterval2.toMillis() + 10;
+        final Duration shortRefreshInterval = Duration.ofMillis(1);
 
-        final int requestId2 = 1;
-        final JobVertexThreadInfoStats threadInfoStats2 =
+        // first entry is in the past, so refresh is triggered immediately upon fetching it
+        final JobVertexThreadInfoStats initialThreadInfoStats =
                 createThreadInfoStats(
-                        requestId2, TIME_GAP, Collections.singletonList(threadInfoSample));
+                        Instant.now().minus(10, ChronoUnit.SECONDS),
+                        REQUEST_ID,
+                        Duration.ofMillis(5),
+                        Collections.singletonList(threadInfoSample));
+        final JobVertexThreadInfoStats threadInfoStatsAfterRefresh =
+                createThreadInfoStats(1, TIME_GAP, Collections.singletonList(threadInfoSample));
 
+        // register a CountDownLatch with the cache so we can await refresh of the entry
+        CountDownLatch cacheRefreshed = new CountDownLatch(1);
+        Cache<JobVertexThreadInfoTracker.Key, JobVertexThreadInfoStats> vertexStatsCache =
+                createCache(CLEAN_UP_INTERVAL, new LatchRemovalListener<>(cacheRefreshed));
         final JobVertexThreadInfoTracker<JobVertexThreadInfoStats> tracker =
                 createThreadInfoTracker(
                         CLEAN_UP_INTERVAL,
-                        threadInfoStatsRefreshInterval2,
-                        threadInfoStatsDefaultSample,
-                        threadInfoStats2);
-        doInitialRequestAndVerifyResult(tracker);
+                        shortRefreshInterval,
+                        vertexStatsCache,
+                        initialThreadInfoStats,
+                        threadInfoStatsAfterRefresh);
 
-        // ensure that the previous request "expires"
-        Thread.sleep(waitingTime);
+        // no stats yet, but the request triggers async collection of stats
+        assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
+        // block until the async call completes and the first result is available
+        tracker.getResultAvailableFuture().get();
 
+        // retrieve the entry, triggering the refresh as side effect
+        assertExpectedEqualsReceived(
+                initialThreadInfoStats, tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX));
+
+        // wait until the entry is refreshed
+        cacheRefreshed.await();
+
+        // verify that we get the second result on the next request
         Optional<JobVertexThreadInfoStats> result =
                 tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX);
-
-        assertExpectedEqualsReceived(threadInfoStats2, result);
-
-        assertNotSame(result.get(), threadInfoStatsDefaultSample);
+        assertExpectedEqualsReceived(threadInfoStatsAfterRefresh, result);
     }
 
     /** Tests that cached results are removed within the cleanup interval. */
     @Test
     public void testCachedStatsCleanedAfterCleanupInterval() throws Exception {
-        final Duration cleanUpInterval2 = Duration.ofMillis(10);
-        final long waitingTime = cleanUpInterval2.toMillis() + 10;
+        final Duration shortCleanUpInterval = Duration.ofMillis(1);
 
+        // register a CountDownLatch with the cache so we can await expiry of the entry
+        CountDownLatch cacheExpired = new CountDownLatch(1);
+        Cache<JobVertexThreadInfoTracker.Key, JobVertexThreadInfoStats> vertexStatsCache =
+                createCache(shortCleanUpInterval, new LatchRemovalListener<>(cacheExpired));
         final JobVertexThreadInfoTracker<JobVertexThreadInfoStats> tracker =
                 createThreadInfoTracker(
-                        cleanUpInterval2, STATS_REFRESH_INTERVAL, threadInfoStatsDefaultSample);
-        doInitialRequestAndVerifyResult(tracker);
+                        shortCleanUpInterval,
+                        STATS_REFRESH_INTERVAL,
+                        vertexStatsCache,
+                        threadInfoStatsDefaultSample);
 
-        // wait until we are ready to cleanup
-        Thread.sleep(waitingTime);
+        // no stats yet, but the request triggers async collection of stats
+        assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
+        // wait until one eviction was registered
+        cacheExpired.await();
 
-        // cleanup the cached thread info stats
-        tracker.cleanUpVertexStatsCache();
         assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
     }
 
@@ -215,9 +241,21 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
     }
 
+    private Cache<JobVertexThreadInfoTracker.Key, JobVertexThreadInfoStats> createCache(
+            Duration cleanUpInterval,
+            RemovalListener<JobVertexThreadInfoTracker.Key, JobVertexThreadInfoStats>
+                    removalListener) {
+        return CacheBuilder.newBuilder()
+                .concurrencyLevel(1)
+                .expireAfterAccess(cleanUpInterval.toMillis(), TimeUnit.MILLISECONDS)
+                .removalListener(removalListener)
+                .build();
+    }
+
     private void doInitialRequestAndVerifyResult(
             JobVertexThreadInfoTracker<JobVertexThreadInfoStats> tracker)
             throws InterruptedException, ExecutionException {
+        // no stats yet, but the request triggers async collection of stats
         assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
         // block until the async call completes and the first result is available
         tracker.getResultAvailableFuture().get();
@@ -242,15 +280,19 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
     }
 
     private JobVertexThreadInfoTracker<JobVertexThreadInfoStats> createThreadInfoTracker() {
-        return createThreadInfoTracker(
-                CLEAN_UP_INTERVAL, STATS_REFRESH_INTERVAL, threadInfoStatsDefaultSample);
+        return createThreadInfoTracker(STATS_REFRESH_INTERVAL, threadInfoStatsDefaultSample);
+    }
+
+    private JobVertexThreadInfoTracker<JobVertexThreadInfoStats> createThreadInfoTracker(
+            Duration statsRefreshInterval, JobVertexThreadInfoStats... stats) {
+        return createThreadInfoTracker(CLEAN_UP_INTERVAL, statsRefreshInterval, null, stats);
     }
 
     private JobVertexThreadInfoTracker<JobVertexThreadInfoStats> createThreadInfoTracker(
             Duration cleanUpInterval,
-            Duration threadInfoStatsRefreshInterval,
+            Duration statsRefreshInterval,
+            Cache<JobVertexThreadInfoTracker.Key, JobVertexThreadInfoStats> vertexStatsCache,
             JobVertexThreadInfoStats... stats) {
-
         final ThreadInfoRequestCoordinator coordinator =
                 new TestingThreadInfoRequestCoordinator(Runnable::run, REQUEST_TIMEOUT, stats);
 
@@ -258,20 +300,28 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
                         JobVertexThreadInfoTrackerTest::createMockResourceManagerGateway,
                         Function.identity(),
                         executor,
-                        TestingUtils.TIMEOUT())
+                        TestingUtils.TIMEOUT)
                 .setCoordinator(coordinator)
                 .setCleanUpInterval(cleanUpInterval)
                 .setNumSamples(NUMBER_OF_SAMPLES)
-                .setStatsRefreshInterval(threadInfoStatsRefreshInterval)
+                .setStatsRefreshInterval(statsRefreshInterval)
                 .setDelayBetweenSamples(DELAY_BETWEEN_SAMPLES)
                 .setMaxThreadInfoDepth(MAX_STACK_TRACE_DEPTH)
+                .setVertexStatsCache(vertexStatsCache)
                 .build();
     }
 
     private static JobVertexThreadInfoStats createThreadInfoStats(
             int requestId, Duration timeGap, List<ThreadInfoSample> threadInfoSamples) {
-        long startTime = System.currentTimeMillis();
-        long endTime = startTime + timeGap.toMillis();
+        return createThreadInfoStats(Instant.now(), requestId, timeGap, threadInfoSamples);
+    }
+
+    private static JobVertexThreadInfoStats createThreadInfoStats(
+            Instant startTime,
+            int requestId,
+            Duration timeGap,
+            List<ThreadInfoSample> threadInfoSamples) {
+        Instant endTime = startTime.plus(timeGap);
 
         final Map<ExecutionAttemptID, List<ThreadInfoSample>> threadInfoRatiosByTask =
                 new HashMap<>();
@@ -281,7 +331,11 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
                     vertex.getCurrentExecutionAttempt().getAttemptId(), threadInfoSamples);
         }
 
-        return new JobVertexThreadInfoStats(requestId, startTime, endTime, threadInfoRatiosByTask);
+        return new JobVertexThreadInfoStats(
+                requestId,
+                startTime.toEpochMilli(),
+                endTime.toEpochMilli(),
+                threadInfoRatiosByTask);
     }
 
     private static ExecutionJobVertex createExecutionJobVertex() {
@@ -330,6 +384,20 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
                 int ignored4) {
             return CompletableFuture.completedFuture(
                     jobVertexThreadInfoStats[(counter++) % jobVertexThreadInfoStats.length]);
+        }
+    }
+
+    private static class LatchRemovalListener<K, V> implements RemovalListener<K, V> {
+
+        private final CountDownLatch latch;
+
+        private LatchRemovalListener(CountDownLatch latch) {
+            this.latch = latch;
+        }
+
+        @Override
+        public void onRemoval(@Nonnull RemovalNotification<K, V> removalNotification) {
+            latch.countDown();
         }
     }
 }

@@ -39,7 +39,7 @@ public class PythonFunctionInfo implements Serializable {
      * The input arguments, it could be an input offset of the input row or the execution result of
      * another python function described as PythonFunctionInfo.
      */
-    private final Object[] inputs;
+    private Object[] inputs;
 
     public PythonFunctionInfo(PythonFunction pythonFunction, Object[] inputs) {
         this.pythonFunction = Preconditions.checkNotNull(pythonFunction);
@@ -52,5 +52,10 @@ public class PythonFunctionInfo implements Serializable {
 
     public Object[] getInputs() {
         return this.inputs;
+    }
+
+    public void setInputs(Object[] inputs) {
+        Preconditions.checkNotNull(inputs);
+        this.inputs = inputs;
     }
 }

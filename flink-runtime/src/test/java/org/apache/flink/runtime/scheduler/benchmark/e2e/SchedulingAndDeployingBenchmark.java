@@ -18,16 +18,22 @@
 
 package org.apache.flink.runtime.scheduler.benchmark.e2e;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolUtils;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
 
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.StreamSupport;
 
 /**
  * The benchmark of scheduling and deploying tasks in a STREAMING/BATCH job. The related method is
  * {@link DefaultScheduler#startScheduling}.
  */
-public class SchedulingAndDeployingBenchmark extends SchedulerBenchmarkBase {
+public class SchedulingAndDeployingBenchmark extends SchedulerEndToEndBenchmarkBase {
 
     private DefaultScheduler scheduler;
 
@@ -36,10 +42,30 @@ public class SchedulingAndDeployingBenchmark extends SchedulerBenchmarkBase {
 
         super.setup(jobConfiguration);
 
-        scheduler = createScheduler(jobGraph, physicalSlotProvider, mainThreadExecutor);
+        scheduler =
+                createScheduler(
+                        jobGraph,
+                        physicalSlotProvider,
+                        mainThreadExecutor,
+                        scheduledExecutorService);
     }
 
     public void startScheduling() throws Exception {
-        CompletableFuture.runAsync(scheduler::startScheduling, mainThreadExecutor).join();
+        CompletableFuture.runAsync(
+                        () -> {
+                            scheduler.startScheduling();
+
+                            final int numberSlots =
+                                    StreamSupport.stream(
+                                                    jobGraph.getVertices().spliterator(), false)
+                                            .mapToInt(JobVertex::getParallelism)
+                                            .sum();
+                            SlotPoolUtils.tryOfferSlots(
+                                    slotPool,
+                                    ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                    Collections.nCopies(numberSlots, ResourceProfile.ANY));
+                        },
+                        mainThreadExecutor)
+                .join();
     }
 }

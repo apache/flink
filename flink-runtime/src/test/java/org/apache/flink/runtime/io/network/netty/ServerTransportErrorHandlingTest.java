@@ -25,7 +25,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
@@ -36,6 +37,7 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.net.BindException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -50,6 +52,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class ServerTransportErrorHandlingTest {
+    private static final int NETTY_INIT_MAX_RETRY_TIMES = 20;
 
     /** Verifies remote closes trigger the release of all resources. */
     @Test
@@ -101,7 +104,26 @@ public class ServerTransportErrorHandlingTest {
         NettyTestUtil.NettyServerAndClient serverAndClient = null;
 
         try {
-            serverAndClient = initServerAndClient(protocol, createConfig());
+            for (int retry = 0; retry < NETTY_INIT_MAX_RETRY_TIMES; retry++) {
+                try {
+                    serverAndClient = initServerAndClient(protocol, createConfig());
+                    break;
+                } catch (Exception e) {
+                    if (retry >= NETTY_INIT_MAX_RETRY_TIMES - 1) {
+                        throw new RuntimeException(
+                                "Failed to initialize netty server and client, retried "
+                                        + retry
+                                        + " times.",
+                                e);
+                    }
+                    if (e instanceof BindException
+                            || ExceptionUtils.findThrowableWithMessage(e, "Address already in use")
+                                    .isPresent()) {
+                        continue;
+                    }
+                    throw e;
+                }
+            }
 
             Channel ch = connect(serverAndClient);
 
@@ -111,10 +133,10 @@ public class ServerTransportErrorHandlingTest {
                             new ResultPartitionID(), 0, new InputChannelID(), Integer.MAX_VALUE));
 
             // Wait for the notification
-            if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
+            if (!sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS)) {
                 fail(
                         "Timed out after waiting for "
-                                + TestingUtils.TESTING_DURATION().toMillis()
+                                + TestingUtils.TESTING_DURATION.toMillis()
                                 + " ms to be notified about released partition.");
             }
         } finally {

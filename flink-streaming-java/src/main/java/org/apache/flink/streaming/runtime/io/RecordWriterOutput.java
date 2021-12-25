@@ -31,9 +31,8 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.AnnouncedStatus;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.WatermarkGaugeExposingOutput;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.OutputTag;
 
 import java.io.IOException;
@@ -54,7 +53,7 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
 
     private final WatermarkGauge watermarkGauge = new WatermarkGauge();
 
-    private final AnnouncedStatus announcedStatus = new AnnouncedStatus(StreamStatus.ACTIVE);
+    private WatermarkStatus announcedStatus = WatermarkStatus.ACTIVE;
 
     @SuppressWarnings("unchecked")
     public RecordWriterOutput(
@@ -98,10 +97,9 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
     }
 
     private <X> void pushToRecordWriter(StreamRecord<X> record) {
-        // record could've been generated somewhere in the pipeline even though an IDLE status was
-        // emitted. It might've originated from a timer or just a wrong behaving operator
-        try (AutoCloseable ignored = announcedStatus.ensureActive(this::writeStreamStatus)) {
-            serializationDelegate.setInstance(record);
+        serializationDelegate.setInstance(record);
+
+        try {
             recordWriter.emit(serializationDelegate);
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage(), e);
@@ -110,12 +108,14 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
 
     @Override
     public void emitWatermark(Watermark mark) {
-        // watermark could've been generated somewhere in the pipeline even though an IDLE status
-        // was emitted. It might've originated from a periodic watermark generator or just a wrong
-        // behaving operator
-        try (AutoCloseable ignored = announcedStatus.ensureActive(this::writeStreamStatus)) {
-            watermarkGauge.setCurrentWatermark(mark.getTimestamp());
-            serializationDelegate.setInstance(mark);
+        if (announcedStatus.isIdle()) {
+            return;
+        }
+
+        watermarkGauge.setCurrentWatermark(mark.getTimestamp());
+        serializationDelegate.setInstance(mark);
+
+        try {
             recordWriter.broadcastEmit(serializationDelegate);
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage(), e);
@@ -123,19 +123,15 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
     }
 
     @Override
-    public void emitStreamStatus(StreamStatus streamStatus) {
-        if (!announcedStatus.getCurrentStatus().equals(streamStatus)) {
-            announcedStatus.setCurrentStatus(streamStatus);
-            writeStreamStatus(streamStatus);
-        }
-    }
-
-    private void writeStreamStatus(StreamStatus streamStatus) {
-        serializationDelegate.setInstance(streamStatus);
-        try {
-            recordWriter.broadcastEmit(serializationDelegate);
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage(), e);
+    public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {
+        if (!announcedStatus.equals(watermarkStatus)) {
+            announcedStatus = watermarkStatus;
+            serializationDelegate.setInstance(watermarkStatus);
+            try {
+                recordWriter.broadcastEmit(serializationDelegate);
+            } catch (Exception e) {
+                throw new RuntimeException(e.getMessage(), e);
+            }
         }
     }
 

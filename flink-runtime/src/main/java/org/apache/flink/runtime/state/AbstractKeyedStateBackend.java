@@ -20,7 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.api.common.state.InternalCheckpointListener;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -52,8 +52,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class AbstractKeyedStateBackend<K>
         implements CheckpointableKeyedStateBackend<K>,
-                CheckpointListener,
-                TestableKeyedStateBackend {
+                InternalCheckpointListener,
+                TestableKeyedStateBackend<K>,
+                InternalKeyContext<K> {
 
     /** The key serializer. */
     protected final TypeSerializer<K> keySerializer;
@@ -162,6 +163,9 @@ public abstract class AbstractKeyedStateBackend<K>
             return UncompressedStreamCompressionDecorator.INSTANCE;
         }
     }
+
+    @Override
+    public void notifyCheckpointSubsumed(long checkpointId) throws Exception {}
 
     /**
      * Closes the state backend, releasing all internal resources, but does not delete any
@@ -383,11 +387,20 @@ public abstract class AbstractKeyedStateBackend<K>
         return false;
     }
 
+    public InternalKeyContext<K> getKeyContext() {
+        return keyContext;
+    }
+
     public interface PartitionStateFactory {
         <N, S extends State> S get(
                 final N namespace,
                 final TypeSerializer<N> namespaceSerializer,
                 final StateDescriptor<S, ?> stateDescriptor)
                 throws Exception;
+    }
+
+    @Override
+    public void setCurrentKeyGroupIndex(int currentKeyGroupIndex) {
+        keyContext.setCurrentKeyGroupIndex(currentKeyGroupIndex);
     }
 }

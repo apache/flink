@@ -32,13 +32,12 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
@@ -126,9 +125,7 @@ public class YarnConfigurationITCase extends YarnTestBase {
                         final ApplicationId clusterId = clusterClient.getClusterId();
 
                         final RestClient restClient =
-                                new RestClient(
-                                        RestClientConfiguration.fromConfiguration(configuration),
-                                        TestingUtils.defaultExecutor());
+                                new RestClient(configuration, TestingUtils.defaultExecutor());
 
                         try {
                             final ApplicationReport applicationReport =

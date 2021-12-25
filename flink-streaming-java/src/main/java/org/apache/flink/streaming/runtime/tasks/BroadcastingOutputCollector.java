@@ -23,7 +23,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.XORShiftRandom;
 
@@ -48,9 +48,9 @@ class BroadcastingOutputCollector<T> implements WatermarkGaugeExposingOutput<Str
     }
 
     @Override
-    public void emitStreamStatus(StreamStatus streamStatus) {
+    public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {
         for (Output<StreamRecord<T>> output : outputs) {
-            output.emitStreamStatus(streamStatus);
+            output.emitWatermarkStatus(watermarkStatus);
         }
     }
 

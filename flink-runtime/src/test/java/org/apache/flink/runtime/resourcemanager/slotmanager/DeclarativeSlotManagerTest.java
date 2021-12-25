@@ -27,9 +27,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -47,16 +44,18 @@ import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.SystemExitTrackingSecurityManager;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
-import akka.pattern.AskTimeoutException;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -602,7 +601,7 @@ public class DeclarativeSlotManagerTest extends TestLogger {
         final BlockingQueue<Supplier<CompletableFuture<Acknowledge>>> responseQueue =
                 new ArrayBlockingQueue<>(2);
         responseQueue.add(
-                () -> FutureUtils.completedExceptionally(new AskTimeoutException("timeout")));
+                () -> FutureUtils.completedExceptionally(new TimeoutException("timeout")));
         responseQueue.add(
                 () -> {
                     secondSlotRequestFuture.complete(null);

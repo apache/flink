@@ -21,8 +21,11 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import org.junit.Test;
+
+import java.util.Map;
 
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
@@ -70,5 +73,29 @@ public class TaskIOMetricGroupTest {
         assertThat(taskIO.getIdleTimeMsPerSecond().getCount(), greaterThanOrEqualTo(sleepTime));
         assertThat(
                 taskIO.getBackPressuredTimePerSecond().getCount(), greaterThanOrEqualTo(sleepTime));
+    }
+
+    @Test
+    public void testNumBytesProducedOfPartitionsMetrics() {
+        TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+        TaskIOMetricGroup taskIO = task.getIOMetricGroup();
+
+        Counter c1 = new SimpleCounter();
+        c1.inc(32L);
+        Counter c2 = new SimpleCounter();
+        c2.inc(64L);
+
+        IntermediateResultPartitionID resultPartitionID1 = new IntermediateResultPartitionID();
+        IntermediateResultPartitionID resultPartitionID2 = new IntermediateResultPartitionID();
+
+        taskIO.registerNumBytesProducedCounterForPartition(resultPartitionID1, c1);
+        taskIO.registerNumBytesProducedCounterForPartition(resultPartitionID2, c2);
+
+        Map<IntermediateResultPartitionID, Long> numBytesProducedOfPartitions =
+                taskIO.createSnapshot().getNumBytesProducedOfPartitions();
+
+        assertEquals(2, numBytesProducedOfPartitions.size());
+        assertEquals(32L, numBytesProducedOfPartitions.get(resultPartitionID1).longValue());
+        assertEquals(64L, numBytesProducedOfPartitions.get(resultPartitionID2).longValue());
     }
 }

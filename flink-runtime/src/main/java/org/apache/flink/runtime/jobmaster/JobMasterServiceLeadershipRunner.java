@@ -21,7 +21,6 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceProcessFactory;
@@ -34,6 +33,7 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
@@ -285,7 +285,12 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     }
 
     private void jobAlreadyDone() {
-        resultFuture.completeExceptionally(new JobNotFinishedException(getJobID()));
+        resultFuture.complete(
+                JobManagerRunnerResult.forSuccess(
+                        new ExecutionGraphInfo(
+                                jobMasterServiceProcessFactory.createArchivedExecutionGraph(
+                                        JobStatus.FAILED,
+                                        new JobAlreadyDoneException(getJobID())))));
     }
 
     private RunningJobsRegistry.JobSchedulingStatus getJobSchedulingStatus() throws FlinkException {

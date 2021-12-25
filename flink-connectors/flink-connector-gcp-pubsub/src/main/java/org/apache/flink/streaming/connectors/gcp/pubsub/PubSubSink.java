@@ -55,7 +55,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCredentialsProviderBuilder;
-import static org.apache.flink.runtime.concurrent.Executors.directExecutor;
+import static org.apache.flink.util.concurrent.Executors.directExecutor;
 
 /**
  * A sink function that outputs to PubSub.

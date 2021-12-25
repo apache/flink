@@ -21,29 +21,48 @@ package org.apache.flink.runtime.jobgraph.topology;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Set of {@link LogicalVertex} that are connected through pipelined {@link LogicalResult}. */
-public class DefaultLogicalPipelinedRegion {
+public class DefaultLogicalPipelinedRegion implements LogicalPipelinedRegion {
 
-    private final Set<JobVertexID> vertexIDs;
+    private final Map<JobVertexID, LogicalVertex> vertexById;
 
     public DefaultLogicalPipelinedRegion(final Set<? extends LogicalVertex> logicalVertices) {
         checkNotNull(logicalVertices);
 
-        this.vertexIDs =
-                logicalVertices.stream().map(LogicalVertex::getId).collect(Collectors.toSet());
+        this.vertexById =
+                logicalVertices.stream()
+                        .collect(Collectors.toMap(LogicalVertex::getId, Function.identity()));
     }
 
-    public Set<JobVertexID> getVertexIDs() {
-        return vertexIDs;
+    @Override
+    public Iterable<? extends LogicalVertex> getVertices() {
+        return vertexById.values();
+    }
+
+    @Override
+    public LogicalVertex getVertex(JobVertexID vertexId) {
+        return vertexById.get(vertexId);
+    }
+
+    @Override
+    public boolean contains(JobVertexID vertexId) {
+        return vertexById.containsKey(vertexId);
     }
 
     @Override
     public String toString() {
-        return "DefaultLogicalPipelinedRegion{" + "vertexIDs=" + vertexIDs + '}';
+        return "DefaultLogicalPipelinedRegion{"
+                + "vertexIDs="
+                + vertexById.values().stream()
+                        .map(LogicalVertex::getId)
+                        .collect(Collectors.toList())
+                + '}';
     }
 }

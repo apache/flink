@@ -23,7 +23,7 @@ import java.util.concurrent.Callable
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
-import org.apache.flink.shaded.guava18.com.google.common.cache.{Cache, CacheBuilder}
+import org.apache.flink.shaded.guava30.com.google.common.cache.{Cache, CacheBuilder}
 
 import scala.collection.generic.CanBuildFrom
 import scala.ref.WeakReference

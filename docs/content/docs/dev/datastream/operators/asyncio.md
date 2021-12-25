@@ -44,7 +44,7 @@ A request is sent to the database and the `MapFunction` waits until the response
 makes up the vast majority of the function's time.
 
 Asynchronous interaction with the database means that a single parallel function instance can handle many requests concurrently and
-receive the responses concurrently. That way, the waiting time can be overlayed with sending other requests and
+receive the responses concurrently. That way, the waiting time can be overlaid with sending other requests and
 receiving responses. At the very least, the waiting time is amortized over multiple requests. This leads in most cased to much higher
 streaming throughput.
 
@@ -194,6 +194,9 @@ The following two parameters control the asynchronous operations:
 
 When an async I/O request times out, by default an exception is thrown and job is restarted.
 If you want to handle timeouts, you can override the `AsyncFunction#timeout` method.
+Make sure you call `ResultFuture.complete()` or `ResultFuture.completeExceptionally()` when overriding
+in order to indicate to Flink that the processing of this input record has completed. You can call 
+`ResultFuture.complete(Collections.emptyList())` if you do not want to emit any record when timeouts happen.
 
 
 ### Order of Results
@@ -247,11 +250,11 @@ callback typically does minimal work, and a `DirectExecutor` avoids an additiona
 the result to the `ResultFuture`, which adds it to the output buffer. From there, the heavy logic that includes record emission and interaction
 with the checkpoint bookkeeping happens in a dedicated thread-pool anyways.
 
-A `DirectExecutor` can be obtained via `org.apache.flink.runtime.concurrent.Executors.directExecutor()` or
+A `DirectExecutor` can be obtained via `org.apache.flink.util.concurrent.Executors.directExecutor()` or
 `com.google.common.util.concurrent.MoreExecutors.directExecutor()`.
 
 
-### Caveat
+### Caveats
 
 **The AsyncFunction is not called Multi-Threaded**
 
@@ -266,12 +269,6 @@ For example, the following patterns result in a blocking `asyncInvoke(...)` func
 
   - Blocking/waiting on the future-type objects returned by an asynchronous client inside the `asyncInvoke(...)` method
   
-**The operator for AsyncFunction (AsyncWaitOperator) must currently be at the head of operator chains for consistency reasons**
-
-For the reasons given in issue `FLINK-13063`, we currently must break operator chains for the `AsyncWaitOperator` to prevent 
-potential consistency problems. This is a change to the previous behavior that supported chaining. User that
-require the old behavior and accept potential violations of the consistency guarantees can instantiate and add the 
-`AsyncWaitOperator` manually to the job graph and set the chaining strategy back to chaining via 
-`AsyncWaitOperator#setChainingStrategy(ChainingStrategy.ALWAYS)`.
+**An AsyncFunction(AsyncWaitOperator) can be used anywhere in the job graph, except that it cannot be chained to a `SourceFunction`/`SourceStreamTask`.**
 
 {{< top >}}

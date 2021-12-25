@@ -154,9 +154,7 @@ trait ImplicitExpressionConversions {
       * Calls a scalar function for the given parameters.
       */
     def apply(params: Expression*): Expression = {
-      unresolvedCall(
-        new ScalarFunctionDefinition(s.getClass.getName, s),
-        params.map(ApiExpressionUtils.objectToExpression): _*)
+      unresolvedCall(s, params.map(ApiExpressionUtils.objectToExpression): _*)
     }
   }
 
@@ -446,6 +444,26 @@ trait ImplicitExpressionConversions {
   }
 
   /**
+   * Returns the current watermark for the given rowtime attribute, or `NULL` if no common watermark
+   * of all upstream operations is available at the current operation in the pipeline.
+   *
+   * The function returns the watermark with the same type as the rowtime attribute, but with
+   * an adjusted precision of 3. For example, if the rowtime attribute is
+   * [[DataTypes.TIMESTAMP_LTZ(int) TIMESTAMP_LTZ(9)]], the function will return
+   * [[DataTypes.TIMESTAMP_LTZ(int) TIMESTAMP_LTZ(3)]].
+   *
+   * If no watermark has been emitted yet, the function will return `NULL`. Users must take care of
+   * this when comparing against it, e.g. in order to filter out late data you can use
+   *
+   * {{{
+   * WHERE CURRENT_WATERMARK(ts) IS NULL OR ts > CURRENT_WATERMARK(ts)
+   * }}}
+   */
+  def currentWatermark(rowtimeAttribute: Expression): Expression = {
+    Expressions.currentWatermark(rowtimeAttribute)
+  }
+
+  /**
     * Returns the current SQL time in local time zone,
     * the return type of this expression is [[DataTypes.TIME]],
     * this is a synonym for [[ImplicitExpressionConversions.currentTime()]].
@@ -709,6 +727,28 @@ trait ImplicitExpressionConversions {
   }
 
   /**
+   * Returns the first argument that is not NULL.
+   *
+   * If all arguments are NULL, it returns NULL as well. The return type is the least
+   * restrictive, common type of all of its arguments. The return type is nullable if all
+   * arguments are nullable as well.
+   *
+   * Examples:
+   * {{{
+   * // Returns "default"
+   * coalesce(null, "default")
+   *
+   * // Returns the first non-null value among f0 and f1, or "default" if f0 and f1 are both null
+   * coalesce($"f0", $"f1", "default")
+   * }}}
+   *
+   * @param args the input expressions.
+   */
+  def coalesce(args: Expression*): Expression = {
+    Expressions.coalesce(args: _*)
+  }
+
+  /**
     * Creates an expression that selects a range of columns. It can be used wherever an array of
     * expression is accepted such as function calls, projections, or groupings.
     *
@@ -747,5 +787,160 @@ trait ImplicitExpressionConversions {
    */
   def or(predicate0: Expression, predicate1: Expression, predicates: Expression*): Expression = {
     Expressions.or(predicate0, predicate1, predicates: _*)
+  }
+
+  /**
+   * Inverts a given boolean expression.
+   *
+   * This method supports a three-valued logic by preserving <code>NULL</code>. This means if the
+   * input expression is <code>NULL</code>, the result will also be <code>NULL</code>.
+   *
+   * The resulting type is nullable if and only if the input type is nullable.
+   *
+   * Examples:
+   *
+   * {{{
+   * not(lit(true)) // false
+   * not(lit(false)) // true
+   * not(lit(null, DataTypes.BOOLEAN())) // null
+   * }}}
+   */
+  def not(expression: Expression): Expression = Expressions.not(expression)
+
+  /**
+   * Serializes a value into JSON.
+   *
+   * This function returns a JSON string containing the serialized value. If the value is `null`,
+   * the function returns `null`.
+   *
+   * Examples:
+   * {{{
+   * // null
+   * jsonString(nullOf(DataTypes.INT()))
+   *
+   * jsonString(1)                   // "1"
+   * jsonString(true)                // "true"
+   * jsonString("Hello, World!")     // "\"Hello, World!\""
+   * jsonString(Arrays.asList(1, 2)) // "[1,2]"
+   * }}}
+   */
+  def jsonString(value: Expression): Expression = {
+    Expressions.jsonString(value)
+  }
+
+  /**
+   * Builds a JSON object string from a list of key-value pairs.
+   *
+   * `keyValues` is an even-numbered list of alternating key/value pairs. Note that keys must be
+   * string literals, values may be arbitrary expressions.
+   *
+   * This function returns a JSON string. The [[JsonOnNull onNull]] behavior defines how to treat
+   * `NULL` values.
+   *
+   * Values which are created from another JSON construction function call
+   * (`jsonObject`, `jsonArray`) are inserted directly rather than as a string. This allows
+   * building nested JSON structures.
+   *
+   * Examples:
+   * {{{
+   * // {}
+   * jsonObject(JsonOnNull.NULL)
+   * // {"K1":"V1","K2":"V2"}
+   * jsonObject(JsonOnNull.NULL, "K1", "V1", "K2", "V2")
+   *
+   * // Expressions as values
+   * jsonObject(JsonOnNull.NULL, "orderNo", $("orderId"))
+   *
+   * // ON NULL
+   * jsonObject(JsonOnNull.NULL, "K1", nullOf(DataTypes.STRING()))   // "{\"K1\":null}"
+   * jsonObject(JsonOnNull.ABSENT, "K1", nullOf(DataTypes.STRING())) // '{}'
+   *
+   * // {"K1":{"K2":"V"}}
+   * jsonObject(JsonOnNull.NULL, "K1", jsonObject(JsonOnNull.NULL, "K2", "V"))
+   * }}}
+   *
+   * @see #jsonObject
+   */
+  def jsonObject(onNull: JsonOnNull, keyValues: Expression*): Expression = {
+    Expressions.jsonObject(onNull, keyValues: _*)
+  }
+
+  /**
+   * Builds a JSON object string by aggregating key-value expressions into a single JSON object.
+   *
+   * The key expression must return a non-nullable character string. Value expressions can be
+   * arbitrary, including other JSON functions. If a value is `NULL`, the [[JsonOnNull onNull]]
+   * behavior defines what to do.
+   *
+   * Note that keys must be unique. If a key occurs multiple times, an error will be thrown.
+   *
+   * This function is currently not supported in `OVER` windows.
+   *
+   * Examples:
+   * {{{
+   * // "{\"Apple\":2,\"Banana\":17,\"Orange\":0}"
+   * orders.select(jsonObjectAgg(JsonOnNull.NULL, $("product"), $("cnt")))
+   * }}}
+   *
+   * @see #jsonObject
+   */
+  def jsonObjectAgg(onNull: JsonOnNull, keyExpr: Expression, valueExpr: Expression): Expression = {
+    Expressions.jsonObjectAgg(onNull, keyExpr, valueExpr)
+  }
+
+  /**
+   * Builds a JSON array string from a list of values.
+   *
+   * This function returns a JSON string. The values can be arbitrary expressions. The
+   * [[JsonOnNull onNull]] behavior defines how to treat `NULL` values.
+   *
+   * Elements which are created from another JSON construction function call
+   * (`jsonObject`, `jsonArray`) are inserted directly rather than as a string. This allows
+   * building nested JSON structures.
+   *
+   * Examples:
+   *
+   * {{{
+   * // "[]"
+   * jsonArray(JsonOnNull.NULL)
+   * // "[1,\"2\"]"
+   * jsonArray(JsonOnNull.NULL, 1, "2")
+   *
+   * // Expressions as values
+   * jsonArray(JsonOnNull.NULL, $("orderId"))
+   *
+   * // ON NULL
+   * jsonArray(JsonOnNull.NULL, nullOf(DataTypes.STRING()))   // "[null]"
+   * jsonArray(JsonOnNull.ABSENT, nullOf(DataTypes.STRING())) // "[]"
+   *
+   * // "[[1]]"
+   * jsonArray(JsonOnNull.NULL, jsonArray(JsonOnNull.NULL, 1))
+   * }}}
+   *
+   * @see #jsonObject
+   */
+  def jsonArray(onNull: JsonOnNull, values: Expression*): Expression = {
+    Expressions.jsonArray(onNull, values: _*)
+  }
+
+  /**
+   * Builds a JSON object string by aggregating items into an array.
+   *
+   * Item expressions can be arbitrary, including other JSON functions. If a value is `NULL`,
+   * [[JsonOnNull onNull]] behavior defines what to do.
+   *
+   * This function is currently not supported in `OVER` windows, unbounded session windows, or hop
+   * windows.
+   *
+   * Examples:
+   * {{{
+   * // "[\"Apple\",\"Banana\",\"Orange\"]"
+   * orders.select(jsonArrayAgg(JsonOnNull.NULL, $("product")))
+   * }}}
+   *
+   * @see #jsonObject
+   */
+  def jsonArrayAgg(onNull: JsonOnNull, itemExpr: Expression): Expression = {
+    Expressions.jsonArrayAgg(onNull, itemExpr)
   }
 }

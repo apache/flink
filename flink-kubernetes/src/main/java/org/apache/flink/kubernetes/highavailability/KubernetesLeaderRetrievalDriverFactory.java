@@ -19,20 +19,31 @@
 package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalEventHandler;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+
+import java.util.concurrent.ExecutorService;
 
 /** {@link LeaderRetrievalDriverFactory} implementation for Kubernetes. */
 public class KubernetesLeaderRetrievalDriverFactory implements LeaderRetrievalDriverFactory {
 
     private final FlinkKubeClient kubeClient;
 
+    private final KubernetesConfigMapSharedWatcher configMapSharedWatcher;
+    private final ExecutorService watchExecutorService;
+
     private final String configMapName;
 
     public KubernetesLeaderRetrievalDriverFactory(
-            FlinkKubeClient kubeClient, String configMapName) {
+            FlinkKubeClient kubeClient,
+            KubernetesConfigMapSharedWatcher configMapSharedWatcher,
+            ExecutorService watchExecutorService,
+            String configMapName) {
         this.kubeClient = kubeClient;
+        this.configMapSharedWatcher = configMapSharedWatcher;
+        this.watchExecutorService = watchExecutorService;
         this.configMapName = configMapName;
     }
 
@@ -40,6 +51,11 @@ public class KubernetesLeaderRetrievalDriverFactory implements LeaderRetrievalDr
     public KubernetesLeaderRetrievalDriver createLeaderRetrievalDriver(
             LeaderRetrievalEventHandler leaderEventHandler, FatalErrorHandler fatalErrorHandler) {
         return new KubernetesLeaderRetrievalDriver(
-                kubeClient, configMapName, leaderEventHandler, fatalErrorHandler);
+                kubeClient,
+                configMapSharedWatcher,
+                watchExecutorService,
+                configMapName,
+                leaderEventHandler,
+                fatalErrorHandler);
     }
 }

@@ -40,6 +40,7 @@ import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumab
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -51,8 +52,8 @@ import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.NoOpPartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
@@ -67,7 +68,7 @@ import static org.mockito.Mockito.mock;
 /** Util that helps building {@link Task} objects for testing. */
 public final class TestTaskBuilder {
 
-    private Class<? extends AbstractInvokable> invokable = AbstractInvokable.class;
+    private Class<? extends TaskInvokable> invokable = AbstractInvokable.class;
     private TaskManagerActions taskManagerActions = new NoOpTaskManagerActions();
     private LibraryCacheManager.ClassLoaderHandle classLoaderHandle =
             TestingClassLoaderLease.newBuilder().build();
@@ -89,12 +90,13 @@ public final class TestTaskBuilder {
     private ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
     private ExternalResourceInfoProvider externalResourceInfoProvider =
             ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
+    private TestCheckpointResponder testCheckpointResponder = new TestCheckpointResponder();
 
     public TestTaskBuilder(ShuffleEnvironment<?, ?> shuffleEnvironment) {
         this.shuffleEnvironment = Preconditions.checkNotNull(shuffleEnvironment);
     }
 
-    public TestTaskBuilder setInvokable(Class<? extends AbstractInvokable> invokable) {
+    public TestTaskBuilder setInvokable(Class<? extends TaskInvokable> invokable) {
         this.invokable = invokable;
         return this;
     }
@@ -185,6 +187,11 @@ public final class TestTaskBuilder {
         return this;
     }
 
+    public TestTaskBuilder setCheckpointResponder(TestCheckpointResponder testCheckpointResponder) {
+        this.testCheckpointResponder = testCheckpointResponder;
+        return this;
+    }
+
     public Task build() throws Exception {
         final JobVertexID jobVertexId = new JobVertexID();
 
@@ -226,7 +233,7 @@ public final class TestTaskBuilder {
                 new TestTaskStateManager(),
                 taskManagerActions,
                 new MockInputSplitProvider(),
-                new TestCheckpointResponder(),
+                testCheckpointResponder,
                 new NoOpTaskOperatorEventGateway(),
                 new TestGlobalAggregateManager(),
                 classLoaderHandle,

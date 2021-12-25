@@ -43,7 +43,7 @@ Flink can dynamically allocate and de-allocate TaskManager resources depending o
 This *Getting Started* section assumes a functional YARN environment, starting from version 2.4.1. YARN environments are provided most conveniently through services such as Amazon EMR, Google Cloud DataProc or products like Cloudera. [Manually setting up a YARN environment locally](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/SingleCluster.html) or [on a cluster](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/ClusterSetup.html) is not recommended for following through this *Getting Started* tutorial. 
 
 - Make sure your YARN cluster is ready for accepting Flink applications by running `yarn top`. It should show no error messages.
-- Download a recent Flink distribution from the [download page]({{ site.download_url }}) and unpack it.
+- Download a recent Flink distribution from the [download page]({{< downloads >}}) and unpack it.
 - **Important** Make sure that the `HADOOP_CLASSPATH` environment variable is set up (it can be checked by running `echo $HADOOP_CLASSPATH`). If not, set it up using 
 
 ```bash
@@ -87,6 +87,10 @@ For production use, we recommend deploying Flink Applications in the [Per-job or
 
 ### Application Mode
 
+{{< hint info >}}
+For high-level intuition behind the application mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#application-mode" >}}).
+{{< /hint >}}
+
 Application Mode will launch a Flink cluster on YARN, where the main() method of the application jar gets executed on the JobManager in YARN.
 The cluster will shut down as soon as the application has finished. You can manually stop the cluster using `yarn application -kill <ApplicationId>` or by cancelling the Flink job.
 
@@ -120,7 +124,11 @@ The above will allow the job submission to be extra lightweight as the needed Fl
 are  going to be picked up by the specified remote locations rather than be shipped to the cluster by the 
 client.
 
-### Per-Job Cluster Mode
+### Per-Job Mode
+
+{{< hint info >}}
+For high-level intuition behind the per-job mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#per-job-mode" >}}).
+{{< /hint >}}
 
 The Per-job Cluster mode will launch a Flink cluster on YARN, then run the provided application jar locally and finally submit the JobGraph to the JobManager on YARN. If you pass the `--detached` argument, the client will stop once the submission is accepted.
 
@@ -144,6 +152,10 @@ Note that cancelling your job on an Per-Job Cluster will stop the cluster.
 
 ### Session Mode
 
+{{< hint info >}}
+For high-level intuition behind the session mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#session-mode" >}}).
+{{< /hint >}}
+
 We describe deployment with the Session Mode in the [Getting Started](#getting-started) guide at the top of the page.
 
 The Session Mode has two operation modes:
@@ -152,7 +164,7 @@ The Session Mode has two operation modes:
 
 The session mode will create a hidden YARN properties file in `/tmp/.yarn-properties-<username>`, which will be picked up for cluster discovery by the command line interface when submitting a job.
 
-You can also **manually specifiy the target YARN cluster** in the command line interface when submitting a Flink job. Here's an example:
+You can also **manually specify the target YARN cluster** in the command line interface when submitting a Flink job. Here's an example:
 
 ```bash 
 ./bin/flink run -t yarn-session \
@@ -225,7 +237,7 @@ For providing Flink with the required Hadoop dependencies, we recommend setting 
 
 If that is not possible, the dependencies can also be put into the `lib/` folder of Flink. 
 
-Flink also offers pre-bundled Hadoop fat jars for placing them in the `lib/` folder, on the [Downloads / Additional Components]({{site.download_url}}#additional-components) section of the website. These pre-bundled fat jars are shaded to avoid dependency conflicts with common libraries. The Flink community is not testing the YARN integration against these pre-bundled jars. 
+Flink also offers pre-bundled Hadoop fat jars for placing them in the `lib/` folder, on the [Downloads / Additional Components]({{< downloads >}}#additional-components) section of the website. These pre-bundled fat jars are shaded to avoid dependency conflicts with common libraries. The Flink community is not testing the YARN integration against these pre-bundled jars. 
 
 ### Running Flink on YARN behind Firewalls
 

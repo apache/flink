@@ -22,9 +22,9 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.util.concurrent.Executors;
 
 /** Testing utility and factory methods for {@link TaskSlotTable} and {@link TaskSlot}s. */
 public enum TaskSlotUtils {
@@ -52,7 +52,7 @@ public enum TaskSlotUtils {
                 numberOfSlots, createDefaultTimerService(timeout.toMilliseconds()));
     }
 
-    private static <T extends TaskSlotPayload> TaskSlotTableImpl<T> createTaskSlotTable(
+    public static <T extends TaskSlotPayload> TaskSlotTableImpl<T> createTaskSlotTable(
             int numberOfSlots, TimerService<AllocationID> timerService) {
         return new TaskSlotTableImpl<>(
                 numberOfSlots,
@@ -76,6 +76,6 @@ public enum TaskSlotUtils {
     }
 
     public static TimerService<AllocationID> createDefaultTimerService(long shutdownTimeout) {
-        return new TimerService<>(TestingUtils.defaultExecutor(), shutdownTimeout);
+        return new DefaultTimerService<>(TestingUtils.defaultExecutor(), shutdownTimeout);
     }
 }

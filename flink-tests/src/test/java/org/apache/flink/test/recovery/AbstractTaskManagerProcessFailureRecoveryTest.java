@@ -19,7 +19,6 @@
 package org.apache.flink.test.recovery;
 
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -30,6 +29,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
@@ -90,11 +90,11 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
         File coordinateTempDir = null;
 
         Configuration config = new Configuration();
-        config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
         config.setString(JobManagerOptions.ADDRESS, "localhost");
         config.setString(RestOptions.BIND_PORT, "0");
-        config.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 500L);
+        config.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 200L);
         config.setLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 10000L);
+        config.set(HeartbeatManagerOptions.HEARTBEAT_RPC_FAILURE_THRESHOLD, 1);
         config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
         config.setString(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
@@ -335,6 +335,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
                 Configuration cfg = parameterTool.getConfiguration();
                 final PluginManager pluginManager =
                         PluginUtils.createPluginManagerFromRootFolder(cfg);
+                TaskExecutorResourceUtils.adjustForLocalExecution(cfg);
 
                 TaskManagerRunner.runTaskManager(cfg, pluginManager);
             } catch (Throwable t) {

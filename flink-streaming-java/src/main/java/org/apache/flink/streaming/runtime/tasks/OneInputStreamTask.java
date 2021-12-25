@@ -27,6 +27,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.sort.SortingDataInput;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -35,15 +36,23 @@ import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInput;
 import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInputFactory;
+import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.checkpointing.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+
+import org.apache.flink.shaded.curator4.com.google.common.collect.Iterables;
 
 import javax.annotation.Nullable;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.streaming.api.graph.StreamConfig.requiresSorting;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -52,6 +61,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 /** A {@link StreamTask} for executing a {@link OneInputStreamOperator}. */
 @Internal
 public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamOperator<IN, OUT>> {
+
+    @Nullable private CheckpointBarrierHandler checkpointBarrierHandler;
 
     private final WatermarkGauge inputWatermarkGauge = new WatermarkGauge();
 
@@ -117,6 +128,11 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
                 .gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, inputWatermarkGauge::getValue);
     }
 
+    @Override
+    protected Optional<CheckpointBarrierHandler> getCheckpointBarrierHandler() {
+        return Optional.ofNullable(checkpointBarrierHandler);
+    }
+
     private StreamTaskInput<IN> wrapWithSorted(StreamTaskInput<IN> input) {
         ClassLoader userCodeClassLoader = getUserCodeClassLoader();
         return new SortingDataInput<>(
@@ -128,27 +144,45 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
                 getEnvironment().getIOManager(),
                 getExecutionConfig().isObjectReuseEnabled(),
                 configuration.getManagedMemoryFractionOperatorUseCaseOfSlot(
-                        ManagedMemoryUseCase.OPERATOR, getTaskConfiguration(), userCodeClassLoader),
+                        ManagedMemoryUseCase.OPERATOR,
+                        getEnvironment().getTaskConfiguration(),
+                        userCodeClassLoader),
                 getJobConfiguration(),
-                this);
+                this,
+                getExecutionConfig());
     }
 
+    @SuppressWarnings("unchecked")
     private CheckpointedInputGate createCheckpointedInputGate() {
         IndexedInputGate[] inputGates = getEnvironment().getAllInputGates();
 
-        return InputProcessorUtil.createCheckpointedInputGate(
-                this,
-                configuration,
-                getCheckpointCoordinator(),
-                inputGates,
-                getEnvironment().getMetricGroup().getIOMetricGroup(),
-                getTaskNameWithSubtaskAndId(),
-                mainMailboxExecutor,
-                systemTimerService);
+        checkpointBarrierHandler =
+                InputProcessorUtil.createCheckpointBarrierHandler(
+                        this,
+                        configuration,
+                        getCheckpointCoordinator(),
+                        getTaskNameWithSubtaskAndId(),
+                        new List[] {Arrays.asList(inputGates)},
+                        Collections.emptyList(),
+                        mainMailboxExecutor,
+                        systemTimerService);
+
+        CheckpointedInputGate[] checkpointedInputGates =
+                InputProcessorUtil.createCheckpointedMultipleInputGate(
+                        mainMailboxExecutor,
+                        new List[] {Arrays.asList(inputGates)},
+                        getEnvironment().getMetricGroup().getIOMetricGroup(),
+                        checkpointBarrierHandler,
+                        configuration);
+
+        return Iterables.getOnlyElement(Arrays.asList(checkpointedInputGates));
     }
 
     private DataOutput<IN> createDataOutput(Counter numRecordsIn) {
-        return new StreamTaskNetworkOutput<>(mainOperator, inputWatermarkGauge, numRecordsIn);
+        return new StreamTaskNetworkOutput<>(
+                operatorChain.getFinishedOnRestoreInputOrDefault(mainOperator),
+                inputWatermarkGauge,
+                numRecordsIn);
     }
 
     private StreamTaskInput<IN> createTaskInput(CheckpointedInputGate inputGate) {
@@ -179,15 +213,13 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
      */
     private static class StreamTaskNetworkOutput<IN> implements DataOutput<IN> {
 
-        private final OneInputStreamOperator<IN, ?> operator;
+        private final Input<IN> operator;
 
         private final WatermarkGauge watermarkGauge;
         private final Counter numRecordsIn;
 
         private StreamTaskNetworkOutput(
-                OneInputStreamOperator<IN, ?> operator,
-                WatermarkGauge watermarkGauge,
-                Counter numRecordsIn) {
+                Input<IN> operator, WatermarkGauge watermarkGauge, Counter numRecordsIn) {
 
             this.operator = checkNotNull(operator);
             this.watermarkGauge = checkNotNull(watermarkGauge);
@@ -197,7 +229,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         @Override
         public void emitRecord(StreamRecord<IN> record) throws Exception {
             numRecordsIn.inc();
-            operator.setKeyContextElement1(record);
+            operator.setKeyContextElement(record);
             operator.processElement(record);
         }
 
@@ -208,8 +240,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
-            operator.emitStreamStatus(streamStatus);
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+            operator.processWatermarkStatus(watermarkStatus);
         }
 
         @Override

@@ -18,11 +18,20 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
+import org.apache.flink.connector.file.table.FileSystemOutputFormat;
+import org.apache.flink.connector.file.table.FileSystemTableSink;
+import org.apache.flink.connector.file.table.FileSystemTableSink.TableBucketAssigner;
+import org.apache.flink.connector.file.table.stream.PartitionCommitInfo;
+import org.apache.flink.connector.file.table.stream.StreamingSink;
+import org.apache.flink.connector.file.table.stream.compact.CompactReader;
 import org.apache.flink.connectors.hive.read.HiveCompactReaderFactory;
 import org.apache.flink.connectors.hive.util.HiveConfUtils;
+import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.connectors.hive.write.HiveBulkWriterFactory;
 import org.apache.flink.connectors.hive.write.HiveOutputFormatFactory;
 import org.apache.flink.connectors.hive.write.HiveWriterFactory;
@@ -53,19 +62,13 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.filesystem.FileSystemOptions;
-import org.apache.flink.table.filesystem.FileSystemOutputFormat;
-import org.apache.flink.table.filesystem.FileSystemTableSink;
-import org.apache.flink.table.filesystem.FileSystemTableSink.TableBucketAssigner;
-import org.apache.flink.table.filesystem.stream.PartitionCommitInfo;
-import org.apache.flink.table.filesystem.stream.StreamingSink;
-import org.apache.flink.table.filesystem.stream.compact.CompactReader;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -92,11 +95,11 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
 
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_FILE_SIZE;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
+import static org.apache.flink.connector.file.table.stream.compact.CompactOperator.convertToUncompacted;
 import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.checkAcidTable;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_FILE_SIZE;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
-import static org.apache.flink.table.filesystem.stream.compact.CompactOperator.convertToUncompacted;
 
 /** Table sink to write to Hive tables. */
 public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, SupportsOverwrite {
@@ -146,7 +149,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
     private DataStreamSink<?> consume(
             DataStream<RowData> dataStream, boolean isBounded, DataStructureConverter converter) {
-        checkAcidTable(catalogTable, identifier.toObjectPath());
+        checkAcidTable(catalogTable.getOptions(), identifier.toObjectPath());
 
         try (HiveMetastoreClientWrapper client =
                 HiveMetastoreClientFactory.create(HiveConfUtils.create(jobConf), hiveVersion)) {
@@ -216,7 +219,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         builder.setPartitionComputer(
                 new HiveRowPartitionComputer(
                         hiveShim,
-                        defaultPartName(),
+                        JobConfUtils.getDefaultPartitionName(jobConf),
                         tableSchema.getFieldNames(),
                         tableSchema.getFieldDataTypes(),
                         getPartitionKeyArray()));
@@ -247,10 +250,21 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 new org.apache.flink.configuration.Configuration();
         catalogTable.getOptions().forEach(conf::setString);
 
+        String commitPolicies =
+                conf.getString(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND);
+        if (!getPartitionKeys().isEmpty() && StringUtils.isNullOrWhitespaceOnly(commitPolicies)) {
+            throw new FlinkHiveException(
+                    String.format(
+                            "Streaming write to partitioned hive table %s without providing a commit policy. "
+                                    + "Make sure to set a proper value for %s",
+                            identifier,
+                            FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND.key()));
+        }
+
         HiveRowDataPartitionComputer partComputer =
                 new HiveRowDataPartitionComputer(
                         hiveShim,
-                        defaultPartName(),
+                        JobConfUtils.getDefaultPartitionName(jobConf),
                         tableSchema.getFieldNames(),
                         tableSchema.getFieldDataTypes(),
                         getPartitionKeyArray());
@@ -260,7 +274,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                         conf.get(SINK_ROLLING_POLICY_FILE_SIZE).getBytes(),
                         conf.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis());
 
-        boolean autoCompaction = conf.getBoolean(FileSystemOptions.AUTO_COMPACTION);
+        boolean autoCompaction = conf.getBoolean(FileSystemConnectorOptions.AUTO_COMPACTION);
         if (autoCompaction) {
             fileNamingBuilder.withPartPrefix(
                     convertToUncompacted(fileNamingBuilder.build().getPartPrefix()));
@@ -302,7 +316,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         DataStream<PartitionCommitInfo> writerStream;
         if (autoCompaction) {
             long compactionSize =
-                    conf.getOptional(FileSystemOptions.COMPACTION_FILE_SIZE)
+                    conf.getOptional(FileSystemConnectorOptions.COMPACTION_FILE_SIZE)
                             .orElse(conf.get(SINK_ROLLING_POLICY_FILE_SIZE))
                             .getBytes();
 
@@ -318,17 +332,17 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                             parallelism);
         } else {
             writerStream =
-                    StreamingSink.writer(dataStream, bucketCheckInterval, builder, parallelism);
+                    StreamingSink.writer(
+                            dataStream,
+                            bucketCheckInterval,
+                            builder,
+                            parallelism,
+                            getPartitionKeys(),
+                            conf);
         }
 
         return StreamingSink.sink(
                 writerStream, path, identifier, getPartitionKeys(), msFactory(), fsFactory(), conf);
-    }
-
-    private String defaultPartName() {
-        return jobConf.get(
-                HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
-                HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
     }
 
     private CompactReader.Factory<RowData> createCompactReaderFactory(
@@ -500,5 +514,10 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 throw new UncheckedIOException(e);
             }
         }
+    }
+
+    @VisibleForTesting
+    public JobConf getJobConf() {
+        return jobConf;
     }
 }

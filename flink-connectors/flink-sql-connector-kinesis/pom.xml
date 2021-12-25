@@ -26,30 +26,19 @@ under the License.
 	<parent>
 		<artifactId>flink-connectors</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.14-SNAPSHOT</version>
+		<version>1.15-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-sql-connector-kinesis_${scala.binary.version}</artifactId>
+	<artifactId>flink-sql-connector-kinesis</artifactId>
 	<name>Flink : Connectors : SQL : Kinesis</name>
 
 	<packaging>jar</packaging>
 
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<!-- Bumped for security purposes to a common version in the Hadoop ecosystem -->
-				<groupId>com.google.guava</groupId>
-				<artifactId>guava</artifactId>
-				<version>27.0-jre</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
-
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kinesis_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-kinesis</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
@@ -67,10 +56,10 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes>
-									<include>org.apache.flink:flink-connector-kinesis_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-connector-base</include>
+									<include>org.apache.flink:flink-connector-kinesis</include>
 									<include>com.fasterxml.jackson.core:jackson-core</include>
 									<include>com.fasterxml.jackson.core:jackson-databind</include>
 									<include>com.fasterxml.jackson.core:jackson-annotations</include>
@@ -82,6 +71,7 @@ under the License.
 									<include>commons-logging:commons-logging</include>
 									<include>org.apache.commons:commons-lang3</include>
 									<include>com.google.guava:guava</include>
+									<include>com.google.guava:failureaccess</include>
 								</includes>
 							</artifactSet>
 							<filters>

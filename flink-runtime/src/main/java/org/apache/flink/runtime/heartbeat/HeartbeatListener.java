@@ -44,6 +44,14 @@ public interface HeartbeatListener<I, O> {
     void notifyHeartbeatTimeout(ResourceID resourceID);
 
     /**
+     * Callback which is called if a target specified by the given resource ID is no longer
+     * reachable.
+     *
+     * @param resourceID resourceID identifying the target that is no longer reachable
+     */
+    void notifyTargetUnreachable(ResourceID resourceID);
+
+    /**
      * Callback which is called whenever a heartbeat with an associated payload is received. The
      * carried payload is given to this method.
      *

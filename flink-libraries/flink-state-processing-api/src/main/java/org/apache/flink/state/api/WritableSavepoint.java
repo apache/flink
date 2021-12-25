@@ -19,6 +19,8 @@ package org.apache.flink.state.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.state.StateBackend;
@@ -53,11 +55,14 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
     /** The state backend to use when writing this savepoint. */
     protected final StateBackend stateBackend;
 
+    private final Configuration configuration;
+
     WritableSavepoint(SavepointMetadata metadata, StateBackend stateBackend) {
         Preconditions.checkNotNull(metadata, "The savepoint metadata must not be null");
         Preconditions.checkNotNull(stateBackend, "The state backend must not be null");
         this.metadata = metadata;
         this.stateBackend = stateBackend;
+        this.configuration = new Configuration();
     }
 
     /**
@@ -86,6 +91,21 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
     }
 
     /**
+     * Sets a configuration that will be applied to the stream operators used to bootstrap a new
+     * savepoint.
+     *
+     * @param option metadata information
+     * @param value value to be stored
+     * @param <T> type of the value to be stored
+     * @return The modified savepoint.
+     */
+    @SuppressWarnings("unchecked")
+    public <T> F withConfiguration(ConfigOption<T> option, T value) {
+        configuration.set(option, value);
+        return (F) this;
+    }
+
+    /**
      * Write out a new or updated savepoint.
      *
      * @param path The path to where the savepoint should be written.
@@ -96,7 +116,7 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
         List<BootstrapTransformationWithID<?>> newOperatorTransformations =
                 metadata.getNewOperators();
         DataSet<OperatorState> newOperatorStates =
-                writeOperatorStates(newOperatorTransformations, savepointPath);
+                writeOperatorStates(newOperatorTransformations, configuration, savepointPath);
 
         List<OperatorState> existingOperators = metadata.getExistingOperators();
 
@@ -125,7 +145,9 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
     }
 
     private DataSet<OperatorState> writeOperatorStates(
-            List<BootstrapTransformationWithID<?>> newOperatorStates, Path savepointWritePath) {
+            List<BootstrapTransformationWithID<?>> newOperatorStates,
+            Configuration config,
+            Path savepointWritePath) {
         return newOperatorStates.stream()
                 .map(
                         newOperatorState ->
@@ -134,6 +156,7 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
                                         .writeOperatorState(
                                                 newOperatorState.getOperatorID(),
                                                 stateBackend,
+                                                config,
                                                 metadata.getMaxParallelism(),
                                                 savepointWritePath))
                 .reduce(DataSet::union)

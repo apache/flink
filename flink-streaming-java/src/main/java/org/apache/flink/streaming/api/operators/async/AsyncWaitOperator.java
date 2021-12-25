@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -32,7 +33,6 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
@@ -52,6 +52,7 @@ import javax.annotation.Nonnull;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -301,8 +302,18 @@ public class AsyncWaitOperator<IN, OUT>
             queue.emitCompletedElement(timestampedCollector);
             // if there are more completed elements, emit them with subsequent mails
             if (queue.hasCompletedElements()) {
-                mailboxExecutor.execute(
-                        this::outputCompletedElement, "AsyncWaitOperator#outputCompletedElement");
+                try {
+                    mailboxExecutor.execute(
+                            this::outputCompletedElement,
+                            "AsyncWaitOperator#outputCompletedElement");
+                } catch (RejectedExecutionException mailboxClosedException) {
+                    // This exception can only happen if the operator is cancelled which means all
+                    // pending records can be safely ignored since they will be processed one more
+                    // time after recovery.
+                    LOG.debug(
+                            "Attempt to complete element is ignored since the mailbox rejected the execution.",
+                            mailboxClosedException);
+                }
             }
         }
     }

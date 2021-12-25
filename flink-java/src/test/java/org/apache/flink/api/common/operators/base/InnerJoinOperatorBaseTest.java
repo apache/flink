@@ -151,7 +151,7 @@ public class InnerJoinOperatorBaseTest implements Serializable {
                                     executionConfig,
                                     new HashMap<String, Future<Path>>(),
                                     new HashMap<String, Accumulator<?, ?>>(),
-                                    new UnregisteredMetricsGroup()),
+                                    UnregisteredMetricsGroup.createOperatorMetricGroup()),
                             executionConfig);
 
             executionConfig.enableObjectReuse();
@@ -165,7 +165,7 @@ public class InnerJoinOperatorBaseTest implements Serializable {
                                     executionConfig,
                                     new HashMap<String, Future<Path>>(),
                                     new HashMap<String, Accumulator<?, ?>>(),
-                                    new UnregisteredMetricsGroup()),
+                                    UnregisteredMetricsGroup.createOperatorMetricGroup()),
                             executionConfig);
 
             assertEquals(expected, new HashSet<>(resultSafe));

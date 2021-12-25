@@ -41,7 +41,7 @@ comparison:
       table: value.isNotNull
       description: Returns TRUE if value is not NULL.
     - sql: value1 IS DISTINCT FROM value2
-      description: Returns TRUE if two values are equal. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns FALSE; NULL IS NOT DISTINCT FROM NULL returns TRUE.
+      description: Returns TRUE if two values are different. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns TRUE; NULL IS NOT DISTINCT FROM NULL returns FALSE.
     - sql: value1 IS NOT DISTINCT FROM value2
       description: Returns TRUE if two values are equal. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns FALSE; NULL IS NOT DISTINCT FROM NULL returns TRUE.
     - sql: value1 BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
@@ -83,7 +83,7 @@ logical:
     table: BOOLEAN1 && BOOLEAN2
     description: Returns TRUE if BOOLEAN1 and BOOLEAN2 are both TRUE. Supports three-valued logic. E.g., true && Null(BOOLEAN) returns UNKNOWN.
   - sql: NOT boolean
-    table: '!BOOLEAN'
+    table: BOOLEAN.not(), not(BOOLEAN), or '!BOOLEAN' (Scala only)
     description: Returns TRUE if boolean is FALSE; returns FALSE if boolean is TRUE; returns UNKNOWN if boolean is UNKNOWN.
   - sql: boolean IS FALSE
     table: BOOLEAN.isFalse
@@ -240,7 +240,7 @@ arithmetic:
     description: Returns a string representation of an integer NUMERIC value or a STRING in hex format. Returns NULL if the argument is NULL. E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", a string "hello,world" leads to "68656C6C6F2C776F726C64".
   - sql: TRUNCATE(numeric1, integer2)
     table: numeric1.truncate(INTEGER2)
-    description: Returns a numeric of truncated to integer2 decimal places. Returns NULL if numeric1 or integer2 is NULL.If integer2 is 0,the result has no decimal point or fractional part.integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero.This function can also pass in only one numeric1 parameter and not set Integer2 to use.If Integer2 is not set, the function truncates as if Integer2 were 0. E.g. 42.324.truncate(2) to 42.34. and 42.324.truncate() to 42.0.
+    description: Returns a numeric of truncated to integer2 decimal places. Returns NULL if numeric1 or integer2 is NULL. If integer2 is 0, the result has no decimal point or fractional part. integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero. This function can also pass in only one numeric1 parameter and not set Integer2 to use. If Integer2 is not set, the function truncates as if Integer2 were 0. E.g. 42.324.truncate(2) to 42.32. and 42.324.truncate() to 42.0.
 
 string:
   - sql: string1 || string2
@@ -273,7 +273,7 @@ string:
     description: Returns a string that removes the left whitespaces from STRING. E.g., ' This is a test String.'.ltrim() returns "This is a test String.".
   - sql: RTRIM(string)
     table: STRING.rtrim()
-    description: Returns a string that removes the right whitespaces from STRING.E.g., 'This is a test String. '.rtrim() returns "This is a test String.".
+    description: Returns a string that removes the right whitespaces from STRING. E.g., 'This is a test String. '.rtrim() returns "This is a test String.".
   - sql: REPEAT(string, int)
     table: STRING.repeat(INT)
     description: Returns a string that repeats the base string integer times. E.g., REPEAT('This is a test String.', 2) returns "This is a test String.This is a test String.".
@@ -316,10 +316,10 @@ string:
     description: Returns a string that concatenates STRING2, STRING3, ... with a separator STRING1. The separator is added between the strings to be concatenated. Returns NULL If STRING1 is NULL. Compared with concat(), concat_ws() automatically skips NULL arguments. E.g., concat_ws('~', 'AA', Null(STRING), 'BB', '', 'CC') returns "AA~BB~~CC".
   - sql: LPAD(string1, integer, string2)
     table: STRING1.lpad(INT, STRING2)
-    description: Returns a new string from string1 left-padded with string2 to a length of integer characters. If the length of string1 is shorter than integer, returns string1 shortened to integer characters. E.g., LPAD('hi',4,'??') returns "??hi"; LPAD('hi',1,'??') returns "h".
+    description: Returns a new string from string1 left-padded with string2 to a length of integer characters. If the length of string1 is shorter than integer, returns string1 shortened to integer characters. E.g., LPAD('hi', 4, '??') returns "??hi"; LPAD('hi', 1, '??') returns "h".
   - sql: RPAD(string1, integer, string2)
     table: STRING1.rpad(INT, STRING2)
-    description: Returns a new string from string1 right-padded with string2 to a length of integer characters. If the length of string1 is shorter than integer, returns string1 shortened to integer characters. E.g., RPAD('hi',4,'??') returns "hi??", RPAD('hi',1,'??') returns "h". 
+    description: Returns a new string from string1 right-padded with string2 to a length of integer characters. If the length of string1 is shorter than integer, returns string1 shortened to integer characters. E.g., RPAD('hi', 4, '??') returns "hi??", RPAD('hi', 1, '??') returns "h".
   - sql: FROM_BASE64(string)
     table: STRING.fromBase64()
     description: Returns the base64-decoded result from string; returns NULL if string is NULL. E.g., FROM_BASE64('aGVsbG8gd29ybGQ=') returns "hello world".
@@ -402,7 +402,7 @@ temporal:
   - table: | 
       NUMERIC.hour
       NUMERIC.hours
-    desription: Creates an interval of milliseconds for NUMERIC hours.
+    description: Creates an interval of milliseconds for NUMERIC hours.
   - table: |
       NUMERIC.minute
       NUMERIC.minutes
@@ -458,7 +458,7 @@ temporal:
   - sql: FLOOR(timepoint TO timeintervalunit) 
     table: TIMEPOINT.floor(TIMEINTERVALUNIT)
     description: Returns a value that rounds timepoint down to the time unit timeintervalunit. E.g., FLOOR(TIME '12:44:31' TO MINUTE) returns 12:44:00.
-  - sql: CEIL(timespoint TO timeintervaluntit)
+  - sql: CEIL(timepoint TO timeintervaluntit)
     table: TIMEPOINT.ceil(TIMEINTERVALUNIT)
     description: Returns a value that rounds timepoint up to the time unit timeintervalunit. E.g., CEIL(TIME '12:44:31' TO MINUTE) returns 12:45:00.
   - sql: (timepoint1, temporal1) OVERLAPS (timepoint2, temporal2)
@@ -469,7 +469,7 @@ temporal:
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
   - sql: TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
-    description: 'Returns the (signed) number of timepointunit between timepoint1 and timepoint2. The unit for the interval is given by the first argument, which should be one of the following values: SECOND, MINUTE, HOUR, DAY, MONTH, or YEAR.' 
+    description: 'Returns the (signed) number of timepointunit between timepoint1 and timepoint2. The unit for the interval is given by the first argument, which should be one of the following values: SECOND, MINUTE, HOUR, DAY, MONTH, or YEAR.'
   - sql: CONVERT_TZ(string1, string2, string3)
     description: Converts a datetime string1 (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time zone string2 to time zone string3. The format of time zone should be either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-08:00". E.g., CONVERT_TZ('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns '1969-12-31 16:00:00'.
   - sql: FROM_UNIXTIME(numeric[, string])
@@ -484,7 +484,19 @@ temporal:
     table: toTimestampLtz(NUMERIC, PRECISION)
     description: "Converts a epoch seconds or epoch milliseconds to a TIMESTAMP_LTZ, the valid precision is 0 or 3, the 0 represents TO_TIMESTAMP_LTZ(epochSeconds, 0), the 3 represents TO_TIMESTAMP_LTZ(epochMilliseconds, 3)."
   - sql: TO_TIMESTAMP(string1[, string2])
-    description: "Converts date time string string1 with format string2 (by default: 'yyyy-MM-dd HH:mm:ss') under the session time zone (specified by TableConfig) to a timestamp."
+    description: "Converts date time string string1 with format string2 (by default: 'yyyy-MM-dd HH:mm:ss') under the 'UTC+0' time zone to a timestamp."
+  - sql: CURRENT_WATERMARK(rowtime)
+    description: |
+      Returns the current watermark for the given rowtime attribute, or `NULL` if no common watermark of all upstream operations is available at the current operation in the pipeline.
+      The return type of the function is inferred to match that of the provided rowtime attribute, but with an adjusted precision of 3. For example, if the rowtime attribute is `TIMESTAMP_LTZ(9)`, the function will return `TIMESTAMP_LTZ(3)`.
+
+      Note that this function can return `NULL`, and you may have to consider this case. For example, if you want to filter out late data you can use:
+
+      ```
+      WHERE
+        CURRENT_WATERMARK(ts) IS NULL
+        OR ts > CURRENT_WATERMARK(ts)
+      ```
 
 conditional:
   - sql: |
@@ -503,8 +515,22 @@ conditional:
     description: Returns resultX when the first conditionX is met. When no condition is met, returns result_z if it is provided and returns NULL otherwise.
   - sql: NULLIF(value1, value2)
     description: Returns NULL if value1 is equal to value2; returns value1 otherwise. E.g., NULLIF(5, 5) returns NULL; NULLIF(5, 0) returns 5.
-  - sql: COALESCE(value1, value2 [, value3]*)
-    description: Returns the first value that is not NULL from value1, value2, .... E.g., IF(5 > 3, 5, 3) returns 5.
+  - sql: COALESCE(value1 [, value2]*)
+    table: coalesce(value1, [, value2]*)
+    description: |
+      Returns the first argument that is not NULL.
+
+      If all arguments are NULL, it returns NULL as well. The return type is the least restrictive, common type of all of its arguments.
+      The return type is nullable if all arguments are nullable as well.
+
+      ```
+      -- Returns 'default'
+      COALESCE(NULL, 'default')
+
+      -- Returns the first non-null value among f0 and f1,
+      -- or 'default' if f0 and f1 are both NULL
+      COALESCE(f0, f1, 'default')
+      ```
   - sql: IF(condition, true_value, false_value)
     description: Returns the true_value if condition is met, otherwise false_value. E.g., IF(5 > 3, 5, 3) returns 5.
   - sql: IFNULL(input, null_replacement)
@@ -525,7 +551,11 @@ conditional:
     description: Returns true if all characters in string are digit, otherwise false.
   - table: BOOLEAN.?(VALUE1, VALUE2)
     description: Returns VALUE1 if BOOLEAN evaluates to TRUE; returns VALUE2 otherwise. E.g., (42 > 5).?('A', 'B') returns "A".
-   
+  - sql: GREATEST(value1[, value2]*)
+    description: Returns the greatest value of the list of arguments. Returns NULL if any argument is NULL.
+  - sql: LEAST(value1[, value2]*)
+    description: Returns the least value of the list of arguments. Returns NULL if any argument is NULL.
+
 conversion:
   - sql: CAST(value AS type)
     table: ANY.cast(TYPE)
@@ -554,6 +584,274 @@ collection:
   - sql: map ‘[’ value ‘]’
     table: MAP.at(ANY)
     description: Returns the value specified by key value in map.
+
+json:
+  - sql: IS JSON [ { VALUE | SCALAR | ARRAY | OBJECT } ]
+    table: STRING.isJson([JsonType type])
+    description: |
+      Determine whether a given string is valid JSON.
+
+      Specifying the optional type argument puts a constraint on which type of JSON object is
+      allowed. If the string is valid JSON, but not that type, `false` is returned. The default is
+      `VALUE`.
+
+      ```
+      -- TRUE
+      '1' IS JSON
+      '[]' IS JSON
+      '{}' IS JSON
+
+      -- TRUE
+      '"abc"' IS JSON
+      -- FALSE
+      'abc' IS JSON
+      NULL IS JSON
+
+      -- TRUE
+      '1' IS JSON SCALAR
+      -- FALSE
+      '1' IS JSON ARRAY
+      -- FALSE
+      '1' IS JSON OBJECT
+
+      -- FALSE
+      '{}' IS JSON SCALAR
+      -- FALSE
+      '{}' IS JSON ARRAY
+      -- TRUE
+      '{}' IS JSON OBJECT
+      ```
+  - sql: JSON_EXISTS(jsonValue, path [ { TRUE | FALSE | UNKNOWN | ERROR } ON ERROR ])
+    table: STRING.jsonExists(STRING path [, JsonExistsOnError onError])
+    description: |
+      Determines whether a JSON string satisfies a given path search criterion.
+
+      If the error behavior is omitted, `FALSE ON ERROR` is assumed as the default.
+
+      ```
+      -- TRUE
+      SELECT JSON_EXISTS('{"a": true}', '$.a');
+      -- FALSE
+      SELECT JSON_EXISTS('{"a": true}', '$.b');
+      -- TRUE
+      SELECT JSON_EXISTS('{"a": [{ "b": 1 }]}',
+        '$.a[0].b');
+
+      -- TRUE
+      SELECT JSON_EXISTS('{"a": true}',
+        'strict $.b' TRUE ON ERROR);
+      -- FALSE
+      SELECT JSON_EXISTS('{"a": true}',
+        'strict $.b' FALSE ON ERROR);
+      ```
+  - sql: JSON_STRING(value)
+    table: jsonString(value)
+    description: |
+      Serializes a value into JSON.
+
+      This function returns a JSON string containing the serialized value. If the value is `NULL`,
+      the function returns `NULL`.
+
+      ```
+      -- NULL
+      JSON_STRING(CAST(NULL AS INT))
+
+      -- '1'
+      JSON_STRING(1)
+      -- 'true'
+      JSON_STRING(TRUE)
+      -- '"Hello, World!"'
+      JSON_STRING('Hello, World!')
+      -- '[1,2]'
+      JSON_STRING(ARRAY[1, 2])
+      ```
+  - sql: JSON_VALUE(jsonValue, path [RETURNING <dataType>] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON EMPTY ] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON ERROR ])
+    table: STRING.jsonValue(STRING path [, returnType, onEmpty, defaultOnEmpty, onError, defaultOnError])
+    description: |
+      Extracts a scalar from a JSON string.
+
+      This method searches a JSON string for a given path expression and returns the value if the
+      value at that path is scalar. Non-scalar values cannot be returned. By default, the value is
+      returned as `STRING`. Using `returningType` a different type can be chosen, with the following
+      types being supported:
+
+      * `VARCHAR` / `STRING`
+      * `BOOLEAN`
+      * `INTEGER`
+      * `DOUBLE`
+
+      For empty path expressions or errors a behavior can be defined to either return `null`, raise
+      an error or return a defined default value instead. When omitted, the default is
+      `NULL ON EMPTY` or `NULL ON ERROR`, respectively. The default value may be a literal or an
+      expression. If the default value itself raises an error, it falls through to the error
+      behavior for `ON EMPTY`, and raises an error for `ON ERROR`.
+
+      ```
+      -- "true"
+      JSON_VALUE('{"a": true}', '$.a')
+
+      -- TRUE
+      JSON_VALUE('{"a": true}', '$.a' RETURNING BOOLEAN)
+
+      -- "false"
+      JSON_VALUE('{"a": true}', 'lax $.b'
+          DEFAULT FALSE ON EMPTY)
+
+      -- "false"
+      JSON_VALUE('{"a": true}', 'strict $.b'
+          DEFAULT FALSE ON ERROR)
+
+      -- 0.998D
+      JSON_VALUE('{"a.b": [0.998,0.996]}','$.["a.b"][0]' 
+          RETURNING DOUBLE)
+      ```
+  - sql: JSON_QUERY(jsonValue, path [ { WITHOUT | WITH CONDITIONAL | WITH UNCONDITIONAL } [ ARRAY ] WRAPPER ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON EMPTY ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON ERROR ])
+    table: STRING.jsonQuery(path [, JsonQueryWrapper [, JsonQueryOnEmptyOrError, JsonQueryOnEmptyOrError ] ])
+    description: |
+      Extracts JSON values from a JSON string.
+
+      The result is always returned as a `STRING`. The `RETURNING` clause is currently not supported.
+
+      The `wrappingBehavior` determines whether the extracted value should be wrapped into an array,
+      and whether to do so unconditionally or only if the value itself isn't an array already.
+
+      `onEmpty` and `onError` determine the behavior in case the path expression is empty, or in
+      case an error was raised, respectively. By default, in both cases `null` is returned. Other
+      choices are to use an empty array, an empty object, or to raise an error.
+
+      ```
+      -- '{ "b": 1 }'
+      JSON_QUERY('{ "a": { "b": 1 } }', '$.a')
+      -- '[1, 2]'
+      JSON_QUERY('[1, 2]', '$')
+      -- NULL
+      JSON_QUERY(CAST(NULL AS STRING), '$')
+      -- '["c1","c2"]'
+      JSON_QUERY('{"a":[{"c":"c1"},{"c":"c2"}]}',
+          'lax $.a[*].c')
+
+      -- Wrap result into an array
+      -- '[{}]'
+      JSON_QUERY('{}', '$' WITH CONDITIONAL ARRAY WRAPPER)
+      -- '[1, 2]'
+      JSON_QUERY('[1, 2]', '$' WITH CONDITIONAL ARRAY WRAPPER)
+      -- '[[1, 2]]'
+      JSON_QUERY('[1, 2]', '$' WITH UNCONDITIONAL ARRAY WRAPPER)
+
+      -- Scalars must be wrapped to be returned
+      -- NULL
+      JSON_QUERY(1, '$')
+      -- '[1]'
+      JSON_QUERY(1, '$' WITH CONDITIONAL ARRAY WRAPPER)
+
+      -- Behavior if path expression is empty / there is an error
+      -- '{}'
+      JSON_QUERY('{}', 'lax $.invalid' EMPTY OBJECT ON EMPTY)
+      -- '[]'
+      JSON_QUERY('{}', 'strict $.invalid' EMPTY ARRAY ON ERROR)
+      ```
+  - sql: JSON_OBJECT([[KEY] key VALUE value]* [ { NULL | ABSENT } ON NULL ])
+    table: jsonObject(JsonOnNull, keyValues...)
+    description: |
+      Builds a JSON object string from a list of key-value pairs.
+
+      Note that keys must be non-`NULL` string literals, while values may be arbitrary expressions.
+
+      This function returns a JSON string. The `ON NULL` behavior defines how to treat `NULL`
+      values. If omitted, `NULL ON NULL` is assumed by default.
+
+      Values which are created from another JSON construction function call (`JSON_OBJECT`,
+      `JSON_ARRAY`) are inserted directly rather than as a string. This allows building nested JSON
+      structures.
+
+      ```
+      -- '{}'
+      JSON_OBJECT()
+
+      -- '{"K1":"V1","K2":"V2"}'
+      JSON_OBJECT('K1' VALUE 'V1', 'K2' VALUE 'V2')
+
+      -- Expressions as values
+      JSON_OBJECT('orderNo' VALUE orders.orderId)
+
+      -- ON NULL
+      JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) NULL ON NULL)   -- '{"K1":null}'
+      JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) ABSENT ON NULL) -- '{}'
+
+      -- '{"K1":{"K2":"V"}}'
+      JSON_OBJECT(
+        KEY 'K1'
+        VALUE JSON_OBJECT(
+          KEY 'K2'
+          VALUE 'V'
+        )
+      )
+      ```
+  - sql: JSON_OBJECTAGG([KEY] key VALUE value [ { NULL | ABSENT } ON NULL ])
+    table: jsonObjectAgg(JsonOnNull, keyExpression, valueExpression)
+    description: |
+      Builds a JSON object string by aggregating key-value expressions into a single JSON object.
+
+      The key expression must return a non-nullable character string. Value expressions can be
+      arbitrary, including other JSON functions. If a value is `NULL`, the `ON NULL` behavior
+      defines what to do. If omitted, `NULL ON NULL` is assumed by default.
+
+      Note that keys must be unique. If a key occurs multiple times, an error will be thrown.
+
+      This function is currently not supported in `OVER` windows.
+
+      ```
+      -- '{"Apple":2,"Banana":17,"Orange":0}'
+      SELECT
+        JSON_OBJECTAGG(KEY product VALUE cnt)
+      FROM orders
+      ```
+  - sql: JSON_ARRAY([value]* [ { NULL | ABSENT } ON NULL ])
+    table: jsonArray(JsonOnNull, values...)
+    description: |
+      Builds a JSON array string from a list of values.
+
+      This function returns a JSON string. The values can be arbitrary expressions. The `ON NULL`
+      behavior defines how to treat `NULL` values. If omitted, `ABSENT ON NULL` is assumed by
+      default.
+
+      Elements which are created from another JSON construction function call (`JSON_OBJECT`,
+      `JSON_ARRAY`) are inserted directly rather than as a string. This allows building nested JSON
+      structures.
+
+      ```
+      -- '[]'
+      JSON_ARRAY()
+      -- '[1,"2"]'
+      JSON_ARRAY(1, '2')
+
+      -- Expressions as values
+      JSON_ARRAY(orders.orderId)
+
+      -- ON NULL
+      JSON_ARRAY(CAST(NULL AS STRING) NULL ON NULL) -- '[null]'
+      JSON_ARRAY(CAST(NULL AS STRING) ABSENT ON NULL) -- '[]'
+
+      -- '[[1]]'
+      JSON_ARRAY(JSON_ARRAY(1))
+      ```
+  - sql: JSON_ARRAYAGG(items [ { NULL | ABSENT } ON NULL ])
+    table: jsonArrayAgg(JsonOnNull, itemExpression)
+    description: |
+      Builds a JSON object string by aggregating items into an array.
+
+      Item expressions can be arbitrary, including other JSON functions. If a value is `NULL`, the
+      `ON NULL` behavior defines what to do. If omitted, `ABSENT ON NULL` is assumed by default.
+
+      This function is currently not supported in `OVER` windows, unbounded session windows, or hop
+      windows.
+
+      ```
+      -- '["Apple","Banana","Orange"]'
+      SELECT
+        JSON_ARRAYAGG(product)
+      FROM orders
+      ```
 
 valueconstruction:
   - sql: |
@@ -615,7 +913,7 @@ hashfunctions:
     description: Returns the hash using the SHA-2 family of hash functions (SHA-224, SHA-256, SHA-384, or SHA-512). The first argument string is the string to be hashed and the second argument hashLength is the bit length of the result (224, 256, 384, or 512). Returns NULL if string or hashLength is NULL. 
 
 auxilary:
-  - table:  callSql(STRING)
+  - table: callSql(STRING)
     description: |
       A call to a SQL expression.
 
@@ -671,7 +969,7 @@ aggregate:
     description: Returns the rank of a value in a group of values. The result is one plus the number of rows preceding or equal to the current row in the ordering of the partition. The values will produce gaps in the sequence.
   - sql: DENSE_RANK()
     description: Returns the rank of a value in a group of values. The result is one plus the previously assigned rank value. Unlike the function rank, dense_rank will not produce gaps in the ranking sequence.
-  - sql: ROW_NUMER()
+  - sql: ROW_NUMBER()
     description: Assigns a unique, sequential number to each row, starting with one, according to the ordering of rows within the window partition. ROW_NUMBER and RANK are similar. ROW_NUMBER numbers all rows sequentially (for example 1, 2, 3, 4, 5). RANK provides the same numeric value for ties (for example 1, 2, 2, 4, 5).
   - sql: LEAD(expression [, offset] [, default])
     description: Returns the value of expression at the offsetth row after the current row in the window. The default value of offset is 1 and the default value of default is NULL.

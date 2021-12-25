@@ -63,21 +63,21 @@ public class RestartStrategyOptions {
                                                     code("fixeddelay"),
                                                     code("fixed-delay"),
                                                     link(
-                                                            "../dev/task_failure_recovery.html#fixed-delay-restart-strategy",
+                                                            "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery#fixed-delay-restart-strategy",
                                                             "here")),
                                             text(
                                                     "%s, %s: Failure rate restart strategy. More details can be found %s.",
                                                     code("failurerate"),
                                                     code("failure-rate"),
                                                     link(
-                                                            "../dev/task_failure_recovery.html#failure-rate-restart-strategy",
+                                                            "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery#failure-rate-restart-strategy",
                                                             "here")),
                                             text(
                                                     "%s, %s: Exponential delay restart strategy. More details can be found %s.",
                                                     code("exponentialdelay"),
                                                     code("exponential-delay"),
                                                     link(
-                                                            "../dev/task_failure_recovery.html#exponential-delay-restart-strategy",
+                                                            "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery#exponential-delay-restart-strategy",
                                                             "here")))
                                     .text(
                                             "If checkpointing is disabled, the default value is %s. "

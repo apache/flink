@@ -26,8 +26,8 @@ import org.junit.Test;
 import java.util.UUID;
 
 import static org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector.LEADER_ANNOTATION_KEY;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
 
 /** Tests for {@link KubernetesLeaderElector}. */
 public class KubernetesLeaderElectorTest extends KubernetesTestBase {

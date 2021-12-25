@@ -83,7 +83,26 @@ public final class InputSelection implements Serializable {
      *     {@code inputMask} is empty or the inputs in {@code inputMask} are unavailable).
      */
     public int fairSelectNextIndexOutOf2(int availableInputsMask, int lastReadInputIndex) {
-        int selectionMask = (int) inputMask;
+        return fairSelectNextIndexOutOf2((int) inputMask, availableInputsMask, lastReadInputIndex);
+    }
+
+    /**
+     * Fairly select one of the two inputs for reading. When {@code inputMask} includes two inputs
+     * and both inputs are available, alternately select one of them. Otherwise, select the
+     * available one of {@code inputMask}, or return {@link InputSelection#NONE_AVAILABLE} to
+     * indicate no input is selected.
+     *
+     * <p>Note that this supports only two inputs for performance reasons.
+     *
+     * @param selectionMask The mask of inputs that are selected. Note -1 for this is interpreted as
+     *     all of the 32 inputs are available.
+     * @param availableInputsMask The mask of all available inputs.
+     * @param lastReadInputIndex The index of last read input.
+     * @return the index of the input for reading or {@link InputSelection#NONE_AVAILABLE} (if
+     *     {@code inputMask} is empty or the inputs in {@code inputMask} are unavailable).
+     */
+    public static int fairSelectNextIndexOutOf2(
+            int selectionMask, int availableInputsMask, int lastReadInputIndex) {
         int combineMask = availableInputsMask & selectionMask;
 
         if (combineMask == 3) {
@@ -105,6 +124,22 @@ public final class InputSelection implements Serializable {
      *     {@code inputMask} is empty or the inputs in {@code inputMask} are unavailable).
      */
     public int fairSelectNextIndex(long availableInputsMask, int lastReadInputIndex) {
+        return fairSelectNextIndex(inputMask, availableInputsMask, lastReadInputIndex);
+    }
+
+    /**
+     * Fairly select one of the available inputs for reading.
+     *
+     * @param inputMask The mask of inputs that are selected. Note -1 for this is interpreted as all
+     *     of the 32 inputs are available.
+     * @param availableInputsMask The mask of all available inputs. Note -1 for this is interpreted
+     *     as all of the 32 inputs are available.
+     * @param lastReadInputIndex The index of last read input.
+     * @return the index of the input for reading or {@link InputSelection#NONE_AVAILABLE} (if
+     *     {@code inputMask} is empty or the inputs in {@code inputMask} are unavailable).
+     */
+    public static int fairSelectNextIndex(
+            long inputMask, long availableInputsMask, int lastReadInputIndex) {
         long combineMask = availableInputsMask & inputMask;
 
         if (combineMask == 0) {
@@ -118,7 +153,7 @@ public final class InputSelection implements Serializable {
         return selectFirstBitRightFromNext(combineMask, 0);
     }
 
-    private int selectFirstBitRightFromNext(long bits, int next) {
+    private static int selectFirstBitRightFromNext(long bits, int next) {
         if (next >= 64) {
             return NONE_AVAILABLE;
         }

@@ -73,8 +73,7 @@ public class SubtaskCurrentAttemptDetailsHandler
 
     @Override
     protected SubtaskExecutionAttemptDetailsInfo handleRequest(
-            HandlerRequest<EmptyRequestBody, SubtaskMessageParameters> request,
-            AccessExecutionVertex executionVertex)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionVertex executionVertex)
             throws RestHandlerException {
 
         final AccessExecution execution = executionVertex.getCurrentExecutionAttempt();

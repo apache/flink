@@ -63,7 +63,7 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      * @param operations The operations to be executed.
      * @return the affected row counts (-1 means unknown).
      */
-    TableResult executeInternal(List<ModifyOperation> operations);
+    TableResultInternal executeInternal(List<ModifyOperation> operations);
 
     /**
      * Execute the given operation and return the execution result.
@@ -71,7 +71,7 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      * @param operation The operation to be executed.
      * @return the content of the execution result.
      */
-    TableResult executeInternal(Operation operation);
+    TableResultInternal executeInternal(Operation operation);
 
     /**
      * Returns the AST of this table and the execution plan to compute the result of this table.
@@ -119,8 +119,6 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      * given statement. An ExecNode plan can be serialized to json plan, and a json plan can be
      * deserialized to an ExecNode plan.
      *
-     * <p>NOTES: Only the Blink planner supports this method.
-     *
      * <p><b>NOTES</b>: This is an experimental feature now.
      *
      * @param stmt The SQL statement to generate json plan.
@@ -132,8 +130,6 @@ public interface TableEnvironmentInternal extends TableEnvironment {
     /**
      * Get the json plan for the given {@link ModifyOperation}s. see {@link #getJsonPlan(String)}
      * for more info about json plan.
-     *
-     * <p>NOTES: Only the Blink planner supports this method.
      *
      * <p><b>NOTES</b>: This is an experimental feature now.
      *
@@ -148,8 +144,6 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      * Returns the execution plan for the given json plan. A SQL statement can be converted to json
      * plan through {@link #getJsonPlan(String)}.
      *
-     * <p>NOTES: Only the Blink planner supports this method.
-     *
      * <p><b>NOTES</b>: This is an experimental feature now.
      *
      * @param jsonPlan The json plan to be explained.
@@ -163,8 +157,6 @@ public interface TableEnvironmentInternal extends TableEnvironment {
     /**
      * Execute the given json plan, and return the execution result. A SQL statement can be
      * converted to json plan through {@link #getJsonPlan(String)}.
-     *
-     * <p>NOTES: Only the Blink planner supports this method.
      *
      * <p><b>NOTES</b>: This is an experimental feature now.
      *

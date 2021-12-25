@@ -34,7 +34,6 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -50,6 +49,7 @@ import org.apache.flink.types.Either;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 
@@ -104,6 +104,8 @@ public class ExecutionJobVertex
     private final InputSplit[] inputSplits;
 
     private final ResourceProfile resourceProfile;
+
+    private int numExecutionVertexFinished;
 
     /**
      * Either store a serialized task information, which is for all sub tasks the same, or the
@@ -333,6 +335,10 @@ public class ExecutionJobVertex
         return operatorCoordinators;
     }
 
+    int getNumExecutionVertexFinished() {
+        return numExecutionVertexFinished;
+    }
+
     public Either<SerializedValue<TaskInformation>, PermanentBlobKey> getTaskInformationOrBlobKey()
             throws IOException {
         // only one thread should offload the task information, so let's also let only one thread
@@ -457,6 +463,20 @@ public class ExecutionJobVertex
         for (ExecutionVertex ev : getTaskVertices()) {
             ev.fail(t);
         }
+    }
+
+    void executionVertexFinished() {
+        numExecutionVertexFinished++;
+        if (numExecutionVertexFinished == parallelismInfo.getParallelism()) {
+            getGraph().jobVertexFinished();
+        }
+    }
+
+    void executionVertexUnFinished() {
+        if (numExecutionVertexFinished == parallelismInfo.getParallelism()) {
+            getGraph().jobVertexUnFinished();
+        }
+        numExecutionVertexFinished--;
     }
 
     // --------------------------------------------------------------------------------------------

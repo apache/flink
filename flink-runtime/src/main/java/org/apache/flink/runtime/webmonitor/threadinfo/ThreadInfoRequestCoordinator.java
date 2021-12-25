@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.webmonitor.threadinfo;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
 import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.webmonitor.stats.TaskStatsRequestCoordinator;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.time.Duration;
 import java.util.Collection;

@@ -84,7 +84,7 @@ following set of modules.
 ```xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-planner-blink{{< scala_version >}}</artifactId>
+  <artifactId>flink-table-planner{{< scala_version >}}</artifactId>
   <version>{{< version >}}</version>
   <scope>provided</scope>
 </dependency>

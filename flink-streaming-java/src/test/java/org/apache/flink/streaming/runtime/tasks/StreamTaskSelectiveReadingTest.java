@@ -46,6 +46,12 @@ import static org.junit.Assert.fail;
 /** Test selective reading. */
 public class StreamTaskSelectiveReadingTest {
 
+    private static String elementToString(Object record) {
+        return record instanceof StreamRecord
+                ? ((StreamRecord) record).getValue().toString()
+                : record.toString();
+    }
+
     @Test
     public void testAnyOrderedReading() throws Exception {
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -117,7 +123,7 @@ public class StreamTaskSelectiveReadingTest {
             fail("should throw an IOException");
         } catch (Exception t) {
             if (!ExceptionUtils.findThrowableWithMessage(
-                            t, "only first input is selected but it is already finished")
+                            t, "all selected inputs are already finished")
                     .isPresent()) {
                 throw t;
             }
@@ -180,13 +186,13 @@ public class StreamTaskSelectiveReadingTest {
         } else {
             String[] expectedResult =
                     expectedOutput.stream()
-                            .map(record -> ((StreamRecord) record).getValue().toString())
+                            .map(StreamTaskSelectiveReadingTest::elementToString)
                             .toArray(String[]::new);
             Arrays.sort(expectedResult);
 
             String[] result =
                     output.stream()
-                            .map(record -> ((StreamRecord) record).getValue().toString())
+                            .map(StreamTaskSelectiveReadingTest::elementToString)
                             .toArray(String[]::new);
             Arrays.sort(result);
 

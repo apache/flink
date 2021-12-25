@@ -26,18 +26,19 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
+import org.apache.flink.runtime.shuffle.NettyShuffleUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ProcessorArchitecture;
 import org.apache.flink.util.function.SupplierWithException;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
-import java.util.function.BiFunction;
 
 /** Factory for {@link ResultPartition} to use in {@link NettyShuffleEnvironment}. */
 public class ResultPartitionFactory {
@@ -56,7 +57,7 @@ public class ResultPartitionFactory {
 
     private final BoundedBlockingSubpartitionType blockingSubpartitionType;
 
-    private final int networkBuffersPerChannel;
+    private final int configuredNetworkBuffersPerChannel;
 
     private final int floatingNetworkBuffersPerGate;
 
@@ -81,7 +82,7 @@ public class ResultPartitionFactory {
             BatchShuffleReadBufferPool batchShuffleReadBufferPool,
             ExecutorService batchShuffleReadIOExecutor,
             BoundedBlockingSubpartitionType blockingSubpartitionType,
-            int networkBuffersPerChannel,
+            int configuredNetworkBuffersPerChannel,
             int floatingNetworkBuffersPerGate,
             int networkBufferSize,
             boolean blockingShuffleCompressionEnabled,
@@ -93,7 +94,7 @@ public class ResultPartitionFactory {
 
         this.partitionManager = partitionManager;
         this.channelManager = channelManager;
-        this.networkBuffersPerChannel = networkBuffersPerChannel;
+        this.configuredNetworkBuffersPerChannel = configuredNetworkBuffersPerChannel;
         this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
         this.bufferPoolFactory = bufferPoolFactory;
         this.batchShuffleReadBufferPool = batchShuffleReadBufferPool;
@@ -154,15 +155,16 @@ public class ResultPartitionFactory {
                             bufferCompressor,
                             bufferPoolFactory);
 
-            BiFunction<Integer, PipelinedResultPartition, PipelinedSubpartition> factory;
-            if (type == ResultPartitionType.PIPELINED_APPROXIMATE) {
-                factory = PipelinedApproximateSubpartition::new;
-            } else {
-                factory = PipelinedSubpartition::new;
-            }
-
             for (int i = 0; i < subpartitions.length; i++) {
-                subpartitions[i] = factory.apply(i, pipelinedPartition);
+                if (type == ResultPartitionType.PIPELINED_APPROXIMATE) {
+                    subpartitions[i] =
+                            new PipelinedApproximateSubpartition(
+                                    i, configuredNetworkBuffersPerChannel, pipelinedPartition);
+                } else {
+                    subpartitions[i] =
+                            new PipelinedSubpartition(
+                                    i, configuredNetworkBuffersPerChannel, pipelinedPartition);
+                }
             }
 
             partition = pipelinedPartition;
@@ -265,23 +267,17 @@ public class ResultPartitionFactory {
     SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
             int numberOfSubpartitions, ResultPartitionType type) {
         return () -> {
-            int maxNumberOfMemorySegments =
-                    type.isBounded()
-                            ? numberOfSubpartitions * networkBuffersPerChannel
-                                    + floatingNetworkBuffersPerGate
-                            : Integer.MAX_VALUE;
-            int numRequiredBuffers =
-                    !type.isPipelined() && numberOfSubpartitions >= sortShuffleMinParallelism
-                            ? sortShuffleMinBuffers
-                            : numberOfSubpartitions + 1;
+            Pair<Integer, Integer> pair =
+                    NettyShuffleUtils.getMinMaxNetworkBuffersPerResultPartition(
+                            configuredNetworkBuffersPerChannel,
+                            floatingNetworkBuffersPerGate,
+                            sortShuffleMinParallelism,
+                            sortShuffleMinBuffers,
+                            numberOfSubpartitions,
+                            type);
 
-            // If the partition type is back pressure-free, we register with the buffer pool for
-            // callbacks to release memory.
             return bufferPoolFactory.createBufferPool(
-                    numRequiredBuffers,
-                    maxNumberOfMemorySegments,
-                    numberOfSubpartitions,
-                    maxBuffersPerChannel);
+                    pair.getLeft(), pair.getRight(), numberOfSubpartitions, maxBuffersPerChannel);
         };
     }
 

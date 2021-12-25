@@ -30,8 +30,11 @@ import org.apache.flink.runtime.checkpoint.DeactivatedCheckpointIDCounter;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.DefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 
 import org.slf4j.Logger;
+
+import java.util.concurrent.Executor;
 
 /** Utils class for Flink's scheduler implementations. */
 public final class SchedulerUtils {
@@ -46,13 +49,19 @@ public final class SchedulerUtils {
             Configuration configuration,
             ClassLoader userCodeLoader,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
+            Executor ioExecutor,
             Logger log)
             throws JobExecutionException {
         final JobID jobId = jobGraph.getJobID();
         if (DefaultExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
             try {
                 return createCompletedCheckpointStore(
-                        configuration, userCodeLoader, checkpointRecoveryFactory, log, jobId);
+                        configuration,
+                        userCodeLoader,
+                        checkpointRecoveryFactory,
+                        ioExecutor,
+                        log,
+                        jobId);
             } catch (Exception e) {
                 throw new JobExecutionException(
                         jobId,
@@ -69,6 +78,7 @@ public final class SchedulerUtils {
             Configuration jobManagerConfig,
             ClassLoader classLoader,
             CheckpointRecoveryFactory recoveryFactory,
+            Executor ioExecutor,
             Logger log,
             JobID jobId)
             throws Exception {
@@ -88,8 +98,12 @@ public final class SchedulerUtils {
                     CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue();
         }
 
-        return recoveryFactory.createCheckpointStore(
-                jobId, maxNumberOfCheckpointsToRetain, classLoader);
+        return recoveryFactory.createRecoveredCompletedCheckpointStore(
+                jobId,
+                maxNumberOfCheckpointsToRetain,
+                classLoader,
+                SharedStateRegistry.DEFAULT_FACTORY,
+                ioExecutor);
     }
 
     public static CheckpointIDCounter createCheckpointIDCounterIfCheckpointingIsEnabled(

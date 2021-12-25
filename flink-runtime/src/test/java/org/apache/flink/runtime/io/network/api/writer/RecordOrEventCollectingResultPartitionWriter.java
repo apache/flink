@@ -20,6 +20,8 @@ package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
@@ -41,11 +43,18 @@ public class RecordOrEventCollectingResultPartitionWriter<T>
     private final RecordDeserializer<DeserializationDelegate<T>> deserializer =
             new SpillingAdaptiveSpanningRecordDeserializer<>(
                     new String[] {System.getProperty("java.io.tmpdir")});
+    private final boolean collectNetworkEvents;
 
     public RecordOrEventCollectingResultPartitionWriter(
             Collection<Object> output, TypeSerializer<T> serializer) {
+        this(output, serializer, false);
+    }
+
+    public RecordOrEventCollectingResultPartitionWriter(
+            Collection<Object> output, TypeSerializer<T> serializer, boolean collectNetworkEvents) {
         this.output = checkNotNull(output);
         this.delegate = new NonReusingDeserializationDelegate<>(checkNotNull(serializer));
+        this.collectNetworkEvents = collectNetworkEvents;
     }
 
     @Override
@@ -78,5 +87,12 @@ public class RecordOrEventCollectingResultPartitionWriter<T>
                 output.add(delegate.getInstance());
             }
         } while (!result.isBufferConsumed());
+    }
+
+    @Override
+    public void notifyEndOfData(StopMode mode) throws IOException {
+        if (collectNetworkEvents) {
+            broadcastEvent(new EndOfData(mode), false);
+        }
     }
 }

@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { Subject } from 'rxjs';
-import { flatMap, takeUntil, tap } from 'rxjs/operators';
-import { JobBackpressureInterface, JobBackpressureSubtaskInterface, NodesItemCorrectInterface } from 'interfaces';
+import { mergeMap, takeUntil, tap } from 'rxjs/operators';
+
+import { JobBackpressure, JobBackpressureSubtask, NodesItemCorrect } from 'interfaces';
 import { JobService } from 'services';
 
 @Component({
@@ -29,33 +30,24 @@ import { JobService } from 'services';
   styleUrls: ['./job-overview-drawer-backpressure.component.less']
 })
 export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy {
-  destroy$ = new Subject();
-  isLoading = true;
-  now = Date.now();
-  selectedVertex: NodesItemCorrectInterface | null;
-  backpressure = {} as JobBackpressureInterface;
-  listOfSubTaskBackpressure: JobBackpressureSubtaskInterface[] = [];
+  public readonly trackBySubtask = (_: number, node: JobBackpressureSubtask): number => node.subtask;
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
-  trackBackPressureBy(_: number, node: JobBackpressureSubtaskInterface) {
-    return node.subtask;
-  }
+  public isLoading = true;
+  public now = Date.now();
+  public selectedVertex: NodesItemCorrect | null;
+  public backpressure = {} as JobBackpressure;
+  public listOfSubTaskBackpressure: JobBackpressureSubtask[] = [];
 
-  prettyPrint(value: number): string {
-    if (isNaN(value)) {
-      return "N/A"
-    }
-    else {
-      return Math.round(value * 100) + "%";
-    }
-  }
+  private readonly destroy$ = new Subject<void>();
 
-  ngOnInit() {
+  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
+
+  public ngOnInit(): void {
     this.jobService.jobWithVertex$
       .pipe(
         takeUntil(this.destroy$),
         tap(data => (this.selectedVertex = data.vertex)),
-        flatMap(data => this.jobService.loadOperatorBackPressure(data.job.jid, data.vertex!.id))
+        mergeMap(data => this.jobService.loadOperatorBackPressure(data.job.jid, data.vertex!.id))
       )
       .subscribe(
         data => {
@@ -72,8 +64,16 @@ export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy
       );
   }
 
-  ngOnDestroy() {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  public prettyPrint(value: number): string {
+    if (isNaN(value)) {
+      return 'N/A';
+    } else {
+      return `${Math.round(value * 100)}%`;
+    }
   }
 }

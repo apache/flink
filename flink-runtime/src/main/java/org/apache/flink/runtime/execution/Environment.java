@@ -21,6 +21,7 @@ package org.apache.flink.runtime.execution;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -40,6 +41,7 @@ import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
@@ -47,6 +49,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
@@ -232,4 +235,26 @@ public interface Environment {
     IndexedInputGate[] getAllInputGates();
 
     TaskEventDispatcher getTaskEventDispatcher();
+
+    // --------------------------------------------------------------------------------------------
+    //  Fields set in the StreamTask to provide access to mailbox and other runtime resources
+    // --------------------------------------------------------------------------------------------
+
+    default void setMainMailboxExecutor(MailboxExecutor mainMailboxExecutor) {}
+
+    default MailboxExecutor getMainMailboxExecutor() {
+        throw new UnsupportedOperationException();
+    }
+
+    default void setAsyncOperationsThreadPool(ExecutorService executorService) {}
+
+    default ExecutorService getAsyncOperationsThreadPool() {
+        throw new UnsupportedOperationException();
+    }
+
+    default void setCheckpointStorageAccess(CheckpointStorageAccess checkpointStorageAccess) {}
+
+    default CheckpointStorageAccess getCheckpointStorageAccess() {
+        throw new UnsupportedOperationException();
+    }
 }

@@ -36,8 +36,7 @@ class TableConfig(object):
     with detailed inline documentation.
 
     For more advanced configuration, users can directly access the underlying key-value map via
-    :func:`~pyflink.table.TableConfig.get_configuration`. Currently, key-value options are only
-    supported for the Blink planner.
+    :func:`~pyflink.table.TableConfig.get_configuration`.
 
     .. note::
 

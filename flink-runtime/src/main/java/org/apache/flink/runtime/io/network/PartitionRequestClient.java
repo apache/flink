@@ -50,11 +50,26 @@ public interface PartitionRequestClient {
     void notifyCreditAvailable(RemoteInputChannel inputChannel);
 
     /**
+     * Notifies new buffer size from one remote input channel.
+     *
+     * @param inputChannel The remote input channel who announces the new buffer size.
+     * @param bufferSize The new buffer size.
+     */
+    void notifyNewBufferSize(RemoteInputChannel inputChannel, int bufferSize);
+
+    /**
      * Requests to resume data consumption from one remote input channel.
      *
      * @param inputChannel The remote input channel who is ready to resume data consumption.
      */
     void resumeConsumption(RemoteInputChannel inputChannel);
+
+    /**
+     * Acknowledges all user records are processed for this channel.
+     *
+     * @param inputChannel The input channel to resume data consumption.
+     */
+    void acknowledgeAllRecordsProcessed(RemoteInputChannel inputChannel);
 
     /**
      * Sends a task event backwards to an intermediate result partition.

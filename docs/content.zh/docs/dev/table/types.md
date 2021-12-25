@@ -1256,7 +1256,7 @@ zero, one or more attributes. Each attribute consists of a name and a type.
 
 There are two kinds of structured types:
 
-- Types that are stored in a catalog and are identified by a _catalog identifer_ (like `cat.db.MyType`). Those
+- Types that are stored in a catalog and are identified by a _catalog identifier_ (like `cat.db.MyType`). Those
 are equal to the SQL standard definition of structured types.
 
 - Anonymously defined, unregistered types (usually reflectively extracted) that are identified by

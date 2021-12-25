@@ -22,8 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ExceptionInChainedOperatorException;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -54,10 +54,7 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
         maxWatermarkSoFar = newWatermark;
 
         try {
-            if (isIdle) {
-                output.emitStreamStatus(StreamStatus.ACTIVE);
-                isIdle = false;
-            }
+            markActiveInternally();
 
             output.emitWatermark(
                     new org.apache.flink.streaming.api.watermark.Watermark(newWatermark));
@@ -75,12 +72,33 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
         }
 
         try {
-            output.emitStreamStatus(StreamStatus.IDLE);
+            output.emitWatermarkStatus(WatermarkStatus.IDLE);
             isIdle = true;
         } catch (ExceptionInChainedOperatorException e) {
             throw e;
         } catch (Exception e) {
             throw new ExceptionInChainedOperatorException(e);
         }
+    }
+
+    @Override
+    public void markActive() {
+        try {
+            markActiveInternally();
+        } catch (ExceptionInChainedOperatorException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ExceptionInChainedOperatorException(e);
+        }
+    }
+
+    private boolean markActiveInternally() throws Exception {
+        if (!isIdle) {
+            return true;
+        }
+
+        output.emitWatermarkStatus(WatermarkStatus.ACTIVE);
+        isIdle = false;
+        return false;
     }
 }

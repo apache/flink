@@ -31,7 +31,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumerWithPartialRecor
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +45,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -71,6 +72,12 @@ public class PipelinedSubpartition extends ResultSubpartition
     private static final Logger LOG = LoggerFactory.getLogger(PipelinedSubpartition.class);
 
     // ------------------------------------------------------------------------
+
+    /**
+     * Number of exclusive credits per input channel at the downstream tasks configured by {@link
+     * org.apache.flink.configuration.NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_PER_CHANNEL}.
+     */
+    private final int receiverExclusiveBuffersPerChannel;
 
     /** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
     final PrioritizedDeque<BufferConsumerWithPartialRecordLength> buffers =
@@ -101,6 +108,8 @@ public class PipelinedSubpartition extends ResultSubpartition
     /** Writes in-flight data. */
     private ChannelStateWriter channelStateWriter;
 
+    private int bufferSize = Integer.MAX_VALUE;
+
     /**
      * Whether this subpartition is blocked (e.g. by exactly once checkpoint) and is waiting for
      * resumption.
@@ -112,8 +121,14 @@ public class PipelinedSubpartition extends ResultSubpartition
 
     // ------------------------------------------------------------------------
 
-    PipelinedSubpartition(int index, ResultPartition parent) {
+    PipelinedSubpartition(
+            int index, int receiverExclusiveBuffersPerChannel, ResultPartition parent) {
         super(index, parent);
+
+        checkArgument(
+                receiverExclusiveBuffersPerChannel >= 0,
+                "Buffers per channel must be non-negative.");
+        this.receiverExclusiveBuffersPerChannel = receiverExclusiveBuffersPerChannel;
     }
 
     @Override
@@ -123,7 +138,7 @@ public class PipelinedSubpartition extends ResultSubpartition
     }
 
     @Override
-    public boolean add(BufferConsumer bufferConsumer, int partialRecordLength) {
+    public int add(BufferConsumer bufferConsumer, int partialRecordLength) {
         return add(bufferConsumer, partialRecordLength, false);
     }
 
@@ -134,7 +149,7 @@ public class PipelinedSubpartition extends ResultSubpartition
                 bufferConsumer,
                 parent.getOwningTaskName(),
                 subpartitionInfo);
-        if (!add(bufferConsumer, Integer.MIN_VALUE)) {
+        if (add(bufferConsumer, Integer.MIN_VALUE) == -1) {
             throw new IOException("Buffer consumer couldn't be added to ResultSubpartition");
         }
     }
@@ -152,15 +167,16 @@ public class PipelinedSubpartition extends ResultSubpartition
         LOG.debug("{}: Finished {}.", parent.getOwningTaskName(), this);
     }
 
-    private boolean add(BufferConsumer bufferConsumer, int partialRecordLength, boolean finish) {
+    private int add(BufferConsumer bufferConsumer, int partialRecordLength, boolean finish) {
         checkNotNull(bufferConsumer);
 
         final boolean notifyDataAvailable;
         int prioritySequenceNumber = -1;
+        int newBufferSize;
         synchronized (buffers) {
             if (isFinished || isReleased) {
                 bufferConsumer.close();
-                return false;
+                return -1;
             }
 
             // Add the bufferConsumer and update the stats
@@ -172,6 +188,7 @@ public class PipelinedSubpartition extends ResultSubpartition
             notifyDataAvailable = finish || shouldNotifyDataAvailable();
 
             isFinished |= finish;
+            newBufferSize = bufferSize;
         }
 
         if (prioritySequenceNumber != -1) {
@@ -181,7 +198,7 @@ public class PipelinedSubpartition extends ResultSubpartition
             notifyDataAvailable();
         }
 
-        return true;
+        return newBufferSize;
     }
 
     private boolean addBuffer(BufferConsumer bufferConsumer, int partialRecordLength) {
@@ -312,6 +329,16 @@ public class PipelinedSubpartition extends ResultSubpartition
                     decreaseBuffersInBacklogUnsafe(bufferConsumer.isBuffer());
                 }
 
+                // if we have an empty finished buffer and the exclusive credit is 0, we just return
+                // the empty buffer so that the downstream task can release the allocated credit for
+                // this empty buffer, this happens in two main scenarios currently:
+                // 1. all data of a buffer builder has been read and after that the buffer builder
+                // is finished
+                // 2. in approximate recovery mode, a partial record takes a whole buffer builder
+                if (receiverExclusiveBuffersPerChannel == 0 && bufferConsumer.isFinished()) {
+                    break;
+                }
+
                 if (buffer.readableBytes() > 0) {
                     break;
                 }
@@ -343,7 +370,7 @@ public class PipelinedSubpartition extends ResultSubpartition
                     subpartitionInfo);
             return new BufferAndBacklog(
                     buffer,
-                    getBuffersInBacklog(),
+                    getBuffersInBacklogUnsafe(),
                     isDataAvailableUnsafe() ? getNextBufferTypeUnsafe() : Buffer.DataType.NONE,
                     sequenceNumber++);
         }
@@ -355,6 +382,10 @@ public class PipelinedSubpartition extends ResultSubpartition
 
             isBlocked = false;
         }
+    }
+
+    public void acknowledgeAllDataProcessed() {
+        parent.onSubpartitionAllDataProcessed(subpartitionInfo.getSubPartitionIdx());
     }
 
     @Override
@@ -386,14 +417,17 @@ public class PipelinedSubpartition extends ResultSubpartition
         return readView;
     }
 
-    public boolean isAvailable(int numCreditsAvailable) {
+    public ResultSubpartitionView.AvailabilityWithBacklog getAvailabilityAndBacklog(
+            int numCreditsAvailable) {
         synchronized (buffers) {
+            boolean isAvailable;
             if (numCreditsAvailable > 0) {
-                return isDataAvailableUnsafe();
+                isAvailable = isDataAvailableUnsafe();
+            } else {
+                isAvailable = getNextBufferTypeUnsafe().isEvent();
             }
-
-            final Buffer.DataType dataType = getNextBufferTypeUnsafe();
-            return dataType.isEvent();
+            return new ResultSubpartitionView.AvailabilityWithBacklog(
+                    isAvailable, getBuffersInBacklogUnsafe());
         }
     }
 
@@ -413,8 +447,21 @@ public class PipelinedSubpartition extends ResultSubpartition
 
     // ------------------------------------------------------------------------
 
-    int getCurrentNumberOfBuffers() {
-        return buffers.size();
+    @Override
+    public int getNumberOfQueuedBuffers() {
+        synchronized (buffers) {
+            return buffers.size();
+        }
+    }
+
+    @Override
+    public void bufferSize(int desirableNewBufferSize) {
+        if (desirableNewBufferSize < 0) {
+            throw new IllegalArgumentException("New buffer size can not be less than zero");
+        }
+        synchronized (buffers) {
+            bufferSize = desirableNewBufferSize;
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -439,7 +486,7 @@ public class PipelinedSubpartition extends ResultSubpartition
                 getSubPartitionIndex(),
                 numBuffers,
                 numBytes,
-                getBuffersInBacklog(),
+                getBuffersInBacklogUnsafe(),
                 finished,
                 hasReadView);
     }
@@ -459,11 +506,10 @@ public class PipelinedSubpartition extends ResultSubpartition
             }
             // if there is more then 1 buffer, we already notified the reader
             // (at the latest when adding the second buffer)
-            notifyDataAvailable =
-                    !isBlocked
-                            && buffers.size() == 1
-                            && buffers.peek().getBufferConsumer().isDataAvailable();
-            flushRequested = buffers.size() > 1 || notifyDataAvailable;
+            boolean isDataAvailableInUnfinishedBuffer =
+                    buffers.size() == 1 && buffers.peek().getBufferConsumer().isDataAvailable();
+            notifyDataAvailable = !isBlocked && isDataAvailableInUnfinishedBuffer;
+            flushRequested = buffers.size() > 1 || isDataAvailableInUnfinishedBuffer;
         }
         if (notifyDataAvailable) {
             notifyDataAvailable();
@@ -513,16 +559,16 @@ public class PipelinedSubpartition extends ResultSubpartition
         }
     }
 
-    /**
-     * Gets the number of non-event buffers in this subpartition.
-     *
-     * <p><strong>Beware:</strong> This method should only be used in tests in non-concurrent access
-     * scenarios since it does not make any concurrency guarantees.
-     */
-    @SuppressWarnings("FieldAccessNotGuarded")
-    @VisibleForTesting
-    public int getBuffersInBacklog() {
-        if (flushRequested || isFinished) {
+    /** Gets the number of non-event buffers in this subpartition. */
+    @Override
+    public int getBuffersInBacklogUnsafe() {
+        if (isBlocked || buffers.isEmpty()) {
+            return 0;
+        }
+
+        if (flushRequested
+                || isFinished
+                || !checkNotNull(buffers.peekLast()).getBufferConsumer().isBuffer()) {
             return buffersInBacklog;
         } else {
             return Math.max(buffersInBacklog - 1, 0);

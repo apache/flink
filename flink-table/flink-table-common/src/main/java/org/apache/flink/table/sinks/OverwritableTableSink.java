@@ -28,8 +28,7 @@ import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
  *
  * @see PartitionableTableSink for the definition of partition.
  * @deprecated This interface will not be supported in the new sink design around {@link
- *     DynamicTableSink} which only works with the Blink planner. Use {@link SupportsOverwrite}
- *     instead. See FLIP-95 for more information.
+ *     DynamicTableSink}. Use {@link SupportsOverwrite} instead. See FLIP-95 for more information.
  */
 @Deprecated
 @Experimental

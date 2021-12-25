@@ -25,7 +25,7 @@ import org.apache.hadoop.hive.ql.exec.UDF;
 import java.io.Serializable;
 
 /**
- * A wrapper of Hive functions that instantiate function instances and ser/de functino instance
+ * A wrapper of Hive functions that instantiate function instances and ser/de function instance
  * cross process boundary.
  *
  * @param <UDFType> The type of UDF.

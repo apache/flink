@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -39,10 +38,10 @@ import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInpu
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierTracker;
@@ -53,9 +52,9 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
+import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.After;
@@ -157,6 +156,7 @@ public class StreamTaskNetworkInputTest {
                                                 "test",
                                                 new DummyCheckpointInvokable(),
                                                 SystemClock.getInstance(),
+                                                false,
                                                 inputGate.getInputGate()),
                                 new SyncMailboxExecutor()),
                         inSerializer,
@@ -228,20 +228,22 @@ public class StreamTaskNetworkInputTest {
                         inputGate, inSerializer, numInputChannels, deserializers);
 
         inputGate.sendElement(new StreamRecord<>(42L), 0);
-        assertThat(input.emitNext(output), equalTo(InputStatus.MORE_AVAILABLE));
+        assertThat(input.emitNext(output), equalTo(DataInputStatus.MORE_AVAILABLE));
         inputGate.sendEvent(EndOfChannelStateEvent.INSTANCE, 0);
-        assertThat(input.emitNext(output), equalTo(InputStatus.MORE_AVAILABLE));
+        assertThat(input.emitNext(output), equalTo(DataInputStatus.MORE_AVAILABLE));
         inputGate.sendEvent(EndOfChannelStateEvent.INSTANCE, 1);
-        assertThat(input.emitNext(output), equalTo(InputStatus.END_OF_RECOVERY));
+        assertThat(input.emitNext(output), equalTo(DataInputStatus.END_OF_RECOVERY));
     }
 
     private BufferOrEvent createDataBuffer() throws IOException {
-        BufferBuilder bufferBuilder = BufferBuilderTestUtils.createEmptyBufferBuilder(PAGE_SIZE);
-        BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
-        serializeRecord(42L, bufferBuilder);
-        serializeRecord(44L, bufferBuilder);
+        try (BufferBuilder bufferBuilder =
+                BufferBuilderTestUtils.createEmptyBufferBuilder(PAGE_SIZE)) {
+            BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
+            serializeRecord(42L, bufferBuilder);
+            serializeRecord(44L, bufferBuilder);
 
-        return new BufferOrEvent(bufferConsumer.build(), new InputChannelInfo(0, 0));
+            return new BufferOrEvent(bufferConsumer.build(), new InputChannelInfo(0, 0));
+        }
     }
 
     private StreamTaskNetworkInput<Long> createStreamTaskNetworkInput(List<BufferOrEvent> buffers) {
@@ -257,7 +259,7 @@ public class StreamTaskNetworkInputTest {
         return new CheckpointedInputGate(
                 inputGate,
                 new CheckpointBarrierTracker(
-                        1, new DummyCheckpointInvokable(), SystemClock.getInstance()),
+                        1, new DummyCheckpointInvokable(), SystemClock.getInstance(), false),
                 new SyncMailboxExecutor(),
                 UpstreamRecoveryTracker.forInputGate(inputGate));
     }
@@ -277,8 +279,8 @@ public class StreamTaskNetworkInputTest {
     private static <T> void assertHasNextElement(StreamTaskInput<T> input, DataOutput<T> output)
             throws Exception {
         assertTrue(input.getAvailableFuture().isDone());
-        InputStatus status = input.emitNext(output);
-        assertThat(status, is(InputStatus.MORE_AVAILABLE));
+        DataInputStatus status = input.emitNext(output);
+        assertThat(status, is(DataInputStatus.MORE_AVAILABLE));
     }
 
     private static class TestRecordDeserializer
@@ -310,7 +312,7 @@ public class StreamTaskNetworkInputTest {
         public void emitWatermark(Watermark watermark) {}
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) {}
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {}
 
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) {}

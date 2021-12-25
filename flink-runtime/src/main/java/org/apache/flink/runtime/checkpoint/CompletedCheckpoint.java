@@ -83,8 +83,8 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
     /** The timestamp when the checkpoint was triggered. */
     private final long timestamp;
 
-    /** The duration of the checkpoint (completion timestamp - trigger timestamp). */
-    private final long duration;
+    /** The timestamp when the checkpoint was completed. */
+    private final long completionTimestamp;
 
     /** States of the different operator groups belonging to this checkpoint. */
     private final Map<OperatorID, OperatorState> operatorStates;
@@ -126,7 +126,7 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
         this.job = checkNotNull(job);
         this.checkpointID = checkpointID;
         this.timestamp = timestamp;
-        this.duration = completionTimestamp - timestamp;
+        this.completionTimestamp = completionTimestamp;
 
         // we create copies here, to make sure we have no shared mutable
         // data structure with the "outside world"
@@ -159,8 +159,8 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
         return timestamp;
     }
 
-    public long getDuration() {
-        return duration;
+    public long getCompletionTimestamp() {
+        return completionTimestamp;
     }
 
     public CheckpointProperties getProperties() {
@@ -204,7 +204,10 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
      * @param sharedStateRegistry The registry where shared states are registered
      */
     public void registerSharedStatesAfterRestored(SharedStateRegistry sharedStateRegistry) {
-        sharedStateRegistry.registerAll(operatorStates.values());
+        // in claim mode we should not register any shared handles
+        if (!props.isUnclaimed()) {
+            sharedStateRegistry.registerAll(operatorStates.values(), checkpointID);
+        }
     }
 
     // ------------------------------------------------------------------------

@@ -36,5 +36,6 @@ public class SchedulingDownstreamTasksInBatchJobBenchmarkTest extends TestLogger
                 new SchedulingDownstreamTasksInBatchJobBenchmark();
         benchmark.setup(JobConfiguration.BATCH_TEST);
         benchmark.schedulingDownstreamTasks();
+        benchmark.teardown();
     }
 }

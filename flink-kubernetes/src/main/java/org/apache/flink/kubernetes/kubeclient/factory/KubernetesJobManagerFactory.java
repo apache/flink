@@ -47,7 +47,6 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -98,14 +97,13 @@ public class KubernetesJobManagerFactory {
                         .endSpec()
                         .build();
 
-        final Map<String, String> labels = resolvedPod.getMetadata().getLabels();
-
         return new DeploymentBuilder()
                 .withApiVersion(Constants.APPS_API_VERSION)
                 .editOrNewMetadata()
                 .withName(
                         KubernetesUtils.getDeploymentName(
                                 kubernetesJobManagerParameters.getClusterId()))
+                .withAnnotations(kubernetesJobManagerParameters.getAnnotations())
                 .withLabels(kubernetesJobManagerParameters.getLabels())
                 .withOwnerReferences(
                         kubernetesJobManagerParameters.getOwnerReference().stream()
@@ -113,13 +111,13 @@ public class KubernetesJobManagerFactory {
                                 .collect(Collectors.toList()))
                 .endMetadata()
                 .editOrNewSpec()
-                .withReplicas(1)
+                .withReplicas(kubernetesJobManagerParameters.getReplicas())
                 .editOrNewTemplate()
                 .withMetadata(resolvedPod.getMetadata())
                 .withSpec(resolvedPod.getSpec())
                 .endTemplate()
                 .editOrNewSelector()
-                .addToMatchLabels(labels)
+                .addToMatchLabels(kubernetesJobManagerParameters.getSelectors())
                 .endSelector()
                 .endSpec()
                 .build();

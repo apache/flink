@@ -39,12 +39,11 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
-import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.state.BackendBuildingException;
@@ -417,20 +416,6 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         }
     }
 
-    private static class TestingHaServices extends EmbeddedHaServices {
-        private final CheckpointRecoveryFactory checkpointRecoveryFactory;
-
-        TestingHaServices(CheckpointRecoveryFactory checkpointRecoveryFactory, Executor executor) {
-            super(executor);
-            this.checkpointRecoveryFactory = checkpointRecoveryFactory;
-        }
-
-        @Override
-        public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
-            return checkpointRecoveryFactory;
-        }
-    }
-
     /** An extension of {@link StandaloneCompletedCheckpointStore}. */
     private static class TestingCompletedCheckpointStore
             extends StandaloneCompletedCheckpointStore {
@@ -442,13 +427,14 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         }
 
         @Override
-        public void addCheckpoint(
+        public CompletedCheckpoint addCheckpointAndSubsumeOldestOne(
                 CompletedCheckpoint checkpoint,
                 CheckpointsCleaner checkpointsCleaner,
                 Runnable postCleanup)
                 throws Exception {
             if (abortCheckpointLatch.isTriggered()) {
-                super.addCheckpoint(checkpoint, checkpointsCleaner, postCleanup);
+                return super.addCheckpointAndSubsumeOldestOne(
+                        checkpoint, checkpointsCleaner, postCleanup);
             } else {
                 // tell main thread that all checkpoints on task side have been finished.
                 addCheckpointLatch.trigger();
@@ -471,11 +457,10 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         @Override
         public HighAvailabilityServices createHAServices(
                 Configuration configuration, Executor executor) {
-            return new TestingHaServices(
-                    PerJobCheckpointRecoveryFactory.useSameServicesForAllJobs(
-                            new TestingCompletedCheckpointStore(),
-                            new StandaloneCheckpointIDCounter()),
-                    executor);
+            final CheckpointRecoveryFactory checkpointRecoveryFactory =
+                    PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(
+                            maxCheckpoints -> new TestingCompletedCheckpointStore());
+            return new EmbeddedHaServicesWithLeadershipControl(executor, checkpointRecoveryFactory);
         }
     }
 }

@@ -25,7 +25,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.core.testutils.AllCallbackWrapper;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
@@ -39,14 +40,16 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.types.LongValue;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
+import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -57,7 +60,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
+@ExtendWith({TestLoggerExtension.class})
+public class TaskCancelAsyncProducerConsumerITCase {
 
     // The Exceptions thrown by the producer/consumer Threads
     private static volatile Exception ASYNC_PRODUCER_EXCEPTION;
@@ -67,12 +71,15 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
     private static volatile Thread ASYNC_PRODUCER_THREAD;
     private static volatile Thread ASYNC_CONSUMER_THREAD;
 
-    @ClassRule
-    public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterResource(
+    public static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getFlinkConfiguration())
                             .build());
+
+    @RegisterExtension
+    public static AllCallbackWrapper allCallbackWrapper =
+            new AllCallbackWrapper(MINI_CLUSTER_RESOURCE);
 
     private static Configuration getFlinkConfiguration() {
         Configuration config = new Configuration();
@@ -179,7 +186,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 
         // Verify the expected Exceptions
         assertNotNull(ASYNC_PRODUCER_EXCEPTION);
-        assertEquals(IllegalStateException.class, ASYNC_PRODUCER_EXCEPTION.getClass());
+        assertEquals(CancelTaskException.class, ASYNC_PRODUCER_EXCEPTION.getClass());
 
         assertNotNull(ASYNC_CONSUMER_EXCEPTION);
         assertEquals(IllegalStateException.class, ASYNC_CONSUMER_EXCEPTION.getClass());

@@ -120,15 +120,15 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
     }
 
     @Override
-    public boolean add(BufferConsumer bufferConsumer, int partialRecordLength) throws IOException {
+    public int add(BufferConsumer bufferConsumer, int partialRecordLength) throws IOException {
         if (isFinished()) {
             bufferConsumer.close();
-            return false;
+            return -1;
         }
 
         flushCurrentBuffer();
         currentBuffer = bufferConsumer;
-        return true;
+        return Integer.MAX_VALUE;
     }
 
     @Override
@@ -267,6 +267,16 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
     }
 
     @Override
+    public int getNumberOfQueuedBuffers() {
+        return 0;
+    }
+
+    @Override
+    public void bufferSize(int desirableNewBufferSize) {
+        // not supported.
+    }
+
+    @Override
     protected long getTotalNumberOfBuffers() {
         return numBuffersAndEventsWritten;
     }
@@ -276,7 +286,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
         return data.getSize();
     }
 
-    int getBuffersInBacklog() {
+    int getBuffersInBacklogUnsafe() {
         return numDataBuffersWritten;
     }
 

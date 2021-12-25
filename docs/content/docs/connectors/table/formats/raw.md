@@ -33,7 +33,7 @@ The Raw format allows to read and write raw (byte based) values as a single colu
 
 Note: this format encodes `null` values as `null` of `byte[]` type. This may have limitation when used in `upsert-kafka`, because `upsert-kafka` treats `null` values as a tombstone message (DELETE on the key). Therefore, we recommend avoiding using `upsert-kafka` connector and the `raw` format as a `value.format` if the field can have a `null` value.
 
-The Raw connector is built-in into the Blink planner, no additional dependencies are required.
+The Raw connector is built-in, no additional dependencies are required.
 
 Example
 ----------------
@@ -136,7 +136,7 @@ The table below details the SQL types the format supports, including details of 
     </tr>
     <tr>
       <td><code>TINYINT</code></td>
-      <td>A single byte of the singed number value.</td>
+      <td>A single byte of the signed number value.</td>
     </tr>
     <tr>
       <td><code>SMALLINT</code></td>

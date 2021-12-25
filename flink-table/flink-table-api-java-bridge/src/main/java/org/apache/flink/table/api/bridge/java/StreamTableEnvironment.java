@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -37,8 +38,6 @@ import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImp
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
@@ -94,7 +93,9 @@ public interface StreamTableEnvironment extends TableEnvironment {
      *     TableEnvironment}.
      */
     static StreamTableEnvironment create(StreamExecutionEnvironment executionEnvironment) {
-        return create(executionEnvironment, EnvironmentSettings.newInstance().build());
+        return create(
+                executionEnvironment,
+                EnvironmentSettings.fromConfiguration(executionEnvironment.getConfiguration()));
     }
 
     /**
@@ -722,6 +723,17 @@ public interface StreamTableEnvironment extends TableEnvironment {
             Table table, Schema targetSchema, ChangelogMode changelogMode);
 
     /**
+     * Returns a {@link StatementSet} that integrates with the Java-specific {@link DataStream} API.
+     *
+     * <p>It accepts pipelines defined by DML statements or {@link Table} objects. The planner can
+     * optimize all added statements together and then either submit them as one job or attach them
+     * to the underlying {@link StreamExecutionEnvironment}.
+     *
+     * @return statement set builder for the Java-specific {@link DataStream} API
+     */
+    StreamStatementSet createStatementSet();
+
+    /**
      * Converts the given {@link DataStream} into a {@link Table} with specified field names.
      *
      * <p>There are two modes for mapping original fields to the fields of the {@link Table}:
@@ -814,7 +826,12 @@ public interface StreamTableEnvironment extends TableEnvironment {
      *     of the {@code Table}.
      * @param <T> The type of the {@link DataStream}.
      * @return The converted {@link Table}.
+     * @deprecated Use {@link #fromDataStream(DataStream, Schema)} instead. In most cases, {@link
+     *     #fromDataStream(DataStream)} should already be sufficient. It integrates with the new
+     *     type system and supports all kinds of {@link DataTypes} that the table runtime can
+     *     consume. The semantics might be slightly different for raw and structured types.
      */
+    @Deprecated
     <T> Table fromDataStream(DataStream<T> dataStream, Expression... fields);
 
     /**
@@ -998,7 +1015,13 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * @param fields The fields expressions to map original fields of the DataStream to the fields
      *     of the View.
      * @param <T> The type of the {@link DataStream}.
+     * @deprecated Use {@link #createTemporaryView(String, DataStream, Schema)} instead. In most
+     *     cases, {@link #createTemporaryView(String, DataStream)} should already be sufficient. It
+     *     integrates with the new type system and supports all kinds of {@link DataTypes} that the
+     *     table runtime can consume. The semantics might be slightly different for raw and
+     *     structured types.
      */
+    @Deprecated
     <T> void createTemporaryView(String path, DataStream<T> dataStream, Expression... fields);
 
     /**
@@ -1019,7 +1042,13 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * @param clazz The class of the type of the resulting {@link DataStream}.
      * @param <T> The type of the resulting {@link DataStream}.
      * @return The converted {@link DataStream}.
+     * @deprecated Use {@link #toDataStream(Table, Class)} instead. It integrates with the new type
+     *     system and supports all kinds of {@link DataTypes} that the table runtime can produce.
+     *     The semantics might be slightly different for raw and structured types. Use {@code
+     *     toDataStream(DataTypes.of(TypeInformation.of(Class)))} if {@link TypeInformation} should
+     *     be used as source of truth.
      */
+    @Deprecated
     <T> DataStream<T> toAppendStream(Table table, Class<T> clazz);
 
     /**
@@ -1041,7 +1070,13 @@ public interface StreamTableEnvironment extends TableEnvironment {
      *     DataStream}.
      * @param <T> The type of the resulting {@link DataStream}.
      * @return The converted {@link DataStream}.
+     * @deprecated Use {@link #toDataStream(Table, Class)} instead. It integrates with the new type
+     *     system and supports all kinds of {@link DataTypes} that the table runtime can produce.
+     *     The semantics might be slightly different for raw and structured types. Use {@code
+     *     toDataStream(DataTypes.of(TypeInformation.of(Class)))} if {@link TypeInformation} should
+     *     be used as source of truth.
      */
+    @Deprecated
     <T> DataStream<T> toAppendStream(Table table, TypeInformation<T> typeInfo);
 
     /**
@@ -1064,7 +1099,11 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * @param clazz The class of the requested record type.
      * @param <T> The type of the requested record type.
      * @return The converted {@link DataStream}.
+     * @deprecated Use {@link #toChangelogStream(Table, Schema)} instead. It integrates with the new
+     *     type system and supports all kinds of {@link DataTypes} and every {@link ChangelogMode}
+     *     that the table runtime can produce.
      */
+    @Deprecated
     <T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, Class<T> clazz);
 
     /**
@@ -1087,48 +1126,12 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * @param typeInfo The {@link TypeInformation} of the requested record type.
      * @param <T> The type of the requested record type.
      * @return The converted {@link DataStream}.
+     * @deprecated Use {@link #toChangelogStream(Table, Schema)} instead. It integrates with the new
+     *     type system and supports all kinds of {@link DataTypes} and every {@link ChangelogMode}
+     *     that the table runtime can produce.
      */
-    <T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, TypeInformation<T> typeInfo);
-
-    /**
-     * Creates a table source and/or table sink from a descriptor.
-     *
-     * <p>Descriptors allow for declaring the communication to external systems in an
-     * implementation-agnostic way. The classpath is scanned for suitable table factories that match
-     * the desired configuration.
-     *
-     * <p>The following example shows how to read from a Kafka connector using a JSON format and
-     * registering a table source "MyTable" in append mode:
-     *
-     * <pre>{@code
-     * tableEnv
-     *   .connect(
-     *     new Kafka()
-     *       .version("0.11")
-     *       .topic("clicks")
-     *       .property("group.id", "click-group")
-     *       .startFromEarliest())
-     *   .withFormat(
-     *     new Json()
-     *       .jsonSchema("{...}")
-     *       .failOnMissingField(false))
-     *   .withSchema(
-     *     new Schema()
-     *       .field("user-name", "VARCHAR").from("u_name")
-     *       .field("count", "DECIMAL")
-     *       .field("proc-time", "TIMESTAMP").proctime())
-     *   .inAppendMode()
-     *   .createTemporaryTable("MyTable")
-     * }</pre>
-     *
-     * @param connectorDescriptor connector descriptor describing the external system
-     * @deprecated The SQL {@code CREATE TABLE} DDL is richer than this part of the API. This method
-     *     might be refactored in the next versions. Please use {@link #executeSql(String)
-     *     executeSql(ddl)} to register a table instead.
-     */
-    @Override
     @Deprecated
-    StreamTableDescriptor connect(ConnectorDescriptor connectorDescriptor);
+    <T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, TypeInformation<T> typeInfo);
 
     /**
      * Triggers the program execution. The environment will execute all parts of the program.

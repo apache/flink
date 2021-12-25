@@ -35,7 +35,7 @@ public class CustomCassandraAnnotatedPojo {
     @Column(name = "batch_id")
     private Integer batchId;
 
-    /** Necessary for the driver's mapper instanciation. */
+    /** Necessary for the driver's mapper instantiation. */
     public CustomCassandraAnnotatedPojo() {}
 
     public CustomCassandraAnnotatedPojo(String id, Integer counter, Integer batchId) {

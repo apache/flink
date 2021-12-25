@@ -40,7 +40,6 @@ under the License.
     {{ errorf "%q: Invalid use of artifact shortcode. Unknown flag `%s`" $path . }}
   {{ end }}
 {{ end }}
-{{ $scalaVersion := .Get 1 }}
 
 {{ $hash := md5 now }}
 
@@ -53,7 +52,7 @@ under the License.
     <span class="nt">&ltartifactId&gt</span>{{- $artifactId -}}<span class="nt">&lt/artifactId&gt</span>
     <span class="nt">&ltversion&gt</span>{{- site.Params.Version -}}<span class="nt">&lt/version&gt</span>{{ if ne $testScope "" }}    
     <span class="nt">&ltscope&gt</span>test<span class="nt">&lt/scope&gt</span>{{ end }}{{ if ne $testClassifier "" }}    
-    <span class="nt">&ltclassifer&gt</span>tests<span class="nt">&lt/classifier&gt</span>{{ end }}
+    <span class="nt">&ltclassifier&gt</span>tests<span class="nt">&lt/classifier&gt</span>{{ end }}
 <span class="nt">&lt/dependency&gt</span></code></pre></div>
 <div class="book-hint info" style="text-align:center;display:none" copyable="flink-module" copyattribute="{{ $hash }}">
   Copied to clipboard!

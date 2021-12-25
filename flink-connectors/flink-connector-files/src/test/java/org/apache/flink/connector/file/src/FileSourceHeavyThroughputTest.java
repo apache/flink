@@ -33,7 +33,7 @@ import org.apache.flink.connector.file.src.testutils.TestingFileSystem;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputStatus;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.SimpleUserCodeClassLoader;
 import org.apache.flink.util.UserCodeClassLoader;
@@ -74,7 +74,8 @@ public class FileSourceHeavyThroughputTest {
     public void testHeavyThroughput() throws Exception {
         final Path path = new Path("testfs:///testpath");
         final long fileSize = 20L << 30; // 20 GB
-        final FileSourceSplit split = new FileSourceSplit("testsplitId", path, 0, fileSize);
+        final FileSourceSplit split =
+                new FileSourceSplit("testsplitId", path, 0, fileSize, 0, fileSize);
 
         testFs =
                 TestingFileSystem.createForFileStatus(
@@ -195,8 +196,8 @@ public class FileSourceHeavyThroughputTest {
     private static final class NoOpReaderContext implements SourceReaderContext {
 
         @Override
-        public MetricGroup metricGroup() {
-            return new UnregisteredMetricsGroup();
+        public SourceReaderMetricGroup metricGroup() {
+            return UnregisteredMetricsGroup.createSourceReaderMetricGroup();
         }
 
         @Override
@@ -239,6 +240,9 @@ public class FileSourceHeavyThroughputTest {
 
         @Override
         public void markIdle() {}
+
+        @Override
+        public void markActive() {}
 
         @Override
         public SourceOutput<E> createOutputForSplit(String splitId) {

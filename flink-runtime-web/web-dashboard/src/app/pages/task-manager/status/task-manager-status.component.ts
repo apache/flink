@@ -17,9 +17,10 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit } from '@angular/core';
-import { TaskManagerDetailInterface } from 'interfaces';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+
+import { TaskManagerDetail } from 'interfaces';
 import { TaskManagerService } from 'services';
 
 @Component({
@@ -29,27 +30,30 @@ import { TaskManagerService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerStatusComponent implements OnInit, OnDestroy {
-  @Input() isLoading = true;
-  listOfNavigation = [
+  public readonly listOfNavigation = [
     { path: 'metrics', title: 'Metrics' },
     { path: 'logs', title: 'Logs' },
     { path: 'stdout', title: 'Stdout' },
     { path: 'log-list', title: 'Log List' },
     { path: 'thread-dump', title: 'Thread Dump' }
   ];
-  taskManagerDetail: TaskManagerDetailInterface;
-  private destroy$ = new Subject();
 
-  constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
+  public taskManagerDetail: TaskManagerDetail;
 
-  ngOnInit(): void {
+  @Input() public isLoading = true;
+
+  private readonly destroy$ = new Subject<void>();
+
+  constructor(private readonly taskManagerService: TaskManagerService, private readonly cdr: ChangeDetectorRef) {}
+
+  public ngOnInit(): void {
     this.taskManagerService.taskManagerDetail$.pipe(takeUntil(this.destroy$)).subscribe(data => {
       this.taskManagerDetail = data;
       this.cdr.markForCheck();
     });
   }
 
-  ngOnDestroy(): void {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

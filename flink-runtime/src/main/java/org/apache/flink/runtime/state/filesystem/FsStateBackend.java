@@ -496,6 +496,12 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
         return true;
     }
 
+    @Override
+    public boolean supportsNoClaimRestoreMode() {
+        // we never share any files, all snapshots are full
+        return true;
+    }
+
     // ------------------------------------------------------------------------
     //  Reconfiguration
     // ------------------------------------------------------------------------

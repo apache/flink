@@ -19,9 +19,11 @@
 package org.apache.flink.yarn.configuration;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.InlineElement;
 
 import java.util.List;
 
@@ -29,9 +31,6 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
-import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclusion.DISABLED;
-import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclusion.FIRST;
-import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclusion.LAST;
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclusion.ORDER;
 
 /**
@@ -60,12 +59,8 @@ public class YarnConfigOptions {
                     .enumType(UserJarInclusion.class)
                     .defaultValue(ORDER)
                     .withDescription(
-                            String.format(
-                                    "Defines whether user-jars are included in the system class path for per-job-clusters as"
-                                            + " well as their positioning in the path. They can be positioned at the beginning (%s), at the"
-                                            + " end (%s), or be positioned based on their name (%s). %s means the user-jars"
-                                            + " are excluded from the system class path.",
-                                    FIRST.name(), LAST.name(), ORDER.name(), DISABLED.name()));
+                            "Defines whether user-jars are included in the system class path for per-job-clusters "
+                                    + "as well as their positioning in the path.");
 
     /** The vcores exposed by YARN. */
     public static final ConfigOption<Integer> VCORES =
@@ -301,6 +296,14 @@ public class YarnConfigOptions {
                     .noDefaultValue()
                     .withDescription("Specify YARN node label for the YARN application.");
 
+    public static final ConfigOption<String> TASK_MANAGER_NODE_LABEL =
+            key("yarn.taskmanager.node-label")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Specify YARN node label for the Flink TaskManagers, it will "
+                                    + "override the yarn.application.node-label for TaskManagers if both are set.");
+
     public static final ConfigOption<Boolean> SHIP_LOCAL_KEYTAB =
             key("yarn.security.kerberos.ship-local-keytab")
                     .booleanType()
@@ -407,10 +410,21 @@ public class YarnConfigOptions {
     private YarnConfigOptions() {}
 
     /** @see YarnConfigOptions#CLASSPATH_INCLUDE_USER_JAR */
-    public enum UserJarInclusion {
-        DISABLED,
-        FIRST,
-        LAST,
-        ORDER
+    public enum UserJarInclusion implements DescribedEnum {
+        DISABLED(text("Exclude user jars from the system class path")),
+        FIRST(text("Position at the beginning")),
+        LAST(text("Position at the end")),
+        ORDER(text("Position based on the name of the jar"));
+
+        private final InlineElement description;
+
+        UserJarInclusion(InlineElement description) {
+            this.description = description;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
     }
 }

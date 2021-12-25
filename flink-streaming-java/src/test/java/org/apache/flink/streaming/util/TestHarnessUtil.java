@@ -22,7 +22,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import org.junit.Assert;
 
@@ -139,6 +139,7 @@ public class TestHarnessUtil {
 
         testHarness.processElements(
                 input.stream().map(StreamRecord::new).collect(Collectors.toList()));
+        testHarness.prepareSnapshotPreBarrier(1);
         final OperatorSubtaskState operatorSubtaskState = testHarness.snapshot(1, 1);
         testHarness.close();
 

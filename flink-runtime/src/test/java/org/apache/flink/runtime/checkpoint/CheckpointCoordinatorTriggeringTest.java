@@ -22,24 +22,29 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
-import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nullable;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -52,6 +57,7 @@ import java.util.function.Predicate;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -63,6 +69,8 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
     private static final String TASK_MANAGER_LOCATION_INFO = "Unknown location";
 
     private ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor;
+
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Before
     public void setUp() throws Exception {
@@ -164,6 +172,157 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
             lastId = checkpoint.checkpointId;
             lastTs = checkpoint.timestamp;
         }
+    }
+
+    @Test
+    public void testTriggeringFullSnapshotAfterJobmasterFailover() throws Exception {
+        CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
+
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .setTaskManagerGateway(gateway)
+                        .build();
+
+        ExecutionVertex vertex = graph.getJobVertex(jobVertexID).getTaskVertices()[0];
+        ExecutionAttemptID attemptID = vertex.getCurrentExecutionAttempt().getAttemptId();
+
+        // create a savepoint, we can restore from later
+        final CompletedCheckpoint savepoint = takeSavepoint(graph, attemptID);
+
+        // restore from a savepoint in NO_CLAIM mode
+        final StandaloneCompletedCheckpointStore checkpointStore =
+                new StandaloneCompletedCheckpointStore(1);
+        final StandaloneCheckpointIDCounter checkpointIDCounter =
+                new StandaloneCheckpointIDCounter();
+        CheckpointCoordinator checkpointCoordinator =
+                createCheckpointCoordinator(graph, checkpointStore, checkpointIDCounter);
+        checkpointCoordinator.restoreSavepoint(
+                SavepointRestoreSettings.forPath(
+                        savepoint.getExternalPointer(), true, RestoreMode.NO_CLAIM),
+                graph.getAllVertices(),
+                this.getClass().getClassLoader());
+        checkpointCoordinator.shutdown();
+
+        // imitate job manager failover
+        gateway.resetCount();
+        checkpointCoordinator =
+                createCheckpointCoordinator(graph, checkpointStore, checkpointIDCounter);
+        checkpointCoordinator.restoreLatestCheckpointedStateToAll(
+                new HashSet<>(graph.getAllVertices().values()), true);
+        checkpointCoordinator.startCheckpointScheduler();
+        final CompletableFuture<CompletedCheckpoint> checkpoint =
+                checkpointCoordinator.triggerCheckpoint(true);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        checkpointCoordinator.receiveAcknowledgeMessage(
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID, 2),
+                TASK_MANAGER_LOCATION_INFO);
+        checkpoint.get();
+
+        assertThat(
+                gateway.getOnlyTriggeredCheckpoint(attemptID).checkpointOptions.getCheckpointType(),
+                is(CheckpointType.FULL_CHECKPOINT));
+    }
+
+    @Test
+    public void testTriggeringFullCheckpoints() throws Exception {
+        CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
+
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .setTaskManagerGateway(gateway)
+                        .build();
+
+        ExecutionVertex vertex = graph.getJobVertex(jobVertexID).getTaskVertices()[0];
+        ExecutionAttemptID attemptID = vertex.getCurrentExecutionAttempt().getAttemptId();
+
+        // create a savepoint, we can restore from later
+        final CompletedCheckpoint savepoint = takeSavepoint(graph, attemptID);
+
+        // restore from a savepoint in NO_CLAIM mode
+        final StandaloneCompletedCheckpointStore checkpointStore =
+                new StandaloneCompletedCheckpointStore(1);
+        final StandaloneCheckpointIDCounter checkpointIDCounter =
+                new StandaloneCheckpointIDCounter();
+        CheckpointCoordinator checkpointCoordinator =
+                createCheckpointCoordinator(graph, checkpointStore, checkpointIDCounter);
+        checkpointCoordinator.restoreSavepoint(
+                SavepointRestoreSettings.forPath(
+                        savepoint.getExternalPointer(), true, RestoreMode.NO_CLAIM),
+                graph.getAllVertices(),
+                this.getClass().getClassLoader());
+
+        // trigger a savepoint before any checkpoint completes
+        // next triggered checkpoint should still be a full one
+        takeSavepoint(graph, attemptID, checkpointCoordinator, 2);
+        checkpointCoordinator.startCheckpointScheduler();
+        gateway.resetCount();
+        // the checkpoint should be a FULL_CHECKPOINT
+        final CompletableFuture<CompletedCheckpoint> checkpoint =
+                checkpointCoordinator.triggerCheckpoint(true);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        checkpointCoordinator.receiveAcknowledgeMessage(
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID, 3),
+                TASK_MANAGER_LOCATION_INFO);
+        checkpoint.get();
+
+        assertThat(
+                gateway.getOnlyTriggeredCheckpoint(attemptID).checkpointOptions.getCheckpointType(),
+                is(CheckpointType.FULL_CHECKPOINT));
+    }
+
+    private CompletedCheckpoint takeSavepoint(ExecutionGraph graph, ExecutionAttemptID attemptID)
+            throws Exception {
+        CheckpointCoordinator checkpointCoordinator =
+                createCheckpointCoordinator(
+                        graph,
+                        new StandaloneCompletedCheckpointStore(1),
+                        new StandaloneCheckpointIDCounter());
+        final CompletedCheckpoint savepoint =
+                takeSavepoint(graph, attemptID, checkpointCoordinator, 1);
+        checkpointCoordinator.shutdown();
+        return savepoint;
+    }
+
+    private CompletedCheckpoint takeSavepoint(
+            ExecutionGraph graph,
+            ExecutionAttemptID attemptID,
+            CheckpointCoordinator checkpointCoordinator,
+            int savepointId)
+            throws Exception {
+        final CompletableFuture<CompletedCheckpoint> savepointFuture =
+                checkpointCoordinator.triggerSavepoint(temporaryFolder.newFolder().getPath());
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        checkpointCoordinator.receiveAcknowledgeMessage(
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID, savepointId),
+                TASK_MANAGER_LOCATION_INFO);
+        return savepointFuture.get();
+    }
+
+    private CheckpointCoordinator createCheckpointCoordinator(
+            ExecutionGraph graph,
+            StandaloneCompletedCheckpointStore checkpointStore,
+            CheckpointIDCounter checkpointIDCounter)
+            throws Exception {
+        CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
+                new CheckpointCoordinatorConfigurationBuilder()
+                        .setCheckpointInterval(
+                                10000) // periodic is ver long, we trigger checkpoint manually
+                        .setCheckpointTimeout(200000) // timeout is very long (200 s)
+                        .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
+                        .build();
+        return new CheckpointCoordinatorBuilder()
+                .setExecutionGraph(graph)
+                .setCheckpointCoordinatorConfiguration(checkpointCoordinatorConfiguration)
+                .setCompletedCheckpointStore(checkpointStore)
+                .setCheckpointIDCounter(checkpointIDCounter)
+                .setTimer(manuallyTriggeredScheduledExecutor)
+                .build();
     }
 
     /**

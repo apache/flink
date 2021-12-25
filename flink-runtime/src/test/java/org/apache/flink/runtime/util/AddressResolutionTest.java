@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.rpc.AddressResolution;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.BeforeClass;
@@ -32,8 +32,10 @@ import java.net.UnknownHostException;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
-/** Unit tests for respecting {@link HighAvailabilityServicesUtils.AddressResolution}. */
+/** Unit tests for respecting {@link AddressResolution}. */
 public class AddressResolutionTest extends TestLogger {
+
+    private static final RpcSystem RPC_SYSTEM = RpcSystem.load();
 
     private static final String ENDPOINT_NAME = "endpoint";
     private static final String NON_EXISTING_HOSTNAME = "foo.bar.com.invalid";
@@ -63,22 +65,22 @@ public class AddressResolutionTest extends TestLogger {
 
     @Test
     public void testNoAddressResolution() throws UnknownHostException {
-        AkkaRpcServiceUtils.getRpcUrl(
+        RPC_SYSTEM.getRpcUrl(
                 NON_EXISTING_HOSTNAME,
                 PORT,
                 ENDPOINT_NAME,
-                HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION,
+                AddressResolution.NO_ADDRESS_RESOLUTION,
                 new Configuration());
     }
 
     @Test
     public void testTryAddressResolution() {
         try {
-            AkkaRpcServiceUtils.getRpcUrl(
+            RPC_SYSTEM.getRpcUrl(
                     NON_EXISTING_HOSTNAME,
                     PORT,
                     ENDPOINT_NAME,
-                    HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION,
+                    AddressResolution.TRY_ADDRESS_RESOLUTION,
                     new Configuration());
             fail("This should fail with an UnknownHostException");
         } catch (UnknownHostException ignore) {

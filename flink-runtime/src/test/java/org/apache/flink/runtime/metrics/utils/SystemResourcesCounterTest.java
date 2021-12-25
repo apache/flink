@@ -42,7 +42,8 @@ public class SystemResourcesCounterTest {
             do {
                 Thread.sleep(1);
                 cpuIdle = systemResources.getCpuIdle();
-            } while (initialCpuIdle == cpuIdle || Double.isNaN(cpuIdle) || cpuIdle == 0.0);
+            } while (systemResources.isAlive()
+                    && (initialCpuIdle == cpuIdle || Double.isNaN(cpuIdle) || cpuIdle == 0.0));
         } finally {
             systemResources.shutdown();
             systemResources.join();

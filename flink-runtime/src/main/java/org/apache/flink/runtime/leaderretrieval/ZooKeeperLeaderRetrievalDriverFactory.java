@@ -29,9 +29,17 @@ public class ZooKeeperLeaderRetrievalDriverFactory implements LeaderRetrievalDri
 
     private final String retrievalPath;
 
-    public ZooKeeperLeaderRetrievalDriverFactory(CuratorFramework client, String retrievalPath) {
+    private final ZooKeeperLeaderRetrievalDriver.LeaderInformationClearancePolicy
+            leaderInformationClearancePolicy;
+
+    public ZooKeeperLeaderRetrievalDriverFactory(
+            CuratorFramework client,
+            String retrievalPath,
+            ZooKeeperLeaderRetrievalDriver.LeaderInformationClearancePolicy
+                    leaderInformationClearancePolicy) {
         this.client = client;
         this.retrievalPath = retrievalPath;
+        this.leaderInformationClearancePolicy = leaderInformationClearancePolicy;
     }
 
     @Override
@@ -39,6 +47,10 @@ public class ZooKeeperLeaderRetrievalDriverFactory implements LeaderRetrievalDri
             LeaderRetrievalEventHandler leaderEventHandler, FatalErrorHandler fatalErrorHandler)
             throws Exception {
         return new ZooKeeperLeaderRetrievalDriver(
-                client, retrievalPath, leaderEventHandler, fatalErrorHandler);
+                client,
+                retrievalPath,
+                leaderEventHandler,
+                leaderInformationClearancePolicy,
+                fatalErrorHandler);
     }
 }

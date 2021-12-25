@@ -70,8 +70,9 @@ Flink 支持对状态和时间的细粒度控制，以此来实现复杂的事�
 一个准备好的 Flink Maven Archetype 能够快速创建一个包含了必要依赖的 Flink 程序骨架，基于此，你可以把精力集中在编写业务逻辑上即可。
 这些已包含的依赖包括 `flink-streaming-java`、`flink-walkthrough-common` 等，他们分别是 Flink 应用程序的核心依赖项和这个代码练习需要的数据生成器，当然还包括其他本代码练习所依赖的类。
 
-{% panel **说明:** 为简洁起见，本练习中的代码块中可能不包含完整的类路径。完整的类路径可以在文档底部 [链接](#final-application) 中找到。 %}
-
+{{< hint info >}}
+**说明：** 为简洁起见，本练习中的代码块中可能不包含完整的类路径。完整的类路径可以在文档底部 [链接](#final-application) 中找到。
+{{< /hint >}}
 
 {{< tabs "archetype" >}}
 {{< tab "Java" >}}
@@ -104,7 +105,7 @@ $ mvn archetype:generate \
 
 {{< unstable >}}
 {{< hint warning >}}
-    **注意** Maven 3.0 及更高版本，不再支持通过命令行指定仓库（-DarchetypeCatalog）。有关这个改动的详细信息，
+    Maven 3.0 及更高版本，不再支持通过命令行指定仓库（-DarchetypeCatalog）。有关这个改动的详细信息，
     请参阅 [Maven 官方文档](http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html)
     如果你希望使用快照仓库，则需要在 settings.xml 文件中添加一个仓库条目。例如：
 ```xml
@@ -476,7 +477,7 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 假设你的欺诈检测器所处理的交易数据如下：
 
 <p class="text-center">
-    <img alt="Transactions" width="80%" src="/fig/fraud-transactions.svg"/>
+    {{<img alt="Transactions" width="80%" src="/fig/fraud-transactions.svg">}}
 </p>
 
 交易 3 和交易 4 应该被标记为欺诈行为，因为交易 3 是一个 $0.09 的小额交易，而紧随着的交易 4 是一个 $510 的大额交易。

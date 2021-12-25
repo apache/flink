@@ -24,15 +24,13 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
+import org.apache.flink.table.utils.DateTimeUtils;
 
 import java.io.IOException;
 import java.sql.Date;
 
 /**
- * Takes int instead of long as the serialized value. It not only reduces the length of the
- * serialized value, but also makes the serialized value consistent between the legacy planner and
- * the blink planner.
+ * Takes int instead of long as the serialized value. It reduces the length of the serialized value.
  */
 @Internal
 public class DateSerializer extends TypeSerializerSingleton<Date> {
@@ -78,12 +76,12 @@ public class DateSerializer extends TypeSerializerSingleton<Date> {
         if (record == null) {
             throw new IllegalArgumentException("The Date record must not be null.");
         }
-        target.writeInt(PythonTypeUtils.dateToInternal(record));
+        target.writeInt(DateTimeUtils.toInternal(record));
     }
 
     @Override
     public Date deserialize(DataInputView source) throws IOException {
-        return PythonTypeUtils.internalToDate(source.readInt());
+        return DateTimeUtils.toSQLDate(source.readInt());
     }
 
     @Override

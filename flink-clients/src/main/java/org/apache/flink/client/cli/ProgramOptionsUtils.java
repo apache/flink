@@ -36,6 +36,7 @@ import java.net.URLClassLoader;
 
 import static org.apache.flink.client.cli.CliFrontendParser.CLASS_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYCLIENTEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYMODULE_OPTION;
@@ -67,7 +68,8 @@ public enum ProgramOptionsUtils {
         return line.hasOption(PYFILES_OPTION.getOpt())
                 || line.hasOption(PYREQUIREMENTS_OPTION.getOpt())
                 || line.hasOption(PYARCHIVE_OPTION.getOpt())
-                || line.hasOption(PYEXEC_OPTION.getOpt());
+                || line.hasOption(PYEXEC_OPTION.getOpt())
+                || line.hasOption(PYCLIENTEXEC_OPTION.getOpt());
     }
 
     public static ProgramOptions createPythonProgramOptions(CommandLine line)

@@ -25,10 +25,10 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.io.network.api.writer.NonRecordWriter;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
-import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
+import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -116,7 +116,7 @@ public class StreamTaskExecutionDecorationTest {
                     @Override
                     protected void processInput(MailboxDefaultAction.Controller controller) {}
                 };
-        task.operatorChain = new OperatorChain<>(task, new NonRecordWriter<>());
+        task.operatorChain = new RegularOperatorChain<>(task, new NonRecordWriter<>());
     }
 
     @After

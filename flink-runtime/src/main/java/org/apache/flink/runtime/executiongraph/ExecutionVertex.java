@@ -342,7 +342,9 @@ public class ExecutionVertex
      * that the execution attempt will resume.
      */
     public Optional<TaskManagerLocation> getPreferredLocationBasedOnState() {
-        if (currentExecution.getTaskRestore() != null) {
+        // only restore to same execution if it has state
+        if (currentExecution.getTaskRestore() != null
+                && currentExecution.getTaskRestore().getTaskStateSnapshot().hasState()) {
             return Optional.ofNullable(getLatestPriorLocation());
         }
 
@@ -369,7 +371,7 @@ public class ExecutionVertex
                 // do not release pipelined partitions here to save RPC calls
                 oldExecution.handlePartitionCleanup(false, true);
                 getExecutionGraphAccessor()
-                        .getPartitionReleaseStrategy()
+                        .getPartitionGroupReleaseStrategy()
                         .vertexUnfinished(executionVertexId);
             }
 
@@ -399,7 +401,7 @@ public class ExecutionVertex
             // if the execution was 'FINISHED' before, tell the ExecutionGraph that
             // we take one step back on the road to reaching global FINISHED
             if (oldState == FINISHED) {
-                getExecutionGraphAccessor().vertexUnFinished();
+                getJobVertex().executionVertexUnFinished();
             }
 
             // reset the intermediate results
@@ -491,13 +493,17 @@ public class ExecutionVertex
     }
 
     /** Returns all blocking result partitions whose receivers can be scheduled/updated. */
-    List<IntermediateResultPartition> finishAllBlockingPartitions() {
+    @VisibleForTesting
+    public List<IntermediateResultPartition> finishAllBlockingPartitions() {
         List<IntermediateResultPartition> finishedBlockingPartitions = null;
 
         for (IntermediateResultPartition partition : resultPartitions.values()) {
-            if (partition.getResultType().isBlocking() && partition.markFinished()) {
+            if (partition.getResultType().isBlocking()) {
+
+                partition.markFinished();
+
                 if (finishedBlockingPartitions == null) {
-                    finishedBlockingPartitions = new LinkedList<IntermediateResultPartition>();
+                    finishedBlockingPartitions = new LinkedList<>();
                 }
 
                 finishedBlockingPartitions.add(partition);
@@ -516,7 +522,7 @@ public class ExecutionVertex
     // --------------------------------------------------------------------------------------------
 
     void executionFinished(Execution execution) {
-        getExecutionGraphAccessor().vertexFinished();
+        getJobVertex().executionVertexFinished();
     }
 
     // --------------------------------------------------------------------------------------------

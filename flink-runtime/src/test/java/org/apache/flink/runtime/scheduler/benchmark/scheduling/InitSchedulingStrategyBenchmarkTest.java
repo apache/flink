@@ -34,6 +34,7 @@ public class InitSchedulingStrategyBenchmarkTest extends TestLogger {
         InitSchedulingStrategyBenchmark benchmark = new InitSchedulingStrategyBenchmark();
         benchmark.setup(JobConfiguration.STREAMING_TEST);
         benchmark.initSchedulingStrategy();
+        benchmark.teardown();
     }
 
     @Test
@@ -41,5 +42,6 @@ public class InitSchedulingStrategyBenchmarkTest extends TestLogger {
         InitSchedulingStrategyBenchmark benchmark = new InitSchedulingStrategyBenchmark();
         benchmark.setup(JobConfiguration.BATCH_TEST);
         benchmark.initSchedulingStrategy();
+        benchmark.teardown();
     }
 }

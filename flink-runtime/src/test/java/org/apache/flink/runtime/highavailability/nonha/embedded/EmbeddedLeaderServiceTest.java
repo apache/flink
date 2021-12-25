@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.highavailability.nonha.embedded;
 
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;

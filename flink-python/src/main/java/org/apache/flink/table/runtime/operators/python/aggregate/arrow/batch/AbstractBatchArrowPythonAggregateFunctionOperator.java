@@ -20,22 +20,16 @@ package org.apache.flink.table.runtime.operators.python.aggregate.arrow.batch;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.binary.BinaryRowDataUtil;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
-import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
-
-import java.util.Arrays;
-import java.util.stream.Collectors;
 
 /** The Abstract class of Batch Arrow Aggregate Operator for Pandas {@link AggregateFunction}. */
 @Internal
@@ -44,7 +38,8 @@ abstract class AbstractBatchArrowPythonAggregateFunctionOperator
 
     private static final long serialVersionUID = 1L;
 
-    private final int[] groupKey;
+    private final GeneratedProjection groupKeyGeneratedProjection;
+    private final GeneratedProjection groupSetGeneratedProjection;
 
     /** Last group key value. */
     transient BinaryRowData lastGroupKey;
@@ -65,19 +60,32 @@ abstract class AbstractBatchArrowPythonAggregateFunctionOperator
             Configuration config,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType outputType,
-            int[] groupKey,
-            int[] groupingSet,
-            int[] udafInputOffsets) {
-        super(config, pandasAggFunctions, inputType, outputType, groupingSet, udafInputOffsets);
-        this.groupKey = Preconditions.checkNotNull(groupKey);
+            RowType udfInputType,
+            RowType udfOutputType,
+            GeneratedProjection inputGeneratedProjection,
+            GeneratedProjection groupKeyGeneratedProjection,
+            GeneratedProjection groupSetGeneratedProjection) {
+        super(
+                config,
+                pandasAggFunctions,
+                inputType,
+                udfInputType,
+                udfOutputType,
+                inputGeneratedProjection);
+        this.groupKeyGeneratedProjection = Preconditions.checkNotNull(groupKeyGeneratedProjection);
+        this.groupSetGeneratedProjection = Preconditions.checkNotNull(groupSetGeneratedProjection);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void open() throws Exception {
         super.open();
-        groupKeyProjection = createProjection("GroupKey", groupKey);
-        groupSetProjection = createProjection("GroupSet", groupingSet);
+        groupKeyProjection =
+                groupKeyGeneratedProjection.newInstance(
+                        Thread.currentThread().getContextClassLoader());
+        groupSetProjection =
+                groupSetGeneratedProjection.newInstance(
+                        Thread.currentThread().getContextClassLoader());
         lastGroupKey = null;
         lastGroupSet = null;
     }
@@ -89,9 +97,9 @@ abstract class AbstractBatchArrowPythonAggregateFunctionOperator
     }
 
     @Override
-    public void close() throws Exception {
+    public void finish() throws Exception {
         invokeCurrentBatch();
-        super.close();
+        super.finish();
     }
 
     protected abstract void invokeCurrentBatch() throws Exception;
@@ -103,22 +111,5 @@ abstract class AbstractBatchArrowPythonAggregateFunctionOperator
                         currentKey.getSegments()[0].getHeapMemory(),
                         lastGroupKey.getSegments()[0].getHeapMemory(),
                         currentKey.getSizeInBytes()));
-    }
-
-    private Projection<RowData, BinaryRowData> createProjection(String name, int[] fields) {
-        final RowType forwardedFieldType =
-                new RowType(
-                        Arrays.stream(fields)
-                                .mapToObj(i -> inputType.getFields().get(i))
-                                .collect(Collectors.toList()));
-        final GeneratedProjection generatedProjection =
-                ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new TableConfig()),
-                        name,
-                        inputType,
-                        forwardedFieldType,
-                        fields);
-        // noinspection unchecked
-        return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
     }
 }

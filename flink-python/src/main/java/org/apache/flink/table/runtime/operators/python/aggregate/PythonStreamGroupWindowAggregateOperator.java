@@ -33,20 +33,14 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.UpdatableRowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
-import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerProctimeAttribute;
-import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
-import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
-import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerWindowStart;
-import org.apache.flink.table.planner.plan.logical.LogicalWindow;
-import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
-import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
-import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
-import org.apache.flink.table.planner.plan.utils.AggregateUtil;
-import org.apache.flink.table.planner.typeutils.DataViewUtils;
+import org.apache.flink.table.runtime.dataview.DataViewSpec;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
+import org.apache.flink.table.runtime.groupwindow.ProctimeAttribute;
+import org.apache.flink.table.runtime.groupwindow.RowtimeAttribute;
+import org.apache.flink.table.runtime.groupwindow.WindowEnd;
+import org.apache.flink.table.runtime.groupwindow.WindowProperty;
+import org.apache.flink.table.runtime.groupwindow.WindowStart;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 import org.apache.flink.table.runtime.typeutils.serializers.python.RowDataSerializer;
@@ -62,10 +56,11 @@ import java.util.List;
 
 import static org.apache.flink.fnexecution.v1.FlinkFnApi.GroupWindow.WindowProperty.WINDOW_END;
 import static org.apache.flink.fnexecution.v1.FlinkFnApi.GroupWindow.WindowProperty.WINDOW_START;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 
-/** The Python Group Window AggregateFunction operator for the blink planner. */
+/** The Python Group Window AggregateFunction operator. */
 @Internal
 public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         extends AbstractPythonStreamAggregateOperator implements Triggerable<K, W> {
@@ -111,22 +106,22 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     @VisibleForTesting final WindowAssigner<W> windowAssigner;
 
     /** Window Type includes Tumble window, Sliding window and Session Window. */
-    private FlinkFnApi.GroupWindow.WindowType windowType;
+    private final FlinkFnApi.GroupWindow.WindowType windowType;
 
     /** Whether it is a row time window. */
-    private boolean isRowTime;
+    private final boolean isRowTime;
 
     /** Whether it is a Time Window. */
-    private boolean isTimeWindow;
+    private final boolean isTimeWindow;
 
     /** Window size. */
-    private long size;
+    private final long size;
 
     /** Window slide. */
-    private long slide;
+    private final long slide;
 
     /** Session Window gap. */
-    private long gap;
+    private final long gap;
 
     /** For serializing the window in checkpoints. */
     @VisibleForTesting transient TypeSerializer<W> windowSerializer;
@@ -146,21 +141,26 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
 
     private transient RowDataSerializer keySerializer;
 
-    public PythonStreamGroupWindowAggregateOperator(
+    protected PythonStreamGroupWindowAggregateOperator(
             Configuration config,
             RowType inputType,
             RowType outputType,
             PythonAggregateFunctionInfo[] aggregateFunctions,
-            DataViewUtils.DataViewSpec[][] dataViewSpecs,
+            DataViewSpec[][] dataViewSpecs,
             int[] grouping,
             int indexOfCountStar,
             boolean generateUpdateBefore,
             boolean countStarInserted,
             int inputTimeFieldIndex,
             WindowAssigner<W> windowAssigner,
-            LogicalWindow window,
+            FlinkFnApi.GroupWindow.WindowType windowType,
+            boolean isRowTime,
+            boolean isTimeWindow,
+            long size,
+            long slide,
+            long gap,
             long allowedLateness,
-            PlannerNamedWindowProperty[] namedProperties,
+            NamedWindowProperty[] namedProperties,
             ZoneId shiftTimeZone) {
         super(
                 config,
@@ -170,15 +170,167 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
                 dataViewSpecs,
                 grouping,
                 indexOfCountStar,
-                generateUpdateBefore,
-                "flink:coder:schema:scalar_function:v1",
-                FlinkFnApi.CoderParam.OutputMode.MULTIPLE);
+                generateUpdateBefore);
         this.countStarInserted = countStarInserted;
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.windowAssigner = windowAssigner;
+        this.windowType = windowType;
+        this.isRowTime = isRowTime;
+        this.isTimeWindow = isTimeWindow;
+        this.size = size;
+        this.slide = slide;
+        this.gap = gap;
         this.allowedLateness = allowedLateness;
         this.shiftTimeZone = shiftTimeZone;
-        buildWindow(window, namedProperties);
+
+        // Convert named properties
+        this.namedProperties = new FlinkFnApi.GroupWindow.WindowProperty[namedProperties.length];
+        for (int i = 0; i < namedProperties.length; i++) {
+            WindowProperty namedProperty = namedProperties[i].getProperty();
+            if (namedProperty instanceof WindowStart) {
+                this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.WINDOW_START;
+            } else if (namedProperty instanceof WindowEnd) {
+                this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.WINDOW_END;
+            } else if (namedProperty instanceof RowtimeAttribute) {
+                this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.ROW_TIME_ATTRIBUTE;
+            } else if (namedProperty instanceof ProctimeAttribute) {
+                this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.PROC_TIME_ATTRIBUTE;
+
+            } else {
+                throw new RuntimeException("Unexpected property " + namedProperty);
+            }
+        }
+    }
+
+    // The below static create methods are reflected from the planner
+
+    public static <K, W extends Window>
+            PythonStreamGroupWindowAggregateOperator<K, W>
+                    createTumblingGroupWindowAggregateOperator(
+                            Configuration config,
+                            RowType inputType,
+                            RowType outputType,
+                            PythonAggregateFunctionInfo[] aggregateFunctions,
+                            DataViewSpec[][] dataViewSpecs,
+                            int[] grouping,
+                            int indexOfCountStar,
+                            boolean generateUpdateBefore,
+                            boolean countStarInserted,
+                            int inputTimeFieldIndex,
+                            WindowAssigner<W> windowAssigner,
+                            boolean isRowTime,
+                            boolean isTimeWindow,
+                            long size,
+                            long allowedLateness,
+                            NamedWindowProperty[] namedProperties,
+                            ZoneId shiftTimeZone) {
+        return new PythonStreamGroupWindowAggregateOperator<>(
+                config,
+                inputType,
+                outputType,
+                aggregateFunctions,
+                dataViewSpecs,
+                grouping,
+                indexOfCountStar,
+                generateUpdateBefore,
+                countStarInserted,
+                inputTimeFieldIndex,
+                windowAssigner,
+                FlinkFnApi.GroupWindow.WindowType.TUMBLING_GROUP_WINDOW,
+                isRowTime,
+                isTimeWindow,
+                size,
+                0,
+                0,
+                allowedLateness,
+                namedProperties,
+                shiftTimeZone);
+    }
+
+    public static <K, W extends Window>
+            PythonStreamGroupWindowAggregateOperator<K, W>
+                    createSlidingGroupWindowAggregateOperator(
+                            Configuration config,
+                            RowType inputType,
+                            RowType outputType,
+                            PythonAggregateFunctionInfo[] aggregateFunctions,
+                            DataViewSpec[][] dataViewSpecs,
+                            int[] grouping,
+                            int indexOfCountStar,
+                            boolean generateUpdateBefore,
+                            boolean countStarInserted,
+                            int inputTimeFieldIndex,
+                            WindowAssigner<W> windowAssigner,
+                            boolean isRowTime,
+                            boolean isTimeWindow,
+                            long size,
+                            long slide,
+                            long allowedLateness,
+                            NamedWindowProperty[] namedProperties,
+                            ZoneId shiftTimeZone) {
+        return new PythonStreamGroupWindowAggregateOperator<>(
+                config,
+                inputType,
+                outputType,
+                aggregateFunctions,
+                dataViewSpecs,
+                grouping,
+                indexOfCountStar,
+                generateUpdateBefore,
+                countStarInserted,
+                inputTimeFieldIndex,
+                windowAssigner,
+                FlinkFnApi.GroupWindow.WindowType.SLIDING_GROUP_WINDOW,
+                isRowTime,
+                isTimeWindow,
+                size,
+                slide,
+                0,
+                allowedLateness,
+                namedProperties,
+                shiftTimeZone);
+    }
+
+    public static <K, W extends Window>
+            PythonStreamGroupWindowAggregateOperator<K, W>
+                    createSessionGroupWindowAggregateOperator(
+                            Configuration config,
+                            RowType inputType,
+                            RowType outputType,
+                            PythonAggregateFunctionInfo[] aggregateFunctions,
+                            DataViewSpec[][] dataViewSpecs,
+                            int[] grouping,
+                            int indexOfCountStar,
+                            boolean generateUpdateBefore,
+                            boolean countStarInserted,
+                            int inputTimeFieldIndex,
+                            WindowAssigner<W> windowAssigner,
+                            boolean isRowTime,
+                            long gap,
+                            long allowedLateness,
+                            NamedWindowProperty[] namedProperties,
+                            ZoneId shiftTimeZone) {
+        return new PythonStreamGroupWindowAggregateOperator<>(
+                config,
+                inputType,
+                outputType,
+                aggregateFunctions,
+                dataViewSpecs,
+                grouping,
+                indexOfCountStar,
+                generateUpdateBefore,
+                countStarInserted,
+                inputTimeFieldIndex,
+                windowAssigner,
+                FlinkFnApi.GroupWindow.WindowType.SESSION_GROUP_WINDOW,
+                isRowTime,
+                true,
+                0,
+                0,
+                gap,
+                allowedLateness,
+                namedProperties,
+                shiftTimeZone);
     }
 
     @Override
@@ -274,7 +426,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     }
 
     @Override
-    public RowType getUserDefinedFunctionInputType() {
+    public RowType createUserDefinedFunctionInputType() {
         List<RowType.RowField> inputFields = new ArrayList<>();
         inputFields.add(new RowType.RowField("record_type", new TinyIntType()));
         inputFields.add(new RowType.RowField("row_data", inputType));
@@ -289,7 +441,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     }
 
     @Override
-    public RowType getUserDefinedFunctionOutputType() {
+    public RowType createUserDefinedFunctionOutputType() {
         List<RowType.RowField> outputFields = new ArrayList<>();
         outputFields.add(new RowType.RowField("record_type", new TinyIntType()));
         List<RowType.RowField> resultFields =
@@ -348,62 +500,21 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         emitTriggerTimerData(timer, REGISTER_PROCESSING_TIMER);
     }
 
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(RowType runnerInputType) {
+        return createFlattenRowTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(RowType runnerOutType) {
+        return createFlattenRowTypeCoderInfoDescriptorProto(
+                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+    }
+
     @VisibleForTesting
     long getShiftEpochMills(long utcTimestampMills) {
         return TimeWindowUtil.toEpochMills(utcTimestampMills, shiftTimeZone);
-    }
-
-    private void buildWindow(LogicalWindow window, PlannerNamedWindowProperty[] namedProperties) {
-        ValueLiteralExpression size = null;
-        ValueLiteralExpression slide = null;
-        ValueLiteralExpression gap = null;
-        if (window instanceof TumblingGroupWindow) {
-            this.windowType = FlinkFnApi.GroupWindow.WindowType.TUMBLING_GROUP_WINDOW;
-            size = ((TumblingGroupWindow) window).size();
-        } else if (window instanceof SlidingGroupWindow) {
-            this.windowType = FlinkFnApi.GroupWindow.WindowType.SLIDING_GROUP_WINDOW;
-            size = ((SlidingGroupWindow) window).size();
-            slide = ((SlidingGroupWindow) window).slide();
-        } else if (window instanceof SessionGroupWindow) {
-            this.windowType = FlinkFnApi.GroupWindow.WindowType.SESSION_GROUP_WINDOW;
-            gap = ((SessionGroupWindow) window).gap();
-        } else {
-            throw new RuntimeException(String.format("Unsupported LogicWindow Type %s", window));
-        }
-        this.isRowTime = AggregateUtil.isRowtimeAttribute(window.timeAttribute());
-        this.isTimeWindow = gap != null || AggregateUtil.hasTimeIntervalType(size);
-        if (size != null) {
-            this.size = AggregateUtil.toDuration(size).toMillis();
-        } else {
-            this.size = 0L;
-        }
-        if (slide != null) {
-            this.slide = AggregateUtil.toDuration(slide).toMillis();
-        } else {
-            this.slide = 0L;
-        }
-        if (gap != null) {
-            this.gap = AggregateUtil.toDuration(gap).toMillis();
-        } else {
-            this.gap = 0L;
-        }
-
-        this.namedProperties = new FlinkFnApi.GroupWindow.WindowProperty[namedProperties.length];
-        for (int i = 0; i < namedProperties.length; i++) {
-            PlannerWindowProperty namedProperty = namedProperties[i].getProperty();
-            if (namedProperty instanceof PlannerWindowStart) {
-                this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.WINDOW_START;
-            } else if (namedProperty instanceof PlannerWindowEnd) {
-                this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.WINDOW_END;
-            } else if (namedProperty instanceof PlannerRowtimeAttribute) {
-                this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.ROW_TIME_ATTRIBUTE;
-            } else if (namedProperty instanceof PlannerProctimeAttribute) {
-                this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.PROC_TIME_ATTRIBUTE;
-
-            } else {
-                throw new RuntimeException("Unexpected property " + namedProperty);
-            }
-        }
     }
 
     private void emitTriggerTimerData(InternalTimer<K, W> timer, byte processingTimer)

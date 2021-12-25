@@ -23,6 +23,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
@@ -41,10 +42,10 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.util.FatalExitExceptionHandler;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.util.FatalExitExceptionHandler;
 
 import javax.annotation.Nullable;
 
@@ -63,6 +64,7 @@ public class AdaptiveSchedulerBuilder {
     private Configuration jobMasterConfiguration = new Configuration();
     private ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
     private ClassLoader userCodeLoader = ClassLoader.getSystemClassLoader();
+    private CheckpointsCleaner checkpointsCleaner = new CheckpointsCleaner();
     private CheckpointRecoveryFactory checkpointRecoveryFactory =
             new StandaloneCheckpointRecoveryFactory();
     private DeclarativeSlotPool declarativeSlotPool;
@@ -70,7 +72,7 @@ public class AdaptiveSchedulerBuilder {
     private BlobWriter blobWriter = VoidBlobWriter.getInstance();
     private JobManagerJobMetricGroup jobManagerJobMetricGroup =
             UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
-    private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
+    private ShuffleMaster<?> shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
     private JobMasterPartitionTracker partitionTracker = NoOpJobMasterPartitionTracker.INSTANCE;
     private RestartBackoffTimeStrategy restartBackoffTimeStrategy =
             NoRestartBackoffTimeStrategy.INSTANCE;
@@ -78,7 +80,7 @@ public class AdaptiveSchedulerBuilder {
             error ->
                     FatalExitExceptionHandler.INSTANCE.uncaughtException(
                             Thread.currentThread(), error);
-    private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC, ignoredD) -> {};
+    private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
     private long initializationTimestamp = System.currentTimeMillis();
 
     @Nullable private SlotAllocator slotAllocator;
@@ -116,6 +118,12 @@ public class AdaptiveSchedulerBuilder {
 
     public AdaptiveSchedulerBuilder setUserCodeLoader(final ClassLoader userCodeLoader) {
         this.userCodeLoader = userCodeLoader;
+        return this;
+    }
+
+    public AdaptiveSchedulerBuilder setCheckpointCleaner(
+            final CheckpointsCleaner checkpointsCleaner) {
+        this.checkpointsCleaner = checkpointsCleaner;
         return this;
     }
 
@@ -208,6 +216,7 @@ public class AdaptiveSchedulerBuilder {
                         : slotAllocator,
                 ioExecutor,
                 userCodeLoader,
+                checkpointsCleaner,
                 checkpointRecoveryFactory,
                 jobMasterConfiguration.get(JobManagerOptions.RESOURCE_WAIT_TIMEOUT),
                 jobMasterConfiguration.get(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT),

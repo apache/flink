@@ -41,10 +41,10 @@ import org.junit.Test;
 
 import java.util.stream.Collectors;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 /**
  * Test base for the {@link KubernetesJobManagerFactory} and {@link KubernetesTaskManagerFactory}

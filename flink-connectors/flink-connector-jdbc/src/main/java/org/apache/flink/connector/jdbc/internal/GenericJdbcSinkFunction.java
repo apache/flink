@@ -19,7 +19,10 @@
 package org.apache.flink.connector.jdbc.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -34,10 +37,10 @@ import java.io.IOException;
 /** A generic SinkFunction for JDBC. */
 @Internal
 public class GenericJdbcSinkFunction<T> extends RichSinkFunction<T>
-        implements CheckpointedFunction {
-    private final AbstractJdbcOutputFormat<T> outputFormat;
+        implements CheckpointedFunction, InputTypeConfigurable {
+    private final JdbcOutputFormat<T, ?, ?> outputFormat;
 
-    public GenericJdbcSinkFunction(@Nonnull AbstractJdbcOutputFormat<T> outputFormat) {
+    public GenericJdbcSinkFunction(@Nonnull JdbcOutputFormat<T, ?, ?> outputFormat) {
         this.outputFormat = Preconditions.checkNotNull(outputFormat);
     }
 
@@ -65,5 +68,10 @@ public class GenericJdbcSinkFunction<T> extends RichSinkFunction<T>
     @Override
     public void close() {
         outputFormat.close();
+    }
+
+    @Override
+    public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
+        outputFormat.setInputType(type, executionConfig);
     }
 }

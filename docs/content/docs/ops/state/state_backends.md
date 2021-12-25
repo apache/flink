@@ -134,7 +134,7 @@ If you want to use the `EmbeddedRocksDBStateBackend` in your IDE or configure it
 ```xml
 <dependency>
     <groupId>org.apache.flink</groupId>
-    <artifactId>flink-statebackend-rocksdb{{< scala_version >}}</artifactId>
+    <artifactId>flink-statebackend-rocksdb</artifactId>
     <version>{{< version >}}</version>
     <scope>provided</scope>
 </dependency>
@@ -264,6 +264,10 @@ The default value for this option is `DEFAULT` which translates to `PredefinedOp
 
 Predefined options set programmatically would override the ones configured via `flink-conf.yaml`.
 
+#### Reading Column Family Options from flink-conf.yaml
+
+RocksDB State Backend picks up all config options [defined here]({{< ref "docs/deployment/config" >}}#advanced-rocksdb-state-backends-options). Hence, you can configure low-level Column Family options simply by turning off managed memory for RocksDB and putting the relevant entries in the configuration.
+
 #### Passing Options Factory to RocksDB
 
 To manually control RocksDB's options, you need to configure an `RocksDBOptionsFactory`. This mechanism gives you fine-grained control over the settings of the Column Families, for example memory use, thread, compaction settings, etc. There is currently one Column Family per each state in each operator.
@@ -279,43 +283,41 @@ and options factory has a higher priority over the predefined options if ever co
 
 RocksDB is a native library that allocates memory directly from the process,
 and not from the JVM. Any memory you assign to RocksDB will have to be accounted for, typically by decreasing the JVM heap size
-of the TaskManagers by the same amount. Not doing that may result in YARN/Mesos/etc terminating the JVM processes for
+of the TaskManagers by the same amount. Not doing that may result in YARN/etc terminating the JVM processes for
 allocating more memory than configured.
-
-**Reading Column Family Options from flink-conf.yaml**
-
-When a `RocksDBOptionsFactory` implements the `ConfigurableRocksDBOptionsFactory` interface, it can directly read settings from the configuration (`flink-conf.yaml`).
-
-The default value for `state.backend.rocksdb.options-factory` is in fact `org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory` which picks up all config options [defined here]({{< ref "docs/deployment/config" >}}#advanced-rocksdb-state-backends-options) by default. Hence, you can configure low-level Column Family options simply by turning off managed memory for RocksDB and putting the relevant entries in the configuration.
 
 Below is an example how to define a custom ConfigurableOptionsFactory (set class name under `state.backend.rocksdb.options-factory`).
 
 ```java
-
 public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
+    public static final ConfigOption<Integer> BLOCK_RESTART_INTERVAL = ConfigOptions
+            .key("my.custom.rocksdb.block.restart-interval")
+            .intType()
+            .defaultValue(16)
+            .withDescription(
+                    " Block restart interval. RocksDB has default block restart interval as 16. ");
 
-    private static final long DEFAULT_SIZE = 256 * 1024 * 1024;  // 256 MB
-    private long blockCacheSize = DEFAULT_SIZE;
+    private int blockRestartInterval = BLOCK_RESTART_INTERVAL.defaultValue();
 
     @Override
-    public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
-        return currentOptions.setIncreaseParallelism(4)
-               .setUseFsync(false);
+    public DBOptions createDBOptions(DBOptions currentOptions,
+                                     Collection<AutoCloseable> handlesToClose) {
+        return currentOptions
+                .setIncreaseParallelism(4)
+                .setUseFsync(false);
     }
 
     @Override
-    public ColumnFamilyOptions createColumnOptions(
-        ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+    public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions,
+                                                   Collection<AutoCloseable> handlesToClose) {
         return currentOptions.setTableFormatConfig(
-            new BlockBasedTableConfig()
-                .setBlockCacheSize(blockCacheSize)
-                .setBlockSize(128 * 1024));            // 128 KB
+                new BlockBasedTableConfig()
+                        .setBlockRestartInterval(blockRestartInterval));
     }
 
     @Override
-    public RocksDBOptionsFactory configure(Configuration configuration) {
-        this.blockCacheSize =
-            configuration.getLong("my.custom.rocksdb.block.cache.size", DEFAULT_SIZE);
+    public RocksDBOptionsFactory configure(ReadableConfig configuration) {
+        this.blockRestartInterval = configuration.get(BLOCK_RESTART_INTERVAL);
         return this;
     }
 }

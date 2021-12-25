@@ -167,7 +167,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
             @Nullable final String targetDirectory, boolean terminate) {
         final ExecutionGraph executionGraph = getExecutionGraph();
 
-        StopWithSavepointTerminationManager.checkStopWithSavepointPreconditions(
+        StopWithSavepointTerminationManager.checkSavepointActionPreconditions(
                 executionGraph.getCheckpointCoordinator(),
                 targetDirectory,
                 executionGraph.getJobID(),

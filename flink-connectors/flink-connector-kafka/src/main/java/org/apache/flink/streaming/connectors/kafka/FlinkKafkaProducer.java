@@ -49,9 +49,10 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartiti
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.producer.Callback;
@@ -85,7 +86,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -95,7 +95,10 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Flink Sink to produce data into a Kafka topic. By default producer will use {@link
  * FlinkKafkaProducer.Semantic#AT_LEAST_ONCE} semantic. Before using {@link
  * FlinkKafkaProducer.Semantic#EXACTLY_ONCE} please refer to Flink's Kafka connector documentation.
+ *
+ * @deprecated Please use {@link org.apache.flink.connector.kafka.sink.KafkaSink}.
  */
+@Deprecated
 @PublicEvolving
 public class FlinkKafkaProducer<IN>
         extends TwoPhaseCommitSinkFunction<
@@ -247,6 +250,9 @@ public class FlinkKafkaProducer<IN>
 
     /** Flag controlling whether we are writing the Flink record's timestamp into Kafka. */
     protected boolean writeTimestampToKafka = false;
+
+    /** The transactional.id prefix to be used by the producers when communicating with Kafka. */
+    @Nullable private String transactionalIdPrefix = null;
 
     /** Flag indicating whether to accept failures (and log them), or to fail on failures. */
     private boolean logFailuresOnly;
@@ -726,19 +732,7 @@ public class FlinkKafkaProducer<IN>
         // See KAFKA-6119 (affects versions 0.11.0.0 and 0.11.0.1):
         // The KafkaProducer may not throw an exception if the transaction failed to commit
         if (semantic == FlinkKafkaProducer.Semantic.EXACTLY_ONCE) {
-            final Object object =
-                    this.producerConfig.get(ProducerConfig.TRANSACTION_TIMEOUT_CONFIG);
-            final long transactionTimeout;
-            if (object instanceof String && StringUtils.isNumeric((String) object)) {
-                transactionTimeout = Long.parseLong((String) object);
-            } else if (object instanceof Number) {
-                transactionTimeout = ((Number) object).longValue();
-            } else {
-                throw new IllegalArgumentException(
-                        ProducerConfig.TRANSACTION_TIMEOUT_CONFIG
-                                + " must be numeric, was "
-                                + object);
-            }
+            final long transactionTimeout = getTransactionTimeout(producerConfig);
             super.setTransactionTimeout(transactionTimeout);
             super.enableTransactionTimeoutWarnings(0.8);
         }
@@ -772,6 +766,23 @@ public class FlinkKafkaProducer<IN>
      */
     public void setLogFailuresOnly(boolean logFailuresOnly) {
         this.logFailuresOnly = logFailuresOnly;
+    }
+
+    /**
+     * Specifies the prefix of the transactional.id property to be used by the producers when
+     * communicating with Kafka. If not set, the transactional.id will be prefixed with {@code
+     * taskName + "-" + operatorUid}.
+     *
+     * <p>Note that, if we change the prefix when the Flink application previously failed before
+     * first checkpoint completed or we are starting new batch of {@link FlinkKafkaProducer} from
+     * scratch without clean shutdown of the previous one, since we don't know what was the
+     * previously used transactional.id prefix, there will be some lingering transactions left.
+     *
+     * @param transactionalIdPrefix the transactional.id prefix
+     * @throws NullPointerException Thrown, if the transactionalIdPrefix was null.
+     */
+    public void setTransactionalIdPrefix(String transactionalIdPrefix) {
+        this.transactionalIdPrefix = Preconditions.checkNotNull(transactionalIdPrefix);
     }
 
     /**
@@ -1028,16 +1039,26 @@ public class FlinkKafkaProducer<IN>
                 producer = initTransactionalProducer(transaction.transactionalId, false);
                 producer.resumeTransaction(transaction.producerId, transaction.epoch);
                 producer.commitTransaction();
-            } catch (InvalidTxnStateException | ProducerFencedException ex) {
-                // That means we have committed this transaction before.
+            } catch (InvalidTxnStateException e) {
                 LOG.warn(
-                        "Encountered error {} while recovering transaction {}. "
-                                + "Presumably this transaction has been already committed before",
-                        ex,
-                        transaction);
+                        "Unable to commit recovered transaction ({}) because it's in an invalid state. "
+                                + "Most likely the transaction has been aborted for some reason. Please check the Kafka logs for more details.",
+                        transaction,
+                        e);
+            } catch (ProducerFencedException e) {
+                LOG.warn(
+                        "Unable to commit recovered transaction ({}) because its producer is already fenced."
+                                + " This means that you either have a different producer with the same '{}' or"
+                                + " recovery took longer than '{}' ({}ms). In both cases this most likely signals data loss,"
+                                + " please consult the Flink documentation for more details.",
+                        transaction,
+                        ProducerConfig.TRANSACTIONAL_ID_CONFIG,
+                        ProducerConfig.TRANSACTION_TIMEOUT_CONFIG,
+                        getTransactionTimeout(producerConfig),
+                        e);
             } finally {
                 if (producer != null) {
-                    producer.close(0, TimeUnit.SECONDS);
+                    producer.close(Duration.ofSeconds(0));
                 }
             }
         }
@@ -1060,7 +1081,7 @@ public class FlinkKafkaProducer<IN>
                 producer.initTransactions();
             } finally {
                 if (producer != null) {
-                    producer.close(0, TimeUnit.SECONDS);
+                    producer.close(Duration.ofSeconds(0));
                 }
             }
         }
@@ -1149,22 +1170,28 @@ public class FlinkKafkaProducer<IN>
             migrateNextTransactionalIdHindState(context);
         }
 
-        String taskName = getRuntimeContext().getTaskName();
-        // Kafka transactional IDs are limited in length to be less than the max value of a short,
-        // so we truncate here if necessary to a more reasonable length string.
-        if (taskName.length() > maxTaskNameSize) {
-            taskName = taskName.substring(0, maxTaskNameSize);
-            LOG.warn(
-                    "Truncated task name for Kafka TransactionalId from {} to {}.",
-                    getRuntimeContext().getTaskName(),
-                    taskName);
+        String actualTransactionalIdPrefix;
+        if (this.transactionalIdPrefix != null) {
+            actualTransactionalIdPrefix = this.transactionalIdPrefix;
+        } else {
+            String taskName = getRuntimeContext().getTaskName();
+            // Kafka transactional IDs are limited in length to be less than the max value of
+            // a short, so we truncate here if necessary to a more reasonable length string.
+            if (taskName.length() > maxTaskNameSize) {
+                taskName = taskName.substring(0, maxTaskNameSize);
+                LOG.warn(
+                        "Truncated task name for Kafka TransactionalId from {} to {}.",
+                        getRuntimeContext().getTaskName(),
+                        taskName);
+            }
+            actualTransactionalIdPrefix =
+                    taskName
+                            + "-"
+                            + ((StreamingRuntimeContext) getRuntimeContext()).getOperatorUniqueID();
         }
         transactionalIdsGenerator =
                 new TransactionalIdsGenerator(
-                        taskName
-                                + "-"
-                                + ((StreamingRuntimeContext) getRuntimeContext())
-                                        .getOperatorUniqueID(),
+                        actualTransactionalIdPrefix,
                         getRuntimeContext().getIndexOfThisSubtask(),
                         getRuntimeContext().getNumberOfParallelSubtasks(),
                         kafkaProducersPoolSize,
@@ -1298,6 +1325,15 @@ public class FlinkKafkaProducer<IN>
             throw new IllegalArgumentException();
         }
         return currentTransaction.producer.getTransactionCoordinatorId();
+    }
+
+    @VisibleForTesting
+    String getTransactionalId() {
+        final FlinkKafkaProducer.KafkaTransactionState currentTransaction = currentTransaction();
+        if (currentTransaction == null || currentTransaction.producer == null) {
+            throw new IllegalArgumentException();
+        }
+        return currentTransaction.producer.getTransactionalId();
     }
 
     /**
@@ -1451,6 +1487,18 @@ public class FlinkKafkaProducer<IN>
         }
 
         return partitions;
+    }
+
+    public static long getTransactionTimeout(Properties producerConfig) {
+        final Object object = producerConfig.get(ProducerConfig.TRANSACTION_TIMEOUT_CONFIG);
+        if (object instanceof String && StringUtils.isNumeric((String) object)) {
+            return Long.parseLong((String) object);
+        } else if (object instanceof Number) {
+            return ((Number) object).longValue();
+        } else {
+            throw new IllegalArgumentException(
+                    ProducerConfig.TRANSACTION_TIMEOUT_CONFIG + " must be numeric, was " + object);
+        }
     }
 
     /** State for handling transactions. */

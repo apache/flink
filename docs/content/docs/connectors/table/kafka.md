@@ -1,3 +1,4 @@
+
 ---
 title: Kafka
 weight: 3
@@ -214,10 +215,10 @@ Connector Options
     </tr>
     <tr>
       <td><h5>properties.group.id</h5></td>
-      <td>required by source</td>
+      <td>optional for source, not applicable for sink</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The id of the consumer group for Kafka source, optional for Kafka sink.</td>
+      <td>The id of the consumer group for Kafka source. If group ID is not specified, an automatically generated id "KafkaSource-{tableIdentifier}" will be used.</td>
     </tr>
     <tr>
       <td><h5>properties.*</h5></td>
@@ -344,7 +345,21 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">at-least-once</td>
       <td>String</td>
+      <td>Deprecated: Please use <code>sink.delivery-guarantee</code>.</td>
+    </tr>
+    <tr>
+      <td><h5>sink.delivery-guarantee</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">at-least-once</td>
+      <td>String</td>
       <td>Defines the delivery semantic for the Kafka sink. Valid enumerationns are <code>'at-least-once'</code>, <code>'exactly-once'</code> and <code>'none'</code>. See <a href='#consistency-guarantees'>Consistency guarantees</a> for more details. </td>
+    </tr>
+    <tr>
+      <td><h5>sink.transactional-id-prefix</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>If the delivery guarantee is configured as <code>'exactly-once'</code> this value must be set and is used a prefix for the identifier of all opened Kafka transactions.</td>
     </tr>
     <tr>
       <td><h5>sink.parallelism</h5></td>
@@ -371,7 +386,7 @@ value format but without a key format. The `'format'` option is a synonym for `'
 options are prefixed with the format identifier.
 
 ```sql
-CREATE TABLE KafkaTable (,
+CREATE TABLE KafkaTable (
   `ts` TIMESTAMP(3) METADATA FROM 'timestamp',
   `user_id` BIGINT,
   `item_id` BIGINT,
@@ -524,7 +539,7 @@ By default, a Kafka sink ingests data with at-least-once guarantees into a Kafka
 
 With Flink's checkpointing enabled, the `kafka` connector can provide exactly-once delivery guarantees.
 
-Besides enabling Flink's checkpointing, you can also choose three different modes of operating chosen by passing appropriate `sink.semantic` option:
+Besides enabling Flink's checkpointing, you can also choose three different modes of operating chosen by passing appropriate `sink.delivery-guarantee` option:
 
  * `none`: Flink will not guarantee anything. Produced records can be lost or they can be duplicated.
  * `at-least-once` (default setting): This guarantees that no records will be lost (although they can be duplicated).

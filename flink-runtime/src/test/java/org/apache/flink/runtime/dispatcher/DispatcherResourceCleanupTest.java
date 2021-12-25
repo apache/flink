@@ -215,6 +215,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                                 testingFatalErrorHandlerResource.getFatalErrorHandler(),
                                 VoidHistoryServerArchivist.INSTANCE,
                                 null,
+                                new DispatcherOperationCaches(),
                                 UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
                                 jobGraphWriter,
                                 jobManagerRunnerFactory,
@@ -332,7 +333,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     @Test
     public void testHACleanupWhenJobFinishedWhileClosingDispatcher() throws Exception {
         final TestingJobManagerRunner testingJobManagerRunner =
-                new TestingJobManagerRunner.Builder()
+                TestingJobManagerRunner.newBuilder()
                         .setBlockingTermination(true)
                         .setJobId(jobId)
                         .build();

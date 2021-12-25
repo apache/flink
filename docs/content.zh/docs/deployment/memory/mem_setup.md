@@ -30,7 +30,7 @@ under the License.
 
 Apache Flink 基于 JVM 的高效处理能力，依赖于其对各组件内存用量的细致掌控。
 考虑到用户在 Flink 上运行的应用的多样性，尽管社区已经努力为所有配置项提供合理的默认值，仍无法满足所有情况下的需求。
-为了给用户生产提供最大化的价值， Flink 允许用户在整体上以及细粒度上对集群的内存分配进行调整。
+为了给用户生产提供最大化的价值， Flink 允许用户在整体上以及细粒度上对集群的内存分配进行调整。为了优化内存需求，参考[网络内存调优指南]({{< ref "docs/deployment/memory/network_mem_tuning" >}})。
 
 本文接下来介绍的内存配置方法适用于 *1.10* 及以上版本的 TaskManager 进程和 *1.11* 及以上版本的 JobManager 进程。
 Flink 在 *1.10* 和 *1.11* 版本中对内存配置部分进行了较大幅度的改动，从早期版本升级的用户请参考[升级指南]({{< ref "docs/deployment/memory/mem_migration" >}})。
@@ -67,7 +67,7 @@ Flink 会根据默认值或其他配置参数自动调整剩余内存部分的�
 更多详情请参考[如何为独立部署模式配置内存]({{< ref "docs/deployment/memory/mem_tuning" >}}#configure-memory-for-standalone-deployment)。
 
 通过配置*进程总内存*可以指定由 Flink *JVM 进程*使用的总内存大小。
-对于容器化部署模式（Containerized Deployment），这相当于申请的容器（Container）大小，详情请参考[如何配置容器内存]({{< ref "docs/deployment/memory/mem_tuning" >}}#configure-memory-for-containers)（[Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}})、[Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}}) 或 [Mesos]({{< ref "docs/deployment/resource-providers/mesos" >}})）。
+对于容器化部署模式（Containerized Deployment），这相当于申请的容器（Container）大小，详情请参考[如何配置容器内存]({{< ref "docs/deployment/memory/mem_tuning" >}}#configure-memory-for-containers)（[Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}) 或 [Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}})）。
 
 此外，还可以通过设置 *Flink 总内存*的特定内部组成部分的方式来进行内存配置。
 不同进程需要设置的内存组成部分是不一样的。

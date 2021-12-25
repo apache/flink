@@ -18,39 +18,73 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Function;
+import javax.annotation.Nullable;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executor;
+import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
 /**
  * Simple {@link CheckpointRecoveryFactory} which creates and keeps separate {@link
  * CompletedCheckpointStore} and {@link CheckpointIDCounter} for each {@link JobID}.
  */
-public class PerJobCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
-    private final Function<Integer, CompletedCheckpointStore> completedCheckpointStorePerJobFactory;
+public class PerJobCheckpointRecoveryFactory<T extends CompletedCheckpointStore>
+        implements CheckpointRecoveryFactory {
+
+    @VisibleForTesting
+    public static <T extends CompletedCheckpointStore>
+            CheckpointRecoveryFactory withoutCheckpointStoreRecovery(IntFunction<T> storeFn) {
+        return new PerJobCheckpointRecoveryFactory<>(
+                (maxCheckpoints, previous, sharedStateRegistry, ioExecutor) -> {
+                    if (previous != null) {
+                        throw new UnsupportedOperationException(
+                                "Checkpoint store recovery is not supported.");
+                    }
+                    return storeFn.apply(maxCheckpoints);
+                });
+    }
+
+    private final CheckpointStoreRecoveryHelper<T> checkpointStoreRecoveryHelper;
     private final Supplier<CheckpointIDCounter> checkpointIDCounterPerJobFactory;
-    private final Map<JobID, CompletedCheckpointStore> store;
-    private final Map<JobID, CheckpointIDCounter> counter;
+    private final ConcurrentMap<JobID, T> store;
+    private final ConcurrentMap<JobID, CheckpointIDCounter> counter;
 
     public PerJobCheckpointRecoveryFactory(
-            Function<Integer, CompletedCheckpointStore> completedCheckpointStorePerJobFactory,
+            CheckpointStoreRecoveryHelper<T> checkpointStoreRecoveryHelper) {
+        this(checkpointStoreRecoveryHelper, StandaloneCheckpointIDCounter::new);
+    }
+
+    public PerJobCheckpointRecoveryFactory(
+            CheckpointStoreRecoveryHelper<T> checkpointStoreRecoveryHelper,
             Supplier<CheckpointIDCounter> checkpointIDCounterPerJobFactory) {
-        this.completedCheckpointStorePerJobFactory = completedCheckpointStorePerJobFactory;
         this.checkpointIDCounterPerJobFactory = checkpointIDCounterPerJobFactory;
-        this.store = new HashMap<>();
-        this.counter = new HashMap<>();
+        this.store = new ConcurrentHashMap<>();
+        this.counter = new ConcurrentHashMap<>();
+        this.checkpointStoreRecoveryHelper = checkpointStoreRecoveryHelper;
     }
 
     @Override
-    public CompletedCheckpointStore createCheckpointStore(
-            JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader) {
-        return store.computeIfAbsent(
+    public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
+            JobID jobId,
+            int maxNumberOfCheckpointsToRetain,
+            ClassLoader userClassLoader,
+            SharedStateRegistryFactory sharedStateRegistryFactory,
+            Executor ioExecutor) {
+        return store.compute(
                 jobId,
-                jId -> completedCheckpointStorePerJobFactory.apply(maxNumberOfCheckpointsToRetain));
+                (key, previous) ->
+                        checkpointStoreRecoveryHelper.recoverCheckpointStore(
+                                maxNumberOfCheckpointsToRetain,
+                                previous,
+                                sharedStateRegistryFactory,
+                                ioExecutor));
     }
 
     @Override
@@ -58,9 +92,13 @@ public class PerJobCheckpointRecoveryFactory implements CheckpointRecoveryFactor
         return counter.computeIfAbsent(jobId, jId -> checkpointIDCounterPerJobFactory.get());
     }
 
-    @VisibleForTesting
-    public static CheckpointRecoveryFactory useSameServicesForAllJobs(
-            CompletedCheckpointStore store, CheckpointIDCounter counter) {
-        return new PerJobCheckpointRecoveryFactory(n -> store, () -> counter);
+    /** Restores or creates a {@link CompletedCheckpointStore}, optionally using an existing one. */
+    @Internal
+    public interface CheckpointStoreRecoveryHelper<StoreType extends CompletedCheckpointStore> {
+        StoreType recoverCheckpointStore(
+                int maxNumberOfCheckpointsToRetain,
+                @Nullable StoreType previousStore,
+                SharedStateRegistryFactory sharedStateRegistryFactory,
+                Executor ioExecutor);
     }
 }

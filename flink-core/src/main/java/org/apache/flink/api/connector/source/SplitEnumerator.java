@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.state.CheckpointListener;
 
 import javax.annotation.Nullable;
@@ -30,7 +30,7 @@ import java.util.List;
  * A interface of a split enumerator responsible for the followings: 1. discover the splits for the
  * {@link SourceReader} to read. 2. assign the splits to the source reader.
  */
-@PublicEvolving
+@Public
 public interface SplitEnumerator<SplitT extends SourceSplit, CheckpointT>
         extends AutoCloseable, CheckpointListener {
 

@@ -18,8 +18,8 @@
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.kinesis.util.AWSKinesisDataStreamsUtil;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutRecordPublisherConfiguration;
-import org.apache.flink.streaming.connectors.kinesis.util.AwsV2Util;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -190,7 +190,7 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
             try {
                 response = responseSupplier.get();
             } catch (Exception ex) {
-                if (AwsV2Util.isRecoverableException(ex)) {
+                if (AWSKinesisDataStreamsUtil.isRecoverableException(ex)) {
                     long backoffMillis =
                             backoff.calculateFullJitterBackoff(
                                     jitterBase, jitterMax, jitterExponent, ++attempt);

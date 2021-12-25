@@ -53,7 +53,7 @@ public class TableFactoryUtil {
      */
     @SuppressWarnings("unchecked")
     public static <T> TableSource<T> findAndCreateTableSource(
-            Catalog catalog,
+            @Nullable Catalog catalog,
             ObjectIdentifier objectIdentifier,
             CatalogTable catalogTable,
             ReadableConfig configuration,
@@ -61,7 +61,8 @@ public class TableFactoryUtil {
         TableSourceFactory.Context context =
                 new TableSourceFactoryContextImpl(
                         objectIdentifier, catalogTable, configuration, isTemporary);
-        Optional<TableFactory> factoryOptional = catalog.getTableFactory();
+        Optional<TableFactory> factoryOptional =
+                catalog == null ? Optional.empty() : catalog.getTableFactory();
         if (factoryOptional.isPresent()) {
             TableFactory factory = factoryOptional.get();
             if (factory instanceof TableSourceFactory) {

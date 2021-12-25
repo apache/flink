@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;

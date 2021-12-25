@@ -29,7 +29,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
@@ -148,10 +148,10 @@ public class ClientTransportErrorHandlingTest {
         requestClient.requestSubpartition(new ResultPartitionID(), 0, rich[1], 0);
 
         // Wait for the notification and it could confirm all the request operations are done
-        if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
+        if (!sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS)) {
             fail(
                     "Timed out after waiting for "
-                            + TestingUtils.TESTING_DURATION().toMillis()
+                            + TestingUtils.TESTING_DURATION.toMillis()
                             + " ms to be notified about the channel error.");
         }
 
@@ -275,10 +275,10 @@ public class ClientTransportErrorHandlingTest {
         ch.writeAndFlush(Unpooled.buffer().writerIndex(16));
 
         // Wait for the notification
-        if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
+        if (!sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS)) {
             fail(
                     "Timed out after waiting for "
-                            + TestingUtils.TESTING_DURATION().toMillis()
+                            + TestingUtils.TESTING_DURATION.toMillis()
                             + " ms to be notified about remote connection close.");
         }
 

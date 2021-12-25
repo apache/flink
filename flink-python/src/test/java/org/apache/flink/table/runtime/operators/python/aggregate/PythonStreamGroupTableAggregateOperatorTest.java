@@ -31,7 +31,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
-import org.apache.flink.table.planner.typeutils.DataViewUtils;
+import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
 import org.apache.flink.table.runtime.utils.PassThroughStreamTableAggregatePythonFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
@@ -258,7 +258,7 @@ public class PythonStreamGroupTableAggregateOperatorTest
                     inputType,
                     outputType,
                     aggregateFunctions,
-                    new DataViewUtils.DataViewSpec[0][0],
+                    new DataViewSpec[0][0],
                     grouping,
                     indexOfCountStar,
                     generateUpdateBefore,
@@ -275,7 +275,6 @@ public class PythonStreamGroupTableAggregateOperatorTest
                     outputType,
                     STREAM_GROUP_TABLE_AGGREGATE_URN,
                     getUserDefinedFunctionsProto(),
-                    FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN,
                     new HashMap<>(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     getKeyedStateBackend(),

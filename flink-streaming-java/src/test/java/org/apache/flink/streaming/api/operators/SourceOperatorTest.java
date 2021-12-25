@@ -28,6 +28,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -42,7 +44,9 @@ import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
 import org.apache.flink.streaming.api.operators.source.TestingSourceOperator;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.util.MockOutput;
@@ -57,8 +61,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.sameInstance;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -95,7 +104,6 @@ public class SourceOperatorTest {
     @After
     public void cleanUp() throws Exception {
         operator.close();
-        operator.dispose();
         assertTrue(mockSourceReader.isClosed());
     }
 
@@ -126,6 +134,27 @@ public class SourceOperatorTest {
         OperatorEvent operatorEvent = mockGateway.getEventsSent().get(0);
         assertTrue(operatorEvent instanceof ReaderRegistrationEvent);
         assertEquals(SUBTASK_INDEX, ((ReaderRegistrationEvent) operatorEvent).subtaskId());
+    }
+
+    @Test
+    public void testStop() throws Exception {
+        // Initialize the operator.
+        operator.initializeState(getStateContext());
+        // Open the operator.
+        operator.open();
+        // The source reader should have been assigned a split.
+        assertEquals(Collections.singletonList(MOCK_SPLIT), mockSourceReader.getAssignedSplits());
+
+        CollectingDataOutput<Integer> dataOutput = new CollectingDataOutput<>();
+        assertEquals(DataInputStatus.NOTHING_AVAILABLE, operator.emitNext(dataOutput));
+        assertFalse(operator.isAvailable());
+
+        CompletableFuture<Void> sourceStopped = operator.stop(StopMode.DRAIN);
+        assertTrue(operator.isAvailable());
+        assertFalse(sourceStopped.isDone());
+        assertEquals(DataInputStatus.END_OF_DATA, operator.emitNext(dataOutput));
+        operator.finish();
+        assertTrue(sourceStopped.isDone());
     }
 
     @Test
@@ -188,14 +217,11 @@ public class SourceOperatorTest {
     }
 
     @Test
-    public void testDisposeAfterCloseOnlyClosesReaderOnce() throws Exception {
-        // Initialize the operator.
-        operator.initializeState(getStateContext());
-        // Open the operator.
-        operator.open();
-        operator.close();
-        operator.dispose();
-        assertEquals(1, mockSourceReader.getTimesClosed());
+    public void testSameAvailabilityFuture() {
+        final CompletableFuture<?> initialFuture = operator.getAvailableFuture();
+        final CompletableFuture<?> secondFuture = operator.getAvailableFuture();
+        assertThat(initialFuture, not(sameInstance(AvailabilityProvider.AVAILABLE)));
+        assertThat(secondFuture, sameInstance(initialFuture));
     }
 
     // ---------------- helper methods -------------------------
@@ -209,7 +235,7 @@ public class SourceOperatorTest {
         // Crate the state context.
         OperatorStateStore operatorStateStore = createOperatorStateStore();
         StateInitializationContext stateContext =
-                new StateInitializationContextImpl(false, operatorStateStore, null, null, null);
+                new StateInitializationContextImpl(null, operatorStateStore, null, null, null);
 
         // Update the context.
         stateContext

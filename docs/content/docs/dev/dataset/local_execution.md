@@ -46,7 +46,7 @@ If you are developing your program in a Maven project, you have to add the `flin
 ```xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-clients{{< scala_version >}}</artifactId>
+  <artifactId>flink-clients</artifactId>
   <version>{{< version >}}</version>
 </dependency>
 ```

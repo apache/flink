@@ -39,7 +39,7 @@ Flink 可以基于几种不同的 *时间* 概念来处理数据。
 时间属性介绍
 -------------------------------
 
-像窗口（在 [Table API]({{< ref "docs/dev/table/tableApi" >}}#group-windows) 和 [SQL]({{< ref "docs/dev/table/sql/queries" >}}#group-windows) ）这种基于时间的操作，需要有时间信息。因此，Table API 中的表就需要提供*逻辑时间属性*来表示时间，以及支持时间相关的操作。
+像窗口（在 [Table API]({{< ref "docs/dev/table/tableApi" >}}#group-windows) 和 [SQL]({{< ref "docs/dev/table/sql/queries/window-agg" >}}) ）这种基于时间的操作，需要有时间信息。因此，Table API 中的表就需要提供*逻辑时间属性*来表示时间，以及支持时间相关的操作。
 
 每种类型的表都可以有时间属性，可以在用CREATE TABLE DDL创建表的时候指定、也可以在 `DataStream` 中指定、也可以在定义 `TableSource` 时指定。一旦时间属性定义好，它就可以像普通列一样使用，也可以在时间相关的操作中使用。
 
@@ -262,7 +262,7 @@ CREATE TABLE user_actions (
   user_name STRING,
   data STRING,
   ts BIGINT,
-  time_ltz AS TO_TIMESTAMP_LTZ(time_ltz, 3),
+  time_ltz AS TO_TIMESTAMP_LTZ(ts, 3),
   -- declare time_ltz as event time attribute and use 5 seconds delayed watermark strategy
   WATERMARK FOR time_ltz AS time_ltz - INTERVAL '5' SECOND
 ) WITH (

@@ -21,12 +21,13 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
+import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
+import org.apache.flink.util.concurrent.Executors;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.BiFunctionWithException;
 
 import java.io.IOException;
@@ -49,6 +50,7 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
             prepareInputSnapshot = (channelStateWriter, aLong) -> FutureUtils.completedVoidFuture();
     private boolean unalignedCheckpointEnabled;
     private int maxRecordAbortedCheckpoints = 10;
+    private boolean enableCheckpointAfterTasksFinished = true;
 
     public MockSubtaskCheckpointCoordinatorBuilder setEnvironment(Environment environment) {
         this.environment = environment;
@@ -80,6 +82,12 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
         return this;
     }
 
+    public MockSubtaskCheckpointCoordinatorBuilder setEnableCheckpointAfterTasksFinished(
+            boolean enableCheckpointAfterTasksFinished) {
+        this.enableCheckpointAfterTasksFinished = enableCheckpointAfterTasksFinished;
+        return this;
+    }
+
     SubtaskCheckpointCoordinator build() throws IOException {
         if (environment == null) {
             this.environment = MockEnvironment.builder().build();
@@ -102,6 +110,7 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
                 environment,
                 asyncExceptionHandler,
                 unalignedCheckpointEnabled,
+                enableCheckpointAfterTasksFinished,
                 prepareInputSnapshot,
                 maxRecordAbortedCheckpoints);
     }

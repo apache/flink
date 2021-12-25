@@ -552,7 +552,7 @@ public class HiveParserQBSubQuery {
          */
         // Following is special cases for different type of subqueries which have aggregate and no
         // implicit group by
-        // and are correlatd
+        // and are correlated
         // * EXISTS/NOT EXISTS - NOT allowed, throw an error for now. We plan to allow this later
         // * SCALAR - only allow if it has non equi join predicate. This should return true since
         // later in subquery remove

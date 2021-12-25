@@ -55,8 +55,8 @@ under the License.
 
 为了在 Flink 集群上使用 queryable state，需要进行以下操作：
 
- 1. 将 `flink-queryable-state-runtime{{ site.scala_version_suffix }}-{{site.version }}.jar`
-从 [Flink distribution](https://flink.apache.org/downloads.html "Apache Flink: Downloads") 的 `opt/` 目录拷贝到 `lib/` 目录；
+ 1. 将 `flink-queryable-state-runtime-{{< version >}}.jar`
+从 [Flink distribution]({{< downloads >}} "Apache Flink: Downloads") 的 `opt/` 目录拷贝到 `lib/` 目录；
  2. 将参数 `queryable-state.enable` 设置为 `true`。详细信息以及其它配置可参考文档 [Configuration]({{< ref "docs/deployment/config" >}}#queryable-state)。
 
 为了验证集群的 queryable state 已经被激活，可以检查任意 task manager 的日志中是否包含 "Started the Queryable State Proxy Server @ ..."。
@@ -91,9 +91,9 @@ QueryableStateStream asQueryableState(
 ```
 
 
-<div class="alert alert-info">
-  <strong>注意:</strong> 没有可查询的 <code>ListState</code> sink，因为这种情况下 list 会不断增长，并且可能不会被清理，最终会消耗大量的内存。
-</div>
+{{< hint info >}}
+**注意:** 没有可查询的 `ListState` sink，因为这种情况下 list 会不断增长，并且可能不会被清理，最终会消耗大量的内存。
+{{< /hint >}}
 
 返回的 `QueryableStateStream` 可以被视作一个sink，而且**不能再**被进一步转换。在内部实现上，一个 `QueryableStateStream` 被转换成一个 operator，使用输入的数据来更新 queryable state。state 如何更新是由 `asQueryableState` 提供的 `StateDescriptor` 来决定的。在下面的代码中, keyed stream 的所有数据将会通过 `ValueState.update(value)` 来更新状态：
 
@@ -117,9 +117,9 @@ ValueStateDescriptor<Tuple2<Long, Long>> descriptor =
 descriptor.setQueryable("query-name"); // queryable state name
 ```
 
-<div class="alert alert-info">
-  <strong>注意:</strong> 参数 <code>queryableStateName</code> 可以任意选取，并且只被用来进行查询，它可以和 state 的名称不同。
-</div>
+{{< hint info >}}
+**注意:** 参数 `queryableStateName` 可以任意选取，并且只被用来进行查询，它可以和 state 的名称不同。
+{{< /hint >}}
 
 这种方式不会限制 state 类型，即任意的 `ValueState`、`ReduceState`、`ListState`、`MapState`、`AggregatingState` 以及已弃用的 `FoldingState` 
 均可作为 queryable state。
@@ -130,7 +130,6 @@ descriptor.setQueryable("query-name"); // queryable state name
 
 为了进行查询，可以使用辅助类 `QueryableStateClient`，这个类位于 `flink-queryable-state-client` 的 jar 中，在项目的 `pom.xml` 需要显示添加对 `flink-queryable-state-client` 和 `flink-core` 的依赖, 如下所示：
 
-<div data-lang="java" markdown="1">
 ```xml
 <dependency>
   <groupId>org.apache.flink</groupId>
@@ -143,7 +142,6 @@ descriptor.setQueryable("query-name"); // queryable state name
   <version>{{< version >}}</version>
 </dependency>
 ```
-</div>
 
 关于依赖的更多信息, 可以参考如何 [配置 Flink 项目]({{< ref "docs/dev/datastream/project-configuration" >}}).
 
@@ -172,16 +170,16 @@ CompletableFuture<S> getKvState(
 细心的读者会注意到返回的 future 包含类型为 `S` 的值，*即*一个存储实际值的 `State` 对象。它可以是Flink支持的任何类型的 state：`ValueState`、`ReduceState`、
 `ListState`、`MapState`、`AggregatingState` 以及弃用的 `FoldingState`。
 
-<div class="alert alert-info">
-  <strong>注意：</strong> 这些 state 对象不允许对其中的 state 进行修改。你可以通过 <code>valueState.get()</code> 获取实际的 state，
-  或者通过 <code>mapState.entries()</code> 遍历所有 <code><K, V></code>，但是不能修改它们。举例来说，对返回的 list state 调用 <code>add()</code>
-   方法将会导致 <code>UnsupportedOperationException</code>。
-</div>
+{{< hint info >}}
+**注意：** 这些 state 对象不允许对其中的 state 进行修改。你可以通过 `valueState.get()` 获取实际的 state，
+或者通过 `mapState.entries()` 遍历所有 `<K, V>`，但是不能修改它们。举例来说，对返回的 list state 调用 `add()`
+ 方法将会导致 `UnsupportedOperationException`。
+{{< /hint >}}
 
-<div class="alert alert-info">
-  <strong>注意:</strong> 客户端是异步的，并且可能被多个线程共享。客户端不再使用后需要通过 <code>QueryableStateClient.shutdown()</code>
-   来终止，从而释放资源。
-</div>
+{{< hint info >}}
+**注意:** 客户端是异步的，并且可能被多个线程共享。客户端不再使用后需要通过 `QueryableStateClient.shutdown()`
+ 来终止，从而释放资源。
+{{< /hint >}}
 
 ### 示例
 

@@ -25,12 +25,17 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
-import org.apache.flink.table.planner.expressions.PlannerWindowStart;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
+import org.apache.flink.table.runtime.groupwindow.WindowEnd;
+import org.apache.flink.table.runtime.groupwindow.WindowStart;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.SlidingWindowAssigner;
@@ -447,53 +452,65 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                 SlidingWindowAssigner.of(Duration.ofMillis(size), Duration.ofMillis(slide))
                         .withEventTime();
         EventTimeTriggers.AfterEndOfWindow<Window> trigger = EventTimeTriggers.afterEndOfWindow();
+
+        RowType udfInputType = (RowType) Projection.of(udafInputOffsets).project(inputType);
+        RowType udfOutputType =
+                (RowType)
+                        Projection.range(groupingSet.length, outputType.getFieldCount() - 2)
+                                .project(outputType);
+
         return new PassThroughStreamArrowPythonGroupWindowAggregateFunctionOperator(
                 config,
                 pandasAggregateFunctions,
                 inputType,
-                outputType,
+                udfInputType,
+                udfOutputType,
                 3,
                 windowAssigner,
                 trigger,
                 0,
-                new PlannerNamedWindowProperty[] {
-                    new PlannerNamedWindowProperty("start", new PlannerWindowStart(null)),
-                    new PlannerNamedWindowProperty("end", new PlannerWindowEnd(null))
+                new NamedWindowProperty[] {
+                    new NamedWindowProperty("start", new WindowStart(null)),
+                    new NamedWindowProperty("end", new WindowEnd(null))
                 },
-                groupingSet,
-                udafInputOffsets,
-                UTC_ZONE_ID);
+                UTC_ZONE_ID,
+                ProjectionCodeGenerator.generateProjection(
+                        CodeGeneratorContext.apply(new TableConfig()),
+                        "UdafInputProjection",
+                        inputType,
+                        udfInputType,
+                        udafInputOffsets));
     }
 
     private static class PassThroughStreamArrowPythonGroupWindowAggregateFunctionOperator
             extends StreamArrowPythonGroupWindowAggregateFunctionOperator {
 
-        public PassThroughStreamArrowPythonGroupWindowAggregateFunctionOperator(
+        PassThroughStreamArrowPythonGroupWindowAggregateFunctionOperator(
                 Configuration config,
                 PythonFunctionInfo[] pandasAggFunctions,
                 RowType inputType,
-                RowType outputType,
+                RowType udfInputType,
+                RowType udfOutputType,
                 int inputTimeFieldIndex,
                 WindowAssigner windowAssigner,
                 Trigger trigger,
                 long allowedLateness,
-                PlannerNamedWindowProperty[] namedProperties,
-                int[] groupingSet,
-                int[] udafInputOffsets,
-                ZoneId shiftTimeZone) {
+                NamedWindowProperty[] namedProperties,
+                ZoneId shiftTimeZone,
+                GeneratedProjection generatedProjection) {
             super(
                     config,
                     pandasAggFunctions,
                     inputType,
-                    outputType,
+                    udfInputType,
+                    udfOutputType,
                     inputTimeFieldIndex,
                     windowAssigner,
                     trigger,
                     allowedLateness,
                     namedProperties,
-                    groupingSet,
-                    udafInputOffsets,
-                    shiftTimeZone);
+                    shiftTimeZone,
+                    generatedProjection);
         }
 
         @Override
@@ -501,11 +518,10 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
             return new PassThroughPythonAggregateFunctionRunner(
                     getRuntimeContext().getTaskName(),
                     PythonTestUtils.createTestEnvironmentManager(),
-                    userDefinedFunctionInputType,
-                    userDefinedFunctionOutputType,
+                    udfInputType,
+                    udfOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
-                    getInputOutputCoderUrn(),
                     new HashMap<>(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     false);

@@ -18,23 +18,32 @@
 
 package org.apache.flink.streaming.api.operators.source;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
+import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.operators.SourceOperator;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.util.MockOutput;
+import org.apache.flink.streaming.util.MockStreamConfig;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -210,7 +219,7 @@ public class SourceOperatorEventTimeTest {
                 createTestOperator(
                         reader, watermarkStrategy, timeService, emitProgressiveWatermarks);
 
-        while (sourceOperator.emitNext(out) != InputStatus.END_OF_INPUT) {
+        while (sourceOperator.emitNext(out) != DataInputStatus.END_OF_INPUT) {
             timeService.setCurrentTime(timeService.getCurrentProcessingTime() + 100);
         }
 
@@ -237,11 +246,24 @@ public class SourceOperatorEventTimeTest {
                                 new CloseableRegistry());
 
         final StateInitializationContext stateContext =
-                new StateInitializationContextImpl(false, operatorStateStore, null, null, null);
+                new StateInitializationContextImpl(null, operatorStateStore, null, null, null);
 
         final SourceOperator<T, MockSourceSplit> sourceOperator =
                 new TestingSourceOperator<>(
                         reader, watermarkStrategy, timeService, emitProgressiveWatermarks);
+
+        sourceOperator.setup(
+                new SourceOperatorStreamTask<Integer>(
+                        new StreamMockEnvironment(
+                                new Configuration(),
+                                new Configuration(),
+                                new ExecutionConfig(),
+                                1L,
+                                new MockInputSplitProvider(),
+                                1,
+                                new TestTaskStateManager())),
+                new MockStreamConfig(new Configuration(), 1),
+                new MockOutput<>(new ArrayList<>()));
         sourceOperator.initializeState(stateContext);
         sourceOperator.open();
 

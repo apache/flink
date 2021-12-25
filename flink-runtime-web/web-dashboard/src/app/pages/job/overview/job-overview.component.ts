@@ -28,9 +28,11 @@ import {
 import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin, Observable, of, Subject } from 'rxjs';
 import { catchError, filter, map, takeUntil } from 'rxjs/operators';
-import { NodesItemCorrectInterface, NodesItemLinkInterface } from 'interfaces';
-import { JobService, MetricsService } from 'services';
+
 import { DagreComponent } from 'share/common/dagre/dagre.component';
+
+import { NodesItemCorrect, NodesItemLink } from 'interfaces';
+import { JobService, MetricsService } from 'services';
 
 @Component({
   selector: 'flink-job-overview',
@@ -39,77 +41,27 @@ import { DagreComponent } from 'share/common/dagre/dagre.component';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobOverviewComponent implements OnInit, OnDestroy {
-  @ViewChild(DagreComponent) dagreComponent: DagreComponent;
-  nodes: NodesItemCorrectInterface[] = [];
-  links: NodesItemLinkInterface[] = [];
-  destroy$ = new Subject();
-  selectedNode: NodesItemCorrectInterface | null;
-  top = 500;
-  jobId: string;
-  timeoutId: number;
+  public nodes: NodesItemCorrect[] = [];
+  public links: NodesItemLink[] = [];
+  public selectedNode: NodesItemCorrect | null;
+  public top = 500;
+  public jobId: string;
+  public timeoutId: number;
 
-  onNodeClick(node: NodesItemCorrectInterface) {
-    if (!(this.selectedNode && this.selectedNode.id === node.id)) {
-      this.router.navigate([node.id], { relativeTo: this.activatedRoute }).then();
-    }
-  }
+  @ViewChild(DagreComponent, { static: true }) private readonly dagreComponent: DagreComponent;
 
-  onResizeEnd() {
-    if (!this.selectedNode) {
-      this.dagreComponent.moveToCenter();
-    } else {
-      this.dagreComponent.focusNode(this.selectedNode, true);
-    }
-  }
-
-  mergeWithBackPressure(nodes: NodesItemCorrectInterface[]): Observable<NodesItemCorrectInterface[]> {
-      return forkJoin(
-        nodes.map(node => {
-          return this.metricService.getAggregatedMetrics(this.jobId, node.id, ["backPressuredTimeMsPerSecond", "busyTimeMsPerSecond"]).pipe(
-            map(result => {
-              return {
-                ...node,
-                backPressuredPercentage: Math.min(Math.round(result.backPressuredTimeMsPerSecond / 10), 100),
-                busyPercentage: Math.min(Math.round(result.busyTimeMsPerSecond / 10), 100),
-              };
-            })
-          );
-        })
-      ).pipe(catchError(() => of(nodes)));
-    }
-
-  mergeWithWatermarks(nodes: NodesItemCorrectInterface[]): Observable<NodesItemCorrectInterface[]> {
-    return forkJoin(
-      nodes.map(node => {
-        return this.metricService.getWatermarks(this.jobId, node.id).pipe(
-          map(result => {
-            return { ...node, lowWatermark: result.lowWatermark };
-          })
-        );
-      })
-    ).pipe(catchError(() => of(nodes)));
-  }
-
-  refreshNodesWithMetrics() {
-    this.mergeWithBackPressure(this.nodes).subscribe(nodes => {
-      this.mergeWithWatermarks(nodes).subscribe(nodes2 => {
-        nodes2.forEach(node => {
-          this.dagreComponent.updateNode(node.id, node);
-        });
-      });
-    });
-  }
+  private readonly destroy$ = new Subject<void>();
 
   constructor(
-    private jobService: JobService,
-    private router: Router,
-    private activatedRoute: ActivatedRoute,
-    public elementRef: ElementRef,
-    private metricService: MetricsService,
-    private cdr: ChangeDetectorRef
+    private readonly jobService: JobService,
+    private readonly router: Router,
+    private readonly activatedRoute: ActivatedRoute,
+    public readonly elementRef: ElementRef,
+    private readonly metricService: MetricsService,
+    private readonly cdr: ChangeDetectorRef
   ) {}
 
-  ngOnInit() {
+  public ngOnInit(): void {
     this.jobService.jobDetail$
       .pipe(
         filter(job => job.jid === this.activatedRoute.parent!.parent!.snapshot.params.jid),
@@ -139,9 +91,63 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy() {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
     clearTimeout(this.timeoutId);
+  }
+
+  public onNodeClick(node: NodesItemCorrect): void {
+    if (!(this.selectedNode && this.selectedNode.id === node.id)) {
+      this.router.navigate([node.id], { relativeTo: this.activatedRoute }).then();
+    }
+  }
+
+  public onResizeEnd(): void {
+    if (!this.selectedNode) {
+      this.dagreComponent.moveToCenter();
+    } else {
+      this.dagreComponent.focusNode(this.selectedNode, true);
+    }
+  }
+
+  public mergeWithBackPressure(nodes: NodesItemCorrect[]): Observable<NodesItemCorrect[]> {
+    return forkJoin(
+      nodes.map(node => {
+        return this.metricService
+          .getAggregatedMetrics(this.jobId, node.id, ['backPressuredTimeMsPerSecond', 'busyTimeMsPerSecond'])
+          .pipe(
+            map(result => {
+              return {
+                ...node,
+                backPressuredPercentage: Math.min(Math.round(result.backPressuredTimeMsPerSecond / 10), 100),
+                busyPercentage: Math.min(Math.round(result.busyTimeMsPerSecond / 10), 100)
+              };
+            })
+          );
+      })
+    ).pipe(catchError(() => of(nodes)));
+  }
+
+  public mergeWithWatermarks(nodes: NodesItemCorrect[]): Observable<NodesItemCorrect[]> {
+    return forkJoin(
+      nodes.map(node => {
+        return this.metricService.getWatermarks(this.jobId, node.id).pipe(
+          map(result => {
+            return { ...node, lowWatermark: result.lowWatermark };
+          })
+        );
+      })
+    ).pipe(catchError(() => of(nodes)));
+  }
+
+  public refreshNodesWithMetrics(): void {
+    this.mergeWithBackPressure(this.nodes).subscribe(nodes => {
+      this.mergeWithWatermarks(nodes).subscribe(nodes2 => {
+        nodes2.forEach(node => {
+          this.dagreComponent.updateNode(node.id, node);
+        });
+      });
+    });
   }
 }

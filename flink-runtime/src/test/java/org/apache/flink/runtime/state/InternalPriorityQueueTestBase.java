@@ -30,7 +30,7 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.primitives.UnsignedBytes;
+import org.apache.flink.shaded.guava30.com.google.common.primitives.UnsignedBytes;
 
 import org.junit.Assert;
 import org.junit.Test;

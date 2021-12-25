@@ -397,7 +397,6 @@ public class JobGraphTest extends TestLogger {
                         CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
                         true,
                         false,
-                        false,
                         0,
                         0);
 

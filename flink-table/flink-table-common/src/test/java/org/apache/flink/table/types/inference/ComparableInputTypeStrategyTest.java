@@ -28,9 +28,10 @@ import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.inference.strategies.ComparableTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.StructuredType;
-import org.apache.flink.table.types.logical.StructuredType.StructuredComparision;
+import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
 
 import org.junit.runners.Parameterized;
 
@@ -53,7 +54,7 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                 TestSpec.forStrategy(
                                 "Numeric types are comparable",
                                 InputTypeStrategies.comparable(
-                                        ConstantArgumentCount.of(7), StructuredComparision.EQUALS))
+                                        ConstantArgumentCount.of(7), StructuredComparison.EQUALS))
                         .calledWithArgumentTypes(
                                 DataTypes.TINYINT(),
                                 DataTypes.SMALLINT(),
@@ -74,7 +75,7 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                 TestSpec.forStrategy(
                                 "Datetime types are comparable",
                                 InputTypeStrategies.comparable(
-                                        ConstantArgumentCount.of(5), StructuredComparision.EQUALS))
+                                        ConstantArgumentCount.of(5), StructuredComparison.EQUALS))
                         .calledWithArgumentTypes(
                                 DataTypes.TIMESTAMP(),
                                 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(),
@@ -89,16 +90,17 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                 DataTypes.DATE()),
                 TestSpec.forStrategy(
                                 "VARCHAR and CHAR types are comparable",
-                                InputTypeStrategies.TWO_FULLY_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE)
                         .calledWithArgumentTypes(DataTypes.VARCHAR(10), DataTypes.CHAR(13))
                         .expectArgumentTypes(DataTypes.VARCHAR(10), DataTypes.CHAR(13)),
                 TestSpec.forStrategy(
                                 "VARBINARY and BINARY types are comparable",
-                                InputTypeStrategies.TWO_FULLY_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE)
                         .calledWithArgumentTypes(DataTypes.VARBINARY(10), DataTypes.BINARY(13))
                         .expectArgumentTypes(DataTypes.VARBINARY(10), DataTypes.BINARY(13)),
                 TestSpec.forStrategy(
-                                "Comparable array types", InputTypeStrategies.TWO_FULLY_COMPARABLE)
+                                "Comparable array types",
+                                SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE)
                         .calledWithArgumentTypes(
                                 DataTypes.ARRAY(DataTypes.TINYINT()),
                                 DataTypes.ARRAY(DataTypes.DECIMAL(10, 2)))
@@ -106,7 +108,8 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                 DataTypes.ARRAY(DataTypes.TINYINT()),
                                 DataTypes.ARRAY(DataTypes.DECIMAL(10, 2))),
                 TestSpec.forStrategy(
-                                "Comparable map types", InputTypeStrategies.TWO_FULLY_COMPARABLE)
+                                "Comparable map types",
+                                SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE)
                         .calledWithArgumentTypes(
                                 DataTypes.MAP(DataTypes.TINYINT(), DataTypes.TIMESTAMP()),
                                 DataTypes.MAP(
@@ -119,82 +122,82 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                         DataTypes.TIMESTAMP_WITH_TIME_ZONE())),
                 TestSpec.forStrategy(
                                 "Fully comparable structured types",
-                                InputTypeStrategies.TWO_FULLY_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE)
                         .calledWithArgumentTypes(
                                 structuredType(
                                                 "type",
                                                 singletonList(DataTypes.INT()),
-                                                StructuredComparision.FULL)
+                                                StructuredComparison.FULL)
                                         .notNull(),
                                 structuredType(
                                                 "type",
                                                 singletonList(DataTypes.INT()),
-                                                StructuredComparision.FULL)
+                                                StructuredComparison.FULL)
                                         .nullable())
                         .expectArgumentTypes(
                                 structuredType(
                                                 "type",
                                                 singletonList(DataTypes.INT()),
-                                                StructuredComparision.FULL)
+                                                StructuredComparison.FULL)
                                         .notNull(),
                                 structuredType(
                                                 "type",
                                                 singletonList(DataTypes.INT()),
-                                                StructuredComparision.FULL)
+                                                StructuredComparison.FULL)
                                         .nullable()),
                 TestSpec.forStrategy(
                                 "Equals comparable structured types",
-                                InputTypeStrategies.TWO_EQUALS_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE)
                         .calledWithArgumentTypes(
                                 structuredType(
                                         "type",
                                         singletonList(DataTypes.INT()),
-                                        StructuredComparision.EQUALS),
+                                        StructuredComparison.EQUALS),
                                 structuredType(
                                         "type",
                                         singletonList(DataTypes.INT()),
-                                        StructuredComparision.EQUALS))
+                                        StructuredComparison.EQUALS))
                         .expectArgumentTypes(
                                 structuredType(
                                         "type",
                                         singletonList(DataTypes.INT()),
-                                        StructuredComparision.EQUALS),
+                                        StructuredComparison.EQUALS),
                                 structuredType(
                                         "type",
                                         singletonList(DataTypes.INT()),
-                                        StructuredComparision.EQUALS)),
+                                        StructuredComparison.EQUALS)),
                 TestSpec.forStrategy(
                                 "Comparable arrays of structured types",
-                                InputTypeStrategies.TWO_EQUALS_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE)
                         .calledWithArgumentTypes(
                                 DataTypes.ARRAY(
                                         structuredType(
                                                         "type",
                                                         singletonList(DataTypes.INT()),
-                                                        StructuredComparision.EQUALS)
+                                                        StructuredComparison.EQUALS)
                                                 .notNull()),
                                 DataTypes.ARRAY(
                                         structuredType(
                                                         "type",
                                                         singletonList(DataTypes.INT()),
-                                                        StructuredComparision.EQUALS)
+                                                        StructuredComparison.EQUALS)
                                                 .nullable()))
                         .expectArgumentTypes(
                                 DataTypes.ARRAY(
                                         structuredType(
                                                         "type",
                                                         singletonList(DataTypes.INT()),
-                                                        StructuredComparision.EQUALS)
+                                                        StructuredComparison.EQUALS)
                                                 .notNull()),
                                 DataTypes.ARRAY(
                                         structuredType(
                                                         "type",
                                                         singletonList(DataTypes.INT()),
-                                                        StructuredComparision.EQUALS)
+                                                        StructuredComparison.EQUALS)
                                                 .nullable())),
                 TestSpec.forStrategy(
                                 "Distinct types are comparable if the source type is comparable",
-                                InputTypeStrategies.TWO_EQUALS_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE)
                         .calledWithArgumentTypes(
                                 distinctType("type", DataTypes.INT()).notNull(),
                                 distinctType("type", DataTypes.INT()).nullable())
@@ -203,7 +206,7 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                 distinctType("type", DataTypes.INT()).nullable()),
                 TestSpec.forStrategy(
                                 "Comparable multisets of distinct types",
-                                InputTypeStrategies.TWO_EQUALS_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE)
                         .calledWithArgumentTypes(
                                 DataTypes.MULTISET(distinctType("type", DataTypes.INT()).notNull()),
                                 DataTypes.MULTISET(
@@ -214,12 +217,12 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                         distinctType("type", DataTypes.INT()).nullable())),
                 TestSpec.forStrategy(
                                 "Everything is comparable with null type",
-                                InputTypeStrategies.TWO_EQUALS_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE)
                         .calledWithArgumentTypes(DataTypes.INT(), DataTypes.NULL())
                         .expectArgumentTypes(DataTypes.INT(), DataTypes.NULL()),
                 TestSpec.forStrategy(
                                 "RAW types are comparable if the originating class implements Comparable",
-                                InputTypeStrategies.TWO_EQUALS_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE)
                         .calledWithArgumentTypes(
                                 rawType(ComparableClass.class).notNull(),
                                 rawType(ComparableClass.class).nullable())
@@ -228,7 +231,7 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                 rawType(ComparableClass.class).nullable()),
                 TestSpec.forStrategy(
                                 "Comparable map of raw types",
-                                InputTypeStrategies.TWO_EQUALS_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE)
                         .calledWithArgumentTypes(
                                 DataTypes.MAP(
                                         rawType(ComparableClass.class).notNull(),
@@ -245,7 +248,7 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                         rawType(ComparableClass.class))),
                 TestSpec.forStrategy(
                                 "RAW types are not comparable if the originating class does not implement Comparable",
-                                InputTypeStrategies.TWO_EQUALS_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE)
                         .calledWithArgumentTypes(
                                 rawType(NotComparableClass.class),
                                 rawType(NotComparableClass.class))
@@ -257,7 +260,7 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                         NotComparableClass.class.getName())),
                 TestSpec.forStrategy(
                                 "RAW types are not comparable if the types are different",
-                                InputTypeStrategies.TWO_EQUALS_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE)
                         .calledWithArgumentTypes(
                                 rawType(NotComparableClass.class),
                                 DataTypes.RAW(
@@ -275,37 +278,37 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                         NotComparableClass.class.getName())),
                 TestSpec.forStrategy(
                                 "Not fully comparable structured types",
-                                InputTypeStrategies.TWO_FULLY_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE)
                         .calledWithArgumentTypes(
                                 structuredType(
                                         "type",
                                         singletonList(DataTypes.INT()),
-                                        StructuredComparision.EQUALS),
+                                        StructuredComparison.EQUALS),
                                 structuredType(
                                         "type",
                                         singletonList(DataTypes.INT()),
-                                        StructuredComparision.EQUALS))
+                                        StructuredComparison.EQUALS))
                         .expectErrorMessage(
                                 "All types in a comparison should support both 'EQUALS' and 'ORDER' comparison"
                                         + " with each other. Can not compare `cat`.`db`.`type` with `cat`.`db`.`type`"),
                 TestSpec.forStrategy(
                                 "Two different structured types are not comparable",
-                                InputTypeStrategies.TWO_EQUALS_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE)
                         .calledWithArgumentTypes(
                                 structuredType(
                                         "type1",
                                         singletonList(DataTypes.INT()),
-                                        StructuredComparision.EQUALS),
+                                        StructuredComparison.EQUALS),
                                 structuredType(
                                         "type2",
                                         singletonList(DataTypes.INT()),
-                                        StructuredComparision.EQUALS))
+                                        StructuredComparison.EQUALS))
                         .expectErrorMessage(
                                 "All types in a comparison should support 'EQUALS' comparison with each other."
                                         + " Can not compare `cat`.`db`.`type1` with `cat`.`db`.`type2`"),
                 TestSpec.forStrategy(
                                 "Two different different distinct types are not comparable even if point to the same type",
-                                InputTypeStrategies.TWO_EQUALS_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE)
                         .calledWithArgumentTypes(
                                 distinctType("type1", DataTypes.INT()),
                                 distinctType("type2", DataTypes.INT()))
@@ -314,7 +317,7 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                         + " Can not compare `cat`.`db`.`type1` with `cat`.`db`.`type2`"),
                 TestSpec.forStrategy(
                                 "Not comparable array types",
-                                InputTypeStrategies.TWO_FULLY_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE)
                         .calledWithArgumentTypes(
                                 DataTypes.ARRAY(DataTypes.TINYINT()),
                                 DataTypes.ARRAY(DataTypes.VARCHAR(2)))
@@ -323,7 +326,7 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                         + " with each other. Can not compare ARRAY<TINYINT> with ARRAY<VARCHAR(2)>"),
                 TestSpec.forStrategy(
                                 "Not comparable key types in map types",
-                                InputTypeStrategies.TWO_FULLY_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE)
                         .calledWithArgumentTypes(
                                 DataTypes.MAP(DataTypes.TINYINT(), DataTypes.TIMESTAMP()),
                                 DataTypes.MAP(
@@ -334,7 +337,7 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                         + " MAP<VARCHAR(3), TIMESTAMP(6) WITH TIME ZONE>"),
                 TestSpec.forStrategy(
                                 "Not comparable value types in map types",
-                                InputTypeStrategies.TWO_FULLY_COMPARABLE)
+                                SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE)
                         .calledWithArgumentTypes(
                                 DataTypes.MAP(DataTypes.TINYINT(), DataTypes.TIMESTAMP()),
                                 DataTypes.MAP(DataTypes.DECIMAL(10, 3), DataTypes.INT()))
@@ -342,7 +345,8 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                 "All types in a comparison should support both 'EQUALS' and 'ORDER' comparison"
                                         + " with each other. Can not compare MAP<TINYINT, TIMESTAMP(6)> with MAP<DECIMAL(10, 3), INT>"),
                 TestSpec.forStrategy(
-                                "Not comparable types", InputTypeStrategies.TWO_FULLY_COMPARABLE)
+                                "Not comparable types",
+                                SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE)
                         .calledWithArgumentTypes(DataTypes.TIMESTAMP(), DataTypes.BIGINT())
                         .expectErrorMessage(
                                 "All types in a comparison should support both 'EQUALS' and 'ORDER' comparison"
@@ -363,7 +367,7 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
     }
 
     private static DataType structuredType(
-            String typeName, List<DataType> fieldDataTypes, StructuredComparision comparision) {
+            String typeName, List<DataType> fieldDataTypes, StructuredComparison comparison) {
         return new FieldsDataType(
                 StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", typeName))
                         .attributes(
@@ -376,7 +380,7 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                                                         .get(idx)
                                                                         .getLogicalType()))
                                         .collect(Collectors.toList()))
-                        .comparision(comparision)
+                        .comparison(comparison)
                         .build(),
                 fieldDataTypes);
     }

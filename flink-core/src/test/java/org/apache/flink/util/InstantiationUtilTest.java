@@ -145,6 +145,18 @@ public class InstantiationUtilTest extends TestLogger {
     }
 
     @Test
+    public void testCompressionAndSerializationAlongWithDecompressionAndDeserialization()
+            throws IOException, ClassNotFoundException {
+        final String value = "teststring";
+
+        assertEquals(
+                value,
+                InstantiationUtil.decompressAndDeserializeObject(
+                        InstantiationUtil.serializeObjectAndCompress(value),
+                        getClass().getClassLoader()));
+    }
+
+    @Test
     public void testWriteToConfigFailingSerialization() {
         try {
             final String key1 = "testkey1";

@@ -18,14 +18,15 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
-import java.util.ListIterator;
 
 /** A bounded LIFO-queue of {@link CompletedCheckpoint} instances. */
 public interface CompletedCheckpointStore {
@@ -33,20 +34,16 @@ public interface CompletedCheckpointStore {
     Logger LOG = LoggerFactory.getLogger(CompletedCheckpointStore.class);
 
     /**
-     * Recover available {@link CompletedCheckpoint} instances.
-     *
-     * <p>After a call to this method, {@link #getLatestCheckpoint(boolean)} returns the latest
-     * available checkpoint.
-     */
-    void recover() throws Exception;
-
-    /**
      * Adds a {@link CompletedCheckpoint} instance to the list of completed checkpoints.
      *
      * <p>Only a bounded number of checkpoints is kept. When exceeding the maximum number of
      * retained checkpoints, the oldest one will be discarded.
+     *
+     * @return the subsumed oldest completed checkpoint if possible, return null if no checkpoint
+     *     needs to be discarded on subsume.
      */
-    void addCheckpoint(
+    @Nullable
+    CompletedCheckpoint addCheckpointAndSubsumeOldestOne(
             CompletedCheckpoint checkpoint,
             CheckpointsCleaner checkpointsCleaner,
             Runnable postCleanup)
@@ -56,33 +53,28 @@ public interface CompletedCheckpointStore {
      * Returns the latest {@link CompletedCheckpoint} instance or <code>null</code> if none was
      * added.
      */
-    default CompletedCheckpoint getLatestCheckpoint(boolean isPreferCheckpointForRecovery)
-            throws Exception {
+    default CompletedCheckpoint getLatestCheckpoint() throws Exception {
         List<CompletedCheckpoint> allCheckpoints = getAllCheckpoints();
         if (allCheckpoints.isEmpty()) {
             return null;
         }
 
-        CompletedCheckpoint lastCompleted = allCheckpoints.get(allCheckpoints.size() - 1);
+        return allCheckpoints.get(allCheckpoints.size() - 1);
+    }
 
-        if (isPreferCheckpointForRecovery
-                && allCheckpoints.size() > 1
-                && lastCompleted.getProperties().isSavepoint()) {
-            ListIterator<CompletedCheckpoint> listIterator =
-                    allCheckpoints.listIterator(allCheckpoints.size() - 1);
-            while (listIterator.hasPrevious()) {
-                CompletedCheckpoint prev = listIterator.previous();
-                if (!prev.getProperties().isSavepoint()) {
-                    LOG.info(
-                            "Found a completed checkpoint ({}) before the latest savepoint, will use it to recover!",
-                            prev);
-                    return prev;
-                }
+    /** Returns the id of the latest completed checkpoints. */
+    default long getLatestCheckpointId() {
+        try {
+            List<CompletedCheckpoint> allCheckpoints = getAllCheckpoints();
+            if (allCheckpoints.isEmpty()) {
+                return 0;
             }
-            LOG.info("Did not find earlier checkpoint, using latest savepoint to recover.");
-        }
 
-        return lastCompleted;
+            return allCheckpoints.get(allCheckpoints.size() - 1).getCheckpointID();
+        } catch (Throwable throwable) {
+            LOG.warn("Get the latest completed checkpoints failed", throwable);
+            return 0;
+        }
     }
 
     /**
@@ -92,7 +84,7 @@ public interface CompletedCheckpointStore {
      * or kept.
      *
      * @param jobStatus Job state on shut down
-     * @param checkpointsCleaner that will cleanup copmpleted checkpoints if needed
+     * @param checkpointsCleaner that will cleanup completed checkpoints if needed
      */
     void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner) throws Exception;
 
@@ -119,15 +111,6 @@ public interface CompletedCheckpointStore {
      */
     boolean requiresExternalizedCheckpoints();
 
-    @VisibleForTesting
-    static CompletedCheckpointStore storeFor(
-            Runnable postCleanupAction, CompletedCheckpoint... checkpoints) throws Exception {
-        StandaloneCompletedCheckpointStore store =
-                new StandaloneCompletedCheckpointStore(checkpoints.length);
-        CheckpointsCleaner checkpointsCleaner = new CheckpointsCleaner();
-        for (final CompletedCheckpoint checkpoint : checkpoints) {
-            store.addCheckpoint(checkpoint, checkpointsCleaner, postCleanupAction);
-        }
-        return store;
-    }
+    /** Returns the {@link SharedStateRegistry} used to register the shared state. */
+    SharedStateRegistry getSharedStateRegistry();
 }

@@ -178,6 +178,14 @@ public class WatermarkOutputMultiplexer {
             // was holding back the watermark or not.
             updateCombinedWatermark();
         }
+
+        @Override
+        public void markActive() {
+            state.setIdle(false);
+
+            // stop potentially automatic advancing of the watermark
+            updateCombinedWatermark();
+        }
     }
 
     /**
@@ -201,6 +209,11 @@ public class WatermarkOutputMultiplexer {
         @Override
         public void markIdle() {
             state.setIdle(true);
+        }
+
+        @Override
+        public void markActive() {
+            state.setIdle(false);
         }
     }
 }

@@ -24,5 +24,8 @@ under the License.
 {{ if eq "/zh" .Site.LanguagePrefix }}
 	{{ $folder = "content.zh" }}
 {{ end }}
+
+<a href="https://cwiki.apache.org/confluence/display/FLINK/Flink+Translation+Specifications">Want to contribute translation?</a>
+<br><br>
 <a href="{{ .Site.Params.Repo }}/edit/{{ .Site.Params.Branch }}/docs/{{ $folder }}/{{ .File.Path }}" style="color:black"><i class="fa fa-edit fa-fw"></i>Edit This Page</a>
 {{ end }}

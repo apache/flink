@@ -27,8 +27,6 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 /**
  * This class holds configuration constants used by Flink's table planner module.
  *
- * <p>This is only used for the Blink planner.
- *
  * <p>NOTE: All option keys in this class must start with "table.optimizer".
  */
 @PublicEvolving
@@ -95,6 +93,15 @@ public class OptimizerConfigOptions {
                                     + TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED.key()
                                     + " is true.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED =
+            key("table.optimizer.source.aggregate-pushdown-enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "When it is true, the optimizer will push down the local aggregates into "
+                                    + "the TableSource which implements SupportsAggregatePushDown.");
+
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED =
             key("table.optimizer.source.predicate-pushdown-enabled")
@@ -116,4 +123,11 @@ public class OptimizerConfigOptions {
                     .withDescription(
                             "When it is true, the optimizer will merge the operators with pipelined shuffling "
                                     + "into a multiple input operator to reduce shuffling and improve performance. Default value is true.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED =
+            key("table.optimizer.simplify-operator-name-enabled")
+                    .defaultValue(true)
+                    .withDescription(
+                            "When it is true, the optimizer will simplify the operator name with id and type of ExecNode and keep detail in description. Default value is true.");
 }

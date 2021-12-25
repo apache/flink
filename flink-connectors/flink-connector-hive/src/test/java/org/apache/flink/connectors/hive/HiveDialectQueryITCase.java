@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.module.CoreModule;
 import org.apache.flink.table.module.hive.HiveModule;
+import org.apache.flink.table.planner.delegation.hive.HiveParserUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
@@ -165,6 +166,151 @@ public class HiveDialectQueryITCase {
         }
     }
 
+    @Test
+    public void testGroupingSets() throws Exception {
+        List<String> results1 =
+                CollectionUtil.iteratorToList(
+                                tableEnv.executeSql(
+                                                "select x,y,grouping__id,sum(1) from foo group by x,y grouping sets ((x,y),(x))")
+                                        .collect())
+                        .stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+        List<String> results2 =
+                CollectionUtil.iteratorToList(
+                                tableEnv.executeSql(
+                                                "select x,y,grouping(x),sum(1) from foo group by x,y grouping sets ((x,y),(x))")
+                                        .collect())
+                        .stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+        if (HiveParserUtils.legacyGrouping(hiveCatalog.getHiveConf())) {
+            assertEquals(
+                    "["
+                            + "+I[1, 1, 3, 1],"
+                            + " +I[1, null, 1, 1],"
+                            + " +I[2, 2, 3, 1],"
+                            + " +I[2, null, 1, 1],"
+                            + " +I[3, 3, 3, 1],"
+                            + " +I[3, null, 1, 1],"
+                            + " +I[4, 4, 3, 1],"
+                            + " +I[4, null, 1, 1],"
+                            + " +I[5, 5, 3, 1],"
+                            + " +I[5, null, 1, 1]]",
+                    results1.toString());
+            assertEquals(
+                    "["
+                            + "+I[1, 1, 1, 1],"
+                            + " +I[1, null, 1, 1],"
+                            + " +I[2, 2, 1, 1],"
+                            + " +I[2, null, 1, 1],"
+                            + " +I[3, 3, 1, 1],"
+                            + " +I[3, null, 1, 1],"
+                            + " +I[4, 4, 1, 1],"
+                            + " +I[4, null, 1, 1],"
+                            + " +I[5, 5, 1, 1],"
+                            + " +I[5, null, 1, 1]]",
+                    results2.toString());
+        } else {
+            assertEquals(
+                    "["
+                            + "+I[1, 1, 0, 1],"
+                            + " +I[1, null, 1, 1],"
+                            + " +I[2, 2, 0, 1],"
+                            + " +I[2, null, 1, 1],"
+                            + " +I[3, 3, 0, 1],"
+                            + " +I[3, null, 1, 1],"
+                            + " +I[4, 4, 0, 1],"
+                            + " +I[4, null, 1, 1],"
+                            + " +I[5, 5, 0, 1],"
+                            + " +I[5, null, 1, 1]]",
+                    results1.toString());
+            assertEquals(
+                    "["
+                            + "+I[1, 1, 0, 1],"
+                            + " +I[1, null, 0, 1],"
+                            + " +I[2, 2, 0, 1],"
+                            + " +I[2, null, 0, 1],"
+                            + " +I[3, 3, 0, 1],"
+                            + " +I[3, null, 0, 1],"
+                            + " +I[4, 4, 0, 1],"
+                            + " +I[4, null, 0, 1],"
+                            + " +I[5, 5, 0, 1],"
+                            + " +I[5, null, 0, 1]]",
+                    results2.toString());
+        }
+    }
+
+    @Test
+    public void testGroupingID() throws Exception {
+        tableEnv.executeSql("create table temp(x int,y int,z int)");
+        try {
+            tableEnv.executeSql("insert into temp values (1,2,3)").await();
+            List<String> results =
+                    CollectionUtil.iteratorToList(
+                                    tableEnv.executeSql(
+                                                    "select x,y,z,grouping__id,grouping(x),grouping(z) from temp group by x,y,z with cube")
+                                            .collect())
+                            .stream()
+                            .map(Row::toString)
+                            .sorted()
+                            .collect(Collectors.toList());
+            if (HiveParserUtils.legacyGrouping(hiveCatalog.getHiveConf())) {
+                // the grouping function in older version (2.2.0) hive has some serious bug and is
+                // barely usable, therefore we only care about the group__id here
+                assertEquals(
+                        "["
+                                + "+I[1, 2, 3, 7, 1, 1],"
+                                + " +I[1, 2, null, 3, 1, 0],"
+                                + " +I[1, null, 3, 5, 1, 1],"
+                                + " +I[1, null, null, 1, 1, 0],"
+                                + " +I[null, 2, 3, 6, 0, 1],"
+                                + " +I[null, 2, null, 2, 0, 0],"
+                                + " +I[null, null, 3, 4, 0, 1],"
+                                + " +I[null, null, null, 0, 0, 0]]",
+                        results.toString());
+            } else {
+                assertEquals(
+                        "["
+                                + "+I[1, 2, 3, 0, 0, 0],"
+                                + " +I[1, 2, null, 1, 0, 1],"
+                                + " +I[1, null, 3, 2, 0, 0],"
+                                + " +I[1, null, null, 3, 0, 1],"
+                                + " +I[null, 2, 3, 4, 1, 0],"
+                                + " +I[null, 2, null, 5, 1, 1],"
+                                + " +I[null, null, 3, 6, 1, 0],"
+                                + " +I[null, null, null, 7, 1, 1]]",
+                        results.toString());
+            }
+        } finally {
+            tableEnv.executeSql("drop table temp");
+        }
+    }
+
+    @Test
+    public void testValues() throws Exception {
+        tableEnv.executeSql(
+                "create table test_values("
+                        + "t tinyint,s smallint,i int,b bigint,f float,d double,de decimal(10,5),ts timestamp,dt date,"
+                        + "str string,ch char(3),vch varchar(3),bl boolean)");
+        try {
+            tableEnv.executeSql(
+                            "insert into table test_values values "
+                                    + "(1,-2,3,4,1.1,1.1,1.1,'2021-08-04 16:26:33.4','2021-08-04',null,'1234','56',false)")
+                    .await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from test_values").collect());
+            assertEquals(
+                    "[+I[1, -2, 3, 4, 1.1, 1.1, 1.10000, 2021-08-04T16:26:33.400, 2021-08-04, null, 123, 56, false]]",
+                    result.toString());
+        } finally {
+            tableEnv.executeSql("drop table test_values");
+        }
+    }
+
     private void runQFile(File qfile) throws Exception {
         QTest qTest = extractQTest(qfile);
         for (int i = 0; i < qTest.statements.size(); i++) {
@@ -264,8 +410,7 @@ public class HiveDialectQueryITCase {
     }
 
     private static TableEnvironment getTableEnvWithHiveCatalog() {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         // automatically load hive module in hive-compatible mode

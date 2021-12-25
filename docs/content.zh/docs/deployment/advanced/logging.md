@@ -25,91 +25,107 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<a name="how-to-use-logging"></a>
+
 # 如何使用日志记录
 
-Flink 中的日志记录是使用 slf4j 日志接口实现的。使用 log4j2 作为底层日志框架。我们也支持了 logback 日志配置，只要将其配置文件作为参数传递给 JVM 即可。愿意使用 logback 而不是 log4j2 的用户只需排除 log4j2 的依赖（或从 lib/ 文件夹中删除它）即可。
+所有 Flink 进程都会创建一个文本格式的日志文件，其中包含该进程中发生的各种事件的信息。
+这些日志提供了深入了解 Flink 内部工作的途径，同时可以用来输出检测出的问题（以 WARN/ERROR 消息的形式），还可以辅助调试问题。
 
+日志文件可以通过 Job-/TaskManager 对应的 WebUI 页面访问。所使用的 [Resource Provider]({{< ref "docs/deployment/overview" >}})（如 YARN）可能会提供额外的访问方式来访问日志。
 
+Flink 中的日志记录是使用 [SLF4J](http://www.slf4j.org/) 日志接口实现的。这允许你不需要修改 Flink 的源代码就可以使用任何支持 SLF4J 的日志框架。
 
-<a name="configuring-log4j2"></a>
+默认情况下，使用 [Log4j 2](https://logging.apache.org/log4j/2.x/index.html) 作为底层日志框架。
 
-## 配置 Log4j2
+<a name="configuring-log4j-2"></a>
 
-Log4j2 是使用配置文件指定的。在 Flink 的使用中，该文件通常命名为 `log4j.properties`。我们使用 `-Dlog4j.configurationFile=` 参数将该文件的文件名和位置传递给 JVM。
+## 配置 Log4j 2
 
-Flink 附带以下默认日志配置文件：
+Log4j 2 是通过 property 配置文件进行配置的。
 
-- `log4j-cli.properties`：由 Flink 命令行客户端使用（例如 `flink run`）（不包括在集群上执行的代码）
-- `log4j-session.properties`：Flink 命令行客户端在启动 YARN 或 Kubernetes session 时使用（`yarn-session.sh`，`kubernetes-session.sh`）
-- `log4j.properties`：作为 JobManager/TaskManager 日志配置使用（standalone 和 YARN 两种模式下皆使用）
+Flink 发行版在 `conf` 目录中附带了以下 log4j 配置文件，如果启用了 Log4j 2，则会自动使用如下文件：
 
-<a name="compatibility-with-log4j1"></a>
+- `log4j-cli.properties`：Flink 命令行使用（例如 `flink run`）；
+- `log4j-session.properties`：Flink 命令行在启动基于 Kubernetes/Yarn 的 Session 集群时使用（例如 `kubernetes-session.sh`/`yarn-session.sh`）；
+- `log4j-console.properties`：Job-/TaskManagers 在前台模式运行时使用（例如 Kubernetes）；
+- `log4j.properties`： Job-/TaskManagers 默认使用的日志配置。
 
-### 与 Log4j1 的兼容性
+Log4j 会定期扫描这些文件的变更，并在必要时调整日志记录行为。默认情况下30秒检查一次，监测间隔可以通过 Log4j 配置文件的 `monitorInterval` 配置项进行设置。
 
-Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/log4j-1.2-api/index.html)，使得现有作业能够继续使用 log4j1 的接口。
+<a name="compatibility-with-log4j-1"></a>
 
-如果你有基于 Log4j 的自定义配置文件或代码，请查看官方 Log4j [兼容性](https://logging.apache.org/log4j/2.x/manual/compatibility.html)和[迁移](https://logging.apache.org/log4j/2.x/manual/migration.html)指南。
+### 与 Log4j 1 的兼容
+
+Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/log4j-1.2-api/index.html) 相关的依赖，使当前基于 Log4j1 开发的应用程序可以继续正常运行。
+
+如果有基于 Log4j 1 的自定义配置文件或代码，请查看官方 Log4j [兼容](https://logging.apache.org/log4j/2.x/manual/compatibility.html)和[迁移](https://logging.apache.org/log4j/2.x/manual/migration.html)指南。
 
 <a name="configuring-log4j1"></a>
 
 ## 配置 Log4j1
 
-要将 Flink 与 Log4j1 一起使用，必须确保：
-- Classpath 中不存在 `org.apache.logging.log4j:log4j-core`，`org.apache.logging.log4j:log4j-slf4j-impl` 和 `org.apache.logging.log4j:log4j-1.2-api`，
-- 且 Classpath 中存在 `log4j:log4j`，`org.slf4j:slf4j-log4j12`，`org.apache.logging.log4j:log4j-to-slf4j` 和 `org.apache.logging.log4j:log4j-api`。
+要将 Flink 与 [Log4j 1](https://logging.apache.org/log4j/1.2/) 一起使用，必须确保：
+- Classpath 中不存在 `org.apache.logging.log4j:log4j-core`、`org.apache.logging.log4j:log4j-slf4j-impl` 和 `org.apache.logging.log4j:log4j-1.2-api`；
+- 且 Classpath 中存在 `log4j:log4j`、`org.slf4j:slf4j-log4j12`、`org.apache.logging.log4j:log4j-to-slf4j` 和 `org.apache.logging.log4j:log4j-api`。
 
-在 IDE 中使用 log4j1，你必须在 pom 文件中使用上述 `Classpath 中存在的 jars` 依赖项替换 `Classpath 中不存在的 jars` 依赖项，并尽可能在传递依赖于 `Classpath 中不存在的 jars` 的依赖项上添加排除 `Classpath 中不存在的 jars` 配置。
+如果在 IDE 中使用 Log4j 1，则必须在 pom 文件中使用上述 Classpath 中应该存在的 jars 依赖项来替换 Classpath 中不应该存在的 jars 依赖项，并尽可能的排除那些传递依赖于 Classpath 中不存在 jars 的依赖项。
 
 对于 Flink 发行版，这意味着你必须
-- 从 `lib` 目录中移除 `log4j-core`，`log4j-slf4j-impl` 和 `log4j-1.2-api` jars，
-- 向 `lib` 目录中添加 `log4j`，`slf4j-log4j12` 和 `log4j-to-slf4j` jars，
-- 用兼容的 Log4j1 版本替换 `conf` 目录中的所有 log4j 配置文件。
+- 从 `lib` 目录中移除 `log4j-core`，`log4j-slf4j-impl` 和 `log4j-1.2-api` jars；
+- 往 `lib` 目录中添加 `log4j`，`slf4j-log4j12` 和 `log4j-to-slf4j` jars；
+- 用适配的 Log4j1 版本替换 `conf` 目录中的所有 log4j 配置文件。
 
 <a name="configuring-logback"></a>
 
 ## 配置 logback
 
-对于用户和开发人员来说，控制日志框架非常重要。日志框架的配置完全由配置文件完成。必须通过设置环境参数 `-Dlogback.configurationFile=<file>` 或将 `logback.xml` 放在 classpath 中来指定配置文件。`conf` 目录包含一个 `logback.xml` 文件，该文件可以修改，如果使用附带的启动脚本在 IDE 之外启动 Flink 则会使用该日志配置文件。提供的 `logback.xml` 具有以下格式：
+要将 Flink 与 [logback](https://logback.qos.ch/) 一起使用，必须确保：
+- Classpath 中不存在 `org.apache.logging.log4j:log4j-slf4j-impl`；
+- Classpath 中存在 `ch.qos.logback:logback-core` 和 `ch.qos.logback:logback-classic`。
 
-```xml
-<configuration>
-    <appender name="file" class="ch.qos.logback.core.FileAppender">
-        <file>${log.file}</file>
-        <append>false</append>
-        <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{60} %X{sourceThread} - %msg%n</pattern>
-        </encoder>
-    </appender>
+如果在 IDE 中使用 logback，则必须在 pom 文件中使用上述 Classpath 中应该存在的 jars 依赖项来替换 Classpath 中不应该存在的 jars 依赖项，并尽可能的排除那些传递依赖于 Classpath 中不存在 jars 的依赖项。
 
-    <root level="INFO">
-        <appender-ref ref="file"/>
-    </root>
-</configuration>
-```
+对于 Flink 发行版，这意味着你必须
+- 从 `lib` 目录中移除 `log4j-slf4j-impl`  jars；
+- 向 `lib` 目录中添加 `logback-core` 和 `logback-classic` jars。
 
-例如，为了控制 `org.apache.flink.runtime.jobgraph.JobGraph` 的日志记录级别，必须将以下行添加到配置文件中。
+Flink 发行版在 `conf` 目录中附带了以下 logback 配置文件，如果启用了 logback，则会自动使用这些文件：
+- `logback-session.properties`: Flink 命令行在启动基于 Kubernetes/Yarn 的 Session 集群时使用（例如 `kubernetes-session.sh`/`yarn-session.sh`）；
+- `logback-console.properties`：Job-/TaskManagers 在前台模式运行时使用（例如 Kubernetes）；
+- `logback.xml`: 命令行和 Job-/TaskManager 默认使用的日志配置。
 
-```xml
-<logger name="org.apache.flink.runtime.jobgraph.JobGraph" level="DEBUG"/>
-```
+{{< hint warning >}}
 
-有关配置日志的更多信息，请参见 [LOGback 手册](http://logback.qos.ch/manual/configuration.html)。
+Logback 1.3+ 需要 SLF4J 2，目前不支持。
+
+{{< /hint >}}
+
 
 <a name="best-practices-for-developers"></a>
 
 ## 开发人员的最佳实践
 
-Slf4j 的 loggers 通过调用 `LoggerFactory` 的 `getLogger()` 方法创建
+通过将相应 Class 的类型对象作为参数调用 `org.slf4j.LoggerFactory#LoggerFactory.getLogger` 方法可以创建一个 SLF4J 的 logger。
+
+强烈建议将 logger 字段设置为 `private static final` 修饰的类型。
 
 ```java
-import org.slf4j.LoggerFactory
-import org.slf4j.Logger
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-Logger LOG = LoggerFactory.getLogger(Foobar.class)
+public class Foobar {
+	private static final Logger LOG = LoggerFactory.getLogger(Foobar.class);
+
+	public static void main(String[] args) {
+		LOG.info("Hello world!");
+	}
+}
 ```
 
-为了最大限度地利用 slf4j，建议使用其占位符机制。使用占位符可以避免不必要的字符串构造，以防日志级别设置得太高而不会记录消息。占位符的语法如下：
+为了最大限度地利用 SLF4J，建议使用其占位符机制。使用占位符可以在日志级别设置得太高而不会记录消息的情况下避免不必要的字符串构造。
+
+占位符的语法如下：
 
 ```java
 LOG.info("This message contains {} placeholders. {}", 2, "Yippie");

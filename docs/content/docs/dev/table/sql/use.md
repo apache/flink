@@ -162,8 +162,7 @@ tEnv.executeSql("SHOW FULL MODULES").print()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = StreamTableEnvironment.create(env, settings)
+table_env = StreamTableEnvironment.create(...)
 
 # create a catalog
 table_env.execute_sql("CREATE CATALOG cat1 WITH (...)")
@@ -245,7 +244,7 @@ Flink SQL> SHOW FULL MODULES;
 
 {{< top >}}
 
-## USE CATLOAG
+## USE CATALOG
 
 ```sql
 USE CATALOG catalog_name

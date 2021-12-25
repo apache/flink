@@ -25,7 +25,7 @@ import org.apache.flink.core.plugin.PluginFinder;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.Assert;
 import org.junit.Before;

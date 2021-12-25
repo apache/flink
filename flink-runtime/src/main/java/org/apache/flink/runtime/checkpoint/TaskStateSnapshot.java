@@ -24,13 +24,14 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -56,19 +57,45 @@ public class TaskStateSnapshot implements CompositeStateHandle {
 
     private static final long serialVersionUID = 1L;
 
+    public static final TaskStateSnapshot FINISHED_ON_RESTORE =
+            new TaskStateSnapshot(new HashMap<>(), true, true);
+
     /** Mapping from an operator id to the state of one subtask of this operator. */
     private final Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID;
 
+    private final boolean isTaskDeployedAsFinished;
+
+    private final boolean isTaskFinished;
+
     public TaskStateSnapshot() {
-        this(10);
+        this(10, false);
     }
 
-    public TaskStateSnapshot(int size) {
-        this(new HashMap<>(size));
+    public TaskStateSnapshot(int size, boolean isTaskFinished) {
+        this(new HashMap<>(size), false, isTaskFinished);
     }
 
     public TaskStateSnapshot(Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID) {
+        this(subtaskStatesByOperatorID, false, false);
+    }
+
+    private TaskStateSnapshot(
+            Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID,
+            boolean isTaskDeployedAsFinished,
+            boolean isTaskFinished) {
         this.subtaskStatesByOperatorID = Preconditions.checkNotNull(subtaskStatesByOperatorID);
+        this.isTaskDeployedAsFinished = isTaskDeployedAsFinished;
+        this.isTaskFinished = isTaskFinished;
+    }
+
+    /** Returns whether all the operators of the task are already finished on restoring. */
+    public boolean isTaskDeployedAsFinished() {
+        return isTaskDeployedAsFinished;
+    }
+
+    /** Returns whether all the operators of the task have called finished methods. */
+    public boolean isTaskFinished() {
+        return isTaskFinished;
     }
 
     /** Returns the subtask state for the given operator id (or null if not contained). */
@@ -102,7 +129,7 @@ public class TaskStateSnapshot implements CompositeStateHandle {
                 return true;
             }
         }
-        return false;
+        return isTaskDeployedAsFinished;
     }
 
     /**
@@ -140,10 +167,10 @@ public class TaskStateSnapshot implements CompositeStateHandle {
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry stateRegistry) {
+    public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
         for (OperatorSubtaskState operatorSubtaskState : subtaskStatesByOperatorID.values()) {
             if (operatorSubtaskState != null) {
-                operatorSubtaskState.registerSharedStates(stateRegistry);
+                operatorSubtaskState.registerSharedStates(stateRegistry, checkpointID);
             }
         }
     }
@@ -159,12 +186,14 @@ public class TaskStateSnapshot implements CompositeStateHandle {
 
         TaskStateSnapshot that = (TaskStateSnapshot) o;
 
-        return subtaskStatesByOperatorID.equals(that.subtaskStatesByOperatorID);
+        return subtaskStatesByOperatorID.equals(that.subtaskStatesByOperatorID)
+                && isTaskDeployedAsFinished == that.isTaskDeployedAsFinished
+                && isTaskFinished == that.isTaskFinished;
     }
 
     @Override
     public int hashCode() {
-        return subtaskStatesByOperatorID.hashCode();
+        return Objects.hash(subtaskStatesByOperatorID, isTaskDeployedAsFinished, isTaskFinished);
     }
 
     @Override
@@ -172,6 +201,10 @@ public class TaskStateSnapshot implements CompositeStateHandle {
         return "TaskOperatorSubtaskStates{"
                 + "subtaskStatesByOperatorID="
                 + subtaskStatesByOperatorID
+                + ", isTaskDeployedAsFinished="
+                + isTaskDeployedAsFinished
+                + ", isTaskFinished="
+                + isTaskFinished
                 + '}';
     }
 

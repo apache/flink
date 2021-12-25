@@ -22,7 +22,7 @@ import org.apache.flink.util.TestLogger;
 
 import com.amazonaws.services.schemaregistry.common.AWSSchemaRegistryClient;
 import com.amazonaws.services.schemaregistry.common.configs.GlueSchemaRegistryConfiguration;
-import com.amazonaws.services.schemaregistry.deserializers.AWSDeserializer;
+import com.amazonaws.services.schemaregistry.deserializers.GlueSchemaRegistryDeserializationFacade;
 import com.amazonaws.services.schemaregistry.exception.AWSSchemaRegistryException;
 import com.amazonaws.services.schemaregistry.serializers.GlueSchemaRegistrySerializationFacade;
 import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
@@ -191,7 +191,7 @@ public class GlueSchemaRegistryAvroSchemaCoderTest extends TestLogger {
             extends GlueSchemaRegistryInputStreamDeserializer {
 
         public MockGlueSchemaRegistryInputStreamDeserializer() {
-            super((AWSDeserializer) null);
+            super((GlueSchemaRegistryDeserializationFacade) null);
         }
 
         @Override

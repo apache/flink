@@ -22,10 +22,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.JobManagerMetricsHeaders;
@@ -36,19 +33,19 @@ import org.apache.flink.runtime.rest.messages.job.metrics.TaskManagerMetricsMess
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
-import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import javax.annotation.Nullable;
 
@@ -66,7 +63,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /** End-to-end test for the availability of metrics. */
-@Category(TravisGroup1.class)
 public class MetricsAvailabilityITCase extends TestLogger {
 
     private static final String HOST = "localhost";
@@ -94,9 +90,7 @@ public class MetricsAvailabilityITCase extends TestLogger {
     public void testReporter() throws Exception {
         try (ClusterController ignored = dist.startCluster(1)) {
             final RestClient restClient =
-                    new RestClient(
-                            RestClientConfiguration.fromConfiguration(new Configuration()),
-                            scheduledExecutorService);
+                    new RestClient(new Configuration(), scheduledExecutorService);
 
             checkJobManagerMetricAvailability(restClient);
 

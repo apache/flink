@@ -67,7 +67,7 @@ public interface KafkaRecordDeserializationSchema<T> extends Serializable, Resul
      * ConsumerRecord ConsumerRecords}.
      *
      * <p>Note that the {@link KafkaDeserializationSchema#isEndOfStream(Object)} method will no
-     * longer be used to determin the end of the stream.
+     * longer be used to determine the end of the stream.
      *
      * @param kafkaDeserializationSchema the legacy {@link KafkaDeserializationSchema} to use.
      * @param <V> the return type of the deserialized record.

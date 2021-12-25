@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.dataset import ExecutionEnvironment
+from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.common import (ExecutionConfig, RestartStrategies, ExecutionMode)
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase
@@ -24,7 +24,7 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase
 class ExecutionConfigTests(PyFlinkTestCase):
 
     def setUp(self):
-        self.env = ExecutionEnvironment.get_execution_environment()
+        self.env = StreamExecutionEnvironment.get_execution_environment()
         self.execution_config = self.env.get_config()
 
     def test_constant(self):
@@ -253,9 +253,9 @@ class ExecutionConfigTests(PyFlinkTestCase):
 
     def test_equals_and_hash(self):
 
-        config1 = ExecutionEnvironment.get_execution_environment().get_config()
+        config1 = StreamExecutionEnvironment.get_execution_environment().get_config()
 
-        config2 = ExecutionEnvironment.get_execution_environment().get_config()
+        config2 = StreamExecutionEnvironment.get_execution_environment().get_config()
 
         self.assertEqual(config1, config2)
 

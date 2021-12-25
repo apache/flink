@@ -22,9 +22,9 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;

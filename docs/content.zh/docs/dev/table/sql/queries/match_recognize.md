@@ -60,8 +60,9 @@ FROM MyTable
 
 本页将更详细地解释每个关键字，并演示说明更复杂的示例。
 
-{% info 注意 %}  Flink 的 `MATCH_RECOGNIZE` 子句实现是一个完整标准子集。仅支持以下部分中记录的功能。基于社区反馈，可能会支持其他功能，请查看[已知的局限](#known-limitations)。
-
+{{< hint info >}}
+Flink 的 `MATCH_RECOGNIZE` 子句实现是一个完整标准子集。仅支持以下部分中记录的功能。基于社区反馈，可能会支持其他功能，请查看[已知的局限](#known-limitations)。
+{{< /hint >}}
 
 
 <a name="introduction-and-examples"></a>
@@ -78,8 +79,8 @@ FROM MyTable
 ```xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-cep{{ site.scala_version_suffix }}</artifactId>
-  <version>{{ site.version }}</version>
+  <artifactId>flink-cep</artifactId>
+  <version>{{< version >}}</version>
 </dependency>
 ```
 
@@ -929,11 +930,12 @@ FROM Ticker
   <tbody>
     <tr>
       <td>
-        <code>MATCH_ROWTIME()</code><br/>
+        <code>MATCH_ROWTIME([rowtime_field])</code><br/>
       </td>
       <td>
         <p>返回映射到给定模式的最后一行的时间戳。</p>
-        <p>结果属性是<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">行时间属性</a>，可用于后续基于时间的操作，例如 <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
+        <p>函数可以没有入参，这种情况下函数返回结果是 TIMESTAMP 类型且具有事件时间属性；也可以有一个入参，这个参数值必须是 TIMESTAMP 类型或者 TIMESTAMP_LTZ 类型，且必须有事件时间属性，这种情况下函数返回结果的数据类型和输入参数的一致，且必须有事件时间属性。</p>
+        <p>结果属性是<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">事件时间属性</a>，可用于后续基于时间的操作，例如 <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
       </td>
     </tr>
     <tr>

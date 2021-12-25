@@ -18,234 +18,124 @@
 
 package org.apache.flink.table.api.batch
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.bridge.scala.internal.BatchTableEnvironmentImpl
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.runtime.utils.CommonTestData
-import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
-import org.apache.flink.table.utils.TableTestUtil.{batchTableNode, readFromResource, replaceStageId}
-import org.apache.flink.test.util.MultipleProgramsTestBase
+import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
-import org.junit.Assert.assertEquals
-import org.junit._
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
+import org.junit.{Before, Test}
 
-class ExplainTest
-  extends MultipleProgramsTestBase(MultipleProgramsTestBase.TestExecutionMode.CLUSTER) {
+@RunWith(classOf[Parameterized])
+class ExplainTest(extended: Boolean) extends TableTestBase {
 
-  @Test
-  def testFilterWithoutExtended(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = BatchTableEnvironment.create(env)
+  private val extraDetails = if (extended) {
+    Array(ExplainDetail.CHANGELOG_MODE, ExplainDetail.ESTIMATED_COST)
+  } else {
+    Array.empty[ExplainDetail]
+  }
 
-    val scan = env.fromElements((1, "hello")).toTable(tEnv, 'a, 'b)
-    val table = scan.filter($"a" % 2 === 0)
+  private val util = batchTestUtil()
+  util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+  util.addDataStream[(Int, Long, String)]("MyTable1", 'a, 'b, 'c)
+  util.addDataStream[(Int, Long, String)]("MyTable2", 'd, 'e, 'f)
 
-    val result = tEnv.explain(table).replaceAll("\\r\\n", "\n")
-    val source = readFromResource("testFilter0.out")
+  val STRING = VarCharType.STRING_TYPE
+  val LONG = new BigIntType()
+  val INT = new IntType()
 
-    val expected = replaceString(source, scan)
-    assertEquals(expected, result)
+  @Before
+  def before(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setInteger(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 4)
   }
 
   @Test
-  def testFilterWithExtended(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = BatchTableEnvironment.create(env)
-
-    val scan = env.fromElements((1, "hello")).toTable(tEnv, 'a, 'b)
-    val table = scan.filter($"a" % 2 === 0)
-
-    val result = tEnv.asInstanceOf[BatchTableEnvironmentImpl]
-      .explain(table, extended = true).replaceAll("\\r\\n", "\n")
-    val source = readFromResource("testFilter1.out")
-
-    val expected = replaceString(source, scan)
-    assertEquals(expected, result)
+  def testExplainWithTableSourceScan(): Unit = {
+    util.verifyExplain("SELECT * FROM MyTable", extraDetails: _*)
   }
 
   @Test
-  def testJoinWithoutExtended(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = BatchTableEnvironment.create(env)
-
-    val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'a, 'b)
-    val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'c, 'd)
-    val table = table1.join(table2).where($"b" === $"d").select($"a", $"c")
-
-    val result = tEnv.explain(table).replaceAll("\\r\\n", "\n")
-    val source = readFromResource("testJoin0.out")
-
-    val expected = replaceString(source, table1, table2)
-    assertEquals(expected, result)
+  def testExplainWithDataStreamScan(): Unit = {
+    util.verifyExplain("SELECT * FROM MyTable1", extraDetails: _*)
   }
 
   @Test
-  def testJoinWithExtended(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = BatchTableEnvironment.create(env)
-
-    val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'a, 'b)
-    val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'c, 'd)
-    val table = table1.join(table2).where($"b" === $"d").select($"a", $"c")
-
-    val result = tEnv.asInstanceOf[BatchTableEnvironmentImpl]
-      .explain(table, extended = true).replaceAll("\\r\\n", "\n")
-    val source = readFromResource("testJoin1.out")
-
-    val expected = replaceString(source, table1, table2)
-    assertEquals(expected, result)
+  def testExplainWithFilter(): Unit = {
+    util.verifyExplain("SELECT * FROM MyTable1 WHERE mod(a, 2) = 0", extraDetails: _*)
   }
 
   @Test
-  def testUnionWithoutExtended(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = BatchTableEnvironment.create(env)
-
-    val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
-    val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
-    val table = table1.unionAll(table2)
-
-    val result = tEnv.explain(table).replaceAll("\\r\\n", "\n")
-    val source = readFromResource("testUnion0.out")
-
-    val expected = replaceString(source, table1, table2)
-    assertEquals(expected, result)
+  def testExplainWithAgg(): Unit = {
+    util.verifyExplain("SELECT COUNT(*) FROM MyTable1 GROUP BY a", extraDetails: _*)
   }
 
   @Test
-  def testUnionWithExtended(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = BatchTableEnvironment.create(env)
-
-    val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
-    val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
-    val table = table1.unionAll(table2)
-
-    val result = tEnv.asInstanceOf[BatchTableEnvironmentImpl]
-      .explain(table, extended = true).replaceAll("\\r\\n", "\n")
-    val source = readFromResource("testUnion1.out")
-
-    val expected = replaceString(source, table1, table2)
-    assertEquals(expected, result)
+  def testExplainWithJoin(): Unit = {
+    // TODO support other join operators when them are supported
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
+    util.verifyExplain("SELECT a, b, c, e, f FROM MyTable1, MyTable2 WHERE a = d", extraDetails: _*)
   }
 
   @Test
-  def testInsert(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = BatchTableEnvironment.create(env)
-
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "sourceTable", CommonTestData.getCsvTableSource)
-
-    val fieldNames = Array("d", "e")
-    val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING(), Types.INT())
-    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "targetTable", sink.configure(fieldNames, fieldTypes))
-
-    tEnv.sqlUpdate("insert into targetTable select first, id from sourceTable")
-
-    val result = tEnv.explain(false)
-    val expected = readFromResource("testInsert1.out")
-    assertEquals(replaceStageId(expected), replaceStageId(result))
+  def testExplainWithUnion(): Unit = {
+    util.verifyExplain("SELECT * FROM MyTable1 UNION ALL SELECT * FROM MyTable2", extraDetails: _*)
   }
 
   @Test
-  def testMultipleInserts(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = BatchTableEnvironment.create(env)
-
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "sourceTable", CommonTestData.getCsvTableSource)
-
-    val fieldNames = Array("d", "e")
-    val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING(), Types.INT())
-    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "targetTable1", sink.configure(fieldNames, fieldTypes))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "targetTable2", sink.configure(fieldNames, fieldTypes))
-
-    tEnv.sqlUpdate("insert into targetTable1 select first, id from sourceTable")
-    tEnv.sqlUpdate("insert into targetTable2 select last, id from sourceTable")
-
-    val result = tEnv.explain(false)
-    val expected = readFromResource("testMultipleInserts1.out")
-    assertEquals(replaceStageId(expected), replaceStageId(result))
+  def testExplainWithSort(): Unit = {
+    util.verifyExplain("SELECT * FROM MyTable1 ORDER BY a LIMIT 5", extraDetails: _*)
   }
 
   @Test
-  def testBatchTableEnvironmentExecutionExplain(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setParallelism(1)
-    val tEnv = BatchTableEnvironment.create(env)
-
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "sourceTable", CommonTestData.getCsvTableSource)
-
-    val fieldNames = Array("d", "e")
-    val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING(), Types.INT())
-    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "targetTable", sink.configure(fieldNames, fieldTypes))
-
-    val actual = tEnv.explainSql("INSERT INTO targetTable SELECT first, id FROM sourceTable",
-      ExplainDetail.JSON_EXECUTION_PLAN)
-    val expected = readFromResource("testBatchTableEnvironmentExecutionExplain.out")
-
-    assertEquals(replaceStreamNodeIdAndEstimatedCostValue(expected),
-      replaceStreamNodeIdAndEstimatedCostValue(actual))
+  def testExplainWithSingleSink(): Unit = {
+    val table = util.tableEnv.sqlQuery("SELECT * FROM MyTable1 WHERE a > 10")
+    val sink = util.createCollectTableSink(Array("a", "b", "c"), Array(INT, LONG, STRING))
+    util.verifyExplainInsert(table, sink, "sink", extraDetails: _*)
   }
 
   @Test
-  def testStatementSetExecutionExplain(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setParallelism(1)
-    val tEnv = BatchTableEnvironment.create(env)
+  def testExplainWithMultiSinks(): Unit = {
+    val stmtSet = util.tableEnv.createStatementSet()
+    val table = util.tableEnv.sqlQuery("SELECT a, COUNT(*) AS cnt FROM MyTable1 GROUP BY a")
+    util.tableEnv.registerTable("TempTable", table)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "sourceTable", CommonTestData.getCsvTableSource)
+    val table1 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt > 10")
+    val sink1 = util.createCollectTableSink(Array("a", "cnt"), Array(INT, LONG))
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink1", sink1)
+    stmtSet.addInsert("sink1", table1)
 
-    val fieldNames = Array("d", "e")
-    val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING(), Types.INT())
-    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "targetTable", sink.configure(fieldNames, fieldTypes))
+    val table2 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt < 10")
+    val sink2 = util.createCollectTableSink(Array("a", "cnt"), Array(INT, LONG))
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink2", sink2)
+    stmtSet.addInsert("sink2", table2)
 
-    val statementSet = tEnv.createStatementSet()
-    statementSet.addInsertSql("INSERT INTO targetTable SELECT first, id FROM sourceTable")
-
-    val actual = statementSet.explain(ExplainDetail.JSON_EXECUTION_PLAN)
-    val expected = readFromResource("testStatementSetExecutionExplain1.out")
-
-    assertEquals(replaceStreamNodeIdAndEstimatedCostValue(expected),
-      replaceStreamNodeIdAndEstimatedCostValue(actual))
+    util.verifyExplain(stmtSet, extraDetails: _*)
   }
 
-  def replaceString(s: String, t1: Table, t2: Table): String = {
-    replaceSourceNode(replaceSourceNode(replaceString(s), t1, 0), t2, 1)
+  @Test
+  def testExplainMultipleInput(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+    val sql =
+      """
+        |select * from
+        |   (select a, sum(b) from MyTable1 group by a) v1,
+        |   (select d, sum(e) from MyTable2 group by d) v2
+        |   where a = d
+        |""".stripMargin
+    util.verifyExplain(sql, extraDetails: _*)
   }
 
-  def replaceString(s: String, t: Table): String = {
-    replaceSourceNode(replaceString(s), t, 0)
-  }
+}
 
-  private def replaceSourceNode(s: String, t: Table, idx: Int): String = {
-    s.replace(
-      s"%logicalSourceNode$idx%", batchTableNode(t)
-        .replace("DataSetScan", "FlinkLogicalDataSetScan"))
-      .replace(s"%sourceNode$idx%", batchTableNode(t))
-  }
-
-  def replaceString(s: String): String = {
-    s.replaceAll("\\r\\n", "\n")
-  }
-
-  def replaceStreamNodeIdAndEstimatedCostValue(s: String): String = {
-    s.replaceAll("\"id\": \\d+", "\"id\": ")
-        .replaceAll("\"value\": \"([0-9]+)(\\.[\\d]+)?\"", "\"value\": \"0.0\"").trim
+object ExplainTest {
+  @Parameterized.Parameters(name = "extended={0}")
+  def parameters(): java.util.Collection[Boolean] = {
+    java.util.Arrays.asList(true, false)
   }
 }

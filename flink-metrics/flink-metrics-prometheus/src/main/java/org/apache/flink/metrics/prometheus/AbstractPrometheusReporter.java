@@ -25,13 +25,12 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
+import org.apache.flink.metrics.LogicalScopeProvider;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
-import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
-import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
@@ -251,7 +250,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
     @SuppressWarnings("unchecked")
     private static String getLogicalScope(MetricGroup group) {
-        return ((FrontMetricGroup<AbstractMetricGroup<?>>) group)
+        return LogicalScopeProvider.castFrom(group)
                 .getLogicalScope(CHARACTER_FILTER, SCOPE_SEPARATOR);
     }
 

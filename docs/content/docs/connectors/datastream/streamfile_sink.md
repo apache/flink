@@ -4,6 +4,7 @@ weight: 6
 type: docs
 aliases:
   - /dev/connectors/streamfile_sink.html
+bookHidden: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -28,6 +29,10 @@ under the License.
 
 This connector provides a Sink that writes partitioned files to filesystems
 supported by the [Flink `FileSystem` abstraction]({{< ref "docs/deployment/filesystems/overview" >}}).
+
+{{< hint warning >}}
+This Streaming File Sink is in the process of being phased out. Please use the unified [File Sink]({{< ref "docs/connectors/datastream/file_sink" >}}) as a drop-in replacement.
+{{< /hint >}}
 
 The streaming file sink writes incoming data into buckets. Given that the incoming streams can be unbounded,
 data in each bucket are organized into part files of finite size. The bucketing behaviour is fully configurable
@@ -86,9 +91,9 @@ final StreamingFileSink<String> sink = StreamingFileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder<String>("UTF-8"))
     .withRollingPolicy(
         DefaultRollingPolicy.builder()
-            .withRolloverInterval(TimeUnit.MINUTES.toMillis(15))
-            .withInactivityInterval(TimeUnit.MINUTES.toMillis(5))
-            .withMaxPartSize(1024 * 1024 * 1024)
+            .withRolloverInterval(Duration.ofSeconds(10))
+            .withInactivityInterval(Duration.ofSeconds(10))
+            .withMaxPartSize(MemorySize.ofMebiBytes(1))
             .build())
 	.build();
 
@@ -109,9 +114,9 @@ val sink: StreamingFileSink[String] = StreamingFileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder[String]("UTF-8"))
     .withRollingPolicy(
         DefaultRollingPolicy.builder()
-            .withRolloverInterval(TimeUnit.MINUTES.toMillis(15))
-            .withInactivityInterval(TimeUnit.MINUTES.toMillis(5))
-            .withMaxPartSize(1024 * 1024 * 1024)
+            .withRolloverInterval(Duration.ofSeconds(10))
+            .withInactivityInterval(Duration.ofSeconds(10))
+            .withMaxPartSize(MemorySize.ofMebiBytes(1))
             .build())
     .build()
 
@@ -243,7 +248,7 @@ Avro writer factories and their associated documentation can be found in the
 
 To use the Avro writers in your application you need to add the following dependency:
 
-{{< artifact flink-avro withScalaVersion >}}
+{{< artifact flink-avro >}}
 
 A StreamingFileSink that writes data to Avro files can be created like this:
 

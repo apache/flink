@@ -20,15 +20,17 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
-import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
-import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
+import org.apache.flink.table.client.gateway.utils.UserDefinedFunctions;
+import org.apache.flink.table.planner.utils.TableTestUtil;
+import org.apache.flink.table.utils.TestUserClassLoaderJar;
 import org.apache.flink.test.util.AbstractTestBase;
 
-import org.apache.flink.shaded.guava18.com.google.common.io.PatternFilenameFilter;
+import org.apache.flink.shaded.guava30.com.google.common.io.PatternFilenameFilter;
 
 import org.apache.calcite.util.Util;
 import org.apache.commons.io.IOUtils;
@@ -99,7 +101,10 @@ public class CliClientITCase extends AbstractTestBase {
     public static void setup() throws IOException {
         File udfJar =
                 TestUserClassLoaderJar.createJarFile(
-                        tempFolder.newFolder("test-jar"), "test-classloader-udf.jar");
+                        tempFolder.newFolder("test-jar"),
+                        "test-classloader-udf.jar",
+                        UserDefinedFunctions.GENERATED_UDF_CLASS,
+                        UserDefinedFunctions.GENERATED_UDF_CODE);
         URL udfDependency = udfJar.toURI().toURL();
         historyPath = tempFolder.newFile("history").toPath();
 
@@ -143,9 +148,12 @@ public class CliClientITCase extends AbstractTestBase {
         final String sqlContent = String.join("\n", statements);
         DefaultContext defaultContext =
                 new DefaultContext(
-                        new Environment(),
                         Collections.emptyList(),
-                        new Configuration(miniClusterResource.getClientConfiguration()),
+                        new Configuration(miniClusterResource.getClientConfiguration())
+                                // Make sure we use the new cast behaviour
+                                .set(
+                                        ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
+                                        ExecutionConfigOptions.LegacyCastBehaviour.DISABLED),
                         Collections.singletonList(new DefaultCLI()));
         final Executor executor = new LocalExecutor(defaultContext);
         InputStream inputStream = new ByteArrayInputStream(sqlContent.getBytes());
@@ -302,11 +310,17 @@ public class CliClientITCase extends AbstractTestBase {
             out.append(sqlScript.comment).append(sqlScript.sql);
             if (i < results.size()) {
                 Result result = results.get(i);
-                out.append(result.content).append(result.highestTag.tag).append("\n");
+                String content =
+                        TableTestUtil.replaceNodeIdInOperator(removeExecNodeId(result.content));
+                out.append(content).append(result.highestTag.tag).append("\n");
             }
         }
 
         return out.toString();
+    }
+
+    private static String removeExecNodeId(String s) {
+        return s.replaceAll("\"id\" : \\d+", "\"id\" : ");
     }
 
     private static final class Result {

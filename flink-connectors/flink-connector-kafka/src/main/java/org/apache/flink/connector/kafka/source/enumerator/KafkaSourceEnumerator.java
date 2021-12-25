@@ -20,6 +20,7 @@ package org.apache.flink.connector.kafka.source.enumerator;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
@@ -52,6 +53,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 
 /** The enumerator class for Kafka source. */
 @Internal
@@ -64,13 +66,7 @@ public class KafkaSourceEnumerator
     private final Properties properties;
     private final long partitionDiscoveryIntervalMs;
     private final SplitEnumeratorContext<KafkaPartitionSplit> context;
-
-    // The internal states of the enumerator.
-    /**
-     * This set is only accessed by the partition discovery callable in the callAsync() method, i.e
-     * worker thread.
-     */
-    private final Set<TopicPartition> discoveredPartitions;
+    private final Boundedness boundedness;
 
     /** Partitions that have been assigned to readers. */
     private final Set<TopicPartition> assignedPartitions;
@@ -97,13 +93,15 @@ public class KafkaSourceEnumerator
             OffsetsInitializer startingOffsetInitializer,
             OffsetsInitializer stoppingOffsetInitializer,
             Properties properties,
-            SplitEnumeratorContext<KafkaPartitionSplit> context) {
+            SplitEnumeratorContext<KafkaPartitionSplit> context,
+            Boundedness boundedness) {
         this(
                 subscriber,
                 startingOffsetInitializer,
                 stoppingOffsetInitializer,
                 properties,
                 context,
+                boundedness,
                 Collections.emptySet());
     }
 
@@ -113,16 +111,16 @@ public class KafkaSourceEnumerator
             OffsetsInitializer stoppingOffsetInitializer,
             Properties properties,
             SplitEnumeratorContext<KafkaPartitionSplit> context,
+            Boundedness boundedness,
             Set<TopicPartition> assignedPartitions) {
         this.subscriber = subscriber;
         this.startingOffsetInitializer = startingOffsetInitializer;
         this.stoppingOffsetInitializer = stoppingOffsetInitializer;
         this.properties = properties;
         this.context = context;
+        this.boundedness = boundedness;
 
-        this.discoveredPartitions = new HashSet<>();
         this.assignedPartitions = new HashSet<>(assignedPartitions);
-        discoveredPartitions.addAll(this.assignedPartitions);
         this.pendingPartitionSplitAssignment = new HashMap<>();
         this.partitionDiscoveryIntervalMs =
                 KafkaSourceOptions.getOption(
@@ -132,6 +130,21 @@ public class KafkaSourceEnumerator
         this.consumerGroupId = properties.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
     }
 
+    /**
+     * Start the enumerator.
+     *
+     * <p>Depending on {@link #partitionDiscoveryIntervalMs}, the enumerator will trigger a one-time
+     * partition discovery, or schedule a callable for discover partitions periodically.
+     *
+     * <p>The invoking chain of partition discovery would be:
+     *
+     * <ol>
+     *   <li>{@link #getSubscribedTopicPartitions} in worker thread
+     *   <li>{@link #checkPartitionChanges} in coordinator thread
+     *   <li>{@link #initializePartitionSplits} in worker thread
+     *   <li>{@link #handlePartitionSplitChanges} in coordinator thread
+     * </ol>
+     */
     @Override
     public void start() {
         consumer = getKafkaConsumer();
@@ -143,8 +156,8 @@ public class KafkaSourceEnumerator
                     consumerGroupId,
                     partitionDiscoveryIntervalMs);
             context.callAsync(
-                    this::discoverAndInitializePartitionSplit,
-                    this::handlePartitionSplitChanges,
+                    this::getSubscribedTopicPartitions,
+                    this::checkPartitionChanges,
                     0,
                     partitionDiscoveryIntervalMs);
         } else {
@@ -152,16 +165,7 @@ public class KafkaSourceEnumerator
                     "Starting the KafkaSourceEnumerator for consumer group {} "
                             + "without periodic partition discovery.",
                     consumerGroupId);
-            context.callAsync(
-                    () -> {
-                        try {
-                            return discoverAndInitializePartitionSplit();
-                        } finally {
-                            // Close the admin client early because we won't use it anymore.
-                            adminClient.close();
-                        }
-                    },
-                    this::handlePartitionSplitChanges);
+            context.callAsync(this::getSubscribedTopicPartitions, this::checkPartitionChanges);
         }
     }
 
@@ -206,12 +210,63 @@ public class KafkaSourceEnumerator
 
     // ----------------- private methods -------------------
 
-    private PartitionSplitChange discoverAndInitializePartitionSplit() {
-        // Make a copy of the partitions to owners
-        KafkaSubscriber.PartitionChange partitionChange =
-                subscriber.getPartitionChanges(
-                        adminClient, Collections.unmodifiableSet(discoveredPartitions));
+    /**
+     * List subscribed topic partitions on Kafka brokers.
+     *
+     * <p>NOTE: This method should only be invoked in the worker executor thread, because it
+     * requires network I/O with Kafka brokers.
+     *
+     * @return Set of subscribed {@link TopicPartition}s
+     */
+    private Set<TopicPartition> getSubscribedTopicPartitions() {
+        return subscriber.getSubscribedTopicPartitions(adminClient);
+    }
 
+    /**
+     * Check if there's any partition changes within subscribed topic partitions fetched by worker
+     * thread, and invoke {@link KafkaSourceEnumerator#initializePartitionSplits(PartitionChange)}
+     * in worker thread to initialize splits for new partitions.
+     *
+     * <p>NOTE: This method should only be invoked in the coordinator executor thread.
+     *
+     * @param fetchedPartitions Map from topic name to its description
+     * @param t Exception in worker thread
+     */
+    private void checkPartitionChanges(Set<TopicPartition> fetchedPartitions, Throwable t) {
+        if (t != null) {
+            throw new FlinkRuntimeException(
+                    "Failed to list subscribed topic partitions due to ", t);
+        }
+        final PartitionChange partitionChange = getPartitionChange(fetchedPartitions);
+        if (partitionChange.isEmpty()) {
+            return;
+        }
+        context.callAsync(
+                () -> initializePartitionSplits(partitionChange),
+                this::handlePartitionSplitChanges);
+    }
+
+    /**
+     * Initialize splits for newly discovered partitions.
+     *
+     * <p>Enumerator will be responsible for fetching offsets when initializing splits if:
+     *
+     * <ul>
+     *   <li>using timestamp for initializing offset
+     *   <li>or using specified offset, but the offset is not provided for the newly discovered
+     *       partitions
+     * </ul>
+     *
+     * <p>Otherwise offsets will be initialized by readers.
+     *
+     * <p>NOTE: This method should only be invoked in the worker executor thread, because it
+     * potentially requires network I/O with Kafka brokers for fetching offsets.
+     *
+     * @param partitionChange Newly discovered and removed partitions
+     * @return {@link KafkaPartitionSplit} of new partitions and {@link TopicPartition} of removed
+     *     partitions
+     */
+    private PartitionSplitChange initializePartitionSplits(PartitionChange partitionChange) {
         Set<TopicPartition> newPartitions =
                 Collections.unmodifiableSet(partitionChange.getNewPartitions());
         OffsetsInitializer.PartitionOffsetsRetriever offsetsRetriever = getOffsetsRetriever();
@@ -228,15 +283,23 @@ public class KafkaSourceEnumerator
                     stoppingOffsets.getOrDefault(tp, KafkaPartitionSplit.NO_STOPPING_OFFSET);
             partitionSplits.add(new KafkaPartitionSplit(tp, startingOffset, stoppingOffset));
         }
-        discoveredPartitions.addAll(newPartitions);
         return new PartitionSplitChange(partitionSplits, partitionChange.getRemovedPartitions());
     }
 
-    // This method should only be invoked in the coordinator executor thread.
+    /**
+     * Mark partition splits initialized by {@link
+     * KafkaSourceEnumerator#initializePartitionSplits(PartitionChange)} as pending and try to
+     * assign pending splits to registered readers.
+     *
+     * <p>NOTE: This method should only be invoked in the coordinator executor thread.
+     *
+     * @param partitionSplitChange Partition split changes
+     * @param t Exception in worker thread
+     */
     private void handlePartitionSplitChanges(
             PartitionSplitChange partitionSplitChange, Throwable t) {
         if (t != null) {
-            throw new FlinkRuntimeException("Failed to handle partition splits change due to ", t);
+            throw new FlinkRuntimeException("Failed to initialize partition splits due to ", t);
         }
         if (partitionDiscoveryIntervalMs < 0) {
             LOG.debug("Partition discovery is disabled.");
@@ -282,7 +345,7 @@ public class KafkaSourceEnumerator
                         .computeIfAbsent(pendingReader, (ignored) -> new ArrayList<>())
                         .addAll(pendingAssignmentForReader);
 
-                // Make pending partitions as already assigned
+                // Mark pending partitions as already assigned
                 pendingAssignmentForReader.forEach(
                         split -> assignedPartitions.add(split.getTopicPartition()));
             }
@@ -296,7 +359,7 @@ public class KafkaSourceEnumerator
 
         // If periodically partition discovery is disabled and the initializing discovery has done,
         // signal NoMoreSplitsEvent to pending readers
-        if (noMoreNewPartitionSplits) {
+        if (noMoreNewPartitionSplits && boundedness == Boundedness.BOUNDED) {
             LOG.debug(
                     "No more KafkaPartitionSplits to assign. Sending NoMoreSplitsEvent to reader {}"
                             + " in consumer group {}.",
@@ -311,6 +374,32 @@ public class KafkaSourceEnumerator
             throw new IllegalStateException(
                     String.format("Reader %d is not registered to source coordinator", readerId));
         }
+    }
+
+    @VisibleForTesting
+    PartitionChange getPartitionChange(Set<TopicPartition> fetchedPartitions) {
+        final Set<TopicPartition> removedPartitions = new HashSet<>();
+        Consumer<TopicPartition> dedupOrMarkAsRemoved =
+                (tp) -> {
+                    if (!fetchedPartitions.remove(tp)) {
+                        removedPartitions.add(tp);
+                    }
+                };
+
+        assignedPartitions.forEach(dedupOrMarkAsRemoved);
+        pendingPartitionSplitAssignment.forEach(
+                (reader, splits) ->
+                        splits.forEach(
+                                split -> dedupOrMarkAsRemoved.accept(split.getTopicPartition())));
+
+        if (!fetchedPartitions.isEmpty()) {
+            LOG.info("Discovered new partitions: {}", fetchedPartitions);
+        }
+        if (!removedPartitions.isEmpty()) {
+            LOG.info("Discovered removed partitions: {}", removedPartitions);
+        }
+
+        return new PartitionChange(fetchedPartitions, removedPartitions);
     }
 
     private KafkaConsumer<byte[], byte[]> getKafkaConsumer() {
@@ -384,6 +473,30 @@ public class KafkaSourceEnumerator
     }
 
     // --------------- private class ---------------
+
+    /** A container class to hold the newly added partitions and removed partitions. */
+    @VisibleForTesting
+    static class PartitionChange {
+        private final Set<TopicPartition> newPartitions;
+        private final Set<TopicPartition> removedPartitions;
+
+        PartitionChange(Set<TopicPartition> newPartitions, Set<TopicPartition> removedPartitions) {
+            this.newPartitions = newPartitions;
+            this.removedPartitions = removedPartitions;
+        }
+
+        public Set<TopicPartition> getNewPartitions() {
+            return newPartitions;
+        }
+
+        public Set<TopicPartition> getRemovedPartitions() {
+            return removedPartitions;
+        }
+
+        public boolean isEmpty() {
+            return newPartitions.isEmpty() && removedPartitions.isEmpty();
+        }
+    }
 
     private static class PartitionSplitChange {
         private final Set<KafkaPartitionSplit> newPartitionSplits;

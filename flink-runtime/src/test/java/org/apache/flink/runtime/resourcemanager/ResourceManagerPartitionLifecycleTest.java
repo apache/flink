@@ -20,17 +20,11 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
-import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerImpl;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerBuilder;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
@@ -39,8 +33,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -68,13 +61,7 @@ public class ResourceManagerPartitionLifecycleTest extends TestLogger {
 
     private static TestingRpcService rpcService;
 
-    private TestingHighAvailabilityServices highAvailabilityServices;
-
-    private TestingLeaderElectionService resourceManagerLeaderElectionService;
-
-    private TestingFatalErrorHandler testingFatalErrorHandler;
-
-    private TestingResourceManager resourceManager;
+    private TestingResourceManagerService resourceManagerService;
 
     @BeforeClass
     public static void setupClass() {
@@ -82,26 +69,13 @@ public class ResourceManagerPartitionLifecycleTest extends TestLogger {
     }
 
     @Before
-    public void setup() throws Exception {
-        highAvailabilityServices = new TestingHighAvailabilityServices();
-        resourceManagerLeaderElectionService = new TestingLeaderElectionService();
-        highAvailabilityServices.setResourceManagerLeaderElectionService(
-                resourceManagerLeaderElectionService);
-        testingFatalErrorHandler = new TestingFatalErrorHandler();
-    }
+    public void setup() throws Exception {}
 
     @After
     public void after() throws Exception {
-        if (resourceManager != null) {
-            RpcUtils.terminateRpcEndpoint(resourceManager, TIMEOUT);
-        }
-
-        if (highAvailabilityServices != null) {
-            highAvailabilityServices.closeAndCleanupAllData();
-        }
-
-        if (testingFatalErrorHandler.hasExceptionOccurred()) {
-            testingFatalErrorHandler.rethrowError();
+        if (resourceManagerService != null) {
+            resourceManagerService.rethrowFatalErrorIfAny();
+            resourceManagerService.cleanUp();
         }
     }
 
@@ -221,42 +195,31 @@ public class ResourceManagerPartitionLifecycleTest extends TestLogger {
                         ResourceProfile.ZERO);
         final CompletableFuture<RegistrationResponse> registrationFuture =
                 resourceManagerGateway.registerTaskExecutor(
-                        taskExecutorRegistration, TestingUtils.TIMEOUT());
+                        taskExecutorRegistration, TestingUtils.TIMEOUT);
 
         assertThat(registrationFuture.get(), instanceOf(RegistrationResponse.Success.class));
     }
 
     private ResourceManagerGateway createAndStartResourceManager() throws Exception {
-        final SlotManager slotManager =
-                SlotManagerBuilder.newBuilder()
-                        .setScheduledExecutor(rpcService.getScheduledExecutor())
+        final TestingLeaderElectionService leaderElectionService =
+                new TestingLeaderElectionService();
+
+        resourceManagerService =
+                TestingResourceManagerService.newBuilder()
+                        .setRpcService(rpcService)
+                        .setRmLeaderElectionService(leaderElectionService)
                         .build();
-        final JobLeaderIdService jobLeaderIdService =
-                new DefaultJobLeaderIdService(
-                        highAvailabilityServices,
-                        rpcService.getScheduledExecutor(),
-                        TestingUtils.infiniteTime());
-
-        final TestingResourceManager resourceManager =
-                new TestingResourceManager(
-                        rpcService,
-                        ResourceID.generate(),
-                        highAvailabilityServices,
-                        new HeartbeatServices(100000L, 1000000L),
-                        slotManager,
-                        ResourceManagerPartitionTrackerImpl::new,
-                        jobLeaderIdService,
-                        testingFatalErrorHandler,
-                        UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup());
-
-        resourceManager.start();
+        resourceManagerService.start();
 
         // first make the ResourceManager the leader
-        resourceManagerLeaderElectionService.isLeader(ResourceManagerId.generate().toUUID()).get();
+        resourceManagerService.isLeader(UUID.randomUUID());
 
-        this.resourceManager = resourceManager;
+        leaderElectionService.getConfirmationFuture().get(TIMEOUT.getSize(), TIMEOUT.getUnit());
 
-        return resourceManager.getSelfGateway(ResourceManagerGateway.class);
+        return resourceManagerService
+                .getResourceManagerGateway()
+                .orElseThrow(
+                        () -> new AssertionError("RM not available after confirming leadership."));
     }
 
     private static TaskExecutorHeartbeatPayload createTaskExecutorHeartbeatPayload(

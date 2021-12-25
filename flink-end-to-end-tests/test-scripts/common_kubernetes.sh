@@ -50,6 +50,8 @@ function setup_kubernetes_for_linux {
     fi
     # conntrack is required for minikube 1.9 and later
     sudo apt-get install conntrack
+    # required to resolve HOST_JUJU_LOCK_PERMISSION error of "minikube start --vm-driver=none"
+    sudo sysctl fs.protected_regular=0
 }
 
 function check_kubernetes_status {
@@ -76,7 +78,7 @@ function start_kubernetes_if_not_running {
         # here.
         # Similarly, the kubelets are marking themself as "low disk space",
         # causing Flink to avoid this node (again, failing the test)
-        sudo CHANGE_MINIKUBE_NONE_USER=true minikube start --vm-driver=none \
+        CHANGE_MINIKUBE_NONE_USER=true sudo -E minikube start --vm-driver=none \
             --extra-config=kubelet.image-gc-high-threshold=99 \
             --extra-config=kubelet.image-gc-low-threshold=98 \
             --extra-config=kubelet.minimum-container-ttl-duration=120m \
@@ -108,7 +110,6 @@ function start_kubernetes {
             exit 1
         fi
     fi
-    eval $(minikube docker-env)
 }
 
 function stop_kubernetes {
@@ -118,7 +119,7 @@ function stop_kubernetes {
         kill $minikube_mount_pid 2> /dev/null
     else
         echo "Stopping minikube ..."
-        stop_command="sudo minikube stop"
+        stop_command="minikube stop"
         if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} "${stop_command}"; then
             echo "Could not stop minikube. Aborting..."
             exit 1
@@ -170,14 +171,14 @@ function wait_num_checkpoints {
 function wait_for_logs {
   local jm_pod_name=$1
   local successful_response_regex=$2
+  local timeout=${3:-30}
 
   echo "Waiting for jobmanager pod ${jm_pod_name} ready."
-  kubectl wait --for=condition=Ready --timeout=30s pod/$jm_pod_name || exit 1
+  kubectl wait --for=condition=Ready --timeout=${timeout}s pod/$jm_pod_name || exit 1
 
-  # wait at most 30 seconds until the log shows up
-  local TIMEOUT=30
+  # wait or timeout until the log shows up
   echo "Waiting for log \"$2\"..."
-  for i in $(seq 1 ${TIMEOUT}); do
+  for i in $(seq 1 ${timeout}); do
     if check_logs_output $jm_pod_name $successful_response_regex; then
       echo "Log \"$2\" shows up."
       return
@@ -185,7 +186,7 @@ function wait_for_logs {
 
     sleep 1
   done
-  echo "Log $2 does not show up within a timeout of ${TIMEOUT} sec"
+  echo "Log $2 does not show up within a timeout of ${timeout} sec"
   exit 1
 }
 

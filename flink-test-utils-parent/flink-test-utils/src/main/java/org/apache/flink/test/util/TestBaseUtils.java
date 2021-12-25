@@ -21,7 +21,6 @@ package org.apache.flink.test.util;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -33,11 +32,9 @@ import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -46,23 +43,18 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.ExecutionContext$;
-import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
@@ -75,15 +67,6 @@ public class TestBaseUtils extends TestLogger {
     private static final Logger LOG = LoggerFactory.getLogger(TestBaseUtils.class);
 
     protected static final int MINIMUM_HEAP_SIZE_MB = 192;
-
-    protected static final String TASK_MANAGER_MEMORY_SIZE = "80m";
-
-    protected static final long DEFAULT_AKKA_ASK_TIMEOUT = 1000;
-
-    protected static final String DEFAULT_AKKA_STARTUP_TIMEOUT = "60 s";
-
-    public static final FiniteDuration DEFAULT_TIMEOUT =
-            new FiniteDuration(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
 
     public static final Time DEFAULT_HTTP_TIMEOUT = Time.seconds(10L);
 
@@ -152,20 +135,6 @@ public class TestBaseUtils extends TestLogger {
                                     new FileInputStream(files[i]), StandardCharsets.UTF_8));
         }
         return readers;
-    }
-
-    public static BufferedInputStream[] getResultInputStream(String resultPath) throws IOException {
-        return getResultInputStream(resultPath, new String[] {});
-    }
-
-    public static BufferedInputStream[] getResultInputStream(
-            String resultPath, String[] excludePrefixes) throws IOException {
-        File[] files = getAllInvolvedFiles(resultPath, excludePrefixes);
-        BufferedInputStream[] inStreams = new BufferedInputStream[files.length];
-        for (int i = 0; i < files.length; i++) {
-            inStreams[i] = new BufferedInputStream(new FileInputStream(files[i]));
-        }
-        return inStreams;
     }
 
     public static void readAllResultLines(List<String> target, String resultPath)
@@ -335,19 +304,25 @@ public class TestBaseUtils extends TestLogger {
         assertTrue("Result file was not written", result.exists());
 
         if (result.isDirectory()) {
-            return result.listFiles(
-                    new FilenameFilter() {
+            try {
+                return Files.walk(result.toPath())
+                        .filter(Files::isRegularFile)
+                        .filter(
+                                path -> {
+                                    for (String prefix : excludePrefixes) {
+                                        if (path.getFileName().startsWith(prefix)) {
+                                            return false;
+                                        }
+                                    }
 
-                        @Override
-                        public boolean accept(File dir, String name) {
-                            for (String p : excludePrefixes) {
-                                if (name.startsWith(p)) {
-                                    return false;
-                                }
-                            }
-                            return true;
-                        }
-                    });
+                                    return true;
+                                })
+                        .map(Path::toFile)
+                        .filter(file -> !file.isHidden())
+                        .toArray(File[]::new);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to retrieve result files");
+            }
         } else {
             return new File[] {result};
         }
@@ -381,11 +356,6 @@ public class TestBaseUtils extends TestLogger {
 
     public static <T> void compareOrderedResultAsText(List<T> result, String expected) {
         compareResult(result, expected, false, false);
-    }
-
-    public static <T> void compareOrderedResultAsText(
-            List<T> result, String expected, boolean asTuples) {
-        compareResult(result, expected, asTuples, false);
     }
 
     private static <T> void compareResult(
@@ -468,30 +438,8 @@ public class TestBaseUtils extends TestLogger {
     //  Miscellaneous helper methods
     // --------------------------------------------------------------------------------------------
 
-    protected static Collection<Object[]> toParameterList(Configuration... testConfigs) {
-        ArrayList<Object[]> configs = new ArrayList<>();
-        for (Configuration testConfig : testConfigs) {
-            Object[] c = {testConfig};
-            configs.add(c);
-        }
-        return configs;
-    }
-
-    protected static Collection<Object[]> toParameterList(List<Configuration> testConfigs) {
-        LinkedList<Object[]> configs = new LinkedList<>();
-        for (Configuration testConfig : testConfigs) {
-            Object[] c = {testConfig};
-            configs.add(c);
-        }
-        return configs;
-    }
-
     public static void setEnv(Map<String, String> newenv) {
         CommonTestUtils.setEnv(newenv);
-    }
-
-    private static ExecutionContext defaultExecutionContext() {
-        return ExecutionContext$.MODULE$.global();
     }
     // --------------------------------------------------------------------------------------------
     //  File helper methods
@@ -514,10 +462,6 @@ public class TestBaseUtils extends TestLogger {
         }
         path += (forClass.getName() + "-" + folder);
         return path;
-    }
-
-    public static String constructTestURI(Class<?> forClass, String folder) {
-        return new File(constructTestPath(forClass, folder)).toURI().toString();
     }
 
     // ---------------------------------------------------------------------------------------------

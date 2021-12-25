@@ -64,6 +64,36 @@
 <ul><li>"name" - uses hostname as binding address</li><li>"ip" - uses host's ip address as binding address</li></ul></td>
         </tr>
         <tr>
+            <td><h5>taskmanager.network.memory.buffer-debloat.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>The switch of the automatic buffered debloating feature. If enabled the amount of in-flight data will be adjusted automatically accordingly to the measured throughput.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.buffer-debloat.period</h5></td>
+            <td style="word-wrap: break-word;">200 ms</td>
+            <td>Duration</td>
+            <td>The minimum period of time after which the buffer size will be debloated if required. The low value provides a fast reaction to the load fluctuation but can influence the performance.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.buffer-debloat.samples</h5></td>
+            <td style="word-wrap: break-word;">20</td>
+            <td>Integer</td>
+            <td>The number of the last buffer size values that will be taken for the correct calculation of the new one.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.buffer-debloat.target</h5></td>
+            <td style="word-wrap: break-word;">1 s</td>
+            <td>Duration</td>
+            <td>The target total time after which buffered in-flight data should be fully consumed. This configuration option will be used, in combination with the measured throughput, to adjust the amount of in-flight data.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.buffer-debloat.threshold-percentages</h5></td>
+            <td style="word-wrap: break-word;">25</td>
+            <td>Integer</td>
+            <td>The minimum difference in percentage between the newly calculated buffer size and the old one to announce the new value. Can be used to avoid constant back and forth small adjustments.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.numberOfTaskSlots</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
@@ -79,7 +109,7 @@
             <td><h5>taskmanager.resource-id</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the "RpcAddress:RpcPort" and a 6-character random string. Notice that this option is not valid in Yarn / Mesos and Native Kubernetes mode.</td>
+            <td>The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the "RpcAddress:RpcPort" and a 6-character random string. Notice that this option is not valid in Yarn and Native Kubernetes mode.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.rpc.bind-port</h5></td>
@@ -97,7 +127,7 @@
             <td><h5>taskmanager.slot.timeout</h5></td>
             <td style="word-wrap: break-word;">10 s</td>
             <td>Duration</td>
-            <td>Timeout used for identifying inactive slots. The TaskManager will free the slot if it does not become active within the given amount of time. Inactive slots can be caused by an out-dated slot request.</td>
+            <td>Timeout used for identifying inactive slots. The TaskManager will free the slot if it does not become active within the given amount of time. Inactive slots can be caused by an out-dated slot request. If no value is configured, then it will fall back to <code class="highlighter-rouge">akka.ask.timeout</code>.</td>
         </tr>
     </tbody>
 </table>

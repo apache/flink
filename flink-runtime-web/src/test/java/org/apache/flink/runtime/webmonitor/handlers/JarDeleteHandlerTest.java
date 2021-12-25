@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -28,6 +27,7 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -85,8 +85,7 @@ public class JarDeleteHandlerTest extends TestLogger {
     public void testDeleteJarById() throws Exception {
         assertThat(Files.exists(jarDir.resolve(TEST_JAR_NAME)), equalTo(true));
 
-        final HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> request =
-                createRequest(TEST_JAR_NAME);
+        final HandlerRequest<EmptyRequestBody> request = createRequest(TEST_JAR_NAME);
         jarDeleteHandler.handleRequest(request, restfulGateway).get();
 
         assertThat(Files.exists(jarDir.resolve(TEST_JAR_NAME)), equalTo(false));
@@ -94,8 +93,7 @@ public class JarDeleteHandlerTest extends TestLogger {
 
     @Test
     public void testDeleteUnknownJar() throws Exception {
-        final HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> request =
-                createRequest("doesnotexist.jar");
+        final HandlerRequest<EmptyRequestBody> request = createRequest("doesnotexist.jar");
         try {
             jarDeleteHandler.handleRequest(request, restfulGateway).get();
         } catch (final ExecutionException e) {
@@ -118,8 +116,7 @@ public class JarDeleteHandlerTest extends TestLogger {
     public void testFailedDelete() throws Exception {
         makeJarDirReadOnly();
 
-        final HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> request =
-                createRequest(TEST_JAR_NAME);
+        final HandlerRequest<EmptyRequestBody> request = createRequest(TEST_JAR_NAME);
         try {
             jarDeleteHandler.handleRequest(request, restfulGateway).get();
         } catch (final ExecutionException e) {
@@ -134,13 +131,14 @@ public class JarDeleteHandlerTest extends TestLogger {
         }
     }
 
-    private static HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> createRequest(
-            final String jarFileName) throws HandlerRequestException {
-        return new HandlerRequest<>(
+    private static HandlerRequest<EmptyRequestBody> createRequest(final String jarFileName)
+            throws HandlerRequestException {
+        return HandlerRequest.resolveParametersAndCreate(
                 EmptyRequestBody.getInstance(),
                 new JarDeleteMessageParameters(),
                 Collections.singletonMap(JarIdPathParameter.KEY, jarFileName),
-                Collections.emptyMap());
+                Collections.emptyMap(),
+                Collections.emptyList());
     }
 
     private void makeJarDirReadOnly() {

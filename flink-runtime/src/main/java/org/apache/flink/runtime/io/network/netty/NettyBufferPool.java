@@ -26,8 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
-
-import scala.Option;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -145,7 +144,7 @@ public class NettyBufferPool extends PooledByteBufAllocator {
      * @throws IllegalAccessException Error getting the statistics (should not happen when the Netty
      *     version stays the same).
      */
-    public Option<Long> getNumberOfAllocatedBytes()
+    public Optional<Long> getNumberOfAllocatedBytes()
             throws NoSuchFieldException, IllegalAccessException {
 
         if (directArenas != null) {
@@ -160,9 +159,9 @@ public class NettyBufferPool extends PooledByteBufAllocator {
             }
 
             long allocatedBytes = numChunks * chunkSize;
-            return Option.apply(allocatedBytes);
+            return Optional.of(allocatedBytes);
         } else {
-            return Option.empty();
+            return Optional.empty();
         }
     }
 

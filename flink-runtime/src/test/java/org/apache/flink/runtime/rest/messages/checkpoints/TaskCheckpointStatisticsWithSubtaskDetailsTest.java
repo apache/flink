@@ -38,17 +38,17 @@ public class TaskCheckpointStatisticsWithSubtaskDetailsTest
             throws Exception {
         final TaskCheckpointStatisticsWithSubtaskDetails.Summary summary =
                 new TaskCheckpointStatisticsWithSubtaskDetails.Summary(
-                        new MinMaxAvgStatistics(1L, 2L, 3L),
-                        new MinMaxAvgStatistics(1L, 2L, 3L),
+                        new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0),
                         new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointDuration(
-                                new MinMaxAvgStatistics(1L, 2L, 3L),
-                                new MinMaxAvgStatistics(1L, 2L, 3L)),
+                                new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0),
+                                new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0)),
                         new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointAlignment(
-                                new MinMaxAvgStatistics(1L, 2L, 3L),
-                                new MinMaxAvgStatistics(1L, 2L, 3L),
-                                new MinMaxAvgStatistics(1L, 2L, 3L),
-                                new MinMaxAvgStatistics(1L, 2L, 3L)),
-                        new MinMaxAvgStatistics(1L, 2L, 3L));
+                                new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0),
+                                new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0),
+                                new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0),
+                                new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0)),
+                        new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0));
 
         List<SubtaskCheckpointStatistics> subtaskCheckpointStatistics = new ArrayList<>(2);
 

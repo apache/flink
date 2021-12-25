@@ -287,6 +287,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
             serializedTaskInformation = new NonOffloaded<>(serializedValue);
         }
 
+        for (InputGateDeploymentDescriptor inputGate : inputGates) {
+            inputGate.loadBigData(blobService, jobId);
+        }
+
         // make sure that the serialized job and task information fields are filled
         Preconditions.checkNotNull(serializedJobInformation);
         Preconditions.checkNotNull(serializedTaskInformation);

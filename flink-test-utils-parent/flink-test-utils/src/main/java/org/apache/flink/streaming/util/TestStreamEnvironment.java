@@ -19,39 +19,55 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.test.util.MiniClusterPipelineExecutorServiceLoader;
-import org.apache.flink.util.TestNameProvider;
 
 import java.net.URL;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 
+import static org.apache.flink.configuration.CheckpointingOptions.LOCAL_RECOVERY;
+import static org.apache.flink.runtime.testutils.PseudoRandomValueSelector.randomize;
+
 /** A {@link StreamExecutionEnvironment} that executes its jobs on {@link MiniCluster}. */
 public class TestStreamEnvironment extends StreamExecutionEnvironment {
+    private static final String STATE_CHANGE_LOG_CONFIG_ON = "on";
+    private static final String STATE_CHANGE_LOG_CONFIG_UNSET = "unset";
+    private static final String STATE_CHANGE_LOG_CONFIG_RAND = "random";
     private static final boolean RANDOMIZE_CHECKPOINTING_CONFIG =
             Boolean.parseBoolean(System.getProperty("checkpointing.randomization", "false"));
+    private static final String STATE_CHANGE_LOG_CONFIG =
+            System.getProperty("checkpointing.changelog", STATE_CHANGE_LOG_CONFIG_UNSET).trim();
 
     public TestStreamEnvironment(
             MiniCluster miniCluster,
+            Configuration config,
             int parallelism,
             Collection<Path> jarFiles,
             Collection<URL> classPaths) {
         super(
                 new MiniClusterPipelineExecutorServiceLoader(miniCluster),
-                MiniClusterPipelineExecutorServiceLoader.createConfiguration(jarFiles, classPaths),
+                MiniClusterPipelineExecutorServiceLoader.updateConfigurationForMiniCluster(
+                        config, jarFiles, classPaths),
                 null);
 
         setParallelism(parallelism);
     }
 
     public TestStreamEnvironment(MiniCluster miniCluster, int parallelism) {
-        this(miniCluster, parallelism, Collections.emptyList(), Collections.emptyList());
+        this(
+                miniCluster,
+                new Configuration(),
+                parallelism,
+                Collections.emptyList(),
+                Collections.emptyList());
     }
 
     /**
@@ -74,8 +90,10 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                 conf -> {
                     TestStreamEnvironment env =
                             new TestStreamEnvironment(
-                                    miniCluster, parallelism, jarFiles, classpaths);
-                    randomize(conf);
+                                    miniCluster, conf, parallelism, jarFiles, classpaths);
+
+                    randomizeConfiguration(miniCluster, conf);
+
                     env.configure(conf, env.getUserClassloader());
                     return env;
                 };
@@ -84,25 +102,41 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
     }
 
     /**
-     * Randomizes configuration on test case level even if mini cluster is used in a class rule.
-     *
-     * <p>Note that only unset properties are randomized.
-     *
-     * @param conf the configuration to randomize
+     * This is the place for randomization the configuration that relates to DataStream API such as
+     * ExecutionConf, CheckpointConf, StreamExecutionEnvironment. List of the configurations can be
+     * found here {@link StreamExecutionEnvironment#configure(ReadableConfig, ClassLoader)}. All
+     * other configuration should be randomized here {@link
+     * org.apache.flink.runtime.testutils.MiniClusterResource#randomizeConfiguration(Configuration)}.
      */
-    private static void randomize(Configuration conf) {
+    private static void randomizeConfiguration(MiniCluster miniCluster, Configuration conf) {
+        // randomize ITTests for enabling unaligned checkpoint
         if (RANDOMIZE_CHECKPOINTING_CONFIG) {
-            final String testName = TestNameProvider.getCurrentTestName();
-            final PseudoRandomValueSelector valueSelector =
-                    PseudoRandomValueSelector.create(testName != null ? testName : "unknown");
-            valueSelector.select(conf, ExecutionCheckpointingOptions.ENABLE_UNALIGNED, true, false);
-            valueSelector.select(
+            randomize(conf, ExecutionCheckpointingOptions.ENABLE_UNALIGNED, true, false);
+            randomize(
                     conf,
                     ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT,
                     Duration.ofSeconds(0),
                     Duration.ofMillis(100),
                     Duration.ofSeconds(2));
         }
+
+        // randomize ITTests for enabling state change log
+        if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
+            if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
+                conf.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true);
+                miniCluster.overrideRestoreModeForRandomizedChangelogStateBackend();
+            } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_RAND)) {
+                boolean enabled =
+                        randomize(conf, StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true, false);
+                if (enabled) {
+                    miniCluster.overrideRestoreModeForRandomizedChangelogStateBackend();
+                }
+            }
+        }
+    }
+
+    private static boolean isConfigurationSupportedByChangelog(Configuration configuration) {
+        return !configuration.get(LOCAL_RECOVERY);
     }
 
     /**

@@ -50,7 +50,7 @@ import static org.junit.Assert.fail;
  */
 public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 
-    private static final int PARALLELISM = 16;
+    private static final int PARALLELISM = 4;
 
     @ClassRule
     public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
@@ -58,14 +58,14 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
                             .setNumberTaskManagers(2)
-                            .setNumberSlotsPerTaskManager(8)
+                            .setNumberSlotsPerTaskManager(2)
                             .build());
 
     private static Configuration getConfiguration() {
         Configuration config = new Configuration();
-        config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("80m"));
-        config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.ofMebiBytes(32L));
-        config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.ofMebiBytes(32L));
+        config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("20m"));
+        config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.ofMebiBytes(3L));
+        config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.ofMebiBytes(3L));
         return config;
     }
 

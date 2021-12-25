@@ -36,11 +36,11 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.dateToInternal;
+import static org.apache.flink.table.utils.DateTimeUtils.toInternal;
 
 /** This column vector is used to adapt hive's ColumnVector to Flink's ColumnVector. */
 public abstract class AbstractOrcNoHiveVector
-        implements org.apache.flink.table.data.vector.ColumnVector {
+        implements org.apache.flink.table.data.columnar.vector.ColumnVector {
 
     private ColumnVector orcVector;
 
@@ -53,7 +53,7 @@ public abstract class AbstractOrcNoHiveVector
         return !orcVector.noNulls && orcVector.isNull[orcVector.isRepeating ? 0 : i];
     }
 
-    public static org.apache.flink.table.data.vector.ColumnVector createFlinkVector(
+    public static org.apache.flink.table.data.columnar.vector.ColumnVector createFlinkVector(
             ColumnVector vector) {
         if (vector instanceof LongColumnVector) {
             return new OrcNoHiveLongVector((LongColumnVector) vector);
@@ -67,13 +67,13 @@ public abstract class AbstractOrcNoHiveVector
             return new OrcNoHiveTimestampVector((TimestampColumnVector) vector);
         } else {
             throw new UnsupportedOperationException(
-                    "Unsupport vector: " + vector.getClass().getName());
+                    "Unsupported vector: " + vector.getClass().getName());
         }
     }
 
     /** Create flink vector by hive vector from constant. */
-    public static org.apache.flink.table.data.vector.ColumnVector createFlinkVectorFromConstant(
-            LogicalType type, Object value, int batchSize) {
+    public static org.apache.flink.table.data.columnar.vector.ColumnVector
+            createFlinkVectorFromConstant(LogicalType type, Object value, int batchSize) {
         return createFlinkVector(createHiveVectorFromConstant(type, value, batchSize));
     }
 
@@ -107,7 +107,7 @@ public abstract class AbstractOrcNoHiveVector
                 if (value instanceof LocalDate) {
                     value = Date.valueOf((LocalDate) value);
                 }
-                return createLongVector(batchSize, dateToInternal((Date) value));
+                return createLongVector(batchSize, toInternal((Date) value));
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 return createTimestampVector(batchSize, value);
             default:

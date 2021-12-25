@@ -19,22 +19,17 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
-import akka.actor.ActorSystem;
-import akka.actor.Terminated;
 import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -57,22 +52,19 @@ public class AsyncCallsTest extends TestLogger {
     //  shared test members
     // ------------------------------------------------------------------------
 
-    private static final ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
-
     private static final Time timeout = Time.seconds(10L);
 
-    private static final AkkaRpcService akkaRpcService =
-            new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
+    private static RpcService rpcService;
+
+    @BeforeClass
+    public static void setup() throws Exception {
+        rpcService = RpcSystem.load().localServiceBuilder(new Configuration()).createAndStart();
+    }
 
     @AfterClass
     public static void shutdown()
             throws InterruptedException, ExecutionException, TimeoutException {
-        final CompletableFuture<Void> rpcTerminationFuture = akkaRpcService.stopService();
-        final CompletableFuture<Terminated> actorSystemTerminationFuture =
-                FutureUtils.toJava(actorSystem.terminate());
-
-        FutureUtils.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
-                .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+        rpcService.stopService().get();
     }
 
     // ------------------------------------------------------------------------
@@ -94,7 +86,7 @@ public class AsyncCallsTest extends TestLogger {
         final ReentrantLock lock = new ReentrantLock();
         final AtomicBoolean concurrentAccess = new AtomicBoolean(false);
 
-        RpcEndpoint rpcEndpoint = factory.create(akkaRpcService, lock, concurrentAccess);
+        RpcEndpoint rpcEndpoint = factory.create(rpcService, lock, concurrentAccess);
         rpcEndpoint.start();
 
         try {
@@ -159,7 +151,7 @@ public class AsyncCallsTest extends TestLogger {
 
         final long delay = 10L;
 
-        RpcEndpoint rpcEndpoint = factory.create(akkaRpcService, lock, concurrentAccess);
+        RpcEndpoint rpcEndpoint = factory.create(rpcService, lock, concurrentAccess);
         rpcEndpoint.start();
 
         try {
@@ -305,7 +297,7 @@ public class AsyncCallsTest extends TestLogger {
         final OneShotLatch triggerSetNewFencingToken = new OneShotLatch();
         final FencedTestEndpoint fencedTestEndpoint =
                 new FencedTestEndpoint(
-                        akkaRpcService,
+                        rpcService,
                         initialFencingToken,
                         enterSetNewFencingToken,
                         triggerSetNewFencingToken);

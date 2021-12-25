@@ -98,7 +98,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
         configuration.setLong(ClusterOptions.REFUSED_REGISTRATION_DELAY, 50L);
 
         final TestingMiniClusterConfiguration miniClusterConfiguration =
-                new TestingMiniClusterConfiguration.Builder()
+                TestingMiniClusterConfiguration.newBuilder()
                         .setConfiguration(configuration)
                         .setNumberDispatcherResourceManagerComponents(numDispatchers)
                         .setNumTaskManagers(numTMs)

@@ -78,28 +78,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
             ResultPartitionID partitionId,
             ResultPartitionManager partitionManager,
             TaskEventPublisher taskEventPublisher,
-            Counter numBytesIn,
-            Counter numBuffersIn) {
-
-        this(
-                inputGate,
-                channelIndex,
-                partitionId,
-                partitionManager,
-                taskEventPublisher,
-                0,
-                0,
-                numBytesIn,
-                numBuffersIn,
-                ChannelStateWriter.NO_OP);
-    }
-
-    public LocalInputChannel(
-            SingleInputGate inputGate,
-            int channelIndex,
-            ResultPartitionID partitionId,
-            ResultPartitionManager partitionManager,
-            TaskEventPublisher taskEventPublisher,
             int initialBackoff,
             int maxBackoff,
             Counter numBytesIn,
@@ -238,6 +216,12 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         }
 
         BufferAndBacklog next = subpartitionView.getNextBuffer();
+        // ignore the empty buffer directly
+        while (next != null && next.buffer().readableBytes() == 0) {
+            next.buffer().recycleBuffer();
+            next = subpartitionView.getNextBuffer();
+            numBuffersIn.inc();
+        }
 
         if (next == null) {
             if (subpartitionView.isReleased()) {
@@ -295,11 +279,19 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     public void resumeConsumption() {
         checkState(!isReleased, "Channel released.");
 
+        ResultSubpartitionView subpartitionView = checkNotNull(this.subpartitionView);
         subpartitionView.resumeConsumption();
 
-        if (subpartitionView.isAvailable(Integer.MAX_VALUE)) {
+        if (subpartitionView.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable()) {
             notifyChannelNonEmpty();
         }
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {
+        checkState(!isReleased, "Channel released.");
+
+        subpartitionView.acknowledgeAllDataProcessed();
     }
 
     // ------------------------------------------------------------------------
@@ -342,6 +334,22 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                 subpartitionView = null;
             }
         }
+    }
+
+    @Override
+    void announceBufferSize(int newBufferSize) {
+        checkState(!isReleased, "Channel released.");
+
+        ResultSubpartitionView view = this.subpartitionView;
+        if (view != null) {
+            view.notifyNewBufferSize(newBufferSize);
+        }
+    }
+
+    @Override
+    int getBuffersInUseCount() {
+        ResultSubpartitionView view = this.subpartitionView;
+        return view == null ? 0 : view.getNumberOfQueuedBuffers();
     }
 
     @Override

@@ -77,6 +77,8 @@ public final class Documentation {
         public static final String STATE_BACKEND_LATENCY_TRACKING =
                 "state_backend_latency_tracking";
 
+        public static final String STATE_BACKEND_CHANGELOG = "state_backend_changelog";
+
         public static final String EXPERT_CLASS_LOADING = "expert_class_loading";
         public static final String EXPERT_DEBUGGING_AND_TUNING = "expert_debugging_and_tuning";
         public static final String EXPERT_SCHEDULING = "expert_scheduling";
@@ -91,6 +93,7 @@ public final class Documentation {
         public static final String EXPERT_SECURITY_SSL = "expert_security_ssl";
         public static final String EXPERT_ROCKSDB = "expert_rocksdb";
         public static final String EXPERT_CLUSTER = "expert_cluster";
+        public static final String EXPERT_JOB_MANAGER = "expert_jobmanager";
 
         public static final String ALL_JOB_MANAGER = "all_jobmanager";
         public static final String ALL_TASK_MANAGER = "all_taskmanager";

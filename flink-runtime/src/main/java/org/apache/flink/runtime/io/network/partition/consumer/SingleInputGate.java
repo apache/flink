@@ -27,7 +27,9 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
@@ -42,6 +44,8 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
+import org.apache.flink.runtime.throughput.BufferDebloater;
+import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -52,6 +56,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -160,6 +165,9 @@ public class SingleInputGate extends IndexedInputGate {
     private final BitSet channelsWithEndOfPartitionEvents;
 
     @GuardedBy("inputChannelsWithData")
+    private final BitSet channelsWithEndOfUserRecords;
+
+    @GuardedBy("inputChannelsWithData")
     private int[] lastPrioritySequenceNumber;
 
     /** The partition producer state listener. */
@@ -172,6 +180,8 @@ public class SingleInputGate extends IndexedInputGate {
     private BufferPool bufferPool;
 
     private boolean hasReceivedAllEndOfPartitionEvents;
+
+    private boolean hasReceivedEndOfData;
 
     /** Flag indicating whether partitions have been requested. */
     private boolean requestedPartitionsFlag;
@@ -197,6 +207,10 @@ public class SingleInputGate extends IndexedInputGate {
      */
     private final MemorySegment unpooledSegment;
 
+    private final ThroughputCalculator throughputCalculator;
+    private final BufferDebloater bufferDebloater;
+    private boolean shouldDrainOnEndOfData = true;
+
     public SingleInputGate(
             String owningTaskName,
             int gateIndex,
@@ -208,7 +222,9 @@ public class SingleInputGate extends IndexedInputGate {
             SupplierWithException<BufferPool, IOException> bufferPoolFactory,
             @Nullable BufferDecompressor bufferDecompressor,
             MemorySegmentProvider memorySegmentProvider,
-            int segmentSize) {
+            int segmentSize,
+            ThroughputCalculator throughputCalculator,
+            @Nullable BufferDebloater bufferDebloater) {
 
         this.owningTaskName = checkNotNull(owningTaskName);
         Preconditions.checkArgument(0 <= gateIndex, "The gate index must be positive.");
@@ -227,6 +243,7 @@ public class SingleInputGate extends IndexedInputGate {
         this.inputChannels = new HashMap<>(numberOfInputChannels);
         this.channels = new InputChannel[numberOfInputChannels];
         this.channelsWithEndOfPartitionEvents = new BitSet(numberOfInputChannels);
+        this.channelsWithEndOfUserRecords = new BitSet(numberOfInputChannels);
         this.enqueuedInputChannelsWithData = new BitSet(numberOfInputChannels);
         this.lastPrioritySequenceNumber = new int[numberOfInputChannels];
         Arrays.fill(lastPrioritySequenceNumber, Integer.MIN_VALUE);
@@ -239,6 +256,8 @@ public class SingleInputGate extends IndexedInputGate {
         this.closeFuture = new CompletableFuture<>();
 
         this.unpooledSegment = MemorySegmentFactory.allocateUnpooledSegment(segmentSize);
+        this.bufferDebloater = bufferDebloater;
+        this.throughputCalculator = checkNotNull(throughputCalculator);
     }
 
     protected PrioritizedDeque<InputChannel> getInputChannelsWithData() {
@@ -250,10 +269,11 @@ public class SingleInputGate extends IndexedInputGate {
         checkState(
                 this.bufferPool == null,
                 "Bug in input gate setup logic: Already registered buffer pool.");
-        setupChannels();
 
         BufferPool bufferPool = bufferPoolFactory.get();
         setBufferPool(bufferPool);
+
+        setupChannels();
     }
 
     @Override
@@ -296,7 +316,7 @@ public class SingleInputGate extends IndexedInputGate {
     }
 
     @VisibleForTesting
-    void convertRecoveredInputChannels() {
+    public void convertRecoveredInputChannels() {
         LOG.debug("Converting recovered input channels ({} channels)", getNumberOfInputChannels());
         for (Map.Entry<IntermediateResultPartitionID, InputChannel> entry :
                 inputChannels.entrySet()) {
@@ -348,6 +368,57 @@ public class SingleInputGate extends IndexedInputGate {
     @Override
     public int getGateIndex() {
         return gateIndex;
+    }
+
+    @Override
+    public List<InputChannelInfo> getUnfinishedChannels() {
+        List<InputChannelInfo> unfinishedChannels =
+                new ArrayList<>(
+                        numberOfInputChannels - channelsWithEndOfPartitionEvents.cardinality());
+        synchronized (inputChannelsWithData) {
+            for (int i = channelsWithEndOfPartitionEvents.nextClearBit(0);
+                    i < numberOfInputChannels;
+                    i = channelsWithEndOfPartitionEvents.nextClearBit(i + 1)) {
+                unfinishedChannels.add(getChannel(i).getChannelInfo());
+            }
+        }
+
+        return unfinishedChannels;
+    }
+
+    @VisibleForTesting
+    int getBuffersInUseCount() {
+        int total = 0;
+        for (InputChannel channel : channels) {
+            total += channel.getBuffersInUseCount();
+        }
+        return total;
+    }
+
+    @VisibleForTesting
+    public void announceBufferSize(int newBufferSize) {
+        for (InputChannel channel : channels) {
+            if (!channel.isReleased()) {
+                channel.announceBufferSize(newBufferSize);
+            }
+        }
+    }
+
+    @Override
+    public void triggerDebloating() {
+        if (isFinished() || closeFuture.isDone()) {
+            return;
+        }
+
+        checkState(bufferDebloater != null, "Buffer debloater should not be null");
+        final long currentThroughput = throughputCalculator.calculateThroughput();
+        bufferDebloater
+                .recalculateBufferSize(currentThroughput, getBuffersInUseCount())
+                .ifPresent(this::announceBufferSize);
+    }
+
+    public Duration getLastEstimatedTimeToConsume() {
+        return bufferDebloater.getLastEstimatedTimeToConsumeBuffers();
     }
 
     /**
@@ -418,6 +489,15 @@ public class SingleInputGate extends IndexedInputGate {
     /** Assign the exclusive buffers to all remote input channels directly for credit-based mode. */
     @VisibleForTesting
     public void setupChannels() throws IOException {
+        // Allocate enough exclusive and floating buffers to guarantee that job can make progress.
+        // Note: An exception will be thrown if there is no buffer available in the given timeout.
+
+        // First allocate a single floating buffer to avoid potential deadlock when the exclusive
+        // buffer is 0. See FLINK-24035 for more information.
+        bufferPool.reserveSegments(1);
+
+        // Next allocate the exclusive buffers per channel when the number of exclusive buffer is
+        // larger than 0.
         synchronized (requestLock) {
             for (InputChannel inputChannel : inputChannels.values()) {
                 inputChannel.setup();
@@ -588,6 +668,17 @@ public class SingleInputGate extends IndexedInputGate {
     }
 
     @Override
+    public EndOfDataStatus hasReceivedEndOfData() {
+        if (!hasReceivedEndOfData) {
+            return EndOfDataStatus.NOT_END_OF_DATA;
+        } else if (shouldDrainOnEndOfData) {
+            return EndOfDataStatus.DRAINED;
+        } else {
+            return EndOfDataStatus.STOPPED;
+        }
+    }
+
+    @Override
     public String toString() {
         return "SingleInputGate{"
                 + "owningTaskName='"
@@ -625,16 +716,24 @@ public class SingleInputGate extends IndexedInputGate {
         Optional<InputWithData<InputChannel, BufferAndAvailability>> next =
                 waitAndGetNextData(blocking);
         if (!next.isPresent()) {
+            throughputCalculator.pauseMeasurement(System.currentTimeMillis());
+            getAvailableFuture()
+                    .whenComplete(
+                            (future, ex) -> {
+                                throughputCalculator.resumeMeasurement(System.currentTimeMillis());
+                            });
             return Optional.empty();
         }
 
         InputWithData<InputChannel, BufferAndAvailability> inputWithData = next.get();
-        return Optional.of(
+        final BufferOrEvent bufferOrEvent =
                 transformToBufferOrEvent(
                         inputWithData.data.buffer(),
                         inputWithData.moreAvailable,
                         inputWithData.input,
-                        inputWithData.morePriorityEvents));
+                        inputWithData.morePriorityEvents);
+        throughputCalculator.incomingDataSize(bufferOrEvent.getSize());
+        return Optional.of(bufferOrEvent);
     }
 
     private Optional<InputWithData<InputChannel, BufferAndAvailability>> waitAndGetNextData(
@@ -752,6 +851,14 @@ public class SingleInputGate extends IndexedInputGate {
             }
 
             currentChannel.releaseAllResources();
+        } else if (event.getClass() == EndOfData.class) {
+            synchronized (inputChannelsWithData) {
+                checkState(!channelsWithEndOfUserRecords.get(currentChannel.getChannelIndex()));
+                channelsWithEndOfUserRecords.set(currentChannel.getChannelIndex());
+                hasReceivedEndOfData =
+                        channelsWithEndOfUserRecords.cardinality() == numberOfInputChannels;
+                shouldDrainOnEndOfData &= ((EndOfData) event).getStopMode() == StopMode.DRAIN;
+            }
         }
 
         return new BufferOrEvent(
@@ -804,6 +911,12 @@ public class SingleInputGate extends IndexedInputGate {
         // is safe to not synchronize the requestLock here. We will refactor the code to not
         // rely on this assumption in the future.
         channels[channelInfo.getInputChannelIdx()].resumeConsumption();
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo) throws IOException {
+        checkState(!isFinished(), "InputGate already finished.");
+        channels[channelInfo.getInputChannelIdx()].acknowledgeAllRecordsProcessed();
     }
 
     // ------------------------------------------------------------------------

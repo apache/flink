@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.polling.PollingRecordPublisherFactory;
 import org.apache.flink.streaming.connectors.kinesis.metrics.ShardConsumerMetricsReporter;
@@ -33,10 +34,12 @@ import java.util.Properties;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT;
+import static org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumerTestUtils.createFakeShardConsumerMetricGroup;
 import static org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumerTestUtils.fakeSequenceNumber;
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM;
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -56,6 +59,17 @@ public class ShardConsumerTest {
         ShardConsumerMetricsReporter metrics =
                 assertNumberOfMessagesReceivedFromKinesis(500, kinesis, fakeSequenceNumber());
         assertEquals(500, metrics.getMillisBehindLatest());
+    }
+
+    @Test
+    public void testConsumerAndProducerMetricsAreUnregisteredAfterShardCompletes()
+            throws Exception {
+        KinesisProxyInterface kinesis =
+                FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCalls(
+                        500, 5, 500);
+        AbstractMetricGroup metricGroup = createFakeShardConsumerMetricGroup();
+        assertNumberOfMessagesReceivedFromKinesis(500, kinesis, fakeSequenceNumber(), metricGroup);
+        assertTrue(metricGroup.isClosed());
     }
 
     @Test
@@ -201,6 +215,20 @@ public class ShardConsumerTest {
             throws Exception {
         return assertNumberOfMessagesReceivedFromKinesis(
                 expectedNumberOfMessages, kinesis, startingSequenceNumber, new Properties());
+    }
+
+    private ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
+            final int expectedNumberOfMessages,
+            final KinesisProxyInterface kinesis,
+            final SequenceNumber startingSequenceNumber,
+            final AbstractMetricGroup metricGroup)
+            throws Exception {
+        return ShardConsumerTestUtils.assertNumberOfMessagesReceivedFromKinesis(
+                expectedNumberOfMessages,
+                new PollingRecordPublisherFactory(config -> kinesis),
+                startingSequenceNumber,
+                new Properties(),
+                metricGroup);
     }
 
     private ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(

@@ -25,11 +25,13 @@ import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
@@ -55,7 +57,7 @@ import static org.junit.Assert.fail;
 public class MetricGroupTest extends TestLogger {
 
     private static final MetricRegistryConfiguration defaultMetricRegistryConfiguration =
-            MetricRegistryConfiguration.defaultMetricRegistryConfiguration();
+            MetricRegistryTestUtils.defaultMetricRegistryConfiguration();
 
     private MetricRegistryImpl registry;
 
@@ -245,7 +247,7 @@ public class MetricGroupTest extends TestLogger {
                 TestReporter.class.getName());
 
         MetricRegistryImpl registry =
-                new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+                new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(config));
         try {
             GenericMetricGroup root =
                     new GenericMetricGroup(
@@ -336,9 +338,11 @@ public class MetricGroupTest extends TestLogger {
         JobVertexID vid = new JobVertexID();
         ExecutionAttemptID eid = new ExecutionAttemptID();
         MetricRegistryImpl registry = new MetricRegistryImpl(defaultMetricRegistryConfiguration);
-        TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
-        TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, jid, "jobname");
-        TaskMetricGroup task = new TaskMetricGroup(registry, job, vid, eid, "taskName", 4, 5);
+        TaskManagerMetricGroup tm =
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                        registry, "host", new ResourceID("id"));
+
+        TaskMetricGroup task = tm.addJob(jid, "jobname").addTask(vid, eid, "taskName", 4, 5);
         GenericMetricGroup userGroup1 = new GenericMetricGroup(registry, task, "hello");
         GenericMetricGroup userGroup2 = new GenericMetricGroup(registry, userGroup1, "world");
 

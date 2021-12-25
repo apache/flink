@@ -51,7 +51,8 @@ interface State {
     void suspend(Throwable cause);
 
     /**
-     * Gets the current {@link JobStatus}.
+     * Gets the current {@link JobStatus}. The returned job status will remain unchanged at least
+     * until the scheduler transitions to a different state.
      *
      * @return the current {@link JobStatus}
      */

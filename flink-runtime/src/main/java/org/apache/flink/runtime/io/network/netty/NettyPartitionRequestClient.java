@@ -127,12 +127,12 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
                     public void operationComplete(ChannelFuture future) throws Exception {
                         if (!future.isSuccess()) {
                             clientHandler.removeInputChannel(inputChannel);
-                            SocketAddress remoteAddr = future.channel().remoteAddress();
                             inputChannel.onError(
                                     new LocalTransportException(
                                             String.format(
-                                                    "Sending the partition request to '%s' failed.",
-                                                    remoteAddr),
+                                                    "Sending the partition request to '%s (#%d)' failed.",
+                                                    connectionId.getAddress(),
+                                                    connectionId.getConnectionIndex()),
                                             future.channel().localAddress(),
                                             future.cause()));
                         }
@@ -180,12 +180,12 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
                             @Override
                             public void operationComplete(ChannelFuture future) throws Exception {
                                 if (!future.isSuccess()) {
-                                    SocketAddress remoteAddr = future.channel().remoteAddress();
                                     inputChannel.onError(
                                             new LocalTransportException(
                                                     String.format(
-                                                            "Sending the task event to '%s' failed.",
-                                                            remoteAddr),
+                                                            "Sending the task event to '%s (#%d)' failed.",
+                                                            connectionId.getAddress(),
+                                                            connectionId.getConnectionIndex()),
                                                     future.channel().localAddress(),
                                                     future.cause()));
                                 }
@@ -195,12 +195,26 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
 
     @Override
     public void notifyCreditAvailable(RemoteInputChannel inputChannel) {
-        clientHandler.notifyCreditAvailable(inputChannel);
+        sendToChannel(new AddCreditMessage(inputChannel));
+    }
+
+    @Override
+    public void notifyNewBufferSize(RemoteInputChannel inputChannel, int bufferSize) {
+        sendToChannel(new NewBufferSizeMessage(inputChannel, bufferSize));
     }
 
     @Override
     public void resumeConsumption(RemoteInputChannel inputChannel) {
-        clientHandler.resumeConsumption(inputChannel);
+        sendToChannel(new ResumeConsumptionMessage(inputChannel));
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed(RemoteInputChannel inputChannel) {
+        sendToChannel(new AcknowledgeAllRecordsProcessedMessage(inputChannel));
+    }
+
+    private void sendToChannel(ClientOutboundMessage message) {
+        tcpChannel.eventLoop().execute(() -> tcpChannel.pipeline().fireUserEventTriggered(message));
     }
 
     @Override
@@ -228,6 +242,59 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
             final SocketAddress remoteAddr = tcpChannel.remoteAddress();
             throw new LocalTransportException(
                     String.format("Channel to '%s' closed.", remoteAddr), localAddr);
+        }
+    }
+
+    private static class AddCreditMessage extends ClientOutboundMessage {
+
+        private AddCreditMessage(RemoteInputChannel inputChannel) {
+            super(checkNotNull(inputChannel));
+        }
+
+        @Override
+        Object buildMessage() {
+            int credits = inputChannel.getAndResetUnannouncedCredit();
+            return credits > 0
+                    ? new NettyMessage.AddCredit(credits, inputChannel.getInputChannelId())
+                    : null;
+        }
+    }
+
+    private static class NewBufferSizeMessage extends ClientOutboundMessage {
+        private final int bufferSize;
+
+        private NewBufferSizeMessage(RemoteInputChannel inputChannel, int bufferSize) {
+            super(checkNotNull(inputChannel));
+            this.bufferSize = bufferSize;
+        }
+
+        @Override
+        Object buildMessage() {
+            return new NettyMessage.NewBufferSize(bufferSize, inputChannel.getInputChannelId());
+        }
+    }
+
+    private static class ResumeConsumptionMessage extends ClientOutboundMessage {
+
+        private ResumeConsumptionMessage(RemoteInputChannel inputChannel) {
+            super(checkNotNull(inputChannel));
+        }
+
+        @Override
+        Object buildMessage() {
+            return new NettyMessage.ResumeConsumption(inputChannel.getInputChannelId());
+        }
+    }
+
+    private static class AcknowledgeAllRecordsProcessedMessage extends ClientOutboundMessage {
+
+        private AcknowledgeAllRecordsProcessedMessage(RemoteInputChannel inputChannel) {
+            super(checkNotNull(inputChannel));
+        }
+
+        @Override
+        Object buildMessage() {
+            return new NettyMessage.AckAllUserRecordsProcessed(inputChannel.getInputChannelId());
         }
     }
 }

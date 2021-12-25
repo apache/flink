@@ -338,7 +338,7 @@ For a full list of classes that can be implicitly mapped to a data type, see the
 
 **`@DataTypeHint`**
 
-In many scenarios, it is required to support the automatic extraction _inline_ for paramaters and return types of a function
+In many scenarios, it is required to support the automatic extraction _inline_ for parameters and return types of a function
 
 The following example shows how to use data type hints. More information can be found in the documentation of the annotation class.
 
@@ -957,7 +957,7 @@ function is called to compute and return the final result.
 
 The following example illustrates the aggregation process:
 
-<img alt="UDAGG mechanism" src="/fig/udagg-mechanism.png" width="80%">
+{{<img alt="UDAGG mechanism" src="/fig/udagg-mechanism.png" width="80%">}}
 
 In the example, we assume a table that contains data about beverages. The table consists of three columns (`id`, `name`,
 and `price`) and 5 rows. We would like to find the highest price of all beverages in the table, i.e., perform
@@ -1294,7 +1294,7 @@ method of the function is called to compute and return the final result.
 
 The following example illustrates the aggregation process:
 
-<img alt="UDTAGG mechanism" src="/fig/udtagg-mechanism.png" width="80%">
+{{<img alt="UDTAGG mechanism" src="/fig/udtagg-mechanism.png" width="80%">}}
 
 In the example, we assume a table that contains data about beverages. The table consists of three columns (`id`, `name`,
 and `price`) and 5 rows. We would like to find the 2 highest prices of all beverages in the table, i.e.,

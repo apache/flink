@@ -81,14 +81,13 @@ public class HiveRunnerITCase {
     private static final HiveRunnerConfig CONFIG =
             new HiveRunnerConfig() {
                 {
-                    if (HiveShimLoader.getHiveVersion().startsWith("3.")) {
-                        // hive-3.x requires a proper txn manager to create ACID table
-                        getHiveConfSystemOverride()
-                                .put(HIVE_TXN_MANAGER.varname, DbTxnManager.class.getName());
-                        getHiveConfSystemOverride().put(HIVE_SUPPORT_CONCURRENCY.varname, "true");
-                        // tell TxnHandler to prepare txn DB
-                        getHiveConfSystemOverride().put(HIVE_IN_TEST.varname, "true");
-                    }
+                    // catalog lock needs txn manager
+                    // hive-3.x requires a proper txn manager to create ACID table
+                    getHiveConfSystemOverride()
+                            .put(HIVE_TXN_MANAGER.varname, DbTxnManager.class.getName());
+                    getHiveConfSystemOverride().put(HIVE_SUPPORT_CONCURRENCY.varname, "true");
+                    // tell TxnHandler to prepare txn DB
+                    getHiveConfSystemOverride().put(HIVE_IN_TEST.varname, "true");
                 }
             };
 
@@ -209,8 +208,7 @@ public class HiveRunnerITCase {
 
     @Test
     public void testWriteNullValues() throws Exception {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         tableEnv.executeSql("create database db1");
@@ -617,8 +615,7 @@ public class HiveRunnerITCase {
     }
 
     private static TableEnvironment getTableEnvWithHiveCatalog() {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         return tableEnv;
@@ -627,7 +624,7 @@ public class HiveRunnerITCase {
     private TableEnvironment getStreamTableEnvWithHiveCatalog() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+                HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         return tableEnv;
@@ -770,5 +767,25 @@ public class HiveRunnerITCase {
                             return res;
                         })
                 .collect(Collectors.joining(","));
+    }
+
+    @Test
+    public void testCatalogLock() throws Exception {
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.DEFAULT);
+        tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tableEnv.useCatalog(hiveCatalog.getName());
+
+        tableEnv.executeSql("create database db1");
+        try {
+            tableEnv.useDatabase("db1");
+            tableEnv.executeSql(
+                    "create table src (x int) with ('connector'='datagen','number-of-rows'='2')");
+            tableEnv.executeSql("create table lock_t (x int) with ('connector'='test-lock')");
+
+            // see TestLockTableSinkFactory
+            tableEnv.executeSql("insert into lock_t select * from src").await();
+        } finally {
+            tableEnv.executeSql("drop database db1 cascade");
+        }
     }
 }

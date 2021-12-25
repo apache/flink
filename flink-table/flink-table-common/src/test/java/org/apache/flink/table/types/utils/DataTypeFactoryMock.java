@@ -33,7 +33,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 
 import java.util.Optional;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link DataTypeFactory} mock for testing purposes. */
 public class DataTypeFactoryMock implements DataTypeFactory {
@@ -64,7 +64,7 @@ public class DataTypeFactoryMock implements DataTypeFactory {
 
     @Override
     public <T> DataType createDataType(Class<T> clazz) {
-        expectedClass.ifPresent(expected -> assertEquals(expected, clazz));
+        expectedClass.ifPresent(expected -> assertThat(expected).isEqualTo(clazz));
         return DataTypeExtractor.extractFromType(this, clazz);
     }
 
@@ -75,7 +75,7 @@ public class DataTypeFactoryMock implements DataTypeFactory {
 
     @Override
     public <T> DataType createRawDataType(Class<T> clazz) {
-        expectedClass.ifPresent(expected -> assertEquals(expected, clazz));
+        expectedClass.ifPresent(expected -> assertThat(expected).isEqualTo(clazz));
         return dataType.orElseThrow(IllegalStateException::new);
     }
 

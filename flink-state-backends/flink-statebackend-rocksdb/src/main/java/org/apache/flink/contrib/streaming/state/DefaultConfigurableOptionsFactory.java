@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.BlockBasedTableConfig;
+import org.rocksdb.BloomFilter;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
@@ -31,6 +32,7 @@ import org.rocksdb.InfoLogLevel;
 import org.rocksdb.PlainTableConfig;
 import org.rocksdb.TableFormatConfig;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -41,8 +43,13 @@ import java.util.Set;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOCK_CACHE_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOCK_SIZE;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOOM_FILTER_BITS_PER_KEY;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOOM_FILTER_BLOCK_BASED_MODE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.COMPACTION_STYLE;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.LOG_DIR;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.LOG_FILE_NUM;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.LOG_LEVEL;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.LOG_MAX_FILE_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.MAX_OPEN_FILES;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.MAX_SIZE_LEVEL_BASE;
@@ -50,6 +57,7 @@ import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOption
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.METADATA_BLOCK_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.TARGET_FILE_SIZE_BASE;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.USE_BLOOM_FILTER;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BUFFER_SIZE;
 
@@ -57,7 +65,14 @@ import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOption
  * An implementation of {@link ConfigurableRocksDBOptionsFactory} using options provided by {@link
  * RocksDBConfigurableOptions}. It acts as the default options factory within {@link
  * EmbeddedRocksDBStateBackend} if the user did not define a {@link RocksDBOptionsFactory}.
+ *
+ * <p>After FLINK-24046, we refactor the config procedure for RocksDB. User could use {@link
+ * ConfigurableRocksDBOptionsFactory} to apply some customized options. Besides this, we load the
+ * configurable options in {@link RocksDBResourceContainer} instead of {@link
+ * DefaultConfigurableOptionsFactory}. It is ignored for general case and still kept for backward
+ * compatibility if user still leverage this class. Thus, we mark this factory Deprecated.
  */
+@Deprecated
 public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 
     private static final long serialVersionUID = 1L;
@@ -68,7 +83,7 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
     public DBOptions createDBOptions(
             DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
         if (isOptionConfigured(MAX_BACKGROUND_THREADS)) {
-            currentOptions.setIncreaseParallelism(getMaxBackgroundThreads());
+            currentOptions.setMaxBackgroundJobs(getMaxBackgroundThreads());
         }
 
         if (isOptionConfigured(MAX_OPEN_FILES)) {
@@ -77,6 +92,18 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
 
         if (isOptionConfigured(LOG_LEVEL)) {
             currentOptions.setInfoLogLevel(getLogLevel());
+        }
+
+        if (isOptionConfigured(LOG_DIR)) {
+            currentOptions.setDbLogDir(getLogDir());
+        }
+
+        if (isOptionConfigured(LOG_MAX_FILE_SIZE)) {
+            currentOptions.setMaxLogFileSize(getMaxLogFileSize());
+        }
+
+        if (isOptionConfigured(LOG_FILE_NUM)) {
+            currentOptions.setKeepLogFileNum(getLogFileNum());
         }
 
         return currentOptions;
@@ -140,6 +167,24 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
             blockBasedTableConfig.setBlockCacheSize(getBlockCacheSize());
         }
 
+        if (isOptionConfigured(USE_BLOOM_FILTER)) {
+            final boolean enabled = Boolean.parseBoolean(getInternal(USE_BLOOM_FILTER.key()));
+            if (enabled) {
+                final double bitsPerKey =
+                        isOptionConfigured(BLOOM_FILTER_BITS_PER_KEY)
+                                ? Double.parseDouble(getInternal(BLOOM_FILTER_BITS_PER_KEY.key()))
+                                : BLOOM_FILTER_BITS_PER_KEY.defaultValue();
+                final boolean blockBasedMode =
+                        isOptionConfigured(BLOOM_FILTER_BLOCK_BASED_MODE)
+                                ? Boolean.parseBoolean(
+                                        getInternal(BLOOM_FILTER_BLOCK_BASED_MODE.key()))
+                                : BLOOM_FILTER_BLOCK_BASED_MODE.defaultValue();
+                BloomFilter bloomFilter = new BloomFilter(bitsPerKey, blockBasedMode);
+                handlesToClose.add(bloomFilter);
+                blockBasedTableConfig.setFilterPolicy(bloomFilter);
+            }
+        }
+
         return currentOptions.setTableFormatConfig(blockBasedTableConfig);
     }
 
@@ -179,7 +224,7 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
     }
 
     // --------------------------------------------------------------------------
-    // The log level for DB.
+    // Configuring RocksDB's info log.
     // --------------------------------------------------------------------------
 
     private InfoLogLevel getLogLevel() {
@@ -188,6 +233,65 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
 
     public DefaultConfigurableOptionsFactory setLogLevel(InfoLogLevel logLevel) {
         setInternal(LOG_LEVEL.key(), logLevel.name());
+        return this;
+    }
+
+    private String getLogDir() {
+        return getInternal(LOG_DIR.key());
+    }
+
+    /**
+     * The directory for RocksDB's logging files.
+     *
+     * @param logDir If empty, log files will be in the same directory as data files<br>
+     *     If non-empty, this directory will be used and the data directory's absolute path will be
+     *     used as the prefix of the log file name.
+     * @return this options factory
+     */
+    public DefaultConfigurableOptionsFactory setLogDir(String logDir) {
+        Preconditions.checkArgument(
+                new File(logDir).isAbsolute(),
+                "Invalid configuration: " + logDir + " does not point to an absolute path.");
+        setInternal(LOG_DIR.key(), logDir);
+        return this;
+    }
+
+    private long getMaxLogFileSize() {
+        return MemorySize.parseBytes(getInternal(LOG_MAX_FILE_SIZE.key()));
+    }
+
+    /**
+     * The maximum size of RocksDB's file used for logging.
+     *
+     * <p>If the log files becomes larger than this, a new file will be created. If 0, all logs will
+     * be written to one log file.
+     *
+     * @param maxLogFileSize max file size limit
+     * @return this options factory
+     */
+    public DefaultConfigurableOptionsFactory setMaxLogFileSize(String maxLogFileSize) {
+        Preconditions.checkArgument(
+                MemorySize.parseBytes(maxLogFileSize) >= 0,
+                "Invalid configuration " + maxLogFileSize + " for max log file size.");
+        setInternal(LOG_MAX_FILE_SIZE.key(), maxLogFileSize);
+
+        return this;
+    }
+
+    private long getLogFileNum() {
+        return Long.parseLong(getInternal(LOG_FILE_NUM.key()));
+    }
+
+    /**
+     * The maximum number of files RocksDB should keep for logging.
+     *
+     * @param logFileNum number of files to keep
+     * @return this options factory
+     */
+    public DefaultConfigurableOptionsFactory setLogFileNum(int logFileNum) {
+        Preconditions.checkArgument(
+                logFileNum > 0, "Invalid configuration: Must keep at least one log file.");
+        configuredOptions.put(LOG_FILE_NUM.key(), String.valueOf(logFileNum));
         return this;
     }
 
@@ -354,12 +458,46 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
         return this;
     }
 
+    // --------------------------------------------------------------------------
+    // Filter policy in RocksDB
+    // --------------------------------------------------------------------------
+
+    private boolean getUseBloomFilter() {
+        return Boolean.parseBoolean(getInternal(USE_BLOOM_FILTER.key()));
+    }
+
+    public DefaultConfigurableOptionsFactory setUseBloomFilter(boolean useBloomFilter) {
+        setInternal(USE_BLOOM_FILTER.key(), String.valueOf(useBloomFilter));
+        return this;
+    }
+
+    private double getBloomFilterBitsPerKey() {
+        return Double.parseDouble(getInternal(BLOOM_FILTER_BITS_PER_KEY.key()));
+    }
+
+    public DefaultConfigurableOptionsFactory setBloomFilterBitsPerKey(double bitsPerKey) {
+        setInternal(BLOOM_FILTER_BITS_PER_KEY.key(), String.valueOf(bitsPerKey));
+        return this;
+    }
+
+    private boolean getBloomFilterBlockBasedMode() {
+        return Boolean.parseBoolean(getInternal(BLOOM_FILTER_BLOCK_BASED_MODE.key()));
+    }
+
+    public DefaultConfigurableOptionsFactory setBloomFilterBlockBasedMode(boolean blockBasedMode) {
+        setInternal(BLOOM_FILTER_BLOCK_BASED_MODE.key(), String.valueOf(blockBasedMode));
+        return this;
+    }
+
     private static final ConfigOption<?>[] CANDIDATE_CONFIGS =
             new ConfigOption<?>[] {
                 // configurable DBOptions
                 MAX_BACKGROUND_THREADS,
                 MAX_OPEN_FILES,
                 LOG_LEVEL,
+                LOG_MAX_FILE_SIZE,
+                LOG_FILE_NUM,
+                LOG_DIR,
 
                 // configurable ColumnFamilyOptions
                 COMPACTION_STYLE,
@@ -371,13 +509,17 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
                 MIN_WRITE_BUFFER_NUMBER_TO_MERGE,
                 BLOCK_SIZE,
                 METADATA_BLOCK_SIZE,
-                BLOCK_CACHE_SIZE
+                BLOCK_CACHE_SIZE,
+                USE_BLOOM_FILTER,
+                BLOOM_FILTER_BITS_PER_KEY,
+                BLOOM_FILTER_BLOCK_BASED_MODE
             };
 
     private static final Set<ConfigOption<?>> POSITIVE_INT_CONFIG_SET =
             new HashSet<>(
                     Arrays.asList(
                             MAX_BACKGROUND_THREADS,
+                            LOG_FILE_NUM,
                             MAX_WRITE_BUFFER_NUMBER,
                             MIN_WRITE_BUFFER_NUMBER_TO_MERGE));
 
@@ -442,6 +584,14 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
             Preconditions.checkArgument(
                     ((MemorySize) value).getBytes() > 0,
                     "Configured size for key" + key + " must be larger than 0.");
+        } else if (LOG_MAX_FILE_SIZE.equals(option)) {
+            Preconditions.checkArgument(
+                    ((MemorySize) value).getBytes() >= 0,
+                    "Configured size for key " + key + " must be larger than or equal to 0.");
+        } else if (LOG_DIR.equals(option)) {
+            Preconditions.checkArgument(
+                    new File((String) value).isAbsolute(),
+                    "Configured path for key " + key + " is not absolute.");
         }
     }
 

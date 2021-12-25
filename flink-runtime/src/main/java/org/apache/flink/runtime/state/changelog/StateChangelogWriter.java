@@ -24,8 +24,10 @@ import java.util.concurrent.CompletableFuture;
 
 /** Allows to write data to the log. Scoped to a single writer (e.g. state backend). */
 @Internal
-public interface StateChangelogWriter<Handle extends StateChangelogHandle<?>>
-        extends AutoCloseable {
+public interface StateChangelogWriter<Handle extends ChangelogStateHandle> extends AutoCloseable {
+
+    /** Get the initial {@link SequenceNumber} that is used for the first element. */
+    SequenceNumber initialSequenceNumber();
 
     /**
      * Get {@link SequenceNumber} of the last element added by {@link #append(int, byte[]) append}.
@@ -33,7 +35,7 @@ public interface StateChangelogWriter<Handle extends StateChangelogHandle<?>>
     SequenceNumber lastAppendedSequenceNumber();
 
     /** Appends the provided data to this log. No persistency guarantees. */
-    void append(int keyGroup, byte[] value);
+    void append(int keyGroup, byte[] value) throws IOException;
 
     /**
      * Durably persist previously {@link #append(int, byte[]) appended} data starting from the

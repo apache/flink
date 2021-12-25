@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 
 import java.io.Serializable;
 
@@ -53,6 +54,8 @@ public class CheckpointProperties implements Serializable {
     private final boolean discardFailed;
     private final boolean discardSuspended;
 
+    private final boolean unclaimed;
+
     @VisibleForTesting
     CheckpointProperties(
             boolean forced,
@@ -61,7 +64,8 @@ public class CheckpointProperties implements Serializable {
             boolean discardFinished,
             boolean discardCancelled,
             boolean discardFailed,
-            boolean discardSuspended) {
+            boolean discardSuspended,
+            boolean unclaimed) {
 
         this.forced = forced;
         this.checkpointType = checkNotNull(checkpointType);
@@ -70,6 +74,7 @@ public class CheckpointProperties implements Serializable {
         this.discardCancelled = discardCancelled;
         this.discardFailed = discardFailed;
         this.discardSuspended = discardSuspended;
+        this.unclaimed = unclaimed;
     }
 
     // ------------------------------------------------------------------------
@@ -87,6 +92,11 @@ public class CheckpointProperties implements Serializable {
      */
     boolean forceCheckpoint() {
         return forced;
+    }
+
+    /** Returns whether the checkpoint should be restored in a {@link RestoreMode#NO_CLAIM} mode. */
+    public boolean isUnclaimed() {
+        return unclaimed;
     }
 
     // ------------------------------------------------------------------------
@@ -240,11 +250,11 @@ public class CheckpointProperties implements Serializable {
 
     private static final CheckpointProperties SAVEPOINT =
             new CheckpointProperties(
-                    true, CheckpointType.SAVEPOINT, false, false, false, false, false);
+                    true, CheckpointType.SAVEPOINT, false, false, false, false, false, false);
 
     private static final CheckpointProperties SAVEPOINT_NO_FORCE =
             new CheckpointProperties(
-                    false, CheckpointType.SAVEPOINT, false, false, false, false, false);
+                    false, CheckpointType.SAVEPOINT, false, false, false, false, false, false);
 
     private static final CheckpointProperties CHECKPOINT_NEVER_RETAINED =
             new CheckpointProperties(
@@ -254,7 +264,8 @@ public class CheckpointProperties implements Serializable {
                     true, // Delete on success
                     true, // Delete on cancellation
                     true, // Delete on failure
-                    true); // Delete on suspension
+                    true, // Delete on suspension
+                    false);
 
     private static final CheckpointProperties CHECKPOINT_RETAINED_ON_FAILURE =
             new CheckpointProperties(
@@ -264,7 +275,8 @@ public class CheckpointProperties implements Serializable {
                     true, // Delete on success
                     true, // Delete on cancellation
                     false, // Retain on failure
-                    true); // Delete on suspension
+                    true, // Delete on suspension
+                    false);
 
     private static final CheckpointProperties CHECKPOINT_RETAINED_ON_CANCELLATION =
             new CheckpointProperties(
@@ -274,7 +286,8 @@ public class CheckpointProperties implements Serializable {
                     true, // Delete on success
                     false, // Retain on cancellation
                     false, // Retain on failure
-                    false); // Retain on suspension
+                    false, // Retain on suspension
+                    false);
 
     /**
      * Creates the checkpoint properties for a (manually triggered) savepoint.
@@ -288,10 +301,30 @@ public class CheckpointProperties implements Serializable {
         return forced ? SAVEPOINT : SAVEPOINT_NO_FORCE;
     }
 
+    /**
+     * Creates the checkpoint properties for a snapshot restored in {@link RestoreMode#NO_CLAIM}.
+     * Those properties should not be used when triggering a checkpoint/savepoint. They're useful
+     * when restoring a {@link CompletedCheckpointStore} after a JM failover.
+     *
+     * @return Checkpoint properties for a snapshot restored in {@link RestoreMode#NO_CLAIM}.
+     */
+    public static CheckpointProperties forUnclaimedSnapshot() {
+        return new CheckpointProperties(
+                false,
+                CheckpointType.SAVEPOINT, // unclaimed snapshot is similar to a savepoint
+                false,
+                false,
+                false,
+                false,
+                false,
+                true);
+    }
+
     public static CheckpointProperties forSyncSavepoint(boolean forced, boolean terminate) {
         return new CheckpointProperties(
                 forced,
                 terminate ? CheckpointType.SAVEPOINT_TERMINATE : CheckpointType.SAVEPOINT_SUSPEND,
+                false,
                 false,
                 false,
                 false,

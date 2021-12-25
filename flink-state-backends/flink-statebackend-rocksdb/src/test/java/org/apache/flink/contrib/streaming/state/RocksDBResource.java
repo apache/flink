@@ -27,6 +27,7 @@ import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.InfoLogLevel;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.WriteOptions;
@@ -89,8 +90,12 @@ public class RocksDBResource extends ExternalResource {
                             LOG.error("Close previous DBOptions's instance failed.", e);
                         }
 
-                        return PredefinedOptions.FLASH_SSD_OPTIMIZED.createDBOptions(
-                                handlesToClose);
+                        return new DBOptions()
+                                .setMaxBackgroundJobs(4)
+                                .setUseFsync(false)
+                                .setMaxOpenFiles(-1)
+                                .setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
+                                .setStatsDumpPeriodSec(0);
                     }
 
                     @Override
@@ -104,9 +109,7 @@ public class RocksDBResource extends ExternalResource {
                             LOG.error("Close previous ColumnOptions's instance failed.", e);
                         }
 
-                        return PredefinedOptions.FLASH_SSD_OPTIMIZED
-                                .createColumnOptions(handlesToClose)
-                                .optimizeForPointLookup(40960);
+                        return new ColumnFamilyOptions().optimizeForPointLookup(40960);
                     }
                 });
     }
@@ -156,16 +159,17 @@ public class RocksDBResource extends ExternalResource {
         this.dbOptions =
                 optionsFactory
                         .createDBOptions(
-                                PredefinedOptions.DEFAULT.createDBOptions(handlesToClose),
+                                new DBOptions()
+                                        .setUseFsync(false)
+                                        .setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
+                                        .setStatsDumpPeriodSec(0),
                                 handlesToClose)
                         .setCreateIfMissing(true);
         this.columnFamilyOptions =
-                optionsFactory.createColumnOptions(
-                        PredefinedOptions.DEFAULT.createColumnOptions(handlesToClose),
-                        handlesToClose);
+                optionsFactory.createColumnOptions(new ColumnFamilyOptions(), handlesToClose);
         this.writeOptions = new WriteOptions();
         this.writeOptions.disableWAL();
-        this.readOptions = RocksDBOperationUtils.createTotalOrderSeekReadOptions();
+        this.readOptions = new ReadOptions();
         this.columnFamilyHandles = new ArrayList<>(1);
         this.rocksDB =
                 RocksDB.open(

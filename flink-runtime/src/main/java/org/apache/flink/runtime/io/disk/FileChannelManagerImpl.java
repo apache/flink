@@ -95,7 +95,7 @@ public class FileChannelManagerImpl implements FileChannelManager {
             }
             files[i] = storageDir;
 
-            LOG.info(
+            LOG.debug(
                     "FileChannelManager uses directory {} for spill files.",
                     storageDir.getAbsolutePath());
         }

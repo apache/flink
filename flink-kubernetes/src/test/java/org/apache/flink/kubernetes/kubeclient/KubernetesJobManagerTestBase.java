@@ -54,6 +54,7 @@ public class KubernetesJobManagerTestBase extends KubernetesPodTestBase {
                         this.flinkConfig.setString(
                                 ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX + k, v));
         this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_LABELS, userLabels);
+        this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_ANNOTATIONS, userAnnotations);
         this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_NODE_SELECTOR, nodeSelector);
         this.flinkConfig.set(
                 JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(JOB_MANAGER_MEMORY));

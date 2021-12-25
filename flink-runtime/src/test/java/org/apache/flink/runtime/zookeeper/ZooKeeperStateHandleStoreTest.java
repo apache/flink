@@ -21,11 +21,13 @@ package org.apache.flink.runtime.zookeeper;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.persistence.IntegerResourceVersion;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
+import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.InstantiationUtil;
@@ -56,6 +58,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.spy;
@@ -77,9 +80,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
     @AfterClass
     public static void tearDown() throws Exception {
-        if (ZOOKEEPER != null) {
-            ZOOKEEPER.shutdown();
-        }
+        ZOOKEEPER.shutdown();
     }
 
     @Before
@@ -145,8 +146,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
 
         CuratorFramework client = spy(ZOOKEEPER.getClient());
-        when(client.inTransaction().create())
-                .thenThrow(new RuntimeException("Expected test Exception."));
+        when(client.inTransaction()).thenThrow(new RuntimeException("Expected test Exception."));
 
         ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
                 new ZooKeeperStateHandleStore<>(client, stateHandleProvider);
@@ -171,10 +171,64 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     }
 
     @Test
-    public void testAddFailureHandlingForNodeExistsException() {
-        testFailingAddWithStateDiscardTriggeredFor(
-                new KeeperException.NodeExistsException(),
-                StateHandleStore.AlreadyExistException.class);
+    public void testAddAndLockExistingNode() throws Exception {
+        final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
+        final CuratorFramework client = ZOOKEEPER.getClient();
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
+                new ZooKeeperStateHandleStore<>(client, stateHandleProvider);
+        final String path = "/test";
+        final long firstState = 1337L;
+        final long secondState = 7331L;
+        store.addAndLock(path, new TestingLongStateHandleHelper.LongStateHandle(firstState));
+        assertThrows(
+                StateHandleStore.AlreadyExistException.class,
+                () ->
+                        store.addAndLock(
+                                path,
+                                new TestingLongStateHandleHelper.LongStateHandle(secondState)));
+        // There should be only single state handle from the first successful attempt.
+        assertEquals(1, TestingLongStateHandleHelper.getGlobalStorageSize());
+        assertEquals(firstState, TestingLongStateHandleHelper.getStateHandleValueByIndex(0));
+        // No state should have been discarded.
+        assertEquals(0, TestingLongStateHandleHelper.getDiscardCallCountForStateHandleByIndex(0));
+        // Get state handle from zookeeper.
+        assertEquals(firstState, store.getAndLock(path).retrieveState().getValue());
+    }
+
+    /**
+     * Transactions are not idempotent in the Curator version we're currently using, therefore we
+     * may end up retrying the transaction that has already (eg. in case of connection failure).
+     * Retry of a successful transaction would result in {@link KeeperException.NodeExistsException}
+     * in this case.
+     *
+     * @see <a href="https://issues.apache.org/jira/browse/CURATOR-584">CURATOR-584</a>
+     */
+    @Test
+    public void testAddAndLockRetrySuccessfulTransaction() throws Exception {
+        final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
+        final CuratorFramework client = ZOOKEEPER.getClient();
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
+                new ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle>(
+                        client, stateHandleProvider) {
+
+                    @Override
+                    protected void writeStoreHandleTransactionally(
+                            String path, byte[] serializedStoreHandle) throws Exception {
+                        super.writeStoreHandleTransactionally(path, serializedStoreHandle);
+                        throw new KeeperException.NodeExistsException(
+                                "Committed transaction has been retried.");
+                    }
+                };
+        final String path = "/test";
+        final long firstState = 1337L;
+        store.addAndLock(path, new TestingLongStateHandleHelper.LongStateHandle(firstState));
+        // There should be only single state handle from the first successful attempt.
+        assertEquals(1, TestingLongStateHandleHelper.getGlobalStorageSize());
+        assertEquals(firstState, TestingLongStateHandleHelper.getStateHandleValueByIndex(0));
+        // No state should have been discarded.
+        assertEquals(0, TestingLongStateHandleHelper.getDiscardCallCountForStateHandleByIndex(0));
+        // Get state handle from zookeeper.
+        assertEquals(firstState, store.getAndLock(path).retrieveState().getValue());
     }
 
     @Test
@@ -782,9 +836,15 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         configuration.setInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 100);
         configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_ROOT, "timeout");
 
-        try (CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
-                CuratorFramework client2 = ZooKeeperUtils.startCuratorFramework(configuration)) {
+        try (CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
+                        ZooKeeperUtils.startCuratorFramework(
+                                configuration, NoOpFatalErrorHandler.INSTANCE);
+                CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper2 =
+                        ZooKeeperUtils.startCuratorFramework(
+                                configuration, NoOpFatalErrorHandler.INSTANCE)) {
 
+            CuratorFramework client = curatorFrameworkWrapper.asCuratorFramework();
+            CuratorFramework client2 = curatorFrameworkWrapper2.asCuratorFramework();
             ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> zkStore =
                     new ZooKeeperStateHandleStore<>(client, longStateStorage);
 

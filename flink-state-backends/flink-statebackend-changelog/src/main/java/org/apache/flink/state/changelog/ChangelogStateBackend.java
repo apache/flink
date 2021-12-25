@@ -18,6 +18,8 @@
 
 package org.apache.flink.state.changelog;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -34,8 +36,14 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.taskmanager.AsynchronousException;
+import org.apache.flink.state.changelog.restore.ChangelogBackendRestoreOperation;
+import org.apache.flink.state.changelog.restore.ChangelogBackendRestoreOperation.BaseBackendBuilder;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -44,11 +52,18 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 
 import java.util.Collection;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This state backend holds the working state in the underlying delegatedStateBackend, and forwards
  * state changes to State Changelog.
  */
+@Internal
 public class ChangelogStateBackend implements DelegatingStateBackend, ConfigurableStateBackend {
 
     private static final long serialVersionUID = 1000L;
@@ -57,7 +72,14 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
 
     private final StateBackend delegatedStateBackend;
 
-    public ChangelogStateBackend(StateBackend stateBackend) {
+    /**
+     * Delegate a state backend by a ChangelogStateBackend.
+     *
+     * <p>As FLINK-22678 mentioned, we currently hide this constructor from user.
+     *
+     * @param stateBackend the delegated state backend.
+     */
+    ChangelogStateBackend(StateBackend stateBackend) {
         this.delegatedStateBackend = Preconditions.checkNotNull(stateBackend);
 
         Preconditions.checkArgument(
@@ -83,22 +105,26 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
             @Nonnull Collection<KeyedStateHandle> stateHandles,
             CloseableRegistry cancelStreamRegistry)
             throws Exception {
-        AbstractKeyedStateBackend<K> keyedStateBackend =
-                (AbstractKeyedStateBackend<K>)
-                        delegatedStateBackend.createKeyedStateBackend(
-                                env,
-                                jobID,
-                                operatorIdentifier,
-                                keySerializer,
-                                numberOfKeyGroups,
-                                keyGroupRange,
-                                kvStateRegistry,
-                                ttlTimeProvider,
-                                metricGroup,
-                                stateHandles,
-                                cancelStreamRegistry);
-        return new ChangelogKeyedStateBackend<>(
-                keyedStateBackend, env.getExecutionConfig(), ttlTimeProvider);
+        return restore(
+                env,
+                operatorIdentifier,
+                keyGroupRange,
+                ttlTimeProvider,
+                stateHandles,
+                baseHandles ->
+                        (AbstractKeyedStateBackend<K>)
+                                delegatedStateBackend.createKeyedStateBackend(
+                                        env,
+                                        jobID,
+                                        operatorIdentifier,
+                                        keySerializer,
+                                        numberOfKeyGroups,
+                                        keyGroupRange,
+                                        kvStateRegistry,
+                                        ttlTimeProvider,
+                                        metricGroup,
+                                        baseHandles,
+                                        cancelStreamRegistry));
     }
 
     @Override
@@ -116,24 +142,27 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
             CloseableRegistry cancelStreamRegistry,
             double managedMemoryFraction)
             throws Exception {
-
-        AbstractKeyedStateBackend<K> keyedStateBackend =
-                (AbstractKeyedStateBackend<K>)
-                        delegatedStateBackend.createKeyedStateBackend(
-                                env,
-                                jobID,
-                                operatorIdentifier,
-                                keySerializer,
-                                numberOfKeyGroups,
-                                keyGroupRange,
-                                kvStateRegistry,
-                                ttlTimeProvider,
-                                metricGroup,
-                                stateHandles,
-                                cancelStreamRegistry,
-                                managedMemoryFraction);
-        return new ChangelogKeyedStateBackend<>(
-                keyedStateBackend, env.getExecutionConfig(), ttlTimeProvider);
+        return restore(
+                env,
+                operatorIdentifier,
+                keyGroupRange,
+                ttlTimeProvider,
+                stateHandles,
+                baseHandles ->
+                        (AbstractKeyedStateBackend<K>)
+                                delegatedStateBackend.createKeyedStateBackend(
+                                        env,
+                                        jobID,
+                                        operatorIdentifier,
+                                        keySerializer,
+                                        numberOfKeyGroups,
+                                        keyGroupRange,
+                                        kvStateRegistry,
+                                        ttlTimeProvider,
+                                        metricGroup,
+                                        baseHandles,
+                                        cancelStreamRegistry,
+                                        managedMemoryFraction));
     }
 
     @Override
@@ -168,5 +197,82 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
         }
 
         return this;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private <K> ChangelogKeyedStateBackend<K> restore(
+            Environment env,
+            String operatorIdentifier,
+            KeyGroupRange keyGroupRange,
+            TtlTimeProvider ttlTimeProvider,
+            Collection<KeyedStateHandle> stateHandles,
+            BaseBackendBuilder<K> baseBackendBuilder)
+            throws Exception {
+        StateChangelogStorage<?> changelogStorage =
+                Preconditions.checkNotNull(
+                        env.getTaskStateManager().getStateChangelogStorage(),
+                        "Changelog storage is null when creating and restoring"
+                                + " the ChangelogKeyedStateBackend.");
+
+        String subtaskName = env.getTaskInfo().getTaskNameWithSubtasks();
+        ExecutionConfig executionConfig = env.getExecutionConfig();
+
+        ChangelogKeyedStateBackend<K> keyedStateBackend =
+                ChangelogBackendRestoreOperation.restore(
+                        changelogStorage.createReader(),
+                        env.getUserCodeClassLoader().asClassLoader(),
+                        castHandles(stateHandles),
+                        baseBackendBuilder,
+                        (baseBackend, baseState) ->
+                                new ChangelogKeyedStateBackend(
+                                        baseBackend,
+                                        subtaskName,
+                                        executionConfig,
+                                        ttlTimeProvider,
+                                        changelogStorage.createWriter(
+                                                operatorIdentifier, keyGroupRange),
+                                        baseState,
+                                        env.getCheckpointStorageAccess()));
+
+        PeriodicMaterializationManager periodicMaterializationManager =
+                new PeriodicMaterializationManager(
+                        checkNotNull(env.getMainMailboxExecutor()),
+                        checkNotNull(env.getAsyncOperationsThreadPool()),
+                        subtaskName,
+                        (message, exception) ->
+                                env.failExternally(new AsynchronousException(message, exception)),
+                        keyedStateBackend,
+                        executionConfig.getPeriodicMaterializeIntervalMillis(),
+                        executionConfig.getMaterializationMaxAllowedFailures());
+
+        // keyedStateBackend is responsible to close periodicMaterializationManager
+        // This indicates periodicMaterializationManager binds to the keyedStateBackend
+        // However PeriodicMaterializationManager can not be part of keyedStateBackend
+        // because of cyclic reference
+        keyedStateBackend.registerCloseable(periodicMaterializationManager);
+
+        periodicMaterializationManager.start();
+
+        return keyedStateBackend;
+    }
+
+    private Collection<ChangelogStateBackendHandle> castHandles(
+            Collection<KeyedStateHandle> stateHandles) {
+        if (stateHandles.stream().anyMatch(h -> !(h instanceof ChangelogStateBackendHandle))) {
+            LOG.warn(
+                    "Some state handles do not contain changelog: {} (ok if recovery from a savepoint)",
+                    stateHandles);
+        }
+        return stateHandles.stream()
+                .filter(Objects::nonNull)
+                .map(
+                        keyedStateHandle ->
+                                keyedStateHandle instanceof ChangelogStateBackendHandle
+                                        ? (ChangelogStateBackendHandle) keyedStateHandle
+                                        : new ChangelogStateBackendHandleImpl(
+                                                singletonList(keyedStateHandle),
+                                                emptyList(),
+                                                keyedStateHandle.getKeyGroupRange()))
+                .collect(Collectors.toList());
     }
 }

@@ -20,25 +20,32 @@ package org.apache.flink.tests.util.flink;
 
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /** Programmatic definition of a job-submission. */
 public class JobSubmission {
 
     private final Path jar;
+
+    private final String mainClass;
     private final int parallelism;
     private final boolean detached;
     private final List<String> arguments;
 
     JobSubmission(
             final Path jar,
+            @Nullable final String mainClass,
             final int parallelism,
             final boolean detached,
             final List<String> arguments) {
         this.jar = jar;
+        this.mainClass = mainClass;
         this.parallelism = parallelism;
         this.detached = detached;
         this.arguments = Collections.unmodifiableList(arguments);
@@ -60,17 +67,33 @@ public class JobSubmission {
         return jar;
     }
 
+    public Optional<String> getMainClass() {
+        return Optional.ofNullable(mainClass);
+    }
+
     /** Builder for the {@link JobSubmission}. */
     public static class JobSubmissionBuilder {
         private final Path jar;
         private int parallelism = 0;
         private final List<String> arguments = new ArrayList<>(2);
         private boolean detached = false;
+        private String mainClass = null;
 
         public JobSubmissionBuilder(final Path jar) {
             Preconditions.checkNotNull(jar);
             Preconditions.checkArgument(jar.isAbsolute(), "Jar path must be absolute.");
             this.jar = jar;
+        }
+
+        /**
+         * Sets the main class for the job.
+         *
+         * @param mainClass main class for the job
+         * @return the modified builder
+         */
+        public JobSubmissionBuilder setMainClass(final String mainClass) {
+            this.mainClass = mainClass;
+            return this;
         }
 
         /**
@@ -122,7 +145,7 @@ public class JobSubmission {
         }
 
         public JobSubmission build() {
-            return new JobSubmission(jar, parallelism, detached, arguments);
+            return new JobSubmission(jar, mainClass, parallelism, detached, arguments);
         }
     }
 }

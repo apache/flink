@@ -35,7 +35,7 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptMessageParameter
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumulatorsInfo;
 import org.apache.flink.runtime.rest.messages.job.UserAccumulator;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.TestLogger;
@@ -71,8 +71,8 @@ public class SubtaskExecutionAttemptAccumulatorsHandlerTest extends TestLogger {
                         TestingUtils.defaultExecutor());
 
         // Instance a empty request.
-        final HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request =
-                new HandlerRequest<>(
+        final HandlerRequest<EmptyRequestBody> request =
+                HandlerRequest.create(
                         EmptyRequestBody.getInstance(), new SubtaskAttemptMessageParameters());
 
         final Map<String, OptionalFailure<Accumulator<?, ?>>> userAccumulators = new HashMap<>(3);

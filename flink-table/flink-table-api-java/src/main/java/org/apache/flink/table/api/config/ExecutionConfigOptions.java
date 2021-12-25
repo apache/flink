@@ -18,11 +18,15 @@
 
 package org.apache.flink.table.api.config;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.DescribedEnum;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.InlineElement;
 
 import java.time.Duration;
 
@@ -32,8 +36,6 @@ import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * This class holds configuration constants used by Flink's table module.
- *
- * <p>This is only used for the Blink planner.
  *
  * <p>NOTE: All option keys in this class must start with "table.exec".
  */
@@ -115,12 +117,57 @@ public class ExecutionConfigOptions {
                     .enumType(NotNullEnforcer.class)
                     .defaultValue(NotNullEnforcer.ERROR)
                     .withDescription(
-                            "The NOT NULL column constraint on a table enforces that "
-                                    + "null values can't be inserted into the table. Flink supports "
-                                    + "'error' (default) and 'drop' enforcement behavior. By default, "
-                                    + "Flink will check values and throw runtime exception when null values writing "
-                                    + "into NOT NULL columns. Users can change the behavior to 'drop' to "
-                                    + "silently drop such records without throwing exception.");
+                            "Determines how Flink enforces NOT NULL column constraints when inserting null values.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<TypeLengthEnforcer> TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER =
+            key("table.exec.sink.type-length-enforcer")
+                    .enumType(TypeLengthEnforcer.class)
+                    .defaultValue(TypeLengthEnforcer.IGNORE)
+                    .withDescription(
+                            "Determines whether values for columns with CHAR(<length>)/VARCHAR(<length>)"
+                                    + "/BINARY(<length>)/VARBINARY(<length>) types will be trimmed or padded "
+                                    + "(only for CHAR(<length>)/BINARY(<length>)), so that their length "
+                                    + "will match the one defined by the length of their respective "
+                                    + "CHAR/VARCHAR/BINARY/VARBINARY column type.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<UpsertMaterialize> TABLE_EXEC_SINK_UPSERT_MATERIALIZE =
+            key("table.exec.sink.upsert-materialize")
+                    .enumType(UpsertMaterialize.class)
+                    .defaultValue(UpsertMaterialize.AUTO)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Because of the disorder of ChangeLog data caused by Shuffle in distributed system, "
+                                                    + "the data received by Sink may not be the order of global upsert. "
+                                                    + "So add upsert materialize operator before upsert sink. It receives the "
+                                                    + "upstream changelog records and generate an upsert view for the downstream.")
+                                    .linebreak()
+                                    .text(
+                                            "By default, the materialize operator will be added when a distributed disorder "
+                                                    + "occurs on unique keys. You can also choose no materialization(NONE) "
+                                                    + "or force materialization(FORCE).")
+                                    .build());
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<SinkKeyedShuffle> TABLE_EXEC_SINK_KEYED_SHUFFLE =
+            key("table.exec.sink.keyed-shuffle")
+                    .enumType(SinkKeyedShuffle.class)
+                    .defaultValue(SinkKeyedShuffle.AUTO)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "In order to minimize the distributed disorder problem when writing data into table with primary keys that many users suffers. "
+                                                    + "FLINK will auto add a keyed shuffle by default when the sink's parallelism differs from upstream operator and upstream is append only. "
+                                                    + "This works only when the upstream ensures the multi-records' order on the primary key, if not, the added shuffle can not solve "
+                                                    + "the problem (In this situation, a more proper way is to consider the deduplicate operation for the source firstly or use an "
+                                                    + "upsert source with primary key definition which truly reflect the records evolution).")
+                                    .linebreak()
+                                    .text(
+                                            "By default, the keyed shuffle will be added when the sink's parallelism differs from upstream operator. "
+                                                    + "You can set to no shuffle(NONE) or force shuffle(FORCE).")
+                                    .build());
 
     // ------------------------------------------------------------------------
     //  Sort Options
@@ -216,7 +263,8 @@ public class ExecutionConfigOptions {
     public static final ConfigOption<MemorySize> TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY =
             key("table.exec.resource.hash-join.memory")
                     .memoryType()
-                    .defaultValue(MemorySize.parse("128 mb"))
+                    // in sync with other weights from Table API and DataStream API
+                    .defaultValue(MemorySize.ofMebiBytes(128))
                     .withDescription(
                             "Sets the managed memory for hash join operator. It defines the lower"
                                     + " limit. Note: memory size is only a weight hint, it will affect the weight of"
@@ -229,7 +277,8 @@ public class ExecutionConfigOptions {
     public static final ConfigOption<MemorySize> TABLE_EXEC_RESOURCE_SORT_MEMORY =
             key("table.exec.resource.sort.memory")
                     .memoryType()
-                    .defaultValue(MemorySize.parse("128 mb"))
+                    // in sync with other weights from Table API and DataStream API
+                    .defaultValue(MemorySize.ofMebiBytes(128))
                     .withDescription(
                             "Sets the managed buffer memory size for sort operator. Note: memory"
                                     + " size is only a weight hint, it will affect the weight of memory that can be"
@@ -319,11 +368,13 @@ public class ExecutionConfigOptions {
                                     + "\"SortMergeJoin\", \"HashAgg\", \"SortAgg\".\n"
                                     + "By default no operator is disabled.");
 
+    /** @deprecated Use {@link ExecutionOptions#BATCH_SHUFFLE_MODE} instead. */
+    @Deprecated
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<String> TABLE_EXEC_SHUFFLE_MODE =
             key("table.exec.shuffle-mode")
                     .stringType()
-                    .defaultValue("ALL_EDGES_BLOCKING")
+                    .noDefaultValue()
                     .withDescription(
                             Description.builder()
                                     .text("Sets exec shuffle mode.")
@@ -354,15 +405,119 @@ public class ExecutionConfigOptions {
                                                     + "Pipelined shuffle means data will be sent to consumer tasks once produced.")
                                     .build());
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<LegacyCastBehaviour> TABLE_EXEC_LEGACY_CAST_BEHAVIOUR =
+            key("table.exec.sink.legacy-cast-behaviour")
+                    .enumType(LegacyCastBehaviour.class)
+                    .defaultValue(LegacyCastBehaviour.ENABLED)
+                    .withDescription(
+                            "Determines whether CAST will operate following the legacy behaviour "
+                                    + "or the new one that introduces various fixes and improvements.");
+
     // ------------------------------------------------------------------------------------------
     // Enum option types
     // ------------------------------------------------------------------------------------------
 
     /** The enforcer to guarantee NOT NULL column constraint when writing data into sink. */
-    public enum NotNullEnforcer {
-        /** Throws runtime exception when writing null values into NOT NULL column. */
-        ERROR,
-        /** Drop records when writing null values into NOT NULL column. */
-        DROP
+    @PublicEvolving
+    public enum NotNullEnforcer implements DescribedEnum {
+        ERROR(text("Throw a runtime exception when writing null values into NOT NULL column.")),
+        DROP(
+                text(
+                        "Drop records silently if a null value would have to be inserted "
+                                + "into a NOT NULL column."));
+
+        private final InlineElement description;
+
+        NotNullEnforcer(InlineElement description) {
+            this.description = description;
+        }
+
+        @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /**
+     * The enforcer to guarantee that length of CHAR/VARCHAR/BINARY/VARBINARY columns is respected
+     * when writing data into a sink.
+     */
+    @PublicEvolving
+    public enum TypeLengthEnforcer implements DescribedEnum {
+        IGNORE(
+                text(
+                        "Don't apply any trimming and padding, and instead "
+                                + "ignore the CHAR/VARCHAR/BINARY/VARBINARY length directive.")),
+        TRIM_PAD(
+                text(
+                        "Trim and pad string and binary values to match the length "
+                                + "defined by the CHAR/VARCHAR/BINARY/VARBINARY length."));
+
+        private final InlineElement description;
+
+        TypeLengthEnforcer(InlineElement description) {
+            this.description = description;
+        }
+
+        @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /** Upsert materialize strategy before sink. */
+    @PublicEvolving
+    public enum UpsertMaterialize {
+
+        /** In no case will materialize operator be added. */
+        NONE,
+
+        /** Add materialize operator when a distributed disorder occurs on unique keys. */
+        AUTO,
+
+        /** Add materialize operator in any case. */
+        FORCE
+    }
+
+    /** Shuffle by primary key before sink. */
+    @PublicEvolving
+    public enum SinkKeyedShuffle {
+
+        /** No keyed shuffle will be added for sink. */
+        NONE,
+
+        /** Auto add keyed shuffle when the sink's parallelism differs from upstream operator. */
+        AUTO,
+
+        /** Add keyed shuffle in any case except single parallelism. */
+        FORCE
+    }
+
+    /** Determine if CAST operates using the legacy behaviour or the new one. */
+    @Deprecated
+    public enum LegacyCastBehaviour implements DescribedEnum {
+        ENABLED(true, text("CAST will operate following the legacy behaviour.")),
+        DISABLED(false, text("CAST will operate following the new correct behaviour."));
+
+        private final boolean enabled;
+        private final InlineElement description;
+
+        LegacyCastBehaviour(boolean enabled, InlineElement description) {
+            this.enabled = enabled;
+            this.description = description;
+        }
+
+        @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+
+        public boolean isEnabled() {
+            return enabled;
+        }
     }
 }

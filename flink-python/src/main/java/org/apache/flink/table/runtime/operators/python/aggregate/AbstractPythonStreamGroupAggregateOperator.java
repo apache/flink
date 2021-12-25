@@ -35,7 +35,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.UpdatableRowData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
-import org.apache.flink.table.planner.typeutils.DataViewUtils;
+import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.functions.CleanupState;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
@@ -80,13 +80,12 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
             RowType inputType,
             RowType outputType,
             PythonAggregateFunctionInfo[] aggregateFunctions,
-            DataViewUtils.DataViewSpec[][] dataViewSpecs,
+            DataViewSpec[][] dataViewSpecs,
             int[] grouping,
             int indexOfCountStar,
             boolean generateUpdateBefore,
             long minRetentionTime,
-            long maxRetentionTime,
-            FlinkFnApi.CoderParam.OutputMode outputMode) {
+            long maxRetentionTime) {
         super(
                 config,
                 inputType,
@@ -95,9 +94,7 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
                 dataViewSpecs,
                 grouping,
                 indexOfCountStar,
-                generateUpdateBefore,
-                "flink:coder:schema:aggregate_function:v1",
-                outputMode);
+                generateUpdateBefore);
         this.minRetentionTime = minRetentionTime;
         this.maxRetentionTime = maxRetentionTime;
         this.stateCleaningEnabled = minRetentionTime > 1;
@@ -158,7 +155,7 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
     }
 
     @Override
-    public RowType getUserDefinedFunctionInputType() {
+    public RowType createUserDefinedFunctionInputType() {
         List<RowType.RowField> fields = new ArrayList<>();
         fields.add(new RowType.RowField("record_type", new TinyIntType()));
         fields.add(new RowType.RowField("row", inputType));
@@ -168,7 +165,7 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
     }
 
     @Override
-    public RowType getUserDefinedFunctionOutputType() {
+    public RowType createUserDefinedFunctionOutputType() {
         return outputType;
     }
 

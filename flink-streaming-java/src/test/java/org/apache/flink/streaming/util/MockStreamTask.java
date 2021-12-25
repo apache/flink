@@ -21,7 +21,6 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
-import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
@@ -32,10 +31,17 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
+import org.apache.flink.util.FatalExitExceptionHandler;
 
 import java.util.function.BiConsumer;
 
-/** A settable testing {@link StreamTask}. */
+/**
+ * A settable testing {@link StreamTask}.
+ *
+ * @deprecated This class is deprecated in favour of using {@link
+ *     org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarnessBuilder}.
+ */
+@Deprecated
 public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamTask<OUT, OP> {
 
     private final Object checkpointLock;
@@ -80,7 +86,7 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
     public void init() {}
 
     @Override
-    protected void cleanup() {
+    protected void cleanUpInternal() {
         mailboxProcessor.allActionsCompleted();
     }
 

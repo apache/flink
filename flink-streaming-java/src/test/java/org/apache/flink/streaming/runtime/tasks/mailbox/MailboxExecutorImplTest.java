@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
 import org.apache.flink.util.Preconditions;
@@ -82,14 +82,17 @@ public class MailboxExecutorImplTest {
 
     @Test
     public void testIsIdle() throws Exception {
-        MailboxProcessor processor = new MailboxProcessor();
+        MailboxProcessor processor =
+                new MailboxProcessor(MailboxDefaultAction.Controller::suspendDefaultAction);
         MailboxExecutorImpl executor =
                 (MailboxExecutorImpl) processor.getMailboxExecutor(DEFAULT_PRIORITY);
 
         assertFalse(executor.isIdle());
 
-        processor.runMailboxStep(); // suspend default action after suspension
-        processor.mailbox.drain(); // drop any control mails
+        processor.runMailboxStep(); // let the default action suspend mailbox
+        processor.allActionsCompleted();
+        // process allActionsCompleted() mail or any other remaining control mails
+        while (processor.runMailboxStep()) {}
 
         assertTrue(executor.isIdle());
 

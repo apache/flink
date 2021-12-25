@@ -19,8 +19,10 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.formats.avro.generated.LogicalTimeRecord;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -67,8 +69,10 @@ import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 
 /** Test for the Avro serialization and deserialization schema. */
 public class AvroRowDataDeSerializationSchemaTest {
@@ -214,6 +218,22 @@ public class AvroRowDataDeSerializationSchemaTest {
                 DataFormatConverters.LocalTimeConverter.INSTANCE
                         .toExternal(rowData.getInt(2))
                         .toString());
+    }
+
+    @Test
+    public void testSerializationWithTypesMismatch() throws Exception {
+        AvroRowDataSerializationSchema serializationSchema =
+                createSerializationSchema(ROW(FIELD("f0", INT()), FIELD("f1", STRING())).notNull());
+        GenericRowData rowData = new GenericRowData(2);
+        rowData.setField(0, 1);
+        rowData.setField(0, 2);
+        String errorMessage = "Fail to serialize at field: f1.";
+        try {
+            serializationSchema.serialize(rowData);
+            fail("expecting exception message: " + errorMessage);
+        } catch (Throwable t) {
+            assertThat(t, FlinkMatchers.containsMessage(errorMessage));
+        }
     }
 
     private AvroRowDataSerializationSchema createSerializationSchema(DataType dataType)

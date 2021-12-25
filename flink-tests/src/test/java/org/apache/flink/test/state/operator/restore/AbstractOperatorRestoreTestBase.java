@@ -24,19 +24,19 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -61,6 +61,10 @@ import static org.junit.Assert.assertNotNull;
  * <p>The verification is done in 2 Steps: Step 1: Migrate the job to the newer version by
  * submitting the same job used for the old version savepoint, and create a new savepoint. Step 2:
  * Modify the job topology, and restore from the savepoint created in step 1.
+ *
+ * <p>The savepoint _metadata file for the current branch is stored in the savepointPath in {@link
+ * AbstractOperatorRestoreTestBase#migrateJob}, please create the corresponding test resource
+ * directory and copy the _metadata file by hand.
  */
 public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 

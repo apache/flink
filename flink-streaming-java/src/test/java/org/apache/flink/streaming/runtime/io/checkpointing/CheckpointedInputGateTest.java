@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.MockChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
@@ -49,7 +50,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.util.clock.SystemClock;
 
-import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -270,7 +271,9 @@ public class CheckpointedInputGateTest {
         return new CheckpointBarrier(
                 barrierId,
                 barrierId,
-                CheckpointOptions.unaligned(CheckpointStorageLocationReference.getDefault()));
+                CheckpointOptions.unaligned(
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault()));
     }
 
     private void assertAddedInputSize(
@@ -342,7 +345,8 @@ public class CheckpointedInputGateTest {
                             @Override
                             public void invoke() {}
                         },
-                        SystemClock.getInstance());
+                        SystemClock.getInstance(),
+                        true);
 
         CheckpointedInputGate checkpointedInputGate =
                 new CheckpointedInputGate(

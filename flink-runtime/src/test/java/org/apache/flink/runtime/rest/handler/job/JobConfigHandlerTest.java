@@ -32,7 +32,7 @@ import org.apache.flink.runtime.rest.messages.JobConfigHeaders;
 import org.apache.flink.runtime.rest.messages.JobConfigInfo;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -54,11 +54,10 @@ public class JobConfigHandlerTest extends TestLogger {
         final JobConfigHandler jobConfigHandler =
                 new JobConfigHandler(
                         () -> null,
-                        TestingUtils.TIMEOUT(),
+                        TestingUtils.TIMEOUT,
                         Collections.emptyMap(),
                         JobConfigHeaders.getInstance(),
-                        new DefaultExecutionGraphCache(
-                                TestingUtils.TIMEOUT(), TestingUtils.TIMEOUT()),
+                        new DefaultExecutionGraphCache(TestingUtils.TIMEOUT, TestingUtils.TIMEOUT),
                         TestingUtils.defaultExecutor());
 
         final Map<String, String> globalJobParameters = new HashMap<>();
@@ -74,7 +73,7 @@ public class JobConfigHandlerTest extends TestLogger {
                 new ArchivedExecutionGraphBuilder()
                         .setArchivedExecutionConfig(archivedExecutionConfig)
                         .build();
-        final HandlerRequest<EmptyRequestBody, JobMessageParameters> handlerRequest =
+        final HandlerRequest<EmptyRequestBody> handlerRequest =
                 createRequest(archivedExecutionGraph.getJobID());
 
         final JobConfigInfo jobConfigInfoResponse =
@@ -92,15 +91,16 @@ public class JobConfigHandlerTest extends TestLogger {
         return ConfigurationUtils.hideSensitiveValues(globalJobParameters);
     }
 
-    private HandlerRequest<EmptyRequestBody, JobMessageParameters> createRequest(JobID jobId)
+    private HandlerRequest<EmptyRequestBody> createRequest(JobID jobId)
             throws HandlerRequestException {
         final Map<String, String> pathParameters = new HashMap<>();
         pathParameters.put(JobIDPathParameter.KEY, jobId.toString());
 
-        return new HandlerRequest<>(
+        return HandlerRequest.resolveParametersAndCreate(
                 EmptyRequestBody.getInstance(),
                 new JobMessageParameters(),
                 pathParameters,
-                Collections.emptyMap());
+                Collections.emptyMap(),
+                Collections.emptyList());
     }
 }

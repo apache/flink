@@ -21,11 +21,11 @@ package org.apache.flink.table.api;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
-import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_PLANNER;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 /** Test {@link EnvironmentSettings}. */
 public class EnvironmentSettingsTest {
@@ -34,20 +34,16 @@ public class EnvironmentSettingsTest {
     public void testFromConfiguration() {
         Configuration configuration = new Configuration();
         configuration.setString("execution.runtime-mode", "batch");
-        configuration.setString("table.planner", "old");
         EnvironmentSettings settings = EnvironmentSettings.fromConfiguration(configuration);
 
-        Assert.assertFalse("Expect old planner.", settings.isBlinkPlanner());
-        Assert.assertFalse("Expect batch mode.", settings.isStreamingMode());
+        assertFalse("Expect batch mode.", settings.isStreamingMode());
     }
 
     @Test
     public void testToConfiguration() {
-        EnvironmentSettings settings =
-                new EnvironmentSettings.Builder().useOldPlanner().inBatchMode().build();
+        EnvironmentSettings settings = new EnvironmentSettings.Builder().inBatchMode().build();
         Configuration configuration = settings.toConfiguration();
 
-        Assert.assertEquals(PlannerType.OLD, configuration.get(TABLE_PLANNER));
-        Assert.assertEquals(RuntimeExecutionMode.BATCH, configuration.get(RUNTIME_MODE));
+        assertEquals(RuntimeExecutionMode.BATCH, configuration.get(RUNTIME_MODE));
     }
 }
