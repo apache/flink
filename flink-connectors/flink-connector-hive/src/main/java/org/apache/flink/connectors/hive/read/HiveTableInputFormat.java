@@ -330,7 +330,8 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
         int splitNum = 0;
         try (MRSplitsGetter splitsGetter =
                 new MRSplitsGetter(
-                        flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_PARTITION_SPLIT_THREAD_NUM))) {
+                        flinkConf.get(
+                                HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM))) {
             for (HiveTablePartitionSplits partitionSplits :
                     splitsGetter.getHiveTablePartitionMRSplits(minNumSplits, partitions, jobConf)) {
                 for (InputSplit inputSplit : partitionSplits.getInputSplits()) {

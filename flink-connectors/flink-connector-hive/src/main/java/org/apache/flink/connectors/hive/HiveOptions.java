@@ -52,8 +52,8 @@ public class HiveOptions {
                             "If it is false, using flink native writer to write parquet and orc files; "
                                     + "If it is true, using hadoop mapred record writer to write parquet and orc files.");
 
-    public static final ConfigOption<Integer> TABLE_EXEC_HIVE_PARTITION_SPLIT_THREAD_NUM =
-            key("table.exec.hive.partition-split.thread.num")
+    public static final ConfigOption<Integer> TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM =
+            key("table.exec.hive.load-partition-splits.thread-num")
                     .intType()
                     .defaultValue(3)
                     .withDescription(

@@ -86,8 +86,8 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit> {
                 readerFormat,
                 continuousEnumerationSettings);
         Preconditions.checkArgument(
-                flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_PARTITION_SPLIT_THREAD_NUM) >= 1,
-                HiveOptions.TABLE_EXEC_HIVE_PARTITION_SPLIT_THREAD_NUM.key()
+                flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM) >= 1,
+                HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM.key()
                         + " cannot be less than 1");
         this.flinkConf = flinkConf;
         this.jobConfWrapper = new JobConfWrapper(jobConf);
