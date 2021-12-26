@@ -95,6 +95,13 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
     void signalNoMoreSplits(int subtask);
 
     /**
+     * signals a subtask that split not ready for its request .
+     *
+     * @param subtask The index of operator's parallel subtask that shall be signaled .
+     */
+    default void signalSplitNotReady(int subtask) {}
+
+    /**
      * Invoke the callable and handover the return value to the handler which will be executed by
      * the source coordinator. When this method is invoked multiple times, The <code>Callable</code>
      * s may be executed in a thread pool concurrently.

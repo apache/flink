@@ -33,6 +33,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
+import org.apache.flink.runtime.source.event.SplitNotReadyEvent;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ThrowableCatchingRunnable;
@@ -222,6 +223,17 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                     return null; // void return value
                 },
                 "Failed to send 'NoMoreSplits' to reader " + subtask);
+    }
+
+    @Override
+    public void signalSplitNotReady(int subtask) {
+        callInCoordinatorThread(
+                () -> {
+                    final OperatorCoordinator.SubtaskGateway gateway =
+                            getGatewayAndCheckReady(subtask);
+                    gateway.sendEvent(new SplitNotReadyEvent());
+                    return null;
+                }, "Failed to send 'SplitNotReady' to reader" + subtask);
     }
 
     @Override

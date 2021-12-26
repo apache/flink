@@ -132,4 +132,7 @@ public interface SourceReader<T, SplitT extends SourceSplit>
      */
     @Override
     default void notifyCheckpointComplete(long checkpointId) throws Exception {}
+
+    /** send split request. */
+    default void sendSplitRequest() {}
 }

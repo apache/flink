@@ -33,11 +33,11 @@ import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -56,7 +56,7 @@ public class LocalityAwareSplitAssigner implements FileSplitAssigner {
     private static final Logger LOG = LoggerFactory.getLogger(LocalityAwareSplitAssigner.class);
 
     /** All unassigned input splits. */
-    private final HashSet<SplitWithInfo> unassigned = new HashSet<>();
+    private final Set<SplitWithInfo> unassigned = new CopyOnWriteArraySet<>();
 
     /** Input splits indexed by host for local assignment. */
     private final HashMap<String, LocatableSplitChooser> localPerHost = new HashMap<>();
@@ -66,6 +66,7 @@ public class LocalityAwareSplitAssigner implements FileSplitAssigner {
 
     private final SimpleCounter localAssignments;
     private final SimpleCounter remoteAssignments;
+    private boolean allSplitsReady = false;
 
     // --------------------------------------------------------------------------------------------
 
@@ -130,6 +131,16 @@ public class LocalityAwareSplitAssigner implements FileSplitAssigner {
             remoteSplitChooser.addInputSplit(sc);
             unassigned.add(sc);
         }
+    }
+
+    @Override
+    public void setAllSplitsReady(boolean ready) {
+        this.allSplitsReady = ready;
+    }
+
+    @Override
+    public boolean isAllSplitsReady() {
+        return allSplitsReady;
     }
 
     @Override
@@ -261,7 +272,7 @@ public class LocalityAwareSplitAssigner implements FileSplitAssigner {
     private static class LocatableSplitChooser {
 
         /** list of all input splits. */
-        private final LinkedList<SplitWithInfo> splits = new LinkedList<>();
+        private final LinkedBlockingDeque<SplitWithInfo> splits = new LinkedBlockingDeque<>();
 
         /** The current minimum local count. We look for splits with this local count. */
         private int minLocalCount = -1;

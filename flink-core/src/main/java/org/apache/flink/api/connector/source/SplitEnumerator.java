@@ -118,4 +118,7 @@ public interface SplitEnumerator<SplitT extends SourceSplit, CheckpointT>
      * @param sourceEvent the source event from the source reader.
      */
     default void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {}
+
+    /** notify all splits is ready. */
+    default void notifyAllSplitsReady() {}
 }

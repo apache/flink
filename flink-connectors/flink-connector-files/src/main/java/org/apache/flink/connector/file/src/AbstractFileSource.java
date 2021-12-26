@@ -42,6 +42,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.stream.Collectors;
@@ -134,16 +135,17 @@ public abstract class AbstractFileSource<T, SplitT extends FileSourceSplit>
 
         // read the initial set of splits (which is also the total set of splits for bounded
         // sources)
-        final Collection<FileSourceSplit> splits;
+        Collection<FileSourceSplit> splits = new ArrayList<>();
+        SplitEnumerator splitEnumerator = createSplitEnumerator(enumContext, enumerator, splits, null);
         try {
             // TODO - in the next cleanup pass, we should try to remove the need to "wrap unchecked"
             // here
-            splits = enumerator.enumerateSplits(inputPaths, enumContext.currentParallelism());
+            enumerator.enumerateSplitsAsync(inputPaths, enumContext.currentParallelism(), splitEnumerator);
         } catch (IOException e) {
             throw new FlinkRuntimeException("Could not enumerate file splits", e);
         }
 
-        return createSplitEnumerator(enumContext, enumerator, splits, null);
+        return splitEnumerator;
     }
 
     @Override

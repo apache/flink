@@ -51,6 +51,20 @@ public interface FileSplitAssigner {
     /** Gets the remaining splits that this assigner has pending. */
     Collection<FileSourceSplit> remainingSplits();
 
+    /**
+     * set all splits ready.
+     * @param ready
+     */
+    default void setAllSplitsReady(boolean ready) {}
+
+    /**
+     * get whether all splits is ready.
+     * @return
+     */
+    default boolean isAllSplitsReady() {
+        return true;
+    }
+
     // ------------------------------------------------------------------------
 
     /**

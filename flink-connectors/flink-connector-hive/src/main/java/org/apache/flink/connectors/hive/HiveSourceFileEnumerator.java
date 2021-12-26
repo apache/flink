@@ -18,10 +18,12 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.enumerate.FileEnumerator;
 import org.apache.flink.connectors.hive.read.HiveSourceSplit;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -36,7 +38,10 @@ import org.apache.hadoop.util.StringUtils;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.apache.hadoop.mapreduce.lib.input.FileInputFormat.INPUT_DIR;
 
@@ -50,10 +55,12 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
     // empty.
     private final List<HiveTablePartition> partitions;
     private final JobConf jobConf;
+    private final ExecutorService executor;
 
     public HiveSourceFileEnumerator(List<HiveTablePartition> partitions, JobConf jobConf) {
         this.partitions = partitions;
         this.jobConf = jobConf;
+        this.executor = Executors.newSingleThreadExecutor();
     }
 
     @Override
@@ -77,6 +84,26 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
         }
 
         return hiveSplits;
+    }
+
+    @Override
+    public void enumerateSplitsAsync(Path[] paths, int minDesiredSplits, SplitEnumerator splitEnumerator) throws IOException {
+        Runnable t = () -> {
+            for (HiveTablePartition p  : partitions) {
+                try {
+                    List<HiveSourceSplit> partitionSplits = createInputSplits(
+                            minDesiredSplits,
+                            Collections.singletonList(p),
+                            jobConf);
+                    List<FileSourceSplit> splits = new ArrayList<>(partitionSplits);
+                    splitEnumerator.addSplitsBack(splits, 0);
+                } catch (IOException e) {
+                    throw new FlinkRuntimeException(e);
+                }
+            }
+            splitEnumerator.notifyAllSplitsReady();
+        };
+        executor.submit(t);
     }
 
     public static InputSplit[] createMRSplits(

@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.src.enumerate;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.core.fs.Path;
 
@@ -43,6 +44,9 @@ public interface FileEnumerator {
      */
     Collection<FileSourceSplit> enumerateSplits(Path[] paths, int minDesiredSplits)
             throws IOException;
+
+    default void enumerateSplitsAsync(Path[] paths, int minDesiredSplits, SplitEnumerator splitEnumerator)
+            throws IOException {}
 
     // ------------------------------------------------------------------------
 

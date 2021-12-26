@@ -69,4 +69,9 @@ public final class FileSourceReader<T, SplitT extends FileSourceSplit>
     protected SplitT toSplitType(String splitId, FileSourceSplitState<SplitT> splitState) {
         return splitState.toFileSourceSplit();
     }
+
+    @Override
+    public void sendSplitRequest() {
+        context.sendSplitRequest();
+    }
 }

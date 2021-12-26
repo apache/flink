@@ -101,8 +101,13 @@ public class StaticFileSplitEnumerator
             context.assignSplit(split, subtask);
             LOG.info("Assigned split to subtask {} : {}", subtask, split);
         } else {
-            context.signalNoMoreSplits(subtask);
-            LOG.info("No more splits available for subtask {}", subtask);
+            if (splitAssigner.isAllSplitsReady()) {
+                context.signalNoMoreSplits(subtask);
+                LOG.info("No more splits available for subtask {}", subtask);
+            } else {
+                context.signalSplitNotReady(subtask);
+                LOG.info("splits not ready for subtask {}", subtask);
+            }
         }
     }
 
@@ -120,5 +125,10 @@ public class StaticFileSplitEnumerator
     @Override
     public PendingSplitsCheckpoint<FileSourceSplit> snapshotState(long checkpointId) {
         return PendingSplitsCheckpoint.fromCollectionSnapshot(splitAssigner.remainingSplits());
+    }
+
+    @Override
+    public void notifyAllSplitsReady() {
+        splitAssigner.setAllSplitsReady(true);
     }
 }
