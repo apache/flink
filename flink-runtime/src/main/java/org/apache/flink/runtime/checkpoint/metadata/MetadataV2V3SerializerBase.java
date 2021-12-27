@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAcce
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.BiFunctionWithException;
 
@@ -65,8 +66,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Base (De)serializer for checkpoint metadata format version 2 and 3.
@@ -457,7 +456,7 @@ public abstract class MetadataV2V3SerializerBase {
                 int keyGroup = dis.readInt();
                 int bytesSize = dis.readInt();
                 byte[] bytes = new byte[bytesSize];
-                checkState(bytesSize == dis.read(bytes));
+                IOUtils.readFully(dis, bytes, 0, bytesSize);
                 changes.add(new StateChange(keyGroup, bytes));
             }
             return new InMemoryChangelogStateHandle(changes, from, to, keyGroupRange);
