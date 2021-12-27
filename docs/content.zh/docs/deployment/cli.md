@@ -442,7 +442,7 @@ related options. Here's an overview of all the Python related options for the ac
         <tr>
             <td><code class="highlighter-rouge">-py,--python</code></td>
             <td>
-                Python script with the program entry. The dependent resources can be configured
+                Python script with the program entry point. The dependent resources can be configured
                 with the <code class="highlighter-rouge">--pyFiles</code> option.
             </td>
         </tr>
