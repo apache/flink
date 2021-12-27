@@ -737,13 +737,10 @@ public class SingleInputGate extends IndexedInputGate {
                 waitAndGetNextData(blocking);
         if (!next.isPresent()) {
             throughputCalculator.pauseMeasurement();
-            getAvailableFuture()
-                    .whenComplete(
-                            (future, ex) -> {
-                                throughputCalculator.resumeMeasurement();
-                            });
             return Optional.empty();
         }
+
+        throughputCalculator.resumeMeasurement();
 
         InputWithData<InputChannel, BufferAndAvailability> inputWithData = next.get();
         final BufferOrEvent bufferOrEvent =
