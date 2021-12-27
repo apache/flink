@@ -47,38 +47,14 @@ public class TimerGauge implements Gauge<Long>, View {
     }
 
     public synchronized void markStart() {
-        markStartUnsafe(clock.absoluteTimeMillis());
-    }
-
-    public synchronized void markEnd() {
-        markEndUnsafe(clock.absoluteTimeMillis());
-    }
-
-    /**
-     * Duplicate of {@link #markStart()} with ability passing the time from outside for possible
-     * optimization on calling {@link Clock#absoluteTimeMillis()}.
-     */
-    public synchronized void markStart(long absoluteTimeMillis) {
-        markStartUnsafe(absoluteTimeMillis);
-    }
-
-    /**
-     * Duplicate of {@link #markEnd()} with ability passing the time from outside for possible
-     * optimization on calling {@link Clock#absoluteTimeMillis()}.
-     */
-    public synchronized void markEnd(long absoluteTimeMillis) {
-        markEndUnsafe(absoluteTimeMillis);
-    }
-
-    private void markStartUnsafe(long absoluteTimeMillis) {
         if (currentMeasurementStart == 0) {
-            currentMeasurementStart = absoluteTimeMillis;
+            currentMeasurementStart = clock.absoluteTimeMillis();
         }
     }
 
-    private void markEndUnsafe(long absoluteTimeMillis) {
+    public synchronized void markEnd() {
         if (currentMeasurementStart != 0) {
-            currentCount += absoluteTimeMillis - currentMeasurementStart;
+            currentCount += clock.absoluteTimeMillis() - currentMeasurementStart;
             currentMeasurementStart = 0;
         }
     }
