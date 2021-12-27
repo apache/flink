@@ -126,6 +126,8 @@ public class CassandraConnectorITCase
     private static final String TABLE_NAME_VARIABLE = "$TABLE";
     private static final String CREATE_KEYSPACE_QUERY =
             "CREATE KEYSPACE flink WITH replication= {'class':'SimpleStrategy', 'replication_factor':1};";
+    private static final String DROP_KEYSPACE_QUERY =
+            "DROP KEYSPACE IF EXISTS flink ;";
     private static final String CREATE_TABLE_QUERY =
             "CREATE TABLE flink."
                     + TABLE_NAME_VARIABLE
@@ -163,9 +165,11 @@ public class CassandraConnectorITCase
 
     @BeforeClass
     public static void startAndInitializeCassandra() {
+        // CASSANDRA_CONTAINER#start() already contains retrials
         CASSANDRA_CONTAINER.start();
         cluster = CASSANDRA_CONTAINER.getCluster();
         session = cluster.connect();
+        session.execute(DROP_KEYSPACE_QUERY);
         session.execute(CREATE_KEYSPACE_QUERY);
         session.execute(
                 CREATE_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, TABLE_NAME_PREFIX + "initial"));
