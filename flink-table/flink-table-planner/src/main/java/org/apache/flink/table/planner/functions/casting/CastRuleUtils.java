@@ -78,8 +78,12 @@ final class CastRuleUtils {
         return className(clazz) + "." + fieldName;
     }
 
-    static String arrayLength(String instanceTerm) {
-        return instanceTerm + ".length";
+    static String arrayLength(String arrayTerm) {
+        return arrayTerm + ".length";
+    }
+
+    static String arrayElement(String arrayTerm, String indexTerm) {
+        return arrayTerm + "[" + indexTerm + "]";
     }
 
     static String ternaryOperator(String condition, String ifTrue, String ifFalse) {
@@ -230,6 +234,11 @@ final class CastRuleUtils {
             bodyWriterConsumer.accept(indexTerm, innerWriter);
             builder.append(innerWriter).append("}\n");
 
+            return this;
+        }
+
+        public CodeWriter breakStmt() {
+            builder.append("break;\n");
             return this;
         }
 

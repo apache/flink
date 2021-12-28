@@ -157,11 +157,11 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(STRING(), "Apache Flink", "Apache Flink")
                         .fromCase(STRING(), null, null)
                         .fromCase(BOOLEAN(), true, "TRUE")
-                        .fromCase(BINARY(2), DEFAULT_BINARY, "\u0000\u0001")
-                        .fromCase(BINARY(3), DEFAULT_BINARY, "\u0000\u0001\u0000")
-                        .fromCase(VARBINARY(3), DEFAULT_VARBINARY, "\u0000\u0001\u0002")
-                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, "\u0000\u0001\u0002")
-                        .fromCase(BYTES(), DEFAULT_BYTES, "\u0000\u0001\u0002\u0003\u0004")
+                        .fromCase(BINARY(2), DEFAULT_BINARY, "0001")
+                        .fromCase(BINARY(3), DEFAULT_BINARY, "000100")
+                        .fromCase(VARBINARY(3), DEFAULT_VARBINARY, "000102")
+                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, "000102")
+                        .fromCase(BYTES(), DEFAULT_BYTES, "0001020304")
                         .fromCase(DECIMAL(4, 3), 9.87, "9.870")
                         .fromCase(DECIMAL(10, 5), 1, "1.00000")
                         .fromCase(
@@ -298,11 +298,11 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(BINARY(2))
                         .fromCase(BINARY(5), null, null)
-                        .fromCase(CHAR(3), "foo", new byte[] {102, 111})
-                        .fromCase(VARCHAR(5), "Flink", new byte[] {70, 108})
-                        .fromCase(STRING(), "Apache", new byte[] {65, 112})
-                        .fromCase(VARCHAR(5), "f", new byte[] {102, 0})
-                        .fromCase(STRING(), "f", new byte[] {102, 0})
+                        .fromCase(CHAR(4), "666F", new byte[] {102, 111})
+                        .fromCase(VARCHAR(8), "666f", new byte[] {102, 111})
+                        .fromCase(STRING(), "AAbbcCdD", new byte[] {-86, -69})
+                        .fromCase(VARCHAR(4), "FC", new byte[] {-4, 0})
+                        .fromCase(STRING(), "df", new byte[] {-33, 0})
                         // Not supported - no fix
                         .fail(BOOLEAN(), true)
                         //
@@ -336,9 +336,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(VARBINARY(4))
                         .fromCase(VARBINARY(5), null, null)
-                        .fromCase(CHAR(3), "foo", new byte[] {102, 111, 111})
-                        .fromCase(VARCHAR(5), "Flink", new byte[] {70, 108, 105, 110})
-                        .fromCase(STRING(), "Apache", new byte[] {65, 112, 97, 99})
+                        .fromCase(CHAR(4), "666F", new byte[] {102, 111})
+                        .fromCase(VARCHAR(8), "666f", new byte[] {102, 111})
+                        .fromCase(STRING(), "AAbbCcDdEe", new byte[] {-86, -69, -52, -35})
                         // Not supported - no fix
                         .fail(BOOLEAN(), true)
                         //
@@ -370,9 +370,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(BYTES())
                         .fromCase(BYTES(), null, null)
-                        .fromCase(CHAR(3), "foo", new byte[] {102, 111, 111})
-                        .fromCase(VARCHAR(5), "Flink", new byte[] {70, 108, 105, 110, 107})
-                        .fromCase(STRING(), "Apache", new byte[] {65, 112, 97, 99, 104, 101})
+                        .fromCase(CHAR(4), "666f", new byte[] {102, 111})
+                        .fromCase(VARCHAR(8), "666F", new byte[] {102, 111})
+                        .fromCase(STRING(), "aaBBCcDdEe", new byte[] {-86, -69, -52, -35, -18})
                         // Not supported - no fix
                         .fail(BOOLEAN(), true)
                         //
