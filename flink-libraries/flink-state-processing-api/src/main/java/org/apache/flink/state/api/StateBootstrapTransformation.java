@@ -197,8 +197,7 @@ public class StateBootstrapTransformation<T> {
             Configuration additionalConfig,
             StreamOperator<TaggedOperatorSubtaskState> operator) {
         // Eagerly perform a deep copy of the configuration, otherwise it will result in undefined
-        // behavior
-        // when deploying with multiple bootstrap transformations.
+        // behavior when deploying with multiple bootstrap transformations.
         Configuration deepCopy =
                 new Configuration(
                         MutableConfig.of(stream.getExecutionEnvironment().getConfiguration()));

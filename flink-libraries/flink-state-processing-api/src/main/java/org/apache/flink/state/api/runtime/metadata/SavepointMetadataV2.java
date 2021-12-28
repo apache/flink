@@ -28,6 +28,7 @@ import org.apache.flink.state.api.runtime.StateBootstrapTransformationWithID;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -56,11 +57,12 @@ public class SavepointMetadataV2 {
                         + UPPER_BOUND_MAX_PARALLELISM
                         + ". Found: "
                         + maxParallelism);
+        Preconditions.checkNotNull(masterStates);
+
         this.maxParallelism = maxParallelism;
-
-        this.masterStates = Preconditions.checkNotNull(masterStates);
-
+        this.masterStates = new ArrayList<>(masterStates);
         this.operatorStateIndex = new HashMap<>(initialStates.size());
+
         initialStates.forEach(
                 existingState ->
                         operatorStateIndex.put(
