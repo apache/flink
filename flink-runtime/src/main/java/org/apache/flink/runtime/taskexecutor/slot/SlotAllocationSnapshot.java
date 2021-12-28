@@ -23,8 +23,10 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 
+import java.util.Objects;
+
 /** Model to save local slot allocation info. */
-public class LocalSlotAllocationSnapshot implements java.io.Serializable {
+public class SlotAllocationSnapshot implements java.io.Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -34,7 +36,7 @@ public class LocalSlotAllocationSnapshot implements java.io.Serializable {
     private final AllocationID allocationId;
     private final ResourceProfile resourceProfile;
 
-    public LocalSlotAllocationSnapshot(
+    public SlotAllocationSnapshot(
             SlotID slotID,
             JobID jobId,
             String jobTargetAddress,
@@ -67,9 +69,13 @@ public class LocalSlotAllocationSnapshot implements java.io.Serializable {
         return resourceProfile;
     }
 
+    public int getSlotIndex() {
+        return slotID.getSlotNumber();
+    }
+
     @Override
     public String toString() {
-        return "LocalSlotAllocationSnapshot{"
+        return "SlotAllocationSnapshot{"
                 + "slotID="
                 + slotID
                 + ", jobId="
@@ -82,5 +88,26 @@ public class LocalSlotAllocationSnapshot implements java.io.Serializable {
                 + ", resourceProfile="
                 + resourceProfile
                 + '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        SlotAllocationSnapshot that = (SlotAllocationSnapshot) o;
+        return slotID.equals(that.slotID)
+                && jobId.equals(that.jobId)
+                && jobTargetAddress.equals(that.jobTargetAddress)
+                && allocationId.equals(that.allocationId)
+                && resourceProfile.equals(that.resourceProfile);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(slotID, jobId, jobTargetAddress, allocationId, resourceProfile);
     }
 }

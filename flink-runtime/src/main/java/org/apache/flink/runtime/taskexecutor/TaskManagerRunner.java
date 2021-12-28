@@ -622,7 +622,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         taskExecutorBlobService.getPermanentBlobService(),
                         taskManagerMetricGroup.f1,
                         ioExecutor,
-                        fatalErrorHandler);
+                        fatalErrorHandler,
+                        workingDirectory);
 
         MetricUtils.instantiateFlinkMemoryMetricGroup(
                 taskManagerMetricGroup.f1,

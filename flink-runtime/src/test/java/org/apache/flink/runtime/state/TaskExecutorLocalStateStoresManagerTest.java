@@ -74,10 +74,12 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
         // test configuration of the local state mode
         config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
 
+        final WorkingDirectory workingDirectory =
+                WORKING_DIRECTORY_RESOURCE.createNewWorkingDirectory();
         TaskManagerServices taskManagerServices =
                 createTaskManagerServices(
-                        createTaskManagerServiceConfiguration(
-                                config, WORKING_DIRECTORY_RESOURCE.createNewWorkingDirectory()));
+                        createTaskManagerServiceConfiguration(config, workingDirectory),
+                        workingDirectory);
 
         try {
             TaskExecutorLocalStateStoresManager taskStateManager =
@@ -119,7 +121,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
                 createTaskManagerServiceConfiguration(config, workingDirectory);
 
         TaskManagerServices taskManagerServices =
-                createTaskManagerServices(taskManagerServicesConfiguration);
+                createTaskManagerServices(taskManagerServicesConfiguration, workingDirectory);
 
         try {
             TaskExecutorLocalStateStoresManager taskStateManager =
@@ -288,13 +290,15 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
                 workingDirectory);
     }
 
-    private TaskManagerServices createTaskManagerServices(TaskManagerServicesConfiguration config)
+    private TaskManagerServices createTaskManagerServices(
+            TaskManagerServicesConfiguration config, WorkingDirectory workingDirectory)
             throws Exception {
         return TaskManagerServices.fromConfiguration(
                 config,
                 VoidPermanentBlobService.INSTANCE,
                 UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
                 Executors.newDirectExecutorService(),
-                throwable -> {});
+                throwable -> {},
+                workingDirectory);
     }
 }
