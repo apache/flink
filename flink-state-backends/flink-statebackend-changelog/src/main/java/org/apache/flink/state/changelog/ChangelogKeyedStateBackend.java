@@ -92,7 +92,6 @@ import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableList;
 import static org.apache.flink.state.changelog.PeriodicMaterializationManager.MaterializationRunnable;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@link KeyedStateBackend} that keeps state on the underlying delegated keyed state backend as
@@ -144,9 +143,7 @@ public class ChangelogKeyedStateBackend<K>
     private final Map<String, InternalKvState<K, ?, ?>> keyValueStatesByName;
 
     /**
-     * Unwrapped changelog states used for recovery (not wrapped into e.g. TTL).
-     *
-     * <p>WARN: cleared upon recovery completion.
+     * Unwrapped changelog states used for recovery (not wrapped into e.g. TTL, latency tracking).
      */
     private final Map<String, ChangelogState> changelogStates;
 
@@ -266,6 +263,8 @@ public class ChangelogKeyedStateBackend<K>
         lastName = null;
         lastState = null;
         keyValueStatesByName.clear();
+        changelogStates.clear();
+        priorityQueueStatesByName.clear();
     }
 
     @Override
@@ -559,7 +558,6 @@ public class ChangelogKeyedStateBackend<K>
             }
         }
 
-        changelogStates.clear();
         return new ChangelogSnapshotState(
                 materialized,
                 restoredNonMaterialized,
@@ -604,9 +602,8 @@ public class ChangelogKeyedStateBackend<K>
                             upTo);
 
             // log metadata after materialization is triggered
-            for (InternalKvState<K, ?, ?> changelogState : keyValueStatesByName.values()) {
-                checkState(changelogState instanceof ChangelogState);
-                ((ChangelogState) changelogState).resetWritingMetaFlag();
+            for (ChangelogState changelogState : changelogStates.values()) {
+                changelogState.resetWritingMetaFlag();
             }
 
             for (ChangelogKeyGroupedPriorityQueue<?> priorityQueueState :
