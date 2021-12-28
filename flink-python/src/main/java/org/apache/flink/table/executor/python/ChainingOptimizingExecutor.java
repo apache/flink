@@ -72,4 +72,9 @@ public class ChainingOptimizingExecutor implements Executor {
     public JobClient executeAsync(Pipeline pipeline) throws Exception {
         return executor.executeAsync(pipeline);
     }
+
+    @Override
+    public boolean isCheckpointingEnabled() {
+        return executor.isCheckpointingEnabled();
+    }
 }

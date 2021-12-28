@@ -623,6 +623,32 @@ class TableSinkTest extends TableTestBase {
     // source and sink has same parallelism, but sink shuffle by pk is enforced
     util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
   }
+
+  @Test
+  def testManagedTableSinkWithDisableCheckpointing(): Unit = {
+    util.addTable(
+      s"""
+         |CREATE TABLE source (person String, votes BIGINT) WITH(
+         |  'connector' = 'values'
+         |)
+         |""".stripMargin)
+    util.addTable(
+      s"""
+         |CREATE TABLE sink (person String, votes BIGINT) WITH(
+         |)
+         |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      "INSERT INTO sink SELECT * FROM source")
+
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage(
+      s"You should enable the checkpointing for sinking to managed table " +
+        s"`default_catalog`.`default_database`.`sink`, " +
+        s"managed table relies on checkpoint to commit and " +
+        s"the data is visible only after commit.")
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+  }
 }
 
 /** tests table factory use ParallelSourceFunction which support parallelism by env*/
