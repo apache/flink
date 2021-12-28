@@ -33,7 +33,7 @@ import org.apache.flink.state.api.input.operator.window.PassThroughReader;
 import org.apache.flink.state.api.input.operator.window.ProcessEvictingWindowReader;
 import org.apache.flink.state.api.input.operator.window.ReduceEvictingWindowReaderFunction;
 import org.apache.flink.state.api.runtime.MutableConfig;
-import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
+import org.apache.flink.state.api.runtime.metadata.SavepointMetadataV2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.windows.Window;
@@ -58,7 +58,7 @@ public class EvictingWindowSavepointReader<W extends Window> {
      * The savepoint metadata, which maintains the current set of existing / newly added operator
      * states.
      */
-    private final SavepointMetadata metadata;
+    private final SavepointMetadataV2 metadata;
 
     /**
      * The state backend that was previously used to write existing operator states in this
@@ -72,7 +72,7 @@ public class EvictingWindowSavepointReader<W extends Window> {
 
     EvictingWindowSavepointReader(
             StreamExecutionEnvironment env,
-            SavepointMetadata metadata,
+            SavepointMetadataV2 metadata,
             StateBackend stateBackend,
             TypeSerializer<W> windowSerializer) {
         Preconditions.checkNotNull(env, "The execution environment must not be null");

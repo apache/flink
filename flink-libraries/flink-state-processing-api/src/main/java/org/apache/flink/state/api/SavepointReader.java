@@ -42,7 +42,7 @@ import org.apache.flink.state.api.input.UnionStateInputFormat;
 import org.apache.flink.state.api.input.operator.KeyedStateReaderOperator;
 import org.apache.flink.state.api.runtime.MutableConfig;
 import org.apache.flink.state.api.runtime.SavepointLoader;
-import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
+import org.apache.flink.state.api.runtime.metadata.SavepointMetadataV2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
@@ -77,8 +77,8 @@ public class SavepointReader {
                                         new RuntimeException(
                                                 "Savepoint must contain at least one operator state."));
 
-        SavepointMetadata savepointMetadata =
-                new SavepointMetadata(
+        SavepointMetadataV2 savepointMetadata =
+                new SavepointMetadataV2(
                         maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
         return new SavepointReader(env, savepointMetadata, stateBackend);
     }
@@ -90,7 +90,7 @@ public class SavepointReader {
      * The savepoint metadata, which maintains the current set of existing / newly added operator
      * states.
      */
-    private final SavepointMetadata metadata;
+    private final SavepointMetadataV2 metadata;
 
     /**
      * The state backend that was previously used to write existing operator states in this
@@ -100,7 +100,7 @@ public class SavepointReader {
     private final StateBackend stateBackend;
 
     SavepointReader(
-            StreamExecutionEnvironment env, SavepointMetadata metadata, StateBackend stateBackend) {
+            StreamExecutionEnvironment env, SavepointMetadataV2 metadata, StateBackend stateBackend) {
         Preconditions.checkNotNull(env, "The execution environment must not be null");
         Preconditions.checkNotNull(metadata, "The savepoint metadata must not be null");
         Preconditions.checkNotNull(stateBackend, "The state backend must not be null");
