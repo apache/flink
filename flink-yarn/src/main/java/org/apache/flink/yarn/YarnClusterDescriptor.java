@@ -26,6 +26,8 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
+import org.apache.flink.client.program.AsyncClusterClientProvider;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
@@ -155,6 +157,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     private final String applicationType;
 
     private YarnConfigOptions.UserJarInclusion userJarInclusion;
+
+    private ApplicationId applicationId;
 
     public YarnClusterDescriptor(
             Configuration flinkConfiguration,
@@ -613,21 +617,42 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                         yarnApplication,
                         validClusterSpecification);
 
-        // print the application id for user to cancel themselves.
-        if (detached) {
-            final ApplicationId yarnApplicationId = report.getApplicationId();
-            logDetachedClusterInformation(yarnApplicationId, LOG);
-        }
+        final ApplicationId yarnApplicationId = report.getApplicationId();
+        applicationId = yarnApplicationId;
 
-        setClusterEntrypointInfoToConfig(report);
+        AsyncClusterClientProvider<ApplicationId> clusterClientProvider =
+                new AsyncClusterClientProvider() {
+                    @Override
+                    public boolean waitForSubmissionFinished() {
+                        ApplicationReport report;
+                        try {
+                            report = waitForAppSubmitted(yarnApplicationId, true);
+                        } catch (Exception e) {
+                            throw new RuntimeException(
+                                    "Errors while waiting until app is deployed.", e);
+                        }
 
-        return () -> {
-            try {
-                return new RestClusterClient<>(flinkConfiguration, report.getApplicationId());
-            } catch (Exception e) {
-                throw new RuntimeException("Error while creating RestClusterClient.", e);
-            }
-        };
+                        // print the application id for user to cancel themselves.
+                        if (detached) {
+                            logDetachedClusterInformation(yarnApplicationId, LOG);
+                        }
+
+                        setClusterEntrypointInfoToConfig(report);
+                        return true;
+                    }
+
+                    @Override
+                    protected ClusterClient buildClusterClient() {
+                        try {
+                            return new RestClusterClient<>(flinkConfiguration, yarnApplicationId);
+                        } catch (Exception e) {
+                            throw new RuntimeException(
+                                    "Error while creating RestClusterClient.", e);
+                        }
+                    }
+                };
+
+        return clusterClientProvider;
     }
 
     private ClusterSpecification validateClusterResources(
@@ -1195,9 +1220,21 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         yarnClient.submitApplication(appContext);
 
         LOG.info("Waiting for the cluster to be allocated");
+
+        ApplicationReport report = waitForAppSubmitted(appId, false);
+
+        // since deployment was successful, remove the hook
+        ShutdownHookUtil.removeShutdownHook(deploymentFailureHook, getClass().getSimpleName(), LOG);
+        return report;
+    }
+
+    private ApplicationReport waitForAppSubmitted(
+            ApplicationId appId, boolean ensureSubmissionFinished)
+            throws InterruptedException, YarnException {
         final long startTime = System.currentTimeMillis();
         ApplicationReport report;
         YarnApplicationState lastAppState = YarnApplicationState.NEW;
+
         loop:
         while (true) {
             try {
@@ -1227,7 +1264,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                 case FINISHED:
                     LOG.info("YARN application has been finished successfully.");
                     break loop;
+                case ACCEPTED:
                 default:
+                    if (appState == YarnApplicationState.ACCEPTED && !ensureSubmissionFinished) {
+                        LOG.info("YARN application has been accepted successfully.");
+                        break loop;
+                    }
                     if (appState != lastAppState) {
                         LOG.info("Deploying cluster, current state " + appState);
                     }
@@ -1239,9 +1281,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             lastAppState = appState;
             Thread.sleep(250);
         }
-
-        // since deployment was successful, remove the hook
-        ShutdownHookUtil.removeShutdownHook(deploymentFailureHook, getClass().getSimpleName(), LOG);
         return report;
     }
 

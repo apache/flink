@@ -19,8 +19,10 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -40,6 +42,8 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ApplicationReport;
+import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -53,8 +57,11 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
+import static org.apache.hadoop.yarn.api.records.YarnApplicationState.ACCEPTED;
+import static org.apache.hadoop.yarn.api.records.YarnApplicationState.RUNNING;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -133,6 +140,38 @@ public class YARNITCase extends YarnTestBase {
         runTest(() -> deployPerJob(flinkConfig, archiveJobGraph, true));
     }
 
+    @Test
+    public void testPerJobModeWithAsyncClusterClientProvider() throws Exception {
+        runTest(
+                () -> {
+                    Configuration configuration =
+                            createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.FIRST);
+                    JobGraph jobGraph = getTestingJobGraph();
+                    jobGraph.setJobType(JobType.STREAMING);
+                    try (final YarnClusterDescriptor yarnClusterDescriptor =
+                            createYarnClusterDescriptor(configuration)) {
+
+                        ClusterClientProvider<ApplicationId> clusterClientProvider =
+                                deployJobCluster(yarnClusterDescriptor, jobGraph);
+
+                        ApplicationId applicationId = yarnClusterDescriptor.getApplicationId();
+                        YarnClient yarnClient = getYarnClient();
+                        ApplicationReport report = yarnClient.getApplicationReport(applicationId);
+
+                        assertEquals(ACCEPTED, report.getYarnApplicationState());
+
+                        ClusterClient<ApplicationId> clusterClient =
+                                clusterClientProvider.getClusterClient();
+
+                        report = yarnClient.getApplicationReport(applicationId);
+                        assertEquals(RUNNING, report.getYarnApplicationState());
+
+                        checkApplicationFinished(
+                                clusterClient, yarnClusterDescriptor, jobGraph, configuration);
+                    }
+                });
+    }
+
     private void deployPerJob(Configuration configuration, JobGraph jobGraph, boolean withDist)
             throws Exception {
         jobGraph.setJobType(JobType.STREAMING);
@@ -141,54 +180,70 @@ public class YARNITCase extends YarnTestBase {
                         ? createYarnClusterDescriptor(configuration)
                         : createYarnClusterDescriptorWithoutLibDir(configuration)) {
 
-            final int masterMemory =
-                    yarnClusterDescriptor
-                            .getFlinkConfiguration()
-                            .get(JobManagerOptions.TOTAL_PROCESS_MEMORY)
-                            .getMebiBytes();
-            final ClusterSpecification clusterSpecification =
-                    new ClusterSpecification.ClusterSpecificationBuilder()
-                            .setMasterMemoryMB(masterMemory)
-                            .setTaskManagerMemoryMB(1024)
-                            .setSlotsPerTaskManager(1)
-                            .createClusterSpecification();
+            ClusterClientProvider<ApplicationId> clusterClientProvider =
+                    deployJobCluster(yarnClusterDescriptor, jobGraph);
 
-            File testingJar =
-                    TestUtils.findFile("..", new TestUtils.TestJarFinder("flink-yarn-tests"));
+            ClusterClient<ApplicationId> clusterClient = clusterClientProvider.getClusterClient();
 
-            jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
-            try (ClusterClient<ApplicationId> clusterClient =
-                    yarnClusterDescriptor
-                            .deployJobCluster(clusterSpecification, jobGraph, false)
-                            .getClusterClient()) {
+            checkApplicationFinished(clusterClient, yarnClusterDescriptor, jobGraph, configuration);
+        }
+    }
 
-                for (DistributedCache.DistributedCacheEntry entry :
-                        jobGraph.getUserArtifacts().values()) {
-                    assertTrue(
-                            String.format(
-                                    "The user artifacts(%s) should be remote or uploaded to remote filesystem.",
-                                    entry.filePath),
-                            Utils.isRemotePath(entry.filePath));
-                }
+    private ClusterClientProvider<ApplicationId> deployJobCluster(
+            YarnClusterDescriptor yarnClusterDescriptor, JobGraph jobGraph)
+            throws ClusterDeploymentException {
+        final int masterMemory =
+                yarnClusterDescriptor
+                        .getFlinkConfiguration()
+                        .get(JobManagerOptions.TOTAL_PROCESS_MEMORY)
+                        .getMebiBytes();
+        final ClusterSpecification clusterSpecification =
+                new ClusterSpecification.ClusterSpecificationBuilder()
+                        .setMasterMemoryMB(masterMemory)
+                        .setTaskManagerMemoryMB(1024)
+                        .setSlotsPerTaskManager(1)
+                        .createClusterSpecification();
 
-                ApplicationId applicationId = clusterClient.getClusterId();
+        File testingJar = TestUtils.findFile("..", new TestUtils.TestJarFinder("flink-yarn-tests"));
 
-                final CompletableFuture<JobResult> jobResultCompletableFuture =
-                        clusterClient.requestJobResult(jobGraph.getJobID());
+        jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
+        return yarnClusterDescriptor.deployJobCluster(clusterSpecification, jobGraph, false);
+    }
 
-                final JobResult jobResult = jobResultCompletableFuture.get();
+    private void checkApplicationFinished(
+            ClusterClient<ApplicationId> appClusterClient,
+            YarnClusterDescriptor yarnClusterDescriptor,
+            JobGraph jobGraph,
+            Configuration configuration)
+            throws Exception {
+        try (ClusterClient<ApplicationId> clusterClient = appClusterClient) {
 
-                assertThat(jobResult, is(notNullValue()));
-                assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
-
-                checkStagingDirectory(configuration, applicationId);
-
-                waitApplicationFinishedElseKillIt(
-                        applicationId,
-                        yarnAppTerminateTimeout,
-                        yarnClusterDescriptor,
-                        sleepIntervalInMS);
+            for (DistributedCache.DistributedCacheEntry entry :
+                    jobGraph.getUserArtifacts().values()) {
+                assertTrue(
+                        String.format(
+                                "The user artifacts(%s) should be remote or uploaded to remote filesystem.",
+                                entry.filePath),
+                        Utils.isRemotePath(entry.filePath));
             }
+
+            ApplicationId applicationId = clusterClient.getClusterId();
+
+            final CompletableFuture<JobResult> jobResultCompletableFuture =
+                    clusterClient.requestJobResult(jobGraph.getJobID());
+
+            final JobResult jobResult = jobResultCompletableFuture.get();
+
+            assertThat(jobResult, is(notNullValue()));
+            assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
+
+            checkStagingDirectory(configuration, applicationId);
+
+            waitApplicationFinishedElseKillIt(
+                    applicationId,
+                    yarnAppTerminateTimeout,
+                    yarnClusterDescriptor,
+                    sleepIntervalInMS);
         }
     }
 
