@@ -264,10 +264,11 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
      */
     public void enableTimeToLive(StateTtlConfig ttlConfig) {
         Preconditions.checkNotNull(ttlConfig);
-        Preconditions.checkArgument(
-                ttlConfig.getUpdateType() != StateTtlConfig.UpdateType.Disabled
-                        && queryableStateName == null,
-                "Queryable state is currently not supported with TTL");
+        if (ttlConfig.isEnabled()) {
+            Preconditions.checkArgument(
+                    queryableStateName == null,
+                    "Queryable state is currently not supported with TTL");
+        }
         this.ttlConfig = ttlConfig;
     }
 
