@@ -15,80 +15,122 @@
  * limitations under the License.
  */
 
-package org.apache.flink.mongodb.streaming.sink;
+package org.apache.flink.connector.mongodb.sink;
 
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
-import org.apache.flink.mongodb.streaming.serde.DocumentSerializer;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSource;
 import org.apache.flink.streaming.api.functions.source.datagen.RandomGenerator;
 import org.apache.flink.util.TestLogger;
 
+import com.mongodb.reactivestreams.client.MongoClient;
+import com.mongodb.reactivestreams.client.MongoClients;
+import de.flapdoodle.embed.mongo.MongodExecutable;
+import de.flapdoodle.embed.mongo.MongodProcess;
+import de.flapdoodle.embed.mongo.MongodStarter;
+import de.flapdoodle.embed.mongo.config.MongodConfig;
+import de.flapdoodle.embed.mongo.config.Net;
+import de.flapdoodle.embed.mongo.distribution.Version;
+import de.flapdoodle.embed.process.runtime.Network;
+import org.assertj.core.api.Assertions;
 import org.bson.Document;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import reactor.core.publisher.Mono;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import java.io.IOException;
+import java.util.Properties;
 
-/** IT cases for using Mongodb Sink based on xx. */
+import static org.apache.flink.connector.mongodb.common.MongodbConfigConstants.APPLY_CONNECTION_STRING;
+
+/** IT cases for using Mongodb Async Sink. */
 public class MongodbAsyncSinkITCase extends TestLogger {
-    private static final String DEFAULT_FIRST_SHARD_NAME = "shardId-000000000000";
 
-    private final ElementConverter<String, Document> elementConverter =
+    private static final ElementConverter<String, Document> elementConverter =
             MongodbAsyncSinkElementConverter.<String>builder()
                     .setSerializationSchema(
                             new DocumentSerializer<String>() {
                                 @Override
                                 public Document serialize(String str) {
-                                    return new Document().append("_id", str);
+                                    Document document = new Document();
+                                    return document.append("_id", str);
                                 }
                             })
                     .build();
 
+    private MongodExecutable mongodExe;
+    private MongodProcess mongod;
+    private MongoClient mongo;
+    // these can be overridden by subclasses
+    private static final String MONGODB_HOST = "127.0.0.1";
+    private static final int MONGODB_PORT = 27018;
+    private static final String DATABASE_NAME = "testdb";
+    private static final String COLLECTION = "testcoll";
+    private static final String CONNECT_STRING =
+            String.format("mongodb://%s:%d/%s", MONGODB_HOST, MONGODB_PORT, DATABASE_NAME);
+
     private StreamExecutionEnvironment env;
 
     @Before
-    public void setUp() throws Exception {
-
+    public void setUp() throws IOException {
+        MongodStarter starter = MongodStarter.getDefaultInstance();
+        MongodConfig mongodConfig =
+                MongodConfig.builder()
+                        .version(Version.Main.V4_0)
+                        .net(new Net(MONGODB_HOST, MONGODB_PORT, Network.localhostIsIPv6()))
+                        .build();
+        this.mongodExe = starter.prepare(mongodConfig);
+        this.mongod = mongodExe.start();
+        this.mongo = MongoClients.create(CONNECT_STRING);
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
+    }
+
+    @After
+    public void after() {
+        if (this.mongo != null) {
+            mongo.getDatabase(DATABASE_NAME).getCollection(COLLECTION).drop();
+            mongo.close();
+        }
+        if (this.mongod != null) {
+            this.mongod.stop();
+            this.mongodExe.stop();
+        }
     }
 
     @Test
     public void elementsMaybeWrittenSuccessfullyToLocalInstanceWhenBatchSizeIsReached()
             throws Exception {
-        log("Running elementsMaybeWrittenSuccessfullyToLocalInstanceWhenBatchSizeIsReached");
-
-        new Scenario()
-                .withSinkDatabase("")
-                .withSinkCollection("")
-                .withSinkConnectionString("")
-                .runScenario();
+        new Scenario().runScenario();
     }
 
     @Test
     public void elementsBufferedAndTriggeredByTimeBasedFlushShouldBeFlushedIfSourcedIsKeptAlive()
             throws Exception {
-        log(
-                "Running elementsBufferedAndTriggeredByTimeBasedFlushShouldBeFlushedIfSourcedIsKeptAlive");
 
         new Scenario()
                 .withNumberOfElementsToSend(10)
                 .withMaxBatchSize(100)
                 .withExpectedElements(10)
-                .withSinkDatabase("")
-                .withSinkCollection("")
-                .withSinkConnectionString("")
+                .runScenario();
+    }
+
+    @Test
+    public void veryLargeMessagesSucceedInBeingPersisted() throws Exception {
+
+        new Scenario()
+                .withNumberOfElementsToSend(5)
+                .withSizeOfMessageBytes(2500)
+                .withMaxBatchSize(10)
+                .withExpectedElements(5)
                 .runScenario();
     }
 
     @Test
     public void multipleInFlightRequestsResultsInCorrectNumberOfElementsPersisted()
             throws Exception {
-        log("Running multipleInFlightRequestsResultsInCorrectNumberOfElementsPersisted");
 
         new Scenario()
                 .withNumberOfElementsToSend(150)
@@ -97,22 +139,12 @@ public class MongodbAsyncSinkITCase extends TestLogger {
                 .withMaxInflightReqs(10)
                 .withMaxBatchSize(20)
                 .withExpectedElements(150)
-                .withSinkDatabase("")
-                .withSinkCollection("")
-                .withSinkConnectionString("")
                 .runScenario();
     }
 
     @Test
-    public void nonExistentStreamNameShouldResultInFailureInFailOnErrorIsOn() {
-        log("Running nonExistentStreamNameShouldResultInFailureInFailOnErrorIsOn");
-        testJobFatalFailureTerminatesCorrectlyWithFailOnErrorFlagSetTo(true, "test-stream-name-5");
-    }
-
-    @Test
-    public void nonExistentStreamNameShouldResultInFailureInFailOnErrorIsOff() {
-        log("Running nonExistentStreamNameShouldResultInFailureInFailOnErrorIsOff");
-        testJobFatalFailureTerminatesCorrectlyWithFailOnErrorFlagSetTo(false, "test-stream-name-6");
+    public void executeInTransactionMode() throws Exception {
+        new Scenario().withStartTransaction(true).runScenario();
     }
 
     private class Scenario {
@@ -122,10 +154,8 @@ public class MongodbAsyncSinkITCase extends TestLogger {
         private int maxInflightReqs = 1;
         private int maxBatchSize = 50;
         private int expectedElements = 50;
-        private boolean failOnError = false;
-        private String collection;
-        private String database;
-        private String connectionString;
+        private String database = DATABASE_NAME;
+        private boolean startTransaction = false;
         private ElementConverter<String, Document> elementConverter =
                 MongodbAsyncSinkITCase.this.elementConverter;
 
@@ -133,11 +163,14 @@ public class MongodbAsyncSinkITCase extends TestLogger {
 
             DataStream<String> stream =
                     env.addSource(
-                                    new DataGeneratorSource<String>(
+                                    new DataGeneratorSource<>(
                                             RandomGenerator.stringGenerator(sizeOfMessageBytes),
                                             100,
                                             (long) numberOfElementsToSend))
                             .returns(String.class);
+
+            Properties prop = new Properties();
+            prop.setProperty(APPLY_CONNECTION_STRING, CONNECT_STRING);
 
             MongodbAsyncSink<String> mongodbSink =
                     MongodbAsyncSink.<String>builder()
@@ -145,17 +178,23 @@ public class MongodbAsyncSinkITCase extends TestLogger {
                             .setMaxTimeInBufferMS(bufferMaxTimeMS)
                             .setMaxInFlightRequests(maxInflightReqs)
                             .setMaxBatchSize(maxBatchSize)
-                            .setFailOnError(failOnError)
+                            .setStartTransaction(startTransaction)
                             .setMaxBufferedRequests(1000)
-                            .setFailOnError(true)
-                            .setCollection("")
-                            .setDatabase("")
-                            .setConnectionString("")
+                            .setDatabase(database)
+                            .setCollection(COLLECTION)
+                            .setMongodbClientProperties(prop)
                             .build();
 
             stream.sinkTo(mongodbSink);
 
-            env.execute("KDS Async Sink Example Program");
+            env.execute("Mongodb Async Sink Example Program");
+
+            Mono.from(mongo.getDatabase(DATABASE_NAME).getCollection(COLLECTION).countDocuments())
+                    .doFinally(
+                            r -> {
+                                Assertions.assertThat(r).isEqualTo(expectedElements);
+                            })
+                    .subscribe();
         }
 
         public Scenario withNumberOfElementsToSend(int numberOfElementsToSend) {
@@ -188,50 +227,14 @@ public class MongodbAsyncSinkITCase extends TestLogger {
             return this;
         }
 
-        public Scenario withFailOnError(boolean failOnError) {
-            this.failOnError = failOnError;
+        public Scenario withStartTransaction(boolean startTransaction) {
+            this.startTransaction = startTransaction;
             return this;
         }
 
-        public Scenario withSinkDatabase(String Database) {
+        public Scenario withDatabase(String database) {
             this.database = database;
             return this;
         }
-
-        public Scenario withSinkConnectionString(String connectionString) {
-            this.connectionString = connectionString;
-            return this;
-        }
-
-        public Scenario withSinkCollection(String collection) {
-            this.collection = collection;
-            return this;
-        }
-
-        public Scenario withElementConverter(ElementConverter<String, Document> elementConverter) {
-            this.elementConverter = elementConverter;
-            return this;
-        }
-    }
-
-    private void testJobFatalFailureTerminatesCorrectlyWithFailOnErrorFlagSetTo(
-            boolean failOnError, String streamName) {
-        Throwable thrown =
-                assertThrows(
-                        JobExecutionException.class,
-                        () ->
-                                new Scenario()
-                                        .withSinkCollection(streamName)
-                                        .withSinkDatabase("")
-                                        .withSinkConnectionString("")
-                                        .withFailOnError(failOnError)
-                                        .runScenario());
-        assertEquals(
-                "Encountered non-recoverable exception", thrown.getCause().getCause().getMessage());
-    }
-
-    private void log(String message) {
-        System.out.println("out - " + message);
-        System.err.println("err - " + message);
     }
 }

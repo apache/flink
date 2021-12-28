@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.mongodb.streaming.sink;
+package org.apache.flink.connector.mongodb.sink;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
@@ -23,22 +23,18 @@ import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.base.sink.AsyncSinkBase;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.mongodb.internal.connection.MongoClientProvider;
-import org.apache.flink.mongodb.internal.connection.MongoColloctionProviders;
+import org.apache.flink.util.Preconditions;
 
 import org.bson.Document;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Properties;
 
 /**
  * A Mongodb Data Streams Sink that performs async requests against a destination stream using the
  * buffering protocol specified InputT {@link AsyncSinkBase}.
- *
- * <p>The sink internally uses a {@link
- * org.apache.flink.mongodb.internal.connection.MongoClientProvider} to communicate with the AWS
- * endpoint.
  *
  * <p>The behaviour of the buffering may be specified by providing configuration during the sink
  * build time.
@@ -67,36 +63,47 @@ import java.util.Optional;
 @PublicEvolving
 public class MongodbAsyncSink<InputT> extends AsyncSinkBase<InputT, Document> {
 
-    private final MongoClientProvider clientProvider;
-    private final boolean failOnError;
+    private final boolean startTransaction;
+    private final String databaseName;
+    private final String collectionName;
+    private final Properties mongodbClientProperties;
 
     public MongodbAsyncSink(
             ElementConverter<InputT, Document> elementConverter,
-            int maxBatchSize,
-            int maxInFlightRequests,
-            int maxBufferedRequests,
-            long flushOnBufferSizeInBytes,
-            long maxTimeInBufferMS,
-            long maxRecordSizeInBytes,
-            String connectionString,
-            String database,
-            String collection,
-            boolean failOnError) {
+            Integer maxBatchSize,
+            Integer maxInFlightRequests,
+            Integer maxBufferedRequests,
+            Long maxBatchSizeInBytes,
+            Long maxTimeInBufferMS,
+            Long maxRecordSizeInBytes,
+            boolean startTransaction,
+            String databaseName,
+            String collectionName,
+            Properties mongodbClientProperties) {
         super(
                 elementConverter,
                 maxBatchSize,
                 maxInFlightRequests,
                 maxBufferedRequests,
-                flushOnBufferSizeInBytes,
+                maxBatchSizeInBytes,
                 maxTimeInBufferMS,
                 maxRecordSizeInBytes);
-        this.failOnError = failOnError;
-        this.clientProvider =
-                MongoColloctionProviders.getBuilder()
-                        .connectionString(connectionString)
-                        .database(database)
-                        .collection(collection)
-                        .build();
+        this.databaseName =
+                Preconditions.checkNotNull(
+                        databaseName,
+                        "The databaseName must not be null when initializing the Mongodb Sink.");
+        this.collectionName =
+                Preconditions.checkNotNull(
+                        collectionName,
+                        "The collectionName must not be null when initializing the Mongodb Sink.");
+        Preconditions.checkArgument(
+                !this.databaseName.isEmpty(),
+                "The databaseName must be set when initializing the Mongodb Sink.");
+        Preconditions.checkArgument(
+                !this.collectionName.isEmpty(),
+                "The collectionName must be set when initializing the Mongodb Sink.");
+        this.startTransaction = startTransaction;
+        this.mongodbClientProperties = mongodbClientProperties;
     }
 
     /**
@@ -115,7 +122,7 @@ public class MongodbAsyncSink<InputT> extends AsyncSinkBase<InputT, Document> {
     public SinkWriter<InputT, Void, Collection<Document>> createWriter(
             InitContext context, List<Collection<Document>> states) {
 
-        return new MongodbAsyncWriter<InputT>(
+        return new MongodbAsyncWriter<>(
                 getElementConverter(),
                 context,
                 getMaxBatchSize(),
@@ -124,8 +131,10 @@ public class MongodbAsyncSink<InputT> extends AsyncSinkBase<InputT, Document> {
                 getMaxBatchSizeInBytes(),
                 getMaxTimeInBufferMS(),
                 getMaxRecordSizeInBytes(),
-                clientProvider,
-                failOnError);
+                startTransaction,
+                databaseName,
+                collectionName,
+                mongodbClientProperties);
     }
 
     @Experimental

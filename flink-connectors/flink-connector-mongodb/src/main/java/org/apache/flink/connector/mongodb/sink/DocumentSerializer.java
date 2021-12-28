@@ -15,24 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.mongodb.streaming.serde;
+package org.apache.flink.connector.mongodb.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
 
 import org.bson.Document;
 
-import java.io.IOException;
 import java.io.Serializable;
 
-/** */
+/** Serialize data into mongodb's Document */
 @PublicEvolving
-public interface DocumentDeserializer<T> extends Serializable {
+public interface DocumentSerializer<T> extends Serializable {
 
     /**
      * Serialize input Java objects into {@link Document}.
      *
-     * @param document The input {@link Document}.
-     * @return The serialized object.
+     * @param object The input object.
+     * @return The serialized {@link Document}.
      */
-    T deserialize(Document document) throws IOException;
+    Document serialize(T object);
 }

@@ -15,13 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.mongodb.streaming.sink;
+package org.apache.flink.connector.mongodb.sink;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
-import org.apache.flink.mongodb.streaming.serde.DocumentSerializer;
 import org.apache.flink.util.Preconditions;
 
 import org.bson.Document;

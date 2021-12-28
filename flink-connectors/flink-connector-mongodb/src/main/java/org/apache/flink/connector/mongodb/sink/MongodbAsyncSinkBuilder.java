@@ -15,12 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.mongodb.streaming.sink;
+package org.apache.flink.connector.mongodb.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.base.sink.AsyncSinkBaseBuilder;
 
 import org.bson.Document;
+
+import java.util.Optional;
+import java.util.Properties;
 
 /**
  * Builder to construct {@link MongodbAsyncSink}.
@@ -31,7 +34,7 @@ import org.bson.Document;
  * <pre>{@code
  * ElementConverter<String, PutRecordsRequestEntry> elementConverter =
  *             MongodbAsyncSinkElementConverter.<String>builder()
- *                     .setSerializationSchema(new DocumentDeserializer())
+ *                     .setSerializationSchema(new Documentserializer())
  *                     .build();
  *
  * MongodbAsyncSink<String> kdsSink =
@@ -66,32 +69,33 @@ public class MongodbAsyncSinkBuilder<InputT>
     private static final long DEFAULT_MAX_BATCH_SIZE_IN_B = 5 * 1024 * 1024;
     private static final long DEFAULT_MAX_TIME_IN_BUFFER_MS = 5000;
     private static final long DEFAULT_MAX_RECORD_SIZE_IN_B = 1 * 1024 * 1024;
-    private static final boolean DEFAULT_FAIL_ON_ERROR = false;
+    private static final boolean DEFAULT_START_TRANSACTION = false;
 
-    private Boolean failOnError;
-    private String connectionString;
-    private String database;
-    private String collection;
+    private Boolean startTransaction;
+    private String collectionName;
+    private String databaseName;
+    private Properties mongodbClientProperties;
 
     MongodbAsyncSinkBuilder() {}
 
-    public MongodbAsyncSinkBuilder<InputT> setConnectionString(String connectionString) {
-        this.connectionString = connectionString;
-        return this;
-    }
-
     public MongodbAsyncSinkBuilder<InputT> setDatabase(String database) {
-        this.database = database;
+        this.databaseName = database;
         return this;
     }
 
     public MongodbAsyncSinkBuilder<InputT> setCollection(String collection) {
-        this.collection = collection;
+        this.collectionName = collection;
         return this;
     }
 
-    public MongodbAsyncSinkBuilder<InputT> setFailOnError(boolean failOnError) {
-        this.failOnError = failOnError;
+    public MongodbAsyncSinkBuilder<InputT> setStartTransaction(boolean startTransaction) {
+        this.startTransaction = startTransaction;
+        return this;
+    }
+
+    public MongodbAsyncSinkBuilder<InputT> setMongodbClientProperties(
+            Properties mongodbClientProperties) {
+        this.mongodbClientProperties = mongodbClientProperties;
         return this;
     }
 
@@ -115,9 +119,9 @@ public class MongodbAsyncSinkBuilder<InputT>
                 getMaxRecordSizeInBytes() == null
                         ? DEFAULT_MAX_RECORD_SIZE_IN_B
                         : getMaxRecordSizeInBytes(),
-                connectionString,
-                database,
-                collection,
-                failOnError == null ? DEFAULT_FAIL_ON_ERROR : failOnError);
+                startTransaction == null ? DEFAULT_START_TRANSACTION : startTransaction,
+                databaseName,
+                collectionName,
+                Optional.ofNullable(mongodbClientProperties).orElse(new Properties()));
     }
 }

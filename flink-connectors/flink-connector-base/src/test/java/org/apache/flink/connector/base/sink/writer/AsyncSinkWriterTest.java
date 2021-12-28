@@ -122,7 +122,7 @@ public class AsyncSinkWriterTest {
             sink.write(String.valueOf(i));
         }
         assertTrue(sinkInitContext.getCurrentSendTimeGauge().get().getValue() >= 99);
-        //        assertTrue(sinkInitContext.getCurrentSendTimeGauge().get().getValue() < 110);
+        assertTrue(sinkInitContext.getCurrentSendTimeGauge().get().getValue() < 110);
     }
 
     @Test

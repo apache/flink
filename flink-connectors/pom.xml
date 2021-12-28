@@ -59,8 +59,8 @@ under the License.
 		<module>flink-file-sink-common</module>
 		<module>flink-connector-files</module>
 		<module>flink-connector-pulsar</module>
-		<module>flink-connector-mongodb</module>
-	</modules>
+        <module>flink-connector-mongodb</module>
+    </modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
 		in the jars-with-dependencies (uber jars) of connectors and
