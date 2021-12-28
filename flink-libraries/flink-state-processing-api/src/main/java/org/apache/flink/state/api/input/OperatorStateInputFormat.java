@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.jobgraph.OperatorInstanceID;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.input.splits.OperatorStateInputSplit;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.util.CollectionUtil;
@@ -41,6 +42,8 @@ import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -66,6 +69,10 @@ abstract class OperatorStateInputFormat<OT> extends RichInputFormat<OT, Operator
 
     private final OperatorState operatorState;
 
+    private final Configuration configuration;
+
+    @Nullable private final StateBackend backend;
+
     private final boolean isUnionType;
 
     private transient OperatorStateBackend restoredBackend;
@@ -74,10 +81,17 @@ abstract class OperatorStateInputFormat<OT> extends RichInputFormat<OT, Operator
 
     private transient Iterator<OT> elements;
 
-    OperatorStateInputFormat(OperatorState operatorState, boolean isUnionType) {
+    OperatorStateInputFormat(
+            OperatorState operatorState,
+            Configuration configuration,
+            @Nullable StateBackend backend,
+            boolean isUnionType) {
         Preconditions.checkNotNull(operatorState, "The operator state cannot be null");
+        Preconditions.checkNotNull(configuration, "Configuration cannot be null");
 
         this.operatorState = operatorState;
+        this.configuration = configuration;
+        this.backend = backend;
         this.isUnionType = isUnionType;
     }
 
@@ -151,11 +165,11 @@ abstract class OperatorStateInputFormat<OT> extends RichInputFormat<OT, Operator
         final StreamOperatorStateContext context =
                 new StreamOperatorContextBuilder(
                                 getRuntimeContext(),
-                                new Configuration(),
+                                configuration,
                                 operatorState,
                                 split,
                                 registry,
-                                null)
+                                backend)
                         .build(LOG);
 
         restoredBackend = context.operatorStateBackend();

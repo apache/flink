@@ -48,6 +48,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Comparator;
@@ -69,7 +70,7 @@ public class KeyedStateInputFormat<K, N, OUT>
 
     private final OperatorState operatorState;
 
-    private final StateBackend stateBackend;
+    @Nullable private final StateBackend stateBackend;
 
     private final Configuration configuration;
 
@@ -90,7 +91,7 @@ public class KeyedStateInputFormat<K, N, OUT>
      */
     public KeyedStateInputFormat(
             OperatorState operatorState,
-            StateBackend stateBackend,
+            @Nullable StateBackend stateBackend,
             Configuration configuration,
             StateReaderOperator<?, K, N, OUT> operator) {
         Preconditions.checkNotNull(operatorState, "The operator state cannot be null");
