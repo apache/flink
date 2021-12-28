@@ -141,16 +141,16 @@ public class ChangelogKeyedStateBackend<K>
      * This is the cache maintained by the DelegateKeyedStateBackend itself. It is not the same as
      * the underlying delegated keyedStateBackend. InternalKvState is a delegated state.
      */
-    private final HashMap<String, InternalKvState<K, ?, ?>> keyValueStatesByName;
+    private final Map<String, InternalKvState<K, ?, ?>> keyValueStatesByName;
 
     /**
      * Unwrapped changelog states used for recovery (not wrapped into e.g. TTL).
      *
      * <p>WARN: cleared upon recovery completion.
      */
-    private final HashMap<String, ChangelogState> changelogStates;
+    private final Map<String, ChangelogState> changelogStates;
 
-    private final HashMap<String, ChangelogKeyGroupedPriorityQueue<?>> priorityQueueStatesByName;
+    private final Map<String, ChangelogKeyGroupedPriorityQueue<?>> priorityQueueStatesByName;
 
     private final ExecutionConfig executionConfig;
 
