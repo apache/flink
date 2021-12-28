@@ -207,8 +207,7 @@ public class DefaultExecutionTopology implements SchedulingTopology {
             List<DefaultResultPartition> producedPartitions =
                     generateProducedSchedulingResultPartition(
                             vertex.getProducedPartitions(),
-                            edgeManager::getConsumerVertexGroupForPartition,
-                            executionVerticesById::get);
+                            edgeManager::getConsumerVertexGroupForPartition);
 
             producedPartitions.forEach(
                     partition -> resultPartitionsById.put(partition.getId(), partition));
@@ -239,8 +238,7 @@ public class DefaultExecutionTopology implements SchedulingTopology {
             Map<IntermediateResultPartitionID, IntermediateResultPartition>
                     producedIntermediatePartitions,
             Function<IntermediateResultPartitionID, ConsumerVertexGroup>
-                    partitionConsumerVertexGroupRetriever,
-            Function<ExecutionVertexID, DefaultExecutionVertex> executionVertexRetriever) {
+                    partitionConsumerVertexGroupRetriever) {
 
         List<DefaultResultPartition> producedSchedulingPartitions =
                 new ArrayList<>(producedIntermediatePartitions.size());
@@ -260,7 +258,6 @@ public class DefaultExecutionTopology implements SchedulingTopology {
                                                                 : ResultPartitionState.CREATED,
                                                 partitionConsumerVertexGroupRetriever.apply(
                                                         irp.getPartitionId()),
-                                                executionVertexRetriever,
                                                 irp::getConsumedPartitionGroups)));
 
         return producedSchedulingPartitions;
