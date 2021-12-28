@@ -736,6 +736,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     public TableResult executeSql(String statement) {
         List<Operation> operations = getParser().parse(statement);
 
+        if (operations.size() > 1
+                && operations.stream().allMatch(op -> op instanceof ModifyOperation)) {
+            // allow multi modification operation
+            return executeInternal(
+                    operations.stream()
+                            .map(op -> (ModifyOperation) op)
+                            .collect(Collectors.toList()));
+        }
         if (operations.size() != 1) {
             throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
         }
@@ -1288,10 +1296,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     explainOperation.getExplainDetails().stream()
                             .map(ExplainDetail::valueOf)
                             .toArray(ExplainDetail[]::new);
-            String explanation =
-                    explainInternal(
-                            Collections.singletonList(((ExplainOperation) operation).getChild()),
-                            explainDetails);
+            String explanation = explainInternal(explainOperation.getChildren(), explainDetails);
             return TableResultImpl.builder()
                     .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                     .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))

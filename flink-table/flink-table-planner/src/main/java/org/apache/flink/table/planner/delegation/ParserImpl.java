@@ -23,6 +23,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.operations.GroupOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -100,7 +101,11 @@ public class ParserImpl implements Parser {
         Operation operation =
                 SqlToOperationConverter.convert(planner, catalogManager, parsed)
                         .orElseThrow(() -> new TableException("Unsupported query: " + statement));
-        return Collections.singletonList(operation);
+        if (operation instanceof GroupOperation) {
+            return ((GroupOperation) operation).getOperations();
+        } else {
+            return Collections.singletonList(operation);
+        }
     }
 
     @Override

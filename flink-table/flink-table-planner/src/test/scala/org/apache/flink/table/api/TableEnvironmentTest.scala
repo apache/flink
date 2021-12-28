@@ -108,6 +108,22 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testExplainWithExecuteInsert(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+
+    TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
+
+    TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink", -1)
+
+    val expected = TableTestUtil.readFromResource("/explain/testStreamTableEnvironmentExplain.out")
+    val actual = tEnv.explainSql("execute insert into MySink select first from MyTable")
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
+  }
+
+  @Test
   def testStreamTableEnvironmentExecutionExplainWithEnvParallelism(): Unit = {
     val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
     execEnv.setParallelism(4)
@@ -167,6 +183,29 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testExecuteStatementSetExecutionExplain(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    execEnv.setParallelism(1)
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+
+    TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
+
+    TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink", -1)
+
+    val expected =
+      TableTestUtil.readFromResource("/explain/testStatementSetExecutionExplain.out")
+
+    val actual = tEnv.explainSql(
+      "execute statement set begin insert into MySink select last from MyTable; end",
+      ExplainDetail.JSON_EXECUTION_PLAN)
+
+    assertEquals(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(expected)),
+      TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
+  }
+
+    @Test
   def testAlterTableResetEmtpyOptionKey(): Unit = {
     val statement =
       """
@@ -1345,6 +1384,28 @@ class TableEnvironmentTest {
 
     val actual = tableEnv.explainSql(
       "select * from MyTable where a > 10", ExplainDetail.CHANGELOG_MODE)
+    val expected = TableTestUtil.readFromResource("/explain/testExplainSqlWithSelect.out")
+    assertEquals(replaceStageId(expected), replaceStageId(actual))
+  }
+
+  @Test
+  def testExplainSqlWithExecuteSelect(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val actual = tableEnv.explainSql(
+      "execute select * from MyTable where a > 10", ExplainDetail.CHANGELOG_MODE)
     val expected = TableTestUtil.readFromResource("/explain/testExplainSqlWithSelect.out")
     assertEquals(replaceStageId(expected), replaceStageId(actual))
   }

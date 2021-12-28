@@ -57,6 +57,8 @@ import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.sql.parser.dml.SqlBeginStatementSet;
 import org.apache.flink.sql.parser.dml.SqlEndStatementSet;
+import org.apache.flink.sql.parser.dml.SqlExecute;
+import org.apache.flink.sql.parser.dml.SqlStatementSet;
 import org.apache.flink.sql.parser.dql.SqlLoadModule;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
 import org.apache.flink.sql.parser.dql.SqlRichExplain;
@@ -104,6 +106,7 @@ import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
+import org.apache.flink.table.operations.GroupOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
@@ -311,6 +314,10 @@ public class SqlToOperationConverter {
             return Optional.of(converter.convertSet((SqlSet) validated));
         } else if (validated instanceof SqlReset) {
             return Optional.of(converter.convertReset((SqlReset) validated));
+        } else if (validated instanceof SqlStatementSet) {
+            return Optional.of(converter.convertSqlStatementSet((SqlStatementSet) validated));
+        } else if (validated instanceof SqlExecute) {
+            return convert(flinkPlanner, catalogManager, ((SqlExecute) validated).getStatement());
         } else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
             return Optional.of(converter.convertSqlQuery(validated));
         } else {
@@ -680,6 +687,14 @@ public class SqlToOperationConverter {
         return language;
     }
 
+    /** Convert statement set into statement. */
+    private GroupOperation convertSqlStatementSet(SqlStatementSet statementSet) {
+        return new GroupOperation(
+                statementSet.getInserts().stream()
+                        .map(this::convertSqlInsert)
+                        .collect(Collectors.toList()));
+    }
+
     /** Convert insert into statement. */
     private Operation convertSqlInsert(RichSqlInsert insert) {
         // Get sink table name.
@@ -1023,20 +1038,21 @@ public class SqlToOperationConverter {
 
     /** Convert RICH EXPLAIN statement. */
     private Operation convertRichExplain(SqlRichExplain sqlExplain) {
-        Operation operation;
+        List<Operation> operations = new ArrayList<>();
         SqlNode sqlNode = sqlExplain.getStatement();
         Set<String> explainDetails = sqlExplain.getExplainDetails();
 
         if (sqlNode instanceof RichSqlInsert) {
-            operation = convertSqlInsert((RichSqlInsert) sqlNode);
+            operations.add(convertSqlInsert((RichSqlInsert) sqlNode));
+        } else if (sqlNode instanceof SqlStatementSet) {
+            operations.addAll(convertSqlStatementSet((SqlStatementSet) sqlNode).getOperations());
         } else if (sqlNode.getKind().belongsTo(SqlKind.QUERY)) {
-            operation = convertSqlQuery(sqlExplain.getStatement());
+            operations.add(convertSqlQuery(sqlExplain.getStatement()));
         } else {
             throw new ValidationException(
-                    String.format(
-                            "EXPLAIN statement doesn't support %s", sqlNode.getKind().toString()));
+                    String.format("EXPLAIN statement doesn't support %s", sqlNode.getKind()));
         }
-        return new ExplainOperation(operation, explainDetails);
+        return new ExplainOperation(operations, explainDetails);
     }
 
     /** Convert DESCRIBE [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier. */

@@ -50,8 +50,10 @@ import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
+import org.apache.flink.table.operations.GroupOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
 import org.apache.flink.table.operations.ShowModulesOperation;
@@ -1487,6 +1489,50 @@ public class SqlToOperationConverterTest {
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         Operation operation = parse(sql, planner, parser);
         assertThat(operation).isInstanceOf(ExplainOperation.class);
+    }
+
+    @Test
+    public void testSqlRichExplainWithStatementSet() {
+        final String sql =
+                "explain plan for statement set begin "
+                        + "insert into t1 select a, b, c, d from t2 where a > 1;"
+                        + "insert into t1 select a, b, c, d from t2 where a > 2;"
+                        + "end";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertTrue(operation instanceof ExplainOperation);
+    }
+
+    @Test
+    public void testSqlExecuteWithStatementSet() {
+        final String sql =
+                "execute statement set begin "
+                        + "insert into t1 select a, b, c, d from t2 where a > 1;"
+                        + "insert into t1 select a, b, c, d from t2 where a > 2;"
+                        + "end";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertTrue(operation instanceof GroupOperation);
+    }
+
+    @Test
+    public void testSqlExecuteWithInsert() {
+        final String sql = "execute insert into t1 select a, b, c, d from t2 where a > 1";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertTrue(operation instanceof CatalogSinkModifyOperation);
+    }
+
+    @Test
+    public void testSqlExecuteWithSelect() {
+        final String sql = "execute select a, b, c, d from t2 where a > 1";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertTrue(operation instanceof QueryOperation);
     }
 
     @Test
