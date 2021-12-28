@@ -102,6 +102,7 @@ import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
+import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
@@ -689,6 +690,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     "Unsupported SQL query! explainSql() only accepts a single SQL query.");
         }
 
+        if (operations.get(0) instanceof StatementSetOperation) {
+            operations =
+                    new ArrayList<>(((StatementSetOperation) operations.get(0)).getOperations());
+        }
         return explainInternal(operations, extraDetails);
     }
 
@@ -872,6 +877,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     public TableResultInternal executeInternal(Operation operation) {
         if (operation instanceof ModifyOperation) {
             return executeInternal(Collections.singletonList((ModifyOperation) operation));
+        } else if (operation instanceof StatementSetOperation) {
+            return executeInternal(((StatementSetOperation) operation).getOperations());
         } else if (operation instanceof CreateTableOperation) {
             CreateTableOperation createTableOperation = (CreateTableOperation) operation;
             if (createTableOperation.isTemporary()) {
@@ -1288,10 +1295,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     explainOperation.getExplainDetails().stream()
                             .map(ExplainDetail::valueOf)
                             .toArray(ExplainDetail[]::new);
-            String explanation =
-                    explainInternal(
-                            Collections.singletonList(((ExplainOperation) operation).getChild()),
-                            explainDetails);
+            Operation child = ((ExplainOperation) operation).getChild();
+            List<Operation> operations;
+            if (child instanceof StatementSetOperation) {
+                operations = new ArrayList<>(((StatementSetOperation) child).getOperations());
+            } else {
+                operations = Collections.singletonList(child);
+            }
+            String explanation = explainInternal(operations, explainDetails);
             return TableResultImpl.builder()
                     .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                     .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))

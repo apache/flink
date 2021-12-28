@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.operations;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.dql.SqlRichExplain;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableColumn;
@@ -52,9 +53,11 @@ import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
 import org.apache.flink.table.operations.ShowModulesOperation;
+import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
@@ -98,8 +101,10 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -112,6 +117,7 @@ import static org.apache.flink.table.planner.utils.OperationMatchers.withOptions
 import static org.apache.flink.table.planner.utils.OperationMatchers.withSchema;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 /** Test cases for {@link SqlToOperationConverter}. */
 public class SqlToOperationConverterTest {
@@ -1487,6 +1493,90 @@ public class SqlToOperationConverterTest {
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         Operation operation = parse(sql, planner, parser);
         assertThat(operation).isInstanceOf(ExplainOperation.class);
+    }
+
+    @Test
+    public void testSqlRichExplainWithStatementSet() {
+        final String sql =
+                "explain plan for statement set begin "
+                        + "insert into t1 select a, b, c, d from t2 where a > 1;"
+                        + "insert into t1 select a, b, c, d from t2 where a > 2;"
+                        + "end";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertThat(operation).isInstanceOf(ExplainOperation.class);
+    }
+
+    @Test
+    public void testExplainDetailsWithSelect() {
+        final String sql = "explain estimated_cost, changelog_mode select a, b, c, d from t2";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        assertExplainDetails(parse(sql, planner, parser));
+    }
+
+    @Test
+    public void testExplainDetailsWithInsert() {
+        final String sql =
+                "explain estimated_cost, changelog_mode insert into t1 select a, b, c, d from t2";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        assertExplainDetails(parse(sql, planner, parser));
+    }
+
+    @Test
+    public void testExplainDetailsWithStatementSet() {
+        final String sql =
+                "explain estimated_cost, changelog_mode statement set begin "
+                        + "insert into t1 select a, b, c, d from t2 where a > 1;"
+                        + "insert into t1 select a, b, c, d from t2 where a > 2;"
+                        + "end";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        assertExplainDetails(parse(sql, planner, parser));
+    }
+
+    private void assertExplainDetails(Operation operation) {
+        Set<String> expectedDetail = new HashSet<>();
+        expectedDetail.add(ExplainDetail.ESTIMATED_COST.toString());
+        expectedDetail.add(ExplainDetail.CHANGELOG_MODE.toString());
+        assertThat(operation)
+                .asInstanceOf(type(ExplainOperation.class))
+                .satisfies(
+                        explain ->
+                                assertThat(explain.getExplainDetails()).isEqualTo(expectedDetail));
+    }
+
+    @Test
+    public void testSqlExecuteWithStatementSet() {
+        final String sql =
+                "execute statement set begin "
+                        + "insert into t1 select a, b, c, d from t2 where a > 1;"
+                        + "insert into t1 select a, b, c, d from t2 where a > 2;"
+                        + "end";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertThat(operation).isInstanceOf(StatementSetOperation.class);
+    }
+
+    @Test
+    public void testSqlExecuteWithInsert() {
+        final String sql = "execute insert into t1 select a, b, c, d from t2 where a > 1";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertThat(operation).isInstanceOf(CatalogSinkModifyOperation.class);
+    }
+
+    @Test
+    public void testSqlExecuteWithSelect() {
+        final String sql = "execute select a, b, c, d from t2 where a > 1";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertThat(operation).isInstanceOf(QueryOperation.class);
     }
 
     @Test

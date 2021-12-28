@@ -57,6 +57,8 @@ import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.sql.parser.dml.SqlBeginStatementSet;
 import org.apache.flink.sql.parser.dml.SqlEndStatementSet;
+import org.apache.flink.sql.parser.dml.SqlExecute;
+import org.apache.flink.sql.parser.dml.SqlStatementSet;
 import org.apache.flink.sql.parser.dql.SqlLoadModule;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
 import org.apache.flink.sql.parser.dql.SqlRichExplain;
@@ -105,6 +107,7 @@ import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
 import org.apache.flink.table.operations.ShowColumnsOperation;
@@ -119,6 +122,7 @@ import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
+import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
@@ -223,6 +227,12 @@ public class SqlToOperationConverter {
             FlinkPlannerImpl flinkPlanner, CatalogManager catalogManager, SqlNode sqlNode) {
         // validate the query
         final SqlNode validated = flinkPlanner.validate(sqlNode);
+        return convertValidatedSqlNode(flinkPlanner, catalogManager, validated);
+    }
+
+    /** Convert a validated sql node to Operation. */
+    private static Optional<Operation> convertValidatedSqlNode(
+            FlinkPlannerImpl flinkPlanner, CatalogManager catalogManager, SqlNode validated) {
         SqlToOperationConverter converter =
                 new SqlToOperationConverter(flinkPlanner, catalogManager);
         if (validated instanceof SqlCreateCatalog) {
@@ -311,6 +321,11 @@ public class SqlToOperationConverter {
             return Optional.of(converter.convertSet((SqlSet) validated));
         } else if (validated instanceof SqlReset) {
             return Optional.of(converter.convertReset((SqlReset) validated));
+        } else if (validated instanceof SqlStatementSet) {
+            return Optional.of(converter.convertSqlStatementSet((SqlStatementSet) validated));
+        } else if (validated instanceof SqlExecute) {
+            return convertValidatedSqlNode(
+                    flinkPlanner, catalogManager, ((SqlExecute) validated).getStatement());
         } else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
             return Optional.of(converter.convertSqlQuery(validated));
         } else {
@@ -680,6 +695,15 @@ public class SqlToOperationConverter {
         return language;
     }
 
+    /** Convert statement set into statement. */
+    private StatementSetOperation convertSqlStatementSet(SqlStatementSet statementSet) {
+        return new StatementSetOperation(
+                statementSet.getInserts().stream()
+                        .map(this::convertSqlInsert)
+                        .map(op -> (ModifyOperation) op)
+                        .collect(Collectors.toList()));
+    }
+
     /** Convert insert into statement. */
     private Operation convertSqlInsert(RichSqlInsert insert) {
         // Get sink table name.
@@ -695,8 +719,7 @@ public class SqlToOperationConverter {
 
         PlannerQueryOperation query =
                 (PlannerQueryOperation)
-                        SqlToOperationConverter.convert(
-                                        flinkPlanner, catalogManager, insert.getSource())
+                        convertValidatedSqlNode(flinkPlanner, catalogManager, insert.getSource())
                                 .orElseThrow(
                                         () ->
                                                 new TableException(
@@ -1023,20 +1046,19 @@ public class SqlToOperationConverter {
 
     /** Convert RICH EXPLAIN statement. */
     private Operation convertRichExplain(SqlRichExplain sqlExplain) {
-        Operation operation;
         SqlNode sqlNode = sqlExplain.getStatement();
-        Set<String> explainDetails = sqlExplain.getExplainDetails();
-
+        Operation operation;
         if (sqlNode instanceof RichSqlInsert) {
             operation = convertSqlInsert((RichSqlInsert) sqlNode);
+        } else if (sqlNode instanceof SqlStatementSet) {
+            operation = convertSqlStatementSet((SqlStatementSet) sqlNode);
         } else if (sqlNode.getKind().belongsTo(SqlKind.QUERY)) {
             operation = convertSqlQuery(sqlExplain.getStatement());
         } else {
             throw new ValidationException(
-                    String.format(
-                            "EXPLAIN statement doesn't support %s", sqlNode.getKind().toString()));
+                    String.format("EXPLAIN statement doesn't support %s", sqlNode.getKind()));
         }
-        return new ExplainOperation(operation, explainDetails);
+        return new ExplainOperation(operation, sqlExplain.getExplainDetails());
     }
 
     /** Convert DESCRIBE [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier. */
