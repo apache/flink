@@ -80,7 +80,11 @@ class StreamPhysicalMatch(
         collationToString(logicalMatch.orderKeys, inputRowType),
         !logicalMatch.orderKeys.getFieldCollations.isEmpty)
       .itemIf("measures",
-        measuresDefineToString(logicalMatch.measures, fieldNames, getExpressionString),
+        measuresDefineToString(
+          logicalMatch.measures,
+          fieldNames,
+          getExpressionString,
+          convertToExpressionDetail(pw.getDetailLevel)),
         !logicalMatch.measures.isEmpty)
       .item("rowsPerMatch", rowsPerMatchToString(logicalMatch.allRows))
       .item("after", afterMatchToString(logicalMatch.after, fieldNames))

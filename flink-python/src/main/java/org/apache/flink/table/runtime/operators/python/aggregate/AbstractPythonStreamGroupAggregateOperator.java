@@ -35,7 +35,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.UpdatableRowData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
-import org.apache.flink.table.planner.typeutils.DataViewUtils;
+import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.functions.CleanupState;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
@@ -80,7 +80,7 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
             RowType inputType,
             RowType outputType,
             PythonAggregateFunctionInfo[] aggregateFunctions,
-            DataViewUtils.DataViewSpec[][] dataViewSpecs,
+            DataViewSpec[][] dataViewSpecs,
             int[] grouping,
             int indexOfCountStar,
             boolean generateUpdateBefore,

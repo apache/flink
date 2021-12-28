@@ -56,8 +56,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.ServiceConfigurationError;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -66,6 +64,7 @@ import java.util.stream.StreamSupport;
 import static org.apache.flink.configuration.ConfigurationUtils.canBePrefixMap;
 import static org.apache.flink.configuration.ConfigurationUtils.filterPrefixMapKey;
 import static org.apache.flink.configuration.GlobalConfiguration.HIDDEN_CONTENT;
+import static org.apache.flink.table.factories.ManagedTableFactory.DEFAULT_IDENTIFIER;
 import static org.apache.flink.table.module.CommonModuleOptions.MODULE_TYPE;
 
 /** Utility for working with {@link Factory}s. */
@@ -471,6 +470,7 @@ public final class FactoryUtil {
                             factoryClass.getName(),
                             foundFactories.stream()
                                     .map(Factory::factoryIdentifier)
+                                    .filter(identifier -> !DEFAULT_IDENTIFIER.equals(identifier))
                                     .distinct()
                                     .sorted()
                                     .collect(Collectors.joining("\n"))));
@@ -622,10 +622,7 @@ public final class FactoryUtil {
             Class<T> factoryClass, DynamicTableFactory.Context context) {
         final String connectorOption = context.getCatalogTable().getOptions().get(CONNECTOR.key());
         if (connectorOption == null) {
-            throw new ValidationException(
-                    String.format(
-                            "Table options do not contain an option key '%s' for discovering a connector.",
-                            CONNECTOR.key()));
+            return discoverManagedTableFactory(context.getClassLoader(), factoryClass);
         }
         try {
             return discoverFactory(context.getClassLoader(), factoryClass, connectorOption);
@@ -689,15 +686,63 @@ public final class FactoryUtil {
         }
     }
 
-    private static List<Factory> discoverFactories(ClassLoader classLoader) {
-        try {
-            final List<Factory> result = new LinkedList<>();
-            ServiceLoader.load(Factory.class, classLoader).iterator().forEachRemaining(result::add);
-            return result;
-        } catch (ServiceConfigurationError e) {
-            LOG.error("Could not load service provider for factories.", e);
-            throw new TableException("Could not load service provider for factories.", e);
+    @SuppressWarnings("unchecked")
+    static <T extends DynamicTableFactory> T discoverManagedTableFactory(
+            ClassLoader classLoader, Class<T> implementClass) {
+        final List<Factory> factories = discoverFactories(classLoader);
+
+        final List<Factory> foundFactories =
+                factories.stream()
+                        .filter(f -> ManagedTableFactory.class.isAssignableFrom(f.getClass()))
+                        .filter(f -> implementClass.isAssignableFrom(f.getClass()))
+                        .collect(Collectors.toList());
+
+        if (foundFactories.isEmpty()) {
+            throw new ValidationException(
+                    String.format(
+                            "Table options do not contain an option key 'connector' for discovering a connector. "
+                                    + "Therefore, Flink assumes a managed table. However, a managed table factory "
+                                    + "that implements %s is not in the classpath.",
+                            implementClass.getName()));
         }
+
+        if (foundFactories.size() > 1) {
+            throw new ValidationException(
+                    String.format(
+                            "Multiple factories for managed table found in the classpath.\n\n"
+                                    + "Ambiguous factory classes are:\n\n"
+                                    + "%s",
+                            foundFactories.stream()
+                                    .map(f -> f.getClass().getName())
+                                    .sorted()
+                                    .collect(Collectors.joining("\n"))));
+        }
+
+        return (T) foundFactories.get(0);
+    }
+
+    static List<Factory> discoverFactories(ClassLoader classLoader) {
+        final List<Factory> result = new LinkedList<>();
+        ServiceLoaderUtil.load(Factory.class, classLoader)
+                .forEach(
+                        loadResult -> {
+                            if (loadResult.hasFailed()) {
+                                if (loadResult.getError() instanceof NoClassDefFoundError) {
+                                    LOG.debug(
+                                            "NoClassDefFoundError when loading a "
+                                                    + Factory.class
+                                                    + ". This is expected when trying to load a format dependency but no flink-connector-files is loaded.",
+                                            loadResult.getError());
+                                    // After logging, we just ignore this failure
+                                    return;
+                                }
+                                throw new TableException(
+                                        "Unexpected error when trying to load service provider for factories.",
+                                        loadResult.getError());
+                            }
+                            result.add(loadResult.getService());
+                        });
+        return result;
     }
 
     private static String stringifyOption(String key, String value) {

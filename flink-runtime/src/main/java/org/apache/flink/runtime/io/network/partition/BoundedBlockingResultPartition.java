@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.util.function.SupplierWithException;
@@ -66,9 +67,9 @@ public class BoundedBlockingResultPartition extends BufferWritingResultPartition
     }
 
     @Override
-    public void notifyEndOfData() throws IOException {
+    public void notifyEndOfData(StopMode mode) throws IOException {
         if (!hasNotifiedEndOfUserRecords) {
-            broadcastEvent(EndOfData.INSTANCE, false);
+            broadcastEvent(new EndOfData(mode), false);
             hasNotifiedEndOfUserRecords = true;
         }
     }

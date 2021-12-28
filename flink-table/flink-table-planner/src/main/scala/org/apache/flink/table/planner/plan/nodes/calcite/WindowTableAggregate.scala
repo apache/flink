@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -42,12 +42,12 @@ abstract class WindowTableAggregate(
     groupSets: util.List[ImmutableBitSet],
     aggCalls: util.List[AggregateCall],
     window: LogicalWindow,
-    namedProperties: Seq[PlannerNamedWindowProperty])
+    namedProperties: Seq[NamedWindowProperty])
   extends TableAggregate(cluster, traitSet, input, groupSet, groupSets, aggCalls) {
 
   def getWindow: LogicalWindow = window
 
-  def getNamedProperties: Seq[PlannerNamedWindowProperty] = namedProperties
+  def getNamedProperties: Seq[NamedWindowProperty] = namedProperties
 
   override def deriveRowType(): RelDataType = {
     val aggregateRowType = super.deriveRowType()

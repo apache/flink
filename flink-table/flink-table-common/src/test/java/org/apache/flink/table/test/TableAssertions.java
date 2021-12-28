@@ -28,6 +28,8 @@ public class TableAssertions {
 
     private TableAssertions() {}
 
+    // --- Internal data structures
+
     public static RowDataAssert assertThat(RowData actual) {
         return new RowDataAssert(actual);
     }
@@ -35,6 +37,8 @@ public class TableAssertions {
     public static StringDataAssert assertThat(StringData actual) {
         return new StringDataAssert(actual);
     }
+
+    // --- Types
 
     public static DataTypeAssert assertThat(DataType actual) {
         return new DataTypeAssert(actual);

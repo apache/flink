@@ -479,7 +479,7 @@
         "c" : "BIGINT"
       } ]
     },
-    "description" : "Calc(select=[c AS a, CAST(w0$o0) AS b, CAST(CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER)) AS c])"
+    "description" : "Calc(select=[c AS a, CAST(w0$o0 AS BIGINT) AS b, CAST(CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS BIGINT) AS c])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {

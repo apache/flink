@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.logical._
 import org.apache.flink.table.planner.plan.utils.AggregateUtil._
 import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -39,7 +39,7 @@ abstract class StreamPhysicalGroupWindowAggregateBase(
     val grouping: Array[Int],
     val aggCalls: Seq[AggregateCall],
     val window: LogicalWindow,
-    val namedWindowProperties: Seq[PlannerNamedWindowProperty],
+    val namedWindowProperties: Seq[NamedWindowProperty],
     val emitStrategy: WindowEmitStrategy)
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel {

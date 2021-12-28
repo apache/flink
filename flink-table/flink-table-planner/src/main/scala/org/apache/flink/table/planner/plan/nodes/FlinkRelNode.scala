@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.planner.plan.nodes
 
+import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
-import org.apache.flink.table.planner.plan.utils.{ExpressionFormat, FlinkRexUtil, RelDescriptionWriterImpl}
+import org.apache.flink.table.planner.plan.utils.{ExpressionDetail, ExpressionFormat, FlinkRexUtil, RelDescriptionWriterImpl}
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.SqlExplainLevel
 
 import java.io.{PrintWriter, StringWriter}
 
@@ -50,16 +52,45 @@ trait FlinkRelNode extends RelNode {
   private[flink] def getExpressionString(
       expr: RexNode,
       inFields: List[String],
-      localExprsTable: Option[List[RexNode]]): String = {
-    getExpressionString(expr, inFields, localExprsTable, ExpressionFormat.Prefix)
+      localExprsTable: Option[List[RexNode]],
+      sqlExplainLevel: SqlExplainLevel): String = {
+    getExpressionString(expr, inFields, localExprsTable, ExpressionFormat.Prefix, sqlExplainLevel)
   }
 
   private[flink] def getExpressionString(
       expr: RexNode,
       inFields: List[String],
       localExprsTable: Option[List[RexNode]],
-      expressionFormat: ExpressionFormat): String = {
-    FlinkRexUtil.getExpressionString(expr, inFields, localExprsTable, expressionFormat)
+      expressionDetail: ExpressionDetail): String = {
+    getExpressionString(expr, inFields, localExprsTable, ExpressionFormat.Prefix, expressionDetail)
+  }
+
+  private[flink] def getExpressionString(
+      expr: RexNode,
+      inFields: List[String],
+      localExprsTable: Option[List[RexNode]],
+      expressionFormat: ExpressionFormat,
+      sqlExplainLevel: SqlExplainLevel): String = {
+    getExpressionString(
+      expr, inFields, localExprsTable, expressionFormat, convertToExpressionDetail(sqlExplainLevel))
+  }
+
+  private[flink] def getExpressionString(
+      expr: RexNode,
+      inFields: List[String],
+      localExprsTable: Option[List[RexNode]],
+      expressionFormat: ExpressionFormat,
+      expressionDetail: ExpressionDetail): String = {
+    FlinkRexUtil.getExpressionString(
+      expr, inFields, localExprsTable, expressionFormat, expressionDetail)
+  }
+
+  private[flink] def convertToExpressionDetail(
+      sqlExplainLevel: SqlExplainLevel): ExpressionDetail = {
+    sqlExplainLevel match {
+      case SqlExplainLevel.EXPPLAN_ATTRIBUTES => ExpressionDetail.Explain
+      case _ => ExpressionDetail.Digest
+    }
   }
 }
 

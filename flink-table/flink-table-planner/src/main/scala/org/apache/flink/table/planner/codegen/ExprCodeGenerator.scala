@@ -18,6 +18,10 @@
 
 package org.apache.flink.table.planner.codegen
 
+import org.apache.calcite.rex._
+import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
+import org.apache.calcite.sql.{SqlKind, SqlOperator}
+import org.apache.calcite.util.{Sarg, TimestampString}
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.RowData
@@ -42,10 +46,6 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isNumeric, isTem
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, isCompositeType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-import org.apache.calcite.rex._
-import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
-import org.apache.calcite.sql.{SqlKind, SqlOperator}
-import org.apache.calcite.util.{Sarg, TimestampString}
 
 import scala.collection.JavaConversions._
 
@@ -418,15 +418,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case _ =>
         literal.getValue3
     }
-    // Make sure to convert avatica time types to flink internal types
-    val convertedValue = value match {
-      case tu: org.apache.calcite.avatica.util.TimeUnit =>
-        org.apache.flink.table.utils.DateTimeUtils.TimeUnit.valueOf(tu.name())
-      case tur: org.apache.calcite.avatica.util.TimeUnitRange =>
-        org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange.valueOf(tur.name())
-      case _ => value
-    }
-    generateLiteral(ctx, resultType, convertedValue)
+    generateLiteral(ctx, resultType, value)
   }
 
   override def visitCorrelVariable(correlVariable: RexCorrelVariable): GeneratedExpression = {

@@ -23,18 +23,17 @@ import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.ImperativeAggregateFunction
 import org.apache.flink.table.planner.JLong
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, _}
+import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
-import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
-import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, ListViewSpec, MapViewSpec}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
-import org.apache.flink.table.runtime.dataview.{StateListView, StateMapView}
+import org.apache.flink.table.runtime.dataview.{DataViewSpec, ListViewSpec, MapViewSpec, StateListView, StateMapView}
 import org.apache.flink.table.runtime.generated._
+import org.apache.flink.table.runtime.groupwindow._
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
@@ -45,8 +44,8 @@ import org.apache.flink.util.Collector
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
 
-import java.util.Optional
 import java.time.ZoneId
+import java.util.Optional
 
 /**
   * A code generator for generating [[AggsHandleFunction]].
@@ -68,7 +67,7 @@ class AggsHandlerCodeGenerator(
 
   /** window properties like window_start and window_end, only used in window aggregates */
   private var namespaceClassName: String = _
-  private var windowProperties: Seq[PlannerWindowProperty] = Seq()
+  private var windowProperties: Seq[WindowProperty] = Seq()
   private var hasNamespace: Boolean = false
   private var sliceAssignerTerm: String = _
   private var shiftTimeZone: ZoneId = _
@@ -195,7 +194,7 @@ class AggsHandlerCodeGenerator(
     * Adds window properties such as window_start, window_end
     */
   private def initialWindowProperties(
-      windowProperties: Seq[PlannerWindowProperty],
+      windowProperties: Seq[WindowProperty],
       windowClass: Class[_],
       shiftTimeZone: ZoneId): Unit = {
     this.windowProperties = windowProperties
@@ -580,7 +579,7 @@ class AggsHandlerCodeGenerator(
   def generateNamespaceAggsHandler(
       name: String,
       aggInfoList: AggregateInfoList,
-      windowProperties: Seq[PlannerWindowProperty],
+      windowProperties: Seq[WindowProperty],
       sliceAssigner: SliceAssigner,
       shiftTimeZone: ZoneId): GeneratedNamespaceAggsHandleFunction[JLong] = {
     this.sliceAssignerTerm = newName("sliceAssigner")
@@ -601,7 +600,7 @@ class AggsHandlerCodeGenerator(
   def generateNamespaceAggsHandler[N](
       name: String,
       aggInfoList: AggregateInfoList,
-      windowProperties: Seq[PlannerWindowProperty],
+      windowProperties: Seq[WindowProperty],
       windowClass: Class[N],
       shiftTimeZone: ZoneId): GeneratedNamespaceAggsHandleFunction[N] = {
 
@@ -707,7 +706,7 @@ class AggsHandlerCodeGenerator(
   def generateNamespaceTableAggsHandler[N](
       name: String,
       aggInfoList: AggregateInfoList,
-      windowProperties: Seq[PlannerWindowProperty],
+      windowProperties: Seq[WindowProperty],
       windowClass: Class[N],
       shiftedTimeZone: ZoneId): GeneratedNamespaceTableAggsHandleFunction[N] = {
 
@@ -1012,25 +1011,25 @@ class AggsHandlerCodeGenerator(
   }
 
   private def getWindowExpressions(
-      windowProperties: Seq[PlannerWindowProperty]): Seq[GeneratedExpression] = {
+      windowProperties: Seq[WindowProperty]): Seq[GeneratedExpression] = {
     if (namespaceClassName.equals(classOf[JLong].getCanonicalName)) {
       // slicing optimization, we are using window end timestamp to indicate a window
       windowProperties.map {
-        case w: PlannerWindowStart =>
+        case w: WindowStart =>
           // return a Timestamp(Internal is TimestampData)
           GeneratedExpression(
             s"$TIMESTAMP_DATA.fromEpochMillis($sliceAssignerTerm.getWindowStart($NAMESPACE_TERM))",
             "false",
             "",
             w.getResultType)
-        case w: PlannerWindowEnd =>
+        case w: WindowEnd =>
           // return a Timestamp(Internal is TimestampData)
           GeneratedExpression(
             s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM)",
             "false",
             "",
             w.getResultType)
-        case r: PlannerRowtimeAttribute =>
+        case r: RowtimeAttribute =>
           // return a rowtime, use TimestampData as internal type
           GeneratedExpression(
             s"""
@@ -1040,27 +1039,27 @@ class AggsHandlerCodeGenerator(
             "false",
             "",
             r.getResultType)
-        case p: PlannerProctimeAttribute =>
+        case p: ProctimeAttribute =>
           // ignore this property, it will be null at the position later
           GeneratedExpression(s"$TIMESTAMP_DATA.fromEpochMillis(-1L)", "true", "", p.getResultType)
       }
     } else {
       windowProperties.map {
-        case w: PlannerWindowStart =>
+        case w: WindowStart =>
           // return a Timestamp(Internal is TimestampData)
           GeneratedExpression(
             s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getStart())",
             "false",
             "",
             w.getResultType)
-        case w: PlannerWindowEnd =>
+        case w: WindowEnd =>
           // return a Timestamp(Internal is TimestampData)
           GeneratedExpression(
             s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getEnd())",
             "false",
             "",
             w.getResultType)
-        case r: PlannerRowtimeAttribute =>
+        case r: RowtimeAttribute =>
           // return a rowtime, use TimestampData as internal type
           GeneratedExpression(
             s"""
@@ -1070,7 +1069,7 @@ class AggsHandlerCodeGenerator(
             "false",
             "",
             r.getResultType)
-        case p: PlannerProctimeAttribute =>
+        case p: ProctimeAttribute =>
           // ignore this property, it will be null at the position later
           GeneratedExpression(s"$TIMESTAMP_DATA.fromEpochMillis(-1L)", "true", "", p.getResultType)
       }

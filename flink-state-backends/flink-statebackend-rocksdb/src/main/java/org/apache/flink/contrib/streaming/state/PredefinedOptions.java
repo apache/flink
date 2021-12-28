@@ -75,7 +75,7 @@ public enum PredefinedOptions {
      * <ul>
      *   <li>setCompactionStyle(CompactionStyle.LEVEL)
      *   <li>setLevelCompactionDynamicLevelBytes(true)
-     *   <li>setIncreaseParallelism(4)
+     *   <li>setMaxBackgroundJobs(4)
      *   <li>setDisableDataSync(true)
      *   <li>setMaxOpenFiles(-1)
      *   <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
@@ -112,7 +112,7 @@ public enum PredefinedOptions {
      *   <li>setTargetFileSizeBase(256 MBytes)
      *   <li>setMaxBytesForLevelBase(1 GByte)
      *   <li>setWriteBufferSize(64 MBytes)
-     *   <li>setIncreaseParallelism(4)
+     *   <li>setMaxBackgroundJobs(4)
      *   <li>setMinWriteBufferNumberToMerge(3)
      *   <li>setMaxWriteBufferNumber(4)
      *   <li>setMaxOpenFiles(-1)
@@ -156,7 +156,7 @@ public enum PredefinedOptions {
      * <p>The following options are set:
      *
      * <ul>
-     *   <li>setIncreaseParallelism(4)
+     *   <li>setMaxBackgroundJobs(4)
      *   <li>setDisableDataSync(true)
      *   <li>setMaxOpenFiles(-1)
      *   <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)

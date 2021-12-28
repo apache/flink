@@ -44,6 +44,10 @@ public interface CodeGeneratorCastRule<IN, OUT> extends CastRule<IN, OUT> {
 
     /** Context for code generation. */
     interface Context {
+        /** @return where the legacy behaviour should be followed or not. */
+        @Deprecated
+        boolean legacyBehaviour();
+
         /** @return the session time zone term */
         String getSessionTimeZoneTerm();
 

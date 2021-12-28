@@ -51,8 +51,9 @@ object CorrelateCodeGenerator {
       parallelism: Int,
       retainHeader: Boolean,
       opName: String,
-      transformationName: String)
-    : Transformation[RowData] = {
+      transformationName: String,
+      transformationDescription: String)
+  : Transformation[RowData] = {
 
     // according to the SQL standard, every scalar function should also be a table function
     // but we don't allow that for now
@@ -86,6 +87,7 @@ object CorrelateCodeGenerator {
     ExecNodeUtil.createOneInputTransformation(
       inputTransformation,
       transformationName,
+      transformationDescription,
       substituteStreamOperator,
       InternalTypeInfo.of(outputType),
       parallelism,

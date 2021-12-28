@@ -24,9 +24,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -34,6 +38,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -80,7 +86,11 @@ public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
                 CommonPythonUtil.getMergedConfig(planner.getExecEnv(), planner.getTableConfig());
         OneInputTransformation<RowData, RowData> transform =
                 createPythonOneInputTransformation(
-                        inputTransform, inputRowType, outputRowType, config);
+                        inputTransform,
+                        inputRowType,
+                        outputRowType,
+                        config,
+                        planner.getTableConfig());
 
         if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
@@ -92,21 +102,24 @@ public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
             Transformation<RowData> inputTransform,
             RowType inputRowType,
             RowType outputRowType,
-            Configuration config) {
+            Configuration mergedConfig,
+            TableConfig tableConfig) {
         final Tuple2<int[], PythonFunctionInfo[]> aggInfos =
                 CommonPythonUtil.extractPythonAggregateFunctionInfosFromAggregateCall(aggCalls);
         int[] pythonUdafInputOffsets = aggInfos.f0;
         PythonFunctionInfo[] pythonFunctionInfos = aggInfos.f1;
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonAggregateFunctionOperator(
-                        config,
+                        tableConfig,
+                        mergedConfig,
                         inputRowType,
                         outputRowType,
                         pythonUdafInputOffsets,
                         pythonFunctionInfos);
-        return new OneInputTransformation<>(
+        return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getDescription(),
+                getOperatorName(mergedConfig),
+                getOperatorDescription(mergedConfig),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());
@@ -114,13 +127,21 @@ public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     private OneInputStreamOperator<RowData, RowData> getPythonAggregateFunctionOperator(
-            Configuration config,
+            TableConfig tableConfig,
+            Configuration mergedConfig,
             RowType inputRowType,
             RowType outputRowType,
             int[] udafInputOffsets,
             PythonFunctionInfo[] pythonFunctionInfos) {
         final Class<?> clazz =
                 CommonPythonUtil.loadClass(ARROW_PYTHON_AGGREGATE_FUNCTION_OPERATOR_NAME);
+
+        RowType udfInputType = (RowType) Projection.of(udafInputOffsets).project(inputRowType);
+        RowType udfOutputType =
+                (RowType)
+                        Projection.range(auxGrouping.length, outputRowType.getFieldCount())
+                                .project(outputRowType);
+
         try {
             Constructor<?> ctor =
                     clazz.getConstructor(
@@ -128,18 +149,35 @@ public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
                             PythonFunctionInfo[].class,
                             RowType.class,
                             RowType.class,
-                            int[].class,
-                            int[].class,
-                            int[].class);
+                            RowType.class,
+                            GeneratedProjection.class,
+                            GeneratedProjection.class,
+                            GeneratedProjection.class);
             return (OneInputStreamOperator<RowData, RowData>)
                     ctor.newInstance(
-                            config,
+                            mergedConfig,
                             pythonFunctionInfos,
                             inputRowType,
-                            outputRowType,
-                            grouping,
-                            auxGrouping,
-                            udafInputOffsets);
+                            udfInputType,
+                            udfOutputType,
+                            ProjectionCodeGenerator.generateProjection(
+                                    CodeGeneratorContext.apply(tableConfig),
+                                    "UdafInputProjection",
+                                    inputRowType,
+                                    udfInputType,
+                                    udafInputOffsets),
+                            ProjectionCodeGenerator.generateProjection(
+                                    CodeGeneratorContext.apply(tableConfig),
+                                    "GroupKey",
+                                    inputRowType,
+                                    (RowType) Projection.of(grouping).project(inputRowType),
+                                    grouping),
+                            ProjectionCodeGenerator.generateProjection(
+                                    CodeGeneratorContext.apply(tableConfig),
+                                    "GroupSet",
+                                    inputRowType,
+                                    (RowType) Projection.of(auxGrouping).project(inputRowType),
+                                    auxGrouping));
         } catch (NoSuchMethodException
                 | IllegalAccessException
                 | InstantiationException

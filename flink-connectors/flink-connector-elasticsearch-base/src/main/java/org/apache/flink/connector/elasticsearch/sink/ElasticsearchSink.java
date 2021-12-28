@@ -60,6 +60,7 @@ public class ElasticsearchSink<IN> implements Sink<IN, Void, Void, Void> {
     private final List<HttpHost> hosts;
     private final ElasticsearchEmitter<? super IN> emitter;
     private final BulkProcessorConfig buildBulkProcessorConfig;
+    private final BulkProcessorBuilderFactory bulkProcessorBuilderFactory;
     private final NetworkClientConfig networkClientConfig;
     private final DeliveryGuarantee deliveryGuarantee;
 
@@ -67,9 +68,11 @@ public class ElasticsearchSink<IN> implements Sink<IN, Void, Void, Void> {
             List<HttpHost> hosts,
             ElasticsearchEmitter<? super IN> emitter,
             DeliveryGuarantee deliveryGuarantee,
+            BulkProcessorBuilderFactory bulkProcessorBuilderFactory,
             BulkProcessorConfig buildBulkProcessorConfig,
             NetworkClientConfig networkClientConfig) {
         this.hosts = checkNotNull(hosts);
+        this.bulkProcessorBuilderFactory = checkNotNull(bulkProcessorBuilderFactory);
         checkArgument(!hosts.isEmpty(), "Hosts cannot be empty.");
         this.emitter = checkNotNull(emitter);
         this.deliveryGuarantee = checkNotNull(deliveryGuarantee);
@@ -85,6 +88,7 @@ public class ElasticsearchSink<IN> implements Sink<IN, Void, Void, Void> {
                 emitter,
                 deliveryGuarantee == DeliveryGuarantee.AT_LEAST_ONCE,
                 buildBulkProcessorConfig,
+                bulkProcessorBuilderFactory,
                 networkClientConfig,
                 context.metricGroup(),
                 context.getMailboxExecutor());

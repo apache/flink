@@ -296,6 +296,14 @@ public class YarnConfigOptions {
                     .noDefaultValue()
                     .withDescription("Specify YARN node label for the YARN application.");
 
+    public static final ConfigOption<String> TASK_MANAGER_NODE_LABEL =
+            key("yarn.taskmanager.node-label")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Specify YARN node label for the Flink TaskManagers, it will "
+                                    + "override the yarn.application.node-label for TaskManagers if both are set.");
+
     public static final ConfigOption<Boolean> SHIP_LOCAL_KEYTAB =
             key("yarn.security.kerberos.ship-local-keytab")
                     .booleanType()

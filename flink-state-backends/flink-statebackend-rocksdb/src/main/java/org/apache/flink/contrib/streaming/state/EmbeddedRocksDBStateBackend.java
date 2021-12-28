@@ -302,6 +302,13 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     //  State backend methods
     // ------------------------------------------------------------------------
 
+    @Override
+    public boolean supportsNoClaimRestoreMode() {
+        // We are able to create CheckpointType#FULL_CHECKPOINT. (we might potentially reupload some
+        // shared files when taking incremental snapshots)
+        return true;
+    }
+
     private void lazyInitializeForJob(
             Environment env, @SuppressWarnings("unused") String operatorIdentifier)
             throws IOException {

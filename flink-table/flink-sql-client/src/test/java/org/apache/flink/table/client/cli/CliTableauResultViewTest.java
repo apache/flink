@@ -197,13 +197,13 @@ public class CliTableauResultViewTest {
                         + System.lineSeparator()
                         + "|  <NULL> |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "|   false |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
+                        + "|   FALSE |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "|    true |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
+                        + "|    TRUE |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
-                        + "|   false | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |"
+                        + "|   FALSE | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |"
                         + System.lineSeparator()
-                        + "|    true |         100 | -9223372036854775808 |                     abcdefg111 |         <NULL> | 2020-03-01 18:39:14.123456 |"
+                        + "|    TRUE |         100 | -9223372036854775808 |                     abcdefg111 |         <NULL> | 2020-03-01 18:39:14.123456 |"
                         + System.lineSeparator()
                         + "|  <NULL> |          -1 |                   -1 |     abcdefghijklmnopqrstuvwxyz |   -12345.06789 |                     <NULL> |"
                         + System.lineSeparator()
@@ -362,13 +362,13 @@ public class CliTableauResultViewTest {
                         + System.lineSeparator()
                         + "| +I |  <NULL> |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "| -U |   false |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
+                        + "| -U |   FALSE |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "| +U |    true |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
+                        + "| +U |    TRUE |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
-                        + "| -D |   false | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |"
+                        + "| -D |   FALSE | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |"
                         + System.lineSeparator()
-                        + "| +I |    true |         100 | -9223372036854775808 |                     abcdefg111 |         <NULL> | 2020-03-01 18:39:14.123456 |"
+                        + "| +I |    TRUE |         100 | -9223372036854775808 |                     abcdefg111 |         <NULL> | 2020-03-01 18:39:14.123456 |"
                         + System.lineSeparator()
                         + "| -D |  <NULL> |          -1 |                   -1 |     abcdefghijklmnopqrstuvwxyz |   -12345.06789 |                     <NULL> |"
                         + System.lineSeparator()
@@ -460,11 +460,11 @@ public class CliTableauResultViewTest {
                         + System.lineSeparator()
                         + "| +I |  <NULL> |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "| -U |   false |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
+                        + "| -U |   FALSE |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "| +U |    true |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
+                        + "| +U |    TRUE |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
-                        + "| -D |   false | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |"
+                        + "| -D |   FALSE | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |"
                         + System.lineSeparator()
                         + "Query terminated, received a total of 4 rows"
                         + System.lineSeparator(),
@@ -512,11 +512,11 @@ public class CliTableauResultViewTest {
                         + System.lineSeparator()
                         + "| +I |  <NULL> |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "| -U |   false |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
+                        + "| -U |   FALSE |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "| +U |    true |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
+                        + "| +U |    TRUE |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
-                        + "| -D |   false | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |"
+                        + "| -D |   FALSE | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |"
                         + System.lineSeparator(),
                 terminalOutput.toString());
         assertThat(mockExecutor.getNumCancelCalls(), is(1));

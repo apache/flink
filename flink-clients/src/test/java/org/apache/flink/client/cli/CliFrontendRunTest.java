@@ -22,6 +22,7 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
@@ -128,6 +129,66 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
             assertEquals("--arg2", programOptions.getProgramArgs()[3]);
             assertEquals("value2", programOptions.getProgramArgs()[4]);
         }
+    }
+
+    @Test
+    public void testClaimRestoreModeParsing() throws Exception {
+        // test configure savepoint with claim mode
+        String[] parameters = {
+            "-s", "expectedSavepointPath", "-n", "-restoreMode", "claim", getTestJarPath()
+        };
+
+        CommandLine commandLine =
+                CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
+        ProgramOptions programOptions = ProgramOptions.create(commandLine);
+        ExecutionConfigAccessor executionOptions =
+                ExecutionConfigAccessor.fromProgramOptions(programOptions, Collections.emptyList());
+
+        SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
+        assertTrue(savepointSettings.restoreSavepoint());
+        assertEquals(RestoreMode.CLAIM, savepointSettings.getRestoreMode());
+        assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
+        assertTrue(savepointSettings.allowNonRestoredState());
+    }
+
+    @Test
+    public void testLegacyRestoreModeParsing() throws Exception {
+        // test configure savepoint with claim mode
+        String[] parameters = {
+            "-s", "expectedSavepointPath", "-n", "-restoreMode", "legacy", getTestJarPath()
+        };
+
+        CommandLine commandLine =
+                CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
+        ProgramOptions programOptions = ProgramOptions.create(commandLine);
+        ExecutionConfigAccessor executionOptions =
+                ExecutionConfigAccessor.fromProgramOptions(programOptions, Collections.emptyList());
+
+        SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
+        assertTrue(savepointSettings.restoreSavepoint());
+        assertEquals(RestoreMode.LEGACY, savepointSettings.getRestoreMode());
+        assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
+        assertTrue(savepointSettings.allowNonRestoredState());
+    }
+
+    @Test
+    public void testNoClaimRestoreModeParsing() throws Exception {
+        // test configure savepoint with claim mode
+        String[] parameters = {
+            "-s", "expectedSavepointPath", "-n", "-restoreMode", "no_claim", getTestJarPath()
+        };
+
+        CommandLine commandLine =
+                CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
+        ProgramOptions programOptions = ProgramOptions.create(commandLine);
+        ExecutionConfigAccessor executionOptions =
+                ExecutionConfigAccessor.fromProgramOptions(programOptions, Collections.emptyList());
+
+        SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
+        assertTrue(savepointSettings.restoreSavepoint());
+        assertEquals(RestoreMode.NO_CLAIM, savepointSettings.getRestoreMode());
+        assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
+        assertTrue(savepointSettings.allowNonRestoredState());
     }
 
     @Test(expected = CliArgsException.class)

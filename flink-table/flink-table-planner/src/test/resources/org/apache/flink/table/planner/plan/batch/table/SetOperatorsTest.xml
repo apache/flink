@@ -40,9 +40,9 @@ Calc(select=[EXPR$0 AS a, b, EXPR$1 AS c])
                      +- Exchange(distribution=[hash[a, b, c]])
                         +- LocalHashAggregate(groupBy=[a, b, c], select=[a, b, c, Partial_SUM(vcol_marker) AS sum$0])
                            +- Union(all=[true], union=[a, b, c, vcol_marker])
-                              :- Calc(select=[a, b, c, 1:BIGINT AS vcol_marker], where=[(a > 0)])
+                              :- Calc(select=[a, b, c, 1 AS vcol_marker], where=[(a > 0)])
                               :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-                              +- Calc(select=[a, b, c, -1:BIGINT AS vcol_marker], where=[(a > 0)])
+                              +- Calc(select=[a, b, c, -1 AS vcol_marker], where=[(a > 0)])
                                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -91,7 +91,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[(c = a1)], select=[a, b, c], build=[rig
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
 +- Exchange(distribution=[hash[a1]])
    +- LocalHashAggregate(groupBy=[a1], select=[a1])
-      +- Calc(select=[a AS a1], where=[(b = _UTF-16LE'two')])
+      +- Calc(select=[a AS a1], where=[(b = 'two')])
          +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -105,7 +105,7 @@ LogicalProject(b2=[AS(SEARCH($1, Sarg[1972-02-22 07:12:00.333:TIMESTAMP(3)]:TIME
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[SEARCH(b, Sarg[1972-02-22 07:12:00.333:TIMESTAMP(3)]:TIMESTAMP(3)) AS b2])
+Calc(select=[SEARCH(b, Sarg[1972-02-22 07:12:00.333]) AS b2])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -130,9 +130,9 @@ Calc(select=[b0 AS b, c0 AS c])
          +- Exchange(distribution=[hash[b, c]])
             +- LocalHashAggregate(groupBy=[b, c], select=[b, c, Partial_SUM(vcol_marker) AS sum$0])
                +- Union(all=[true], union=[b, c, vcol_marker])
-                  :- Calc(select=[b, c, 1:BIGINT AS vcol_marker])
+                  :- Calc(select=[b, c, 1 AS vcol_marker])
                   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-                  +- Calc(select=[b, c, -1:BIGINT AS vcol_marker])
+                  +- Calc(select=[b, c, -1 AS vcol_marker])
                      +- LegacyTableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -152,7 +152,7 @@ LogicalUnion(all=[true])
 Union(all=[true], union=[a])
 :- Calc(select=[a])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
-+- Calc(select=[CASE((c > 0), b, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2)) AS _c0])
++- Calc(select=[CASE((c > 0), b, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)) AS _c0])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>

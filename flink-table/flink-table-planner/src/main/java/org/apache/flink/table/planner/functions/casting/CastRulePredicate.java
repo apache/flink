@@ -35,16 +35,17 @@ import java.util.function.BiPredicate;
  * of input and target type using this class. In particular, a rule is applied if:
  *
  * <ol>
- *   <li>{@link #getTargetTypes()} includes the {@link LogicalTypeRoot} of target type and either
+ *   <li>{@link #getTargetTypeRoots()} includes the {@link LogicalTypeRoot} of target type and
+ *       either
  *       <ol>
- *         <li>{@link #getInputTypes()} includes the {@link LogicalTypeRoot} of input type or
+ *         <li>{@link #getInputTypeRoots()} includes the {@link LogicalTypeRoot} of input type or
  *         <li>{@link #getInputTypeFamilies()} includes one of the {@link LogicalTypeFamily} of
  *             input type
  *       </ol>
  *   <li>Or {@link #getTargetTypeFamilies()} includes one of the {@link LogicalTypeFamily} of target
  *       type and either
  *       <ol>
- *         <li>{@link #getInputTypes()} includes the {@link LogicalTypeRoot} of input type or
+ *         <li>{@link #getInputTypeRoots()} includes the {@link LogicalTypeRoot} of input type or
  *         <li>{@link #getInputTypeFamilies()} includes one of the {@link LogicalTypeFamily} of
  *             input type
  *       </ol>
@@ -59,8 +60,10 @@ import java.util.function.BiPredicate;
 @Internal
 public class CastRulePredicate {
 
-    private final Set<LogicalTypeRoot> inputTypes;
-    private final Set<LogicalTypeRoot> targetTypes;
+    private final Set<LogicalType> targetTypes;
+
+    private final Set<LogicalTypeRoot> inputTypeRoots;
+    private final Set<LogicalTypeRoot> targetTypeRoots;
 
     private final Set<LogicalTypeFamily> inputTypeFamilies;
     private final Set<LogicalTypeFamily> targetTypeFamilies;
@@ -68,24 +71,30 @@ public class CastRulePredicate {
     private final BiPredicate<LogicalType, LogicalType> customPredicate;
 
     private CastRulePredicate(
-            Set<LogicalTypeRoot> inputTypes,
-            Set<LogicalTypeRoot> targetTypes,
+            Set<LogicalType> targetTypes,
+            Set<LogicalTypeRoot> inputTypeRoots,
+            Set<LogicalTypeRoot> targetTypeRoots,
             Set<LogicalTypeFamily> inputTypeFamilies,
             Set<LogicalTypeFamily> targetTypeFamilies,
             BiPredicate<LogicalType, LogicalType> customPredicate) {
-        this.inputTypes = inputTypes;
         this.targetTypes = targetTypes;
+        this.inputTypeRoots = inputTypeRoots;
+        this.targetTypeRoots = targetTypeRoots;
         this.inputTypeFamilies = inputTypeFamilies;
         this.targetTypeFamilies = targetTypeFamilies;
         this.customPredicate = customPredicate;
     }
 
-    public Set<LogicalTypeRoot> getInputTypes() {
-        return inputTypes;
+    public Set<LogicalType> getTargetTypes() {
+        return targetTypes;
     }
 
-    public Set<LogicalTypeRoot> getTargetTypes() {
-        return targetTypes;
+    public Set<LogicalTypeRoot> getInputTypeRoots() {
+        return inputTypeRoots;
+    }
+
+    public Set<LogicalTypeRoot> getTargetTypeRoots() {
+        return targetTypeRoots;
     }
 
     public Set<LogicalTypeFamily> getInputTypeFamilies() {
@@ -106,20 +115,26 @@ public class CastRulePredicate {
 
     /** Builder for the {@link CastRulePredicate}. */
     public static class Builder {
-        private final Set<LogicalTypeRoot> inputTypes = new HashSet<>();
-        private final Set<LogicalTypeRoot> targetTypes = new HashSet<>();
+        private final Set<LogicalTypeRoot> inputTypeRoots = new HashSet<>();
+        private final Set<LogicalTypeRoot> targetTypeRoots = new HashSet<>();
+        private final Set<LogicalType> targetTypes = new HashSet<>();
 
         private final Set<LogicalTypeFamily> inputTypeFamilies = new HashSet<>();
         private final Set<LogicalTypeFamily> targetTypeFamilies = new HashSet<>();
 
         private BiPredicate<LogicalType, LogicalType> customPredicate;
 
-        public Builder input(LogicalTypeRoot inputType) {
-            inputTypes.add(inputType);
+        public Builder input(LogicalTypeRoot inputTypeRoot) {
+            inputTypeRoots.add(inputTypeRoot);
             return this;
         }
 
-        public Builder target(LogicalTypeRoot outputType) {
+        public Builder target(LogicalTypeRoot outputTypeRoot) {
+            targetTypeRoots.add(outputTypeRoot);
+            return this;
+        }
+
+        public Builder target(LogicalType outputType) {
             targetTypes.add(outputType);
             return this;
         }
@@ -141,8 +156,9 @@ public class CastRulePredicate {
 
         public CastRulePredicate build() {
             return new CastRulePredicate(
-                    Collections.unmodifiableSet(inputTypes),
                     Collections.unmodifiableSet(targetTypes),
+                    Collections.unmodifiableSet(inputTypeRoots),
+                    Collections.unmodifiableSet(targetTypeRoots),
                     Collections.unmodifiableSet(inputTypeFamilies),
                     Collections.unmodifiableSet(targetTypeFamilies),
                     customPredicate);

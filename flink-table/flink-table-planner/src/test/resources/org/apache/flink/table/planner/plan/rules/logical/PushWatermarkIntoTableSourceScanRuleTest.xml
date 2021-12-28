@@ -70,7 +70,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b])
-+- FlinkLogicalCalc(select=[a, b, c, d], where=[>(d, TO_TIMESTAMP(_UTF-16LE'2020-10-09 12:12:12'))])
++- FlinkLogicalCalc(select=[a, b, c, d], where=[>(d, TO_TIMESTAMP('2020-10-09 12:12:12'))])
    +- FlinkLogicalCalc(select=[a, b, c, Reinterpret(+(c, 5000:INTERVAL SECOND)) AS d])
       +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(+(c, 5000:INTERVAL SECOND), 5000:INTERVAL SECOND)]]], fields=[a, b, c])
 ]]>
@@ -111,8 +111,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2], metadata=[$3], computed=[$4])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, c, metadata, computed])
-+- FlinkLogicalCalc(select=[a, b, Reinterpret(c) AS c, CAST(metadata_2) AS metadata, +(CAST(metadata_2), b) AS computed])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, CAST(+(CAST(metadata_2), +(CAST(metadata_2), b))))]]], fields=[a, b, c, metadata_2])
++- FlinkLogicalCalc(select=[a, b, Reinterpret(c) AS c, CAST(metadata_2 AS BIGINT) AS metadata, +(CAST(metadata_2 AS BIGINT), b) AS computed])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, CAST(+(CAST(metadata_2 AS BIGINT), +(CAST(metadata_2 AS BIGINT), b)) AS INTERVAL SECOND))]]], fields=[a, b, c, metadata_2])
 ]]>
     </Resource>
   </TestCase>

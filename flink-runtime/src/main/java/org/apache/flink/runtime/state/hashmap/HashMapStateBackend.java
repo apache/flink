@@ -92,6 +92,12 @@ public class HashMapStateBackend extends AbstractStateBackend implements Configu
     }
 
     @Override
+    public boolean supportsNoClaimRestoreMode() {
+        // we never share any files, all snapshots are full
+        return true;
+    }
+
+    @Override
     public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
             Environment env,
             JobID jobID,

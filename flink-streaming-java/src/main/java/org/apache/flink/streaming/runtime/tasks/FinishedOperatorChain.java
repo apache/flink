@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
@@ -76,13 +77,17 @@ public class FinishedOperatorChain<OUT, OP extends StreamOperator<OUT>>
             StreamTaskStateInitializer streamTaskStateInitializer) {}
 
     @Override
-    public void finishOperators(StreamTaskActionExecutor actionExecutor) throws Exception {}
+    public void finishOperators(StreamTaskActionExecutor actionExecutor, StopMode stopMode)
+            throws Exception {}
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {}
 
     @Override
     public void notifyCheckpointAborted(long checkpointId) throws Exception {}
+
+    @Override
+    public void notifyCheckpointSubsumed(long checkpointId) throws Exception {}
 
     @Override
     public boolean isClosed() {
@@ -97,5 +102,16 @@ public class FinishedOperatorChain<OUT, OP extends StreamOperator<OUT>>
             Supplier<Boolean> isRunning,
             ChannelStateWriter.ChannelStateWriteResult channelStateWriteResult,
             CheckpointStreamFactory storage)
-            throws Exception {}
+            throws Exception {
+        for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
+            StreamOperator<?> operator = operatorWrapper.getStreamOperator();
+
+            if (operator == getMainOperator() || operator == getTailOperator()) {
+                OperatorSnapshotFutures snapshotInProgress = new OperatorSnapshotFutures();
+                snapshotChannelStates(operator, channelStateWriteResult, snapshotInProgress);
+                operatorSnapshotsInProgress.put(
+                        operatorWrapper.getStreamOperator().getOperatorID(), snapshotInProgress);
+            }
+        }
+    }
 }

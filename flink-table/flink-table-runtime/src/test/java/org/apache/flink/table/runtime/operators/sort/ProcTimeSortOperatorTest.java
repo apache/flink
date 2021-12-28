@@ -43,10 +43,7 @@ public class ProcTimeSortOperatorTest {
 
     private InternalTypeInfo<RowData> inputRowType =
             InternalTypeInfo.ofFields(
-                    new IntType(),
-                    new BigIntType(),
-                    new VarCharType(VarCharType.MAX_LENGTH),
-                    new IntType());
+                    new IntType(), new BigIntType(), VarCharType.STRING_TYPE, new IntType());
 
     private GeneratedRecordComparator gComparator =
             new GeneratedRecordComparator("", "", new Object[0]) {

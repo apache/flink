@@ -139,7 +139,7 @@ LogicalProject(a=[CAST($0):INTEGER NOT NULL], b=[$1], c=[CAST($2):INTEGER])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(a) AS a, b, CAST(EXPR$2) AS c])
+Calc(select=[CAST(a AS INTEGER) AS a, b, CAST(EXPR$2 AS INTEGER) AS c])
 +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_COUNT(count$0) AS EXPR$2])
    +- Exchange(distribution=[hash[a, b]])
       +- LocalHashAggregate(groupBy=[a, b], select=[a, b, Partial_COUNT(c) AS count$0])
@@ -182,7 +182,7 @@ LogicalProject(a=[CAST($0):INTEGER NOT NULL], b=[$1], c=[CAST($2):INTEGER])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(a) AS a, b, CAST(EXPR$2) AS c])
+Calc(select=[CAST(a AS INTEGER) AS a, b, CAST(EXPR$2 AS INTEGER) AS c])
 +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(c) AS EXPR$2])
    +- Exchange(distribution=[hash[a, b]])
       +- DataStreamScan(table=[[default_catalog, default_database, t1]], fields=[a, b, c])

@@ -27,6 +27,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.functions.CleanupState;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.util.Iterator;
@@ -62,20 +63,20 @@ public abstract class AbstractStreamArrowPythonBoundedRowsOperator<K>
             long maxRetentionTime,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType outputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             int inputTimeFieldIndex,
             long lowerBoundary,
-            int[] groupingSet,
-            int[] udafInputOffsets) {
+            GeneratedProjection inputGeneratedProjection) {
         super(
                 config,
                 pandasAggFunctions,
                 inputType,
-                outputType,
+                udfInputType,
+                udfOutputType,
                 inputTimeFieldIndex,
                 lowerBoundary,
-                groupingSet,
-                udafInputOffsets);
+                inputGeneratedProjection);
         this.minRetentionTime = minRetentionTime;
         this.maxRetentionTime = maxRetentionTime;
         this.stateCleaningEnabled = minRetentionTime > 1;

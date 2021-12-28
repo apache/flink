@@ -18,6 +18,7 @@
 package org.apache.flink.glue.schema.registry.test;
 
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.formats.avro.glue.schema.registry.GlueSchemaRegistryAvroDeserializationSchema;
 import org.apache.flink.formats.avro.glue.schema.registry.GlueSchemaRegistryAvroSerializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -25,8 +26,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.testutils.KinesaliteContainer;
-import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -35,15 +34,16 @@ import com.amazonaws.services.schemaregistry.utils.AvroRecordType;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.Timeout;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
+import software.amazon.awssdk.core.SdkSystemSetting;
 
 import java.io.IOException;
 import java.net.URL;
@@ -58,7 +58,6 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_POSITION;
 
 /** End-to-end test for Glue Schema Registry AVRO format using Kinesalite. */
-@Category(value = {TravisGroup1.class})
 public class GlueSchemaRegistryAvroKinesisITCase extends TestLogger {
     private static final String INPUT_STREAM = "gsr_avro_input_stream";
     private static final String OUTPUT_STREAM = "gsr_avro_output_stream";
@@ -93,6 +92,13 @@ public class GlueSchemaRegistryAvroKinesisITCase extends TestLogger {
         kinesisClient = new GSRKinesisPubsubClient(properties);
         kinesisClient.createStream(INPUT_STREAM, 2, properties);
         kinesisClient.createStream(OUTPUT_STREAM, 2, properties);
+
+        System.setProperty(SdkSystemSetting.CBOR_ENABLED.property(), "false");
+    }
+
+    @After
+    public void teardown() {
+        System.clearProperty(SdkSystemSetting.CBOR_ENABLED.property());
     }
 
     @Test

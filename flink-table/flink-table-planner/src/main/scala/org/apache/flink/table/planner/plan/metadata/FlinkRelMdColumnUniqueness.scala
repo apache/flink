@@ -20,19 +20,15 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.JBoolean
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
-import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
-import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RankUtil}
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 import org.apache.flink.table.runtime.operators.rank.RankType
-import org.apache.flink.table.sources.TableSource
 
-import org.apache.calcite.plan.RelOptTable
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.Converter
@@ -61,42 +57,21 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {
-    areTableColumnsUnique(rel, null, rel.getTable, columns)
-  }
-
-  def areColumnsUnique(
-      rel: FlinkLogicalLegacyTableSourceScan,
-      mq: RelMetadataQuery,
-      columns: ImmutableBitSet,
-      ignoreNulls: Boolean): JBoolean = {
-    areTableColumnsUnique(rel, rel.tableSource, rel.getTable, columns)
+    areTableColumnsUnique(rel, mq.getUniqueKeys(rel, ignoreNulls), columns)
   }
 
   private def areTableColumnsUnique(
       rel: TableScan,
-      tableSource: TableSource[_],
-      relOptTable: RelOptTable,
+      uniqueKeys: util.Set[ImmutableBitSet],
       columns: ImmutableBitSet): JBoolean = {
     if (columns.cardinality == 0) {
       return false
     }
 
-    // TODO get uniqueKeys from TableSchema of TableSource
-
-    relOptTable match {
-      case table: FlinkPreparingTableBase => {
-        val ukOptional = table.uniqueKeysSet
-        if (ukOptional.isPresent) {
-          if (ukOptional.get().isEmpty) {
-            false
-          } else {
-            ukOptional.get().exists(columns.contains)
-          }
-        } else {
-          null
-        }
-      }
-      case _ => rel.getTable.isKey(columns)
+    if (uniqueKeys != null) {
+      uniqueKeys.exists(columns.contains) || rel.getTable.isKey(columns)
+    } else {
+      null
     }
   }
 
@@ -420,7 +395,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
 
   private def areColumnsUniqueOnWindowAggregate(
       grouping: Array[Int],
-      namedProperties: Seq[PlannerNamedWindowProperty],
+      namedProperties: Seq[NamedWindowProperty],
       outputFieldCount: Int,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,

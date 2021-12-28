@@ -32,9 +32,9 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     } ]
   }, {
     "id" : ,
-    "type" : "SourceConversion(table=[default_catalog.default_database.MyTable, source: [CsvTableSource(read fields: last)]], fields=[last])",
+    "type" : "SourceConversion[]",
     "pact" : "Operator",
-    "contents" : "SourceConversion(table=[default_catalog.default_database.MyTable, source: [CsvTableSource(read fields: last)]], fields=[last])",
+    "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MyTable, source: [CsvTableSource(read fields: last)]], fields=[last])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -43,9 +43,9 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     } ]
   }, {
     "id" : ,
-    "type" : "SinkConversionToRow",
+    "type" : "SinkConversion[]",
     "pact" : "Operator",
-    "contents" : "SinkConversionToRow",
+    "contents" : "[]:SinkConversion To Row",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

@@ -241,7 +241,8 @@ object WindowJoinUtil extends Logging {
         join.getCondition,
         inputFieldNames,
         None,
-        ExpressionFormat.Infix)
+        ExpressionFormat.Infix,
+        ExpressionDetail.Digest)
       LOG.warn(
         "Currently, window join requires JOIN ON condition must contain both window starts " +
           "equality of input tables and window ends equality of input tables.\n" +

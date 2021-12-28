@@ -53,10 +53,28 @@ By default no operator is disabled.</td>
             <td>Sets default parallelism for all operators (such as aggregate, join, filter) to run with parallel instances. This config has a higher priority than parallelism of StreamExecutionEnvironment (actually, this config overrides the parallelism of StreamExecutionEnvironment). A value of -1 indicates that no default parallelism is set, then it will fallback to use the parallelism of StreamExecutionEnvironment.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.sink.keyed-shuffle</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">AUTO</td>
+            <td><p>Enum</p></td>
+            <td>In order to minimize the distributed disorder problem when writing data into table with primary keys that many users suffers. FLINK will auto add a keyed shuffle by default when the sink's parallelism differs from upstream operator and upstream is append only. This works only when the upstream ensures the multi-records' order on the primary key, if not, the added shuffle can not solve the problem (In this situation, a more proper way is to consider the deduplicate operation for the source firstly or use an upsert source with primary key definition which truly reflect the records evolution).<br />By default, the keyed shuffle will be added when the sink's parallelism differs from upstream operator. You can set to no shuffle(NONE) or force shuffle(FORCE).<br /><br />Possible values:<ul><li>"NONE"</li><li>"AUTO"</li><li>"FORCE"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.sink.legacy-cast-behaviour</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">ENABLED</td>
+            <td><p>Enum</p></td>
+            <td>Determines whether CAST will operate following the legacy behaviour or the new one that introduces various fixes and improvements.<br /><br />Possible values:<ul><li>"ENABLED": CAST will operate following the legacy behaviour.</li><li>"DISABLED": CAST will operate following the new correct behaviour.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>table.exec.sink.not-null-enforcer</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">ERROR</td>
             <td><p>Enum</p></td>
-            <td>The NOT NULL column constraint on a table enforces that null values can't be inserted into the table. Flink supports 'error' (default) and 'drop' enforcement behavior. By default, Flink will check values and throw runtime exception when null values writing into NOT NULL columns. Users can change the behavior to 'drop' to silently drop such records without throwing exception.<br /><br />Possible values:<ul><li>"ERROR"</li><li>"DROP"</li></ul></td>
+            <td>Determines how Flink enforces NOT NULL column constraints when inserting null values.<br /><br />Possible values:<ul><li>"ERROR": Throw a runtime exception when writing null values into NOT NULL column.</li><li>"DROP": Drop records silently if a null value would have to be inserted into a NOT NULL column.</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.sink.type-length-enforcer</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">IGNORE</td>
+            <td><p>Enum</p></td>
+            <td>Determines whether values for columns with CHAR(&lt;length&gt;)/VARCHAR(&lt;length&gt;)/BINARY(&lt;length&gt;)/VARBINARY(&lt;length&gt;) types will be trimmed or padded (only for CHAR(&lt;length&gt;)/BINARY(&lt;length&gt;)), so that their length will match the one defined by the length of their respective CHAR/VARCHAR/BINARY/VARBINARY column type.<br /><br />Possible values:<ul><li>"IGNORE": Don't apply any trimming and padding, and instead ignore the CHAR/VARCHAR/BINARY/VARBINARY length directive.</li><li>"TRIM_PAD": Trim and pad string and binary values to match the length defined by the CHAR/VARCHAR/BINARY/VARBINARY length.</li></ul></td>
         </tr>
         <tr>
             <td><h5>table.exec.sink.upsert-materialize</h5><br> <span class="label label-primary">Streaming</span></td>

@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.expressions.validation
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.TimePointUnit
-import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
 
 import org.apache.calcite.avatica.util.TimeUnit
@@ -129,12 +128,12 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testTableApi(
       'f2.in('f3, 'f8),
       "f2.in(f3, f8)",
-      "true"
+      "TRUE"
     )
     testTableApi(
       'f2.in('f3, 'f4, 4),
       "f2.in(f3, f4, 4)",
-      "false"  // OK if all numeric
+      "FALSE"  // OK if all numeric
     )
   }
 
@@ -143,7 +142,7 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testTableApi(
       'f1.in("Hi", "Hello world", "Comment#1"),
       "true",
-      "true"
+      "TRUE"
     )
   }
 
@@ -152,7 +151,7 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testTableApi(
       true,
       "f1.in('Hi','Hello world','Comment#1')",
-      "true"
+      "TRUE"
     )
   }
 

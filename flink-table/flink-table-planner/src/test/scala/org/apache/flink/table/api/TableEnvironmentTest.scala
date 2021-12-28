@@ -33,7 +33,7 @@ import org.apache.flink.table.module.ModuleEntry
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory._
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
-import org.apache.flink.table.planner.utils.TableTestUtil.{replaceStageId, replaceStreamNodeId}
+import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
@@ -140,8 +140,8 @@ class TableEnvironmentTest {
     val actual = tEnv.explainSql("insert into MySink select first from MyTable",
       ExplainDetail.JSON_EXECUTION_PLAN)
 
-    assertEquals(TableTestUtil.replaceStreamNodeId(expected),
-      TableTestUtil.replaceStreamNodeId(actual))
+    assertEquals(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(expected)),
+      TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
   }
 
   @Test
@@ -162,8 +162,8 @@ class TableEnvironmentTest {
     statementSet.addInsertSql("insert into MySink select last from MyTable")
     val actual = statementSet.explain(ExplainDetail.JSON_EXECUTION_PLAN)
 
-    assertEquals(TableTestUtil.replaceStreamNodeId(expected),
-      TableTestUtil.replaceStreamNodeId(actual))
+    assertEquals(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(expected)),
+      TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
   }
 
   @Test
@@ -258,16 +258,18 @@ class TableEnvironmentTest {
         |  b int,
         |  c varchar
         |) WITH (
-        |  'connector' = 'COLLECTION'
+        |  'connector' = 'filesystem',
+        |  'format' = 'testcsv',
+        |  'path' = '_invalid'
         |)
       """.stripMargin
     tableEnv.executeSql(statement)
 
-    val alterTableResetStatement = "ALTER TABLE MyTable RESET ('connector')"
+    val alterTableResetStatement = "ALTER TABLE MyTable RESET ('format')"
     val tableResult = tableEnv.executeSql(alterTableResetStatement)
     assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
     assertEquals(
-      Map.empty.asJava,
+      Map("connector" -> "filesystem", "path" -> "_invalid").asJava,
       tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
         .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.MyTable")).getOptions)
     expectedException.expect(classOf[ValidationException])
@@ -1647,9 +1649,9 @@ class TableEnvironmentTest {
     assertTrue(it.hasNext)
     val row = it.next()
     assertEquals(1, row.getArity)
-    val actual = replaceStreamNodeId(row.getField(0).toString.trim)
-    val expected = replaceStreamNodeId(TableTestUtil
-      .readFromResource(resultPath).trim)
+    val actual = replaceNodeIdInOperator(replaceStreamNodeId(row.getField(0).toString.trim))
+    val expected = replaceNodeIdInOperator(
+        replaceStreamNodeId(TableTestUtil.readFromResource(resultPath).trim))
     assertEquals(replaceStageId(expected), replaceStageId(actual))
     assertFalse(it.hasNext)
   }

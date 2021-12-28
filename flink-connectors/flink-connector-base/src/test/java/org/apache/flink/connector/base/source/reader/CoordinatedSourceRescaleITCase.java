@@ -118,7 +118,7 @@ public class CoordinatedSourceRescaleITCase extends TestLogger {
                 StreamExecutionEnvironment.createLocalEnvironment(p, conf);
         env.enableCheckpointing(100);
         env.getCheckpointConfig()
-                .enableExternalizedCheckpoints(
+                .setExternalizedCheckpointCleanup(
                         CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
         env.setRestartStrategy(RestartStrategies.noRestart());
 

@@ -23,22 +23,22 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
+import org.apache.flink.connector.file.table.factories.BulkReaderFormatFactory;
+import org.apache.flink.connector.file.table.factories.BulkWriterFormatFactory;
+import org.apache.flink.connector.file.table.format.BulkDecodingFormat;
 import org.apache.flink.orc.shim.OrcShim;
 import org.apache.flink.orc.vector.RowDataVectorizer;
 import org.apache.flink.orc.writer.OrcBulkWriterFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
-import org.apache.flink.table.connector.format.BulkDecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.vector.VectorizedColumnBatch;
+import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.factories.BulkReaderFormatFactory;
-import org.apache.flink.table.factories.BulkWriterFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -146,7 +146,7 @@ public class OrcFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
             Configuration conf = new Configuration();
             properties.forEach((k, v) -> conf.set(k.toString(), v.toString()));
 
-            return OrcColumnarRowFileInputFormat.createPartitionedFormat(
+            return OrcColumnarRowInputFormat.createPartitionedFormat(
                     OrcShim.defaultShim(),
                     conf,
                     (RowType) producedDataType.getLogicalType(),
@@ -154,7 +154,8 @@ public class OrcFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
                     null,
                     Projection.of(projections).toTopLevelIndexes(),
                     orcPredicates,
-                    VectorizedColumnBatch.DEFAULT_SIZE);
+                    VectorizedColumnBatch.DEFAULT_SIZE,
+                    sourceContext::createTypeInformation);
         }
 
         @Override

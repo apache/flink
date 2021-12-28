@@ -29,7 +29,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-sql-parquet_${scala.binary.version}</artifactId>
+	<artifactId>flink-sql-parquet</artifactId>
 	<name>Flink : Formats : SQL Parquet</name>
 
 	<packaging>jar</packaging>
@@ -37,7 +37,7 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-parquet_${scala.binary.version}</artifactId>
+			<artifactId>flink-parquet</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
@@ -57,7 +57,7 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<includes>
-									<include>org.apache.flink:flink-parquet_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-parquet</include>
 									<include>org.apache.parquet:parquet-hadoop</include>
 									<include>org.apache.parquet:parquet-format</include>
 									<include>org.apache.parquet:parquet-column</include>
@@ -67,7 +67,6 @@ under the License.
 									<include>org.apache.parquet:parquet-jackson</include>
 									<include>org.codehaus.jackson:jackson-core-asl</include>
 									<include>org.codehaus.jackson:jackson-mapper-asl</include>
-									<include>org.apache.commons:commons-compress</include>
 									<include>commons-pool:commons-pool</include>
 									<include>commons-codec:commons-codec</include>
 								</includes>

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -35,6 +36,7 @@ import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
@@ -238,20 +240,74 @@ public class SingleInputGateTest extends InputGateTestBase {
         verifyBufferOrEvent(inputGate, true, 0, true);
         verifyBufferOrEvent(inputGate, false, 1, true);
         // we have received EndOfData on a single channel only
-        assertFalse(inputGate.hasReceivedEndOfData());
+        assertEquals(
+                PullingAsyncDataInput.EndOfDataStatus.NOT_END_OF_DATA,
+                inputGate.hasReceivedEndOfData());
         verifyBufferOrEvent(inputGate, false, 0, true);
         assertFalse(inputGate.isFinished());
-        assertTrue(inputGate.hasReceivedEndOfData());
+        assertEquals(
+                PullingAsyncDataInput.EndOfDataStatus.DRAINED, inputGate.hasReceivedEndOfData());
         verifyBufferOrEvent(inputGate, false, 1, true);
         verifyBufferOrEvent(inputGate, false, 0, false);
 
         // Return null when the input gate has received all end-of-partition events
-        assertTrue(inputGate.hasReceivedEndOfData());
+        assertEquals(
+                PullingAsyncDataInput.EndOfDataStatus.DRAINED, inputGate.hasReceivedEndOfData());
         assertTrue(inputGate.isFinished());
 
         for (TestInputChannel ic : inputChannels) {
             ic.assertReturnedEventsAreRecycled();
         }
+    }
+
+    @Test
+    public void testDrainFlagComputation() throws Exception {
+        // Setup
+        final SingleInputGate inputGate1 = createInputGate();
+        final SingleInputGate inputGate2 = createInputGate();
+
+        final TestInputChannel[] inputChannels1 =
+                new TestInputChannel[] {
+                    new TestInputChannel(inputGate1, 0), new TestInputChannel(inputGate1, 1)
+                };
+        inputGate1.setInputChannels(inputChannels1);
+        final TestInputChannel[] inputChannels2 =
+                new TestInputChannel[] {
+                    new TestInputChannel(inputGate2, 0), new TestInputChannel(inputGate2, 1)
+                };
+        inputGate2.setInputChannels(inputChannels2);
+
+        // Test
+        inputChannels1[1].readEndOfData(StopMode.DRAIN);
+        inputChannels1[0].readEndOfData(StopMode.NO_DRAIN);
+
+        inputChannels2[1].readEndOfData(StopMode.DRAIN);
+        inputChannels2[0].readEndOfData(StopMode.DRAIN);
+
+        inputGate1.notifyChannelNonEmpty(inputChannels1[0]);
+        inputGate1.notifyChannelNonEmpty(inputChannels1[1]);
+        inputGate2.notifyChannelNonEmpty(inputChannels2[0]);
+        inputGate2.notifyChannelNonEmpty(inputChannels2[1]);
+
+        verifyBufferOrEvent(inputGate1, false, 0, true);
+        // we have received EndOfData on a single channel only
+        assertEquals(
+                PullingAsyncDataInput.EndOfDataStatus.NOT_END_OF_DATA,
+                inputGate1.hasReceivedEndOfData());
+        verifyBufferOrEvent(inputGate1, false, 1, true);
+        // one of the channels said we should not drain
+        assertEquals(
+                PullingAsyncDataInput.EndOfDataStatus.STOPPED, inputGate1.hasReceivedEndOfData());
+
+        verifyBufferOrEvent(inputGate2, false, 0, true);
+        // we have received EndOfData on a single channel only
+        assertEquals(
+                PullingAsyncDataInput.EndOfDataStatus.NOT_END_OF_DATA,
+                inputGate2.hasReceivedEndOfData());
+        verifyBufferOrEvent(inputGate2, false, 1, true);
+        // both channels said we should drain
+        assertEquals(
+                PullingAsyncDataInput.EndOfDataStatus.DRAINED, inputGate2.hasReceivedEndOfData());
     }
 
     /**

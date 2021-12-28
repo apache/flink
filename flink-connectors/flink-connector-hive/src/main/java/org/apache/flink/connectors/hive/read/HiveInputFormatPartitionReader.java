@@ -18,11 +18,11 @@
 
 package org.apache.flink.connectors.hive.read;
 
+import org.apache.flink.connector.file.table.PartitionReader;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.filesystem.PartitionReader;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.hadoop.mapred.JobConf;

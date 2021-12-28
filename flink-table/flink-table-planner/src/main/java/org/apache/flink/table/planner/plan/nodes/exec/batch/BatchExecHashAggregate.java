@@ -131,7 +131,8 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getDescription(),
+                getOperatorName(planner.getTableConfig()),
+                getOperatorDescription(planner.getTableConfig()),
                 new CodeGenOperatorFactory<>(generatedOperator),
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism(),

@@ -22,6 +22,13 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
+import org.apache.flink.connector.file.table.FileSystemOutputFormat;
+import org.apache.flink.connector.file.table.FileSystemTableSink;
+import org.apache.flink.connector.file.table.FileSystemTableSink.TableBucketAssigner;
+import org.apache.flink.connector.file.table.stream.PartitionCommitInfo;
+import org.apache.flink.connector.file.table.stream.StreamingSink;
+import org.apache.flink.connector.file.table.stream.compact.CompactReader;
 import org.apache.flink.connectors.hive.read.HiveCompactReaderFactory;
 import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.connectors.hive.util.JobConfUtils;
@@ -55,13 +62,6 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.filesystem.FileSystemConnectorOptions;
-import org.apache.flink.table.filesystem.FileSystemOutputFormat;
-import org.apache.flink.table.filesystem.FileSystemTableSink;
-import org.apache.flink.table.filesystem.FileSystemTableSink.TableBucketAssigner;
-import org.apache.flink.table.filesystem.stream.PartitionCommitInfo;
-import org.apache.flink.table.filesystem.stream.StreamingSink;
-import org.apache.flink.table.filesystem.stream.compact.CompactReader;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.TableSchemaUtils;
@@ -95,11 +95,11 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
 
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_FILE_SIZE;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
+import static org.apache.flink.connector.file.table.stream.compact.CompactOperator.convertToUncompacted;
 import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.checkAcidTable;
-import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL;
-import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_ROLLING_POLICY_FILE_SIZE;
-import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
-import static org.apache.flink.table.filesystem.stream.compact.CompactOperator.convertToUncompacted;
 
 /** Table sink to write to Hive tables. */
 public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, SupportsOverwrite {

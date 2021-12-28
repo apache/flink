@@ -37,7 +37,7 @@ under the License.
 
 	<!-- Allow users to pass custom connector versions -->
 	<properties>
-		<elasticsearch.version>7.5.1</elasticsearch.version>
+		<elasticsearch.version>7.15.2</elasticsearch.version>
 	</properties>
 
 	<dependencies>
@@ -58,7 +58,7 @@ under the License.
 			<artifactId>flink-connector-elasticsearch-base</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
-				<!-- Elasticsearch Java Client has been moved to a different module in 5.x -->
+				<!-- Exclude the base module elasticsearch -->
 				<exclusion>
 					<groupId>org.elasticsearch</groupId>
 					<artifactId>elasticsearch</artifactId>
@@ -82,6 +82,20 @@ under the License.
 			<groupId>org.elasticsearch.client</groupId>
 			<artifactId>elasticsearch-rest-high-level-client</artifactId>
 			<version>${elasticsearch.version}</version>
+			<!-- elasticsearch-rest-client includes two different versions of httpcore-nio -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpcore-nio</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<!-- We need to include httpcore-nio again in the correct version due to the exclusion above -->
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpcore-nio</artifactId>
+			<version>4.4.12</version>
 		</dependency>
 
 		<!-- Tests -->

@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
@@ -29,17 +28,18 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.agg.batch.SortWindowCodeGenerator;
 import org.apache.flink.table.planner.codegen.agg.batch.WindowCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedOperator;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -59,7 +59,7 @@ public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
     private final LogicalWindow window;
     private final int inputTimeFieldIndex;
     private final boolean inputTimeIsDate;
-    private final PlannerNamedWindowProperty[] namedWindowProperties;
+    private final NamedWindowProperty[] namedWindowProperties;
     private final RowType aggInputRowType;
     private final boolean enableAssignPane;
     private final boolean isMerge;
@@ -72,7 +72,7 @@ public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
             LogicalWindow window,
             int inputTimeFieldIndex,
             boolean inputTimeIsDate,
-            PlannerNamedWindowProperty[] namedWindowProperties,
+            NamedWindowProperty[] namedWindowProperties,
             RowType aggInputRowType,
             boolean enableAssignPane,
             boolean isMerge,
@@ -143,9 +143,10 @@ public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
             generatedOperator = windowCodeGenerator.genWithKeys();
         }
 
-        return new OneInputTransformation<>(
+        return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getDescription(),
+                getOperatorName(tableConfig),
+                getOperatorDescription(tableConfig),
                 new CodeGenOperatorFactory<>(generatedOperator),
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

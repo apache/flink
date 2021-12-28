@@ -55,6 +55,11 @@ under the License.
 		<!-- Table connectors and formats -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-files</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-csv</artifactId>
 			<version>${project.version}</version>
 		</dependency>

@@ -33,7 +33,7 @@ import scala.collection.Seq
 class UnionITCase extends BatchTestBase {
 
   val type6 = InternalTypeInfo.ofFields(
-    new IntType(), new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH))
+    new IntType(), new BigIntType(), VarCharType.STRING_TYPE)
 
   val data6 = Seq(
     binaryRow(type6.toRowFieldTypes, 1, 1L, fromString("Hi")),

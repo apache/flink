@@ -69,6 +69,11 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         this.tableSourceSpec = tableSourceSpec;
     }
 
+    @Override
+    public String getSimplifiedName() {
+        return tableSourceSpec.getObjectIdentifier().getObjectName();
+    }
+
     public DynamicTableSourceSpec getTableSourceSpec() {
         return tableSourceSpec;
     }
@@ -76,7 +81,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final StreamExecutionEnvironment env = planner.getExecEnv();
-        final String operatorName = getDescription();
+        final String operatorName = getOperatorName(planner.getTableConfig());
         final InternalTypeInfo<RowData> outputTypeInfo =
                 InternalTypeInfo.of((RowType) getOutputType());
         final ScanTableSource tableSource =
@@ -86,22 +91,34 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         if (provider instanceof SourceFunctionProvider) {
             final SourceFunctionProvider sourceFunctionProvider = (SourceFunctionProvider) provider;
             final SourceFunction<RowData> function = sourceFunctionProvider.createSourceFunction();
-            return createSourceFunctionTransformation(
-                    env,
-                    function,
-                    sourceFunctionProvider.isBounded(),
-                    operatorName,
-                    outputTypeInfo);
+            final Transformation<RowData> transformation =
+                    createSourceFunctionTransformation(
+                            env,
+                            function,
+                            sourceFunctionProvider.isBounded(),
+                            operatorName,
+                            outputTypeInfo);
+            transformation.setDescription(getOperatorDescription(planner.getTableConfig()));
+            return transformation;
         } else if (provider instanceof InputFormatProvider) {
             final InputFormat<RowData, ?> inputFormat =
                     ((InputFormatProvider) provider).createInputFormat();
-            return createInputFormatTransformation(env, inputFormat, outputTypeInfo, operatorName);
+            final Transformation<RowData> transformation =
+                    createInputFormatTransformation(env, inputFormat, outputTypeInfo, operatorName);
+            transformation.setDescription(getOperatorDescription(planner.getTableConfig()));
+            return transformation;
         } else if (provider instanceof SourceProvider) {
-            Source<RowData, ?, ?> source = ((SourceProvider) provider).createSource();
+            final Source<RowData, ?, ?> source = ((SourceProvider) provider).createSource();
             // TODO: Push down watermark strategy to source scan
-            return env.fromSource(
-                            source, WatermarkStrategy.noWatermarks(), operatorName, outputTypeInfo)
-                    .getTransformation();
+            final Transformation<RowData> transformation =
+                    env.fromSource(
+                                    source,
+                                    WatermarkStrategy.noWatermarks(),
+                                    operatorName,
+                                    outputTypeInfo)
+                            .getTransformation();
+            transformation.setDescription(getOperatorDescription(planner.getTableConfig()));
+            return transformation;
         } else if (provider instanceof DataStreamScanProvider) {
             Transformation<RowData> transformation =
                     ((DataStreamScanProvider) provider).produceDataStream(env).getTransformation();

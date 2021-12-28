@@ -120,7 +120,10 @@ public class ValueDataTypeConverterTest {
                         },
                         DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT()))
                     },
-                    {TimePointUnit.HOUR, new AtomicDataType(new SymbolType<>(TimePointUnit.class))},
+                    {
+                        TimePointUnit.HOUR,
+                        new AtomicDataType(new SymbolType<>(), TimePointUnit.class)
+                    },
                     {new BigDecimal[0], null}
                 });
     }

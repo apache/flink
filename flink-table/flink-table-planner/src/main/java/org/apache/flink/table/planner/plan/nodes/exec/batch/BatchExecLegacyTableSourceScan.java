@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
@@ -80,9 +81,10 @@ public class BatchExecLegacyTableSourceScan extends CommonExecLegacyTableSourceS
             // the produced type may not carry the correct precision user defined in DDL, because
             // it may be converted from legacy type. Fix precision using logical schema from DDL.
             // code generation requires the correct precision of input fields.
-            DataType fixedProducedDataType =
+            final DataType fixedProducedDataType =
                     TableSourceUtil.fixPrecisionForProducedDataType(
                             tableSource, (RowType) getOutputType());
+            final Configuration config = planner.getTableConfig().getConfiguration();
             return ScanUtil.convertToInternalRow(
                     new CodeGeneratorContext(planner.getTableConfig()),
                     (Transformation<Object>) sourceTransform,
@@ -90,6 +92,9 @@ public class BatchExecLegacyTableSourceScan extends CommonExecLegacyTableSourceS
                     fixedProducedDataType,
                     (RowType) getOutputType(),
                     qualifiedName,
+                    (detailName, simplifyName) ->
+                            getFormattedOperatorName(detailName, simplifyName, config),
+                    (description) -> getFormattedOperatorDescription(description, config),
                     JavaScalaConversionUtil.toScala(Optional.ofNullable(rowtimeExpression)),
                     "",
                     "");

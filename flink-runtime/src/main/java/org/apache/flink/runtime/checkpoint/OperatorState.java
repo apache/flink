@@ -171,9 +171,9 @@ public class OperatorState implements CompositeStateHandle {
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
+    public void registerSharedStates(SharedStateRegistry sharedStateRegistry, long checkpointID) {
         for (OperatorSubtaskState operatorSubtaskState : operatorSubtaskStates.values()) {
-            operatorSubtaskState.registerSharedStates(sharedStateRegistry);
+            operatorSubtaskState.registerSharedStates(sharedStateRegistry, checkpointID);
         }
     }
 

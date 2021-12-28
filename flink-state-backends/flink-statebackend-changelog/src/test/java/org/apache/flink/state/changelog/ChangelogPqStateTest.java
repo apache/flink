@@ -166,6 +166,9 @@ public class ChangelogPqStateTest {
             stateElementRemoved = true;
         }
 
+        @Override
+        public void resetWritingMetaFlag() {}
+
         public boolean anythingChanged() {
             return stateElementChanged || stateElementRemoved || stateCleared;
         }

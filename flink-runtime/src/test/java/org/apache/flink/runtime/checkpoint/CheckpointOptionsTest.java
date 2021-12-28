@@ -112,16 +112,25 @@ public class CheckpointOptionsTest {
     public void testCheckpointIsTimeoutable() {
         CheckpointStorageLocationReference location =
                 CheckpointStorageLocationReference.getDefault();
-        assertTimeoutable(CheckpointOptions.alignedWithTimeout(location, 10), false, true, 10);
         assertTimeoutable(
-                CheckpointOptions.unaligned(location), true, false, NO_ALIGNED_CHECKPOINT_TIME_OUT);
+                CheckpointOptions.alignedWithTimeout(CheckpointType.CHECKPOINT, location, 10),
+                false,
+                true,
+                10);
         assertTimeoutable(
-                CheckpointOptions.alignedWithTimeout(location, 10).withUnalignedUnsupported(),
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, location),
+                true,
+                false,
+                NO_ALIGNED_CHECKPOINT_TIME_OUT);
+        assertTimeoutable(
+                CheckpointOptions.alignedWithTimeout(CheckpointType.CHECKPOINT, location, 10)
+                        .withUnalignedUnsupported(),
                 false,
                 false,
                 10);
         assertTimeoutable(
-                CheckpointOptions.unaligned(location).withUnalignedUnsupported(),
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, location)
+                        .withUnalignedUnsupported(),
                 false,
                 false,
                 NO_ALIGNED_CHECKPOINT_TIME_OUT);
@@ -131,8 +140,10 @@ public class CheckpointOptionsTest {
     public void testForceAlignmentIsReversable() {
         CheckpointStorageLocationReference location =
                 CheckpointStorageLocationReference.getDefault();
-        assertReversable(CheckpointOptions.alignedWithTimeout(location, 10), true);
-        assertReversable(CheckpointOptions.unaligned(location), true);
+        assertReversable(
+                CheckpointOptions.alignedWithTimeout(CheckpointType.CHECKPOINT, location, 10),
+                true);
+        assertReversable(CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, location), true);
 
         assertReversable(CheckpointOptions.alignedNoTimeout(CHECKPOINT, location), false);
         assertReversable(CheckpointOptions.alignedNoTimeout(SAVEPOINT, location), false);

@@ -28,12 +28,15 @@ import org.apache.flink.tests.util.pulsar.cases.SharedSubscriptionContext;
 import org.apache.flink.tests.util.pulsar.common.FlinkContainerWithPulsarEnvironment;
 import org.apache.flink.tests.util.pulsar.common.UnorderedSourceTestSuiteBase;
 
+import org.junit.jupiter.api.Disabled;
+
 import static org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime.container;
 
 /**
  * Pulsar E2E test based on connector testing framework. It's used for Shared & Key_Shared
  * subscription.
  */
+@Disabled("FLINK-25210")
 public class PulsarSourceUnorderedE2ECase extends UnorderedSourceTestSuiteBase<String> {
 
     // Defines TestEnvironment.
@@ -42,7 +45,8 @@ public class PulsarSourceUnorderedE2ECase extends UnorderedSourceTestSuiteBase<S
 
     // Defines ConnectorExternalSystem.
     @ExternalSystem
-    PulsarTestEnvironment pulsar = new PulsarTestEnvironment(container(flink.getFlinkContainer()));
+    PulsarTestEnvironment pulsar =
+            new PulsarTestEnvironment(container(flink.getFlinkContainers().getJobManager()));
 
     // Defines a set of external context Factories for different test cases.
     @ExternalContextFactory

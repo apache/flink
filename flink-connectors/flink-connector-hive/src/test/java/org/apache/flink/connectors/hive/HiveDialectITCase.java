@@ -58,6 +58,7 @@ import org.apache.hadoop.hive.ql.io.RCFileOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCount;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.columnar.LazyBinaryColumnarSerDe;
@@ -630,6 +631,35 @@ public class HiveDialectITCase {
                 queryResult(tableEnv.sqlQuery("select temp_abs(x) from `default`.src")).toString());
         // drop the function
         tableEnv.executeSql("drop temporary function temp_abs");
+        functions = tableEnv.listUserDefinedFunctions();
+        assertEquals(0, functions.length);
+        tableEnv.executeSql("drop temporary function if exists foo");
+    }
+
+    @Test
+    public void testTemporaryFunctionUDAF() throws Exception {
+        // create temp function
+        tableEnv.executeSql(
+                String.format(
+                        "create temporary function temp_count as '%s'",
+                        GenericUDAFCount.class.getName()));
+        String[] functions = tableEnv.listUserDefinedFunctions();
+        assertArrayEquals(new String[] {"temp_count"}, functions);
+        // call the function
+        tableEnv.executeSql("create table src(x int)");
+        tableEnv.executeSql("insert into src values (1),(-1)").await();
+        assertEquals(
+                "[+I[2]]",
+                queryResult(tableEnv.sqlQuery("select temp_count(x) from src")).toString());
+        // switch DB and the temp function can still be used
+        tableEnv.executeSql("create database db1");
+        tableEnv.useDatabase("db1");
+        assertEquals(
+                "[+I[2]]",
+                queryResult(tableEnv.sqlQuery("select temp_count(x) from `default`.src"))
+                        .toString());
+        // drop the function
+        tableEnv.executeSql("drop temporary function temp_count");
         functions = tableEnv.listUserDefinedFunctions();
         assertEquals(0, functions.length);
         tableEnv.executeSql("drop temporary function if exists foo");

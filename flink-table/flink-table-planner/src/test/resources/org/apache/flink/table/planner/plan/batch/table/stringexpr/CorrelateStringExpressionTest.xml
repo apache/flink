@@ -62,7 +62,7 @@ LogicalProject(c=[$2], s=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, s])
-+- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$774a5145e3fba9ca5b92e3e71a308c36($2, _UTF-16LE'$')], correlate=[table(TableFunc1(c,_UTF-16LE'$'))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
++- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$774a5145e3fba9ca5b92e3e71a308c36($2, _UTF-16LE'$')], correlate=[table(TableFunc1(c,'$'))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

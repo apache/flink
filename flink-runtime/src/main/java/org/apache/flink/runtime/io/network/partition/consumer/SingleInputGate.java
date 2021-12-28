@@ -29,6 +29,7 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
@@ -208,6 +209,7 @@ public class SingleInputGate extends IndexedInputGate {
 
     private final ThroughputCalculator throughputCalculator;
     private final BufferDebloater bufferDebloater;
+    private boolean shouldDrainOnEndOfData = true;
 
     public SingleInputGate(
             String owningTaskName,
@@ -666,8 +668,14 @@ public class SingleInputGate extends IndexedInputGate {
     }
 
     @Override
-    public boolean hasReceivedEndOfData() {
-        return hasReceivedEndOfData;
+    public EndOfDataStatus hasReceivedEndOfData() {
+        if (!hasReceivedEndOfData) {
+            return EndOfDataStatus.NOT_END_OF_DATA;
+        } else if (shouldDrainOnEndOfData) {
+            return EndOfDataStatus.DRAINED;
+        } else {
+            return EndOfDataStatus.STOPPED;
+        }
     }
 
     @Override
@@ -849,6 +857,7 @@ public class SingleInputGate extends IndexedInputGate {
                 channelsWithEndOfUserRecords.set(currentChannel.getChannelIndex());
                 hasReceivedEndOfData =
                         channelsWithEndOfUserRecords.cardinality() == numberOfInputChannels;
+                shouldDrainOnEndOfData &= ((EndOfData) event).getStopMode() == StopMode.DRAIN;
             }
         }
 

@@ -39,6 +39,7 @@ CREATE TABLE hive_table (
 # list the configured configuration
 set;
 'execution.attached' = 'true'
+'execution.savepoint-restore-mode' = 'NO_CLAIM'
 'execution.savepoint.ignore-unclaimed-state' = 'false'
 'execution.shutdown-on-attached-exit' = 'false'
 'execution.target' = 'remote'
@@ -46,6 +47,7 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
+'table.exec.sink.legacy-cast-behaviour' = 'DISABLED'
 'table.sql-dialect' = 'hive'
 !ok
 
@@ -56,6 +58,7 @@ reset;
 
 set;
 'execution.attached' = 'true'
+'execution.savepoint-restore-mode' = 'NO_CLAIM'
 'execution.savepoint.ignore-unclaimed-state' = 'false'
 'execution.shutdown-on-attached-exit' = 'false'
 'execution.target' = 'remote'
@@ -63,6 +66,7 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
+'table.exec.sink.legacy-cast-behaviour' = 'DISABLED'
 !ok
 
 # should fail because default dialect doesn't support hive dialect
@@ -88,6 +92,7 @@ Was expecting one of:
 
 set;
 'execution.attached' = 'true'
+'execution.savepoint-restore-mode' = 'NO_CLAIM'
 'execution.savepoint.ignore-unclaimed-state' = 'false'
 'execution.shutdown-on-attached-exit' = 'false'
 'execution.target' = 'remote'
@@ -95,6 +100,7 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
+'table.exec.sink.legacy-cast-behaviour' = 'DISABLED'
 !ok
 
 set 'execution.attached' = 'false';
@@ -107,6 +113,7 @@ reset 'execution.attached';
 
 set;
 'execution.attached' = 'true'
+'execution.savepoint-restore-mode' = 'NO_CLAIM'
 'execution.savepoint.ignore-unclaimed-state' = 'false'
 'execution.shutdown-on-attached-exit' = 'false'
 'execution.target' = 'remote'
@@ -114,6 +121,7 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
+'table.exec.sink.legacy-cast-behaviour' = 'DISABLED'
 !ok
 
 # test reset can work with add jar
@@ -127,6 +135,7 @@ $VAR_UDF_JAR_PATH
 
 set;
 'execution.attached' = 'true'
+'execution.savepoint-restore-mode' = 'NO_CLAIM'
 'execution.savepoint.ignore-unclaimed-state' = 'false'
 'execution.shutdown-on-attached-exit' = 'false'
 'execution.target' = 'remote'
@@ -134,6 +143,7 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = '$VAR_PIPELINE_JARS_URL'
 'rest.port' = '$VAR_REST_PORT'
+'table.exec.sink.legacy-cast-behaviour' = 'DISABLED'
 !ok
 
 reset;
