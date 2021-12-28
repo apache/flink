@@ -126,7 +126,7 @@ public class TaskDeploymentDescriptorFactory {
             IntermediateResultPartition resultPartition =
                     resultPartitionRetriever.apply(consumedPartitionGroup.getFirst());
 
-            int numConsumers = resultPartition.getConsumerVertexGroups().get(0).size();
+            int numConsumers = resultPartition.getConsumerVertexGroup().size();
 
             int queueToRequest = subtaskIndex % numConsumers;
             IntermediateResult consumedIntermediateResult = resultPartition.getIntermediateResult();

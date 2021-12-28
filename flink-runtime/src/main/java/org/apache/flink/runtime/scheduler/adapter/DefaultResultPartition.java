@@ -32,6 +32,7 @@ import org.apache.flink.util.IterableUtils;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -48,7 +49,7 @@ class DefaultResultPartition implements SchedulingResultPartition {
 
     private DefaultExecutionVertex producer;
 
-    private final List<ConsumerVertexGroup> consumerVertexGroups;
+    private final ConsumerVertexGroup consumerVertexGroup;
 
     private final Function<ExecutionVertexID, DefaultExecutionVertex> executionVertexRetriever;
 
@@ -59,14 +60,14 @@ class DefaultResultPartition implements SchedulingResultPartition {
             IntermediateDataSetID intermediateDataSetId,
             ResultPartitionType partitionType,
             Supplier<ResultPartitionState> resultPartitionStateSupplier,
-            List<ConsumerVertexGroup> consumerVertexGroups,
+            ConsumerVertexGroup consumerVertexGroup,
             Function<ExecutionVertexID, DefaultExecutionVertex> executionVertexRetriever,
             Supplier<List<ConsumedPartitionGroup>> consumerPartitionGroupSupplier) {
         this.resultPartitionId = checkNotNull(partitionId);
         this.intermediateDataSetId = checkNotNull(intermediateDataSetId);
         this.partitionType = checkNotNull(partitionType);
         this.resultPartitionStateSupplier = checkNotNull(resultPartitionStateSupplier);
-        this.consumerVertexGroups = consumerVertexGroups;
+        this.consumerVertexGroup = consumerVertexGroup;
         this.executionVertexRetriever = executionVertexRetriever;
         this.consumerPartitionGroupSupplier = consumerPartitionGroupSupplier;
     }
@@ -114,12 +115,14 @@ class DefaultResultPartition implements SchedulingResultPartition {
 
     @Override
     public Iterable<DefaultExecutionVertex> getConsumers() {
-        return IterableUtils.flatMap(consumerVertexGroups, executionVertexRetriever);
+        return IterableUtils.toStream(consumerVertexGroup)
+                .map(executionVertexRetriever)
+                .collect(Collectors.toList());
     }
 
     @Override
-    public List<ConsumerVertexGroup> getConsumerVertexGroups() {
-        return consumerVertexGroups;
+    public ConsumerVertexGroup getConsumerVertexGroup() {
+        return consumerVertexGroup;
     }
 
     @Override
