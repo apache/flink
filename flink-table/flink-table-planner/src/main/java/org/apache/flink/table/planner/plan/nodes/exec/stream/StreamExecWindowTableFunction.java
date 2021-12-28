@@ -42,8 +42,6 @@ import java.util.List;
 public class StreamExecWindowTableFunction extends CommonExecWindowTableFunction
         implements StreamExecNode<RowData> {
 
-    public static final String FIELD_NAME_WINDOWING = "windowing";
-
     public StreamExecWindowTableFunction(
             TimeAttributeWindowingStrategy windowingStrategy,
             InputProperty inputProperty,

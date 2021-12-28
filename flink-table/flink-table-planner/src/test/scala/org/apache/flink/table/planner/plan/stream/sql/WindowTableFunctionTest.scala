@@ -77,12 +77,23 @@ class WindowTableFunctionTest extends TableTestBase {
   }
 
   @Test
+  def testHopTVFProctime(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(
+        | HOP(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
   def testCumulateTVF(): Unit = {
     val sql =
       """
         |SELECT *
         |FROM TABLE(
-        | CUMULATE(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        | CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
         |""".stripMargin
     util.verifyRelPlan(sql)
   }
@@ -95,7 +106,7 @@ class WindowTableFunctionTest extends TableTestBase {
         |FROM TABLE(
         | CUMULATE(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
         |""".stripMargin
-    util.verifyExplain(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
