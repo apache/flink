@@ -87,7 +87,7 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
     @Nonnull private final Executor discardExecutor;
 
     /** Lock for synchronisation on the storage map and the discarded status. */
-    @Nonnull private final Object lock;
+    @Nonnull private final Object lock = new Object();
 
     /** Status flag if this store was already discarded. */
     @GuardedBy("lock")
@@ -106,36 +106,13 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
             @Nonnull LocalRecoveryConfig localRecoveryConfig,
             @Nonnull Executor discardExecutor) {
 
-        this(
-                jobID,
-                allocationID,
-                jobVertexID,
-                subtaskIndex,
-                localRecoveryConfig,
-                discardExecutor,
-                new TreeMap<>(),
-                new Object());
-    }
-
-    @VisibleForTesting
-    TaskLocalStateStoreImpl(
-            @Nonnull JobID jobID,
-            @Nonnull AllocationID allocationID,
-            @Nonnull JobVertexID jobVertexID,
-            @Nonnegative int subtaskIndex,
-            @Nonnull LocalRecoveryConfig localRecoveryConfig,
-            @Nonnull Executor discardExecutor,
-            @Nonnull SortedMap<Long, TaskStateSnapshot> storedTaskStateByCheckpointID,
-            @Nonnull Object lock) {
-
         this.jobID = jobID;
         this.allocationID = allocationID;
         this.jobVertexID = jobVertexID;
         this.subtaskIndex = subtaskIndex;
         this.discardExecutor = discardExecutor;
         this.localRecoveryConfig = localRecoveryConfig;
-        this.storedTaskStateByCheckpointID = storedTaskStateByCheckpointID;
-        this.lock = lock;
+        this.storedTaskStateByCheckpointID = new TreeMap<>();
         this.disposed = false;
     }
 
