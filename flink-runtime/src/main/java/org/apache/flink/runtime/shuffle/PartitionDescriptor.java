@@ -27,10 +27,10 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 
 import java.io.Serializable;
-import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Partition descriptor for {@link ShuffleMaster} to obtain {@link ShuffleDescriptor}. */
 public class PartitionDescriptor implements Serializable {
@@ -108,19 +108,13 @@ public class PartitionDescriptor implements Serializable {
     public static PartitionDescriptor from(IntermediateResultPartition partition) {
         checkNotNull(partition);
 
-        // The produced data is partitioned among a number of subpartitions.
-        //
-        // If no consumers are known at this point, we use a single subpartition, otherwise we have
-        // one for each consuming sub task.
-        int numberOfSubpartitions = 1;
-        List<ConsumerVertexGroup> consumerVertexGroups = partition.getConsumerVertexGroups();
-        if (!consumerVertexGroups.isEmpty() && !consumerVertexGroups.get(0).isEmpty()) {
-            if (consumerVertexGroups.size() > 1) {
-                throw new IllegalStateException(
-                        "Currently, only a single consumer group per partition is supported.");
-            }
-            numberOfSubpartitions = consumerVertexGroups.get(0).size();
-        }
+        ConsumerVertexGroup consumerVertexGroup = partition.getConsumerVertexGroup();
+        checkState(consumerVertexGroup.size() > 0);
+
+        // The produced data is partitioned among a number of subpartitions, one for each consuming
+        // sub task.
+        int numberOfSubpartitions = consumerVertexGroup.size();
+
         IntermediateResult result = partition.getIntermediateResult();
         return new PartitionDescriptor(
                 result.getId(),

@@ -207,7 +207,7 @@ public class DefaultExecutionTopology implements SchedulingTopology {
             List<DefaultResultPartition> producedPartitions =
                     generateProducedSchedulingResultPartition(
                             vertex.getProducedPartitions(),
-                            edgeManager::getConsumerVertexGroupsForPartition,
+                            edgeManager::getConsumerVertexGroupForPartition,
                             executionVerticesById::get);
 
             producedPartitions.forEach(
@@ -238,8 +238,8 @@ public class DefaultExecutionTopology implements SchedulingTopology {
     private static List<DefaultResultPartition> generateProducedSchedulingResultPartition(
             Map<IntermediateResultPartitionID, IntermediateResultPartition>
                     producedIntermediatePartitions,
-            Function<IntermediateResultPartitionID, List<ConsumerVertexGroup>>
-                    partitionConsumerVertexGroups,
+            Function<IntermediateResultPartitionID, ConsumerVertexGroup>
+                    partitionConsumerVertexGroupRetriever,
             Function<ExecutionVertexID, DefaultExecutionVertex> executionVertexRetriever) {
 
         List<DefaultResultPartition> producedSchedulingPartitions =
@@ -258,7 +258,7 @@ public class DefaultExecutionTopology implements SchedulingTopology {
                                                         irp.isConsumable()
                                                                 ? ResultPartitionState.CONSUMABLE
                                                                 : ResultPartitionState.CREATED,
-                                                partitionConsumerVertexGroups.apply(
+                                                partitionConsumerVertexGroupRetriever.apply(
                                                         irp.getPartitionId()),
                                                 executionVertexRetriever,
                                                 irp::getConsumedPartitionGroups)));

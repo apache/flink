@@ -114,20 +114,19 @@ public final class SchedulingPipelinedRegionComputeUtil {
                     if (!producedResult.getResultType().isReconnectable()) {
                         continue;
                     }
-                    for (ConsumerVertexGroup consumerVertexGroup :
-                            producedResult.getConsumerVertexGroups()) {
-                        for (ExecutionVertexID consumerVertexId : consumerVertexGroup) {
-                            SchedulingExecutionVertex consumerVertex =
-                                    executionVertexRetriever.apply(consumerVertexId);
-                            // Skip the ConsumerVertexGroup if its vertices are outside current
-                            // regions and cannot be merged
-                            if (!vertexToRegion.containsKey(consumerVertex)) {
-                                break;
-                            }
-                            if (!currentRegion.contains(consumerVertex)) {
-                                currentRegionOutEdges.add(
-                                        regionIndices.get(vertexToRegion.get(consumerVertex)));
-                            }
+                    final ConsumerVertexGroup consumerVertexGroup =
+                            producedResult.getConsumerVertexGroup();
+                    for (ExecutionVertexID consumerVertexId : consumerVertexGroup) {
+                        SchedulingExecutionVertex consumerVertex =
+                                executionVertexRetriever.apply(consumerVertexId);
+                        // Skip the ConsumerVertexGroup if its vertices are outside current
+                        // regions and cannot be merged
+                        if (!vertexToRegion.containsKey(consumerVertex)) {
+                            break;
+                        }
+                        if (!currentRegion.contains(consumerVertex)) {
+                            currentRegionOutEdges.add(
+                                    regionIndices.get(vertexToRegion.get(consumerVertex)));
                         }
                     }
                 }

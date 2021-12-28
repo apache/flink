@@ -48,11 +48,11 @@ public interface SchedulingResultPartition
     ResultPartitionState getState();
 
     /**
-     * Gets the {@link ConsumerVertexGroup}s.
+     * Gets the {@link ConsumerVertexGroup}.
      *
-     * @return list of {@link ConsumerVertexGroup}s
+     * @return {@link ConsumerVertexGroup}
      */
-    List<ConsumerVertexGroup> getConsumerVertexGroups();
+    ConsumerVertexGroup getConsumerVertexGroup();
 
     /**
      * Gets the {@link ConsumedPartitionGroup}s this partition belongs to.
