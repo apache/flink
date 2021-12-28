@@ -404,13 +404,13 @@ public class Execution
     // --------------------------------------------------------------------------------------------
 
     public CompletableFuture<Void> registerProducedPartitions(
-            TaskManagerLocation location, boolean notifyPartitionDataAvailable) {
+            TaskManagerLocation location, int dataPort, boolean notifyPartitionDataAvailable) {
 
         assertRunningInJobMasterMainThread();
 
         return FutureUtils.thenApplyAsyncIfNotDone(
                 registerProducedPartitions(
-                        vertex, location, attemptId, notifyPartitionDataAvailable),
+                        vertex, location, attemptId, dataPort, notifyPartitionDataAvailable),
                 vertex.getExecutionGraphAccessor().getJobMasterMainThreadExecutor(),
                 producedPartitionsCache -> {
                     producedPartitions = producedPartitionsCache;
@@ -442,9 +442,11 @@ public class Execution
                     ExecutionVertex vertex,
                     TaskManagerLocation location,
                     ExecutionAttemptID attemptId,
+                    int dataPort,
                     boolean notifyPartitionDataAvailable) {
 
-        ProducerDescriptor producerDescriptor = ProducerDescriptor.create(location, attemptId);
+        ProducerDescriptor producerDescriptor =
+                ProducerDescriptor.create(location, attemptId, dataPort);
 
         Collection<IntermediateResultPartition> partitions =
                 vertex.getProducedPartitions().values();
@@ -1339,7 +1341,8 @@ public class Execution
             final TaskManagerLocation taskManagerLocation = slot.getTaskManagerLocation();
 
             CompletableFuture<Acknowledge> updatePartitionsResultFuture =
-                    taskManagerGateway.updatePartitions(attemptId, partitionInfos, rpcTimeout);
+                    taskManagerGateway.updatePartitions(
+                            getVertex().getJobId(), attemptId, partitionInfos, rpcTimeout);
 
             updatePartitionsResultFuture.whenCompleteAsync(
                     (ack, failure) -> {

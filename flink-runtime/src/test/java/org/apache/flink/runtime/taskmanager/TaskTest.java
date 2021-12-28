@@ -32,6 +32,7 @@ import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
@@ -45,7 +46,6 @@ import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
-import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
@@ -101,7 +101,7 @@ public class TaskTest extends TestLogger {
     private static OneShotLatch awaitLatch;
     private static OneShotLatch triggerLatch;
 
-    private ShuffleEnvironment<?, ?> shuffleEnvironment;
+    private NettyShuffleEnvironment shuffleEnvironment;
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
@@ -311,7 +311,7 @@ public class TaskTest extends TestLogger {
                         .build();
 
         // shut down the network to make the following task registration failure
-        shuffleEnvironment.close();
+        shuffleEnvironment.getNetworkBufferPool().destroy();
 
         // should fail
         task.run();

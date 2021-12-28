@@ -22,10 +22,13 @@ import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.execution.librarycache.ContextClassLoaderLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.testutils.TestingUtils;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Builder for the {@link JobManagerSharedServices}. */
@@ -37,7 +40,7 @@ public class TestingJobManagerSharedServicesBuilder {
 
     private LibraryCacheManager libraryCacheManager;
 
-    private ShuffleMaster<?> shuffleMaster;
+    private Map<String, ShuffleMaster<?>> shuffleMasterByFactoryName = new HashMap<>();
 
     private BlobWriter blobWriter;
 
@@ -45,7 +48,9 @@ public class TestingJobManagerSharedServicesBuilder {
         futureExecutor = TestingUtils.defaultExecutor();
         ioExecutor = TestingUtils.defaultExecutor();
         libraryCacheManager = ContextClassLoaderLibraryCacheManager.INSTANCE;
-        shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
+        shuffleMasterByFactoryName.put(
+                NettyShuffleServiceFactory.class.getName(),
+                ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER);
         blobWriter = VoidBlobWriter.getInstance();
     }
 
@@ -60,8 +65,9 @@ public class TestingJobManagerSharedServicesBuilder {
         return this;
     }
 
-    public TestingJobManagerSharedServicesBuilder setShuffleMaster(ShuffleMaster<?> shuffleMaster) {
-        this.shuffleMaster = shuffleMaster;
+    public TestingJobManagerSharedServicesBuilder setShuffleMaster(
+            String factoryName, ShuffleMaster<?> shuffleMaster) {
+        this.shuffleMasterByFactoryName.put(factoryName, shuffleMaster);
         return this;
     }
 
@@ -77,6 +83,10 @@ public class TestingJobManagerSharedServicesBuilder {
 
     public JobManagerSharedServices build() {
         return new JobManagerSharedServices(
-                futureExecutor, ioExecutor, libraryCacheManager, shuffleMaster, blobWriter);
+                futureExecutor,
+                ioExecutor,
+                libraryCacheManager,
+                shuffleMasterByFactoryName,
+                blobWriter);
     }
 }

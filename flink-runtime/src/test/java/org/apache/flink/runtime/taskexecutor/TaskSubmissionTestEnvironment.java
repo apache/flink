@@ -33,6 +33,7 @@ import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -153,7 +154,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()
-                        .setShuffleEnvironment(shuffleEnvironment)
+                        .setShuffleEnvironment(
+                                NettyShuffleServiceFactory.class.getName(), shuffleEnvironment)
                         .setTaskSlotTable(taskSlotTable)
                         .setJobTable(jobTable)
                         .setTaskStateManager(localStateStoresManager)
@@ -267,7 +269,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                 metricQueryServiceAddress,
                 taskExecutorBlobService,
                 testingFatalErrorHandler,
-                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
+                new TaskExecutorPartitionTrackerImpl());
     }
 
     private static ShuffleEnvironment<?, ?> createShuffleEnvironment(

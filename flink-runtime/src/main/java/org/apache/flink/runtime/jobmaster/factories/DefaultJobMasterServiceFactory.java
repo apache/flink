@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.factories;
 
+import org.apache.flink.configuration.ShuffleServiceOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -81,8 +82,13 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
         this.jobManagerJobMetricGroupFactory = jobManagerJobMetricGroupFactory;
         this.fatalErrorHandler = fatalErrorHandler;
         this.userCodeClassloader = userCodeClassloader;
-        this.shuffleMaster = jobManagerSharedServices.getShuffleMaster();
         this.initializationTimestamp = initializationTimestamp;
+        this.shuffleMaster =
+                jobManagerSharedServices.getShuffleMaster(
+                        jobGraph.getJobConfiguration()
+                                .getString(
+                                        ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS,
+                                        jobMasterConfiguration.getDefaultShuffleServiceFactory()));
     }
 
     @Override

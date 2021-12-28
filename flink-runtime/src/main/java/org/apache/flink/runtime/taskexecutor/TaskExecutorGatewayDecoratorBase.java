@@ -99,10 +99,11 @@ public class TaskExecutorGatewayDecoratorBase implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<Acknowledge> updatePartitions(
+            JobID jobID,
             ExecutionAttemptID executionAttemptID,
             Iterable<PartitionInfo> partitionInfos,
             Time timeout) {
-        return originalGateway.updatePartitions(executionAttemptID, partitionInfos, timeout);
+        return originalGateway.updatePartitions(jobID, executionAttemptID, partitionInfos, timeout);
     }
 
     @Override

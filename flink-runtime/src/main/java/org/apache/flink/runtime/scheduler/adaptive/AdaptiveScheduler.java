@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
+import org.apache.flink.configuration.ShuffleServiceOptions;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
@@ -98,6 +99,7 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ReactiveScaleUpController;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ScaleUpController;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -203,6 +205,8 @@ public class AdaptiveScheduler
 
     private final SchedulerExecutionMode executionMode;
 
+    private final String configuredShuffleService;
+
     public AdaptiveScheduler(
             JobGraph jobGraph,
             Configuration configuration,
@@ -240,6 +244,9 @@ public class AdaptiveScheduler
         this.jobManagerJobMetricGroup = jobManagerJobMetricGroup;
         this.fatalErrorHandler = fatalErrorHandler;
         this.checkpointsCleaner = checkpointsCleaner;
+        this.configuredShuffleService =
+                jobGraph.getJobConfiguration()
+                        .getString(ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS, null);
         this.completedCheckpointStore =
                 SchedulerUtils.createCompletedCheckpointStoreIfCheckpointingIsEnabled(
                         jobGraph,
@@ -974,11 +981,17 @@ public class AdaptiveScheduler
             ExecutionGraph executionGraph, ReservedSlots reservedSlots) {
         for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
             final LogicalSlot assignedSlot = reservedSlots.getSlotFor(executionVertex.getID());
+            final TaskManagerLocation producerLocation = assignedSlot.getTaskManagerLocation();
             final CompletableFuture<Void> registrationFuture =
                     executionVertex
                             .getCurrentExecutionAttempt()
                             .registerProducedPartitions(
-                                    assignedSlot.getTaskManagerLocation(), false);
+                                    assignedSlot.getTaskManagerLocation(),
+                                    configuredShuffleService == null
+                                            ? producerLocation.defaultShuffleDataPort()
+                                            : producerLocation.getShuffleDataPort(
+                                                    configuredShuffleService),
+                                    false);
             Preconditions.checkState(
                     registrationFuture.isDone(),
                     "Partition registration must be completed immediately for reactive mode");

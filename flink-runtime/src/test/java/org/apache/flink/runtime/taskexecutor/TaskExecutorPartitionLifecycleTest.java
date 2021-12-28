@@ -38,6 +38,7 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
@@ -179,7 +180,9 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()
                         .setJobTable(jobTable)
-                        .setShuffleEnvironment(new NettyShuffleEnvironmentBuilder().build())
+                        .setShuffleEnvironment(
+                                NettyShuffleServiceFactory.class.getName(),
+                                new NettyShuffleEnvironmentBuilder().build())
                         .setTaskSlotTable(createTaskSlotTable())
                         .build();
 
@@ -345,7 +348,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
         final CompletableFuture<ResultPartitionID> startTrackingFuture = new CompletableFuture<>();
         final TaskExecutorPartitionTracker partitionTracker =
-                new TaskExecutorPartitionTrackerImpl(shuffleEnvironment) {
+                new TaskExecutorPartitionTrackerImpl() {
                     @Override
                     public void startTrackingPartition(
                             JobID producingJobId, TaskExecutorPartitionInfo partitionInfo) {
@@ -357,6 +360,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
         try {
             internalTestPartitionRelease(
                     partitionTracker,
+                    NettyShuffleServiceFactory.class.getName(),
                     shuffleEnvironment,
                     startTrackingFuture,
                     (jobId,
@@ -389,6 +393,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
         internalTestPartitionRelease(
                 partitionTracker,
+                NettyShuffleServiceFactory.class.getName(),
                 new NettyShuffleEnvironmentBuilder().build(),
                 startTrackingFuture,
                 testAction);
@@ -396,6 +401,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
     private void internalTestPartitionRelease(
             TaskExecutorPartitionTracker partitionTracker,
+            String shuffleServiceFactoryName,
             ShuffleEnvironment<?, ?> shuffleEnvironment,
             CompletableFuture<ResultPartitionID> startTrackingFuture,
             TestAction testAction)
@@ -439,7 +445,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
                 new TaskManagerServicesBuilder()
                         .setTaskSlotTable(taskSlotTable)
                         .setTaskStateManager(localStateStoresManager)
-                        .setShuffleEnvironment(shuffleEnvironment)
+                        .setShuffleEnvironment(shuffleServiceFactoryName, shuffleEnvironment)
                         .build();
 
         final CompletableFuture<Void> taskFinishedFuture = new CompletableFuture<>();

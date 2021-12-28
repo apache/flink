@@ -80,11 +80,8 @@ public class ProducerDescriptor {
     }
 
     public static ProducerDescriptor create(
-            TaskManagerLocation producerLocation, ExecutionAttemptID attemptId) {
+            TaskManagerLocation producerLocation, ExecutionAttemptID attemptId, int dataPort) {
         return new ProducerDescriptor(
-                producerLocation.getResourceID(),
-                attemptId,
-                producerLocation.address(),
-                producerLocation.dataPort());
+                producerLocation.getResourceID(), attemptId, producerLocation.address(), dataPort);
     }
 }

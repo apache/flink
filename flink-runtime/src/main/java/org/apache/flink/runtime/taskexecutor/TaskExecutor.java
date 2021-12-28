@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.JobPermanentBlobService;
@@ -173,6 +174,7 @@ import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.configuration.ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -219,7 +221,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     private final ExternalResourceInfoProvider externalResourceInfoProvider;
 
     /** The network component in the task manager. */
-    private final ShuffleEnvironment<?, ?> shuffleEnvironment;
+    private final Map<JobID, ShuffleEnvironment<?, ?>> shuffleEnvironmentByJobId = new HashMap<>();
 
     /** The kvState registration service in the task manager. */
     private final KvStateService kvStateService;
@@ -308,7 +310,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 taskExecutorServices.getUnresolvedTaskManagerLocation();
         this.localStateStoresManager = taskExecutorServices.getTaskManagerStateStore();
         this.changelogStoragesManager = taskExecutorServices.getTaskManagerChangelogManager();
-        this.shuffleEnvironment = taskExecutorServices.getShuffleEnvironment();
         this.kvStateService = taskExecutorServices.getKvStateService();
         this.ioExecutor = taskExecutorServices.getIOExecutor();
         this.resourceManagerLeaderRetriever = haServices.getResourceManagerLeaderRetriever();
@@ -354,8 +355,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<Boolean> canBeReleased() {
-        return CompletableFuture.completedFuture(
-                shuffleEnvironment.getPartitionsOccupyingLocalResources().isEmpty());
+        boolean canBeReleased = true;
+        for (ShuffleEnvironment<?, ?> shuffleEnvironment : shuffleEnvironmentByJobId.values()) {
+            if (!shuffleEnvironment.getPartitionsOccupyingLocalResources().isEmpty()) {
+                canBeReleased = false;
+            }
+        }
+        return CompletableFuture.completedFuture(canBeReleased);
     }
 
     @Override
@@ -714,6 +720,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 throw new TaskSubmissionException("Could not submit task.", e);
             }
 
+            ShuffleEnvironment<?, ?> shuffleEnvironment;
+            try {
+                shuffleEnvironment =
+                        getShuffleEnvironment(jobId, jobInformation.getJobConfiguration());
+            } catch (IllegalArgumentException e) {
+                throw new TaskSubmissionException("Could not submit task.", e);
+            }
+
             Task task =
                     new Task(
                             jobInformation,
@@ -726,7 +740,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             tdd.getInputGates(),
                             memoryManager,
                             taskExecutorServices.getIOManager(),
-                            taskExecutorServices.getShuffleEnvironment(),
+                            shuffleEnvironment,
                             taskExecutorServices.getKvStateService(),
                             taskExecutorServices.getBroadcastVariableManager(),
                             taskExecutorServices.getTaskEventDispatcher(),
@@ -777,6 +791,20 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         } catch (TaskSubmissionException e) {
             return FutureUtils.completedExceptionally(e);
         }
+    }
+
+    private ShuffleEnvironment<?, ?> getShuffleEnvironment(
+            JobID jobId, Configuration jobConfiguration) {
+        ShuffleEnvironment<?, ?> shuffleEnvironment = shuffleEnvironmentByJobId.get(jobId);
+        if (shuffleEnvironment == null) {
+            String factoryName =
+                    jobConfiguration.getString(
+                            SHUFFLE_SERVICE_FACTORY_CLASS,
+                            taskManagerConfiguration.getDefaultShuffleServiceFactory());
+            shuffleEnvironment = taskExecutorServices.getShuffleEnvironment(factoryName);
+            shuffleEnvironmentByJobId.put(jobId, shuffleEnvironment);
+        }
+        return shuffleEnvironment;
     }
 
     private void setupResultPartitionBookkeeping(
@@ -853,12 +881,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<Acknowledge> updatePartitions(
+            JobID jobID,
             final ExecutionAttemptID executionAttemptID,
             Iterable<PartitionInfo> partitionInfos,
             Time timeout) {
         final Task task = taskSlotTable.getTask(executionAttemptID);
 
         if (task != null) {
+            ShuffleEnvironment<?, ?> shuffleEnvironment = shuffleEnvironmentByJobId.get(jobID);
             for (final PartitionInfo partitionInfo : partitionInfos) {
                 // Run asynchronously because it might be blocking
                 FutureUtils.assertNoException(
@@ -901,8 +931,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             Set<ResultPartitionID> partitionToRelease,
             Set<ResultPartitionID> partitionsToPromote) {
         try {
-            partitionTracker.stopTrackingAndReleaseJobPartitions(partitionToRelease);
-            partitionTracker.promoteJobPartitions(partitionsToPromote);
+            ShuffleEnvironment<?, ?> shuffleEnvironment = shuffleEnvironmentByJobId.get(jobId);
+            partitionTracker.stopTrackingAndReleaseJobPartitions(
+                    shuffleEnvironment, partitionToRelease);
+            partitionTracker.promoteJobPartitions(shuffleEnvironment, partitionsToPromote);
 
             closeJobManagerConnectionIfNoAllocatedResources(jobId);
         } catch (Throwable t) {
@@ -1327,7 +1359,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 new TaskExecutorRegistration(
                         getAddress(),
                         getResourceID(),
-                        unresolvedTaskManagerLocation.getDataPort(),
+                        unresolvedTaskManagerLocation.defaultShuffleDataPort(),
                         JMXService.getPort().orElse(-1),
                         hardwareDescription,
                         memoryConfiguration,
@@ -1774,7 +1806,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         if (partitionTracker.isTrackingPartitionsFor(jobId)) {
             // stop tracking job partitions
-            partitionTracker.stopTrackingAndReleaseJobPartitionsFor(jobId);
+            partitionTracker.stopTrackingAndReleaseJobPartitionsFor(
+                    shuffleEnvironmentByJobId.get(jobId), jobId);
         }
 
         // free slots
@@ -1795,6 +1828,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         taskManagerMetricGroup.removeJobMetricsGroup(jobId);
         changelogStoragesManager.releaseStateChangelogStorageForJob(jobId);
         currentSlotOfferPerJob.remove(jobId);
+        shuffleEnvironmentByJobId.remove(jobId);
     }
 
     private void scheduleResultPartitionCleanup(JobID jobId) {
@@ -1804,7 +1838,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             FutureUtils.waitForAll(taskTerminationFutures)
                     .thenRunAsync(
                             () -> {
-                                partitionTracker.stopTrackingAndReleaseJobPartitionsFor(jobId);
+                                partitionTracker.stopTrackingAndReleaseJobPartitionsFor(
+                                        shuffleEnvironmentByJobId.get(jobId), jobId);
                             },
                             getMainThreadExecutor());
         }

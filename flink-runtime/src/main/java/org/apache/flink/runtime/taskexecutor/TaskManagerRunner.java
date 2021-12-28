@@ -549,7 +549,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                 metricQueryServiceAddress,
                 taskExecutorBlobService,
                 fatalErrorHandler,
-                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
+                new TaskExecutorPartitionTrackerImpl());
     }
 
     /**

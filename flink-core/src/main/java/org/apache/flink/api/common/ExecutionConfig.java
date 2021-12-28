@@ -29,6 +29,7 @@ import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.ShuffleServiceOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.description.InlineElement;
@@ -95,6 +96,12 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     private static final long DEFAULT_RESTART_DELAY = 10000L;
 
     // --------------------------------------------------------------------------------------------
+
+    /**
+     * Defines the shuffle service to be used by the corresponding job. The shuffle service name is
+     * the shuffle service class name.
+     */
+    private String shuffleServiceName;
 
     /** Defines how data exchange happens - batch or pipelined */
     private ExecutionMode executionMode = ExecutionMode.PIPELINED;
@@ -310,6 +317,19 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     @Internal
     public void setMaterializationMaxAllowedFailures(int materializationMaxAllowedFailures) {
         this.materializationMaxAllowedFailures = materializationMaxAllowedFailures;
+    }
+
+    /** Sets the shuffle service to be used by the corresponding job. */
+    @PublicEvolving
+    public ExecutionConfig setShuffleServiceName(String shuffleServiceFactoryName) {
+        if (this.shuffleServiceName == null) {
+            this.shuffleServiceName = shuffleServiceFactoryName;
+        }
+        return this;
+    }
+
+    public String getShuffleServiceName() {
+        return shuffleServiceName;
     }
 
     /**
@@ -917,6 +937,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
             return other.canEqual(this)
                     && Objects.equals(executionMode, other.executionMode)
+                    && Objects.equals(shuffleServiceName, other.shuffleServiceName)
                     && closureCleanerLevel == other.closureCleanerLevel
                     && parallelism == other.parallelism
                     && ((restartStrategyConfiguration == null
@@ -948,6 +969,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     public int hashCode() {
         return Objects.hash(
                 executionMode,
+                shuffleServiceName,
                 closureCleanerLevel,
                 parallelism,
                 restartStrategyConfiguration,
@@ -971,6 +993,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         return "ExecutionConfig{"
                 + "executionMode="
                 + executionMode
+                + "shuffleServiceName="
+                + shuffleServiceName
                 + ", closureCleanerLevel="
                 + closureCleanerLevel
                 + ", parallelism="
@@ -1180,6 +1204,10 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 .getOptional(PipelineOptions.KRYO_REGISTERED_CLASSES)
                 .map(c -> loadClasses(c, classLoader, "Could not load kryo type to be registered."))
                 .ifPresent(c -> this.registeredKryoTypes = c);
+
+        configuration
+                .getOptional(ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS)
+                .ifPresent(this::setShuffleServiceName);
     }
 
     private LinkedHashSet<Class<?>> loadClasses(

@@ -221,7 +221,8 @@ public class JobExceptionsHandler
         // '(unassigned)' being the default value is added to support backward-compatibility for the
         // deprecated fields
         return location != null
-                ? taskManagerLocationToString(location.getFQDNHostname(), location.dataPort())
+                ? taskManagerLocationToString(
+                        location.getFQDNHostname(), location.defaultShuffleDataPort())
                 : "(unassigned)";
     }
 

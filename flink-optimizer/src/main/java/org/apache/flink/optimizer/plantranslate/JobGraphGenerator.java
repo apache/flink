@@ -103,6 +103,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -133,6 +134,8 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
             new TaskInChain(null, null, null, null);
 
     // ------------------------------------------------------------------------
+
+    private final Configuration jobConfiguration;
 
     private Map<PlanNode, JobVertex> vertices; // a map from optimizer nodes to job vertices
 
@@ -169,9 +172,11 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
         this.defaultMaxFan = AlgorithmOptions.SPILLING_MAX_FAN.defaultValue();
         this.defaultSortSpillingThreshold = AlgorithmOptions.SORT_SPILLING_THRESHOLD.defaultValue();
         this.useLargeRecordHandler = ConfigConstants.DEFAULT_USE_LARGE_RECORD_HANDLER;
+        this.jobConfiguration = new Configuration();
     }
 
     public JobGraphGenerator(Configuration config) {
+        this.jobConfiguration = checkNotNull(config);
         this.defaultMaxFan = config.getInteger(AlgorithmOptions.SPILLING_MAX_FAN);
         this.defaultSortSpillingThreshold =
                 config.getFloat(AlgorithmOptions.SORT_SPILLING_THRESHOLD);
@@ -266,6 +271,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
                             .addJobVertices(auxVertices)
                             .addUserArtifacts(userArtifacts)
                             .build();
+            graph.getJobConfiguration().addAll(jobConfiguration);
         } catch (IOException e) {
             throw new CompilerException(
                     "Could not serialize the ExecutionConfig."

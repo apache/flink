@@ -53,8 +53,10 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
 
     @Test
     public void createClusterPartitionReport() {
+        final ShuffleEnvironment<?, ?> shuffleEnvironment =
+                new NettyShuffleEnvironmentBuilder().build();
         final TaskExecutorPartitionTrackerImpl partitionTracker =
-                new TaskExecutorPartitionTrackerImpl(new NettyShuffleEnvironmentBuilder().build());
+                new TaskExecutorPartitionTrackerImpl();
 
         assertThat(partitionTracker.createClusterPartitionReport().getEntries(), is(empty()));
 
@@ -71,7 +73,8 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
                 jobId,
                 new TaskExecutorPartitionInfo(jobPartitionId, dataSetId, numberOfPartitions + 1));
 
-        partitionTracker.promoteJobPartitions(Collections.singleton(clusterPartitionId));
+        partitionTracker.promoteJobPartitions(
+                shuffleEnvironment, Collections.singleton(clusterPartitionId));
 
         final ClusterPartitionReport clusterPartitionReport =
                 partitionTracker.createClusterPartitionReport();
@@ -94,7 +97,7 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
         final ResultPartitionID resultPartitionId2 = new ResultPartitionID();
 
         final TaskExecutorPartitionTracker partitionTracker =
-                new TaskExecutorPartitionTrackerImpl(testingShuffleEnvironment);
+                new TaskExecutorPartitionTrackerImpl();
         partitionTracker.startTrackingPartition(
                 new JobID(),
                 new TaskExecutorPartitionInfo(resultPartitionId1, new IntermediateDataSetID(), 1));
@@ -102,7 +105,7 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
                 new JobID(),
                 new TaskExecutorPartitionInfo(resultPartitionId2, new IntermediateDataSetID(), 1));
         partitionTracker.stopTrackingAndReleaseJobPartitions(
-                Collections.singleton(resultPartitionId1));
+                testingShuffleEnvironment, Collections.singleton(resultPartitionId1));
 
         assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
     }
@@ -120,14 +123,14 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
         final ResultPartitionID resultPartitionId2 = new ResultPartitionID();
 
         final TaskExecutorPartitionTracker partitionTracker =
-                new TaskExecutorPartitionTrackerImpl(testingShuffleEnvironment);
+                new TaskExecutorPartitionTrackerImpl();
         partitionTracker.startTrackingPartition(
                 jobId1,
                 new TaskExecutorPartitionInfo(resultPartitionId1, new IntermediateDataSetID(), 1));
         partitionTracker.startTrackingPartition(
                 jobId2,
                 new TaskExecutorPartitionInfo(resultPartitionId2, new IntermediateDataSetID(), 1));
-        partitionTracker.stopTrackingAndReleaseJobPartitionsFor(jobId1);
+        partitionTracker.stopTrackingAndReleaseJobPartitionsFor(testingShuffleEnvironment, jobId1);
 
         assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
     }
@@ -144,16 +147,17 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
         final ResultPartitionID resultPartitionId2 = new ResultPartitionID();
 
         final TaskExecutorPartitionTracker partitionTracker =
-                new TaskExecutorPartitionTrackerImpl(testingShuffleEnvironment);
+                new TaskExecutorPartitionTrackerImpl();
         partitionTracker.startTrackingPartition(
                 jobId,
                 new TaskExecutorPartitionInfo(resultPartitionId1, new IntermediateDataSetID(), 1));
         partitionTracker.startTrackingPartition(
                 jobId,
                 new TaskExecutorPartitionInfo(resultPartitionId2, new IntermediateDataSetID(), 1));
-        partitionTracker.promoteJobPartitions(Collections.singleton(resultPartitionId1));
+        partitionTracker.promoteJobPartitions(
+                testingShuffleEnvironment, Collections.singleton(resultPartitionId1));
 
-        partitionTracker.stopTrackingAndReleaseJobPartitionsFor(jobId);
+        partitionTracker.stopTrackingAndReleaseJobPartitionsFor(testingShuffleEnvironment, jobId);
         assertThat(shuffleReleaseFuture.get(), not(hasItem(resultPartitionId1)));
     }
 
@@ -168,14 +172,15 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
         final ResultPartitionID resultPartitionId2 = new ResultPartitionID();
 
         final TaskExecutorPartitionTracker partitionTracker =
-                new TaskExecutorPartitionTrackerImpl(testingShuffleEnvironment);
+                new TaskExecutorPartitionTrackerImpl();
         partitionTracker.startTrackingPartition(
                 new JobID(),
                 new TaskExecutorPartitionInfo(resultPartitionId1, new IntermediateDataSetID(), 1));
         partitionTracker.startTrackingPartition(
                 new JobID(),
                 new TaskExecutorPartitionInfo(resultPartitionId2, new IntermediateDataSetID(), 1));
-        partitionTracker.promoteJobPartitions(Collections.singleton(resultPartitionId1));
+        partitionTracker.promoteJobPartitions(
+                testingShuffleEnvironment, Collections.singleton(resultPartitionId1));
 
         partitionTracker.stopTrackingAndReleaseAllClusterPartitions();
         assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
@@ -195,12 +200,13 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
         final IntermediateDataSetID dataSetId2 = new IntermediateDataSetID();
 
         final TaskExecutorPartitionTracker partitionTracker =
-                new TaskExecutorPartitionTrackerImpl(testingShuffleEnvironment);
+                new TaskExecutorPartitionTrackerImpl();
         partitionTracker.startTrackingPartition(
                 new JobID(), new TaskExecutorPartitionInfo(resultPartitionId1, dataSetId1, 1));
         partitionTracker.startTrackingPartition(
                 new JobID(), new TaskExecutorPartitionInfo(resultPartitionId2, dataSetId2, 1));
-        partitionTracker.promoteJobPartitions(Collections.singleton(resultPartitionId1));
+        partitionTracker.promoteJobPartitions(
+                testingShuffleEnvironment, Collections.singleton(resultPartitionId1));
 
         partitionTracker.stopTrackingAndReleaseClusterPartitions(Collections.singleton(dataSetId1));
         assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));

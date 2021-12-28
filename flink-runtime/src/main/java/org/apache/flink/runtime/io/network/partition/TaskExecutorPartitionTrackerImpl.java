@@ -40,11 +40,8 @@ public class TaskExecutorPartitionTrackerImpl
         implements TaskExecutorPartitionTracker {
 
     private final Map<IntermediateDataSetID, DataSetEntry> clusterPartitions = new HashMap<>();
-    private final ShuffleEnvironment<?, ?> shuffleEnvironment;
 
-    public TaskExecutorPartitionTrackerImpl(ShuffleEnvironment<?, ?> shuffleEnvironment) {
-        this.shuffleEnvironment = shuffleEnvironment;
-    }
+    public TaskExecutorPartitionTrackerImpl() {}
 
     @Override
     public void startTrackingPartition(
@@ -57,6 +54,7 @@ public class TaskExecutorPartitionTrackerImpl
 
     @Override
     public void stopTrackingAndReleaseJobPartitions(
+            ShuffleEnvironment<?, ?> shuffleEnvironment,
             Collection<ResultPartitionID> partitionsToRelease) {
         if (partitionsToRelease.isEmpty()) {
             return;
@@ -67,7 +65,8 @@ public class TaskExecutorPartitionTrackerImpl
     }
 
     @Override
-    public void stopTrackingAndReleaseJobPartitionsFor(JobID producingJobId) {
+    public void stopTrackingAndReleaseJobPartitionsFor(
+            ShuffleEnvironment<?, ?> shuffleEnvironment, JobID producingJobId) {
         Collection<ResultPartitionID> partitionsForJob =
                 CollectionUtil.project(
                         stopTrackingPartitionsFor(producingJobId),
@@ -76,7 +75,9 @@ public class TaskExecutorPartitionTrackerImpl
     }
 
     @Override
-    public void promoteJobPartitions(Collection<ResultPartitionID> partitionsToPromote) {
+    public void promoteJobPartitions(
+            ShuffleEnvironment<?, ?> shuffleEnvironment,
+            Collection<ResultPartitionID> partitionsToPromote) {
         if (partitionsToPromote.isEmpty()) {
             return;
         }
@@ -90,7 +91,10 @@ public class TaskExecutorPartitionTrackerImpl
             final DataSetEntry dataSetEntry =
                     clusterPartitions.computeIfAbsent(
                             dataSetMetaInfo.getIntermediateDataSetId(),
-                            ignored -> new DataSetEntry(dataSetMetaInfo.getNumberOfPartitions()));
+                            ignored ->
+                                    new DataSetEntry(
+                                            shuffleEnvironment,
+                                            dataSetMetaInfo.getNumberOfPartitions()));
             dataSetEntry.addPartition(partitionTrackerEntry.getResultPartitionId());
         }
     }
@@ -101,15 +105,19 @@ public class TaskExecutorPartitionTrackerImpl
         for (IntermediateDataSetID dataSetID : dataSetsToRelease) {
             final DataSetEntry dataSetEntry = clusterPartitions.remove(dataSetID);
             final Set<ResultPartitionID> partitionIds = dataSetEntry.getPartitionIds();
-            shuffleEnvironment.releasePartitionsLocally(partitionIds);
+            dataSetEntry.getShuffleEnvironment().releasePartitionsLocally(partitionIds);
         }
     }
 
     @Override
     public void stopTrackingAndReleaseAllClusterPartitions() {
-        clusterPartitions.values().stream()
-                .map(DataSetEntry::getPartitionIds)
-                .forEach(shuffleEnvironment::releasePartitionsLocally);
+        clusterPartitions
+                .values()
+                .forEach(
+                        dataSetEntry ->
+                                dataSetEntry
+                                        .getShuffleEnvironment()
+                                        .releasePartitionsLocally(dataSetEntry.getPartitionIds()));
         clusterPartitions.clear();
     }
 
@@ -132,9 +140,12 @@ public class TaskExecutorPartitionTrackerImpl
 
         private final Set<ResultPartitionID> partitionIds = new HashSet<>();
         private final int totalNumberOfPartitions;
+        private final ShuffleEnvironment<?, ?> shuffleEnvironment;
 
-        private DataSetEntry(int totalNumberOfPartitions) {
+        private DataSetEntry(
+                ShuffleEnvironment<?, ?> shuffleEnvironment, int totalNumberOfPartitions) {
             this.totalNumberOfPartitions = totalNumberOfPartitions;
+            this.shuffleEnvironment = Preconditions.checkNotNull(shuffleEnvironment);
         }
 
         void addPartition(ResultPartitionID resultPartitionId) {
@@ -147,6 +158,10 @@ public class TaskExecutorPartitionTrackerImpl
 
         public int getTotalNumberOfPartitions() {
             return totalNumberOfPartitions;
+        }
+
+        public ShuffleEnvironment<?, ?> getShuffleEnvironment() {
+            return shuffleEnvironment;
         }
     }
 }

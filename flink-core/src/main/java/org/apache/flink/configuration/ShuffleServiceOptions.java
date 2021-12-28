@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.shuffle;
-
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
+package org.apache.flink.configuration;
 
 /** Options to configure shuffle service. */
 @SuppressWarnings("WeakerAccess")

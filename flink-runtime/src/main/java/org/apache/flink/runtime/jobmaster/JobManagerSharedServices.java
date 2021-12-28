@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.ShuffleServiceOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
@@ -30,15 +31,22 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
 import org.apache.flink.runtime.shuffle.ShuffleMasterContextImpl;
+import org.apache.flink.runtime.shuffle.ShuffleServiceFactory;
 import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -53,6 +61,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class JobManagerSharedServices {
 
+    private static final Logger LOG = LoggerFactory.getLogger(JobManagerSharedServices.class);
+
     private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(10);
 
     private final ScheduledExecutorService futureExecutor;
@@ -61,7 +71,7 @@ public class JobManagerSharedServices {
 
     private final LibraryCacheManager libraryCacheManager;
 
-    private final ShuffleMaster<?> shuffleMaster;
+    private final Map<String, ShuffleMaster<?>> shuffleMasterByFactoryName;
 
     @Nonnull private final BlobWriter blobWriter;
 
@@ -69,13 +79,13 @@ public class JobManagerSharedServices {
             ScheduledExecutorService futureExecutor,
             ExecutorService ioExecutor,
             LibraryCacheManager libraryCacheManager,
-            ShuffleMaster<?> shuffleMaster,
+            Map<String, ShuffleMaster<?>> shuffleMasterByFactoryName,
             @Nonnull BlobWriter blobWriter) {
 
         this.futureExecutor = checkNotNull(futureExecutor);
         this.ioExecutor = checkNotNull(ioExecutor);
         this.libraryCacheManager = checkNotNull(libraryCacheManager);
-        this.shuffleMaster = checkNotNull(shuffleMaster);
+        this.shuffleMasterByFactoryName = checkNotNull(shuffleMasterByFactoryName);
         this.blobWriter = blobWriter;
     }
 
@@ -91,7 +101,12 @@ public class JobManagerSharedServices {
         return libraryCacheManager;
     }
 
-    public ShuffleMaster<?> getShuffleMaster() {
+    public ShuffleMaster<?> getShuffleMaster(String shuffleServiceFactoryName) {
+        ShuffleMaster<?> shuffleMaster = shuffleMasterByFactoryName.get(shuffleServiceFactoryName);
+        if (shuffleMaster == null) {
+            throw new IllegalArgumentException(
+                    "Unknown shuffle service: " + shuffleServiceFactoryName);
+        }
         return shuffleMaster;
     }
 
@@ -119,11 +134,14 @@ public class JobManagerSharedServices {
             exception = t;
         }
 
-        try {
-            shuffleMaster.close();
-        } catch (Throwable t) {
-            exception = ExceptionUtils.firstOrSuppressed(t, exception);
+        for (ShuffleMaster<?> shuffleMaster : shuffleMasterByFactoryName.values()) {
+            try {
+                shuffleMaster.close();
+            } catch (Throwable t) {
+                exception = ExceptionUtils.firstOrSuppressed(t, exception);
+            }
         }
+        shuffleMasterByFactoryName.clear();
 
         libraryCacheManager.shutdown();
 
@@ -177,14 +195,36 @@ public class JobManagerSharedServices {
                 Executors.newFixedThreadPool(
                         jobManagerIoPoolSize, new ExecutorThreadFactory("jobmanager-io"));
 
+        final String defaultFactoryName =
+                config.getString(ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS);
         final ShuffleMasterContext shuffleMasterContext =
                 new ShuffleMasterContextImpl(config, fatalErrorHandler);
-        final ShuffleMaster<?> shuffleMaster =
-                ShuffleServiceLoader.loadShuffleServiceFactory(config)
-                        .createShuffleMaster(shuffleMasterContext);
-        shuffleMaster.start();
+        final Map<String, ShuffleMaster<?>> shuffleMasterByFactoryName = new HashMap<>();
+        for (Map.Entry<String, ShuffleServiceFactory<?, ?, ?>> entry :
+                ShuffleServiceLoader.loadShuffleServiceFactories(config).entrySet()) {
+            ShuffleMaster<?> shuffleMaster =
+                    entry.getValue().createShuffleMaster(shuffleMasterContext);
+            shuffleMasterByFactoryName.put(entry.getKey(), shuffleMaster);
+            try {
+                shuffleMaster.start();
+            } catch (Exception exception) {
+                // not fail the whole cluster on shuffle service initialization error
+                LOG.error("Failed to start shuffle service {}.", entry.getKey(), exception);
+
+                // throw exception if the configured default shuffle service can not be started up
+                if (entry.getKey().equals(defaultFactoryName)) {
+                    throw new FlinkException(
+                            "Failed to start up the default shuffle service: " + defaultFactoryName,
+                            exception);
+                }
+            }
+        }
 
         return new JobManagerSharedServices(
-                futureExecutor, ioExecutor, libraryCacheManager, shuffleMaster, blobServer);
+                futureExecutor,
+                ioExecutor,
+                libraryCacheManager,
+                shuffleMasterByFactoryName,
+                blobServer);
     }
 }

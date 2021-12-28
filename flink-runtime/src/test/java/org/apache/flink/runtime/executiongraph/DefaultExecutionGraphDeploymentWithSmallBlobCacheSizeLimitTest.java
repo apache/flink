@@ -127,7 +127,10 @@ public class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
                                 .setTaskManagerGateway(taskManagerGateway)
                                 .createTestingLogicalSlot();
                 ev.getCurrentExecutionAttempt()
-                        .registerProducedPartitions(slot.getTaskManagerLocation(), true)
+                        .registerProducedPartitions(
+                                slot.getTaskManagerLocation(),
+                                slot.getTaskManagerLocation().defaultShuffleDataPort(),
+                                true)
                         .get();
                 ev.deployToSlot(slot);
                 assertEquals(ExecutionState.DEPLOYING, ev.getExecutionState());

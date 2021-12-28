@@ -22,7 +22,10 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.TestingLibraryCacheManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
@@ -36,6 +39,8 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.testutils.TestingUtils;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
@@ -48,7 +53,7 @@ public class TaskManagerServicesBuilder {
     private UnresolvedTaskManagerLocation unresolvedTaskManagerLocation;
 
     private IOManager ioManager;
-    private ShuffleEnvironment<?, ?> shuffleEnvironment;
+    private Map<String, ShuffleEnvironment<?, ?>> shuffleEnvironments = new HashMap<>();
     private KvStateService kvStateService;
     private BroadcastVariableManager broadcastVariableManager;
     private TaskSlotTable<Task> taskSlotTable;
@@ -60,11 +65,14 @@ public class TaskManagerServicesBuilder {
     private ExecutorService ioExecutor;
     private LibraryCacheManager libraryCacheManager;
     private long managedMemorySize;
+    private NetworkBufferPool networkBufferPool;
 
     public TaskManagerServicesBuilder() {
         unresolvedTaskManagerLocation = new LocalUnresolvedTaskManagerLocation();
         ioManager = mock(IOManager.class);
-        shuffleEnvironment = mock(ShuffleEnvironment.class);
+        shuffleEnvironments.put(
+                NettyShuffleServiceFactory.class.getName(),
+                new NettyShuffleEnvironmentBuilder().build());
         kvStateService = new KvStateService(new KvStateRegistry(), null, null);
         broadcastVariableManager = new BroadcastVariableManager();
         taskEventDispatcher = new TaskEventDispatcher();
@@ -82,6 +90,7 @@ public class TaskManagerServicesBuilder {
         ioExecutor = TestingUtils.defaultExecutor();
         libraryCacheManager = TestingLibraryCacheManager.newBuilder().build();
         managedMemorySize = MemoryManager.MIN_PAGE_SIZE;
+        networkBufferPool = new NetworkBufferPool(1, 4096);
     }
 
     public TaskManagerServicesBuilder setUnresolvedTaskManagerLocation(
@@ -95,9 +104,14 @@ public class TaskManagerServicesBuilder {
         return this;
     }
 
+    public TaskManagerServicesBuilder setNetworkBufferPool(NetworkBufferPool networkBufferPool) {
+        this.networkBufferPool = networkBufferPool;
+        return this;
+    }
+
     public TaskManagerServicesBuilder setShuffleEnvironment(
-            ShuffleEnvironment<?, ?> shuffleEnvironment) {
-        this.shuffleEnvironment = shuffleEnvironment;
+            String factoryName, ShuffleEnvironment<?, ?> shuffleEnvironment) {
+        shuffleEnvironments.put(factoryName, shuffleEnvironment);
         return this;
     }
 
@@ -160,7 +174,8 @@ public class TaskManagerServicesBuilder {
                 unresolvedTaskManagerLocation,
                 managedMemorySize,
                 ioManager,
-                shuffleEnvironment,
+                networkBufferPool,
+                shuffleEnvironments,
                 kvStateService,
                 broadcastVariableManager,
                 taskSlotTable,

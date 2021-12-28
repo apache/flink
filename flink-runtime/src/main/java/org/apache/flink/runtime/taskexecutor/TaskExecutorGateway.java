@@ -90,12 +90,14 @@ public interface TaskExecutorGateway
     /**
      * Update the task where the given partitions can be found.
      *
+     * @param jobID identifying the job
      * @param executionAttemptID identifying the task
      * @param partitionInfos telling where the partition can be retrieved from
      * @param timeout for the update partitions operation
      * @return Future acknowledge if the partitions have been successfully updated
      */
     CompletableFuture<Acknowledge> updatePartitions(
+            JobID jobID,
             ExecutionAttemptID executionAttemptID,
             Iterable<PartitionInfo> partitionInfos,
             @RpcTimeout Time timeout);

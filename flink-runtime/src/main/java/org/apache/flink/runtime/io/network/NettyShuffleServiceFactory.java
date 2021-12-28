@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
@@ -51,7 +50,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerShuffleMetrics;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Netty based shuffle service implementation. */
@@ -73,14 +71,16 @@ public class NettyShuffleServiceFactory
         NettyShuffleEnvironmentConfiguration networkConfig =
                 NettyShuffleEnvironmentConfiguration.fromConfiguration(
                         shuffleEnvironmentContext.getConfiguration(),
-                        shuffleEnvironmentContext.getNetworkMemorySize(),
+                        shuffleEnvironmentContext
+                                .getNetworkMemoryConfiguration()
+                                .getNetworkBufferSize(),
                         shuffleEnvironmentContext.isLocalCommunicationOnly(),
                         shuffleEnvironmentContext.getHostAddress());
         return createNettyShuffleEnvironment(
                 networkConfig,
                 shuffleEnvironmentContext.getTaskExecutorResourceId(),
                 shuffleEnvironmentContext.getEventPublisher(),
-                shuffleEnvironmentContext.getParentMetricGroup(),
+                shuffleEnvironmentContext.getNetworkBufferPool(),
                 shuffleEnvironmentContext.getIoExecutor());
     }
 
@@ -89,14 +89,14 @@ public class NettyShuffleServiceFactory
             NettyShuffleEnvironmentConfiguration config,
             ResourceID taskExecutorResourceId,
             TaskEventPublisher taskEventPublisher,
-            MetricGroup metricGroup,
+            NetworkBufferPool networkBufferPool,
             Executor ioExecutor) {
         return createNettyShuffleEnvironment(
                 config,
                 taskExecutorResourceId,
                 taskEventPublisher,
                 new ResultPartitionManager(),
-                metricGroup,
+                networkBufferPool,
                 ioExecutor);
     }
 
@@ -106,13 +106,12 @@ public class NettyShuffleServiceFactory
             ResourceID taskExecutorResourceId,
             TaskEventPublisher taskEventPublisher,
             ResultPartitionManager resultPartitionManager,
-            MetricGroup metricGroup,
+            NetworkBufferPool networkBufferPool,
             Executor ioExecutor) {
         checkNotNull(config);
         checkNotNull(taskExecutorResourceId);
         checkNotNull(taskEventPublisher);
         checkNotNull(resultPartitionManager);
-        checkNotNull(metricGroup);
 
         NettyConfig nettyConfig = config.nettyConfig();
 
@@ -133,12 +132,6 @@ public class NettyShuffleServiceFactory
                                 resultPartitionManager, taskEventPublisher, nettyConfig)
                         : new LocalConnectionManager();
 
-        NetworkBufferPool networkBufferPool =
-                new NetworkBufferPool(
-                        config.numNetworkBuffers(),
-                        config.networkBufferSize(),
-                        config.getRequestSegmentsTimeout());
-
         // we create a separated buffer pool here for batch shuffle instead of reusing the network
         // buffer pool directly to avoid potential side effects of memory contention, for example,
         // dead lock or "insufficient network buffer" error
@@ -157,8 +150,6 @@ public class NettyShuffleServiceFactory
                                         batchShuffleReadBufferPool.getMaxConcurrentRequests(),
                                         4 * Hardware.getNumberCPUCores())),
                         new ExecutorThreadFactory("blocking-shuffle-io"));
-
-        registerShuffleMetrics(metricGroup, networkBufferPool);
 
         ResultPartitionFactory resultPartitionFactory =
                 new ResultPartitionFactory(

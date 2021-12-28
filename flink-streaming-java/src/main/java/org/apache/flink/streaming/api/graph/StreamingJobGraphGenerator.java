@@ -155,6 +155,7 @@ public class StreamingJobGraphGenerator {
         this.physicalEdgesInOrder = new ArrayList<>();
 
         jobGraph = new JobGraph(jobID, streamGraph.getJobName());
+        jobGraph.getJobConfiguration().addAll(streamGraph.getJobConfiguration());
     }
 
     private JobGraph createJobGraph() {

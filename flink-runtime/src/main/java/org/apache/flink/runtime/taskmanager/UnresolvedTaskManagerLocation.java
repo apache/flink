@@ -21,6 +21,8 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
 import java.io.Serializable;
+import java.util.Collection;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -35,16 +37,25 @@ public class UnresolvedTaskManagerLocation implements Serializable {
 
     private final ResourceID resourceID;
     private final String externalAddress;
-    private final int dataPort;
+
+    /** Data port of the configured default shuffle service. */
+    private final int defaultDataPort;
+
+    /** Mapping from shuffle service factory name to external data port. */
+    private final Map<String, Integer> dataPortByFactoryName;
 
     public UnresolvedTaskManagerLocation(
-            final ResourceID resourceID, final String externalAddress, final int dataPort) {
-        // -1 indicates a local instance connection info
-        checkArgument(dataPort > 0 || dataPort == -1, "dataPort must be > 0, or -1 (local)");
+            final ResourceID resourceID,
+            final String externalAddress,
+            int defaultDataPort,
+            final Map<String, Integer> dataPortByFactoryName) {
+        this.defaultDataPort = defaultDataPort;
+        this.dataPortByFactoryName = checkNotNull(dataPortByFactoryName);
+        // this check includes the default data port
+        checkDataPorts(dataPortByFactoryName.values());
 
         this.resourceID = checkNotNull(resourceID);
         this.externalAddress = checkNotNull(externalAddress);
-        this.dataPort = dataPort;
     }
 
     public ResourceID getResourceID() {
@@ -55,7 +66,18 @@ public class UnresolvedTaskManagerLocation implements Serializable {
         return externalAddress;
     }
 
-    public int getDataPort() {
-        return dataPort;
+    public Map<String, Integer> allShuffleDataPorts() {
+        return dataPortByFactoryName;
+    }
+
+    public int defaultShuffleDataPort() {
+        return defaultDataPort;
+    }
+
+    private static void checkDataPorts(Collection<Integer> dataPorts) {
+        for (int dataPort : dataPorts) {
+            // -1 indicates a local instance connection info
+            checkArgument(dataPort > 0 || dataPort == -1, "dataPort must be > 0, or -1 (local)");
+        }
     }
 }

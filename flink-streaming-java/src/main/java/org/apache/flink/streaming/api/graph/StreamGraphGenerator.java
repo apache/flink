@@ -35,6 +35,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobType;
@@ -149,7 +150,7 @@ public class StreamGraphGenerator {
 
     private final CheckpointConfig checkpointConfig;
 
-    private final ReadableConfig configuration;
+    private final UnmodifiableConfiguration configuration;
 
     // Records the slot sharing groups and their corresponding fine-grained ResourceProfile
     private final Map<String, ResourceProfile> slotSharingGroupResources = new HashMap<>();
@@ -232,11 +233,11 @@ public class StreamGraphGenerator {
             List<Transformation<?>> transformations,
             ExecutionConfig executionConfig,
             CheckpointConfig checkpointConfig,
-            ReadableConfig configuration) {
+            Configuration configuration) {
         this.transformations = checkNotNull(transformations);
         this.executionConfig = checkNotNull(executionConfig);
         this.checkpointConfig = new CheckpointConfig(checkpointConfig);
-        this.configuration = checkNotNull(configuration);
+        this.configuration = new UnmodifiableConfiguration(checkNotNull(configuration));
         this.checkpointStorage = this.checkpointConfig.getCheckpointStorage();
         this.savepointRestoreSettings = SavepointRestoreSettings.fromConfiguration(configuration);
     }
@@ -302,7 +303,9 @@ public class StreamGraphGenerator {
     }
 
     public StreamGraph generate() {
-        streamGraph = new StreamGraph(executionConfig, checkpointConfig, savepointRestoreSettings);
+        streamGraph =
+                new StreamGraph(
+                        configuration, executionConfig, checkpointConfig, savepointRestoreSettings);
         streamGraph.setEnableCheckpointsAfterTasksFinish(
                 configuration.get(
                         ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH));

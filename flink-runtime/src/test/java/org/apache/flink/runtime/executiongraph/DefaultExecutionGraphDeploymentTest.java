@@ -190,7 +190,10 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
         assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
         vertex.getCurrentExecutionAttempt()
-                .registerProducedPartitions(slot.getTaskManagerLocation(), true)
+                .registerProducedPartitions(
+                        slot.getTaskManagerLocation(),
+                        slot.getTaskManagerLocation().defaultShuffleDataPort(),
+                        true)
                 .get();
         vertex.deployToSlot(slot);
 

@@ -19,12 +19,11 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.runtime.throughput.BufferDebloatConfiguration;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -72,14 +71,13 @@ public class NettyShuffleEnvironmentBuilder {
 
     private NettyConfig nettyConfig;
 
-    private MetricGroup metricGroup =
-            UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup();
-
     private ResultPartitionManager resultPartitionManager = new ResultPartitionManager();
 
     private Executor ioExecutor = Executors.directExecutor();
     private BufferDebloatConfiguration debloatConfiguration =
             BufferDebloatConfiguration.fromConfiguration(new Configuration());
+
+    private int dataShufflePort = -1;
 
     public NettyShuffleEnvironmentBuilder setTaskManagerLocation(ResourceID taskManagerLocation) {
         this.taskManagerLocation = taskManagerLocation;
@@ -158,11 +156,6 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
-    public NettyShuffleEnvironmentBuilder setMetricGroup(MetricGroup metricGroup) {
-        this.metricGroup = metricGroup;
-        return this;
-    }
-
     public NettyShuffleEnvironmentBuilder setResultPartitionManager(
             ResultPartitionManager resultPartitionManager) {
         this.resultPartitionManager = resultPartitionManager;
@@ -180,16 +173,19 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
+    public NettyShuffleEnvironmentBuilder setDataShufflePort(int dataShufflePort) {
+        this.dataShufflePort = dataShufflePort;
+        return this;
+    }
+
     public NettyShuffleEnvironment build() {
         return NettyShuffleServiceFactory.createNettyShuffleEnvironment(
                 new NettyShuffleEnvironmentConfiguration(
-                        numNetworkBuffers,
                         bufferSize,
                         partitionRequestInitialBackoff,
                         partitionRequestMaxBackoff,
                         networkBuffersPerChannel,
                         floatingNetworkBuffersPerGate,
-                        DEFAULT_REQUEST_SEGMENTS_TIMEOUT,
                         false,
                         nettyConfig,
                         DEFAULT_TEMP_DIRS,
@@ -200,11 +196,13 @@ public class NettyShuffleEnvironmentBuilder {
                         batchShuffleReadMemoryBytes,
                         sortShuffleMinBuffers,
                         sortShuffleMinParallelism,
-                        debloatConfiguration),
+                        debloatConfiguration,
+                        dataShufflePort),
                 taskManagerLocation,
                 new TaskEventDispatcher(),
                 resultPartitionManager,
-                metricGroup,
+                new NetworkBufferPool(
+                        numNetworkBuffers, bufferSize, DEFAULT_REQUEST_SEGMENTS_TIMEOUT),
                 ioExecutor);
     }
 }

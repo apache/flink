@@ -50,6 +50,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
@@ -80,7 +81,6 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
-import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.taskexecutor.TaskSubmissionTestEnvironment.Builder;
@@ -277,7 +277,8 @@ public class TaskExecutorTest extends TestLogger {
                 new TaskManagerServicesBuilder()
                         .setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
                         .setIoManager(ioManager)
-                        .setShuffleEnvironment(nettyShuffleEnvironment)
+                        .setShuffleEnvironment(
+                                NettyShuffleServiceFactory.class.getName(), nettyShuffleEnvironment)
                         .setKvStateService(kvStateService)
                         .setTaskSlotTable(taskSlotTable)
                         .setJobLeaderService(jobLeaderService)
@@ -642,8 +643,7 @@ public class TaskExecutorTest extends TestLogger {
                         .build();
 
         final TaskExecutorPartitionTracker partitionTracker =
-                createPartitionTrackerWithFixedPartitionReport(
-                        taskManagerServices.getShuffleEnvironment());
+                createPartitionTrackerWithFixedPartitionReport();
 
         final TaskExecutor taskManager =
                 createTaskExecutor(taskManagerServices, HEARTBEAT_SERVICES, partitionTracker);
@@ -682,8 +682,7 @@ public class TaskExecutorTest extends TestLogger {
         }
     }
 
-    private static TaskExecutorPartitionTracker createPartitionTrackerWithFixedPartitionReport(
-            ShuffleEnvironment<?, ?> shuffleEnvironment) {
+    private static TaskExecutorPartitionTracker createPartitionTrackerWithFixedPartitionReport() {
         final ClusterPartitionReport.ClusterPartitionReportEntry clusterPartitionReportEntry =
                 new ClusterPartitionReport.ClusterPartitionReportEntry(
                         new IntermediateDataSetID(),
@@ -693,7 +692,7 @@ public class TaskExecutorTest extends TestLogger {
         final ClusterPartitionReport clusterPartitionReport =
                 new ClusterPartitionReport(Collections.singletonList(clusterPartitionReportEntry));
 
-        return new TaskExecutorPartitionTrackerImpl(shuffleEnvironment) {
+        return new TaskExecutorPartitionTrackerImpl() {
             @Override
             public ClusterPartitionReport createClusterPartitionReport() {
                 return clusterPartitionReport;
@@ -1491,7 +1490,8 @@ public class TaskExecutorTest extends TestLogger {
             TaskSlotTable<Task> taskSlotTable) throws IOException {
         return new TaskManagerServicesBuilder()
                 .setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
-                .setShuffleEnvironment(nettyShuffleEnvironment)
+                .setShuffleEnvironment(
+                        NettyShuffleServiceFactory.class.getName(), nettyShuffleEnvironment)
                 .setTaskSlotTable(taskSlotTable)
                 .setJobLeaderService(
                         new DefaultJobLeaderService(
@@ -2727,9 +2727,7 @@ public class TaskExecutorTest extends TestLogger {
     private TaskExecutor createTaskExecutor(
             TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices) {
         return createTaskExecutor(
-                taskManagerServices,
-                heartbeatServices,
-                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
+                taskManagerServices, heartbeatServices, new TaskExecutorPartitionTrackerImpl());
     }
 
     private TaskExecutor createTaskExecutor(
@@ -2781,7 +2779,7 @@ public class TaskExecutorTest extends TestLogger {
                 null,
                 NoOpTaskExecutorBlobService.INSTANCE,
                 testingFatalErrorHandler,
-                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
+                new TaskExecutorPartitionTrackerImpl());
     }
 
     private TaskExecutorTestingContext createTaskExecutorTestingContext(int numberOfSlots)

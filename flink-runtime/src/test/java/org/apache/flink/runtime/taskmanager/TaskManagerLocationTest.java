@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.Assert;
@@ -214,6 +215,7 @@ public class TaskManagerLocationTest {
                 new TaskManagerLocation(
                         ResourceID.generate(),
                         address,
+                        NettyShuffleServiceFactory.class.getName(),
                         19871,
                         new TaskManagerLocation.IpOnlyHostNameSupplier(address));
 

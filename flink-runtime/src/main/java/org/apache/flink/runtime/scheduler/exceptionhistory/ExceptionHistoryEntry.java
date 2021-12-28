@@ -148,7 +148,7 @@ public class ExceptionHistoryEntry extends ErrorInfo {
             return new ArchivedTaskManagerLocation(
                     taskManagerLocation.getResourceID(),
                     taskManagerLocation.addressString(),
-                    taskManagerLocation.dataPort(),
+                    taskManagerLocation.defaultShuffleDataPort(),
                     taskManagerLocation.getHostname(),
                     taskManagerLocation.getFQDNHostname());
         }

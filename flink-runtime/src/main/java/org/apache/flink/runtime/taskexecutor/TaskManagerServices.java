@@ -19,7 +19,9 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.ShuffleServiceOptions;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -29,10 +31,12 @@ import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
+import org.apache.flink.runtime.shuffle.ShuffleServiceFactory;
 import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
@@ -40,6 +44,7 @@ import org.apache.flink.runtime.taskexecutor.slot.DefaultTimerService;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTableImpl;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
+import org.apache.flink.runtime.taskmanager.NetworkMemoryConfiguration;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
@@ -51,9 +56,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+
+import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerShuffleMetrics;
 
 /**
  * Container for {@link TaskExecutor} services such as the {@link MemoryManager}, {@link IOManager},
@@ -70,7 +79,6 @@ public class TaskManagerServices {
 
     private final long managedMemorySize;
     private final IOManager ioManager;
-    private final ShuffleEnvironment<?, ?> shuffleEnvironment;
     private final KvStateService kvStateService;
     private final BroadcastVariableManager broadcastVariableManager;
     private final TaskSlotTable<Task> taskSlotTable;
@@ -81,12 +89,15 @@ public class TaskManagerServices {
     private final TaskEventDispatcher taskEventDispatcher;
     private final ExecutorService ioExecutor;
     private final LibraryCacheManager libraryCacheManager;
+    private final NetworkBufferPool networkBufferPool;
+    private final Map<String, ShuffleEnvironment<?, ?>> shuffleEnvironmentByFactoryName;
 
     TaskManagerServices(
             UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
             long managedMemorySize,
             IOManager ioManager,
-            ShuffleEnvironment<?, ?> shuffleEnvironment,
+            NetworkBufferPool networkBufferPool,
+            Map<String, ShuffleEnvironment<?, ?>> shuffleEnvironmentByFactoryName,
             KvStateService kvStateService,
             BroadcastVariableManager broadcastVariableManager,
             TaskSlotTable<Task> taskSlotTable,
@@ -102,7 +113,9 @@ public class TaskManagerServices {
                 Preconditions.checkNotNull(unresolvedTaskManagerLocation);
         this.managedMemorySize = managedMemorySize;
         this.ioManager = Preconditions.checkNotNull(ioManager);
-        this.shuffleEnvironment = Preconditions.checkNotNull(shuffleEnvironment);
+        this.networkBufferPool = Preconditions.checkNotNull(networkBufferPool);
+        this.shuffleEnvironmentByFactoryName =
+                Preconditions.checkNotNull(shuffleEnvironmentByFactoryName);
         this.kvStateService = Preconditions.checkNotNull(kvStateService);
         this.broadcastVariableManager = Preconditions.checkNotNull(broadcastVariableManager);
         this.taskSlotTable = Preconditions.checkNotNull(taskSlotTable);
@@ -127,7 +140,12 @@ public class TaskManagerServices {
         return ioManager;
     }
 
-    public ShuffleEnvironment<?, ?> getShuffleEnvironment() {
+    public ShuffleEnvironment<?, ?> getShuffleEnvironment(String factoryName) {
+        ShuffleEnvironment<?, ?> shuffleEnvironment =
+                shuffleEnvironmentByFactoryName.get(factoryName);
+        if (shuffleEnvironment == null) {
+            throw new IllegalArgumentException("Unknown shuffle service: " + factoryName);
+        }
         return shuffleEnvironment;
     }
 
@@ -196,8 +214,26 @@ public class TaskManagerServices {
             exception = ExceptionUtils.firstOrSuppressed(e, exception);
         }
 
+        for (ShuffleEnvironment<?, ?> shuffleEnvironment :
+                shuffleEnvironmentByFactoryName.values()) {
+            try {
+                shuffleEnvironment.close();
+            } catch (Exception e) {
+                exception = ExceptionUtils.firstOrSuppressed(e, exception);
+            }
+        }
+        shuffleEnvironmentByFactoryName.clear();
+
+        // make sure that the global buffer pool re-acquires all buffers
         try {
-            shuffleEnvironment.close();
+            networkBufferPool.destroyAllBufferPools();
+        } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
+        }
+
+        // destroy the buffer pool
+        try {
+            networkBufferPool.destroy();
         } catch (Exception e) {
             exception = ExceptionUtils.firstOrSuppressed(e, exception);
         }
@@ -278,13 +314,50 @@ public class TaskManagerServices {
         final IOManager ioManager =
                 new IOManagerAsync(taskManagerServicesConfiguration.getTmpDirPaths());
 
-        final ShuffleEnvironment<?, ?> shuffleEnvironment =
-                createShuffleEnvironment(
+        final NetworkMemoryConfiguration networkMemoryConfiguration =
+                NetworkMemoryConfiguration.fromConfiguration(
+                        taskManagerServicesConfiguration.getConfiguration(),
+                        taskManagerServicesConfiguration.getNetworkMemorySize());
+        final NetworkBufferPool networkBufferPool =
+                new NetworkBufferPool(
+                        networkMemoryConfiguration.getNumNetworkBuffers(),
+                        networkMemoryConfiguration.getNetworkBufferSize(),
+                        networkMemoryConfiguration.getRequestSegmentsTimeout());
+        registerShuffleMetrics(taskManagerMetricGroup, networkBufferPool);
+
+        final Map<String, ShuffleEnvironment<?, ?>> shuffleEnvironmentByFactoryName =
+                loadShuffleServices(
                         taskManagerServicesConfiguration,
                         taskEventDispatcher,
                         taskManagerMetricGroup,
-                        ioExecutor);
-        final int listeningDataPort = shuffleEnvironment.start();
+                        ioExecutor,
+                        networkMemoryConfiguration,
+                        networkBufferPool);
+
+        final String defaultFactoryName =
+                taskManagerServicesConfiguration
+                        .getConfiguration()
+                        .getString(ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS);
+        final Map<String, Integer> dataPorts = new HashMap<>();
+        for (Map.Entry<String, ShuffleEnvironment<?, ?>> entry :
+                shuffleEnvironmentByFactoryName.entrySet()) {
+            int dataPort;
+            try {
+                dataPort = entry.getValue().start();
+            } catch (Exception exception) {
+                // not fail the whole cluster on shuffle service initialization error
+                dataPort = -1;
+                LOG.error("Failed to start shuffle service {}.", entry.getKey(), exception);
+
+                // throw exception if the configured default shuffle service can not be started up
+                if (entry.getKey().equals(defaultFactoryName)) {
+                    throw new FlinkException(
+                            "Failed to start up the default shuffle service: " + defaultFactoryName,
+                            exception);
+                }
+            }
+            dataPorts.put(entry.getKey(), dataPort);
+        }
 
         final KvStateService kvStateService =
                 KvStateService.fromConfiguration(taskManagerServicesConfiguration);
@@ -294,11 +367,8 @@ public class TaskManagerServices {
                 new UnresolvedTaskManagerLocation(
                         taskManagerServicesConfiguration.getResourceID(),
                         taskManagerServicesConfiguration.getExternalAddress(),
-                        // we expose the task manager location with the listening port
-                        // iff the external data port is not explicitly defined
-                        taskManagerServicesConfiguration.getExternalDataPort() > 0
-                                ? taskManagerServicesConfiguration.getExternalDataPort()
-                                : listeningDataPort);
+                        dataPorts.get(defaultFactoryName),
+                        dataPorts);
 
         final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
@@ -358,7 +428,8 @@ public class TaskManagerServices {
                 unresolvedTaskManagerLocation,
                 taskManagerServicesConfiguration.getManagedMemorySize().getBytes(),
                 ioManager,
-                shuffleEnvironment,
+                networkBufferPool,
+                shuffleEnvironmentByFactoryName,
                 kvStateService,
                 broadcastVariableManager,
                 taskSlotTable,
@@ -391,27 +462,37 @@ public class TaskManagerServices {
                 memoryVerificationExecutor);
     }
 
-    private static ShuffleEnvironment<?, ?> createShuffleEnvironment(
+    private static Map<String, ShuffleEnvironment<?, ?>> loadShuffleServices(
             TaskManagerServicesConfiguration taskManagerServicesConfiguration,
             TaskEventDispatcher taskEventDispatcher,
             MetricGroup taskManagerMetricGroup,
-            Executor ioExecutor)
+            Executor ioExecutor,
+            NetworkMemoryConfiguration networkMemoryConfiguration,
+            NetworkBufferPool networkBufferPool)
             throws FlinkException {
+        Configuration configuration = taskManagerServicesConfiguration.getConfiguration();
+        Map<String, ShuffleEnvironment<?, ?>> shuffleEnvironmentByFactoryName = new HashMap<>();
 
         final ShuffleEnvironmentContext shuffleEnvironmentContext =
                 new ShuffleEnvironmentContext(
-                        taskManagerServicesConfiguration.getConfiguration(),
+                        configuration,
                         taskManagerServicesConfiguration.getResourceID(),
                         taskManagerServicesConfiguration.getNetworkMemorySize(),
                         taskManagerServicesConfiguration.isLocalCommunicationOnly(),
                         taskManagerServicesConfiguration.getBindAddress(),
                         taskEventDispatcher,
                         taskManagerMetricGroup,
-                        ioExecutor);
+                        ioExecutor,
+                        networkMemoryConfiguration,
+                        networkBufferPool);
 
-        return ShuffleServiceLoader.loadShuffleServiceFactory(
-                        taskManagerServicesConfiguration.getConfiguration())
-                .createShuffleEnvironment(shuffleEnvironmentContext);
+        for (Map.Entry<String, ShuffleServiceFactory<?, ?, ?>> entry :
+                ShuffleServiceLoader.loadShuffleServiceFactories(configuration).entrySet()) {
+            ShuffleEnvironment<?, ?> shuffleEnvironment =
+                    entry.getValue().createShuffleEnvironment(shuffleEnvironmentContext);
+            shuffleEnvironmentByFactoryName.put(entry.getKey(), shuffleEnvironment);
+        }
+        return shuffleEnvironmentByFactoryName;
     }
 
     /**

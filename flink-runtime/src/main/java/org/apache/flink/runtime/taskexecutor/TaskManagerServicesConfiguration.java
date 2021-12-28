@@ -25,7 +25,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
@@ -55,8 +54,6 @@ public class TaskManagerServicesConfiguration {
     private final String externalAddress;
 
     private final InetAddress bindAddress;
-
-    private final int externalDataPort;
 
     private final boolean localCommunicationOnly;
 
@@ -91,7 +88,6 @@ public class TaskManagerServicesConfiguration {
             ResourceID resourceID,
             String externalAddress,
             InetAddress bindAddress,
-            int externalDataPort,
             boolean localCommunicationOnly,
             String[] tmpDirPaths,
             String[] localRecoveryStateRootDirectories,
@@ -111,7 +107,6 @@ public class TaskManagerServicesConfiguration {
 
         this.externalAddress = checkNotNull(externalAddress);
         this.bindAddress = checkNotNull(bindAddress);
-        this.externalDataPort = externalDataPort;
         this.localCommunicationOnly = localCommunicationOnly;
         this.tmpDirPaths = checkNotNull(tmpDirPaths);
         this.localRecoveryStateRootDirectories = checkNotNull(localRecoveryStateRootDirectories);
@@ -154,10 +149,6 @@ public class TaskManagerServicesConfiguration {
 
     InetAddress getBindAddress() {
         return bindAddress;
-    }
-
-    int getExternalDataPort() {
-        return externalDataPort;
     }
 
     boolean isLocalCommunicationOnly() {
@@ -266,9 +257,6 @@ public class TaskManagerServicesConfiguration {
         final RetryingRegistrationConfiguration retryingRegistrationConfiguration =
                 RetryingRegistrationConfiguration.fromConfiguration(configuration);
 
-        final int externalDataPort =
-                configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT);
-
         String bindAddr =
                 configuration.getString(
                         TaskManagerOptions.BIND_HOST, NetUtils.getWildcardIPAddress());
@@ -287,7 +275,6 @@ public class TaskManagerServicesConfiguration {
                 resourceID,
                 externalAddress,
                 bindAddress,
-                externalDataPort,
                 localCommunicationOnly,
                 tmpDirs,
                 localStateRootDir,

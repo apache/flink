@@ -113,6 +113,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
     @Override
     public CompletableFuture<Acknowledge> updatePartitions(
+            JobID jobID,
             ExecutionAttemptID executionAttemptID,
             Iterable<PartitionInfo> partitionInfos,
             Time timeout) {

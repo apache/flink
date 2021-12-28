@@ -23,6 +23,7 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.ShuffleServiceOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -72,6 +73,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
     private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
 
+    private final String defaultShuffleServiceFactory;
+
     public TaskManagerConfiguration(
             int numberSlots,
             ResourceProfile defaultSlotResourceProfile,
@@ -103,6 +106,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
         this.taskManagerLogDir = taskManagerLogDir;
         this.taskManagerExternalAddress = taskManagerExternalAddress;
         this.retryingRegistrationConfiguration = retryingRegistrationConfiguration;
+        this.defaultShuffleServiceFactory =
+                configuration.getString(ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS);
     }
 
     public int getNumberSlots() {
@@ -167,6 +172,10 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
     public RetryingRegistrationConfiguration getRetryingRegistrationConfiguration() {
         return retryingRegistrationConfiguration;
+    }
+
+    public String getDefaultShuffleServiceFactory() {
+        return defaultShuffleServiceFactory;
     }
 
     // --------------------------------------------------------------------------------------------

@@ -475,7 +475,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
             final CompletableFuture<Acknowledge> updateFuture =
                     tmGateway.updatePartitions(
-                            eid, Collections.singletonList(partitionUpdate), timeout);
+                            jobId, eid, Collections.singletonList(partitionUpdate), timeout);
 
             updateFuture.get();
             taskFailedFuture.get();

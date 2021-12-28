@@ -27,7 +27,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import static org.apache.flink.runtime.shuffle.ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS;
+import static org.apache.flink.configuration.ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertThat;
 
@@ -38,7 +38,8 @@ public class ShuffleServiceLoaderTest extends TestLogger {
     public void testLoadDefaultNettyShuffleServiceFactory() throws FlinkException {
         Configuration configuration = new Configuration();
         ShuffleServiceFactory<?, ?, ?> shuffleServiceFactory =
-                ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
+                ShuffleServiceLoader.loadShuffleServiceFactories(configuration)
+                        .get(NettyShuffleServiceFactory.class.getName());
         assertThat(
                 "Loaded shuffle service factory is not the default netty implementation",
                 shuffleServiceFactory,
@@ -52,7 +53,8 @@ public class ShuffleServiceLoaderTest extends TestLogger {
                 SHUFFLE_SERVICE_FACTORY_CLASS,
                 "org.apache.flink.runtime.shuffle.ShuffleServiceLoaderTest$CustomShuffleServiceFactory");
         ShuffleServiceFactory<?, ?, ?> shuffleServiceFactory =
-                ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
+                ShuffleServiceLoader.loadShuffleServiceFactories(configuration)
+                        .get(CustomShuffleServiceFactory.class.getName());
         assertThat(
                 "Loaded shuffle service factory is not the custom test implementation",
                 shuffleServiceFactory,
@@ -65,7 +67,7 @@ public class ShuffleServiceLoaderTest extends TestLogger {
         configuration.setString(
                 SHUFFLE_SERVICE_FACTORY_CLASS,
                 "org.apache.flink.runtime.shuffle.UnavailableShuffleServiceFactory");
-        ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
+        ShuffleServiceLoader.loadShuffleServiceFactories(configuration);
     }
 
     /**

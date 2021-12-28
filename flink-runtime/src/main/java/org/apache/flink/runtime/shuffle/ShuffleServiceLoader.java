@@ -19,20 +19,78 @@
 package org.apache.flink.runtime.shuffle;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ShuffleServiceOptions;
+import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.core.plugin.PluginUtils;
+import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 
-import static org.apache.flink.runtime.shuffle.ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 /** Utility to load the pluggable {@link ShuffleServiceFactory} implementations. */
 public enum ShuffleServiceLoader {
     ;
 
-    public static ShuffleServiceFactory<?, ?, ?> loadShuffleServiceFactory(
+    private static final Logger LOG = LoggerFactory.getLogger(ShuffleServiceLoader.class);
+
+    public static Map<String, ShuffleServiceFactory<?, ?, ?>> loadShuffleServiceFactories(
             Configuration configuration) throws FlinkException {
-        String shuffleServiceClassName = configuration.getString(SHUFFLE_SERVICE_FACTORY_CLASS);
+        Map<String, ShuffleServiceFactory<?, ?, ?>> factories = new HashMap<>();
+
+        // this should never throw any exception
+        ShuffleServiceFactory<?, ?, ?> nettyFactory = loadNettyShuffleServiceFactory();
+        factories.put(NettyShuffleServiceFactory.class.getName(), nettyFactory);
+
+        String defaultFactoryName =
+                configuration.getString(ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS);
+        try {
+            // this keeps compatibility with the previous behavior: users can put the shuffle plugin
+            // in the lib folder instead of the plugins folder
+            ShuffleServiceFactory<?, ?, ?> defaultFactory =
+                    loadShuffleServiceFactory(defaultFactoryName);
+            factories.putIfAbsent(defaultFactoryName, defaultFactory);
+        } catch (Exception e) {
+            LOG.debug(
+                    String.format(
+                            "Failed to load the default shuffle service factory %s configured by %s"
+                                    + " from Flink parent classloader.",
+                            defaultFactoryName,
+                            ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS.key()));
+        }
+
+        PluginManager pluginManager = PluginUtils.createPluginManagerFromRootFolder(configuration);
+        Iterator<ShuffleServiceFactory> it = pluginManager.load(ShuffleServiceFactory.class);
+        while (it.hasNext()) {
+            ShuffleServiceFactory<?, ?, ?> factory = it.next();
+            factories.putIfAbsent(factory.getClass().getName(), factory);
+        }
+
+        if (!factories.containsKey(defaultFactoryName)) {
+            throw new FlinkException(
+                    String.format(
+                            "Failed to load the default shuffle service factory %s configured by: "
+                                    + "%s, please make sure to put the shuffle service plugin jar "
+                                    + "to either the lib folder or the plugins folder.",
+                            defaultFactoryName,
+                            ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS.key()));
+        }
+        return factories;
+    }
+
+    public static ShuffleServiceFactory<?, ?, ?> loadNettyShuffleServiceFactory()
+            throws FlinkException {
+        return loadShuffleServiceFactory(NettyShuffleServiceFactory.class.getName());
+    }
+
+    public static ShuffleServiceFactory<?, ?, ?> loadShuffleServiceFactory(String factoryName)
+            throws FlinkException {
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        return InstantiationUtil.instantiate(
-                shuffleServiceClassName, ShuffleServiceFactory.class, classLoader);
+        return InstantiationUtil.instantiate(factoryName, ShuffleServiceFactory.class, classLoader);
     }
 }

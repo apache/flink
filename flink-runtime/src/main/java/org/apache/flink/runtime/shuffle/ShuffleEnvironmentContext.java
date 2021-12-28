@@ -23,6 +23,8 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.taskmanager.NetworkMemoryConfiguration;
 
 import java.net.InetAddress;
 import java.util.concurrent.Executor;
@@ -38,6 +40,8 @@ public class ShuffleEnvironmentContext {
     private final InetAddress hostAddress;
     private final TaskEventPublisher eventPublisher;
     private final MetricGroup parentMetricGroup;
+    private final NetworkMemoryConfiguration networkMemoryConfiguration;
+    private final NetworkBufferPool networkBufferPool;
 
     private final Executor ioExecutor;
 
@@ -49,7 +53,9 @@ public class ShuffleEnvironmentContext {
             InetAddress hostAddress,
             TaskEventPublisher eventPublisher,
             MetricGroup parentMetricGroup,
-            Executor ioExecutor) {
+            Executor ioExecutor,
+            NetworkMemoryConfiguration networkMemoryConfiguration,
+            NetworkBufferPool networkBufferPool) {
         this.configuration = checkNotNull(configuration);
         this.taskExecutorResourceId = checkNotNull(taskExecutorResourceId);
         this.networkMemorySize = networkMemorySize;
@@ -58,6 +64,8 @@ public class ShuffleEnvironmentContext {
         this.eventPublisher = checkNotNull(eventPublisher);
         this.parentMetricGroup = checkNotNull(parentMetricGroup);
         this.ioExecutor = ioExecutor;
+        this.networkMemoryConfiguration = checkNotNull(networkMemoryConfiguration);
+        this.networkBufferPool = checkNotNull(networkBufferPool);
     }
 
     public Configuration getConfiguration() {
@@ -90,5 +98,13 @@ public class ShuffleEnvironmentContext {
 
     public Executor getIoExecutor() {
         return ioExecutor;
+    }
+
+    public NetworkMemoryConfiguration getNetworkMemoryConfiguration() {
+        return networkMemoryConfiguration;
+    }
+
+    public NetworkBufferPool getNetworkBufferPool() {
+        return networkBufferPool;
     }
 }

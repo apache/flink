@@ -67,12 +67,14 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
     /**
      * Update the task where the given partitions can be found.
      *
+     * @param jobID identifying the job
      * @param executionAttemptID identifying the task
      * @param partitionInfos telling where the partition can be retrieved from
      * @param timeout of the submit operation
      * @return Future acknowledge if the partitions have been successfully updated
      */
     CompletableFuture<Acknowledge> updatePartitions(
+            JobID jobID,
             ExecutionAttemptID executionAttemptID,
             Iterable<PartitionInfo> partitionInfos,
             Time timeout);

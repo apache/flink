@@ -36,7 +36,8 @@ public interface ShuffleServiceFactory<
         SD extends ShuffleDescriptor, P extends ResultPartitionWriter, G extends IndexedInputGate> {
 
     /**
-     * Factory method to create a specific {@link ShuffleMaster} implementation.
+     * Factory method to create a specific {@link ShuffleMaster} implementation. Note that this
+     * method should never throw any exception.
      *
      * @param shuffleMasterContext shuffle context for shuffle master.
      * @return shuffle manager implementation
@@ -44,7 +45,8 @@ public interface ShuffleServiceFactory<
     ShuffleMaster<SD> createShuffleMaster(ShuffleMasterContext shuffleMasterContext);
 
     /**
-     * Factory method to create a specific local {@link ShuffleEnvironment} implementation.
+     * Factory method to create a specific local {@link ShuffleEnvironment} implementation. Note
+     * that this method should never throw any exception.
      *
      * @param shuffleEnvironmentContext local context
      * @return local shuffle service environment implementation

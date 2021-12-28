@@ -68,10 +68,12 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 
     @Override
     public CompletableFuture<Acknowledge> updatePartitions(
+            JobID jobID,
             ExecutionAttemptID executionAttemptID,
             Iterable<PartitionInfo> partitionInfos,
             Time timeout) {
-        return taskExecutorGateway.updatePartitions(executionAttemptID, partitionInfos, timeout);
+        return taskExecutorGateway.updatePartitions(
+                jobID, executionAttemptID, partitionInfos, timeout);
     }
 
     @Override

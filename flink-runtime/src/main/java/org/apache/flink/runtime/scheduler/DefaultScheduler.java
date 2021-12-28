@@ -22,6 +22,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ShuffleServiceOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -112,6 +113,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     // anymore. The reserved allocation information is needed for local recovery.
     private final Map<ExecutionVertexID, AllocationID> reservedAllocationByExecutionVertex;
 
+    private final String configuredShuffleService;
+
     DefaultScheduler(
             final Logger log,
             final JobGraph jobGraph,
@@ -158,6 +161,9 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         this.userCodeLoader = checkNotNull(userCodeLoader);
         this.executionVertexOperations = checkNotNull(executionVertexOperations);
         this.shuffleMaster = checkNotNull(shuffleMaster);
+        this.configuredShuffleService =
+                jobGraph.getJobConfiguration()
+                        .getString(ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS, null);
         this.rpcTimeout = checkNotNull(rpcTimeout);
 
         this.reservedAllocationRefCounters = new HashMap<>();
@@ -580,11 +586,16 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 final boolean notifyPartitionDataAvailable =
                         deploymentHandle.getDeploymentOption().notifyPartitionDataAvailable();
 
+                final TaskManagerLocation producerLocation = logicalSlot.getTaskManagerLocation();
                 final CompletableFuture<Void> partitionRegistrationFuture =
                         executionVertex
                                 .getCurrentExecutionAttempt()
                                 .registerProducedPartitions(
-                                        logicalSlot.getTaskManagerLocation(),
+                                        producerLocation,
+                                        configuredShuffleService == null
+                                                ? producerLocation.defaultShuffleDataPort()
+                                                : producerLocation.getShuffleDataPort(
+                                                        configuredShuffleService),
                                         notifyPartitionDataAvailable);
 
                 return FutureUtils.orTimeout(

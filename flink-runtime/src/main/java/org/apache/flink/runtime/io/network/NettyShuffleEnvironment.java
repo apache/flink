@@ -326,7 +326,11 @@ public class NettyShuffleEnvironment
 
             try {
                 LOG.debug("Starting network connection manager");
-                return connectionManager.start();
+                int externalDataPort = config.getExternalDataPort();
+                int bindPort = connectionManager.start();
+                // we expose the task manager location with the bind port
+                // iff the external data port is not explicitly defined
+                return externalDataPort > 0 ? externalDataPort : bindPort;
             } catch (IOException t) {
                 throw new IOException("Failed to instantiate network connection manager.", t);
             }
@@ -357,20 +361,6 @@ public class NettyShuffleEnvironment
                 resultPartitionManager.shutdown();
             } catch (Throwable t) {
                 LOG.warn("Cannot shut down the result partition manager.", t);
-            }
-
-            // make sure that the global buffer pool re-acquires all buffers
-            try {
-                networkBufferPool.destroyAllBufferPools();
-            } catch (Throwable t) {
-                LOG.warn("Could not destroy all buffer pools.", t);
-            }
-
-            // destroy the buffer pool
-            try {
-                networkBufferPool.destroy();
-            } catch (Throwable t) {
-                LOG.warn("Network buffer pool did not shut down properly.", t);
             }
 
             // delete all the temp directories

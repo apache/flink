@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.util.NetUtils;
 
 import org.slf4j.Logger;
@@ -30,6 +31,8 @@ import javax.annotation.Nonnull;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -59,8 +62,17 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
     /** The supplier for fully qualified host name and pure hostname. */
     private final HostNameSupplier hostNameSupplier;
 
-    /** The port that the TaskManager receive data transport connection requests at. */
-    private final int dataPort;
+    /**
+     * The port that the TaskManager receive data transport connection requests at for the
+     * configured default shuffle service.
+     */
+    private final int defaultDataPort;
+
+    /**
+     * The port that the TaskManager receive data transport connection requests at for all available
+     * shuffle services.
+     */
+    private final Map<String, Integer> dataPortByFactoryName;
 
     /**
      * The toString representation, eagerly constructed and cached to avoid repeated string
@@ -68,12 +80,30 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
      */
     private String stringRepresentation;
 
+    @VisibleForTesting
+    public TaskManagerLocation(
+            ResourceID resourceID,
+            InetAddress inetAddress,
+            String defaultFactoryName,
+            int defaultDataPort,
+            HostNameSupplier hostNameSupplier) {
+        this(
+                resourceID,
+                inetAddress,
+                defaultDataPort,
+                getDataPortMap(defaultFactoryName, defaultDataPort),
+                hostNameSupplier);
+    }
+
     /**
      * Constructs a new instance connection info object. The constructor will attempt to retrieve
      * the instance's host name and domain name through the operating system's lookup mechanisms.
      *
      * @param inetAddress the network address the instance's task manager binds its sockets to
-     * @param dataPort the port instance's task manager expects to receive transfer envelopes on
+     * @param defaultDataPort the port instance's task manager expects to receive transfer envelopes
+     *     on for the configured default shuffle service
+     * @param dataPortByFactoryName the ports instance's task manager expects to receive transfer
+     *     envelopes on for all available shuffle services
      * @param hostNameSupplier the supplier for obtaining fully-qualified domain name and pure
      *     hostname of the task manager
      */
@@ -81,14 +111,18 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
     public TaskManagerLocation(
             ResourceID resourceID,
             InetAddress inetAddress,
-            int dataPort,
+            int defaultDataPort,
+            Map<String, Integer> dataPortByFactoryName,
             HostNameSupplier hostNameSupplier) {
-        // -1 indicates a local instance connection info
-        checkArgument(dataPort > 0 || dataPort == -1, "dataPort must be > 0, or -1 (local)");
+        this.defaultDataPort = defaultDataPort;
+        this.dataPortByFactoryName = checkNotNull(dataPortByFactoryName);
+        for (int dataPort : dataPortByFactoryName.values()) {
+            // -1 indicates a local instance connection info
+            checkArgument(dataPort > 0 || dataPort == -1, "dataPort must be > 0, or -1 (local)");
+        }
 
         this.resourceID = checkNotNull(resourceID);
         this.inetAddress = checkNotNull(inetAddress);
-        this.dataPort = dataPort;
         this.hostNameSupplier = checkNotNull(hostNameSupplier);
     }
 
@@ -97,11 +131,25 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
      * the instance's host name and domain name through the operating system's lookup mechanisms.
      *
      * @param inetAddress the network address the instance's task manager binds its sockets to
-     * @param dataPort the port instance's task manager expects to receive transfer envelopes on
+     * @param defaultDataPort the port instance's task manager expects to receive transfer envelopes
+     *     on
      */
     @VisibleForTesting
-    public TaskManagerLocation(ResourceID resourceID, InetAddress inetAddress, int dataPort) {
-        this(resourceID, inetAddress, dataPort, new DefaultHostNameSupplier(inetAddress));
+    public TaskManagerLocation(
+            ResourceID resourceID, InetAddress inetAddress, int defaultDataPort) {
+        this(
+                resourceID,
+                inetAddress,
+                NettyShuffleServiceFactory.class.getName(),
+                defaultDataPort,
+                new DefaultHostNameSupplier(inetAddress));
+    }
+
+    private static Map<String, Integer> getDataPortMap(
+            String defaultFactoryName, int defaultDataPort) {
+        Map<String, Integer> dataPortMap = new HashMap<>();
+        dataPortMap.put(defaultFactoryName, defaultDataPort);
+        return dataPortMap;
     }
 
     public static TaskManagerLocation fromUnresolvedLocation(
@@ -116,13 +164,15 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
                 return new TaskManagerLocation(
                         unresolvedLocation.getResourceID(),
                         inetAddress,
-                        unresolvedLocation.getDataPort(),
+                        unresolvedLocation.defaultShuffleDataPort(),
+                        unresolvedLocation.allShuffleDataPorts(),
                         new DefaultHostNameSupplier(inetAddress));
             case USE_IP_ONLY:
                 return new TaskManagerLocation(
                         unresolvedLocation.getResourceID(),
                         inetAddress,
-                        unresolvedLocation.getDataPort(),
+                        unresolvedLocation.defaultShuffleDataPort(),
+                        unresolvedLocation.allShuffleDataPorts(),
                         new IpOnlyHostNameSupplier(inetAddress));
             default:
                 throw new UnsupportedOperationException("Unsupported resolution mode provided.");
@@ -144,18 +194,30 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
      *   <li>Other deployment modes can set the resource ID in other ways.
      * </ul>
      *
-     * @return The ID of the resource in which the TaskManager is started
+     * @return The ID of the r「source in which the TaskManager is started
      */
     public ResourceID getResourceID() {
         return resourceID;
     }
 
     /**
-     * Returns the port instance's task manager expects to receive transfer envelopes on.
-     *
-     * @return the port instance's task manager expects to receive transfer envelopes on
+     * @return the data port instance's task manager expects to receive transfer envelopes on for
+     *     the configured default shuffle service.
      */
-    public int dataPort() {
+    public int defaultShuffleDataPort() {
+        return defaultDataPort;
+    }
+
+    /**
+     * @param factoryName target shuffle service identified by shuffle service factory name.
+     * @return the data port instance's task manager expects to receive transfer envelopes on for
+     *     the target shuffle service.
+     */
+    public int getShuffleDataPort(String factoryName) {
+        Integer dataPort = dataPortByFactoryName.get(factoryName);
+        if (dataPort == null) {
+            throw new IllegalArgumentException("Unknown shuffle service: " + factoryName);
+        }
         return dataPort;
     }
 
@@ -251,7 +313,9 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
     public String toString() {
         if (stringRepresentation == null) {
             this.stringRepresentation =
-                    String.format("%s @ %s (dataPort=%d)", resourceID, getFQDNHostname(), dataPort);
+                    String.format(
+                            "%s @ %s (dataPort=%d)",
+                            resourceID, getFQDNHostname(), defaultDataPort);
         }
         return stringRepresentation;
     }
@@ -264,7 +328,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
             TaskManagerLocation that = (TaskManagerLocation) obj;
             return this.resourceID.equals(that.resourceID)
                     && this.inetAddress.equals(that.inetAddress)
-                    && this.dataPort == that.dataPort;
+                    && this.defaultDataPort == that.defaultDataPort;
         } else {
             return false;
         }
@@ -272,7 +336,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 
     @Override
     public int hashCode() {
-        return resourceID.hashCode() + 17 * inetAddress.hashCode() + 129 * dataPort;
+        return resourceID.hashCode() + 17 * inetAddress.hashCode() + 129 * defaultDataPort;
     }
 
     @Override
@@ -305,9 +369,9 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
         }
 
         // addresses are identical, decide based on ports.
-        if (this.dataPort < o.dataPort) {
+        if (this.defaultDataPort < o.defaultDataPort) {
             return -1;
-        } else if (this.dataPort > o.dataPort) {
+        } else if (this.defaultDataPort > o.defaultDataPort) {
             return 1;
         } else {
             return 0;

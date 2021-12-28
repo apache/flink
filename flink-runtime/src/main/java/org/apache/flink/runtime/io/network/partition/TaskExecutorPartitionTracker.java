@@ -19,6 +19,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 
 import java.util.Collection;
@@ -36,16 +37,21 @@ public interface TaskExecutorPartitionTracker
     void startTrackingPartition(JobID producingJobId, TaskExecutorPartitionInfo partitionInfo);
 
     /** Releases the given partitions and stop the tracking of partitions that were released. */
-    void stopTrackingAndReleaseJobPartitions(Collection<ResultPartitionID> resultPartitionIds);
+    void stopTrackingAndReleaseJobPartitions(
+            ShuffleEnvironment<?, ?> shuffleEnvironment,
+            Collection<ResultPartitionID> resultPartitionIds);
 
     /**
      * Releases all partitions for the given job and stop the tracking of partitions that were
      * released.
      */
-    void stopTrackingAndReleaseJobPartitionsFor(JobID producingJobId);
+    void stopTrackingAndReleaseJobPartitionsFor(
+            ShuffleEnvironment<?, ?> shuffleEnvironment, JobID producingJobId);
 
     /** Promotes the given partitions. */
-    void promoteJobPartitions(Collection<ResultPartitionID> partitionsToPromote);
+    void promoteJobPartitions(
+            ShuffleEnvironment<?, ?> shuffleEnvironment,
+            Collection<ResultPartitionID> partitionsToPromote);
 
     /**
      * Releases partitions associated with the given datasets and stops tracking of partitions that

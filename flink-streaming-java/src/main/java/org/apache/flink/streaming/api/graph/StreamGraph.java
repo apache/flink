@@ -32,6 +32,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -93,6 +94,7 @@ public class StreamGraph implements Pipeline {
 
     private String jobName;
 
+    private final Configuration jobConfiguration;
     private final ExecutionConfig executionConfig;
     private final CheckpointConfig checkpointConfig;
     private SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.none();
@@ -130,9 +132,11 @@ public class StreamGraph implements Pipeline {
     private Map<String, ResourceProfile> slotSharingGroupResources;
 
     public StreamGraph(
+            Configuration jobConfiguration,
             ExecutionConfig executionConfig,
             CheckpointConfig checkpointConfig,
             SavepointRestoreSettings savepointRestoreSettings) {
+        this.jobConfiguration = checkNotNull(jobConfiguration);
         this.executionConfig = checkNotNull(executionConfig);
         this.checkpointConfig = checkNotNull(checkpointConfig);
         this.savepointRestoreSettings = checkNotNull(savepointRestoreSettings);
@@ -152,6 +156,10 @@ public class StreamGraph implements Pipeline {
         sources = new HashSet<>();
         sinks = new HashSet<>();
         slotSharingGroupResources = new HashMap<>();
+    }
+
+    public Configuration getJobConfiguration() {
+        return jobConfiguration;
     }
 
     public ExecutionConfig getExecutionConfig() {

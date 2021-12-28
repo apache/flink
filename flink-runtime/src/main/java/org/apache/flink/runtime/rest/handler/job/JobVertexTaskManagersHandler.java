@@ -132,7 +132,7 @@ public class JobVertexTaskManagersHandler
             String taskManagerHost =
                     location == null
                             ? "(unassigned)"
-                            : location.getHostname() + ':' + location.dataPort();
+                            : location.getHostname() + ':' + location.defaultShuffleDataPort();
             String taskmanagerId =
                     location == null ? "(unassigned)" : location.getResourceID().toString();
             taskManagerId2Host.put(taskmanagerId, taskManagerHost);

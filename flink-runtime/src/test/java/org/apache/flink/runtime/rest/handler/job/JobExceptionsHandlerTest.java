@@ -233,7 +233,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
                         String.format(
                                 "%s:%s",
                                 taskManagerLocation.getFQDNHostname(),
-                                taskManagerLocation.dataPort())));
+                                taskManagerLocation.defaultShuffleDataPort())));
     }
 
     @Test
@@ -253,7 +253,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
                         String.format(
                                 "%s:%s",
                                 taskManagerLocation.getFQDNHostname(),
-                                taskManagerLocation.dataPort())));
+                                taskManagerLocation.defaultShuffleDataPort())));
     }
 
     @Test

@@ -63,7 +63,7 @@ public class NettyShuffleDescriptorBuilder {
             TaskManagerLocation producerTaskManagerLocation) {
         return setProducerLocation(producerTaskManagerLocation.getResourceID())
                 .setAddress(producerTaskManagerLocation.address())
-                .setDataPort(producerTaskManagerLocation.dataPort());
+                .setDataPort(producerTaskManagerLocation.defaultShuffleDataPort());
     }
 
     public NettyShuffleDescriptorBuilder setConnectionIndex(int connectionIndex) {

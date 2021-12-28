@@ -19,6 +19,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 
 import java.util.Collection;
@@ -106,17 +107,21 @@ public class TestingTaskExecutorPartitionTracker implements TaskExecutorPartitio
 
     @Override
     public void stopTrackingAndReleaseJobPartitions(
+            ShuffleEnvironment<?, ?> shuffleEnvironment,
             Collection<ResultPartitionID> resultPartitionIds) {
         stopTrackingAndReleasePartitionsConsumer.accept(resultPartitionIds);
     }
 
     @Override
-    public void stopTrackingAndReleaseJobPartitionsFor(JobID producingJobId) {
+    public void stopTrackingAndReleaseJobPartitionsFor(
+            ShuffleEnvironment<?, ?> shuffleEnvironment, JobID producingJobId) {
         stopTrackingAndReleaseAllPartitionsConsumer.accept(producingJobId);
     }
 
     @Override
-    public void promoteJobPartitions(Collection<ResultPartitionID> partitionsToPromote) {
+    public void promoteJobPartitions(
+            ShuffleEnvironment<?, ?> shuffleEnvironment,
+            Collection<ResultPartitionID> partitionsToPromote) {
         promotePartitionsConsumer.accept(partitionsToPromote);
     }
 

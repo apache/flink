@@ -37,6 +37,7 @@ import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -160,7 +161,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
             startTaskManager(cfg, rpcService, highAvailabilityServices);
 
             fail("Should throw IOException when the network stack cannot be initialized.");
-        } catch (IOException e) {
+        } catch (FlinkException e) {
             // ignored
         } finally {
             IOUtils.closeQuietly(blocker);

@@ -23,6 +23,7 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.ShuffleServiceOptions;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.util.Preconditions;
 
@@ -37,6 +38,8 @@ public class JobMasterConfiguration {
 
     private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
 
+    private final String defaultShuffleServiceFactory;
+
     private final Configuration configuration;
 
     public JobMasterConfiguration(
@@ -50,6 +53,8 @@ public class JobMasterConfiguration {
         this.tmpDirectory = Preconditions.checkNotNull(tmpDirectory);
         this.retryingRegistrationConfiguration = retryingRegistrationConfiguration;
         this.configuration = Preconditions.checkNotNull(configuration);
+        this.defaultShuffleServiceFactory =
+                configuration.getString(ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS);
     }
 
     public Time getRpcTimeout() {
@@ -66,6 +71,10 @@ public class JobMasterConfiguration {
 
     public RetryingRegistrationConfiguration getRetryingRegistrationConfiguration() {
         return retryingRegistrationConfiguration;
+    }
+
+    public String getDefaultShuffleServiceFactory() {
+        return defaultShuffleServiceFactory;
     }
 
     public Configuration getConfiguration() {

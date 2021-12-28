@@ -37,6 +37,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.runtime.io.network.partition.TestingTaskExecutorPartitionTracker;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
@@ -132,7 +133,9 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()
                         .setTaskSlotTable(TaskSlotUtils.createTaskSlotTable(1, timeout))
-                        .setShuffleEnvironment(new NettyShuffleEnvironmentBuilder().build())
+                        .setShuffleEnvironment(
+                                NettyShuffleServiceFactory.class.getName(),
+                                new NettyShuffleEnvironmentBuilder().build())
                         .build();
 
         final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices);
