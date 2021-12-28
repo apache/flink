@@ -219,7 +219,7 @@ class MapAndMultisetToStringCastRule
                                                 // exceeded
                                                 .ifStmt(
                                                 stringExceedsLength(builderTerm, length),
-                                                thenBodyWriter -> thenBodyWriter.stmt("break"));
+                                                CastRuleUtils.CodeWriter::breakStmt);
                                     }
                                     loopBodyWriter
                                             // Write the comma

@@ -148,7 +148,7 @@ class ArrayToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Array
                                         // Break if the target length is already exceeded
                                         loopBodyWriter.ifStmt(
                                                 stringExceedsLength(builderTerm, length),
-                                                thenBodyWriter -> thenBodyWriter.stmt("break"));
+                                                CastRuleUtils.CodeWriter::breakStmt);
                                     }
                                     loopBodyWriter
                                             // Write the comma

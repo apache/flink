@@ -3862,18 +3862,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "SHA2('test', f44)",
       expectedSha256)
 
-    // bytes test
-    testSqlApi("MD5(cast('test' as varbinary))", expectedMd5)
-    testSqlApi("SHA1(cast('test' as varbinary))", expectedSha1)
-    testSqlApi("SHA224(cast('test' as varbinary))", expectedSha224)
-    testSqlApi("SHA2(cast('test' as varbinary), 224)", expectedSha224)
-    testSqlApi("SHA256(cast('test' as varbinary))", expectedSha256)
-    testSqlApi("SHA2(cast('test' as varbinary), 256)", expectedSha256)
-    testSqlApi("SHA384(cast('test' as varbinary))", expectedSha384)
-    testSqlApi("SHA2(cast('test' as varbinary), 384)", expectedSha384)
-    testSqlApi("SHA512(cast('test' as varbinary))", expectedSha512)
-    testSqlApi("SHA2(cast('test' as varbinary), 512)", expectedSha512)
-
+    // null test
     testSqlApi("MD5(cast(null as varbinary))", "NULL")
     testSqlApi("SHA1(cast(null as varbinary))", "NULL")
     testSqlApi("SHA224(cast(null as varbinary))", "NULL")
@@ -4157,7 +4146,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     // the answer BINARY will cast to STRING in ExpressionTestBase.scala
     testSqlApi(
       "IF(f7 < 5, f53, f54)",
-      "hello world") // hello world
+      "68656c6c6f20776f726c64") // hello world
 
     // test DATE, DATE
     testSqlApi(
@@ -4363,6 +4352,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "2021-04-06 11:05:30")
     testSqlApi(s"IFNULL(CAST(INTERVAL '2' YEAR AS VARCHAR(20)), $str2)", "+2-00")
     testSqlApi(s"IFNULL(CAST(INTERVAL '2' DAY AS VARCHAR(20)), $str2)", "+2 00:00:00.000")
-    testSqlApi(s"IFNULL(CAST(f53 AS VARCHAR(100)), $str2)", "hello world")
+    testSqlApi(
+      s"IFNULL(CAST(f53 AS VARCHAR(100)), $str2)",
+      "68656c6c6f20776f726c64")
   }
 }
