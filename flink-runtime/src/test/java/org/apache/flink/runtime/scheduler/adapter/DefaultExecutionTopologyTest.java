@@ -234,7 +234,8 @@ public class DefaultExecutionTopologyTest extends TestLogger {
             assertPartitionEquals(originalPartition, adaptedPartition);
 
             ConsumerVertexGroup consumerVertexGroup = originalPartition.getConsumerVertexGroup();
-            Iterable<DefaultExecutionVertex> adaptedConsumers = adaptedPartition.getConsumers();
+            Iterable<ExecutionVertexID> adaptedConsumers =
+                    adaptedPartition.getConsumerVertexGroup();
             for (ExecutionVertexID originalId : consumerVertexGroup) {
                 // it is sufficient to verify that some vertex exists with the correct ID here,
                 // since deep equality is verified later in the main loop
@@ -243,9 +244,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
                 // identical to those stored in the partition
                 assertTrue(
                         IterableUtils.toStream(adaptedConsumers)
-                                .anyMatch(
-                                        adaptedConsumer ->
-                                                adaptedConsumer.getId().equals(originalId)));
+                                .anyMatch(adaptedConsumer -> adaptedConsumer.equals(originalId)));
             }
         }
     }

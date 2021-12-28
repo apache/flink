@@ -21,16 +21,13 @@ package org.apache.flink.runtime.scheduler.strategy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.util.IterableUtils;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -51,8 +48,6 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
 
     private final List<ConsumedPartitionGroup> consumedPartitionGroups;
 
-    private final Map<ExecutionVertexID, TestingSchedulingExecutionVertex> executionVerticesById;
-
     private ResultPartitionState state;
 
     private TestingSchedulingResultPartition(
@@ -66,7 +61,6 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
         this.intermediateResultPartitionID =
                 new IntermediateResultPartitionID(dataSetID, partitionNum);
         this.consumedPartitionGroups = new ArrayList<>();
-        this.executionVerticesById = new HashMap<>();
     }
 
     @Override
@@ -95,14 +89,6 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
     }
 
     @Override
-    public Iterable<TestingSchedulingExecutionVertex> getConsumers() {
-        checkNotNull(consumerVertexGroup);
-        return IterableUtils.toStream(consumerVertexGroup)
-                .map(executionVerticesById::get)
-                .collect(Collectors.toList());
-    }
-
-    @Override
     public ConsumerVertexGroup getConsumerVertexGroup() {
         checkNotNull(consumerVertexGroup);
         return consumerVertexGroup;
@@ -121,8 +107,6 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
                         consumerVertices.stream()
                                 .map(TestingSchedulingExecutionVertex::getId)
                                 .collect(Collectors.toList()));
-
-        consumerVertices.forEach(v -> this.executionVerticesById.put(v.getId(), v));
 
         this.consumerVertexGroup = consumerVertexGroup;
     }
