@@ -403,7 +403,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                 "Stopping the JobMaster for job '{}' ({}).",
                 jobGraph.getName(),
                 jobGraph.getJobID());
-
+        super.onStop();
         // make sure there is a graceful exit
         return stopJobExecution(
                         new FlinkException(

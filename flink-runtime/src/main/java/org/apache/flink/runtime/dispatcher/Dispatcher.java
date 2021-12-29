@@ -276,7 +276,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     @Override
     public CompletableFuture<Void> onStop() {
         log.info("Stopping dispatcher {}.", getAddress());
-
+        super.onStop();
         final CompletableFuture<Void> allJobsTerminationFuture =
                 terminateRunningJobsAndGetTerminationFuture();
 
