@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowTab
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.calcite.rel.RelNode
 
 import java.util
 
@@ -38,8 +38,7 @@ class StreamPhysicalWindowTableFunction(
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    windowing: TimeAttributeWindowingStrategy,
-    val emitPerRecord: Boolean)
+    windowing: TimeAttributeWindowingStrategy)
   extends CommonPhysicalWindowTableFunction(
     cluster,
     traitSet,
@@ -56,29 +55,12 @@ class StreamPhysicalWindowTableFunction(
       traitSet,
       inputs.get(0),
       outputRowType,
-      windowing,
-      emitPerRecord)
-  }
-
-  def copy(emitPerRecord: Boolean): StreamPhysicalWindowTableFunction = {
-    new StreamPhysicalWindowTableFunction(
-      cluster,
-      traitSet,
-      input,
-      outputRowType,
-      windowing,
-      emitPerRecord)
-  }
-
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
-      .itemIf("emitPerRecord", "true", emitPerRecord)
+      windowing)
   }
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecWindowTableFunction(
       windowing,
-      emitPerRecord,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription

@@ -2743,8 +2743,7 @@ class FlinkRelMdHandlerTestBase {
         new TimeAttributeWindowingStrategy(
           windowSpec,
           new TimestampType(true, TimestampKind.ROWTIME, 3),
-          timeFieldIdx),
-        false)
+          timeFieldIdx))
     } else {
       new BatchPhysicalWindowTableFunction(
         cluster,

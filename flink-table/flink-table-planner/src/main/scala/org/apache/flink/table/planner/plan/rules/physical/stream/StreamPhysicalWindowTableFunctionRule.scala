@@ -58,8 +58,7 @@ class StreamPhysicalWindowTableFunctionRule  extends ConverterRule(
       traitSet,
       newInput,
       scan.getRowType,
-      convertToWindowingStrategy(windowTableFunction, inputRowType),
-      false
+      convertToWindowingStrategy(windowTableFunction, inputRowType)
     )
   }
 }
