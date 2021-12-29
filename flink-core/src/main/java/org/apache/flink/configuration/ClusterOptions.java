@@ -121,6 +121,14 @@ public class ClusterOptions {
                                             code(HALT_ON_FATAL_ERROR.key()), code(THROW.name()))
                                     .build());
 
+    @Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)
+    public static final ConfigOption<Integer> THREAD_DUMP_STACKTRACE_MAX_DEPTH =
+            key("cluster.thread-dump.stacktrace-max-depth")
+                    .intType()
+                    .defaultValue(8)
+                    .withDescription(
+                            "The maximum stacktrace depth of TaskManager and JobManager's thread dump web-frontend displayed.");
+
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     public static final ConfigOption<Boolean> ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT =
             ConfigOptions.key("cluster.fine-grained-resource-management.enabled")

@@ -18,12 +18,15 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.util.JvmUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
+import java.lang.management.LockInfo;
+import java.lang.management.MonitorInfo;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -51,14 +54,98 @@ public final class ThreadDumpInfo implements ResponseBody, Serializable {
         return new ThreadDumpInfo(threadInfos);
     }
 
-    public static ThreadDumpInfo dumpAndCreate() {
+    public static ThreadDumpInfo dumpAndCreate(int stacktraceMaxDepth) {
         return create(
                 JvmUtils.createThreadDump().stream()
                         .map(
                                 threadInfo ->
                                         ThreadDumpInfo.ThreadInfo.create(
-                                                threadInfo.getThreadName(), threadInfo.toString()))
+                                                threadInfo.getThreadName(),
+                                                stringifyThreadInfo(
+                                                        threadInfo, stacktraceMaxDepth)))
                         .collect(Collectors.toList()));
+    }
+
+    /**
+     * Custom stringify format of JVM thread info to bypass the MAX_FRAMES = 8 limitation.
+     *
+     * <p>This method is based on
+     * https://github.com/openjdk/jdk/blob/master/src/java.management/share/classes/java/lang/management/ThreadInfo.java#L597
+     */
+    @VisibleForTesting
+    protected static String stringifyThreadInfo(
+            java.lang.management.ThreadInfo threadInfo, int maxDepth) {
+        StringBuilder sb =
+                new StringBuilder(
+                        "\""
+                                + threadInfo.getThreadName()
+                                + "\""
+                                + " Id="
+                                + threadInfo.getThreadId()
+                                + " "
+                                + threadInfo.getThreadState());
+        if (threadInfo.getLockName() != null) {
+            sb.append(" on " + threadInfo.getLockName());
+        }
+        if (threadInfo.getLockOwnerName() != null) {
+            sb.append(
+                    " owned by \""
+                            + threadInfo.getLockOwnerName()
+                            + "\" Id="
+                            + threadInfo.getLockOwnerId());
+        }
+        if (threadInfo.isSuspended()) {
+            sb.append(" (suspended)");
+        }
+        if (threadInfo.isInNative()) {
+            sb.append(" (in native)");
+        }
+        sb.append('\n');
+        int i = 0;
+        StackTraceElement[] stackTraceElements = threadInfo.getStackTrace();
+        for (; i < stackTraceElements.length && i < maxDepth; i++) {
+            StackTraceElement ste = stackTraceElements[i];
+            sb.append("\tat " + ste.toString());
+            sb.append('\n');
+            if (i == 0 && threadInfo.getLockInfo() != null) {
+                Thread.State ts = threadInfo.getThreadState();
+                switch (ts) {
+                    case BLOCKED:
+                        sb.append("\t-  blocked on " + threadInfo.getLockInfo());
+                        sb.append('\n');
+                        break;
+                    case WAITING:
+                    case TIMED_WAITING:
+                        sb.append("\t-  waiting on " + threadInfo.getLockInfo());
+                        sb.append('\n');
+                        break;
+                    default:
+                }
+            }
+
+            for (MonitorInfo mi : threadInfo.getLockedMonitors()) {
+                if (mi.getLockedStackDepth() == i) {
+                    sb.append("\t-  locked " + mi);
+                    sb.append('\n');
+                }
+            }
+        }
+        if (i < threadInfo.getStackTrace().length) {
+            sb.append("\t...");
+            sb.append('\n');
+        }
+
+        LockInfo[] locks = threadInfo.getLockedSynchronizers();
+        if (locks.length > 0) {
+            sb.append("\n\tNumber of locked synchronizers = " + locks.length);
+            sb.append('\n');
+            for (LockInfo li : locks) {
+                sb.append("\t- " + li);
+                sb.append('\n');
+            }
+        }
+        sb.append('\n');
+        return sb.toString();
     }
 
     /** Class containing information about a thread. */
