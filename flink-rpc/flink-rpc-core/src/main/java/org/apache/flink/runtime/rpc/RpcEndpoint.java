@@ -429,13 +429,7 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 
         @Override
         public void execute(@Nonnull Runnable command) {
-            if (!scheduledExecutorService.isShutdown()) {
-                gateway.runAsync(command);
-            } else {
-                log.warn(
-                        "The scheduled executor service is shutdown and main thread executor will ignore the command {}",
-                        command);
-            }
+            gateway.runAsync(command);
         }
 
         /**
