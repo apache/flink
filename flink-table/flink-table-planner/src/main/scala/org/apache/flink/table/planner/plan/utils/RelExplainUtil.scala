@@ -21,8 +21,8 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.CalcitePair
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
-import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
+import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import com.google.common.collect.ImmutableMap
@@ -32,8 +32,8 @@ import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.{RelCollation, RelWriter}
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.{SqlExplainLevel, SqlKind}
 import org.apache.calcite.sql.SqlMatchRecognize.AfterOption
+import org.apache.calcite.sql.{SqlExplainLevel, SqlKind}
 
 import java.util
 import java.util.{SortedSet => JSortedSet}
@@ -510,7 +510,7 @@ object RelExplainUtil {
     val outputFieldNames = outputRowType.getFieldNames
 
     val aggStrings = namedAggregates.map(_.getKey).map(
-      a => s"${a.getAggregation}(${
+      a => s"""${a.getAggregation}(${
         val prefix = if (a.isDistinct) {
           "DISTINCT "
         } else {
@@ -530,7 +530,8 @@ object RelExplainUtil {
         } else {
           "*"
         })
-      })")
+      })""".stripMargin
+    )
 
     val output = if (outputInputName) inputFieldNames ++ aggStrings else aggStrings
     output.zip(outputFieldNames.drop(rowTypeOffset)).map {

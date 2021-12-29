@@ -21,8 +21,9 @@ import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.JList
-import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
+import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
+
 import com.google.common.base.Function
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.avatica.util.ByteString
@@ -30,8 +31,8 @@ import org.apache.calcite.plan.{RelOptPredicateList, RelOptUtil}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.fun.{SqlCastFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
+import org.apache.calcite.sql.fun.{SqlCastFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.{SqlAsOperator, SqlKind, SqlOperator}
 import org.apache.calcite.util.{ControlFlowException, DateString, ImmutableBitSet, NlsString, Sarg, TimeString, TimestampString, Util}
 
@@ -39,6 +40,7 @@ import java.lang.{Iterable => JIterable}
 import java.math.BigDecimal
 import java.util
 import java.util.function.Predicate
+
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
