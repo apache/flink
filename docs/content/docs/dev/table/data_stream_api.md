@@ -2788,7 +2788,7 @@ t_env = ... # type: StreamTableEnvironment
 
 stream = ... # type: DataStream of Types.TUPLE([Types.LONG(), Types.STRING()])
 
-table2 = t_env.from_data_stream(stream, col('my_long'), col('my_stram'))
+table2 = t_env.from_data_stream(stream, col('my_long'), col('my_stream'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
