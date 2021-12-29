@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.PermanentBlobService;
@@ -66,8 +65,6 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
  */
 public class TaskManagerServices {
     private static final Logger LOG = LoggerFactory.getLogger(TaskManagerServices.class);
-
-    @VisibleForTesting public static final String LOCAL_STATE_SUB_DIRECTORY_ROOT = "localState";
 
     /** TaskManager services. */
     private final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation;
@@ -326,20 +323,13 @@ public class TaskManagerServices {
                         unresolvedTaskManagerLocation,
                         taskManagerServicesConfiguration.getRetryingRegistrationConfiguration());
 
-        final String[] stateRootDirectoryStrings =
-                taskManagerServicesConfiguration.getLocalRecoveryStateRootDirectories();
-
-        final File[] stateRootDirectoryFiles = new File[stateRootDirectoryStrings.length];
-
-        for (int i = 0; i < stateRootDirectoryStrings.length; ++i) {
-            stateRootDirectoryFiles[i] =
-                    new File(stateRootDirectoryStrings[i], LOCAL_STATE_SUB_DIRECTORY_ROOT);
-        }
+        final File[] stateRootDirectoryStrings =
+                taskManagerServicesConfiguration.getLocalRecoveryStateDirectories();
 
         final TaskExecutorLocalStateStoresManager taskStateManager =
                 new TaskExecutorLocalStateStoresManager(
                         taskManagerServicesConfiguration.isLocalRecoveryEnabled(),
-                        stateRootDirectoryFiles,
+                        taskManagerServicesConfiguration.getLocalRecoveryStateDirectories(),
                         ioExecutor);
 
         final TaskExecutorStateChangelogStoragesManager changelogStoragesManager =
