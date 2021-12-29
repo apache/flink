@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
@@ -59,7 +60,7 @@ public class TaskExecutorLocalStateStoresManager {
     private final boolean localRecoveryEnabled;
 
     /** This is the root directory for all local state of this task manager / executor. */
-    private final File[] localStateRootDirectories;
+    private final Reference<File[]> localStateRootDirectories;
 
     /** Executor that runs the discarding of released state objects. */
     private final Executor discardExecutor;
@@ -74,7 +75,7 @@ public class TaskExecutorLocalStateStoresManager {
 
     public TaskExecutorLocalStateStoresManager(
             boolean localRecoveryEnabled,
-            @Nonnull File[] localStateRootDirectories,
+            @Nonnull Reference<File[]> localStateRootDirectories,
             @Nonnull Executor discardExecutor)
             throws IOException {
 
@@ -90,7 +91,7 @@ public class TaskExecutorLocalStateStoresManager {
         this.lock = new Object();
         this.closed = false;
 
-        for (File localStateRecoveryRootDir : localStateRootDirectories) {
+        for (File localStateRecoveryRootDir : localStateRootDirectories.deref()) {
 
             if (!localStateRecoveryRootDir.exists()
                     && !localStateRecoveryRootDir.mkdirs()
@@ -219,28 +220,30 @@ public class TaskExecutorLocalStateStoresManager {
     }
 
     public void shutdown() {
-
-        HashMap<AllocationID, Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore>> toRelease;
-
         synchronized (lock) {
             if (closed) {
                 return;
             }
 
             closed = true;
-            toRelease = new HashMap<>(taskStateStoresByAllocationID);
             taskStateStoresByAllocationID.clear();
         }
 
-        ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
-
         LOG.info("Shutting down TaskExecutorLocalStateStoresManager.");
 
-        for (Map.Entry<AllocationID, Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore>> entry :
-                toRelease.entrySet()) {
+        ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
 
-            doRelease(entry.getValue().values());
-            cleanupAllocationBaseDirs(entry.getKey());
+        if (localStateRootDirectories.isOwned()) {
+            for (File localStateRootDirectory : localStateRootDirectories.deref()) {
+                try {
+                    FileUtils.deleteDirectory(localStateRootDirectory);
+                } catch (IOException ioe) {
+                    LOG.warn(
+                            "Could not delete local state directory {}.",
+                            localStateRootDirectory,
+                            ioe);
+                }
+            }
         }
     }
 
@@ -251,7 +254,7 @@ public class TaskExecutorLocalStateStoresManager {
 
     @VisibleForTesting
     File[] getLocalStateRootDirectories() {
-        return localStateRootDirectories;
+        return localStateRootDirectories.deref();
     }
 
     @VisibleForTesting
@@ -261,10 +264,11 @@ public class TaskExecutorLocalStateStoresManager {
 
     private File[] allocationBaseDirectories(AllocationID allocationID) {
         final String allocationSubDirString = allocationSubDirString(allocationID);
-        final File[] allocationDirectories = new File[localStateRootDirectories.length];
-        for (int i = 0; i < localStateRootDirectories.length; ++i) {
+        final File[] derefLocalStateRootDirectories = localStateRootDirectories.deref();
+        final File[] allocationDirectories = new File[derefLocalStateRootDirectories.length];
+        for (int i = 0; i < derefLocalStateRootDirectories.length; ++i) {
             allocationDirectories[i] =
-                    new File(localStateRootDirectories[i], allocationSubDirString);
+                    new File(derefLocalStateRootDirectories[i], allocationSubDirString);
         }
         return allocationDirectories;
     }

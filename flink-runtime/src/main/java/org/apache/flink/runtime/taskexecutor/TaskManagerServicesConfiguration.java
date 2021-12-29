@@ -34,6 +34,7 @@ import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.Reference;
 
 import javax.annotation.Nullable;
 
@@ -66,7 +67,7 @@ public class TaskManagerServicesConfiguration {
 
     private final String[] tmpDirPaths;
 
-    private final File[] localRecoveryStateDirectories;
+    private final Reference<File[]> localRecoveryStateDirectories;
 
     private final int numberOfSlots;
 
@@ -98,7 +99,7 @@ public class TaskManagerServicesConfiguration {
             int externalDataPort,
             boolean localCommunicationOnly,
             String[] tmpDirPaths,
-            File[] localRecoveryStateDirectories,
+            Reference<File[]> localRecoveryStateDirectories,
             boolean localRecoveryEnabled,
             @Nullable QueryableStateConfiguration queryableStateConfig,
             int numberOfSlots,
@@ -172,7 +173,7 @@ public class TaskManagerServicesConfiguration {
         return tmpDirPaths;
     }
 
-    File[] getLocalRecoveryStateDirectories() {
+    Reference<File[]> getLocalRecoveryStateDirectories() {
         return localRecoveryStateDirectories;
     }
 
@@ -256,17 +257,20 @@ public class TaskManagerServicesConfiguration {
             WorkingDirectory workingDirectory)
             throws Exception {
         String[] localStateRootDirs = ConfigurationUtils.parseLocalStateDirectories(configuration);
-        final File[] localStateDirs;
+        final Reference<File[]> localStateDirs;
 
         if (localStateRootDirs.length == 0) {
-            localStateDirs = new File[] {workingDirectory.getLocalStateDirectory()};
+            localStateDirs =
+                    Reference.borrowed(new File[] {workingDirectory.getLocalStateDirectory()});
         } else {
-            localStateDirs = new File[localStateRootDirs.length];
+            File[] createdLocalStateDirs = new File[localStateRootDirs.length];
             final String localStateDirectoryName = LOCAL_STATE_SUB_DIRECTORY_ROOT + resourceID;
 
             for (int i = 0; i < localStateRootDirs.length; i++) {
-                localStateDirs[i] = new File(localStateRootDirs[i], localStateDirectoryName);
+                createdLocalStateDirs[i] = new File(localStateRootDirs[i], localStateDirectoryName);
             }
+
+            localStateDirs = Reference.owned(createdLocalStateDirs);
         }
 
         boolean localRecoveryMode = configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY);
