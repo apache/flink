@@ -50,6 +50,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class TaskManagerServicesConfiguration {
 
+    private static final String LOCAL_STATE_SUB_DIRECTORY_ROOT = "localState_";
+
     private final Configuration configuration;
 
     private final ResourceID resourceID;
@@ -64,7 +66,7 @@ public class TaskManagerServicesConfiguration {
 
     private final String[] tmpDirPaths;
 
-    private final String[] localRecoveryStateRootDirectories;
+    private final File[] localRecoveryStateDirectories;
 
     private final int numberOfSlots;
 
@@ -96,7 +98,7 @@ public class TaskManagerServicesConfiguration {
             int externalDataPort,
             boolean localCommunicationOnly,
             String[] tmpDirPaths,
-            String[] localRecoveryStateRootDirectories,
+            File[] localRecoveryStateDirectories,
             boolean localRecoveryEnabled,
             @Nullable QueryableStateConfiguration queryableStateConfig,
             int numberOfSlots,
@@ -116,7 +118,7 @@ public class TaskManagerServicesConfiguration {
         this.externalDataPort = externalDataPort;
         this.localCommunicationOnly = localCommunicationOnly;
         this.tmpDirPaths = checkNotNull(tmpDirPaths);
-        this.localRecoveryStateRootDirectories = checkNotNull(localRecoveryStateRootDirectories);
+        this.localRecoveryStateDirectories = checkNotNull(localRecoveryStateDirectories);
         this.localRecoveryEnabled = checkNotNull(localRecoveryEnabled);
         this.queryableStateConfig = queryableStateConfig;
         this.numberOfSlots = checkNotNull(numberOfSlots);
@@ -170,8 +172,8 @@ public class TaskManagerServicesConfiguration {
         return tmpDirPaths;
     }
 
-    String[] getLocalRecoveryStateRootDirectories() {
-        return localRecoveryStateRootDirectories;
+    File[] getLocalRecoveryStateDirectories() {
+        return localRecoveryStateDirectories;
     }
 
     boolean isLocalRecoveryEnabled() {
@@ -253,12 +255,18 @@ public class TaskManagerServicesConfiguration {
             TaskExecutorResourceSpec taskExecutorResourceSpec,
             WorkingDirectory workingDirectory)
             throws Exception {
-        String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
+        String[] localStateRootDirs = ConfigurationUtils.parseLocalStateDirectories(configuration);
+        final File[] localStateDirs;
 
-        if (localStateRootDir.length == 0) {
-            final File localStateDir = workingDirectory.getLocalStateDirectory();
+        if (localStateRootDirs.length == 0) {
+            localStateDirs = new File[] {workingDirectory.getLocalStateDirectory()};
+        } else {
+            localStateDirs = new File[localStateRootDirs.length];
+            final String localStateDirectoryName = LOCAL_STATE_SUB_DIRECTORY_ROOT + resourceID;
 
-            localStateRootDir = new String[] {localStateDir.getAbsolutePath()};
+            for (int i = 0; i < localStateRootDirs.length; i++) {
+                localStateDirs[i] = new File(localStateRootDirs[i], localStateDirectoryName);
+            }
         }
 
         boolean localRecoveryMode = configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY);
@@ -298,7 +306,7 @@ public class TaskManagerServicesConfiguration {
                 externalDataPort,
                 localCommunicationOnly,
                 tmpDirs,
-                localStateRootDir,
+                localStateDirs,
                 localRecoveryMode,
                 queryableStateConfig,
                 ConfigurationParserUtils.getSlot(configuration),

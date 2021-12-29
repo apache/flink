@@ -42,6 +42,9 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.net.InetAddress;
+import java.nio.file.Paths;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link TaskExecutorLocalStateStoresManager}. */
 public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
@@ -89,15 +92,12 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
             String[] split = rootDirString.split(",");
             File[] rootDirectories = taskStateManager.getLocalStateRootDirectories();
             for (int i = 0; i < split.length; ++i) {
-                Assert.assertEquals(
-                        new File(split[i], TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT),
-                        rootDirectories[i]);
+                assertThat(rootDirectories[i].toPath()).startsWith(Paths.get(split[i]));
             }
 
             // verify local recovery mode
             Assert.assertTrue(taskStateManager.isLocalRecoveryEnabled());
 
-            Assert.assertEquals("localState", TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT);
             for (File rootDirectory : rootDirectories) {
                 FileUtils.deleteFileOrDirectory(rootDirectory);
             }
@@ -131,10 +131,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
             for (int i = 0; i < localStateRootDirectories.length; ++i) {
                 Assert.assertEquals(
-                        new File(
-                                workingDirectory.getLocalStateDirectory(),
-                                TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT),
-                        localStateRootDirectories[i]);
+                        workingDirectory.getLocalStateDirectory(), localStateRootDirectories[i]);
             }
 
             Assert.assertFalse(taskStateManager.isLocalRecoveryEnabled());
