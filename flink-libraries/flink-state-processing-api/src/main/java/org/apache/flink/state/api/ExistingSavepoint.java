@@ -30,7 +30,6 @@ import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -44,6 +43,8 @@ import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 
@@ -83,15 +84,16 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
      * savepoint. This is also the state backend that will be used when writing again this existing
      * savepoint.
      */
-    private final StateBackend stateBackend;
+    @Nullable private final StateBackend stateBackend;
 
     ExistingSavepoint(
-            ExecutionEnvironment env, SavepointMetadata metadata, StateBackend stateBackend)
+            ExecutionEnvironment env,
+            SavepointMetadata metadata,
+            @Nullable StateBackend stateBackend)
             throws IOException {
         super(metadata, stateBackend);
         Preconditions.checkNotNull(env, "The execution environment must not be null");
         Preconditions.checkNotNull(metadata, "The savepoint metadata must not be null");
-        Preconditions.checkNotNull(stateBackend, "The state backend must not be null");
 
         this.env = env;
         this.metadata = metadata;
@@ -113,7 +115,8 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
         OperatorState operatorState = metadata.getOperatorState(uid);
         ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, typeInfo);
         ListStateInputFormat<T> inputFormat =
-                new ListStateInputFormat<>(operatorState, new Configuration(), null, descriptor);
+                new ListStateInputFormat<>(
+                        operatorState, env.getConfiguration(), stateBackend, descriptor);
         return env.createInput(inputFormat, typeInfo);
     }
 
@@ -137,7 +140,8 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
         OperatorState operatorState = metadata.getOperatorState(uid);
         ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, serializer);
         ListStateInputFormat<T> inputFormat =
-                new ListStateInputFormat<>(operatorState, new Configuration(), null, descriptor);
+                new ListStateInputFormat<>(
+                        operatorState, env.getConfiguration(), stateBackend, descriptor);
         return env.createInput(inputFormat, typeInfo);
     }
 
@@ -156,7 +160,8 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
         OperatorState operatorState = metadata.getOperatorState(uid);
         ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, typeInfo);
         UnionStateInputFormat<T> inputFormat =
-                new UnionStateInputFormat<>(operatorState, new Configuration(), null, descriptor);
+                new UnionStateInputFormat<>(
+                        operatorState, env.getConfiguration(), stateBackend, descriptor);
         return env.createInput(inputFormat, typeInfo);
     }
 
@@ -180,7 +185,8 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
         OperatorState operatorState = metadata.getOperatorState(uid);
         ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, serializer);
         UnionStateInputFormat<T> inputFormat =
-                new UnionStateInputFormat<>(operatorState, new Configuration(), null, descriptor);
+                new UnionStateInputFormat<>(
+                        operatorState, env.getConfiguration(), stateBackend, descriptor);
         return env.createInput(inputFormat, typeInfo);
     }
 
@@ -208,7 +214,7 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
                 new MapStateDescriptor<>(name, keyTypeInfo, valueTypeInfo);
         BroadcastStateInputFormat<K, V> inputFormat =
                 new BroadcastStateInputFormat<>(
-                        operatorState, new Configuration(), null, descriptor);
+                        operatorState, env.getConfiguration(), stateBackend, descriptor);
         return env.createInput(inputFormat, new TupleTypeInfo<>(keyTypeInfo, valueTypeInfo));
     }
 
@@ -242,7 +248,7 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
                 new MapStateDescriptor<>(name, keySerializer, valueSerializer);
         BroadcastStateInputFormat<K, V> inputFormat =
                 new BroadcastStateInputFormat<>(
-                        operatorState, new Configuration(), null, descriptor);
+                        operatorState, env.getConfiguration(), stateBackend, descriptor);
         return env.createInput(inputFormat, new TupleTypeInfo<>(keyTypeInfo, valueTypeInfo));
     }
 

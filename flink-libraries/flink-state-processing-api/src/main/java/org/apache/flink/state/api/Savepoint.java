@@ -52,14 +52,43 @@ public final class Savepoint {
 
     /**
      * Loads an existing savepoint. Useful if you want to query, modify, or extend the state of an
+     * existing application. The savepoint will be read using the state backend defined via the
+     * clusters configuration.
+     *
+     * @param env The execution environment used to transform the savepoint.
+     * @param path The path to an existing savepoint on disk.
+     * @see #load(ExecutionEnvironment, String, StateBackend)
+     */
+    public static ExistingSavepoint load(ExecutionEnvironment env, String path) throws IOException {
+        CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(path);
+
+        int maxParallelism =
+                metadata.getOperatorStates().stream()
+                        .map(OperatorState::getMaxParallelism)
+                        .max(Comparator.naturalOrder())
+                        .orElseThrow(
+                                () ->
+                                        new RuntimeException(
+                                                "Savepoint must contain at least one operator state."));
+
+        SavepointMetadata savepointMetadata =
+                new SavepointMetadata(
+                        maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
+        return new ExistingSavepoint(env, savepointMetadata, null);
+    }
+
+    /**
+     * Loads an existing savepoint. Useful if you want to query, modify, or extend the state of an
      * existing application.
      *
      * @param env The execution environment used to transform the savepoint.
      * @param path The path to an existing savepoint on disk.
      * @param stateBackend The state backend of the savepoint.
+     * @see #load(ExecutionEnvironment, String)
      */
     public static ExistingSavepoint load(
             ExecutionEnvironment env, String path, StateBackend stateBackend) throws IOException {
+        Preconditions.checkNotNull(stateBackend, "The state backend must not be null");
         CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(path);
 
         int maxParallelism =
@@ -78,13 +107,37 @@ public final class Savepoint {
     }
 
     /**
+     * Creates a new savepoint. The savepoint will be read using the state backend defined via the
+     * clusters configuration.
+     *
+     * @param maxParallelism The max parallelism of the savepoint.
+     * @return A new savepoint.
+     * @see #create(StateBackend, int)
+     */
+    public static NewSavepoint create(int maxParallelism) {
+        Preconditions.checkArgument(
+                maxParallelism > 0 && maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
+                "Maximum parallelism must be between 1 and "
+                        + UPPER_BOUND_MAX_PARALLELISM
+                        + ". Found: "
+                        + maxParallelism);
+
+        SavepointMetadata metadata =
+                new SavepointMetadata(
+                        maxParallelism, Collections.emptyList(), Collections.emptyList());
+        return new NewSavepoint(metadata, null);
+    }
+
+    /**
      * Creates a new savepoint.
      *
      * @param stateBackend The state backend of the savepoint used for keyed state.
      * @param maxParallelism The max parallelism of the savepoint.
      * @return A new savepoint.
+     * @see #create(int)
      */
     public static NewSavepoint create(StateBackend stateBackend, int maxParallelism) {
+        Preconditions.checkNotNull(stateBackend, "The state backend must not be null");
         Preconditions.checkArgument(
                 maxParallelism > 0 && maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
                 "Maximum parallelism must be between 1 and "
