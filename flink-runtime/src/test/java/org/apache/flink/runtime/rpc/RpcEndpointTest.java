@@ -330,6 +330,38 @@ public class RpcEndpointTest extends TestLogger {
                                 () -> 1, expectedDelay.toMillis() / 1000, TimeUnit.SECONDS));
     }
 
+    @Test
+    public void testShutdownScheduledExecutorServiceOnStop() throws Exception {
+        // given: Endpoint with overridden onStop method(Emulation of RpcEndpoint extension).
+        RpcService rpcService =
+                RpcSystem.load().localServiceBuilder(new Configuration()).createAndStart();
+        final RpcEndpoint endpoint =
+                new BaseEndpoint(rpcService) {
+                    @Override
+                    protected CompletableFuture<Void> onStop() {
+                        super.onStop();
+                        return CompletableFuture.completedFuture(null);
+                    }
+                };
+        try {
+            endpoint.start();
+
+            // when: Stopping rpc service.
+            CompletableFuture<Void> cancel = rpcService.stopService();
+            cancel.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+
+            // then: ScheduledExecutorService inside RpcEndpoint should be stopped as well.
+            ScheduledFuture<?> future =
+                    endpoint.getMainThreadExecutor().schedule(() -> {}, 0, TimeUnit.MILLISECONDS);
+            assertTrue(future.isDone());
+            assertTrue(future instanceof ThrowingScheduledFuture);
+            assertTrue(future.cancel(true));
+            assertTrue(future.cancel(false));
+        } finally {
+            RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
+        }
+    }
+
     private static void testScheduleWithDelay(
             BiConsumer<RpcEndpoint.MainThreadExecutor, Duration> scheduler) throws Exception {
         final CompletableFuture<Void> actualDelayMsFuture = new CompletableFuture<>();

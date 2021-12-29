@@ -264,6 +264,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     @Override
     public final CompletableFuture<Void> onStop() {
+        super.onStop();
         try {
             stopResourceManagerServices();
         } catch (Exception exception) {

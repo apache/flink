@@ -227,7 +227,9 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
      * <p>This method is called when the RpcEndpoint is being shut down. The method is guaranteed to
      * be executed in the main thread context and can be used to clean up internal state.
      *
-     * <p>IMPORTANT: This method should never be called directly by the user.
+     * <p>IMPORTANT:
+     * <li>This method should never be called directly by the user.
+     * <li>All overrides of this method should always call the super#onStop.
      *
      * @return Future which is completed once all post stop actions are completed. If an error
      *     occurs this future is completed exceptionally
