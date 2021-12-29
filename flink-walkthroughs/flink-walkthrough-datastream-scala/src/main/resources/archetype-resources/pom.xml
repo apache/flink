@@ -26,7 +26,7 @@ under the License.
 	<version>${version}</version>
 	<packaging>jar</packaging>
 
-	<name>Flink Walkthrough DataStram Scala</name>
+	<name>Flink Walkthrough DataStream Scala</name>
 	<url>https://flink.apache.org</url>
 
 	<repositories>
