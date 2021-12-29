@@ -181,6 +181,29 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                         () -> this.closeAsync().join(), getClass().getSimpleName(), LOG);
     }
 
+    public int getRestPort() {
+        synchronized (lock) {
+            assertClusterEntrypointIsStarted();
+
+            return clusterComponent.getRestPort();
+        }
+    }
+
+    public int getRpcPort() {
+        synchronized (lock) {
+            assertClusterEntrypointIsStarted();
+
+            return commonRpcService.getPort();
+        }
+    }
+
+    @GuardedBy("lock")
+    private void assertClusterEntrypointIsStarted() {
+        Preconditions.checkNotNull(
+                commonRpcService,
+                String.format("%s has not been started yet.", getClass().getSimpleName()));
+    }
+
     public CompletableFuture<ApplicationStatus> getTerminationFuture() {
         return terminationFuture;
     }
