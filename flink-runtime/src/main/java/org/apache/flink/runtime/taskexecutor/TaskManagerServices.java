@@ -323,9 +323,6 @@ public class TaskManagerServices {
                         unresolvedTaskManagerLocation,
                         taskManagerServicesConfiguration.getRetryingRegistrationConfiguration());
 
-        final File[] stateRootDirectoryStrings =
-                taskManagerServicesConfiguration.getLocalRecoveryStateDirectories();
-
         final TaskExecutorLocalStateStoresManager taskStateManager =
                 new TaskExecutorLocalStateStoresManager(
                         taskManagerServicesConfiguration.isLocalRecoveryEnabled(),

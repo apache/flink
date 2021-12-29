@@ -32,6 +32,7 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.runtime.testutils.WorkingDirectoryResource;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
@@ -41,6 +42,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.file.Paths;
 
@@ -154,7 +156,9 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
         boolean localRecoveryEnabled = false;
         TaskExecutorLocalStateStoresManager storesManager =
                 new TaskExecutorLocalStateStoresManager(
-                        localRecoveryEnabled, rootDirs, Executors.directExecutor());
+                        localRecoveryEnabled,
+                        Reference.owned(rootDirs),
+                        Executors.directExecutor());
 
         TaskLocalStateStore taskLocalStateStore =
                 storesManager.localStateStoreForSubtask(
@@ -189,7 +193,8 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
             temporaryFolder.newFolder(), temporaryFolder.newFolder(), temporaryFolder.newFolder()
         };
         TaskExecutorLocalStateStoresManager storesManager =
-                new TaskExecutorLocalStateStoresManager(true, rootDirs, Executors.directExecutor());
+                new TaskExecutorLocalStateStoresManager(
+                        true, Reference.owned(rootDirs), Executors.directExecutor());
 
         TaskLocalStateStore taskLocalStateStore =
                 storesManager.localStateStoreForSubtask(
@@ -265,6 +270,52 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
         // check cleanup after shutdown
         storesManager.shutdown();
         checkRootDirsClean(rootDirs);
+    }
+
+    @Test
+    public void testOwnedLocalStateDirectoriesAreDeletedOnShutdown() throws IOException {
+        final File localStateStoreA = temporaryFolder.newFolder();
+        final File localStateStoreB = temporaryFolder.newFolder();
+
+        final File[] localStateDirectories = {localStateStoreA, localStateStoreB};
+
+        final TaskExecutorLocalStateStoresManager taskExecutorLocalStateStoresManager =
+                new TaskExecutorLocalStateStoresManager(
+                        true, Reference.owned(localStateDirectories), Executors.directExecutor());
+
+        for (File localStateDirectory : localStateDirectories) {
+            assertThat(localStateDirectory).exists();
+        }
+
+        taskExecutorLocalStateStoresManager.shutdown();
+
+        for (File localStateDirectory : localStateDirectories) {
+            assertThat(localStateDirectory).doesNotExist();
+        }
+    }
+
+    @Test
+    public void testBorrowedLocalStateDirectoriesAreNotDeletedOnShutdown() throws IOException {
+        final File localStateStoreA = temporaryFolder.newFolder();
+        final File localStateStoreB = temporaryFolder.newFolder();
+
+        final File[] localStateDirectories = {localStateStoreA, localStateStoreB};
+
+        final TaskExecutorLocalStateStoresManager taskExecutorLocalStateStoresManager =
+                new TaskExecutorLocalStateStoresManager(
+                        true,
+                        Reference.borrowed(localStateDirectories),
+                        Executors.directExecutor());
+
+        for (File localStateDirectory : localStateDirectories) {
+            assertThat(localStateDirectory).exists();
+        }
+
+        taskExecutorLocalStateStoresManager.shutdown();
+
+        for (File localStateDirectory : localStateDirectories) {
+            assertThat(localStateDirectory).exists();
+        }
     }
 
     private void checkRootDirsClean(File[] rootDirs) {
