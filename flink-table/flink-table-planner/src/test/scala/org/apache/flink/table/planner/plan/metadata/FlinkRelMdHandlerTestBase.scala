@@ -790,15 +790,17 @@ class FlinkRelMdHandlerTestBase {
   protected lazy val streamChangelogNormalize = {
     val key = Array(1, 0)
     val hash1 = FlinkRelDistribution.hash(key, requireStrict = true)
+    val streamTableScan = tableSourceTableStreamScan
     val streamExchange = new StreamPhysicalExchange(
-      cluster, studentStreamScan.getTraitSet.replace(hash1), studentStreamScan, hash1)
+      cluster, streamTableScan.getTraitSet.replace(hash1), streamTableScan, hash1)
+    val table = streamTableScan.getTable.asInstanceOf[TableSourceTable]
     new StreamPhysicalChangelogNormalize(
       cluster,
       streamPhysicalTraits,
       streamExchange,
       key,
-      null,
-      null)
+      table.tableIdentifier,
+      table.catalogTable)
   }
 
   protected lazy val streamDropUpdateBefore = {

@@ -50,9 +50,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       context: StreamOptimizeContext): RelNode = {
     // step1: satisfy ModifyKindSet trait
     val physicalRoot = root.asInstanceOf[StreamPhysicalRel]
-    val SATISFY_MODIFY_KIND_SET_TRAIT_VISITOR = new SatisfyModifyKindSetTraitVisitor
-    val SATISFY_UPDATE_KIND_TRAIT_VISITOR = new SatisfyUpdateKindTraitVisitor(context)
-    val rootWithModifyKindSet = SATISFY_MODIFY_KIND_SET_TRAIT_VISITOR.visit(
+    val rootWithModifyKindSet = new SatisfyModifyKindSetTraitVisitor().visit(
       physicalRoot,
       // we do not propagate the ModifyKindSet requirement and requester among blocks
       // set default ModifyKindSet requirement and requester for root
@@ -76,7 +74,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     }
 
     val finalRoot = requiredUpdateKindTraits.flatMap { requiredUpdateKindTrait =>
-      SATISFY_UPDATE_KIND_TRAIT_VISITOR.visit(rootWithModifyKindSet, requiredUpdateKindTrait)
+      new SatisfyUpdateKindTraitVisitor(context).visit(rootWithModifyKindSet, requiredUpdateKindTrait)
     }
 
     // step3: sanity check and return non-empty root

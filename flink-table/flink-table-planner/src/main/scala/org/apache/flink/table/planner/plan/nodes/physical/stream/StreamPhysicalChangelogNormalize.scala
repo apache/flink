@@ -28,24 +28,20 @@ import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.table.catalog.{ObjectIdentifier, ResolvedCatalogTable}
 
 import java.util
-import javax.annotation.Nullable
 
 /**
  * Stream physical RelNode which normalizes a changelog stream which maybe an upsert stream or
  * a changelog stream containing duplicate events. This node normalize such stream into a regular
  * changelog stream that contains INSERT/UPDATE_BEFORE/UPDATE_AFTER/DELETE records without
  * duplication.
-  *
-  * Note: tableIdentifier and table are not null if and only if it is generated directly by
-  * [[org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalTableSourceScanRule]]
  */
 class StreamPhysicalChangelogNormalize(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
     val uniqueKeys: Array[Int],
-    @Nullable val tableIdentifier: ObjectIdentifier,
-    @Nullable val table: ResolvedCatalogTable)
+    val tableIdentifier: ObjectIdentifier,
+    val table: ResolvedCatalogTable)
   extends SingleRel(cluster, traitSet, input)
   with StreamPhysicalRel {
 
