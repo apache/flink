@@ -75,8 +75,6 @@ public class HiveTableSource
                 SupportsProjectionPushDown,
                 SupportsLimitPushDown {
 
-    private static final Logger LOG = LoggerFactory.getLogger(HiveTableSource.class);
-
     protected final JobConf jobConf;
     protected final ReadableConfig flinkConf;
     protected final ObjectPath tablePath;
