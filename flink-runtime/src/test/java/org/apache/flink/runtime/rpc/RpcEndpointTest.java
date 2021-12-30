@@ -40,10 +40,10 @@ import java.util.function.BiFunction;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -97,7 +97,7 @@ public class RpcEndpointTest extends TestLogger {
         try {
             baseEndpoint.start();
 
-            DifferentGateway differentGateway = baseEndpoint.getSelfGateway(DifferentGateway.class);
+            baseEndpoint.getSelfGateway(DifferentGateway.class);
 
             fail(
                     "Expected to fail with a RuntimeException since we requested the wrong gateway type.");
@@ -172,18 +172,22 @@ public class RpcEndpointTest extends TestLogger {
         terminationFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
     }
 
+    /** */
     public interface BaseGateway extends RpcGateway {
         CompletableFuture<Integer> foobar();
     }
 
+    /** */
     public interface ExtendedGateway extends BaseGateway {
         CompletableFuture<Integer> barfoo();
     }
 
+    /** */
     public interface DifferentGateway extends RpcGateway {
         CompletableFuture<String> foo();
     }
 
+    /** */
     public static class BaseEndpoint extends RpcEndpoint implements BaseGateway {
 
         private final int foobarValue;
@@ -205,6 +209,7 @@ public class RpcEndpointTest extends TestLogger {
         }
     }
 
+    /** */
     public static class ExtendedEndpoint extends BaseEndpoint
             implements ExtendedGateway, DifferentGateway {
 
@@ -231,6 +236,7 @@ public class RpcEndpointTest extends TestLogger {
         }
     }
 
+    /** */
     public interface RunningStateTestingEndpointGateway extends RpcGateway {
         CompletableFuture<Boolean> queryIsRunningFlag();
     }
