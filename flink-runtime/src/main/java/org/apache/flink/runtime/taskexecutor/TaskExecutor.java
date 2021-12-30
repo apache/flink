@@ -2049,6 +2049,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         log.debug("Recovered slot allocation snapshots {}.", slotAllocationSnapshots);
 
+        final Set<AllocationID> allocatedSlots = new HashSet<>();
         for (SlotAllocationSnapshot slotAllocationSnapshot : slotAllocationSnapshots) {
             try {
                 allocateSlot(
@@ -2066,7 +2067,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             } catch (Exception e) {
                 log.debug("Cannot reallocate restored slot {}.", slotAllocationSnapshot, e);
             }
+
+            allocatedSlots.add(slotAllocationSnapshot.getAllocationId());
         }
+
+        localStateStoresManager.retainLocalStateForAllocations(allocatedSlots);
     }
 
     // ------------------------------------------------------------------------

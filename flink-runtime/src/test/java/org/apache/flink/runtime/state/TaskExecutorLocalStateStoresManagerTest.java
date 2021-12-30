@@ -36,6 +36,8 @@ import org.apache.flink.util.Reference;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
+
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -44,7 +46,9 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collection;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -316,6 +320,46 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
         for (File localStateDirectory : localStateDirectories) {
             assertThat(localStateDirectory).exists();
         }
+    }
+
+    @Test
+    public void testRetainLocalStateForAllocationsDeletesUnretainedAllocationDirectories()
+            throws IOException {
+        final File localStateStore = temporaryFolder.newFolder();
+        final TaskExecutorLocalStateStoresManager taskExecutorLocalStateStoresManager =
+                new TaskExecutorLocalStateStoresManager(
+                        true,
+                        Reference.owned(new File[] {localStateStore}),
+                        Executors.directExecutor());
+        final JobID jobId = new JobID();
+        final AllocationID retainedAllocationId = new AllocationID();
+        final AllocationID otherAllocationId = new AllocationID();
+        final JobVertexID jobVertexId = new JobVertexID();
+
+        // register local state stores
+        taskExecutorLocalStateStoresManager.localStateStoreForSubtask(
+                jobId, retainedAllocationId, jobVertexId, 0);
+        taskExecutorLocalStateStoresManager.localStateStoreForSubtask(
+                jobId, otherAllocationId, jobVertexId, 1);
+
+        final Collection<Path> allocationDirectories =
+                TaskExecutorLocalStateStoresManager.listAllocationDirectoriesIn(localStateStore);
+
+        assertThat(allocationDirectories).hasSize(2);
+
+        taskExecutorLocalStateStoresManager.retainLocalStateForAllocations(
+                Sets.newHashSet(retainedAllocationId));
+
+        final Collection<Path> allocationDirectoriesAfterCleanup =
+                TaskExecutorLocalStateStoresManager.listAllocationDirectoriesIn(localStateStore);
+
+        assertThat(allocationDirectoriesAfterCleanup).hasSize(1);
+        assertThat(
+                        new File(
+                                localStateStore,
+                                taskExecutorLocalStateStoresManager.allocationSubDirString(
+                                        otherAllocationId)))
+                .doesNotExist();
     }
 
     private void checkRootDirsClean(File[] rootDirs) {
