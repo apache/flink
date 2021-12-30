@@ -73,8 +73,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       Seq(UpdateKindTrait.NONE)
     }
 
+    val updateKindTraitVisitor = new SatisfyUpdateKindTraitVisitor(context)
     val finalRoot = requiredUpdateKindTraits.flatMap { requiredUpdateKindTrait =>
-      new SatisfyUpdateKindTraitVisitor(context).visit(rootWithModifyKindSet, requiredUpdateKindTrait)
+      updateKindTraitVisitor.visit(rootWithModifyKindSet, requiredUpdateKindTrait)
     }
 
     // step3: sanity check and return non-empty root
