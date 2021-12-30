@@ -129,59 +129,52 @@ SELECT name, AVG(weight) FROM topic_products GROUP BY name;
 INSERT INTO elasticsearch_products
 SELECT * FROM topic_products;
 ```
-
-Available Metadata
+可用的元数据
 ------------------
 
-The following format metadata can be exposed as read-only (`VIRTUAL`) columns in a table definition.
+以下的格式元数据可以作为表定义中的只读 (`VIRTUAL`) 列。
 
-<span class="label label-danger">Attention</span> Format metadata fields are only available if the
-corresponding connector forwards format metadata. Currently, only the Kafka connector is able to expose
-metadata fields for its value format.
+<span class="label label-danger">注意</span> 格式元数据字段仅在以下情况下可用相应的连接器转发格式元数据。
+目前，只有 Kafka 连接器能够暴露其值格式的元数据字段。
 
 <table class="table table-bordered">
     <thead>
     <tr>
-      <th class="text-left" style="width: 25%">Key</th>
-      <th class="text-center" style="width: 40%">Data Type</th>
-      <th class="text-center" style="width: 40%">Description</th>
+      <th class="text-left" style="width: 25%">元数据</th>
+      <th class="text-center" style="width: 40%">数据类型</th>
+      <th class="text-center" style="width: 40%">说明</th>
     </tr>
     </thead>
     <tbody>
     <tr>
       <td><code>database</code></td>
       <td><code>STRING NULL</code></td>
-      <td>The originating database. Corresponds to the <code>database</code> field in the
-      Canal record if available.</td>
+      <td>原始数据库名，在 Canal 格式的记录中如果有则对应为 <code>database</code> 。</td>
     </tr>
     <tr>
       <td><code>table</code></td>
       <td><code>STRING NULL</code></td>
-      <td>The originating database table. Corresponds to the <code>table</code> field in the
-      Canal record if available.</td>
+      <td>原始数据库表名，在 Canal 格式的记录中如果有则对应为 <code>table</code> 。</td>
     </tr>
     <tr>
       <td><code>sql-type</code></td>
       <td><code>MAP&lt;STRING, INT&gt; NULL</code></td>
-      <td>Map of various sql types. Corresponds to the <code>sqlType</code> field in the 
-      Canal record if available.</td>
+      <td>各个 SQL 类型映射，在 Canal 格式的记录中如果有则对应为 <code>sqlType</code> 。</td>
     </tr>
     <tr>
       <td><code>pk-names</code></td>
       <td><code>ARRAY&lt;STRING&gt; NULL</code></td>
-      <td>Array of primary key names. Corresponds to the <code>pkNames</code> field in the 
-      Canal record if available.</td>
+      <td>主键数组，在 Canal 格式的记录中如果有则对应为 <code>pkNames</code> 。</td>
     </tr>
     <tr>
       <td><code>ingestion-timestamp</code></td>
       <td><code>TIMESTAMP_LTZ(3) NULL</code></td>
-      <td>The timestamp at which the connector processed the event. Corresponds to the <code>ts</code>
-      field in the Canal record.</td>
+      <td>连接器摄取时间，在 Canal 格式的记录中，如果有则对应为 <code>ts</code> 。</td>
     </tr>
     </tbody>
 </table>
 
-The following example shows how to access Canal metadata fields in Kafka:
+以下例子将展示如何访问 Kafka 中 Canal 格式元数据:
 
 ```sql
 CREATE TABLE KafkaTable (
