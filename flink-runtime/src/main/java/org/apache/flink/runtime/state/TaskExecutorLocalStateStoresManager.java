@@ -35,9 +35,15 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 /**
  * This class holds the all {@link TaskLocalStateStoreImpl} objects for a task executor (manager).
@@ -47,6 +53,8 @@ public class TaskExecutorLocalStateStoresManager {
     /** Logger for this class. */
     private static final Logger LOG =
             LoggerFactory.getLogger(TaskExecutorLocalStateStoresManager.class);
+
+    public static final String ALLOCATION_DIR_PREFIX = "aid_";
 
     /**
      * This map holds all local state stores for tasks running on the task manager / executor that
@@ -219,6 +227,60 @@ public class TaskExecutorLocalStateStoresManager {
         cleanupAllocationBaseDirs(allocationID);
     }
 
+    /**
+     * Retains the given set of allocations. All other allocations will be released.
+     *
+     * @param allocationsToRetain
+     */
+    public void retainLocalStateForAllocations(Set<AllocationID> allocationsToRetain) {
+        final Collection<AllocationID> allocationIds = findStoredAllocations();
+
+        allocationIds.stream()
+                .filter(allocationId -> !allocationsToRetain.contains(allocationId))
+                .forEach(this::releaseLocalStateForAllocationId);
+    }
+
+    private Collection<AllocationID> findStoredAllocations() {
+        final Set<AllocationID> storedAllocations = new HashSet<>();
+        for (File localStateRootDirectory : localStateRootDirectories.deref()) {
+            try {
+                final Collection<Path> allocationDirectories =
+                        listAllocationDirectoriesIn(localStateRootDirectory);
+
+                for (Path allocationDirectory : allocationDirectories) {
+                    final String hexString =
+                            allocationDirectory
+                                    .getFileName()
+                                    .toString()
+                                    .substring(ALLOCATION_DIR_PREFIX.length());
+                    storedAllocations.add(AllocationID.fromHexString(hexString));
+                }
+            } catch (IOException ioe) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            "Could not list local state directory {}. This entails that some orphaned local state might not be cleaned up properly.",
+                            localStateRootDirectory,
+                            ioe);
+                } else {
+                    LOG.info(
+                            "Could not list local state directory {}. This entails that some orphaned local state might not be cleaned up properly.",
+                            localStateRootDirectory);
+                }
+            }
+        }
+
+        return storedAllocations;
+    }
+
+    @VisibleForTesting
+    @Nonnull
+    static Collection<Path> listAllocationDirectoriesIn(File localStateRootDirectory)
+            throws IOException {
+        return Files.list(localStateRootDirectory.toPath())
+                .filter(path -> path.getFileName().toString().startsWith(ALLOCATION_DIR_PREFIX))
+                .collect(Collectors.toList());
+    }
+
     public void shutdown() {
         synchronized (lock) {
             if (closed) {
@@ -259,7 +321,7 @@ public class TaskExecutorLocalStateStoresManager {
 
     @VisibleForTesting
     String allocationSubDirString(AllocationID allocationID) {
-        return "aid_" + allocationID.toHexString();
+        return ALLOCATION_DIR_PREFIX + allocationID.toHexString();
     }
 
     private File[] allocationBaseDirectories(AllocationID allocationID) {
