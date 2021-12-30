@@ -40,7 +40,7 @@ public enum ApplicationStatus {
     /** The associated process exit code */
     private final int processExitCode;
 
-    private ApplicationStatus(int exitCode) {
+    ApplicationStatus(int exitCode) {
         this.processExitCode = exitCode;
     }
 
