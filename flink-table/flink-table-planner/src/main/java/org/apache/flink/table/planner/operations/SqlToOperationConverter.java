@@ -392,8 +392,7 @@ public class SqlToOperationConverter {
         if (!optionalCatalogTable.isPresent() || optionalCatalogTable.get().isTemporary()) {
             throw new ValidationException(
                     String.format(
-                            "Table %s doesn't exist or is a temporary table.",
-                            tableIdentifier.toString()));
+                            "Table %s doesn't exist or is a temporary table.", tableIdentifier));
         }
         CatalogBaseTable baseTable = optionalCatalogTable.get().getTable();
         if (baseTable instanceof CatalogView) {
