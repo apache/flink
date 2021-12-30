@@ -42,6 +42,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -69,6 +72,9 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
                     BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
     protected KeyedSerializationSchema<Integer> integerKeyedSerializationSchema =
             new KeyedSerializationSchemaWrapper<>(integerSerializationSchema);
+
+    private Lock destroyLock = new ReentrantLock();
+    private AtomicBoolean destroyed = new AtomicBoolean(false);
 
     @Before
     public void before() {
@@ -409,62 +415,70 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
         final int parallelism3 = 3;
         final int maxParallelism = Math.max(parallelism1, Math.max(parallelism2, parallelism3));
 
-        OperatorSubtaskState operatorSubtaskState =
-                repartitionAndExecute(
-                        topic,
-                        OperatorSubtaskState.builder().build(),
-                        parallelism1,
-                        parallelism1,
-                        maxParallelism,
-                        IntStream.range(0, parallelism1).boxed().iterator());
+        if (destroyLock.tryLock()) {
+            try {
+                if (destroyed.compareAndSet(false, true)) {
+                    OperatorSubtaskState operatorSubtaskState =
+                            repartitionAndExecute(
+                                    topic,
+                                    OperatorSubtaskState.builder().build(),
+                                    parallelism1,
+                                    parallelism1,
+                                    maxParallelism,
+                                    IntStream.range(0, parallelism1).boxed().iterator());
 
-        operatorSubtaskState =
-                repartitionAndExecute(
-                        topic,
-                        operatorSubtaskState,
-                        parallelism1,
-                        parallelism2,
-                        maxParallelism,
-                        IntStream.range(parallelism1, parallelism1 + parallelism2)
-                                .boxed()
-                                .iterator());
+                    operatorSubtaskState =
+                            repartitionAndExecute(
+                                    topic,
+                                    operatorSubtaskState,
+                                    parallelism1,
+                                    parallelism2,
+                                    maxParallelism,
+                                    IntStream.range(parallelism1, parallelism1 + parallelism2)
+                                            .boxed()
+                                            .iterator());
 
-        operatorSubtaskState =
-                repartitionAndExecute(
-                        topic,
-                        operatorSubtaskState,
-                        parallelism2,
-                        parallelism3,
-                        maxParallelism,
-                        IntStream.range(
-                                        parallelism1 + parallelism2,
-                                        parallelism1 + parallelism2 + parallelism3)
-                                .boxed()
-                                .iterator());
+                    operatorSubtaskState =
+                            repartitionAndExecute(
+                                    topic,
+                                    operatorSubtaskState,
+                                    parallelism2,
+                                    parallelism3,
+                                    maxParallelism,
+                                    IntStream.range(
+                                                    parallelism1 + parallelism2,
+                                                    parallelism1 + parallelism2 + parallelism3)
+                                            .boxed()
+                                            .iterator());
 
-        // After each previous repartitionAndExecute call, we are left with some lingering
-        // transactions, that would
-        // not allow us to read all committed messages from the topic. Thus we initialize operators
-        // from
-        // OperatorSubtaskState once more, but without any new data. This should terminate all
-        // ongoing transactions.
+                    // After each previous repartitionAndExecute call, we are left with some lingering
+                    // transactions, that would
+                    // not allow us to read all committed messages from the topic. Thus we initialize operators
+                    // from
+                    // OperatorSubtaskState once more, but without any new data. This should terminate all
+                    // ongoing transactions.
 
-        repartitionAndExecute(
-                topic,
-                operatorSubtaskState,
-                parallelism3,
-                1,
-                maxParallelism,
-                Collections.emptyIterator());
+                    repartitionAndExecute(
+                            topic,
+                            operatorSubtaskState,
+                            parallelism3,
+                            1,
+                            maxParallelism,
+                            Collections.emptyIterator());
 
-        assertExactlyOnceForTopic(
-                createProperties(),
-                topic,
-                IntStream.range(0, parallelism1 + parallelism2 + parallelism3)
-                        .boxed()
-                        .collect(Collectors.toList()));
-        deleteTestTopic(topic);
-        checkProducerLeak();
+                    assertExactlyOnceForTopic(
+                            createProperties(),
+                            topic,
+                            IntStream.range(0, parallelism1 + parallelism2 + parallelism3)
+                                    .boxed()
+                                    .collect(Collectors.toList()));
+                }
+                deleteTestTopic(topic);
+            }finally {
+                checkProducerLeak();
+                destroyLock.unlock();
+            }
+        }
     }
 
     private OperatorSubtaskState repartitionAndExecute(
