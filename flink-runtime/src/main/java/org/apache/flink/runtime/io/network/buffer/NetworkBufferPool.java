@@ -208,7 +208,13 @@ public class NetworkBufferPool
             tryRedistributeBuffers(numberOfSegmentsToRequest);
         }
 
-        return internalRequestMemorySegments(numberOfSegmentsToRequest);
+        try {
+            return internalRequestMemorySegments(numberOfSegmentsToRequest);
+        } catch (IOException exception) {
+            revertRequiredBuffers(numberOfSegmentsToRequest);
+            ExceptionUtils.rethrowIOException(exception);
+            return null;
+        }
     }
 
     private List<MemorySegment> internalRequestMemorySegments(int numberOfSegmentsToRequest)
@@ -248,7 +254,7 @@ public class NetworkBufferPool
                 }
             }
         } catch (Throwable e) {
-            recycleMemorySegments(segments, numberOfSegmentsToRequest);
+            internalRecycleMemorySegments(segments);
             ExceptionUtils.rethrowIOException(e);
         }
 
@@ -272,12 +278,11 @@ public class NetworkBufferPool
      */
     @Override
     public void recycleUnpooledMemorySegments(Collection<MemorySegment> segments) {
-        recycleMemorySegments(segments, segments.size());
+        internalRecycleMemorySegments(segments);
+        revertRequiredBuffers(segments.size());
     }
 
-    private void recycleMemorySegments(Collection<MemorySegment> segments, int size) {
-        internalRecycleMemorySegments(segments);
-
+    private void revertRequiredBuffers(int size) {
         synchronized (factoryLock) {
             numTotalRequiredBuffers -= size;
 
