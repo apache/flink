@@ -561,6 +561,7 @@ public class DataStream<T> {
     }
 
     /**
+     * todo 流的图
      * Applies a Map transformation on a {@link DataStream}. The transformation calls a {@link
      * MapFunction} for each element of the DataStream. Each MapFunction call returns exactly one
      * element. The user can also extend {@link RichMapFunction} to gain access to other features

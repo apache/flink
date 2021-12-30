@@ -2126,6 +2126,7 @@ public class StreamExecutionEnvironment {
     }
 
     /**
+     * TODO 生成streamGraph 流图
      * Getter of the {@link StreamGraph} of the streaming job with the option to clear previously
      * registered {@link Transformation transformations}. Clearing the transformations allows, for
      * example, to not re-execute the same operations when calling {@link #execute()} multiple

@@ -60,6 +60,7 @@ abstract class AbstractOneInputTransformationTranslator<IN, OUT, OP extends Tran
         final int transformationId = transformation.getId();
         final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
 
+        // todo 添加operator
         streamGraph.addOperator(
                 transformationId,
                 slotSharingGroup,

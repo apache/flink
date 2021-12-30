@@ -182,6 +182,8 @@ public class StreamGraphGenerator {
             translatorMap;
 
     static {
+
+        // todo TransformationTranslator Map 列表
         @SuppressWarnings("rawtypes")
         Map<Class<? extends Transformation>, TransformationTranslator<?, ? extends Transformation>>
                 tmp = new HashMap<>();
@@ -301,6 +303,10 @@ public class StreamGraphGenerator {
         this.savepointRestoreSettings = savepointRestoreSettings;
     }
 
+    /**
+     * 生成流图
+     * @return StreamGraph
+     */
     public StreamGraph generate() {
         streamGraph = new StreamGraph(executionConfig, checkpointConfig, savepointRestoreSettings);
         streamGraph.setEnableCheckpointsAfterTasksFinish(
@@ -548,6 +554,7 @@ public class StreamGraphGenerator {
 
         Collection<Integer> transformedIds;
         if (translator != null) {
+            //todo 进行translator 转换
             transformedIds = translate(translator, transform);
         } else {
             transformedIds = legacyTransform(transform);
@@ -791,12 +798,19 @@ public class StreamGraphGenerator {
         return Collections.singleton(itSource.getId());
     }
 
+    /**
+     * 转换逻辑
+     * @param translator 转换的类
+     * @param transform transform
+     * @return
+     */
     private Collection<Integer> translate(
             final TransformationTranslator<?, Transformation<?>> translator,
             final Transformation<?> transform) {
         checkNotNull(translator);
         checkNotNull(transform);
 
+        // todo 进行递归的操作，transform 获取输入
         final List<Collection<Integer>> allInputIds = getParentInputIds(transform.getInputs());
 
         // the recursive call might have already transformed this
