@@ -33,35 +33,6 @@ import java.util.stream.Collectors;
 /** Utils for {@link SchedulingStrategy}. */
 class SchedulingStrategyUtils {
 
-    static Set<ExecutionVertexID> getAllVertexIdsFromTopology(final SchedulingTopology topology) {
-        return IterableUtils.toStream(topology.getVertices())
-                .map(SchedulingExecutionVertex::getId)
-                .collect(Collectors.toSet());
-    }
-
-    static Set<SchedulingExecutionVertex> getVerticesFromIds(
-            final SchedulingTopology topology, final Set<ExecutionVertexID> vertexIds) {
-
-        return vertexIds.stream().map(topology::getVertex).collect(Collectors.toSet());
-    }
-
-    static List<ExecutionVertexDeploymentOption>
-            createExecutionVertexDeploymentOptionsInTopologicalOrder(
-                    final SchedulingTopology topology,
-                    final Set<ExecutionVertexID> verticesToDeploy,
-                    final Function<ExecutionVertexID, DeploymentOption> deploymentOptionRetriever) {
-
-        return IterableUtils.toStream(topology.getVertices())
-                .map(SchedulingExecutionVertex::getId)
-                .filter(verticesToDeploy::contains)
-                .map(
-                        executionVertexID ->
-                                new ExecutionVertexDeploymentOption(
-                                        executionVertexID,
-                                        deploymentOptionRetriever.apply(executionVertexID)))
-                .collect(Collectors.toList());
-    }
-
     static List<ExecutionVertexDeploymentOption> createExecutionVertexDeploymentOptions(
             final Collection<ExecutionVertexID> verticesToDeploy,
             final Function<ExecutionVertexID, DeploymentOption> deploymentOptionRetriever) {
