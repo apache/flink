@@ -66,6 +66,7 @@ import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
+import org.apache.flink.table.operations.ddl.AlterTableCompactOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
@@ -1167,7 +1168,7 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testAlterTable() throws Exception {
-        prepareTable(false);
+        prepareNonManagedTable(false);
         final String[] renameTableSqls =
                 new String[] {
                     "alter table cat1.db1.tb1 rename to tb2",
@@ -1193,6 +1194,7 @@ public class SqlToOperationConverterTest {
                         "alter table cat1.db1.tb1 set ('k1' = 'v1', 'K2' = 'V2')",
                         SqlDialect.DEFAULT);
         Map<String, String> expectedOptions = new HashMap<>();
+        expectedOptions.put("connector", "dummy");
         expectedOptions.put("k", "v");
         expectedOptions.put("k1", "v1");
         expectedOptions.put("K2", "V2");
@@ -1201,7 +1203,15 @@ public class SqlToOperationConverterTest {
 
         // test alter table reset
         operation = parse("alter table cat1.db1.tb1 reset ('k')", SqlDialect.DEFAULT);
-        assertAlterTableOptions(operation, expectedIdentifier, Collections.emptyMap());
+        assertAlterTableOptions(
+                operation, expectedIdentifier, Collections.singletonMap("connector", "dummy"));
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "alter table cat1.db1.tb1 reset ('connector')",
+                                        SqlDialect.DEFAULT))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("ALTER TABLE RESET does not support changing 'connector'");
 
         assertThatThrownBy(() -> parse("alter table cat1.db1.tb1 reset ()", SqlDialect.DEFAULT))
                 .isInstanceOf(ValidationException.class)
@@ -1210,7 +1220,7 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testAlterTableAddPkConstraint() throws Exception {
-        prepareTable(false);
+        prepareNonManagedTable(false);
         // Test alter add table constraint.
         Operation operation =
                 parse(
@@ -1236,7 +1246,7 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testAlterTableAddPkConstraintEnforced() throws Exception {
-        prepareTable(false);
+        prepareNonManagedTable(false);
         // Test alter table add enforced
         assertThatThrownBy(
                         () ->
@@ -1253,7 +1263,7 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testAlterTableAddUniqueConstraint() throws Exception {
-        prepareTable(false);
+        prepareNonManagedTable(false);
         // Test alter add table constraint.
         assertThatThrownBy(
                         () ->
@@ -1266,7 +1276,7 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testAlterTableAddUniqueConstraintEnforced() throws Exception {
-        prepareTable(false);
+        prepareNonManagedTable(false);
         // Test alter table add enforced
         assertThatThrownBy(
                         () ->
@@ -1279,7 +1289,7 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testAlterTableDropConstraint() throws Exception {
-        prepareTable(true);
+        prepareNonManagedTable(true);
         // Test alter table add enforced
         Operation operation = parse("alter table tb1 drop constraint ct1", SqlDialect.DEFAULT);
         assertThat(operation).isInstanceOf(AlterTableDropConstraintOperation.class);
@@ -1290,6 +1300,83 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table tb1 drop constraint ct2", SqlDialect.DEFAULT))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("CONSTRAINT [ct2] does not exist");
+    }
+
+    @Test
+    public void testAlterTableCompactOnNonManagedTable() throws Exception {
+        prepareNonManagedTable(false);
+        assertThatThrownBy(() -> parse("alter table tb1 compact", SqlDialect.DEFAULT))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "ALTER TABLE COMPACT operation is not supported for non-managed table `cat1`.`db1`.`tb1`");
+    }
+
+    @Test
+    public void testAlterTableCompact() throws Exception {
+        prepareManagedTable(false);
+        Operation operation = parse("alter table tb1 compact", SqlDialect.DEFAULT);
+        assertThat(operation).isInstanceOf(AlterTableCompactOperation.class);
+        AlterTableCompactOperation compactOperation = (AlterTableCompactOperation) operation;
+
+        assertThat(compactOperation.asSummaryString())
+                .isEqualTo("ALTER TABLE cat1.db1.tb1 COMPACT");
+
+        // specify partition on a non-partitioned table
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "alter table tb1 partition(dt = 'a') compact",
+                                        SqlDialect.DEFAULT))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Partition column 'dt' not defined in the table schema. Table `cat1`.`db1`.`tb1` is not partitioned.");
+
+        // alter a non-existed table
+        assertThatThrownBy(() -> parse("alter table tb2 compact", SqlDialect.DEFAULT))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Table `cat1`.`db1`.`tb2` doesn't exist or is a temporary table.");
+    }
+
+    @Test
+    public void testAlterTableCompactPartition() throws Exception {
+        prepareManagedTable(true);
+
+        // compact partitioned table without partition_spec
+        assertThat(parse("alter table tb1 compact", SqlDialect.DEFAULT).asSummaryString())
+                .isEqualTo("ALTER TABLE cat1.db1.tb1 COMPACT");
+
+        // compact partitioned table without full partition_spec
+        assertThat(
+                        parse("alter table tb1 partition (b=1) compact", SqlDialect.DEFAULT)
+                                .asSummaryString())
+                .isEqualTo("ALTER TABLE cat1.db1.tb1 PARTITION (b=1) COMPACT");
+
+        assertThat(
+                        parse("alter table tb1 partition (c=2) compact", SqlDialect.DEFAULT)
+                                .asSummaryString())
+                .isEqualTo("ALTER TABLE cat1.db1.tb1 PARTITION (c=2) COMPACT");
+
+        // compact partitioned table with full partition_spec
+        assertThat(
+                        parse("alter table tb1 partition (b=1,c=2) compact", SqlDialect.DEFAULT)
+                                .asSummaryString())
+                .isEqualTo("ALTER TABLE cat1.db1.tb1 PARTITION (b=1, c=2) COMPACT");
+
+        // compact partitioned table with disordered partition_spec
+        assertThat(
+                        parse("alter table tb1 partition (c=2,b=1) compact", SqlDialect.DEFAULT)
+                                .asSummaryString())
+                .isEqualTo("ALTER TABLE cat1.db1.tb1 PARTITION (c=2, b=1) COMPACT");
+
+        // compact partitioned table with a non-existed partition_spec
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "alter table tb1 partition (dt = 'a') compact",
+                                        SqlDialect.DEFAULT))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Partition column 'dt' not defined in the table schema. Available ordered partition columns: ['b', 'c']");
     }
 
     @Test
@@ -1534,7 +1621,16 @@ public class SqlToOperationConverterTest {
         return SqlToOperationConverter.convert(planner, catalogManager, node).get();
     }
 
-    private void prepareTable(boolean hasConstraint) throws Exception {
+    private void prepareNonManagedTable(boolean hasConstraint) throws Exception {
+        prepareTable(false, false, hasConstraint);
+    }
+
+    private void prepareManagedTable(boolean hasPartition) throws Exception {
+        prepareTable(true, hasPartition, false);
+    }
+
+    private void prepareTable(boolean managedTable, boolean hasPartition, boolean hasConstraint)
+            throws Exception {
         Catalog catalog = new GenericInMemoryCatalog("default", "default");
         catalogManager.registerCatalog("cat1", catalog);
         catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
@@ -1543,14 +1639,19 @@ public class SqlToOperationConverterTest {
                         .column("a", DataTypes.STRING().notNull())
                         .column("b", DataTypes.BIGINT().notNull())
                         .column("c", DataTypes.BIGINT());
+        Map<String, String> options = new HashMap<>();
+        options.put("k", "v");
+        if (!managedTable) {
+            options.put("connector", "dummy");
+        }
         CatalogTable catalogTable =
                 CatalogTable.of(
                         hasConstraint
                                 ? builder.primaryKeyNamed("ct1", "a", "b").build()
                                 : builder.build(),
                         "tb1",
-                        Collections.emptyList(),
-                        Collections.singletonMap("k", "v"));
+                        hasPartition ? Arrays.asList("b", "c") : Collections.emptyList(),
+                        Collections.unmodifiableMap(options));
         catalogManager.setCurrentCatalog("cat1");
         catalogManager.setCurrentDatabase("db1");
         ObjectPath tablePath = new ObjectPath("db1", "tb1");

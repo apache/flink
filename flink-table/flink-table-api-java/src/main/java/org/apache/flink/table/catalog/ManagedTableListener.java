@@ -79,7 +79,9 @@ public class ManagedTableListener {
         }
     }
 
-    private boolean isManagedTable(@Nullable Catalog catalog, ResolvedCatalogBaseTable<?> table) {
+    /** Check a resolved catalog table is Flink's managed table or not. */
+    public static boolean isManagedTable(
+            @Nullable Catalog catalog, ResolvedCatalogBaseTable<?> table) {
         if (catalog == null || !catalog.supportsManagedTable()) {
             // catalog not support managed table
             return false;
