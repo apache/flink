@@ -25,6 +25,7 @@ import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 import org.apache.flink.sql.parser.ddl.SqlAlterFunction;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableAddConstraint;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableCompact;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableOptions;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableRename;
@@ -91,10 +92,13 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.CatalogViewImpl;
 import org.apache.flink.table.catalog.FunctionLanguage;
+import org.apache.flink.table.catalog.ManagedTableListener;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
@@ -129,6 +133,7 @@ import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
+import org.apache.flink.table.operations.ddl.AlterTableCompactOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
@@ -169,6 +174,7 @@ import org.apache.calcite.sql.parser.SqlParser;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -484,6 +490,11 @@ public class SqlToOperationConverter {
                 specs.add(new CatalogPartitionSpec(dropPartitions.getPartitionKVs(i)));
             }
             return new DropPartitionsOperation(tableIdentifier, dropPartitions.ifExists(), specs);
+        } else if (sqlAlterTable instanceof SqlAlterTableCompact) {
+            ResolvedCatalogTable resolvedCatalogTable =
+                    (ResolvedCatalogTable) optionalCatalogTable.get().getResolvedTable();
+            return convertAlterTableCompact(
+                    tableIdentifier, resolvedCatalogTable, (SqlAlterTableCompact) sqlAlterTable);
         } else {
             throw new ValidationException(
                     String.format(
@@ -531,14 +542,55 @@ public class SqlToOperationConverter {
             CatalogTable oldTable,
             SqlAlterTableReset alterTableReset) {
         Map<String, String> newOptions = new HashMap<>(oldTable.getOptions());
-        // reset empty key is not allowed
+        // reset empty or 'connector' key is not allowed
         Set<String> resetKeys = alterTableReset.getResetKeys();
-        if (resetKeys.isEmpty()) {
-            throw new ValidationException("ALTER TABLE RESET does not support empty key");
+        if (resetKeys.isEmpty() || resetKeys.contains(FactoryUtil.CONNECTOR.key())) {
+            String exMsg =
+                    resetKeys.isEmpty()
+                            ? "ALTER TABLE RESET does not support empty key"
+                            : "ALTER TABLE RESET does not support changing 'connector'";
+            throw new ValidationException(exMsg);
         }
         // reset table option keys
         resetKeys.forEach(newOptions::remove);
         return new AlterTableOptionsOperation(tableIdentifier, oldTable.copy(newOptions));
+    }
+
+    private Operation convertAlterTableCompact(
+            ObjectIdentifier tableIdentifier,
+            ResolvedCatalogTable resolvedCatalogTable,
+            SqlAlterTableCompact alterTableCompact) {
+        Catalog catalog = catalogManager.getCatalog(tableIdentifier.getCatalogName()).orElse(null);
+        if (ManagedTableListener.isManagedTable(catalog, resolvedCatalogTable)) {
+            LinkedHashMap<String, String> partitionKVs = alterTableCompact.getPartitionKVs();
+            CatalogPartitionSpec partitionSpec = null;
+            if (partitionKVs != null) {
+                List<String> orderedPartitionKeys = resolvedCatalogTable.getPartitionKeys();
+                Set<String> validPartitionKeySet = new HashSet<>(orderedPartitionKeys);
+                String exMsg =
+                        orderedPartitionKeys.isEmpty()
+                                ? String.format("Table %s is not partitioned.", tableIdentifier)
+                                : String.format(
+                                        "Available ordered partition columns: [%s]",
+                                        orderedPartitionKeys.stream()
+                                                .collect(Collectors.joining("', '", "'", "'")));
+                partitionKVs.forEach(
+                        (partitionKey, partitionValue) -> {
+                            if (!validPartitionKeySet.contains(partitionKey)) {
+                                throw new ValidationException(
+                                        String.format(
+                                                "Partition column '%s' not defined in the table schema. %s",
+                                                partitionKey, exMsg));
+                            }
+                        });
+                partitionSpec = new CatalogPartitionSpec(partitionKVs);
+            }
+            return new AlterTableCompactOperation(tableIdentifier, partitionSpec);
+        }
+        throw new ValidationException(
+                String.format(
+                        "ALTER TABLE COMPACT operation is not supported for non-managed table %s",
+                        tableIdentifier));
     }
 
     /** Convert CREATE FUNCTION statement. */
