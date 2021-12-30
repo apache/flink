@@ -128,6 +128,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
         | col2 STRING,
         | PRIMARY KEY(id) NOT ENFORCED
         |) WITH (
+        |  'connector' = 'values',
         |  'sink-changelog-mode-enforced' = 'I,UA,UB,D'
         |)
       """.stripMargin)
