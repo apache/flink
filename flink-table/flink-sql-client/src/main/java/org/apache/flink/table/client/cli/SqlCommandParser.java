@@ -16,29 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.parse;
+package org.apache.flink.table.client.cli;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.command.QuitOperation;
 
-import java.util.regex.Pattern;
+import java.util.Optional;
 
-/** Operation to parse statement to {@link QuitOperation}. */
-public class QuitOperationParseStrategy extends AbstractRegexParseStrategy {
+/** SqlClient command parser. */
+@Internal
+interface SqlCommandParser {
 
-    static final QuitOperationParseStrategy INSTANCE = new QuitOperationParseStrategy();
-
-    private QuitOperationParseStrategy() {
-        super(Pattern.compile("(EXIT|QUIT);?", DEFAULT_PATTERN_FLAGS));
-    }
-
-    @Override
-    public Operation convert(String statement) {
-        return new QuitOperation();
-    }
-
-    @Override
-    public String[] getHints() {
-        return new String[] {"EXIT", "QUIT"};
-    }
+    /**
+     * Parses given command statement.
+     *
+     * @param command the sql client command to evaluate.
+     * @return the optional value of {@link Operation} parsed. It would be empty when the command is
+     *     "" or ";".
+     * @throws SqlExecutionException if any error happen while parsing or validating the command.
+     */
+    Optional<Operation> parseCommand(String command) throws SqlExecutionException;
 }
