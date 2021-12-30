@@ -16,29 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.parse;
+package org.apache.flink.table.api;
 
-import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.command.QuitOperation;
+import org.apache.flink.annotation.PublicEvolving;
 
-import java.util.regex.Pattern;
+/** Exception for incomplete sql statement found while sql parsing. */
+@PublicEvolving
+public class SqlParserEOFException extends SqlParserException {
 
-/** Operation to parse statement to {@link QuitOperation}. */
-public class QuitOperationParseStrategy extends AbstractRegexParseStrategy {
-
-    static final QuitOperationParseStrategy INSTANCE = new QuitOperationParseStrategy();
-
-    private QuitOperationParseStrategy() {
-        super(Pattern.compile("(EXIT|QUIT);?", DEFAULT_PATTERN_FLAGS));
+    public SqlParserEOFException(String message, Throwable cause) {
+        super(message, cause);
     }
 
-    @Override
-    public Operation convert(String statement) {
-        return new QuitOperation();
-    }
-
-    @Override
-    public String[] getHints() {
-        return new String[] {"EXIT", "QUIT"};
+    public SqlParserEOFException(String message) {
+        super(message);
     }
 }

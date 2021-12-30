@@ -35,10 +35,12 @@ import org.apache.flink.table.planner.parse.ExtendedParser;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.advise.SqlAdvisor;
 import org.apache.calcite.sql.advise.SqlAdvisorValidator;
 
@@ -95,12 +97,13 @@ public class ParserImpl implements Parser {
         }
 
         // parse the sql query
-        SqlNode parsed = parser.parse(statement);
-
-        Operation operation =
-                SqlToOperationConverter.convert(planner, catalogManager, parsed)
-                        .orElseThrow(() -> new TableException("Unsupported query: " + statement));
-        return Collections.singletonList(operation);
+        // use parseSqlList here because we need to support statement end with ';' in sql client.
+        SqlNodeList sqlNodeList = parser.parseSqlList(statement);
+        List<SqlNode> parsed = sqlNodeList.getList();
+        Preconditions.checkArgument(parsed.size() == 1, "only single statement supported");
+        return Collections.singletonList(
+                SqlToOperationConverter.convert(planner, catalogManager, parsed.get(0))
+                        .orElseThrow(() -> new TableException("Unsupported query: " + statement)));
     }
 
     @Override

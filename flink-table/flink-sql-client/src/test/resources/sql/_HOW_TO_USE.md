@@ -171,11 +171,14 @@ SET 'execution.planner' = 'blink';
 !warning
 ```
 
+### Multi line query tests
+
+If you want to test sql client with multiple lines in a statement, you should put the sql file in `sql_multi`.
+The difference is that sql statement and output are separated by `!output`.
+
 ## Limitation
 
 Currently, the SQL Script can't support to test some interactive feature of SQL Client, including:
 
 - Statement completion.
 - The `changelog` and `table` result mode which visualizes results in a refreshable paginated table representation.
-- `INSERT INTO` statement. Because all DMLs are executed asynchronously, so we can't check the content written into the sink. This can be supported once FLINK-21669 is resolved.
-
