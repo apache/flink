@@ -28,6 +28,7 @@ import org.junit.Test;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResource;
+import static org.apache.flink.table.planner.utils.TableTestUtil.replaceNodeIdInOperator;
 import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId;
 import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStreamNodeId;
 import static org.junit.Assert.assertEquals;
@@ -77,8 +78,8 @@ public class FileSystemTableSinkTest {
                 readFromResource(
                         "/explain/filesystem/testFileSystemTableSinkWithParallelismInStreamingSql0.out");
         assertEquals(
-                replaceStreamNodeId(replaceStageId(expectedNormal)),
-                replaceStreamNodeId(replaceStageId(actualNormal)));
+                replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(expectedNormal))),
+                replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(actualNormal))));
 
         // verify operator parallelisms when compaction is enabled
         final String testCompactSinkTableName = "test_compact_sink_table";
@@ -89,8 +90,8 @@ public class FileSystemTableSinkTest {
                 readFromResource(
                         "/explain/filesystem/testFileSystemTableSinkWithParallelismInStreamingSql1.out");
         assertEquals(
-                replaceStreamNodeId(replaceStageId(expectedCompact)),
-                replaceStreamNodeId(replaceStageId(actualCompact)));
+                replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(expectedCompact))),
+                replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(actualCompact))));
     }
 
     @Test
@@ -113,8 +114,8 @@ public class FileSystemTableSinkTest {
                         "/explain/filesystem/testFileSystemTableSinkWithParallelismInBatch.out");
 
         assertEquals(
-                replaceStreamNodeId(replaceStageId(expected)),
-                replaceStreamNodeId(replaceStageId(actual)));
+                replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(expected))),
+                replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(actual))));
     }
 
     private static String buildSourceTableSql(String testSourceTableName, boolean bounded) {

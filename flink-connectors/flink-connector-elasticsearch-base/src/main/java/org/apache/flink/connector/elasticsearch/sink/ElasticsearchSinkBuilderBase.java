@@ -54,6 +54,9 @@ public abstract class ElasticsearchSinkBuilderBase<
     private String username;
     private String password;
     private String connectionPathPrefix;
+    private Integer connectionTimeout;
+    private Integer connectionRequestTimeout;
+    private Integer socketTimeout;
 
     protected ElasticsearchSinkBuilderBase() {}
 
@@ -217,6 +220,44 @@ public abstract class ElasticsearchSinkBuilderBase<
         return self();
     }
 
+    /**
+     * Sets the timeout for requesting the connection of the Elasticsearch cluster from the
+     * connection manager.
+     *
+     * @param timeout for the connection request
+     * @return this builder
+     */
+    public B setConnectionRequestTimeout(int timeout) {
+        checkState(timeout >= 0, "Connection request timeout must be larger than or equal to 0.");
+        this.connectionRequestTimeout = timeout;
+        return self();
+    }
+
+    /**
+     * Sets the timeout for establishing a connection of the Elasticsearch cluster.
+     *
+     * @param timeout for the connection
+     * @return this builder
+     */
+    public B setConnectionTimeout(int timeout) {
+        checkState(timeout >= 0, "Connection timeout must be larger than or equal to 0.");
+        this.connectionTimeout = timeout;
+        return self();
+    }
+
+    /**
+     * Sets the timeout for waiting for data or, put differently, a maximum period inactivity
+     * between two consecutive data packets.
+     *
+     * @param timeout for the socket
+     * @return this builder
+     */
+    public B setSocketTimeout(int timeout) {
+        checkState(timeout >= 0, "Socket timeout must be larger than or equal to 0.");
+        this.socketTimeout = timeout;
+        return self();
+    }
+
     protected abstract BulkProcessorBuilderFactory getBulkProcessorBuilderFactory();
 
     /**
@@ -247,7 +288,13 @@ public abstract class ElasticsearchSinkBuilderBase<
     private NetworkClientConfig buildNetworkClientConfig() {
         checkArgument(!hosts.isEmpty(), "Hosts cannot be empty.");
 
-        return new NetworkClientConfig(username, password, connectionPathPrefix);
+        return new NetworkClientConfig(
+                username,
+                password,
+                connectionPathPrefix,
+                connectionRequestTimeout,
+                connectionTimeout,
+                socketTimeout);
     }
 
     private BulkProcessorConfig buildBulkProcessorConfig() {

@@ -39,8 +39,8 @@ class CompositeAccessTest extends CompositeTypeTestBase {
     testSqlApi("testTable.f0.stringField", "Bob")
     testSqlApi("f0.stringField", "Bob")
 
-    testSqlApi("testTable.f0.booleanField", "true")
-    testSqlApi("f0.booleanField", "true")
+    testSqlApi("testTable.f0.booleanField", "TRUE")
+    testSqlApi("f0.booleanField", "TRUE")
 
     // single field by int key
     testTableApi(
@@ -59,8 +59,8 @@ class CompositeAccessTest extends CompositeTypeTestBase {
     testSqlApi("testTable.f1.objectField.stringField", "Timo")
     testSqlApi("f1.objectField.stringField", "Timo")
 
-    testSqlApi("testTable.f1.objectField.booleanField", "false")
-    testSqlApi("f1.objectField.booleanField", "false")
+    testSqlApi("testTable.f1.objectField.booleanField", "FALSE")
+    testSqlApi("f1.objectField.booleanField", "FALSE")
 
     testAllApis(
       'f2.get(0),
@@ -82,7 +82,7 @@ class CompositeAccessTest extends CompositeTypeTestBase {
       'f7.get("_1"),
       "get(f7, '_1')",
       "testTable.f7._1",
-      "true")
+      "TRUE")
 
     // composite field return type
     testSqlApi("testTable.f6", "MyCaseClass2(null)")
@@ -92,15 +92,15 @@ class CompositeAccessTest extends CompositeTypeTestBase {
       'f1.get("objectField"),
       "f1.get('objectField')",
       "testTable.f1.objectField",
-      "(25, Timo, false)")
-    testSqlApi("f1.objectField", "(25, Timo, false)")
+      "(25, Timo, FALSE)")
+    testSqlApi("f1.objectField", "(25, Timo, FALSE)")
 
     testAllApis(
       'f0,
       "f0",
       "testTable.f0",
-      "(42, Bob, true)")
-    testSqlApi("f0", "(42, Bob, true)")
+      "(42, Bob, TRUE)")
+    testSqlApi("f0", "(42, Bob, TRUE)")
 
     // flattening (test base only returns first column)
     testAllApis(
@@ -126,7 +126,7 @@ class CompositeAccessTest extends CompositeTypeTestBase {
       'f8.at(1).get("_1"),
       "f8.at(1).get('_1')",
       "f8[1]._1",
-      "true"
+      "TRUE"
     )
     testAllApis(
       'f8.at(1).get("_2"),
@@ -138,7 +138,7 @@ class CompositeAccessTest extends CompositeTypeTestBase {
       'f9.at(2).get("_1"),
       "f9.at(2).get('_1')",
       "f9[2]._1",
-      "null"
+      "NULL"
     )
     testAllApis(
       'f10.at(1).get("stringField"),

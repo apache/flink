@@ -539,12 +539,12 @@ public class LocalExecutorITCase extends TestLogger {
         final List<String> actualResults = new ArrayList<>();
         TestBaseUtils.readAllResultLines(actualResults, path);
         final List<String> expectedResults = new ArrayList<>();
-        expectedResults.add("true,\"hello world\",\"2020-01-01 00:00:01\"");
-        expectedResults.add("false,\"hello world\",\"2020-01-01 00:00:02\"");
-        expectedResults.add("false,\"hello world\",\"2020-01-01 00:00:03\"");
-        expectedResults.add("false,\"hello world\",\"2020-01-01 00:00:04\"");
-        expectedResults.add("true,\"hello world\",\"2020-01-01 00:00:05\"");
-        expectedResults.add("false,\"hello world!!!!\",\"2020-01-01 00:00:06\"");
+        expectedResults.add("TRUE,\"hello world\",\"2020-01-01 00:00:01\"");
+        expectedResults.add("FALSE,\"hello world\",\"2020-01-01 00:00:02\"");
+        expectedResults.add("FALSE,\"hello world\",\"2020-01-01 00:00:03\"");
+        expectedResults.add("FALSE,\"hello world\",\"2020-01-01 00:00:04\"");
+        expectedResults.add("TRUE,\"hello world\",\"2020-01-01 00:00:05\"");
+        expectedResults.add("FALSE,\"hello world!!!!\",\"2020-01-01 00:00:06\"");
         TestBaseUtils.compareResultCollections(
                 expectedResults, actualResults, Comparator.naturalOrder());
     }

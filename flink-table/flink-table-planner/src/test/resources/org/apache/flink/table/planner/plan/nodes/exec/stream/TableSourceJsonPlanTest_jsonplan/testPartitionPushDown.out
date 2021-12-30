@@ -121,7 +121,7 @@
         "p" : "VARCHAR(2147483647)"
       } ]
     },
-    "description" : "Calc(select=[a, b, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET \"UTF-16LE\") AS p])"
+    "description" : "Calc(select=[a, b, CAST('A' AS VARCHAR(2147483647)) AS p])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {

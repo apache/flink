@@ -141,8 +141,8 @@ public class LogicalCommonTypeTest {
 
                     // VARCHAR types of different length
                     {
-                        Arrays.asList(new VarCharType(2), new VarCharType(VarCharType.MAX_LENGTH)),
-                        new VarCharType(VarCharType.MAX_LENGTH)
+                        Arrays.asList(new VarCharType(2), VarCharType.STRING_TYPE),
+                        VarCharType.STRING_TYPE
                     },
 
                     // mixed VARCHAR and CHAR types

@@ -143,7 +143,7 @@
         "c" : "VARCHAR(2147483647)"
       } ]
     },
-    "description" : "Calc(select=[CAST(EXPR$0) AS a, CAST(EXPR$1) AS b, CAST(EXPR$2) AS c])"
+    "description" : "Calc(select=[CAST(EXPR$0 AS BIGINT) AS a, CAST(EXPR$1 AS BIGINT) AS b, CAST(EXPR$2 AS VARCHAR(2147483647)) AS c])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {

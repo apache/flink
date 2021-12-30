@@ -66,7 +66,10 @@ abstract class BatchPhysicalCorrelateBase(
     super.explainTerms(pw)
       .item("invocation", scan.getCall)
       .item("correlate", RelExplainUtil.correlateToString(
-        input.getRowType, rexCall, getExpressionString))
+        input.getRowType,
+        rexCall,
+        getExpressionString,
+        RelExplainUtil.preferExpressionDetail(pw)))
       .item("select", outputRowType.getFieldNames.mkString(","))
       .item("rowType", outputRowType)
       .item("joinType", joinType)

@@ -57,7 +57,7 @@ LogicalProject(EXPR$0=[ITEM($2.data_arr, $0).value], EXPR$1=[ITEM($2.data_map, _
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[ITEM(result_data_arr, id).value AS EXPR$0, ITEM(result_data_map, _UTF-16LE'item').value AS EXPR$1])
+Calc(select=[ITEM(result_data_arr, id).value AS EXPR$0, ITEM(result_data_map, 'item').value AS EXPR$1])
 +- TableSourceScan(table=[[default_catalog, default_database, NestedItemTable, project=[result_data_arr, result_data_map, id], metadata=[]]], fields=[result_data_arr, result_data_map, id])
 ]]>
     </Resource>

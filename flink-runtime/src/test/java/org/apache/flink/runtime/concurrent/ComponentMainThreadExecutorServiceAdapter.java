@@ -87,6 +87,9 @@ public class ComponentMainThreadExecutorServiceAdapter implements ComponentMainT
     }
 
     @Override
+    public void close() {}
+
+    @Override
     public ScheduledFuture<?> schedule(
             final Runnable command, final long delay, final TimeUnit unit) {
         return scheduledExecutor.schedule(command, delay, unit);

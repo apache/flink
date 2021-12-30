@@ -62,7 +62,13 @@ under the License.
 			<artifactId>flink-connector-kinesis</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
-			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-aws-kinesis-data-streams</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
 		</dependency>
 
 		<dependency>

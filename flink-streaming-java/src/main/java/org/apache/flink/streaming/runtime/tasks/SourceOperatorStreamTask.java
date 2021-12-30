@@ -116,6 +116,12 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
             } else {
                 return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
             }
+        } else if (checkpointOptions.getCheckpointType() == CheckpointType.FULL_CHECKPOINT) {
+            // see FLINK-25256
+            throw new IllegalStateException(
+                    "Using externally induced sources, we can not enforce taking a full checkpoint."
+                            + "If you are restoring from a snapshot in NO_CLAIM mode, please use"
+                            + " either CLAIM or LEGACY mode.");
         } else {
             return CompletableFuture.completedFuture(isRunning());
         }

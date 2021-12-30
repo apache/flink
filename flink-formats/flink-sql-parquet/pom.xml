@@ -67,7 +67,6 @@ under the License.
 									<include>org.apache.parquet:parquet-jackson</include>
 									<include>org.codehaus.jackson:jackson-core-asl</include>
 									<include>org.codehaus.jackson:jackson-mapper-asl</include>
-									<include>org.apache.commons:commons-compress</include>
 									<include>commons-pool:commons-pool</include>
 									<include>commons-codec:commons-codec</include>
 								</includes>

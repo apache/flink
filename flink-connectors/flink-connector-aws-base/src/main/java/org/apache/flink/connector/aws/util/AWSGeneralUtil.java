@@ -209,6 +209,46 @@ public class AWSGeneralUtil {
         return webIdentityBuilder.build();
     }
 
+    public static SdkAsyncHttpClient createAsyncHttpClient(final Properties configProperties) {
+        final AttributeMap.Builder clientConfiguration =
+                AttributeMap.builder().put(SdkHttpConfigurationOption.TCP_KEEPALIVE, true);
+
+        Optional.ofNullable(
+                        configProperties.getProperty(
+                                AWSConfigConstants.HTTP_CLIENT_MAX_CONCURRENCY))
+                .map(Integer::parseInt)
+                .ifPresent(
+                        integer ->
+                                clientConfiguration.put(
+                                        SdkHttpConfigurationOption.MAX_CONNECTIONS, integer));
+
+        Optional.ofNullable(
+                        configProperties.getProperty(
+                                AWSConfigConstants.HTTP_CLIENT_READ_TIMEOUT_MILLIS))
+                .map(Integer::parseInt)
+                .map(Duration::ofMillis)
+                .ifPresent(
+                        timeout ->
+                                clientConfiguration.put(
+                                        SdkHttpConfigurationOption.READ_TIMEOUT, timeout));
+
+        Optional.ofNullable(configProperties.getProperty(AWSConfigConstants.TRUST_ALL_CERTIFICATES))
+                .map(Boolean::parseBoolean)
+                .ifPresent(
+                        bool ->
+                                clientConfiguration.put(
+                                        SdkHttpConfigurationOption.TRUST_ALL_CERTIFICATES, bool));
+
+        Optional.ofNullable(configProperties.getProperty(AWSConfigConstants.HTTP_PROTOCOL_VERSION))
+                .map(Protocol::valueOf)
+                .ifPresent(
+                        protocol ->
+                                clientConfiguration.put(
+                                        SdkHttpConfigurationOption.PROTOCOL, protocol));
+        return createAsyncHttpClient(
+                clientConfiguration.build(), NettyNioAsyncHttpClient.builder());
+    }
+
     public static SdkAsyncHttpClient createAsyncHttpClient(
             final NettyNioAsyncHttpClient.Builder httpClientBuilder) {
         return createAsyncHttpClient(AttributeMap.empty(), httpClientBuilder);

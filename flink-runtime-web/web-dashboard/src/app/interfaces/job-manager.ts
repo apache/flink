@@ -21,3 +21,11 @@ export interface JobManagerLogItem {
   size: number;
   mtime: number;
 }
+export interface JobManagerThreadDump {
+  threadInfos: JobManagerThreadInfo[];
+}
+
+interface JobManagerThreadInfo {
+  threadName: string;
+  stringifiedThreadInfo: string;
+}

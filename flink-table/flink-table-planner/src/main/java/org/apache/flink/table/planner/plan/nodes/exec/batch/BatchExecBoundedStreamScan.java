@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -63,6 +64,7 @@ public class BatchExecBoundedStreamScan extends ExecNodeBase<RowData>
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final Transformation<?> sourceTransform = dataStream.getTransformation();
+        final Configuration config = planner.getTableConfig().getConfiguration();
         if (needInternalConversion()) {
             return ScanUtil.convertToInternalRow(
                     new CodeGeneratorContext(planner.getTableConfig()),
@@ -71,6 +73,9 @@ public class BatchExecBoundedStreamScan extends ExecNodeBase<RowData>
                     sourceType,
                     (RowType) getOutputType(),
                     qualifiedName,
+                    (detailName, simplifyName) ->
+                            getFormattedOperatorName(detailName, simplifyName, config),
+                    (description) -> getFormattedOperatorDescription(description, config),
                     JavaScalaConversionUtil.toScala(Optional.empty()),
                     "",
                     "");

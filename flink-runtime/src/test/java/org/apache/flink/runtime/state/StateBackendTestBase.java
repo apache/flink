@@ -510,7 +510,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @SuppressWarnings("unchecked")
     public void testBackendUsesRegisteredKryoDefaultSerializer() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE, env);
 
@@ -581,7 +581,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @SuppressWarnings("unchecked")
     public void testBackendUsesRegisteredKryoDefaultSerializerUsingGetOrCreate() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE, env);
 
@@ -654,7 +654,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     public void testBackendUsesRegisteredKryoSerializer() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         env.getExecutionConfig()
                 .registerTypeWithKryoSerializer(
                         TestPojo.class, ExceptionThrowingTestSerializer.class);
@@ -722,7 +722,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @SuppressWarnings("unchecked")
     public void testBackendUsesRegisteredKryoSerializerUsingGetOrCreate() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         env.getExecutionConfig()
                 .registerTypeWithKryoSerializer(
@@ -799,7 +799,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     public void testKryoRegisteringRestoreResilienceWithRegisteredType() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
 
@@ -877,7 +877,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testKryoRegisteringRestoreResilienceWithDefaultSerializer() throws Exception {
         assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE, env);
         try {
@@ -1000,7 +1000,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testKryoRegisteringRestoreResilienceWithRegisteredSerializer() throws Exception {
         assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         CheckpointableKeyedStateBackend<Integer> backend = null;
 
@@ -1109,7 +1109,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @SuppressWarnings("unchecked")
     public void testKryoRestoreResilienceWithDifferentRegistrationOrder() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         // register A first then B
         env.getExecutionConfig().registerKryoType(TestNestedPojoClassA.class);
@@ -1238,7 +1238,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     public void testPojoRestoreResilienceWithDifferentRegistrationOrder() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         // register A first then B
         env.getExecutionConfig().registerPojoType(TestNestedPojoClassA.class);
@@ -1338,7 +1338,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @SuppressWarnings("unchecked")
     public void testValueState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
 
@@ -1701,7 +1701,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @SuppressWarnings("unchecked")
     public void testMultipleValueStates() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         ValueStateDescriptor<String> desc1 =
                 new ValueStateDescriptor<>("a-string", StringSerializer.INSTANCE);
@@ -1793,7 +1793,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         }
 
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
         try {
@@ -1852,7 +1852,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @SuppressWarnings("unchecked,rawtypes")
     public void testListState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
 
@@ -2418,7 +2418,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @SuppressWarnings("unchecked")
     public void testReducingState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         ReducingStateDescriptor<String> kvId =
                 new ReducingStateDescriptor<>("id", new AppendingReduce(), String.class);
@@ -3174,7 +3174,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @SuppressWarnings("unchecked,rawtypes")
     public void testMapState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         MapStateDescriptor<Integer, String> kvId =
                 new MapStateDescriptor<>("id", Integer.class, String.class);
@@ -3647,7 +3647,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                                     1L,
                                     createStreamFactory(),
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
-                            new SharedStateRegistry());
+                            new SharedStateRegistryImpl());
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -3757,7 +3757,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     public void testSnapshotNonAccessedState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         final String stateName = "test-name";
 
         CheckpointableKeyedStateBackend<String> backend =
@@ -3913,7 +3913,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         }
 
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         List<KeyedStateHandle> snapshots = new ArrayList<>(sourceParallelism);
         for (int i = 0; i < sourceParallelism; ++i) {
@@ -4002,7 +4002,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
 
@@ -4052,7 +4052,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testValueStateRestoreWithWrongSerializers() throws Exception {
         assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
 
@@ -4111,7 +4111,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testListStateRestoreWithWrongSerializers() throws Exception {
         assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
 
@@ -4169,7 +4169,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testReducingStateRestoreWithWrongSerializers() throws Exception {
         assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
 
@@ -4231,7 +4231,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testMapStateRestoreWithWrongSerializers() throws Exception {
         assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
 
@@ -4475,7 +4475,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         KvStateRegistry registry = env.getKvStateRegistry();
 
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE, env);
         try {
@@ -4548,7 +4548,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 createKeyedBackend(IntSerializer.INSTANCE);
         try {
             CheckpointStreamFactory streamFactory = createStreamFactory();
-            SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+            SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
             ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
 
@@ -5289,7 +5289,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         SnapshotResult<KeyedStateHandle> snapshotResult = snapshotRunnableFuture.get();
         KeyedStateHandle jobManagerOwnedSnapshot = snapshotResult.getJobManagerOwnedSnapshot();
         if (jobManagerOwnedSnapshot != null) {
-            jobManagerOwnedSnapshot.registerSharedStates(sharedStateRegistry);
+            jobManagerOwnedSnapshot.registerSharedStates(sharedStateRegistry, 0L);
         }
         return jobManagerOwnedSnapshot;
     }

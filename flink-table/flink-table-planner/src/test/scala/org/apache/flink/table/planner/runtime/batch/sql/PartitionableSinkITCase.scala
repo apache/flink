@@ -255,7 +255,7 @@ object PartitionableSinkITCase {
   }
 
   val fieldNames = Array("a", "b", "c")
-  val dataType = Array(new IntType(), new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH))
+  val dataType = Array(new IntType(), new BigIntType(), VarCharType.STRING_TYPE)
   val dataNullables = Array(true, true, true)
 
   val testData = Seq(

@@ -59,10 +59,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class FactoryUtilTest {
 
     @Test
-    public void testMissingConnector() {
-        assertCreateTableSourceWithOptionModifier(
-                options -> options.remove("connector"),
-                "Table options do not contain an option key 'connector' for discovering a connector.");
+    public void testManagedConnector() {
+        final Map<String, String> options = createAllOptions();
+        options.remove("connector");
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
+        assertThat(actualSource)
+                .isExactlyInstanceOf(TestManagedTableFactory.TestManagedTableSource.class);
     }
 
     @Test

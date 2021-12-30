@@ -59,8 +59,10 @@ import java.util.OptionalInt;
  * @see OperatorTransformation
  * @see OneInputOperatorTransformation
  * @param <T> The input type of the transformation.
+ * @deprecated Use {@link StateBootstrapTransformation} instead.
  */
 @PublicEvolving
+@Deprecated
 @SuppressWarnings("WeakerAccess")
 public class BootstrapTransformation<T> {
 

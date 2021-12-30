@@ -189,10 +189,10 @@ public class DataFormatConvertersTest {
         test(new RowTypeInfo(simpleTypes), new Row(simpleTypes.length));
         test(new RowTypeInfo(simpleTypes), Row.ofKind(RowKind.DELETE, simpleValues));
         test(
-                InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new IntType()),
+                InternalTypeInfo.ofFields(VarCharType.STRING_TYPE, new IntType()),
                 GenericRowData.of(StringData.fromString("hehe"), 111));
         test(
-                InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new IntType()),
+                InternalTypeInfo.ofFields(VarCharType.STRING_TYPE, new IntType()),
                 GenericRowData.of(null, null));
 
         test(new DecimalDataTypeInfo(10, 5), null);

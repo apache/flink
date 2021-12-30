@@ -20,13 +20,16 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.VarCharType;
 
 import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CastRuleProviderTest {
@@ -57,5 +60,21 @@ class CastRuleProviderTest {
     void testResolveArrayIntToBigIntWithDistinct() {
         assertThat(CastRuleProvider.resolve(new ArrayType(INT), new ArrayType(DISTINCT_BIG_INT)))
                 .isSameAs(ArrayToArrayCastRule.INSTANCE);
+    }
+
+    @Test
+    void testResolvePredefinedToString() {
+        assertThat(CastRuleProvider.resolve(INT, new VarCharType(10)))
+                .isSameAs(CharVarCharTrimPadCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(INT, new CharType(10)))
+                .isSameAs(CharVarCharTrimPadCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(INT, STRING_TYPE))
+                .isSameAs(NumericToStringCastRule.INSTANCE);
+    }
+
+    @Test
+    void testResolveConstructedToString() {
+        assertThat(CastRuleProvider.resolve(new ArrayType(INT), new VarCharType(10)))
+                .isSameAs(ArrayToStringCastRule.INSTANCE);
     }
 }

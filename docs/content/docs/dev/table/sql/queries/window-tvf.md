@@ -45,6 +45,7 @@ See more how to apply further computations based on windowing TVF:
 - [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}})
 - [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}})
 - [Window Join]({{< ref "docs/dev/table/sql/queries/window-join">}})
+- [Window Deduplication]({{< ref "docs/dev/table/sql/queries/window-deduplication">}})
 
 ## Window Functions
 
@@ -100,9 +101,6 @@ Flink SQL> SELECT * FROM Bid;
 | 2020-04-15 08:17 |  6.00 | F    |
 +------------------+-------+------+
 
--- NOTE: Currently Flink doesn't support evaluating individual window table-valued function,
---  window table-valued function should be used with aggregate operation,
---  this example is just used for explaining the syntax and the data produced by table-valued function.
 Flink SQL> SELECT * FROM TABLE(
    TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES));
 -- or with the named params
@@ -167,9 +165,6 @@ HOP(TABLE data, DESCRIPTOR(timecol), slide, size [, offset ])
 Here is an example invocation on the `Bid` table:
 
 ```sql
--- NOTE: Currently Flink doesn't support evaluating individual window table-valued function,
---  window table-valued function should be used with aggregate operation,
---  this example is just used for explaining the syntax and the data produced by table-valued function.
 > SELECT * FROM TABLE(
     HOP(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES, INTERVAL '10' MINUTES));
 -- or with the named params
@@ -243,9 +238,6 @@ CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
 Here is an example invocation on the Bid table:
 
 ```sql
--- NOTE: Currently Flink doesn't support evaluating individual window table-valued function,
---  window table-valued function should be used with aggregate operation,
---  this example is just used for explaining the syntax and the data produced by table-valued function.
 > SELECT * FROM TABLE(
     CUMULATE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES, INTERVAL '10' MINUTES));
 -- or with the named params

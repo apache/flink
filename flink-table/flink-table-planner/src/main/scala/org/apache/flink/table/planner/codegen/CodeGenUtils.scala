@@ -347,15 +347,11 @@ object CodeGenUtils {
   def compareEnum(term: String, enum: Enum[_]): Boolean = term == qualifyEnum(enum)
 
   def getEnum(genExpr: GeneratedExpression): Enum[_] = {
-    val split = genExpr.resultTerm.split('.')
-    val value = split.last
-    val clazz = genExpr.resultType.asInstanceOf[TypeInformationRawType[_]]
-        .getTypeInformation.getTypeClass
-    enumValueOf(clazz, value)
+   genExpr
+     .literalValue
+     .map(_.asInstanceOf[Enum[_]])
+     .getOrElse(throw new CodeGenException("Enum literal expected."))
   }
-
-  def enumValueOf[T <: Enum[T]](cls: Class[_], stringValue: String): Enum[_] =
-    Enum.valueOf(cls.asInstanceOf[Class[T]], stringValue).asInstanceOf[Enum[_]]
 
   // --------------------------- Require Check ---------------------------------------
 

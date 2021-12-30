@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.minicluster;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -57,6 +58,9 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServic
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -666,6 +670,16 @@ public class MiniCluster implements AutoCloseableAsync {
         return miniClusterConfiguration.getConfiguration();
     }
 
+    // HACK: temporary hack to make the randomized changelog state backend tests work with forced
+    // full snapshots. This option should be removed once changelog state backend supports forced
+    // full snapshots
+    @Internal private boolean overrideRestoreModeForRandomizedChangelogStateBackend;
+
+    @Internal
+    public void overrideRestoreModeForRandomizedChangelogStateBackend() {
+        this.overrideRestoreModeForRandomizedChangelogStateBackend = true;
+    }
+
     @GuardedBy("lock")
     private Collection<? extends CompletableFuture<Void>> terminateTaskManagers() {
         final Collection<CompletableFuture<Void>> terminationFutures =
@@ -858,6 +872,7 @@ public class MiniCluster implements AutoCloseableAsync {
     }
 
     public CompletableFuture<JobSubmissionResult> submitJob(JobGraph jobGraph) {
+        checkRestoreModeForRandomizedChangelogStateBackend(jobGraph);
         final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture =
                 getDispatcherGatewayFuture();
         final CompletableFuture<InetSocketAddress> blobServerAddressFuture =
@@ -873,6 +888,21 @@ public class MiniCluster implements AutoCloseableAsync {
                         .thenCompose(Function.identity());
         return acknowledgeCompletableFuture.thenApply(
                 (Acknowledge ignored) -> new JobSubmissionResult(jobGraph.getJobID()));
+    }
+
+    // HACK: temporary hack to make the randomized changelog state backend tests work with forced
+    // full snapshots. This option should be removed once changelog state backend supports forced
+    // full snapshots
+    private void checkRestoreModeForRandomizedChangelogStateBackend(JobGraph jobGraph) {
+        final SavepointRestoreSettings savepointRestoreSettings =
+                jobGraph.getSavepointRestoreSettings();
+        if (overrideRestoreModeForRandomizedChangelogStateBackend
+                && savepointRestoreSettings.getRestoreMode() == RestoreMode.NO_CLAIM) {
+            final Configuration conf = new Configuration();
+            SavepointRestoreSettings.toConfiguration(savepointRestoreSettings, conf);
+            conf.set(SavepointConfigOptions.RESTORE_MODE, RestoreMode.LEGACY);
+            jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.fromConfiguration(conf));
+        }
     }
 
     public CompletableFuture<JobResult> requestJobResult(JobID jobId) {

@@ -74,10 +74,14 @@ public class CastRuleProvider {
                 .addRule(StringToTimeCastRule.INSTANCE)
                 .addRule(StringToTimestampCastRule.INSTANCE)
                 .addRule(StringToBinaryCastRule.INSTANCE)
+                // To binary rules
+                .addRule(BinaryToBinaryCastRule.INSTANCE)
+                .addRule(RawToBinaryCastRule.INSTANCE)
                 // Collection rules
                 .addRule(ArrayToArrayCastRule.INSTANCE)
                 .addRule(RowToRowCastRule.INSTANCE)
                 // Special rules
+                .addRule(CharVarCharTrimPadCastRule.INSTANCE)
                 .addRule(NullToStringCastRule.INSTANCE)
                 .addRule(IdentityCastRule.INSTANCE);
     }
@@ -148,10 +152,20 @@ public class CastRuleProvider {
     private CastRuleProvider addRule(CastRule<?, ?> rule) {
         CastRulePredicate predicate = rule.getPredicateDefinition();
 
-        for (LogicalTypeRoot targetTypeRoot : predicate.getTargetTypes()) {
+        for (LogicalType targetType : predicate.getTargetTypes()) {
+            final Map<Object, CastRule<?, ?>> map =
+                    rules.computeIfAbsent(targetType, k -> new HashMap<>());
+            for (LogicalTypeRoot inputTypeRoot : predicate.getInputTypeRoots()) {
+                map.put(inputTypeRoot, rule);
+            }
+            for (LogicalTypeFamily inputTypeFamily : predicate.getInputTypeFamilies()) {
+                map.put(inputTypeFamily, rule);
+            }
+        }
+        for (LogicalTypeRoot targetTypeRoot : predicate.getTargetTypeRoots()) {
             final Map<Object, CastRule<?, ?>> map =
                     rules.computeIfAbsent(targetTypeRoot, k -> new HashMap<>());
-            for (LogicalTypeRoot inputTypeRoot : predicate.getInputTypes()) {
+            for (LogicalTypeRoot inputTypeRoot : predicate.getInputTypeRoots()) {
                 map.put(inputTypeRoot, rule);
             }
             for (LogicalTypeFamily inputTypeFamily : predicate.getInputTypeFamilies()) {
@@ -161,7 +175,7 @@ public class CastRuleProvider {
         for (LogicalTypeFamily targetTypeFamily : predicate.getTargetTypeFamilies()) {
             final Map<Object, CastRule<?, ?>> map =
                     rules.computeIfAbsent(targetTypeFamily, k -> new HashMap<>());
-            for (LogicalTypeRoot inputTypeRoot : predicate.getInputTypes()) {
+            for (LogicalTypeRoot inputTypeRoot : predicate.getInputTypeRoots()) {
                 map.put(inputTypeRoot, rule);
             }
             for (LogicalTypeFamily inputTypeFamily : predicate.getInputTypeFamilies()) {
@@ -182,8 +196,10 @@ public class CastRuleProvider {
 
         final Iterator<Object> targetTypeRootFamilyIterator =
                 Stream.<Object>concat(
-                                Stream.of(targetType.getTypeRoot()),
-                                targetType.getTypeRoot().getFamilies().stream())
+                                Stream.of(targetType),
+                                Stream.<Object>concat(
+                                        Stream.of(targetType.getTypeRoot()),
+                                        targetType.getTypeRoot().getFamilies().stream()))
                         .iterator();
 
         // Try lookup by target type root/type families

@@ -24,12 +24,12 @@ import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.expressions.PlannerWindowReference;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
+import org.apache.flink.table.runtime.groupwindow.WindowReference;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -61,7 +61,7 @@ public class LogicalWindowSerdeTest {
     public static List<LogicalWindow> testData() {
         return Arrays.asList(
                 new TumblingGroupWindow(
-                        new PlannerWindowReference(
+                        new WindowReference(
                                 "timeWindow", new TimestampType(false, TimestampKind.ROWTIME, 3)),
                         new FieldReferenceExpression(
                                 "rowTime",
@@ -71,7 +71,7 @@ public class LogicalWindowSerdeTest {
                                 2),
                         new ValueLiteralExpression(Duration.ofMinutes(10))),
                 new TumblingGroupWindow(
-                        new PlannerWindowReference("countWindow", new BigIntType()),
+                        new WindowReference("countWindow", new BigIntType()),
                         new FieldReferenceExpression(
                                 "rowTime",
                                 new AtomicDataType(
@@ -80,7 +80,7 @@ public class LogicalWindowSerdeTest {
                                 2),
                         new ValueLiteralExpression(10L)),
                 new SlidingGroupWindow(
-                        new PlannerWindowReference(
+                        new WindowReference(
                                 "timeWindow", new TimestampType(false, TimestampKind.ROWTIME, 3)),
                         new FieldReferenceExpression(
                                 "rowTime",
@@ -91,7 +91,7 @@ public class LogicalWindowSerdeTest {
                         new ValueLiteralExpression(Duration.ofSeconds(10)),
                         new ValueLiteralExpression(Duration.ofSeconds(5))),
                 new SlidingGroupWindow(
-                        new PlannerWindowReference("countWindow", new BigIntType()),
+                        new WindowReference("countWindow", new BigIntType()),
                         new FieldReferenceExpression(
                                 "rowTime",
                                 new AtomicDataType(
@@ -101,7 +101,7 @@ public class LogicalWindowSerdeTest {
                         new ValueLiteralExpression(10L),
                         new ValueLiteralExpression(5L)),
                 new SessionGroupWindow(
-                        new PlannerWindowReference(
+                        new WindowReference(
                                 "timeWindow", new TimestampType(false, TimestampKind.ROWTIME, 3)),
                         new FieldReferenceExpression(
                                 "rowTime",

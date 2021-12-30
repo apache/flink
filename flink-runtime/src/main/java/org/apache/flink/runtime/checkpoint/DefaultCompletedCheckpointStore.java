@@ -147,6 +147,7 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
                                         completedCheckpoint.shouldBeDiscardedOnSubsume(),
                                         checkpointsCleaner,
                                         postCleanup));
+        unregisterUnusedState(completedCheckpoints);
 
         if (subsume.isPresent()) {
             LOG.debug("Added {} to {} without any older checkpoint to subsume.", checkpoint, path);
@@ -178,19 +179,32 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
         if (running.compareAndSet(true, false)) {
             if (jobStatus.isGloballyTerminalState()) {
                 LOG.info("Shutting down");
+                long lowestRetained = Long.MAX_VALUE;
                 for (CompletedCheckpoint checkpoint : completedCheckpoints) {
                     try {
-                        tryRemoveCompletedCheckpoint(
+                        if (!tryRemoveCompletedCheckpoint(
                                 checkpoint,
                                 checkpoint.shouldBeDiscardedOnShutdown(jobStatus),
                                 checkpointsCleaner,
-                                () -> {});
+                                () -> {})) {
+                            lowestRetained = Math.min(lowestRetained, checkpoint.getCheckpointID());
+                        }
                     } catch (Exception e) {
                         LOG.warn("Fail to remove checkpoint during shutdown.", e);
+                        if (!checkpoint.shouldBeDiscardedOnShutdown(jobStatus)) {
+                            lowestRetained = Math.min(lowestRetained, checkpoint.getCheckpointID());
+                        }
                     }
                 }
                 completedCheckpoints.clear();
                 checkpointStateHandleStore.clearEntries();
+                // Now discard the shared state of not subsumed checkpoints - only if:
+                // - the job is in a globally terminal state. Otherwise,
+                // it can be a suspension, after which this state might still be needed.
+                // - checkpoint is not retained (it might be used externally)
+                // - checkpoint handle removal succeeded (e.g. from ZK) - otherwise, it might still
+                // be used in recovery if the job status is lost
+                getSharedStateRegistry().unregisterUnusedState(lowestRetained);
             } else {
                 LOG.info("Suspending");
                 // Clear the local handles, but don't remove any state
@@ -204,7 +218,7 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
     // Private methods
     // ---------------------------------------------------------------------------------------------------------
 
-    private void tryRemoveCompletedCheckpoint(
+    private boolean tryRemoveCompletedCheckpoint(
             CompletedCheckpoint completedCheckpoint,
             boolean shouldDiscard,
             CheckpointsCleaner checkpointsCleaner,
@@ -213,7 +227,9 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
         if (tryRemove(completedCheckpoint.getCheckpointID())) {
             checkpointsCleaner.cleanCheckpoint(
                     completedCheckpoint, shouldDiscard, postCleanup, ioExecutor);
+            return shouldDiscard;
         }
+        return shouldDiscard;
     }
 
     /**

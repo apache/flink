@@ -1095,13 +1095,6 @@ object ScalarOperatorGens {
       case (_, _) if isInteroperable(operand.resultType, targetType) =>
         operand.copy(resultType = targetType)
 
-      case (RAW, BINARY | VARBINARY) =>
-        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-          val serializer = operand.resultType.asInstanceOf[RawType[_]].getTypeSerializer
-          val serTerm = ctx.addReusableObject(serializer, "serializer")
-          operandTerm => s"$operandTerm.toBytes($serTerm)"
-        }
-
       // Date -> Timestamp
       case (DATE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
         generateUnaryOperatorIfNotNull(ctx, targetType, operand) {

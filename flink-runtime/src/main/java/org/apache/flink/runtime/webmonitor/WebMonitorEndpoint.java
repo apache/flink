@@ -38,6 +38,7 @@ import org.apache.flink.runtime.rest.handler.cluster.DashboardConfigHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerCustomLogHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogFileHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogListHandler;
+import org.apache.flink.runtime.rest.handler.cluster.JobManagerThreadDumpHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ShutdownHandler;
 import org.apache.flink.runtime.rest.handler.dataset.ClusterDataSetDeleteHandlers;
 import org.apache.flink.runtime.rest.handler.dataset.ClusterDataSetListHandler;
@@ -116,6 +117,7 @@ import org.apache.flink.runtime.rest.messages.cluster.JobManagerCustomLogHeaders
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerLogFileHeader;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerLogListHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerStdoutFileHeader;
+import org.apache.flink.runtime.rest.messages.cluster.JobManagerThreadDumpHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.ShutdownHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskCurrentAttemptDetailsHeaders;
@@ -843,12 +845,21 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         JobManagerLogListHeaders.getInstance(),
                         logFileLocation.logDir);
 
+        final JobManagerThreadDumpHandler jobManagerThreadDumpHandler =
+                new JobManagerThreadDumpHandler(
+                        leaderRetriever,
+                        timeout,
+                        responseHeaders,
+                        JobManagerThreadDumpHeaders.getInstance());
+
         handlers.add(Tuple2.of(JobManagerLogFileHeader.getInstance(), jobManagerLogFileHandler));
         handlers.add(
                 Tuple2.of(JobManagerStdoutFileHeader.getInstance(), jobManagerStdoutFileHandler));
         handlers.add(
                 Tuple2.of(JobManagerCustomLogHeaders.getInstance(), jobManagerCustomLogHandler));
         handlers.add(Tuple2.of(JobManagerLogListHeaders.getInstance(), jobManagerLogListHandler));
+        handlers.add(
+                Tuple2.of(JobManagerThreadDumpHeaders.getInstance(), jobManagerThreadDumpHandler));
 
         // TaskManager log and stdout file handler
 

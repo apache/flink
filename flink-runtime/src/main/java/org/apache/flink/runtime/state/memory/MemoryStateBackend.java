@@ -286,6 +286,12 @@ public class MemoryStateBackend extends AbstractFileStateBackend
         return true;
     }
 
+    @Override
+    public boolean supportsNoClaimRestoreMode() {
+        // we never share any files, all snapshots are full
+        return true;
+    }
+
     // ------------------------------------------------------------------------
     //  Reconfiguration
     // ------------------------------------------------------------------------

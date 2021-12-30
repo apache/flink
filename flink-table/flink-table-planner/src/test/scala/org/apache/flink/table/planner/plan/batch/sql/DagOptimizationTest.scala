@@ -34,7 +34,7 @@ class DagOptimizationTest extends TableTestBase {
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
   util.addTableSource[(Int, Long, String)]("MyTable1", 'd, 'e, 'f)
 
-  val STRING = new VarCharType(VarCharType.MAX_LENGTH)
+  val STRING = VarCharType.STRING_TYPE
   val LONG = new BigIntType()
   val INT = new IntType()
   val DOUBLE = new DoubleType()

@@ -27,6 +27,9 @@ import org.apache.flink.runtime.persistence.TestingRetrievableStateStorageHelper
 import org.apache.flink.runtime.persistence.TestingStateHandleStore;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryImpl;
+import org.apache.flink.runtime.state.SharedStateRegistryKey;
+import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -200,7 +203,7 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
 
         final long ckpId = 100L;
         final CompletedCheckpoint ckp =
-                CompletedCheckpointStoreTest.createCheckpoint(ckpId, new SharedStateRegistry());
+                CompletedCheckpointStoreTest.createCheckpoint(ckpId, new SharedStateRegistryImpl());
         completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
                 ckp, new CheckpointsCleaner(), () -> {});
 
@@ -233,7 +236,7 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
 
         final long ckpId = 100L;
         final CompletedCheckpoint ckp =
-                CompletedCheckpointStoreTest.createCheckpoint(ckpId, new SharedStateRegistry());
+                CompletedCheckpointStoreTest.createCheckpoint(ckpId, new SharedStateRegistryImpl());
 
         try {
             completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
@@ -250,11 +253,16 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
     @Test
     public void testShutdownShouldDiscardStateHandleWhenJobIsGloballyTerminalState()
             throws Exception {
-        final int num = 3;
+        int numBeforeRetained = 3;
+        int numAfterRetained = 4;
+        long retainedCheckpointID = numBeforeRetained + 1;
+        final int numCheckpoints = numBeforeRetained + 1 + numAfterRetained;
         final AtomicInteger removeCalledNum = new AtomicInteger(0);
         final CompletableFuture<Void> clearEntriesAllFuture = new CompletableFuture<>();
+
         final TestingStateHandleStore<CompletedCheckpoint> stateHandleStore =
-                builder.setGetAllSupplier(() -> createStateHandles(num))
+                builder.setGetAllSupplier(
+                                () -> createStateHandles(numBeforeRetained, numAfterRetained))
                         .setRemoveFunction(
                                 ignore -> {
                                     removeCalledNum.incrementAndGet();
@@ -265,12 +273,25 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
         final CompletedCheckpointStore completedCheckpointStore =
                 createCompletedCheckpointStore(stateHandleStore);
 
-        assertThat(completedCheckpointStore.getAllCheckpoints().size(), is(num));
+        assertThat(completedCheckpointStore.getAllCheckpoints().size(), is(numCheckpoints));
+
+        // emulate shared state registration for two checkpoints which won't be completed
+        TestingStreamStateHandle nonRetainedState =
+                registerState(completedCheckpointStore, retainedCheckpointID - 1);
+        TestingStreamStateHandle retainedState =
+                registerState(completedCheckpointStore, retainedCheckpointID);
+        TestingStreamStateHandle beyondRetained =
+                registerState(completedCheckpointStore, retainedCheckpointID + 1);
 
         completedCheckpointStore.shutdown(JobStatus.CANCELED, new CheckpointsCleaner());
-        assertThat(removeCalledNum.get(), is(num));
+
+        assertThat(removeCalledNum.get(), is(numCheckpoints));
         assertThat(clearEntriesAllFuture.isDone(), is(true));
         assertThat(completedCheckpointStore.getAllCheckpoints().size(), is(0));
+
+        assertThat(nonRetainedState.isDisposed(), is(true));
+        assertThat(retainedState.isDisposed(), is(false));
+        assertThat(beyondRetained.isDisposed(), is(false));
     }
 
     @Test
@@ -294,6 +315,8 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
 
         assertThat(completedCheckpointStore.getAllCheckpoints().size(), is(3));
 
+        TestingStreamStateHandle streamStateHandle = registerState(completedCheckpointStore, 3L);
+
         completedCheckpointStore.shutdown(JobStatus.CANCELLING, new CheckpointsCleaner());
         try {
             removeAllFuture.get(timeout, TimeUnit.MILLISECONDS);
@@ -305,6 +328,7 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
         assertThat(removeAllFuture.isDone(), is(false));
         assertThat(releaseAllFuture.isDone(), is(true));
         assertThat(completedCheckpointStore.getAllCheckpoints().size(), is(0));
+        assertThat(streamStateHandle.isDisposed(), is(false));
     }
 
     @Test
@@ -319,7 +343,7 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
                     () ->
                             completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
                                     CompletedCheckpointStoreTest.createCheckpoint(
-                                            0L, new SharedStateRegistry()),
+                                            0L, new SharedStateRegistryImpl()),
                                     checkpointsCleaner,
                                     () -> {
                                         // No-op.
@@ -333,7 +357,7 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
                 new ArrayList<>();
         for (int i = 1; i <= num; i++) {
             final CompletedCheckpointStoreTest.TestCompletedCheckpoint completedCheckpoint =
-                    CompletedCheckpointStoreTest.createCheckpoint(i, new SharedStateRegistry());
+                    CompletedCheckpointStoreTest.createCheckpoint(i, new SharedStateRegistryImpl());
             final RetrievableStateHandle<CompletedCheckpoint> checkpointStateHandle =
                     checkpointStorageHelper.store(completedCheckpoint);
             stateHandles.add(new Tuple2<>(checkpointStateHandle, String.valueOf(i)));
@@ -391,5 +415,37 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
                 Collections.emptyList(),
                 props,
                 new TestCompletedCheckpointStorageLocation());
+    }
+
+    private List<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>> createStateHandles(
+            int numBeforeRetained, int numAfterRetained) {
+        long retainedCheckpointID = numBeforeRetained + 1;
+        List<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>> cpHandles =
+                new ArrayList<>(createStateHandles(numBeforeRetained));
+
+        final CompletedCheckpointStoreTest.TestCompletedCheckpoint completedCheckpoint =
+                CompletedCheckpointStoreTest.createCheckpoint(
+                        retainedCheckpointID,
+                        new SharedStateRegistryImpl(),
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION));
+        cpHandles.add(
+                Tuple2.of(
+                        checkpointStorageHelper.store(completedCheckpoint),
+                        String.valueOf(retainedCheckpointID)));
+        cpHandles.addAll(createStateHandles(numAfterRetained));
+        return cpHandles;
+    }
+
+    private TestingStreamStateHandle registerState(
+            CompletedCheckpointStore completedCheckpointStore, long checkpointID) {
+        TestingStreamStateHandle handle = new TestingStreamStateHandle();
+        completedCheckpointStore
+                .getSharedStateRegistry()
+                .registerReference(
+                        new SharedStateRegistryKey(String.valueOf(new Object().hashCode())),
+                        handle,
+                        checkpointID);
+        return handle;
     }
 }

@@ -130,9 +130,23 @@ Unlike savepoints, checkpoints cannot generally be moved to a different location
 
 If you use `JobManagerCheckpointStorage`, metadata *and* savepoint state will be stored in the `_metadata` file, so don't be confused by the absence of additional data files.
 
-{{< hint warning  >}}
-It is discouraged to move or delete the last savepoint of a running job, because this might interfere with failure-recovery. Savepoints have side-effects on exactly-once sinks, therefore 
-to ensure exactly-once semantics, if there is no checkpoint after the last savepoint, the savepoint will be used for recovery. 
+{{< hint warning  >}} 
+Starting from Flink 1.15 intermediate savepoints (savepoints other than
+created with [stop-with-savepoint](#stopping-a-job-with-savepoint)) are not used for recovery and do
+not commit any side effects.
+
+This has to be taken into consideration, especially when running multiple jobs in the same
+checkpointing timeline. It is possible in that solution that if the original job (after taking a
+savepoint) fails, then it will fall back to a checkpoint prior to the savepoint. However, if we now
+resume a job from the savepoint, then we might commit transactions that might’ve never happened
+because of falling back to a checkpoint before the savepoint (assuming non-determinism).
+
+If one wants to be safe in those scenarios, we advise dropping the state of transactional sinks, by
+changing sinks [uids](#assigning-operator-ids).
+
+It should not require any additional steps if there is just a single job running in the same
+checkpointing timeline, which means that you stop the original job before running a new job from the
+savepoint. 
 {{< /hint >}}
 
 #### Trigger a Savepoint

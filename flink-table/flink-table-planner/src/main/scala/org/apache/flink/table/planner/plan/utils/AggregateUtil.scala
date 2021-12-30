@@ -26,9 +26,8 @@ import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.expressions._
-import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction.{ByteAvgAggFunction, DoubleAvgAggFunction, FloatAvgAggFunction, IntAvgAggFunction, LongAvgAggFunction, ShortAvgAggFunction}
-import org.apache.flink.table.planner.functions.aggfunctions.Sum0AggFunction.{ByteSum0AggFunction, DoubleSum0AggFunction, FloatSum0AggFunction, IntSum0AggFunction, LongSum0AggFunction, ShortSum0AggFunction}
+import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction._
+import org.apache.flink.table.planner.functions.aggfunctions.Sum0AggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.{AvgAggFunction, CountAggFunction, DeclarativeAggregateFunction, Sum0AggFunction}
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
@@ -40,17 +39,18 @@ import org.apache.flink.table.planner.plan.logical.{HoppingWindowSpec, WindowSpe
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 import org.apache.flink.table.planner.typeutils.DataViewUtils
-import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
 import org.apache.flink.table.planner.typeutils.LegacyDataViewUtils.useNullSerializerForStateViewFieldsFromAccType
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
+import org.apache.flink.table.runtime.dataview.DataViewSpec
 import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction
+import org.apache.flink.table.runtime.groupwindow._
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.utils.DataTypeUtils
 
 import org.apache.calcite.rel.`type`._
@@ -1055,27 +1055,27 @@ object AggregateUtil extends Enumeration {
     * Computes the positions of (window start, window end, row time).
     */
   private[flink] def computeWindowPropertyPos(
-      properties: Seq[PlannerNamedWindowProperty]): (Option[Int], Option[Int], Option[Int]) = {
+      properties: Seq[NamedWindowProperty]): (Option[Int], Option[Int], Option[Int]) = {
     val propPos = properties.foldRight(
       (None: Option[Int], None: Option[Int], None: Option[Int], 0)) {
       case (p, (s, e, rt, i)) => p match {
-        case p: PlannerNamedWindowProperty =>
+        case p: NamedWindowProperty =>
           p.getProperty match {
-            case _: PlannerWindowStart if s.isDefined =>
+            case _: WindowStart if s.isDefined =>
               throw new TableException(
                 "Duplicate window start property encountered. This is a bug.")
-            case _: PlannerWindowStart =>
+            case _: WindowStart =>
               (Some(i), e, rt, i - 1)
-            case _: PlannerWindowEnd if e.isDefined =>
+            case _: WindowEnd if e.isDefined =>
               throw new TableException("Duplicate window end property encountered. This is a bug.")
-            case _: PlannerWindowEnd =>
+            case _: WindowEnd =>
               (s, Some(i), rt, i - 1)
-            case _: PlannerRowtimeAttribute if rt.isDefined =>
+            case _: RowtimeAttribute if rt.isDefined =>
               throw new TableException(
                 "Duplicate window rowtime property encountered. This is a bug.")
-            case _: PlannerRowtimeAttribute =>
+            case _: RowtimeAttribute =>
               (s, e, Some(i), i - 1)
-            case _: PlannerProctimeAttribute =>
+            case _: ProctimeAttribute =>
               // ignore this property, it will be null at the position later
               (s, e, rt, i - 1)
           }

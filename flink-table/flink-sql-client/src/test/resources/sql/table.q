@@ -494,7 +494,7 @@ drop temporary table tbl1;
 # test playing with keyword identifiers
 # ==========================================================================
 
-create table `mod` (`table` string, `database` string);
+create table `mod` (`table` string, `database` string) with ('connector' = 'values');
 [INFO] Execute statement succeed.
 !info
 
@@ -665,15 +665,15 @@ Sink(table=[default_catalog.default_database.orders2], fields=[user, product, am
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])",
+    "type" : "Source: orders[]",
     "pact" : "Data Source",
-    "contents" : "Source: TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])",
     "parallelism" : 1
   }, {
     "id" : ,
-    "type" : "WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])",
+    "type" : "WatermarkAssigner[]",
     "pact" : "Operator",
-    "contents" : "WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])",
+    "contents" : "[]:WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -682,9 +682,9 @@ Sink(table=[default_catalog.default_database.orders2], fields=[user, product, am
     } ]
   }, {
     "id" : ,
-    "type" : "ConstraintEnforcer[NotNullEnforcer(fields=[user])]",
+    "type" : "ConstraintEnforcer[]",
     "pact" : "Operator",
-    "contents" : "ConstraintEnforcer[NotNullEnforcer(fields=[user])]",
+    "contents" : "[]:ConstraintEnforcer[NotNullEnforcer(fields=[user])]",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -693,9 +693,9 @@ Sink(table=[default_catalog.default_database.orders2], fields=[user, product, am
     } ]
   }, {
     "id" : ,
-    "type" : "Sink: Sink(table=[default_catalog.default_database.orders2], fields=[user, product, amount, ts])",
+    "type" : "Sink: orders2[]",
     "pact" : "Data Sink",
-    "contents" : "Sink: Sink(table=[default_catalog.default_database.orders2], fields=[user, product, amount, ts])",
+    "contents" : "[]:Sink(table=[default_catalog.default_database.orders2], fields=[user, product, amount, ts])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -730,15 +730,15 @@ Calc(select=[user, product])
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])",
+    "type" : "Source: orders[]",
     "pact" : "Data Source",
-    "contents" : "Source: TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])",
     "parallelism" : 1
   }, {
     "id" : ,
-    "type" : "Calc(select=[user, product, ts])",
+    "type" : "Calc[]",
     "pact" : "Operator",
-    "contents" : "Calc(select=[user, product, ts])",
+    "contents" : "[]:Calc(select=[user, product, ts])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -747,9 +747,9 @@ Calc(select=[user, product])
     } ]
   }, {
     "id" : ,
-    "type" : "WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])",
+    "type" : "WatermarkAssigner[]",
     "pact" : "Operator",
-    "contents" : "WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])",
+    "contents" : "[]:WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -758,9 +758,9 @@ Calc(select=[user, product])
     } ]
   }, {
     "id" : ,
-    "type" : "Calc(select=[user, product])",
+    "type" : "Calc[]",
     "pact" : "Operator",
-    "contents" : "Calc(select=[user, product])",
+    "contents" : "[]:Calc(select=[user, product])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -839,15 +839,15 @@ Calc(select=[user, product])
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])",
+    "type" : "Source: orders[]",
     "pact" : "Data Source",
-    "contents" : "Source: TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])",
     "parallelism" : 1
   }, {
     "id" : ,
-    "type" : "Calc(select=[user, product, ts])",
+    "type" : "Calc[]",
     "pact" : "Operator",
-    "contents" : "Calc(select=[user, product, ts])",
+    "contents" : "[]:Calc(select=[user, product, ts])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -856,9 +856,9 @@ Calc(select=[user, product])
     } ]
   }, {
     "id" : ,
-    "type" : "WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])",
+    "type" : "WatermarkAssigner[]",
     "pact" : "Operator",
-    "contents" : "WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])",
+    "contents" : "[]:WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -867,9 +867,9 @@ Calc(select=[user, product])
     } ]
   }, {
     "id" : ,
-    "type" : "Calc(select=[user, product])",
+    "type" : "Calc[]",
     "pact" : "Operator",
-    "contents" : "Calc(select=[user, product])",
+    "contents" : "[]:Calc(select=[user, product])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

@@ -124,13 +124,13 @@ public class SubtaskState implements CompositeStateHandle {
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
+    public void registerSharedStates(SharedStateRegistry sharedStateRegistry, long checkpointID) {
         if (managedKeyedState != null) {
-            managedKeyedState.registerSharedStates(sharedStateRegistry);
+            managedKeyedState.registerSharedStates(sharedStateRegistry, checkpointID);
         }
 
         if (rawKeyedState != null) {
-            rawKeyedState.registerSharedStates(sharedStateRegistry);
+            rawKeyedState.registerSharedStates(sharedStateRegistry, checkpointID);
         }
     }
 

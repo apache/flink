@@ -149,7 +149,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, 2:BIGINT AS $2])
+Calc(select=[a, b, 2 AS $2])
 +- Rank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], global=[true], select=[a, b, c])
    +- Sort(orderBy=[b ASC, a ASC, c ASC])
       +- Exchange(distribution=[hash[b]])
@@ -270,7 +270,7 @@ LogicalProject(rn1=[CAST($3):INTEGER NOT NULL], rn2=[CAST($4):INTEGER NOT NULL])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(rna) AS rn1, CAST(w0$o0) AS rn2], where=[(w0$o0 <= 200)])
+Calc(select=[CAST(rna AS INTEGER) AS rn1, CAST(w0$o0 AS INTEGER) AS rn2], where=[(w0$o0 <= 200)])
 +- OverAggregate(partitionBy=[a], orderBy=[b DESC], window#0=[ROW_NUMBER(*) AS w0$o0_0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o0_0])
    +- Sort(orderBy=[a ASC, b DESC])
       +- Exchange(distribution=[hash[a]])
@@ -340,7 +340,7 @@ LogicalProject(url=[CONCAT(_UTF-16LE'http://txmov2.a.yximgs.com', $0)], download
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CONCAT(_UTF-16LE'http://txmov2.a.yximgs.com', uri) AS url, reqcount AS download_count, start_time AS timestamp])
+Calc(select=[CONCAT('http://txmov2.a.yximgs.com', uri) AS url, reqcount AS download_count, start_time AS timestamp])
 +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=100000], partitionBy=[start_time], orderBy=[reqcount DESC], global=[true], select=[uri, reqcount, start_time])
    +- Sort(orderBy=[start_time ASC, reqcount DESC])
       +- Exchange(distribution=[hash[start_time]])

@@ -71,19 +71,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-scala_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-api-bridge-base</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-java-bridge</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -121,14 +115,12 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
-			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
-			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
@@ -239,6 +231,20 @@ under the License.
 			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-scala_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -383,10 +389,6 @@ under the License.
 									<include>com.esri.geometry:esri-geometry-api</include>
 									<include>com.google.guava:guava</include>
 									<include>com.google.guava:failureaccess</include>
-									<include>com.jayway.jsonpath:json-path</include>
-									<include>com.fasterxml.jackson.core:jackson-core</include>
-									<include>com.fasterxml.jackson.core:jackson-databind</include>
-									<include>com.fasterxml.jackson.core:jackson-annotations</include>
 									<include>commons-codec:commons-codec</include>
 									<include>commons-io:commons-io</include>
 
@@ -420,12 +422,14 @@ under the License.
 									<shadedPattern>org.apache.flink.calcite.shaded.com.google</shadedPattern>
 								</relocation>
 								<relocation>
+									<!-- Packaged in runtime -->
 									<pattern>com.jayway</pattern>
 									<shadedPattern>org.apache.flink.calcite.shaded.com.jayway</shadedPattern>
 								</relocation>
 								<relocation>
+									<!-- Packaged in runtime -->
 									<pattern>com.fasterxml</pattern>
-									<shadedPattern>org.apache.flink.calcite.shaded.com.fasterxml</shadedPattern>
+									<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.apache.commons.codec</pattern>

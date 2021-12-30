@@ -34,11 +34,12 @@ import org.apache.flink.table.runtime.util.StreamRecordCollector;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 
-import static org.apache.flink.table.api.config.ExecutionConfigOptions.CharPrecisionEnforcer;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TypeLengthEnforcer;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -46,8 +47,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * <ul>
  *   <li>{@code NOT NULL} column constraint of a sink table
- *   <li>{@code CHAR(precision)}/@{code VARCHAR(precision)}: trim string values to comply with the
- *       {@code precision} defined in their corresponding types.
+ *   <li>{@code CHAR(length)}/@{code VARCHAR(length)}: trim string values to comply with the {@code
+ *       length} defined in their corresponding types.
  * </ul>
  */
 @Internal
@@ -60,10 +61,13 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
     private final int[] notNullFieldIndices;
     private final String[] allFieldNames;
 
-    private final CharPrecisionEnforcer charPrecisionEnforcer;
+    private final TypeLengthEnforcer typeLengthEnforcer;
     private final int[] charFieldIndices;
-    private final int[] charFieldPrecisions;
-    private final BitSet charFieldShouldPad;
+    private final int[] charFieldLengths;
+    private final BitSet charFieldCouldPad;
+    private final int[] binaryFieldIndices;
+    private final int[] binaryFieldLengths;
+    private final BitSet binaryFieldCouldPad;
 
     private final String operatorName;
 
@@ -72,18 +76,24 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
     private ConstraintEnforcer(
             NotNullEnforcer notNullEnforcer,
             int[] notNullFieldIndices,
-            CharPrecisionEnforcer charPrecisionEnforcer,
+            TypeLengthEnforcer typeLengthEnforcer,
             int[] charFieldIndices,
-            int[] charFieldPrecisions,
-            BitSet charFieldShouldPad,
+            int[] charFieldLengths,
+            BitSet charFieldCouldPad,
+            int[] binaryFieldIndices,
+            int[] binaryFieldLengths,
+            BitSet binaryFieldCouldPad,
             String[] allFieldNames,
             String operatorName) {
         this.notNullEnforcer = notNullEnforcer;
         this.notNullFieldIndices = notNullFieldIndices;
-        this.charPrecisionEnforcer = charPrecisionEnforcer;
+        this.typeLengthEnforcer = typeLengthEnforcer;
         this.charFieldIndices = charFieldIndices;
-        this.charFieldPrecisions = charFieldPrecisions;
-        this.charFieldShouldPad = charFieldShouldPad;
+        this.charFieldLengths = charFieldLengths;
+        this.charFieldCouldPad = charFieldCouldPad;
+        this.binaryFieldIndices = binaryFieldIndices;
+        this.binaryFieldLengths = binaryFieldLengths;
+        this.binaryFieldCouldPad = binaryFieldCouldPad;
         this.allFieldNames = allFieldNames;
         this.operatorName = operatorName;
     }
@@ -105,15 +115,17 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
 
     /**
      * Helper builder, so that the {@link ConstraintEnforcer} can be instantiated with only the NOT
-     * NULL constraint validation, only the CHAR/VARCHAR precision validation, or both.
+     * NULL constraint validation, only the CHAR/VARCHAR length validation, only the
+     * BINARY/VARBINARY length validation or combinations of them, or all of them.
      */
     public static class Builder {
 
         private NotNullEnforcer notNullEnforcer;
         private int[] notNullFieldIndices;
 
-        private CharPrecisionEnforcer charPrecisionEnforcer;
-        private List<CharFieldInfo> charFieldInfo;
+        private TypeLengthEnforcer typeLengthEnforcer;
+        private List<FieldInfo> charFieldInfo;
+        private List<FieldInfo> binaryFieldInfo;
         private String[] allFieldNames;
 
         private final List<String> operatorNames = new ArrayList<>();
@@ -140,13 +152,13 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
             }
         }
 
-        public void addCharPrecisionConstraint(
-                CharPrecisionEnforcer charPrecisionEnforcer,
-                List<CharFieldInfo> charFieldInfo,
+        public void addCharLengthConstraint(
+                TypeLengthEnforcer typeLengthEnforcer,
+                List<FieldInfo> charFieldInfo,
                 List<String> charFieldNames,
                 String[] allFieldNames) {
-            this.charPrecisionEnforcer = charPrecisionEnforcer;
-            if (this.charPrecisionEnforcer == CharPrecisionEnforcer.TRIM_PAD) {
+            this.typeLengthEnforcer = typeLengthEnforcer;
+            if (this.typeLengthEnforcer == TypeLengthEnforcer.TRIM_PAD) {
                 checkArgument(
                         charFieldInfo.size() > 0,
                         "ConstraintValidator requires that there are CHAR/VARCHAR fields.");
@@ -155,15 +167,35 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
 
                 operatorNames.add(
                         String.format(
-                                "CharPrecisionEnforcer(fields=[%s])",
-                                String.join(", ", charFieldNames)));
+                                "LengthEnforcer(fields=[%s])", String.join(", ", charFieldNames)));
+                this.isConfigured = true;
+            }
+        }
+
+        public void addBinaryLengthConstraint(
+                TypeLengthEnforcer typeLengthEnforcer,
+                List<FieldInfo> binaryFieldInfo,
+                List<String> binaryFieldNames,
+                String[] allFieldNames) {
+            this.typeLengthEnforcer = typeLengthEnforcer;
+            if (this.typeLengthEnforcer == TypeLengthEnforcer.TRIM_PAD) {
+                checkArgument(
+                        binaryFieldInfo.size() > 0,
+                        "ConstraintValidator requires that there are BINARY/VARBINARY fields.");
+                this.binaryFieldInfo = binaryFieldInfo;
+                this.allFieldNames = allFieldNames;
+
+                operatorNames.add(
+                        String.format(
+                                "LengthEnforcer(fields=[%s])",
+                                String.join(", ", binaryFieldNames)));
                 this.isConfigured = true;
             }
         }
 
         /**
-         * If neither of NOT NULL or CHAR/VARCHAR precision enforcers are configured, null is
-         * returned.
+         * If neither of NOT NULL or CHAR/VARCHAR length or BINARY/VARBINARY enforcers are
+         * configured, null is returned.
          */
         public ConstraintEnforcer build() {
             if (isConfigured) {
@@ -172,14 +204,21 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
                 return new ConstraintEnforcer(
                         notNullEnforcer,
                         notNullFieldIndices,
-                        charPrecisionEnforcer,
+                        typeLengthEnforcer,
                         charFieldInfo != null
-                                ? charFieldInfo.stream().mapToInt(cfi -> cfi.fieldIdx).toArray()
+                                ? charFieldInfo.stream().mapToInt(fi -> fi.fieldIdx).toArray()
                                 : null,
                         charFieldInfo != null
-                                ? charFieldInfo.stream().mapToInt(cfi -> cfi.precision).toArray()
+                                ? charFieldInfo.stream().mapToInt(fi -> fi.length).toArray()
                                 : null,
-                        charFieldInfo != null ? buildShouldPad(charFieldInfo) : null,
+                        charFieldInfo != null ? buildCouldPad(charFieldInfo) : null,
+                        binaryFieldInfo != null
+                                ? binaryFieldInfo.stream().mapToInt(fi -> fi.fieldIdx).toArray()
+                                : null,
+                        binaryFieldInfo != null
+                                ? binaryFieldInfo.stream().mapToInt(fi -> fi.length).toArray()
+                                : null,
+                        binaryFieldInfo != null ? buildCouldPad(binaryFieldInfo) : null,
                         allFieldNames,
                         operatorName);
             }
@@ -187,21 +226,25 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
         }
     }
 
-    private static BitSet buildShouldPad(List<CharFieldInfo> charFieldInfo) {
-        BitSet shouldPad = new BitSet(charFieldInfo.size());
+    private static BitSet buildCouldPad(List<FieldInfo> charFieldInfo) {
+        BitSet couldPad = new BitSet(charFieldInfo.size());
         for (int i = 0; i < charFieldInfo.size(); i++) {
-            if (charFieldInfo.get(i).shouldPad) {
-                shouldPad.set(i);
+            if (charFieldInfo.get(i).couldPad) {
+                couldPad.set(i);
             }
         }
-        return shouldPad;
+        return couldPad;
     }
 
     @Override
     public void processElement(StreamRecord<RowData> element) throws Exception {
         RowData processedRowData = processNotNullConstraint(element.getValue());
+        // If NOT NULL constraint is not respected don't proceed to process the other constraints,
+        // simply drop the record.
         if (processedRowData != null) {
-            collector.collect(processCharConstraint(processedRowData));
+            processedRowData = processCharConstraint(processedRowData);
+            processedRowData = processBinaryConstraint(processedRowData);
+            collector.collect(processedRowData);
         }
     }
 
@@ -231,8 +274,9 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
     }
 
     private RowData processCharConstraint(RowData rowData) {
-        if (charPrecisionEnforcer == null
-                || charPrecisionEnforcer == CharPrecisionEnforcer.IGNORE) {
+        if (typeLengthEnforcer == null
+                || typeLengthEnforcer == TypeLengthEnforcer.IGNORE
+                || charFieldIndices == null) {
             return rowData;
         }
 
@@ -240,26 +284,54 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
 
         for (int i = 0; i < charFieldIndices.length; i++) {
             final int fieldIdx = charFieldIndices[i];
-            final int precision = charFieldPrecisions[i];
+            final int length = charFieldLengths[i];
             final BinaryStringData stringData = (BinaryStringData) rowData.getString(fieldIdx);
             final int sourceStrLength = stringData.numChars();
 
-            if (charFieldShouldPad.get(i) && sourceStrLength < precision) {
+            if (charFieldCouldPad.get(i) && sourceStrLength < length) {
                 if (updatedRowData == null) {
                     updatedRowData = new UpdatableRowData(rowData, allFieldNames.length);
                 }
                 final int srcSizeInBytes = stringData.getSizeInBytes();
-                final byte[] newString = new byte[srcSizeInBytes + precision - sourceStrLength];
+                final byte[] newString = new byte[srcSizeInBytes + length - sourceStrLength];
                 for (int j = srcSizeInBytes; j < newString.length; j++) {
                     newString[j] = (byte) 32; // space
                 }
                 SegmentsUtil.copyToBytes(stringData.getSegments(), 0, newString, 0, srcSizeInBytes);
                 updatedRowData.setField(fieldIdx, StringData.fromBytes(newString));
-            } else if (sourceStrLength > precision) {
+            } else if (sourceStrLength > length) {
                 if (updatedRowData == null) {
                     updatedRowData = new UpdatableRowData(rowData, allFieldNames.length);
                 }
-                updatedRowData.setField(fieldIdx, stringData.substring(0, precision));
+                updatedRowData.setField(fieldIdx, stringData.substring(0, length));
+            }
+        }
+
+        return updatedRowData != null ? updatedRowData : rowData;
+    }
+
+    private RowData processBinaryConstraint(RowData rowData) {
+        if (typeLengthEnforcer == null
+                || typeLengthEnforcer == TypeLengthEnforcer.IGNORE
+                || binaryFieldIndices == null) {
+            return rowData;
+        }
+
+        UpdatableRowData updatedRowData = null;
+
+        for (int i = 0; i < binaryFieldLengths.length; i++) {
+            final int fieldIdx = binaryFieldIndices[i];
+            final int length = binaryFieldLengths[i];
+            final byte[] binaryData = rowData.getBinary(fieldIdx);
+            final int sourceLength = binaryData.length;
+
+            // Trimming takes places because of the shorter length used in `Arrays.copyOf` and
+            // padding because of the longer length, as implicitly the trailing bytes are 0.
+            if ((sourceLength > length) || (binaryFieldCouldPad.get(i) && sourceLength < length)) {
+                if (updatedRowData == null) {
+                    updatedRowData = new UpdatableRowData(rowData, allFieldNames.length);
+                }
+                updatedRowData.setField(fieldIdx, Arrays.copyOf(binaryData, length));
             }
         }
 
@@ -267,19 +339,19 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
     }
 
     /**
-     * Helper POJO to keep info about CHAR/VARCHAR Fields, used to determine if trimming or padding
-     * is needed.
+     * Helper POJO to keep info about CHAR/VARCHAR/BINARY/VARBINARY fields, used to determine if
+     * trimming or padding is needed.
      */
     @Internal
-    public static class CharFieldInfo {
+    public static class FieldInfo {
         private final int fieldIdx;
-        private final Integer precision;
-        private final boolean shouldPad;
+        private final Integer length;
+        private final boolean couldPad;
 
-        public CharFieldInfo(int fieldIdx, @Nullable Integer precision, boolean shouldPad) {
+        public FieldInfo(int fieldIdx, @Nullable Integer length, boolean couldPad) {
             this.fieldIdx = fieldIdx;
-            this.precision = precision;
-            this.shouldPad = shouldPad;
+            this.length = length;
+            this.couldPad = couldPad;
         }
 
         public int fieldIdx() {

@@ -97,11 +97,16 @@ public class StandaloneCompletedCheckpointStore extends AbstractCompleteCheckpoi
 
         checkpoints.addLast(checkpoint);
 
-        return CheckpointSubsumeHelper.subsume(
-                        checkpoints,
-                        maxNumberOfCheckpointsToRetain,
-                        CompletedCheckpoint::discardOnSubsume)
-                .orElse(null);
+        CompletedCheckpoint completedCheckpoint =
+                CheckpointSubsumeHelper.subsume(
+                                checkpoints,
+                                maxNumberOfCheckpointsToRetain,
+                                CompletedCheckpoint::discardOnSubsume)
+                        .orElse(null);
+
+        unregisterUnusedState(checkpoints);
+
+        return completedCheckpoint;
     }
 
     @Override
@@ -126,9 +131,22 @@ public class StandaloneCompletedCheckpointStore extends AbstractCompleteCheckpoi
         try {
             LOG.info("Shutting down");
 
+            long lowestRetained = Long.MAX_VALUE;
             for (CompletedCheckpoint checkpoint : checkpoints) {
-                checkpoint.discardOnShutdown(jobStatus);
+                if (!checkpoint.discardOnShutdown(jobStatus)) {
+                    lowestRetained = Math.min(checkpoint.getCheckpointID(), lowestRetained);
+                }
             }
+            if (jobStatus.isGloballyTerminalState()) {
+                // Now discard the shared state of not subsumed checkpoints - only if:
+                // - the job is in a globally terminal state. Otherwise,
+                // it can be a suspension, after which this state might still be needed.
+                // - checkpoint is not retained (it might be used externally)
+                // - checkpoint handle removal succeeded (e.g. from ZK) - otherwise, it might still
+                // be used in recovery if the job status is lost
+                getSharedStateRegistry().unregisterUnusedState(lowestRetained);
+            }
+
         } finally {
             checkpoints.clear();
         }

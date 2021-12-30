@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -53,6 +54,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
@@ -64,11 +66,11 @@ import org.apache.flink.table.runtime.operators.sink.StreamRecordTimestampInsert
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
+import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.RowKind;
 
@@ -107,6 +109,11 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         this.tableSinkSpec = tableSinkSpec;
         this.inputChangelogMode = inputChangelogMode;
         this.isBounded = isBounded;
+    }
+
+    @Override
+    public String getSimplifiedName() {
+        return tableSinkSpec.getObjectIdentifier().getObjectName();
     }
 
     public DynamicTableSinkSpec getTableSinkSpec() {
@@ -177,7 +184,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                         planner.getExecEnv(),
                         runtimeProvider,
                         rowtimeFieldIndex,
-                        sinkParallelism);
+                        sinkParallelism,
+                        planner.getTableConfig().getConfiguration());
     }
 
     /**
@@ -203,28 +211,51 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                     notNullEnforcer, notNullFieldIndices, notNullFieldNames, fieldNames);
         }
 
-        // Build CHAR/VARCHAR precision enforcer
-        final List<ConstraintEnforcer.CharFieldInfo> charFieldInfo =
-                getCharFieldInfo(physicalRowType);
+        final ExecutionConfigOptions.TypeLengthEnforcer typeLengthEnforcer =
+                config.getConfiguration()
+                        .get(ExecutionConfigOptions.TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER);
+
+        // Build CHAR/VARCHAR length enforcer
+        final List<ConstraintEnforcer.FieldInfo> charFieldInfo =
+                getFieldInfoForLengthEnforcer(physicalRowType, LengthEnforcerType.CHAR);
         if (!charFieldInfo.isEmpty()) {
-            final ExecutionConfigOptions.CharPrecisionEnforcer charPrecisionEnforcer =
-                    config.getConfiguration()
-                            .get(ExecutionConfigOptions.TABLE_EXEC_SINK_CHAR_PRECISION_ENFORCER);
             final List<String> charFieldNames =
                     charFieldInfo.stream()
                             .map(cfi -> fieldNames[cfi.fieldIdx()])
                             .collect(Collectors.toList());
 
-            validatorBuilder.addCharPrecisionConstraint(
-                    charPrecisionEnforcer, charFieldInfo, charFieldNames, fieldNames);
+            validatorBuilder.addCharLengthConstraint(
+                    typeLengthEnforcer, charFieldInfo, charFieldNames, fieldNames);
+        }
+
+        // Build BINARY/VARBINARY length enforcer
+        final List<ConstraintEnforcer.FieldInfo> binaryFieldInfo =
+                getFieldInfoForLengthEnforcer(physicalRowType, LengthEnforcerType.BINARY);
+        if (!binaryFieldInfo.isEmpty()) {
+            final List<String> binaryFieldNames =
+                    binaryFieldInfo.stream()
+                            .map(cfi -> fieldNames[cfi.fieldIdx()])
+                            .collect(Collectors.toList());
+
+            validatorBuilder.addBinaryLengthConstraint(
+                    typeLengthEnforcer, binaryFieldInfo, binaryFieldNames, fieldNames);
         }
 
         ConstraintEnforcer constraintEnforcer = validatorBuilder.build();
         if (constraintEnforcer != null) {
-            return new OneInputTransformation<>(
+            final String operatorDesc =
+                    getFormattedOperatorDescription(
+                            constraintEnforcer.getOperatorName(), config.getConfiguration());
+            final String operatorName =
+                    getFormattedOperatorName(
+                            constraintEnforcer.getOperatorName(),
+                            "ConstraintEnforcer",
+                            config.getConfiguration());
+            return ExecNodeUtil.createOneInputTransformation(
                     inputTransform,
-                    constraintEnforcer.getOperatorName(),
-                    validatorBuilder.build(),
+                    operatorName,
+                    operatorDesc,
+                    constraintEnforcer,
                     getInputTypeInfo(),
                     inputTransform.getParallelism());
         } else {
@@ -240,26 +271,40 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     }
 
     /**
-     * Returns a List of {@link ConstraintEnforcer.CharFieldInfo}, each containing the info needed
-     * to determine whether a string value needs trimming and/or padding.
+     * Returns a List of {@link ConstraintEnforcer.FieldInfo}, each containing the info needed to
+     * determine whether a string or binary value needs trimming and/or padding.
      */
-    private List<ConstraintEnforcer.CharFieldInfo> getCharFieldInfo(RowType physicalType) {
-        final List<ConstraintEnforcer.CharFieldInfo> charFieldsAndLengths = new ArrayList<>();
+    private List<ConstraintEnforcer.FieldInfo> getFieldInfoForLengthEnforcer(
+            RowType physicalType, LengthEnforcerType enforcerType) {
+        LogicalTypeRoot staticType = null;
+        LogicalTypeRoot variableType = null;
+        int maxLength = 0;
+        switch (enforcerType) {
+            case CHAR:
+                staticType = LogicalTypeRoot.CHAR;
+                variableType = LogicalTypeRoot.VARCHAR;
+                maxLength = CharType.MAX_LENGTH;
+                break;
+            case BINARY:
+                staticType = LogicalTypeRoot.BINARY;
+                variableType = LogicalTypeRoot.VARBINARY;
+                maxLength = BinaryType.MAX_LENGTH;
+        }
+        final List<ConstraintEnforcer.FieldInfo> fieldsAndLengths = new ArrayList<>();
         for (int i = 0; i < physicalType.getFieldCount(); i++) {
             LogicalType type = physicalType.getTypeAt(i);
-            boolean isChar = type.is(LogicalTypeRoot.CHAR);
+            boolean isStatic = type.is(staticType);
             // Should trim and possibly pad
-            if ((isChar && (LogicalTypeChecks.getLength(type) < CharType.MAX_LENGTH))
-                    || (type.is(LogicalTypeRoot.VARCHAR)
-                            && (LogicalTypeChecks.getLength(type) < VarCharType.MAX_LENGTH))) {
-                charFieldsAndLengths.add(
-                        new ConstraintEnforcer.CharFieldInfo(
-                                i, LogicalTypeChecks.getLength(type), isChar));
-            } else if (isChar) { // Should pad
-                charFieldsAndLengths.add(new ConstraintEnforcer.CharFieldInfo(i, null, isChar));
+            if ((isStatic && (LogicalTypeChecks.getLength(type) < maxLength))
+                    || (type.is(variableType) && (LogicalTypeChecks.getLength(type) < maxLength))) {
+                fieldsAndLengths.add(
+                        new ConstraintEnforcer.FieldInfo(
+                                i, LogicalTypeChecks.getLength(type), isStatic));
+            } else if (isStatic) { // Should pad
+                fieldsAndLengths.add(new ConstraintEnforcer.FieldInfo(i, null, isStatic));
             }
         }
-        return charFieldsAndLengths;
+        return fieldsAndLengths;
     }
 
     /**
@@ -348,10 +393,23 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                                 tableConfig.getIdleStateRetention().toMillis()),
                         InternalSerializers.create(physicalRowType),
                         equaliser);
+        final String[] fieldNames = physicalRowType.getFieldNames().toArray(new String[0]);
+        final List<String> pkFieldNames =
+                Arrays.stream(primaryKeys)
+                        .mapToObj(idx -> fieldNames[idx])
+                        .collect(Collectors.toList());
+        final String operatorDesc =
+                getFormattedOperatorDescription(
+                        String.format("SinkMaterializer(pk=[%s])", String.join(", ", pkFieldNames)),
+                        tableConfig.getConfiguration());
+        final String operatorName =
+                getFormattedOperatorName(
+                        operatorDesc, "SinkMaterializer", tableConfig.getConfiguration());
         OneInputTransformation<RowData, RowData> materializeTransform =
-                new OneInputTransformation<>(
+                ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        "SinkMaterializer",
+                        operatorName,
+                        operatorDesc,
                         operator,
                         inputTransform.getOutputType(),
                         sinkParallelism);
@@ -368,10 +426,14 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             StreamExecutionEnvironment env,
             SinkRuntimeProvider runtimeProvider,
             int rowtimeFieldIndex,
-            int sinkParallelism) {
+            int sinkParallelism,
+            Configuration config) {
+        String sinkName = getOperatorName(config);
+        String sinkDescription = getOperatorDescription(config);
         if (runtimeProvider instanceof DataStreamSinkProvider) {
             Transformation<RowData> sinkTransformation =
-                    applyRowtimeTransformation(inputTransform, rowtimeFieldIndex, sinkParallelism);
+                    applyRowtimeTransformation(
+                            inputTransform, rowtimeFieldIndex, sinkParallelism, config);
             final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
             final DataStreamSinkProvider provider = (DataStreamSinkProvider) runtimeProvider;
             return provider.consumeDataStream(dataStream).getTransformation();
@@ -384,19 +446,35 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             final SinkFunction<RowData> sinkFunction =
                     ((SinkFunctionProvider) runtimeProvider).createSinkFunction();
             return createSinkFunctionTransformation(
-                    sinkFunction, env, inputTransform, rowtimeFieldIndex, sinkParallelism);
+                    sinkFunction,
+                    env,
+                    inputTransform,
+                    rowtimeFieldIndex,
+                    sinkName,
+                    sinkDescription,
+                    sinkParallelism);
         } else if (runtimeProvider instanceof OutputFormatProvider) {
             OutputFormat<RowData> outputFormat =
                     ((OutputFormatProvider) runtimeProvider).createOutputFormat();
             final SinkFunction<RowData> sinkFunction = new OutputFormatSinkFunction<>(outputFormat);
             return createSinkFunctionTransformation(
-                    sinkFunction, env, inputTransform, rowtimeFieldIndex, sinkParallelism);
-        } else if (runtimeProvider instanceof SinkProvider) {
-            return new SinkTransformation<>(
-                    applyRowtimeTransformation(inputTransform, rowtimeFieldIndex, sinkParallelism),
-                    ((SinkProvider) runtimeProvider).createSink(),
-                    getDescription(),
+                    sinkFunction,
+                    env,
+                    inputTransform,
+                    rowtimeFieldIndex,
+                    sinkName,
+                    sinkDescription,
                     sinkParallelism);
+        } else if (runtimeProvider instanceof SinkProvider) {
+            Transformation<?> transformation =
+                    new SinkTransformation<>(
+                            applyRowtimeTransformation(
+                                    inputTransform, rowtimeFieldIndex, sinkParallelism, config),
+                            ((SinkProvider) runtimeProvider).createSink(),
+                            sinkName,
+                            sinkParallelism);
+            transformation.setDescription(sinkDescription);
+            return transformation;
         } else {
             throw new TableException("Unsupported sink runtime provider.");
         }
@@ -407,6 +485,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             StreamExecutionEnvironment env,
             Transformation<RowData> inputTransformation,
             int rowtimeFieldIndex,
+            String sinkName,
+            String sinkDescription,
             int sinkParallelism) {
         final SinkOperator operator = new SinkOperator(env.clean(sinkFunction), rowtimeFieldIndex);
 
@@ -415,23 +495,35 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                     .setInputType(getInputTypeInfo(), env.getConfig());
         }
 
-        return new LegacySinkTransformation<>(
-                inputTransformation,
-                getDescription(),
-                SimpleOperatorFactory.of(operator),
-                sinkParallelism);
+        final Transformation<?> transformation =
+                new LegacySinkTransformation<>(
+                        inputTransformation,
+                        sinkName,
+                        SimpleOperatorFactory.of(operator),
+                        sinkParallelism);
+        transformation.setDescription(sinkDescription);
+        return transformation;
     }
 
     private Transformation<RowData> applyRowtimeTransformation(
-            Transformation<RowData> inputTransform, int rowtimeFieldIndex, int sinkParallelism) {
+            Transformation<RowData> inputTransform,
+            int rowtimeFieldIndex,
+            int sinkParallelism,
+            Configuration config) {
         // Don't apply the transformation/operator if there is no rowtimeFieldIndex
         if (rowtimeFieldIndex == -1) {
             return inputTransform;
         }
-        return new OneInputTransformation<>(
+        final String description =
+                getFormattedOperatorDescription(
+                        String.format(
+                                "StreamRecordTimestampInserter(rowtime field: %s)",
+                                rowtimeFieldIndex),
+                        config);
+        return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                String.format(
-                        "StreamRecordTimestampInserter(rowtime field: %s)", rowtimeFieldIndex),
+                getFormattedOperatorName(description, "StreamRecordTimestampInserter", config),
+                description,
                 new StreamRecordTimestampInserter(rowtimeFieldIndex),
                 inputTransform.getOutputType(),
                 sinkParallelism);
@@ -449,5 +541,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
 
     private RowType getPhysicalRowType(ResolvedSchema schema) {
         return (RowType) schema.toPhysicalRowDataType().getLogicalType();
+    }
+
+    private enum LengthEnforcerType {
+        CHAR,
+        BINARY
     }
 }

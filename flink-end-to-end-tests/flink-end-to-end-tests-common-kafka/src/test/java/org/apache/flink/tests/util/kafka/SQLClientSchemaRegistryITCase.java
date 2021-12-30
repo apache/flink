@@ -20,7 +20,6 @@ package org.apache.flink.tests.util.kafka;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.tests.util.flink.container.FlinkContainers;
 import org.apache.flink.tests.util.kafka.containers.SchemaRegistryContainer;
@@ -38,8 +37,8 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +59,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 /** End-to-end test for SQL client using Avro Confluent Registry format. */
-@Category(value = {TravisGroup1.class})
+@Ignore("FLINK-25209")
 public class SQLClientSchemaRegistryITCase {
     private static final Logger LOG = LoggerFactory.getLogger(SQLClientSchemaRegistryITCase.class);
     private static final Slf4jLogConsumer LOG_CONSUMER = new Slf4jLogConsumer(LOG);
@@ -72,27 +71,27 @@ public class SQLClientSchemaRegistryITCase {
     private static final Path sqlToolBoxJar = TestUtils.getResource(".*SqlToolbox.jar");
     private final Path sqlConnectorKafkaJar = TestUtils.getResource(".*kafka.jar");
 
-    @ClassRule private static final Network network = Network.newNetwork();
+    @ClassRule public static final Network NETWORK = Network.newNetwork();
 
     @ClassRule public static final Timeout TIMEOUT = new Timeout(10, TimeUnit.MINUTES);
 
     @ClassRule
-    private static final KafkaContainer kafka =
+    public static final KafkaContainer KAFKA =
             new KafkaContainer(DockerImageName.parse(DockerImageVersions.KAFKA))
-                    .withNetwork(network)
+                    .withNetwork(NETWORK)
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS)
                     .withLogConsumer(LOG_CONSUMER);
 
     @ClassRule
-    private static final SchemaRegistryContainer registry =
+    public static final SchemaRegistryContainer REGISTRY =
             new SchemaRegistryContainer("5.5.2")
                     .withKafka(INTER_CONTAINER_KAFKA_ALIAS + ":9092")
-                    .withNetwork(network)
+                    .withNetwork(NETWORK)
                     .withNetworkAliases(INTER_CONTAINER_REGISTRY_ALIAS)
-                    .dependsOn(kafka);
+                    .dependsOn(KAFKA);
 
     public final FlinkContainers flink =
-            FlinkContainers.builder().setNetwork(network).setLogger(LOG).dependsOn(kafka).build();
+            FlinkContainers.builder().setNetwork(NETWORK).setLogger(LOG).dependsOn(KAFKA).build();
 
     private KafkaContainerClient kafkaClient;
     private CachedSchemaRegistryClient registryClient;
@@ -100,8 +99,8 @@ public class SQLClientSchemaRegistryITCase {
     @Before
     public void setUp() throws Exception {
         flink.start();
-        kafkaClient = new KafkaContainerClient(kafka);
-        registryClient = new CachedSchemaRegistryClient(registry.getSchemaRegistryUrl(), 10);
+        kafkaClient = new KafkaContainerClient(KAFKA);
+        registryClient = new CachedSchemaRegistryClient(REGISTRY.getSchemaRegistryUrl(), 10);
     }
 
     @After

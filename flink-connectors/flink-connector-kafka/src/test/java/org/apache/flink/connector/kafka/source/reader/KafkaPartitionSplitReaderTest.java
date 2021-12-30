@@ -18,16 +18,13 @@
 
 package org.apache.flink.connector.kafka.source.reader;
 
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics;
-import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.connector.kafka.source.testutils.KafkaSourceTestEnv;
-import org.apache.flink.connector.testutils.source.deserialization.TestingDeserializationContext;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -40,6 +37,7 @@ import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
@@ -82,6 +80,8 @@ public class KafkaPartitionSplitReaderTest {
     private static Map<Integer, Map<String, KafkaPartitionSplit>> splitsByOwners;
     private static Map<TopicPartition, Long> earliestOffsets;
 
+    private final IntegerDeserializer deserializer = new IntegerDeserializer();
+
     @BeforeAll
     public static void setup() throws Throwable {
         KafkaSourceTestEnv.setup();
@@ -101,14 +101,14 @@ public class KafkaPartitionSplitReaderTest {
 
     @Test
     public void testHandleSplitChangesAndFetch() throws Exception {
-        KafkaPartitionSplitReader<Integer> reader = createReader();
+        KafkaPartitionSplitReader reader = createReader();
         assignSplitsAndFetchUntilFinish(reader, 0);
         assignSplitsAndFetchUntilFinish(reader, 1);
     }
 
     @Test
     public void testWakeUp() throws Exception {
-        KafkaPartitionSplitReader<Integer> reader = createReader();
+        KafkaPartitionSplitReader reader = createReader();
         TopicPartition nonExistingTopicPartition = new TopicPartition("NotExist", 0);
         assignSplits(
                 reader,
@@ -141,7 +141,7 @@ public class KafkaPartitionSplitReaderTest {
                 UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
         final Counter numBytesInCounter =
                 operatorMetricGroup.getIOMetricGroup().getNumBytesInCounter();
-        KafkaPartitionSplitReader<Integer> reader =
+        KafkaPartitionSplitReader reader =
                 createReader(
                         new Properties(),
                         InternalSourceReaderMetricGroup.wrap(operatorMetricGroup));
@@ -180,7 +180,7 @@ public class KafkaPartitionSplitReaderTest {
         MetricListener metricListener = new MetricListener();
         final Properties props = new Properties();
         props.setProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "1");
-        KafkaPartitionSplitReader<Integer> reader =
+        KafkaPartitionSplitReader reader =
                 createReader(
                         props,
                         InternalSourceReaderMetricGroup.mock(metricListener.getMetricGroup()));
@@ -217,7 +217,7 @@ public class KafkaPartitionSplitReaderTest {
 
     @Test
     public void testAssignEmptySplit() throws Exception {
-        KafkaPartitionSplitReader<Integer> reader = createReader();
+        KafkaPartitionSplitReader reader = createReader();
         final KafkaPartitionSplit normalSplit =
                 new KafkaPartitionSplit(
                         new TopicPartition(TOPIC1, 0),
@@ -231,7 +231,7 @@ public class KafkaPartitionSplitReaderTest {
         reader.handleSplitsChanges(new SplitsAddition<>(Arrays.asList(normalSplit, emptySplit)));
 
         // Fetch and check empty splits is added to finished splits
-        RecordsWithSplitIds<Tuple3<Integer, Long, Long>> recordsWithSplitIds = reader.fetch();
+        RecordsWithSplitIds<ConsumerRecord<byte[], byte[]>> recordsWithSplitIds = reader.fetch();
         assertTrue(recordsWithSplitIds.finishedSplits().contains(emptySplit.splitId()));
 
         // Assign another valid split to avoid consumer.poll() blocking
@@ -250,20 +250,20 @@ public class KafkaPartitionSplitReaderTest {
 
     // ------------------
 
-    private void assignSplitsAndFetchUntilFinish(
-            KafkaPartitionSplitReader<Integer> reader, int readerId) throws IOException {
+    private void assignSplitsAndFetchUntilFinish(KafkaPartitionSplitReader reader, int readerId)
+            throws IOException {
         Map<String, KafkaPartitionSplit> splits =
                 assignSplits(reader, splitsByOwners.get(readerId));
 
         Map<String, Integer> numConsumedRecords = new HashMap<>();
         Set<String> finishedSplits = new HashSet<>();
         while (finishedSplits.size() < splits.size()) {
-            RecordsWithSplitIds<Tuple3<Integer, Long, Long>> recordsBySplitIds = reader.fetch();
+            RecordsWithSplitIds<ConsumerRecord<byte[], byte[]>> recordsBySplitIds = reader.fetch();
             String splitId = recordsBySplitIds.nextSplit();
             while (splitId != null) {
                 // Collect the records in this split.
-                List<Tuple3<Integer, Long, Long>> splitFetch = new ArrayList<>();
-                Tuple3<Integer, Long, Long> record;
+                List<ConsumerRecord<byte[], byte[]>> splitFetch = new ArrayList<>();
+                ConsumerRecord<byte[], byte[]> record;
                 while ((record = recordsBySplitIds.nextRecordFromSplit()) != null) {
                     splitFetch.add(record);
                 }
@@ -305,34 +305,29 @@ public class KafkaPartitionSplitReaderTest {
 
     // ------------------
 
-    private KafkaPartitionSplitReader<Integer> createReader() throws Exception {
+    private KafkaPartitionSplitReader createReader() {
         return createReader(
                 new Properties(), UnregisteredMetricsGroup.createSourceReaderMetricGroup());
     }
 
-    private KafkaPartitionSplitReader<Integer> createReader(
-            Properties additionalProperties, SourceReaderMetricGroup sourceReaderMetricGroup)
-            throws Exception {
+    private KafkaPartitionSplitReader createReader(
+            Properties additionalProperties, SourceReaderMetricGroup sourceReaderMetricGroup) {
         Properties props = new Properties();
         props.putAll(KafkaSourceTestEnv.getConsumerProperties(ByteArrayDeserializer.class));
         props.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none");
         if (!additionalProperties.isEmpty()) {
             props.putAll(additionalProperties);
         }
-        KafkaRecordDeserializationSchema<Integer> deserializationSchema =
-                KafkaRecordDeserializationSchema.valueOnly(IntegerDeserializer.class);
-        deserializationSchema.open(new TestingDeserializationContext());
         KafkaSourceReaderMetrics kafkaSourceReaderMetrics =
                 new KafkaSourceReaderMetrics(sourceReaderMetricGroup);
-        return new KafkaPartitionSplitReader<>(
+        return new KafkaPartitionSplitReader(
                 props,
-                deserializationSchema,
                 new TestingReaderContext(new Configuration(), sourceReaderMetricGroup),
                 kafkaSourceReaderMetrics);
     }
 
     private Map<String, KafkaPartitionSplit> assignSplits(
-            KafkaPartitionSplitReader<Integer> reader, Map<String, KafkaPartitionSplit> splits) {
+            KafkaPartitionSplitReader reader, Map<String, KafkaPartitionSplit> splits) {
         SplitsChange<KafkaPartitionSplit> splitsChange =
                 new SplitsAddition<>(new ArrayList<>(splits.values()));
         reader.handleSplitsChanges(splitsChange);
@@ -342,16 +337,16 @@ public class KafkaPartitionSplitReaderTest {
     private boolean verifyConsumed(
             final KafkaPartitionSplit split,
             final long expectedStartingOffset,
-            final Collection<Tuple3<Integer, Long, Long>> consumed) {
+            final Collection<ConsumerRecord<byte[], byte[]>> consumed) {
         long expectedOffset = expectedStartingOffset;
 
-        for (Tuple3<Integer, Long, Long> record : consumed) {
+        for (ConsumerRecord<byte[], byte[]> record : consumed) {
             int expectedValue = (int) expectedOffset;
             long expectedTimestamp = expectedOffset * 1000L;
 
-            assertEquals(expectedValue, (int) record.f0);
-            assertEquals(expectedOffset, (long) record.f1);
-            assertEquals(expectedTimestamp, (long) record.f2);
+            assertEquals(expectedValue, deserializer.deserialize(record.topic(), record.value()));
+            assertEquals(expectedOffset, record.offset());
+            assertEquals(expectedTimestamp, record.timestamp());
 
             expectedOffset++;
         }

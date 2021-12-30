@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.Environment;
@@ -37,6 +38,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
@@ -427,6 +429,31 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     @Nullable
     public OP getMainOperator() {
         return (mainOperatorWrapper == null) ? null : mainOperatorWrapper.getStreamOperator();
+    }
+
+    @Nullable
+    protected StreamOperator<?> getTailOperator() {
+        return (tailOperatorWrapper == null) ? null : tailOperatorWrapper.getStreamOperator();
+    }
+
+    protected void snapshotChannelStates(
+            StreamOperator<?> op,
+            ChannelStateWriter.ChannelStateWriteResult channelStateWriteResult,
+            OperatorSnapshotFutures snapshotInProgress) {
+        if (op == getMainOperator()) {
+            snapshotInProgress.setInputChannelStateFuture(
+                    channelStateWriteResult
+                            .getInputChannelStateHandles()
+                            .thenApply(StateObjectCollection::new)
+                            .thenApply(SnapshotResult::of));
+        }
+        if (op == getTailOperator()) {
+            snapshotInProgress.setResultSubpartitionStateFuture(
+                    channelStateWriteResult
+                            .getResultSubpartitionStateHandles()
+                            .thenApply(StateObjectCollection::new)
+                            .thenApply(SnapshotResult::of));
+        }
     }
 
     public boolean isClosed() {

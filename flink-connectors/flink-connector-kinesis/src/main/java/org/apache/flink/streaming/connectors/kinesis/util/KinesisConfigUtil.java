@@ -101,7 +101,7 @@ public class KinesisConfigUtil {
         }
 
         if (!(config.containsKey(AWSConfigConstants.AWS_REGION)
-                || config.containsKey(ConsumerConfigConstants.AWS_ENDPOINT))) {
+                || config.containsKey(AWSConfigConstants.AWS_ENDPOINT))) {
             // per validation in AwsClientBuilder
             throw new IllegalArgumentException(
                     String.format(

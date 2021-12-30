@@ -262,7 +262,7 @@
         "$2" : "BIGINT"
       } ]
     },
-    "description" : "Calc(select=[c, proctime, CAST(a) AS $2])"
+    "description" : "Calc(select=[c, proctime, CAST(a AS BIGINT) AS $2])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
     "id" : 5,

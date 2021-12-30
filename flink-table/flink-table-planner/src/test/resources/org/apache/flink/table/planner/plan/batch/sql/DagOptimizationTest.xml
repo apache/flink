@@ -55,7 +55,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink3`], fields=[b
       <![CDATA[
 LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[2])
 
-Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'%hello%')])(reuse_id=[1])
+Calc(select=[a, b, c], where=[LIKE(c, '%hello%')])(reuse_id=[1])
 +- Reused(reference_id=[2])
 
 LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b, c])
@@ -67,7 +67,7 @@ HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_COUNT(count$0) AS cn
       +- Union(all=[true], union=[b, a])
          :- Calc(select=[b, a])
          :  +- Reused(reference_id=[1])
-         +- Calc(select=[b, a], where=[LIKE(c, _UTF-16LE'%world%')])
+         +- Calc(select=[b, a], where=[LIKE(c, '%world%')])
             +- Reused(reference_id=[2])
 
 LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[b, cnt])
@@ -585,7 +585,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a
 HashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 15000)], properties=[w$start, w$end, w$rowtime], select=[a, Final_SUM(sum$0) AS sum_c])(reuse_id=[1])
 +- Exchange(distribution=[hash[a]])
    +- LocalHashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 15000)], properties=[w$start, w$end, w$rowtime], select=[a, Partial_SUM(c) AS sum$0])
-      +- Calc(select=[ts, a, CAST(c) AS c])
+      +- Calc(select=[ts, a, CAST(c AS DOUBLE) AS c])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, ts)]]], fields=[a, b, c, ts])
 
 LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, sum_c, time, window_start, window_end])
@@ -649,24 +649,24 @@ Calc(select=[a, total_c])(reuse_id=[2])
                +- LocalHashAggregate(groupBy=[a, b, c], select=[a, b, c])
                   +- Calc(select=[a, b, f0 AS c])
                      +- Correlate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
-                        +- Calc(select=[a, (b - MOD(b, 300)) AS b, c], where=[((b >= UNIX_TIMESTAMP(_UTF-16LE'${startTime}')) AND (c <> _UTF-16LE'':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))])
+                        +- Calc(select=[a, (b - MOD(b, 300)) AS b, c], where=[((b >= UNIX_TIMESTAMP('${startTime}')) AND (c <> ''))])
                            +- Reused(reference_id=[1])
 
-Calc(select=[a, 0 AS total_c], where=[(b >= UNIX_TIMESTAMP(_UTF-16LE'${startTime}'))])(reuse_id=[3])
+Calc(select=[a, 0 AS total_c], where=[(b >= UNIX_TIMESTAMP('${startTime}'))])(reuse_id=[3])
 +- Reused(reference_id=[1])
 
 LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, total_c])
 +- Union(all=[true], union=[a, total_c])
    :- Calc(select=[a, total_c], where=[(a > 50)])
    :  +- Reused(reference_id=[2])
-   +- Calc(select=[a, CAST(total_c) AS total_c], where=[(a > 50)])
+   +- Calc(select=[a, CAST(total_c AS BIGINT) AS total_c], where=[(a > 50)])
       +- Reused(reference_id=[3])
 
 LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, total_c])
 +- Union(all=[true], union=[a, total_c])
    :- Calc(select=[a, total_c], where=[(a < 50)])
    :  +- Reused(reference_id=[2])
-   +- Calc(select=[a, CAST(total_c) AS total_c], where=[(a < 50)])
+   +- Calc(select=[a, CAST(total_c AS BIGINT) AS total_c], where=[(a < 50)])
       +- Reused(reference_id=[3])
 ]]>
     </Resource>
