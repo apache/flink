@@ -156,7 +156,8 @@ public class TestingDefaultExecutionGraphBuilder {
         return this;
     }
 
-    public DefaultExecutionGraph build() throws JobException, JobExecutionException {
+    private DefaultExecutionGraph build(boolean isDynamicGraph)
+            throws JobException, JobExecutionException {
         return DefaultExecutionGraphBuilder.buildGraph(
                 jobGraph,
                 jobMasterConfig,
@@ -179,6 +180,15 @@ public class TestingDefaultExecutionGraphBuilder {
                 new DefaultVertexAttemptNumberStore(),
                 Optional.ofNullable(vertexParallelismStore)
                         .orElseGet(() -> SchedulerBase.computeVertexParallelismStore(jobGraph)),
-                () -> new CheckpointStatsTracker(0, new UnregisteredMetricsGroup()));
+                () -> new CheckpointStatsTracker(0, new UnregisteredMetricsGroup()),
+                isDynamicGraph);
+    }
+
+    public DefaultExecutionGraph build() throws JobException, JobExecutionException {
+        return build(false);
+    }
+
+    public DefaultExecutionGraph buildDynamicGraph() throws JobException, JobExecutionException {
+        return build(true);
     }
 }

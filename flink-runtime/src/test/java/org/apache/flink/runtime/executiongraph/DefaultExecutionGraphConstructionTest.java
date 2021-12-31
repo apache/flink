@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -66,6 +67,12 @@ public class DefaultExecutionGraphConstructionTest {
         return TestingDefaultExecutionGraphBuilder.newBuilder()
                 .setVertexParallelismStore(SchedulerBase.computeVertexParallelismStore(vertices))
                 .build();
+    }
+
+    private ExecutionGraph createDynamicExecutionGraph(List<JobVertex> vertices) throws Exception {
+        return TestingDefaultExecutionGraphBuilder.newBuilder()
+                .setVertexParallelismStore(SchedulerBase.computeVertexParallelismStore(vertices))
+                .buildDynamicGraph();
     }
 
     @Test
@@ -320,5 +327,26 @@ public class DefaultExecutionGraphConstructionTest {
         assertThat(
                 partitionIds,
                 containsInAnyOrder(partition1.getPartitionId(), partition2.getPartitionId()));
+    }
+
+    @Test
+    public void testAttachToDynamicGraph() throws Exception {
+        JobVertex v1 = new JobVertex("source");
+        JobVertex v2 = new JobVertex("sink");
+
+        v1.setParallelism(2);
+        v2.setParallelism(2);
+
+        v2.connectNewDataSetAsInput(
+                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+
+        List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
+        ExecutionGraph eg = createDynamicExecutionGraph(ordered);
+        eg.attachJobGraph(ordered);
+
+        assertThat(eg.getAllVertices().size(), is(2));
+        Iterator<ExecutionJobVertex> jobVertices = eg.getVerticesTopologically().iterator();
+        assertThat(jobVertices.next().isInitialized(), is(false));
+        assertThat(jobVertices.next().isInitialized(), is(false));
     }
 }
