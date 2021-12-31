@@ -26,8 +26,6 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
-import org.apache.flink.client.program.AsyncClusterClientProvider;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
@@ -607,7 +605,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         flinkConfiguration.setString(
                 ClusterEntrypoint.INTERNAL_CLUSTER_EXECUTION_MODE, executionMode.toString());
 
-        ApplicationReport report =
+        ApplicationReportProvider appReportProvider =
                 startAppMaster(
                         flinkConfiguration,
                         applicationName,
@@ -617,42 +615,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                         yarnApplication,
                         validClusterSpecification);
 
-        final ApplicationId yarnApplicationId = report.getApplicationId();
-        applicationId = yarnApplicationId;
-
-        AsyncClusterClientProvider<ApplicationId> clusterClientProvider =
-                new AsyncClusterClientProvider() {
-                    @Override
-                    public boolean waitForSubmissionFinished() {
-                        ApplicationReport report;
-                        try {
-                            report = waitForAppSubmitted(yarnApplicationId, true);
-                        } catch (Exception e) {
-                            throw new RuntimeException(
-                                    "Errors while waiting until app is deployed.", e);
-                        }
-
-                        // print the application id for user to cancel themselves.
-                        if (detached) {
-                            logDetachedClusterInformation(yarnApplicationId, LOG);
-                        }
-
-                        setClusterEntrypointInfoToConfig(report);
-                        return true;
-                    }
-
-                    @Override
-                    protected ClusterClient buildClusterClient() {
-                        try {
-                            return new RestClusterClient<>(flinkConfiguration, yarnApplicationId);
-                        } catch (Exception e) {
-                            throw new RuntimeException(
-                                    "Error while creating RestClusterClient.", e);
-                        }
-                    }
-                };
-
-        return clusterClientProvider;
+        return YarnAsyncClusterClientProviderFactory.from(appReportProvider, flinkConfiguration);
     }
 
     private ClusterSpecification validateClusterResources(
@@ -788,7 +751,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         }
     }
 
-    private ApplicationReport startAppMaster(
+    private ApplicationReportProvider startAppMaster(
             Configuration configuration,
             String applicationName,
             String yarnClusterEntrypoint,
@@ -847,6 +810,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         // Set-up ApplicationSubmissionContext for the application
 
         final ApplicationId appId = appContext.getApplicationId();
+        applicationId = appId;
 
         // ------------------ Add Zookeeper namespace to local flinkConfiguraton ------
         setHAClusterIdIfNotSet(configuration, appId);
@@ -1221,15 +1185,16 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         LOG.info("Waiting for the cluster to be allocated");
 
-        ApplicationReport report = waitForAppSubmitted(appId, false);
+        waitAppSubmission(yarnClient, appId, false);
 
         // since deployment was successful, remove the hook
         ShutdownHookUtil.removeShutdownHook(deploymentFailureHook, getClass().getSimpleName(), LOG);
-        return report;
+
+        return () -> waitAppSubmission(yarnClient, appId, true);
     }
 
-    private ApplicationReport waitForAppSubmitted(
-            ApplicationId appId, boolean ensureSubmissionFinished)
+    private ApplicationReport waitAppSubmission(
+            YarnClient yarnClient, ApplicationId appId, boolean ensureAppDoRun)
             throws InterruptedException, YarnException {
         final long startTime = System.currentTimeMillis();
         ApplicationReport report;
@@ -1266,7 +1231,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                     break loop;
                 case ACCEPTED:
                 default:
-                    if (appState == YarnApplicationState.ACCEPTED && !ensureSubmissionFinished) {
+                    if (appState == YarnApplicationState.ACCEPTED && !ensureAppDoRun) {
                         LOG.info("YARN application has been accepted successfully.");
                         break loop;
                     }
@@ -1281,6 +1246,18 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             lastAppState = appState;
             Thread.sleep(250);
         }
+
+        if (ensureAppDoRun) {
+            if (ClusterEntrypoint.ExecutionMode.DETACHED
+                    .name()
+                    .equals(
+                            flinkConfiguration.get(
+                                    ClusterEntrypoint.INTERNAL_CLUSTER_EXECUTION_MODE))) {
+                logDetachedClusterInformation(applicationId, LOG);
+            }
+            setClusterEntrypointInfoToConfig(report);
+        }
+
         return report;
     }
 
@@ -1824,6 +1801,11 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             configuration.set(
                     HighAvailabilityOptions.HA_CLUSTER_ID, ConverterUtils.toString(appId));
         }
+    }
+
+    @VisibleForTesting
+    public ApplicationId getApplicationId() {
+        return applicationId;
     }
 
     public static void logDetachedClusterInformation(
