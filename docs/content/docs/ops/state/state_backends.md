@@ -93,7 +93,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
 
 The total memory amount of RocksDB instance(s) per slot can also be bounded, please refer to documentation [here]({{< ref "docs/ops/state/large_state_tuning" >}}#bounding-rocksdb-memory-usage) for details.
 
-# Choose The Right State Backend
+## Choose The Right State Backend
 
 When deciding between `HashMapStateBackend` and `RocksDB`, it is a choice between performance and scalability.
 `HashMapStateBackend` is very fast as each state access and update operates on objects on the Java heap; however, state size is limited by available memory within the cluster.
@@ -106,7 +106,7 @@ All the state backends produce a common format only starting from version 1.13. 
 take a savepoint with the new version, and only after that you can restore it with a different state backend.
 {{< /hint >}}
 
-# Configuring a State Backend
+## Configuring a State Backend
 
 The default state backend, if you specify nothing, is the jobmanager. If you wish to establish a different default for all jobs on your cluster, you can do so by defining a new default state backend in **flink-conf.yaml**. The default state backend can be overridden on a per-job basis, as shown below.
 
@@ -166,7 +166,7 @@ state.backend: hashmap
 state.checkpoints.dir: hdfs://namenode:40010/flink/checkpoints
 ```
 
-# RocksDB State Backend Details
+## RocksDB State Backend Details
 
 *This section describes the RocksDB state backend in more detail.*
 
