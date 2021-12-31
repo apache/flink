@@ -16,6 +16,8 @@
 # limitations under the License.
 ################################################################################
 from pyflink.datastream.connectors.base import Sink, Source, DeliveryGuarantee
+from pyflink.datastream.connectors.elasticsearch import ElasticsearchSink, \
+    Elasticsearch6SinkBuilder, Elasticsearch7SinkBuilder, FlushBackoffType
 from pyflink.datastream.connectors.file_system import (FileEnumeratorProvider, FileSink, FileSource,
                                                        BucketAssigner, FileSourceBuilder,
                                                        FileSplitAssignerProvider, OutputFileConfig,
@@ -50,6 +52,10 @@ __all__ = [
     'JdbcExecutionOptions',
     'NumberSequenceSource',
     'OutputFileConfig',
+    'ElasticsearchSink',
+    'Elasticsearch6SinkBuilder',
+    'Elasticsearch7SinkBuilder',
+    'FlushBackoffType',
     'PulsarDeserializationSchema',
     'PulsarSource',
     'PulsarSourceBuilder',
