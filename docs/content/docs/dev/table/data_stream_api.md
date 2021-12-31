@@ -2898,7 +2898,7 @@ retract_stream = t_env.to_retract_stream(table, Types.ROW([Types.STRING(), Types
 {{< /tab >}}
 {{< /tabs >}}
 
-**Note:** A detailed discussion about dynamic tables and their properties is given in the [Dynamic Tables](streaming/dynamic_tables.html) document. 
+**Note:** A detailed discussion about dynamic tables and their properties is given in the [Dynamic Tables]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}) document. 
 
 {{< hint warning >}}
 Once the Table is converted to a DataStream, please use the `StreamExecutionEnvironment.execute()` method to execute the DataStream program.

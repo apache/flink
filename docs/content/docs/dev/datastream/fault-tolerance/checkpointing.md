@@ -212,7 +212,7 @@ Some more parameters and/or defaults may be set via `conf/flink-conf.yaml` (see 
 ## Selecting Checkpoint Storage
 
 Flink's [checkpointing mechanism]({{< ref "docs/learn-flink/fault_tolerance" >}}) stores consistent snapshots
-of all the state in timers and stateful operators, including connectors, windows, and any [user-defined state](state.html).
+of all the state in timers and stateful operators, including connectors, windows, and any [user-defined state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}).
 Where the checkpoints are stored (e.g., JobManager memory, file system, database) depends on the configured
 **Checkpoint Storage**. 
 

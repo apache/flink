@@ -28,7 +28,7 @@ under the License.
 
 Table 和 SQL API 的默认配置能够确保结果准确，同时也提供可接受的性能。
 
-根据 Table 程序的需求，可能需要调整特定的参数用于优化。例如，无界流程序可能需要保证所需的状态是有限的(请参阅 [流式概念](./streaming/query_configuration.html)).
+根据 Table 程序的需求，可能需要调整特定的参数用于优化。例如，无界流程序可能需要保证所需的状态是有限的(请参阅 [流式概念]({{< ref "docs/dev/table/concepts/overview" >}})).
 
 
 
