@@ -267,6 +267,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     private final Map<IntermediateResultPartitionID, IntermediateResultPartition>
             resultPartitionsById;
 
+    private final boolean isDynamic;
+
     // --------------------------------------------------------------------------------------------
     //   Constructors
     // --------------------------------------------------------------------------------------------
@@ -287,7 +289,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             ExecutionStateUpdateListener executionStateUpdateListener,
             long initializationTimestamp,
             VertexAttemptNumberStore initialAttemptCounts,
-            VertexParallelismStore vertexParallelismStore)
+            VertexParallelismStore vertexParallelismStore,
+            boolean isDynamic)
             throws IOException {
 
         this.jobInformation = checkNotNull(jobInformation);
@@ -350,6 +353,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         this.edgeManager = new EdgeManager();
         this.executionVerticesById = new HashMap<>();
         this.resultPartitionsById = new HashMap<>();
+
+        this.isDynamic = isDynamic;
     }
 
     @Override
@@ -757,7 +762,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     @Override
     public void attachJobGraph(List<JobVertex> topologicallySorted) throws JobException {
-        attachJobGraph(topologicallySorted, topologicallySorted);
+        if (isDynamic) {
+            attachJobGraph(topologicallySorted, Collections.emptyList());
+        } else {
+            attachJobGraph(topologicallySorted, topologicallySorted);
+        }
     }
 
     private void attachJobGraph(
