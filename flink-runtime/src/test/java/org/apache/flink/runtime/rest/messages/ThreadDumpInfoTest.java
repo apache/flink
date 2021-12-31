@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.Collection;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -62,8 +63,17 @@ public class ThreadDumpInfoTest extends RestResponseMarshallingTestBase<ThreadDu
         ThreadInfo threadInfo =
                 threadMxBean.getThreadInfo(Thread.currentThread().getId(), Integer.MAX_VALUE);
 
+        // JDK11 has increased the output info of threadInfo.daemon and threadInfo.priority compared
+        // to JDK8, hence only compare the output of stacktrace content for compatibility.
+        String[] threadInfoLines = threadInfo.toString().split("\n");
+        String[] expected = Arrays.copyOfRange(threadInfoLines, 1, threadInfoLines.length);
+
         String stringifyThreadInfo = ThreadDumpInfo.stringifyThreadInfo(threadInfo, 8);
-        assertEquals(threadInfo.toString(), stringifyThreadInfo);
+        String[] stringifyThreadInfoLines = stringifyThreadInfo.split("\n");
+        String[] stringified =
+                Arrays.copyOfRange(stringifyThreadInfoLines, 1, stringifyThreadInfoLines.length);
+
+        assertArrayEquals(expected, stringified);
     }
 
     @Test
