@@ -4066,6 +4066,9 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "STR_TO_MAP('k1:v1;k2: v2', ';', ':')",
       "{k1=v1, k2= v2}")
+    testSqlApi(
+      "STR_TO_MAP('k1$$v1|k2$$ v2', '\\|', '\\$\\$')",
+      "{k1=v1, k2= v2}")
 
     // test empty
     testSqlApi(
