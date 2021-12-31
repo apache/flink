@@ -151,6 +151,8 @@ Classes for state operations:
 
 Classes to define source & sink:
 
+    - :class:`connectors.elasticsearch.ElasticsearchSink`:
+      A sink for publishing data into Elasticsearch 6 or Elasticsearch 7.
     - :class:`connectors.FlinkKafkaConsumer`:
       A streaming data source that pulls a parallel data stream from Apache Kafka.
     - :class:`connectors.FlinkKafkaProducer`:

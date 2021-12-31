@@ -16,6 +16,8 @@
 # limitations under the License.
 ################################################################################
 from pyflink.datastream.connectors.base import Sink, Source, DeliveryGuarantee
+from pyflink.datastream.connectors.elasticsearch import (Elasticsearch6SinkBuilder,
+                                                         Elasticsearch7SinkBuilder)
 from pyflink.datastream.connectors.file_system import (FileEnumeratorProvider, FileSink, FileSource,
                                                        BucketAssigner, FileSourceBuilder,
                                                        FileSplitAssignerProvider, OutputFileConfig,
@@ -69,5 +71,7 @@ __all__ = [
     'StreamingFileSink',
     'FlinkKinesisConsumer',
     'KinesisStreamsSink',
-    'KinesisFirehoseSink'
+    'KinesisFirehoseSink',
+    'Elasticsearch6SinkBuilder',
+    'Elasticsearch7SinkBuilder'
 ]
