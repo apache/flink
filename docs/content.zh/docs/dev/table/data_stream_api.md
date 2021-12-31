@@ -2882,7 +2882,7 @@ val retractStream: DataStream[(Boolean, Row)] = tableEnv.toRetractStream[Row](ta
 {{< /tab >}}
 {{< /tabs >}}
 
-**注意：** 文档[动态表](streaming/dynamic_tables.html)给出了有关动态表及其属性的详细讨论。
+**注意：** 文档[动态表]({{< ref "docs/dev/table/concepts/dynamic_tables" >}})给出了有关动态表及其属性的详细讨论。
 
 <span class="label label-danger">注意</span> **一旦 Table 被转化为 DataStream，必须使用 StreamExecutionEnvironment 的 execute 方法执行该 DataStream 作业。**
 

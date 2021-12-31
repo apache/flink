@@ -474,9 +474,9 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left">MySQL type<a href="https://dev.mysql.com/doc/man/8.0/en/data-types.html"></a></th>
-        <th class="text-left">PostgreSQL type<a href="https://www.postgresql.org/docs/12/datatype.html"></a></th>
-        <th class="text-left">Flink SQL type<a href="{{< ref "docs/dev/table/types" >}}"></a></th>
+        <th class="text-left"><a href="https://dev.mysql.com/doc/refman/8.0/en/data-types.html">MySQL type</a></th>
+        <th class="text-left"><a href="https://www.postgresql.org/docs/12/datatype.html">PostgreSQL type</a></th>
+        <th class="text-left"><a href="{{< ref "docs/dev/table/types" >}}">Flink SQL type</a></th>
       </tr>
     </thead>
     <tbody>
