@@ -23,7 +23,7 @@ import org.bson.Document;
 
 import java.io.Serializable;
 
-/** Serialize data into mongodb's Document */
+/** Serialize data into mongodb's Document. */
 @PublicEvolving
 public interface DocumentSerializer<T> extends Serializable {
 

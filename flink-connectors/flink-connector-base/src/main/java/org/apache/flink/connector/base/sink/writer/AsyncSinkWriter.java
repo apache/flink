@@ -137,7 +137,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     private final Consumer<Exception> fatalExceptionCons;
 
     /**
-     * This method specifies how to persist buffered request entries into the destination. It is
+     * This method specifies how to persist buffered request entries into the destination. It is *
      * implemented when support for a new destination is added.
      *
      * <p>The method is invoked with a set of request entries according to the buffering hints (and

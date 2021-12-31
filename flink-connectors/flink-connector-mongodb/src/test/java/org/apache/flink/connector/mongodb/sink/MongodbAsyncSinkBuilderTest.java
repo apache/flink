@@ -122,7 +122,7 @@ public class MongodbAsyncSinkBuilderTest {
                                 MongodbAsyncSink.<String>builder()
                                         .setElementConverter(ELEMENT_CONVERTER_PLACEHOLDER)
                                         .setDatabase(DATABASE_NAME)
-                                        .setStartTransaction(false)
+                                        .setFailOnError(false)
                                         .build());
         assertEquals(
                 "The collectionName must not be null when initializing the Mongodb Sink.",

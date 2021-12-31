@@ -25,6 +25,9 @@ import org.apache.flink.connector.mongodb.common.MongodbUtil;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+
+import com.mongodb.MongoBulkWriteException;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.client.result.InsertManyResult;
 import com.mongodb.reactivestreams.client.MongoClient;
@@ -53,20 +56,20 @@ public class MongodbAsyncWriter<InputT> extends AsyncSinkWriter<InputT, Document
     /* A counter for the total number of records that have encountered an error during put */
     private final Counter numRecordsOutErrorsCounter;
 
-    /* Name of the mongodb database */
+    /* Name of the mongodb database. */
     private final String databaseName;
 
-    /* Name of the mongodb collection */
+    /* Name of the mongodb collection. */
     private final String collectionName;
 
-    /* The sink writer metric group */
+    /* The sink writer metric group. */
     private final SinkWriterMetricGroup metrics;
 
-    /* Does mongdb write support multi-document transactions */
+    /* The asynchronous mongodb client. */
     private final MongoClient client;
 
-    /* */
-    private final boolean startTransaction;
+    /* Flag to whether fatally fail any time we encounter an exception when persisting records. */
+    private final boolean failOnError;
 
     public MongodbAsyncWriter(
             ElementConverter<InputT, Document> elementConverter,
@@ -77,7 +80,7 @@ public class MongodbAsyncWriter<InputT> extends AsyncSinkWriter<InputT, Document
             long maxBatchSizeInBytes,
             long maxTimeInBufferMS,
             long maxRecordSizeInBytes,
-            boolean startTransaction,
+            boolean failOnError,
             String databaseName,
             String collectionName,
             Properties mongodbClientProperties) {
@@ -90,7 +93,7 @@ public class MongodbAsyncWriter<InputT> extends AsyncSinkWriter<InputT, Document
                 maxBatchSizeInBytes,
                 maxTimeInBufferMS,
                 maxRecordSizeInBytes);
-        this.startTransaction = startTransaction;
+        this.failOnError = failOnError;
         this.databaseName = databaseName;
         this.collectionName = collectionName;
         this.metrics = context.metricGroup();
@@ -109,69 +112,64 @@ public class MongodbAsyncWriter<InputT> extends AsyncSinkWriter<InputT, Document
             List<Document> requestEntries, Consumer<Collection<Document>> requestResult) {
         MongoCollection<Document> collection =
                 client.getDatabase(databaseName).getCollection(collectionName);
-        if (startTransaction) {
-            LOG.trace("Request to submit {} entries to Mongodb Sink.", requestEntries.size());
-            Mono.from(client.startSession())
-                    .flatMap(
-                            session -> {
-                                session.startTransaction();
 
-                                return Mono.from(collection.insertMany(session, requestEntries))
-                                        .onErrorResume(
-                                                e ->
-                                                        Mono.from(session.abortTransaction())
-                                                                .then(Mono.error(e)))
-                                        .flatMap(
-                                                val ->
-                                                        Mono.from(session.commitTransaction())
-                                                                .then(Mono.just(val)))
-                                        .doFinally(signal -> session.close());
-                            })
-                    .subscribe(
-                            new Consumer<InsertManyResult>() {
-                                @Override
-                                public void accept(InsertManyResult insertManyResult) {
-                                    requestResult.accept(Collections.emptyList());
+        LOG.trace("Request to submit {} entries to Mongodb Sink.", requestEntries.size());
+        Mono.from(collection.insertMany(requestEntries))
+                .subscribe(
+                        new Consumer<InsertManyResult>() {
+                            @Override
+                            public void accept(InsertManyResult insertManyResult) {
+                                requestResult.accept(Collections.emptyList());
+                            }
+                        },
+                        new Consumer<Throwable>() {
+                            @Override
+                            public void accept(Throwable throwable) {
+
+                                MongoBulkWriteException exception =
+                                        (MongoBulkWriteException) throwable;
+                                Integer insertedIndex =
+                                        exception.getWriteErrors().stream()
+                                                .map(x -> x.getIndex())
+                                                .max((o1, o2) -> o1 - o2)
+                                                .get();
+                                if (failOnError) {
+                                    getFatalExceptionCons()
+                                            .accept(
+                                                    new MongodbAsyncException
+                                                            .MongodbAsyncFailFastException());
                                 }
-                            },
-                            new Consumer<Throwable>() {
-                                @Override
-                                public void accept(Throwable throwable) {
+                                if (insertedIndex.equals(0)) {
                                     getFatalExceptionCons()
                                             .accept(
                                                     new MongodbAsyncException(
-                                                            throwable.getMessage()));
+                                                            "Encountered non-recoverable exception",
+                                                            throwable));
                                 }
-                            });
-        } else {
-            LOG.trace("Request to submit {} entries to Mongodb Sink.", requestEntries.size());
-            Mono.from(collection.insertMany(requestEntries))
-                    .subscribe(
-                            new Consumer<InsertManyResult>() {
-                                @Override
-                                public void accept(InsertManyResult insertManyResult) {
-                                    requestResult.accept(Collections.emptyList());
-                                }
-                            },
-                            new Consumer<Throwable>() {
-                                @Override
-                                public void accept(Throwable throwable) {
-                                    getFatalExceptionCons()
-                                            .accept(
-                                                    new MongodbAsyncException(
-                                                            throwable.getMessage()));
-                                }
-                            });
-        }
+
+                                int failedRecordCount = requestEntries.size() - insertedIndex;
+
+                                LOG.warn(
+                                        "Mongodb Sink failed to persist {} entries to Mongodb",
+                                        failedRecordCount);
+                                numRecordsOutErrorsCounter.inc(failedRecordCount);
+                                List<List<Document>> partitionLists =
+                                        Lists.partition(requestEntries, insertedIndex);
+                                partitionLists.stream()
+                                        .skip(1)
+                                        .forEach(
+                                                new Consumer<List<Document>>() {
+                                                    @Override
+                                                    public void accept(List<Document> documents) {
+                                                        requestResult.accept(documents);
+                                                    }
+                                                });
+                            }
+                        });
     }
 
     @Override
     protected long getSizeInBytes(Document requestEntry) {
         return requestEntry.toJson().getBytes().length;
-    }
-
-    @Override
-    public void close() {
-        super.close();
     }
 }

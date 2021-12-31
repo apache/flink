@@ -37,9 +37,8 @@ import java.util.Properties;
  *                     .setSerializationSchema(new Documentserializer())
  *                     .build();
  *
- * MongodbAsyncSink<String> kdsSink =
+ * MongodbAsyncSink<String> mongodbSink =
  *                 MongodbAsyncSink.<String>builder()
- *                         .setConnectionString("mongodb://admin:password@192.168.221.201:27017")
  *                         .setElementConverter(elementConverter)
  *                         .setDatabase("your_stream_db")
  *                         .setCollection("your_strem_coll")
@@ -49,11 +48,12 @@ import java.util.Properties;
  * <p>If the following parameters are not set in this builder, the following defaults will be used:
  *
  * <ul>
- *   <li>{@code maxBatchSize} will be 200
+ *   <li>{@code maxBatchSize} will be 500
  *   <li>{@code maxInFlightRequests} will be 16
  *   <li>{@code maxBufferedRequests} will be 10000
- *   <li>{@code flushOnBufferSizeInBytes} will be 64MB i.e. {@code 64 * 1024 * 1024}
+ *   <li>{@code maxBatchSizeInBytes} will be 5 MB i.e. {@code 5 * 1024 * 1024}
  *   <li>{@code maxTimeInBufferMS} will be 5000ms
+ *   <li>{@code maxRecordSizeInBytes} will be 1 MB i.e. {@code 1 * 1024 * 1024}
  *   <li>{@code failOnError} will be false
  * </ul>
  *
@@ -69,9 +69,9 @@ public class MongodbAsyncSinkBuilder<InputT>
     private static final long DEFAULT_MAX_BATCH_SIZE_IN_B = 5 * 1024 * 1024;
     private static final long DEFAULT_MAX_TIME_IN_BUFFER_MS = 5000;
     private static final long DEFAULT_MAX_RECORD_SIZE_IN_B = 1 * 1024 * 1024;
-    private static final boolean DEFAULT_START_TRANSACTION = false;
+    private static final boolean DEFAULT_FAIL_ON_ERROR = false;
 
-    private Boolean startTransaction;
+    private Boolean failOnError;
     private String collectionName;
     private String databaseName;
     private Properties mongodbClientProperties;
@@ -88,8 +88,8 @@ public class MongodbAsyncSinkBuilder<InputT>
         return this;
     }
 
-    public MongodbAsyncSinkBuilder<InputT> setStartTransaction(boolean startTransaction) {
-        this.startTransaction = startTransaction;
+    public MongodbAsyncSinkBuilder<InputT> setFailOnError(boolean failOnError) {
+        this.failOnError = failOnError;
         return this;
     }
 
@@ -103,23 +103,14 @@ public class MongodbAsyncSinkBuilder<InputT>
     public MongodbAsyncSink<InputT> build() {
         return new MongodbAsyncSink<>(
                 getElementConverter(),
-                getMaxBatchSize() == null ? DEFAULT_MAX_BATCH_SIZE : getMaxBatchSize(),
-                getMaxInFlightRequests() == null
-                        ? DEFAULT_MAX_IN_FLIGHT_REQUESTS
-                        : getMaxInFlightRequests(),
-                getMaxBufferedRequests() == null
-                        ? DEFAULT_MAX_BUFFERED_REQUESTS
-                        : getMaxBufferedRequests(),
-                getMaxBatchSizeInBytes() == null
-                        ? DEFAULT_MAX_BATCH_SIZE_IN_B
-                        : getMaxBatchSizeInBytes(),
-                getMaxTimeInBufferMS() == null
-                        ? DEFAULT_MAX_TIME_IN_BUFFER_MS
-                        : getMaxTimeInBufferMS(),
-                getMaxRecordSizeInBytes() == null
-                        ? DEFAULT_MAX_RECORD_SIZE_IN_B
-                        : getMaxRecordSizeInBytes(),
-                startTransaction == null ? DEFAULT_START_TRANSACTION : startTransaction,
+                Optional.ofNullable(getMaxBatchSize()).orElse(DEFAULT_MAX_BATCH_SIZE),
+                Optional.ofNullable(getMaxInFlightRequests())
+                        .orElse(DEFAULT_MAX_IN_FLIGHT_REQUESTS),
+                Optional.ofNullable(getMaxBufferedRequests()).orElse(DEFAULT_MAX_BUFFERED_REQUESTS),
+                Optional.ofNullable(getMaxBatchSizeInBytes()).orElse(DEFAULT_MAX_BATCH_SIZE_IN_B),
+                Optional.ofNullable(getMaxTimeInBufferMS()).orElse(DEFAULT_MAX_TIME_IN_BUFFER_MS),
+                Optional.ofNullable(getMaxRecordSizeInBytes()).orElse(DEFAULT_MAX_RECORD_SIZE_IN_B),
+                Optional.ofNullable(failOnError).orElse(DEFAULT_FAIL_ON_ERROR),
                 databaseName,
                 collectionName,
                 Optional.ofNullable(mongodbClientProperties).orElse(new Properties()));

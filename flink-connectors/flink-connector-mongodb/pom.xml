@@ -31,7 +31,8 @@ under the License.
     <name>Flink : Connectors : Mongodb</name>
 
     <properties>
-        <mongo.version>4.2.2</mongo.version>
+        <mongo.version>4.4.0</mongo.version>
+        <reactor.version>3.4.8</reactor.version>
     </properties>
 
     <dependencies>
@@ -67,7 +68,7 @@ under the License.
 
         <!-- Mongodb -->
 
-        <!-- Add Mongodb 4.2.2 as a dependency -->
+        <!-- Add Mongodb 4.4.0 as a dependency -->
 
         <dependency>
             <groupId>org.mongodb</groupId>
@@ -195,7 +196,7 @@ under the License.
         <dependency>
             <groupId>io.projectreactor</groupId>
             <artifactId>reactor-core</artifactId>
-            <version>3.4.8</version>
+            <version>${reactor.version}</version>
             <exclusions>
                 <exclusion>
                     <artifactId>reactive-streams</artifactId>

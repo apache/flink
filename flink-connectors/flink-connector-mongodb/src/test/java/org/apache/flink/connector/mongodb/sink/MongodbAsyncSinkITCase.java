@@ -17,9 +17,13 @@
 
 package org.apache.flink.connector.mongodb.sink;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
+import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSource;
 import org.apache.flink.streaming.api.functions.source.datagen.RandomGenerator;
 import org.apache.flink.util.TestLogger;
@@ -42,6 +46,7 @@ import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.util.Properties;
+import java.util.Random;
 
 import static org.apache.flink.connector.mongodb.common.MongodbConfigConstants.APPLY_CONNECTION_STRING;
 
@@ -143,8 +148,13 @@ public class MongodbAsyncSinkITCase extends TestLogger {
     }
 
     @Test
-    public void executeInTransactionMode() throws Exception {
-        new Scenario().withStartTransaction(true).runScenario();
+    public void repeatkeyShouldResultInFailureInFailOnErrorIsOn() {
+        testJobFatalFailureTerminatesCorrectlyWithFailOnErrorFlagSetTo(true);
+    }
+
+    @Test
+    public void repeatkeyShouldResultInFailureInFailOnErrorIsOff() {
+        testJobFatalFailureTerminatesCorrectlyWithFailOnErrorFlagSetTo(false);
     }
 
     private class Scenario {
@@ -155,7 +165,7 @@ public class MongodbAsyncSinkITCase extends TestLogger {
         private int maxBatchSize = 50;
         private int expectedElements = 50;
         private String database = DATABASE_NAME;
-        private boolean startTransaction = false;
+        private boolean failOnError = false;
         private ElementConverter<String, Document> elementConverter =
                 MongodbAsyncSinkITCase.this.elementConverter;
 
@@ -178,7 +188,45 @@ public class MongodbAsyncSinkITCase extends TestLogger {
                             .setMaxTimeInBufferMS(bufferMaxTimeMS)
                             .setMaxInFlightRequests(maxInflightReqs)
                             .setMaxBatchSize(maxBatchSize)
-                            .setStartTransaction(startTransaction)
+                            .setFailOnError(failOnError)
+                            .setMaxBufferedRequests(1000)
+                            .setDatabase(database)
+                            .setCollection(COLLECTION)
+                            .setMongodbClientProperties(prop)
+                            .build();
+
+            stream.sinkTo(mongodbSink);
+
+            env.execute("Mongodb Async Sink Example Program");
+
+            Mono.from(mongo.getDatabase(DATABASE_NAME).getCollection(COLLECTION).countDocuments())
+                    .doFinally(
+                            r -> {
+                                Assertions.assertThat(r).isEqualTo(expectedElements);
+                            })
+                    .subscribe();
+        }
+
+        public void runScenarioTwo() throws Exception {
+
+            DataStream<String> stream =
+                    env.addSource(
+                                    new DataGeneratorSource<>(
+                                            new DuplicatePrimaryKeyDataGenerator(),
+                                            100,
+                                            (long) numberOfElementsToSend))
+                            .returns(String.class);
+
+            Properties prop = new Properties();
+            prop.setProperty(APPLY_CONNECTION_STRING, CONNECT_STRING);
+
+            MongodbAsyncSink<String> mongodbSink =
+                    MongodbAsyncSink.<String>builder()
+                            .setElementConverter(elementConverter)
+                            .setMaxTimeInBufferMS(bufferMaxTimeMS)
+                            .setMaxInFlightRequests(maxInflightReqs)
+                            .setMaxBatchSize(maxBatchSize)
+                            .setFailOnError(failOnError)
                             .setMaxBufferedRequests(1000)
                             .setDatabase(database)
                             .setCollection(COLLECTION)
@@ -227,8 +275,8 @@ public class MongodbAsyncSinkITCase extends TestLogger {
             return this;
         }
 
-        public Scenario withStartTransaction(boolean startTransaction) {
-            this.startTransaction = startTransaction;
+        public Scenario withFailOnError(boolean failOnError) {
+            this.failOnError = failOnError;
             return this;
         }
 
@@ -236,5 +284,36 @@ public class MongodbAsyncSinkITCase extends TestLogger {
             this.database = database;
             return this;
         }
+    }
+
+    class DuplicatePrimaryKeyDataGenerator implements DataGenerator<String> {
+
+        private int count;
+
+        @Override
+        public void open(
+                String s,
+                FunctionInitializationContext functionInitializationContext,
+                RuntimeContext runtimeContext)
+                throws Exception {}
+
+        @Override
+        public boolean hasNext() {
+            return true;
+        }
+
+        @Override
+        public String next() {
+            return new Random().nextInt(2) + "";
+        }
+    }
+
+    private void testJobFatalFailureTerminatesCorrectlyWithFailOnErrorFlagSetTo(
+            boolean failOnError) {
+        Assertions.assertThatExceptionOfType(JobExecutionException.class)
+                .isThrownBy(() -> new Scenario().withFailOnError(failOnError).runScenarioTwo())
+                .havingCause()
+                .havingCause()
+                .withMessageContaining("Encountered non-recoverable exception");
     }
 }
