@@ -24,7 +24,6 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<a name="operators"></a>
 
 # 算子
 
@@ -32,11 +31,8 @@ under the License.
 
 这部分内容将描述 Flink DataStream API 中基本的数据转换 API，数据转换后各种数据分区方式，以及算子的链接策略。
 
-<a name="datastream-transformations"></a>
 
 ## 数据流转换
-
-<a name="map"></a>
 
 ### Map
 
@@ -68,8 +64,6 @@ data_stream.map(lambda x: 2 * x, output_type=Types.INT())
 ```
 {{< /tab >}}
 {{< /tabs>}}
-
-<a name="flatmap"></a>
 
 ### FlatMap
 
@@ -104,8 +98,6 @@ data_stream.flat_map(lambda x: x.split(' '), output_type=Types.STRING())
 {{< /tab >}}
 {{< /tabs>}}
 
-<a name="filter"></a>
-
 ### Filter
 
 #### DataStream &rarr; DataStream
@@ -135,8 +127,6 @@ data_stream.filter(lambda x: x != 0)
 ```
 {{< /tab >}}
 {{< /tabs>}}
-
-<a name="keyby"></a>
 
 ### KeyBy
 #### DataStream &rarr; KeyedStream
@@ -174,8 +164,6 @@ data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) // Key by the result
 
 {{< /hint >}}
 
-<a name="reduce"></a>
-
 ### Reduce
 #### KeyedStream &rarr; DataStream
 
@@ -208,8 +196,6 @@ data_stream.key_by(lambda x: x[1]).reduce(lambda a, b: (a[0] + b[0], b[1]))
 {{< /tab >}}
 {{< /tabs>}}
 
-<a name="window"></a>
-
 ### Window
 #### KeyedStream &rarr; WindowedStream
 
@@ -235,8 +221,6 @@ dataStream
 Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
-
-<a name="windowall"></a>
 
 ### WindowAll
 #### DataStream &rarr; AllWindowedStream
@@ -266,8 +250,6 @@ dataStream
 Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
-
-<a name="window-apply"></a>
 
 ### Window Apply 
 #### WindowedStream &rarr; DataStream
@@ -322,8 +304,6 @@ Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
 
-<a name="windowreduce"></a>
-
 ### WindowReduce
 #### WindowedStream &rarr; DataStream
 
@@ -349,8 +329,6 @@ Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
 
-<a name="union"></a>
-
 ### Union
 #### DataStream\* &rarr; DataStream
 
@@ -373,8 +351,6 @@ data_stream.union(otherStream1, otherStream2, ...)
 ```
 {{< /tab >}}
 {{< /tabs>}}
-
-<a name="window-join"></a>
 
 ### Window Join
 #### DataStream,DataStream &rarr; DataStream
@@ -403,12 +379,10 @@ Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
 
-<a name="interval-join"></a>
-
 ### Interval Join
 #### KeyedStream,KeyedStream &rarr; DataStream
 
-根据 key 相等满足指定的时间范围内（`e1.timestamp + lowerBound <= e2.timestamp <= e1.timestamp + upperBound`）的条件将分别属于两个 keyed stream 的元素 e1 和 e2  Join 在一起。
+根据 key 相等并且满足指定的时间范围内（`e1.timestamp + lowerBound <= e2.timestamp <= e1.timestamp + upperBound`）的条件将分别属于两个 keyed stream 的元素 e1 和 e2  Join 在一起。
 
 {{< tabs intervaljoin >}}
 {{< tab "Java" >}}
@@ -440,8 +414,6 @@ Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
 
-<a name="window-cogroup"></a>
-
 ### Window CoGroup
 #### DataStream,DataStream &rarr; DataStream
 
@@ -470,12 +442,10 @@ Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
 
-<a name="connect"></a>
-
 ### Connect
 #### DataStream,DataStream &rarr; ConnectedStream
 
-“连接” 两个数据流并保留各自的类型。connect 允许在两个流之间共享状态。
+“连接” 两个数据流并保留各自的类型。connect 允许在两个流的处理逻辑之间共享状态。
 
 {{< tabs connect >}}
 {{< tab "Java" >}}
@@ -503,8 +473,6 @@ connected_streams = stream_1.connect(stream_2)
 ```
 {{< /tab >}}
 {{< /tabs>}}
-
-<a name="comap-coflatmap"></a>
 
 ### CoMap, CoFlatMap
 #### ConnectedStream &rarr; DataStream
@@ -579,8 +547,6 @@ connectedStreams.flat_map(MyCoFlatMapFunction())
 {{< /tab >}}
 {{< /tabs>}}
 
-<a name="iterate"></a>
-
 ### Iterate
 #### DataStream &rarr; IterativeStream &rarr; ConnectedStream
 
@@ -621,13 +587,9 @@ Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
 
-<a name="physical-partitioning"></a>
-
 ## 物理分区
 
 Flink 也提供以下方法让用户根据需要在数据转换完成后对数据分区进行更细粒度的配置。
-
-<a name="custom-partitioning"></a>
 
 ### 自定义分区
 #### DataStream &rarr; DataStream
@@ -655,8 +617,6 @@ data_stream.partition_custom(lambda key, num_partition: key % partition, lambda 
 {{< /tab >}}
 {{< /tabs>}}
 
-<a name="random-partitioning"></a>
-
 ### 随机分区
 #### DataStream &rarr; DataStream
 
@@ -680,10 +640,8 @@ data_stream.shuffle()
 {{< /tab >}}
 {{< /tabs>}}
 
-<a name="rescalling"></a>
 
-
-### 重新缩放
+### Rescaling
 #### DataStream &rarr; DataStream
 
 将元素以 Round-robin 轮询的方式分发到下游算子。如果你想实现数据管道，这将很有用，例如，想将数据源多个并发实例的数据分发到多个下游 map 来实现负载分配，但又不想像 rebalance() 那样引起完全重新平衡。该算子将只会到本地数据传输而不是网络数据传输，这取决于其它配置值，例如 TaskManager 的 slot 数量。
@@ -714,8 +672,6 @@ data_stream.rescale()
 {{< /tab >}}
 {{< /tabs>}}
 
-<a name="broadcasting"></a>
-
 ### 广播
 #### DataStream &rarr; DataStream
 
@@ -739,9 +695,7 @@ data_stream.broadcast()
 {{< /tab >}}
 {{< /tabs>}}
 
-<a name="broadcasting"></a>
-
-## Task 链和资源组
+## 算子链和资源组
 
 将两个算子链接在一起能使得它们在同一个线程中执行，从而提升性能。Flink 默认会将能链接的算子尽可能地进行链接(例如， 两个 map 转换操作)。此外， Flink 还提供了对链接更细粒度控制的 API 以满足更多需求：
 
@@ -749,11 +703,10 @@ data_stream.broadcast()
 
 一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看 slots 。 你可以根据需要手动地将各个算子隔离到不同的 slot 中。 
 
-<a name="start-new-chain"></a>
 
 ### 创建新链
 
-基于当前算子创建一个新的 task 链。
+基于当前算子创建一个新的算子链。
 
 后面两个 map 将被链接起来，而 filter 和第一个 map 不会链接在一起。
 
@@ -776,8 +729,6 @@ some_stream.filter(...).map(...).start_new_chain().map(...)
 {{< /tab >}}
 {{< /tabs>}}
 
-<a name="disable-chaining"></a>
-
 ### 禁止链接
 
 禁止和 map 算子链接在一起。
@@ -799,8 +750,6 @@ some_stream.map(...).disable_chaining()
 ```
 {{< /tab >}}
 {{< /tabs>}}
-
-<a name="set-slot-sharing-group"></a>
 
 ### 配置 Slot 共享组
 
