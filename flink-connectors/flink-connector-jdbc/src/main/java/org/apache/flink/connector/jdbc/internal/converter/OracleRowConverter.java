@@ -18,12 +18,6 @@
 
 package org.apache.flink.connector.jdbc.internal.converter;
 
-import oracle.jdbc.internal.OracleClob;
-
-import oracle.sql.TIMESTAMPLTZ;
-
-import oracle.sql.TIMESTAMPTZ;
-
 import org.apache.flink.connector.jdbc.converter.AbstractJdbcRowConverter;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.StringData;
@@ -32,6 +26,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
+import oracle.jdbc.internal.OracleClob;
 import oracle.sql.BINARY_DOUBLE;
 import oracle.sql.BINARY_FLOAT;
 import oracle.sql.CHAR;
@@ -39,14 +34,14 @@ import oracle.sql.DATE;
 import oracle.sql.NUMBER;
 import oracle.sql.RAW;
 import oracle.sql.TIMESTAMP;
-import oracle.sql.CLOB;
+import oracle.sql.TIMESTAMPLTZ;
+import oracle.sql.TIMESTAMPTZ;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -65,17 +60,11 @@ public class OracleRowConverter extends AbstractJdbcRowConverter {
 
     @Override
     public JdbcDeserializationConverter createInternalConverter(LogicalType type) {
-        // TODO: please consider all Oracle Data Types like oracle.sql.OracleBlob,
-        // oracle.sql.TIMESTAMPTZ and oracle.sql.TIMESTAMPLTZ etc in deserialization.
-        // We can refer io.debezium.connector.oracle.OracleValueConverters here.
         switch (type.getTypeRoot()) {
             case NULL:
                 return val -> null;
             case BOOLEAN:
                 return val -> val instanceof NUMBER ? ((NUMBER) val).booleanValue() : val;
-            case INTERVAL_YEAR_MONTH:
-            case INTERVAL_DAY_TIME:
-                return val -> val instanceof NUMBER ? ((NUMBER) val).intValue() : val;
             case FLOAT:
                 return val ->
                         val instanceof NUMBER
@@ -122,6 +111,22 @@ public class OracleRowConverter extends AbstractJdbcRowConverter {
                                 ? DecimalData.fromBigDecimal(
                                         new BigDecimal((BigInteger) val, 0), precision, scale)
                                 : DecimalData.fromBigDecimal((BigDecimal) val, precision, scale);
+            case CHAR:
+            case VARCHAR:
+                return val ->
+                        (val instanceof CHAR)
+                                ? StringData.fromString(((CHAR) val).getString())
+                                : (val instanceof OracleClob)
+                                        ? StringData.fromString(((OracleClob) val).stringValue())
+                                        : StringData.fromString((String) val);
+            case BINARY:
+            case VARBINARY:
+            case RAW:
+                return val ->
+                        (val instanceof RAW) ? ((RAW) val).getBytes() : val;
+            case INTERVAL_YEAR_MONTH:
+            case INTERVAL_DAY_TIME:
+                return val -> val instanceof NUMBER ? ((NUMBER) val).intValue() : val;
             case DATE:
                 return val ->
                         val instanceof DATE
@@ -131,21 +136,9 @@ public class OracleRowConverter extends AbstractJdbcRowConverter {
                 return val ->
                         val instanceof DATE
                                 ? (int)
-                                        (((DATE) val).timeValue().toLocalTime().toNanoOfDay()
-                                                / 1_000_000L)
+                                (((DATE) val).timeValue().toLocalTime().toNanoOfDay()
+                                        / 1_000_000L)
                                 : (int) (((Time) val).toLocalTime().toNanoOfDay() / 1_000_000L);
-            case CHAR:
-            case VARCHAR:
-                return val ->
-                        (val instanceof CHAR)
-                                ? StringData.fromString(((CHAR) val).getString())
-                                : (val instanceof OracleClob)
-                                    ? StringData.fromString(((OracleClob) val).stringValue())
-                                    : StringData.fromString((String) val);
-            case BINARY:
-            case VARBINARY:
-            case RAW:
-                return val -> (val instanceof RAW) ? ((RAW) val).getBytes() : val;
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 return val ->
                         val instanceof TIMESTAMP
@@ -155,8 +148,10 @@ public class OracleRowConverter extends AbstractJdbcRowConverter {
                 return val -> {
                     if (val instanceof TIMESTAMPTZ) {
                         final TIMESTAMPTZ ts = (TIMESTAMPTZ) val;
-                        final ZonedDateTime zdt = ZonedDateTime
-                                .ofInstant(ts.timestampValue().toInstant(), ts.getTimeZone().toZoneId());
+                        final ZonedDateTime zdt =
+                                ZonedDateTime.ofInstant(
+                                        ts.timestampValue().toInstant(),
+                                        ts.getTimeZone().toZoneId());
                         return TimestampData.fromLocalDateTime(zdt.toLocalDateTime());
                     } else {
                         return TimestampData.fromTimestamp((Timestamp) val);
@@ -166,9 +161,11 @@ public class OracleRowConverter extends AbstractJdbcRowConverter {
                 return val -> {
                     if (val instanceof TIMESTAMPLTZ) {
                         final TIMESTAMPLTZ ts = (TIMESTAMPLTZ) val;
-                        final ZonedDateTime zdt = ZonedDateTime
-                                .ofInstant(ts.timestampValue().toInstant(), ZoneId.systemDefault())
-                                .withZoneSameInstant(ZoneOffset.UTC);
+                        final ZonedDateTime zdt =
+                                ZonedDateTime.ofInstant(
+                                                ts.timestampValue().toInstant(),
+                                                ZoneId.systemDefault())
+                                        .withZoneSameInstant(ZoneOffset.UTC);
                         return TimestampData.fromLocalDateTime(zdt.toLocalDateTime());
                     } else {
                         return TimestampData.fromTimestamp((Timestamp) val);
