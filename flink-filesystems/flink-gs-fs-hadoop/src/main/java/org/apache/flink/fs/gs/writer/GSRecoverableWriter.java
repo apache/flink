@@ -98,7 +98,7 @@ public class GSRecoverableWriter implements RecoverableWriter {
         LOGGER.trace("Recovering output stream for commit: {}", resumable);
         Preconditions.checkNotNull(resumable);
 
-        GSResumeRecoverable recoverable = (GSResumeRecoverable) resumable;
+        GSCommitRecoverable recoverable = (GSCommitRecoverable) resumable;
         return new GSRecoverableWriterCommitter(storage, options, recoverable);
     }
 
