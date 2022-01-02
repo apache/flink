@@ -18,6 +18,7 @@
 
 package org.apache.flink.fs.gs;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
@@ -29,7 +30,8 @@ import java.util.Optional;
 /** The GS file system options. */
 public class GSFileSystemOptions {
 
-    private static final ConfigOption<String> WRITER_TEMPORARY_BUCKET_NAME =
+    @VisibleForTesting
+    static final ConfigOption<String> WRITER_TEMPORARY_BUCKET_NAME =
             ConfigOptions.key("gs.writer.temporary.bucket.name")
                     .stringType()
                     .noDefaultValue()

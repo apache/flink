@@ -45,7 +45,7 @@ public class GSCommitRecoverableSerializerTest {
     @Parameterized.Parameter(value = 2)
     public int componentCount;
 
-    @Parameterized.Parameters(name = "bucket={0}, object={1}, componentCount={2}")
+    @Parameterized.Parameters(name = "bucketName={0}, objectName={1}, componentCount={2}")
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {

@@ -52,7 +52,7 @@ public class GSResumeRecoverableSerializerTest {
     public int componentCount;
 
     @Parameterized.Parameters(
-            name = "bucket={0}, object={1}, position={2}, closed={3}, componentCount={4}")
+            name = "bucketName={0}, objectName={1}, position={2}, closed={3}, componentCount={4}")
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {

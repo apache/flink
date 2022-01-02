@@ -18,6 +18,7 @@
 
 package org.apache.flink.fs.gs.writer;
 
+import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 import org.apache.flink.fs.gs.storage.GSBlobStorage;
 import org.apache.flink.fs.gs.storage.MockBlobStorage;
 
@@ -32,7 +33,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Random;
 
-import static org.apache.flink.fs.gs.TestUtils.BLOB_IDENTIFIER;
 import static org.apache.flink.fs.gs.TestUtils.RANDOM_SEED;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -89,10 +89,14 @@ public class GSChecksumWriteChannelTest {
 
     private byte[] expectedWrittenBytes;
 
+    private GSBlobIdentifier blobIdentifier;
+
     @Before
     public void before() throws IOException {
         Random random = new Random();
         random.setSeed(RANDOM_SEED);
+
+        blobIdentifier = new GSBlobIdentifier("foo", "bar");
 
         // initialize the byte buffers and determine what we expect to be written
         byteBuffers = new byte[bufferSizes.length][];
@@ -124,9 +128,9 @@ public class GSChecksumWriteChannelTest {
     public void shouldWriteProperly() throws IOException {
 
         MockBlobStorage blobStorage = new MockBlobStorage();
-        GSBlobStorage.WriteChannel writeChannel = blobStorage.writeBlob(BLOB_IDENTIFIER);
+        GSBlobStorage.WriteChannel writeChannel = blobStorage.writeBlob(blobIdentifier);
         GSChecksumWriteChannel checksumWriteChannel =
-                new GSChecksumWriteChannel(blobStorage, writeChannel, BLOB_IDENTIFIER);
+                new GSChecksumWriteChannel(blobStorage, writeChannel, blobIdentifier);
 
         // write each partial buffer and validate the written count
         for (int i = 0; i < byteBuffers.length; i++) {
@@ -139,7 +143,7 @@ public class GSChecksumWriteChannelTest {
         checksumWriteChannel.close();
 
         // read the value out of storage, the bytes should match
-        MockBlobStorage.BlobValue blobValue = blobStorage.blobs.get(BLOB_IDENTIFIER);
+        MockBlobStorage.BlobValue blobValue = blobStorage.blobs.get(blobIdentifier);
         assertArrayEquals(expectedWrittenBytes, blobValue.content);
     }
 
@@ -153,9 +157,9 @@ public class GSChecksumWriteChannelTest {
 
         MockBlobStorage blobStorage = new MockBlobStorage();
         blobStorage.forcedChecksum = "";
-        GSBlobStorage.WriteChannel writeChannel = blobStorage.writeBlob(BLOB_IDENTIFIER);
+        GSBlobStorage.WriteChannel writeChannel = blobStorage.writeBlob(blobIdentifier);
         GSChecksumWriteChannel checksumWriteChannel =
-                new GSChecksumWriteChannel(blobStorage, writeChannel, BLOB_IDENTIFIER);
+                new GSChecksumWriteChannel(blobStorage, writeChannel, blobIdentifier);
 
         // write each partial buffer and validate the written count
         for (int i = 0; i < byteBuffers.length; i++) {

@@ -21,7 +21,7 @@ package org.apache.flink.fs.gs.writer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.fs.gs.GSFileSystemOptions;
-import org.apache.flink.fs.gs.TestUtils;
+import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 import org.apache.flink.fs.gs.storage.MockBlobStorage;
 
 import org.junit.Before;
@@ -54,16 +54,6 @@ public class GSRecoverableWriterTest {
     @Parameterized.Parameter(value = 2)
     public int componentCount;
 
-    private GSFileSystemOptions options;
-
-    private GSRecoverableWriter writer;
-
-    private List<UUID> componentObjectIds;
-
-    private GSResumeRecoverable resumeRecoverable;
-
-    private GSCommitRecoverable commitRecoverable;
-
     @Parameterized.Parameters(name = "position={0}, closed={1}, componentCount={2}")
     public static Collection<Object[]> data() {
         return Arrays.asList(
@@ -79,9 +69,23 @@ public class GSRecoverableWriterTest {
                 });
     }
 
+    private GSFileSystemOptions options;
+
+    private GSRecoverableWriter writer;
+
+    private List<UUID> componentObjectIds;
+
+    private GSResumeRecoverable resumeRecoverable;
+
+    private GSCommitRecoverable commitRecoverable;
+
+    private GSBlobIdentifier blobIdentifier;
+
     @Before
     public void before() {
         MockBlobStorage storage = new MockBlobStorage();
+        blobIdentifier = new GSBlobIdentifier("foo", "bar");
+
         Configuration flinkConfig = new Configuration();
         options = new GSFileSystemOptions(flinkConfig);
         writer = new GSRecoverableWriter(storage, options);
@@ -92,9 +96,8 @@ public class GSRecoverableWriterTest {
         }
 
         resumeRecoverable =
-                new GSResumeRecoverable(
-                        TestUtils.BLOB_IDENTIFIER, componentObjectIds, position, closed);
-        commitRecoverable = new GSCommitRecoverable(TestUtils.BLOB_IDENTIFIER, componentObjectIds);
+                new GSResumeRecoverable(blobIdentifier, componentObjectIds, position, closed);
+        commitRecoverable = new GSCommitRecoverable(blobIdentifier, componentObjectIds);
     }
 
     @Test
@@ -147,7 +150,7 @@ public class GSRecoverableWriterTest {
         assertEquals(position, stream.position);
         assertEquals(closed, stream.closed);
         assertEquals(options, stream.options);
-        assertEquals(TestUtils.BLOB_IDENTIFIER, stream.finalBlobIdentifier);
+        assertEquals(blobIdentifier, stream.finalBlobIdentifier);
         assertArrayEquals(componentObjectIds.toArray(), stream.componentObjectIds.toArray());
     }
 

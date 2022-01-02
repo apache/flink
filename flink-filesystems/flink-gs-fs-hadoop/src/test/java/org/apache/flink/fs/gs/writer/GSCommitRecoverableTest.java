@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fs.gs.GSFileSystemOptions;
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -32,7 +33,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-import static org.apache.flink.fs.gs.TestUtils.BLOB_IDENTIFIER;
 import static org.junit.Assert.assertEquals;
 
 /** Test {@link GSResumeRecoverable}. */
@@ -68,11 +68,18 @@ public class GSCommitRecoverableTest {
                 });
     }
 
+    private GSBlobIdentifier blobIdentifier;
+
+    @Before
+    public void before() {
+        blobIdentifier = new GSBlobIdentifier("foo", "bar");
+    }
+
     @Test
     public void shouldConstructProperly() {
         GSCommitRecoverable commitRecoverable =
-                new GSCommitRecoverable(BLOB_IDENTIFIER, componentObjectIds);
-        assertEquals(BLOB_IDENTIFIER, commitRecoverable.finalBlobIdentifier);
+                new GSCommitRecoverable(blobIdentifier, componentObjectIds);
+        assertEquals(blobIdentifier, commitRecoverable.finalBlobIdentifier);
         assertEquals(componentObjectIds, commitRecoverable.componentObjectIds);
     }
 
@@ -80,7 +87,7 @@ public class GSCommitRecoverableTest {
     @Test(expected = UnsupportedOperationException.class)
     public void shouldNotAddComponentId() {
         GSCommitRecoverable commitRecoverable =
-                new GSCommitRecoverable(BLOB_IDENTIFIER, componentObjectIds);
+                new GSCommitRecoverable(blobIdentifier, componentObjectIds);
         commitRecoverable.componentObjectIds.add(UUID.randomUUID());
     }
 
@@ -88,7 +95,7 @@ public class GSCommitRecoverableTest {
     @Test(expected = UnsupportedOperationException.class)
     public void shouldNotModifyComponentId() {
         GSCommitRecoverable commitRecoverable =
-                new GSCommitRecoverable(BLOB_IDENTIFIER, componentObjectIds);
+                new GSCommitRecoverable(blobIdentifier, componentObjectIds);
         commitRecoverable.componentObjectIds.set(0, UUID.randomUUID());
     }
 
@@ -102,7 +109,7 @@ public class GSCommitRecoverableTest {
         }
         GSFileSystemOptions options = new GSFileSystemOptions(flinkConfig);
         GSCommitRecoverable commitRecoverable =
-                new GSCommitRecoverable(BLOB_IDENTIFIER, componentObjectIds);
+                new GSCommitRecoverable(blobIdentifier, componentObjectIds);
         List<GSBlobIdentifier> componentBlobIdentifiers =
                 commitRecoverable.getComponentBlobIds(options);
 
@@ -113,15 +120,15 @@ public class GSCommitRecoverableTest {
             // if a temporary bucket is specified in options, the component blob identifier
             // should be in this bucket; otherwise, it should be in the bucket with the final blob
             assertEquals(
-                    temporaryBucketName == null ? BLOB_IDENTIFIER.bucketName : temporaryBucketName,
+                    temporaryBucketName == null ? blobIdentifier.bucketName : temporaryBucketName,
                     componentBlobIdentifier.bucketName);
 
             // make sure the name is what is expected
             String expectedObjectName =
                     String.format(
                             ".inprogress/%s/%s/%s",
-                            BLOB_IDENTIFIER.bucketName,
-                            BLOB_IDENTIFIER.objectName,
+                            blobIdentifier.bucketName,
+                            blobIdentifier.objectName,
                             componentObjectId);
             assertEquals(expectedObjectName, componentBlobIdentifier.objectName);
         }

@@ -20,6 +20,7 @@ package org.apache.flink.fs.gs.writer;
 
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -30,7 +31,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-import static org.apache.flink.fs.gs.TestUtils.BLOB_IDENTIFIER;
 import static org.junit.Assert.assertEquals;
 
 /** Test {@link GSResumeRecoverable}. */
@@ -49,7 +49,8 @@ public class GSResumeRecoverableTest {
     @Parameterized.Parameter(value = 3)
     public String temporaryBucketName;
 
-    @Parameterized.Parameters(name = "position={0}, closed={1}, componentIds={2}, tempBucket={3}")
+    @Parameterized.Parameters(
+            name = "position={0}, closed={1}, componentObjectIds={2}, temporaryBucketName={3}")
     public static Collection<Object[]> data() {
 
         ArrayList<UUID> emptyComponentObjectIds = new ArrayList<>();
@@ -80,11 +81,18 @@ public class GSResumeRecoverableTest {
                 });
     }
 
+    private GSBlobIdentifier blobIdentifier;
+
+    @Before
+    public void before() {
+        blobIdentifier = new GSBlobIdentifier("foo", "bar");
+    }
+
     @Test
     public void shouldConstructProperly() {
         GSResumeRecoverable resumeRecoverable =
-                new GSResumeRecoverable(BLOB_IDENTIFIER, componentObjectIds, position, closed);
-        assertEquals(BLOB_IDENTIFIER, resumeRecoverable.finalBlobIdentifier);
+                new GSResumeRecoverable(blobIdentifier, componentObjectIds, position, closed);
+        assertEquals(blobIdentifier, resumeRecoverable.finalBlobIdentifier);
         assertEquals(position, resumeRecoverable.position);
         assertEquals(closed, resumeRecoverable.closed);
         assertEquals(componentObjectIds, resumeRecoverable.componentObjectIds);
@@ -94,7 +102,7 @@ public class GSResumeRecoverableTest {
     @Test(expected = UnsupportedOperationException.class)
     public void shouldNotAddComponentId() {
         GSResumeRecoverable resumeRecoverable =
-                new GSResumeRecoverable(BLOB_IDENTIFIER, componentObjectIds, position, closed);
+                new GSResumeRecoverable(blobIdentifier, componentObjectIds, position, closed);
         resumeRecoverable.componentObjectIds.add(UUID.randomUUID());
     }
 
@@ -102,7 +110,7 @@ public class GSResumeRecoverableTest {
     @Test(expected = UnsupportedOperationException.class)
     public void shouldNotModifyComponentId() {
         GSResumeRecoverable resumeRecoverable =
-                new GSResumeRecoverable(BLOB_IDENTIFIER, componentObjectIds, position, closed);
+                new GSResumeRecoverable(blobIdentifier, componentObjectIds, position, closed);
         resumeRecoverable.componentObjectIds.set(0, UUID.randomUUID());
     }
 }

@@ -98,10 +98,16 @@ public class GSRecoverableFsDataOutputStreamTest {
 
     private GSRecoverableFsDataOutputStream fsDataOutputStream;
 
+    private GSBlobIdentifier blobIdentifier;
+
+    private byte byteValue;
+
     @Before
     public void before() {
 
         random = new Random(TestUtils.RANDOM_SEED);
+        blobIdentifier = new GSBlobIdentifier("foo", "bar");
+        byteValue = (byte) 167;
 
         Configuration flinkConfig = new Configuration();
         if (temporaryBucketName != null) {
@@ -119,12 +125,10 @@ public class GSRecoverableFsDataOutputStreamTest {
 
         if (empty) {
             fsDataOutputStream =
-                    new GSRecoverableFsDataOutputStream(
-                            blobStorage, options, TestUtils.BLOB_IDENTIFIER);
+                    new GSRecoverableFsDataOutputStream(blobStorage, options, blobIdentifier);
         } else {
             GSResumeRecoverable resumeRecoverable =
-                    new GSResumeRecoverable(
-                            TestUtils.BLOB_IDENTIFIER, componentObjectIds, position, closed);
+                    new GSResumeRecoverable(blobIdentifier, componentObjectIds, position, closed);
             fsDataOutputStream =
                     new GSRecoverableFsDataOutputStream(blobStorage, options, resumeRecoverable);
         }
@@ -142,7 +146,7 @@ public class GSRecoverableFsDataOutputStreamTest {
     public void shouldConstructStream() {
         assertEquals(blobStorage, fsDataOutputStream.storage);
         assertEquals(options, fsDataOutputStream.options);
-        assertEquals(TestUtils.BLOB_IDENTIFIER, fsDataOutputStream.finalBlobIdentifier);
+        assertEquals(blobIdentifier, fsDataOutputStream.finalBlobIdentifier);
         if (empty) {
             assertEquals(0, fsDataOutputStream.position);
             assertFalse(fsDataOutputStream.closed);
@@ -184,9 +188,7 @@ public class GSRecoverableFsDataOutputStreamTest {
     }
 
     private void writeByte() throws IOException {
-        writeContent(
-                () -> fsDataOutputStream.write(TestUtils.BYTE_VALUE),
-                new byte[] {TestUtils.BYTE_VALUE});
+        writeContent(() -> fsDataOutputStream.write(byteValue), new byte[] {byteValue});
     }
 
     @Test
@@ -235,7 +237,7 @@ public class GSRecoverableFsDataOutputStreamTest {
     @Test
     public void shouldFlush() throws IOException {
         if (!closed) {
-            fsDataOutputStream.write(TestUtils.BYTE_VALUE);
+            fsDataOutputStream.write(byteValue);
             assertNotNull(fsDataOutputStream.currentWriteChannel);
             fsDataOutputStream.flush();
             assertNull(fsDataOutputStream.currentWriteChannel);
@@ -245,7 +247,7 @@ public class GSRecoverableFsDataOutputStreamTest {
     @Test
     public void shouldSync() throws IOException {
         if (!closed) {
-            fsDataOutputStream.write(TestUtils.BYTE_VALUE);
+            fsDataOutputStream.write(byteValue);
             assertNotNull(fsDataOutputStream.currentWriteChannel);
             fsDataOutputStream.sync();
             assertNull(fsDataOutputStream.currentWriteChannel);
@@ -257,7 +259,7 @@ public class GSRecoverableFsDataOutputStreamTest {
         if (!closed) {
             GSResumeRecoverable recoverable = (GSResumeRecoverable) fsDataOutputStream.persist();
             assertNull(fsDataOutputStream.currentWriteChannel);
-            assertEquals(TestUtils.BLOB_IDENTIFIER, recoverable.finalBlobIdentifier);
+            assertEquals(blobIdentifier, recoverable.finalBlobIdentifier);
             if (empty) {
                 assertEquals(0, recoverable.componentObjectIds.size());
             } else {

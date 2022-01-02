@@ -63,7 +63,8 @@ public class GSRecoverableWriterCommitterTest {
     public int commitBlobCount;
 
     @Parameterized.Parameters(
-            name = "temporaryBucketName={0}, composeMaxBlobs={1}, blobSizes={2}, commitCount={3}")
+            name =
+                    "temporaryBucketName={0}, composeMaxBlobs={1}, blobSizes={2}, commitBlobCount={3}")
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
@@ -102,6 +103,8 @@ public class GSRecoverableWriterCommitterTest {
 
     private ByteArrayOutputStream expectedBytes;
 
+    private GSBlobIdentifier blobIdentifier;
+
     @Before
     public void before() {
         Configuration flinkConfig = new Configuration();
@@ -114,6 +117,7 @@ public class GSRecoverableWriterCommitterTest {
         random.setSeed(TestUtils.RANDOM_SEED);
 
         blobStorage = new MockBlobStorage();
+        blobIdentifier = new GSBlobIdentifier("foo", "bar");
 
         expectedBytes = new ByteArrayOutputStream();
     }
@@ -135,7 +139,7 @@ public class GSRecoverableWriterCommitterTest {
 
         // there should be exactly one blob left, the final blob identifier. validate its contents.
         assertEquals(1, blobStorage.blobs.size());
-        MockBlobStorage.BlobValue blobValue = blobStorage.blobs.get(TestUtils.BLOB_IDENTIFIER);
+        MockBlobStorage.BlobValue blobValue = blobStorage.blobs.get(blobIdentifier);
         assertNotNull(blobValue);
         assertArrayEquals(expectedBytes.toByteArray(), blobValue.content);
     }
@@ -147,7 +151,7 @@ public class GSRecoverableWriterCommitterTest {
      */
     @Test(expected = IOException.class)
     public void commitOverwriteShouldFailTest() throws IOException {
-        blobStorage.createBlob(TestUtils.BLOB_IDENTIFIER);
+        blobStorage.createBlob(blobIdentifier);
         GSRecoverableWriterCommitter committer = commitTestInternal();
         committer.commit();
     }
@@ -160,7 +164,7 @@ public class GSRecoverableWriterCommitterTest {
      */
     @Test
     public void commitWithRecoveryOverwriteShouldSucceedTest() throws IOException {
-        blobStorage.createBlob(TestUtils.BLOB_IDENTIFIER);
+        blobStorage.createBlob(blobIdentifier);
         GSRecoverableWriterCommitter committer = commitTestInternal();
         committer.commitAfterRecovery();
     }
@@ -182,15 +186,15 @@ public class GSRecoverableWriterCommitterTest {
 
             // create the object id and blob identifier
             UUID componentObjectId = UUID.randomUUID();
-            GSBlobIdentifier blobIdentifier =
+            GSBlobIdentifier temporaryBlobIdentifier =
                     BlobUtils.getTemporaryBlobIdentifier(
-                            TestUtils.BLOB_IDENTIFIER, componentObjectId, options);
+                            blobIdentifier, componentObjectId, options);
 
             // write the bytes to mock storage
             int blobSize = blobSizes[blobIndex];
             byte[] bytes = new byte[blobSize];
             random.nextBytes(bytes);
-            blobStorage.blobs.put(blobIdentifier, new MockBlobStorage.BlobValue(bytes));
+            blobStorage.blobs.put(temporaryBlobIdentifier, new MockBlobStorage.BlobValue(bytes));
 
             // will we commit this blob? if so, record that we will use this component object id,
             // that we expect to see the associated bytes in the result
@@ -202,7 +206,7 @@ public class GSRecoverableWriterCommitterTest {
 
         // create the recoverable and commit
         GSCommitRecoverable recoverable =
-                new GSCommitRecoverable(TestUtils.BLOB_IDENTIFIER, componentObjectIdsToCommit);
+                new GSCommitRecoverable(blobIdentifier, componentObjectIdsToCommit);
         return new GSRecoverableWriterCommitter(blobStorage, options, recoverable, composeMaxBlobs);
     }
 }
