@@ -65,11 +65,18 @@ public class CLI extends ExecutionConfig.GlobalJobParameters {
         Duration watchInterval = null;
         if (params.has(DISCOVERY_INTERVAL)) {
             watchInterval = TimeUtils.parseDuration(params.get(DISCOVERY_INTERVAL));
+        } else {
+            System.out.println(
+                    "Will not continue watch the new file. Use --discovery-interval to specific "
+                            + "discovery interval of given directories");
         }
 
         RuntimeExecutionMode executionMode = ExecutionOptions.RUNTIME_MODE.defaultValue();
         if (params.has(EXECUTION_MODE)) {
             executionMode = RuntimeExecutionMode.valueOf(params.get(EXECUTION_MODE).toUpperCase());
+        } else {
+            System.out.println(
+                    "Execute with streaming mode. Use --execution-mode to specify execute mode.");
         }
 
         return new CLI(inputs, output, watchInterval, executionMode, params);
