@@ -1170,7 +1170,7 @@ public class SqlToOperationConverterTest {
     @Test
     public void testAlterTable() throws Exception {
         prepareTable(false);
-        final String[] renameTableSqls =
+        String[] renameTableSqls =
                 new String[] {
                     "alter table cat1.db1.tb1 rename to tb2",
                     "alter table db1.tb1 rename to tb2",
@@ -1184,6 +1184,23 @@ public class SqlToOperationConverterTest {
             assert operation instanceof AlterTableRenameOperation;
             final AlterTableRenameOperation alterTableRenameOperation =
                     (AlterTableRenameOperation) operation;
+            assertFalse(alterTableRenameOperation.isIfExists());
+            assertEquals(expectedIdentifier, alterTableRenameOperation.getTableIdentifier());
+            assertEquals(expectedNewIdentifier, alterTableRenameOperation.getNewTableIdentifier());
+        }
+
+        renameTableSqls =
+                new String[] {
+                    "alter table if exists cat1.db1.tb1 rename to tb2",
+                    "alter table if exists db1.tb1 rename to tb2",
+                    "alter table if exists tb1 rename to cat1.db1.tb2",
+                };
+        for (int i = 0; i < renameTableSqls.length; i++) {
+            Operation operation = parse(renameTableSqls[i], SqlDialect.DEFAULT);
+            assert operation instanceof AlterTableRenameOperation;
+            final AlterTableRenameOperation alterTableRenameOperation =
+                    (AlterTableRenameOperation) operation;
+            assertTrue(alterTableRenameOperation.isIfExists());
             assertEquals(expectedIdentifier, alterTableRenameOperation.getTableIdentifier());
             assertEquals(expectedNewIdentifier, alterTableRenameOperation.getNewTableIdentifier());
         }
@@ -1197,11 +1214,32 @@ public class SqlToOperationConverterTest {
         expectedOptions.put("k1", "v1");
         expectedOptions.put("K2", "V2");
 
-        assertAlterTableOptions(operation, expectedIdentifier, expectedOptions);
+        AlterTableOptionsOperation alterTableOptionsOperation =
+                (AlterTableOptionsOperation) operation;
+        assertFalse(alterTableOptionsOperation.isIfExists());
+        assertAlterTableOptions(alterTableOptionsOperation, expectedIdentifier, expectedOptions);
+
+        operation =
+                parse(
+                        "alter table if exists cat1.db1.tb1 set ('k1' = 'v1', 'K2' = 'V2')",
+                        SqlDialect.DEFAULT);
+
+        alterTableOptionsOperation = (AlterTableOptionsOperation) operation;
+        assertTrue(alterTableOptionsOperation.isIfExists());
+        assertAlterTableOptions(alterTableOptionsOperation, expectedIdentifier, expectedOptions);
 
         // test alter table reset
         operation = parse("alter table cat1.db1.tb1 reset ('k')", SqlDialect.DEFAULT);
-        assertAlterTableOptions(operation, expectedIdentifier, Collections.emptyMap());
+        alterTableOptionsOperation = (AlterTableOptionsOperation) operation;
+        assertFalse(alterTableOptionsOperation.isIfExists());
+        assertAlterTableOptions(
+                alterTableOptionsOperation, expectedIdentifier, Collections.emptyMap());
+
+        operation = parse("alter table if exists cat1.db1.tb1 reset ('k')", SqlDialect.DEFAULT);
+        alterTableOptionsOperation = (AlterTableOptionsOperation) operation;
+        assertTrue(alterTableOptionsOperation.isIfExists());
+        assertAlterTableOptions(
+                alterTableOptionsOperation, expectedIdentifier, Collections.emptyMap());
 
         thrown.expect(ValidationException.class);
         thrown.expectMessage("ALTER TABLE RESET does not support empty key");
@@ -1224,6 +1262,17 @@ public class SqlToOperationConverterTest {
                 is(
                         "ALTER TABLE ADD CONSTRAINT: (identifier: [`cat1`.`db1`.`tb1`], "
                                 + "constraintName: [ct1], columns: [a, b])"));
+        operation =
+                parse(
+                        "alter table if exists tb1 add constraint ct1 primary key(a, b) not enforced",
+                        SqlDialect.DEFAULT);
+        addConstraintOperation = (AlterTableAddConstraintOperation) operation;
+        assertThat(
+                addConstraintOperation.asSummaryString(),
+                is(
+                        "ALTER TABLE IF EXISTS ADD CONSTRAINT: (identifier: [`cat1`.`db1`.`tb1`], "
+                                + "constraintName: [ct1], columns: [a, b])"));
+
         // Test alter table add pk on nullable column
         thrown.expect(ValidationException.class);
         thrown.expectMessage("Could not create a PRIMARY KEY 'ct1'. Column 'c' is nullable.");
@@ -1272,6 +1321,12 @@ public class SqlToOperationConverterTest {
         assertThat(
                 dropConstraint.asSummaryString(),
                 is("ALTER TABLE `cat1`.`db1`.`tb1` DROP CONSTRAINT ct1"));
+        operation = parse("alter table if exists tb1 drop constraint ct1", SqlDialect.DEFAULT);
+        assert operation instanceof AlterTableDropConstraintOperation;
+        dropConstraint = (AlterTableDropConstraintOperation) operation;
+        assertThat(
+                dropConstraint.asSummaryString(),
+                is("ALTER TABLE IF EXISTS `cat1`.`db1`.`tb1` DROP CONSTRAINT ct1"));
         thrown.expect(ValidationException.class);
         thrown.expectMessage("CONSTRAINT [ct2] does not exist");
         parse("alter table tb1 drop constraint ct2", SqlDialect.DEFAULT);

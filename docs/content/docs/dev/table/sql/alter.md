@@ -144,7 +144,7 @@ NewOrders
 * Rename Table
 
 ```sql
-ALTER TABLE [catalog_name.][db_name.]table_name RENAME TO new_table_name
+ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name RENAME TO new_table_name
 ```
 
 Rename the given table name to another new table name.
@@ -152,7 +152,7 @@ Rename the given table name to another new table name.
 * Set or Alter Table Properties
 
 ```sql
-ALTER TABLE [catalog_name.][db_name.]table_name SET (key1=val1, key2=val2, ...)
+ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name SET (key1=val1, key2=val2, ...)
 ```
 
 Set one or more properties in the specified table. If a particular property is already set in the table, override the old value with the new one.

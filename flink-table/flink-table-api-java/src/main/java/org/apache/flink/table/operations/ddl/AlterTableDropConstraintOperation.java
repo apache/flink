@@ -20,13 +20,15 @@ package org.apache.flink.table.operations.ddl;
 
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
-/** Operation of "ALTER TABLE ADD [CONSTRAINT constraintName] ..." clause. * */
+import org.apache.commons.lang3.StringUtils;
+
+/** Operation of "ALTER TABLE IF EXISTS ADD [CONSTRAINT constraintName] ..." clause. * */
 public class AlterTableDropConstraintOperation extends AlterTableOperation {
     private final String constraintName;
 
     public AlterTableDropConstraintOperation(
-            ObjectIdentifier tableIdentifier, String constraintName) {
-        super(tableIdentifier);
+            ObjectIdentifier tableIdentifier, String constraintName, boolean ifExists) {
+        super(tableIdentifier, ifExists);
         this.constraintName = constraintName;
     }
 
@@ -36,6 +38,8 @@ public class AlterTableDropConstraintOperation extends AlterTableOperation {
 
     @Override
     public String asSummaryString() {
-        return String.format("ALTER TABLE %s DROP CONSTRAINT %s", tableIdentifier, constraintName);
+        return String.format(
+                "ALTER TABLE %s%s DROP CONSTRAINT %s",
+                ifExists ? "IF EXISTS " : StringUtils.EMPTY, tableIdentifier, constraintName);
     }
 }

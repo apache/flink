@@ -25,9 +25,19 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
  */
 public abstract class AlterTableOperation implements AlterOperation {
     protected final ObjectIdentifier tableIdentifier;
+    protected final boolean ifExists;
+
+    public AlterTableOperation(ObjectIdentifier tableIdentifier, boolean ifExists) {
+        this.tableIdentifier = tableIdentifier;
+        this.ifExists = ifExists;
+    }
 
     public AlterTableOperation(ObjectIdentifier tableIdentifier) {
-        this.tableIdentifier = tableIdentifier;
+        this(tableIdentifier, false);
+    }
+
+    public boolean isIfExists() {
+        return ifExists;
     }
 
     public ObjectIdentifier getTableIdentifier() {

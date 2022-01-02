@@ -44,6 +44,10 @@ alter table non_exist rename to non_exist2;
 org.apache.flink.table.api.ValidationException: Table `default_catalog`.`default_database`.`non_exist` doesn't exist or is a temporary table.
 !error
 
+alter table if exists non_exist rename to non_exist2;
+[INFO] Execute statement succeed.
+!info
+
 # ==========================================================================
 # test create table
 # ==========================================================================
@@ -280,7 +284,11 @@ show columns in orders not like 'use_';
 # test alter table rename
 # ==========================================================================
 
-alter table orders rename to orders2;
+alter table orders rename to orders1;
+[INFO] Execute statement succeed.
+!info
+
+alter table if exists orders1 rename to orders2;
 [INFO] Execute statement succeed.
 !info
 
@@ -290,6 +298,10 @@ alter table orders rename to orders2;
 
 # test alter table properties
 alter table orders2 set ('connector' = 'kafka', 'scan.startup.mode' = 'earliest-offset');
+[INFO] Execute statement succeed.
+!info
+
+alter table if exists orders2 set ('connector' = 'kafka', 'scan.startup.mode' = 'earliest-offset');
 [INFO] Execute statement succeed.
 !info
 
@@ -312,6 +324,10 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
 
 # change connector to 'datagen' without removing 'scan.startup.mode' for the fix later
 alter table orders2 set ('connector' = 'datagen');
+[INFO] Execute statement succeed.
+!info
+
+alter table if exists orders2 set ('connector' = 'datagen');
 [INFO] Execute statement succeed.
 !info
 
@@ -373,6 +389,10 @@ alter table orders2 reset ('scan.startup.mode');
 [INFO] Execute statement succeed.
 !info
 
+alter table if exists orders2 reset ('scan.startup.mode');
+[INFO] Execute statement succeed.
+!info
+
 # verify table options using SHOW CREATE TABLE
 show create table orders2;
 CREATE TABLE `default_catalog`.`default_database`.`orders2` (
@@ -391,6 +411,11 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
 
 # test alter table reset emtpy key
 alter table orders2 reset ();
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: ALTER TABLE RESET does not support empty key
+!error
+
+alter table if exists orders2 reset ();
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: ALTER TABLE RESET does not support empty key
 !error

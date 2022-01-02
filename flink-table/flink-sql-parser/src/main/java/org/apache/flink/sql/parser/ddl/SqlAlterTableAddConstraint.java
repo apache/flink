@@ -29,8 +29,8 @@ import org.apache.calcite.util.ImmutableNullableList;
 import java.util.List;
 
 /**
- * ALTER TABLE [catalog_name.][db_name.]table_name ADD [CONSTRAINT constraint_name] (PRIMARY KEY |
- * UNIQUE) (column, ...) [[NOT] ENFORCED].
+ * ALTER TABLE IF EXISTS [catalog_name.][db_name.]table_name ADD [CONSTRAINT constraint_name]
+ * (PRIMARY KEY | UNIQUE) (column, ...) [[NOT] ENFORCED].
  */
 public class SqlAlterTableAddConstraint extends SqlAlterTable {
     private final SqlTableConstraint constraint;
@@ -43,8 +43,11 @@ public class SqlAlterTableAddConstraint extends SqlAlterTable {
      * @param pos Parser position
      */
     public SqlAlterTableAddConstraint(
-            SqlIdentifier tableID, SqlTableConstraint constraint, SqlParserPos pos) {
-        super(pos, tableID);
+            SqlIdentifier tableID,
+            SqlTableConstraint constraint,
+            SqlParserPos pos,
+            boolean ifExists) {
+        super(pos, tableID, ifExists);
         this.constraint = constraint;
     }
 

@@ -22,6 +22,8 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 
+import org.apache.commons.lang3.StringUtils;
+
 import javax.annotation.Nullable;
 
 import java.util.Collections;
@@ -30,7 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Operation of "ALTER TABLE ADD [CONSTRAINT constraintName] ..." clause.
+ * Operation of "ALTER TABLE IF EXISTS ADD [CONSTRAINT constraintName] ..." clause.
  *
  * <p>Note: only primary key is supported now.
  */
@@ -41,8 +43,9 @@ public class AlterTableAddConstraintOperation extends AlterTableOperation {
     public AlterTableAddConstraintOperation(
             ObjectIdentifier tableIdentifier,
             @Nullable String constraintName,
-            String[] columnNames) {
-        super(tableIdentifier);
+            String[] columnNames,
+            boolean ifExists) {
+        super(tableIdentifier, ifExists);
         this.constraintName = constraintName;
         this.columnNames = columnNames;
     }
@@ -65,7 +68,9 @@ public class AlterTableAddConstraintOperation extends AlterTableOperation {
         params.put("columns", this.columnNames);
 
         return OperationUtils.formatWithChildren(
-                "ALTER TABLE ADD CONSTRAINT",
+                String.format(
+                        "ALTER TABLE %sADD CONSTRAINT",
+                        ifExists ? "IF EXISTS " : StringUtils.EMPTY),
                 params,
                 Collections.emptyList(),
                 Operation::asSummaryString);

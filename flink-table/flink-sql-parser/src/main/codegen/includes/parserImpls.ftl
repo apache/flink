@@ -505,6 +505,7 @@ SqlAlterTable SqlAlterTable() :
 {
     SqlParserPos startPos;
     SqlIdentifier tableIdentifier;
+    boolean ifExists = false;
     SqlIdentifier newTableIdentifier = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
@@ -513,6 +514,7 @@ SqlAlterTable SqlAlterTable() :
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
+        ifExists = IfExistsOpt()
         tableIdentifier = CompoundIdentifier()
     (
         <RENAME> <TO>
@@ -521,7 +523,8 @@ SqlAlterTable SqlAlterTable() :
             return new SqlAlterTableRename(
                         startPos.plus(getPos()),
                         tableIdentifier,
-                        newTableIdentifier);
+                        newTableIdentifier,
+                        ifExists);
         }
     |
         <RESET>
@@ -530,7 +533,8 @@ SqlAlterTable SqlAlterTable() :
             return new SqlAlterTableReset(
                         startPos.plus(getPos()),
                         tableIdentifier,
-                        propertyKeyList);
+                        propertyKeyList,
+                        ifExists);
         }
     |
         <SET>
@@ -539,14 +543,16 @@ SqlAlterTable SqlAlterTable() :
             return new SqlAlterTableOptions(
                         startPos.plus(getPos()),
                         tableIdentifier,
-                        propertyList);
+                        propertyList,
+                        ifExists);
         }
     |
         <ADD> constraint = TableConstraint() {
             return new SqlAlterTableAddConstraint(
                         tableIdentifier,
                         constraint,
-                        startPos.plus(getPos()));
+                        startPos.plus(getPos()),
+                        ifExists);
         }
     |
         <DROP> <CONSTRAINT>
@@ -554,7 +560,8 @@ SqlAlterTable SqlAlterTable() :
             return new SqlAlterTableDropConstraint(
                 tableIdentifier,
                 constraintName,
-                startPos.plus(getPos()));
+                startPos.plus(getPos()),
+                ifExists);
         }
     )
 }

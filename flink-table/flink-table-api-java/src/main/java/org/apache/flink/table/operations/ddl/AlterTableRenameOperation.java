@@ -20,13 +20,22 @@ package org.apache.flink.table.operations.ddl;
 
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
-/** Operation to describe a ALTER TABLE .. RENAME to .. statement. */
+import org.apache.commons.lang3.StringUtils;
+
+/** Operation to describe a ALTER TABLE IF EXISTS .. RENAME to .. statement. */
 public class AlterTableRenameOperation extends AlterTableOperation {
     private final ObjectIdentifier newTableIdentifier;
 
     public AlterTableRenameOperation(
             ObjectIdentifier tableIdentifier, ObjectIdentifier newTableIdentifier) {
-        super(tableIdentifier);
+        this(tableIdentifier, newTableIdentifier, false);
+    }
+
+    public AlterTableRenameOperation(
+            ObjectIdentifier tableIdentifier,
+            ObjectIdentifier newTableIdentifier,
+            boolean ifExists) {
+        super(tableIdentifier, ifExists);
         this.newTableIdentifier = newTableIdentifier;
     }
 
@@ -37,7 +46,9 @@ public class AlterTableRenameOperation extends AlterTableOperation {
     @Override
     public String asSummaryString() {
         return String.format(
-                "ALTER TABLE %s RENAME TO %s",
-                tableIdentifier.asSummaryString(), newTableIdentifier.asSummaryString());
+                "ALTER TABLE %s%s RENAME TO %s",
+                ifExists ? "IF EXISTS " : StringUtils.EMPTY,
+                tableIdentifier.asSummaryString(),
+                newTableIdentifier.asSummaryString());
     }
 }

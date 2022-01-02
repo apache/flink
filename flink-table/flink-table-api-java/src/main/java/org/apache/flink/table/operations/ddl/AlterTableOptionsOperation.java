@@ -22,15 +22,32 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.OperationUtils;
 
+import org.apache.commons.lang3.StringUtils;
+
+import java.util.Map;
 import java.util.stream.Collectors;
 
-/** Operation to describe a ALTER TABLE .. SET .. statement. */
+/** Operation to describe a ALTER TABLE IF EXISTS .. SET .. statement. */
 public class AlterTableOptionsOperation extends AlterTableOperation {
     private final CatalogTable catalogTable;
+    private final Map<String, String> setOptions;
 
     public AlterTableOptionsOperation(ObjectIdentifier tableIdentifier, CatalogTable catalogTable) {
-        super(tableIdentifier);
+        this(tableIdentifier, catalogTable, false);
+    }
+
+    public AlterTableOptionsOperation(
+            ObjectIdentifier tableIdentifier, CatalogTable catalogTable, boolean ifExists) {
+        super(tableIdentifier, ifExists);
         this.catalogTable = catalogTable;
+        this.setOptions = catalogTable.getOptions();
+    }
+
+    public AlterTableOptionsOperation(
+            ObjectIdentifier tableIdentifier, Map<String, String> tableOptions, boolean ifExists) {
+        super(tableIdentifier, ifExists);
+        this.catalogTable = null;
+        this.setOptions = tableOptions;
     }
 
     public CatalogTable getCatalogTable() {
@@ -40,13 +57,16 @@ public class AlterTableOptionsOperation extends AlterTableOperation {
     @Override
     public String asSummaryString() {
         String description =
-                catalogTable.getOptions().entrySet().stream()
+                setOptions.entrySet().stream()
                         .map(
                                 entry ->
                                         OperationUtils.formatParameter(
                                                 entry.getKey(), entry.getValue()))
                         .collect(Collectors.joining(", "));
         return String.format(
-                "ALTER TABLE %s SET (%s)", tableIdentifier.asSummaryString(), description);
+                "ALTER TABLE %s%s SET (%s)",
+                ifExists ? "IF EXISTS " : StringUtils.EMPTY,
+                tableIdentifier.asSummaryString(),
+                description);
     }
 }

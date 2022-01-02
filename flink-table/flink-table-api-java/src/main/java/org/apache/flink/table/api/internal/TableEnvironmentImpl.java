@@ -908,14 +908,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     catalog.renameTable(
                             alterTableRenameOp.getTableIdentifier().toObjectPath(),
                             alterTableRenameOp.getNewTableIdentifier().getObjectName(),
-                            false);
+                            alterTableRenameOp.isIfExists());
                 } else if (alterTableOperation instanceof AlterTableOptionsOperation) {
                     AlterTableOptionsOperation alterTablePropertiesOp =
                             (AlterTableOptionsOperation) operation;
                     catalogManager.alterTable(
                             alterTablePropertiesOp.getCatalogTable(),
                             alterTablePropertiesOp.getTableIdentifier(),
-                            false);
+                            alterTablePropertiesOp.isIfExists());
                 } else if (alterTableOperation instanceof AlterTableAddConstraintOperation) {
                     AlterTableAddConstraintOperation addConstraintOP =
                             (AlterTableAddConstraintOperation) operation;
@@ -941,7 +941,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                     oriTable.getOptions(),
                                     oriTable.getComment());
                     catalogManager.alterTable(
-                            newTable, addConstraintOP.getTableIdentifier(), false);
+                            newTable,
+                            addConstraintOP.getTableIdentifier(),
+                            addConstraintOP.isIfExists());
                 } else if (alterTableOperation instanceof AlterTableDropConstraintOperation) {
                     AlterTableDropConstraintOperation dropConstraintOperation =
                             (AlterTableDropConstraintOperation) operation;
@@ -960,7 +962,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                     oriTable.getOptions(),
                                     oriTable.getComment());
                     catalogManager.alterTable(
-                            newTable, dropConstraintOperation.getTableIdentifier(), false);
+                            newTable,
+                            dropConstraintOperation.getTableIdentifier(),
+                            dropConstraintOperation.isIfExists());
                 } else if (alterTableOperation instanceof AlterPartitionPropertiesOperation) {
                     AlterPartitionPropertiesOperation alterPartPropsOp =
                             (AlterPartitionPropertiesOperation) operation;
@@ -968,14 +972,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             alterPartPropsOp.getTableIdentifier().toObjectPath(),
                             alterPartPropsOp.getPartitionSpec(),
                             alterPartPropsOp.getCatalogPartition(),
-                            false);
+                            alterPartPropsOp.isIfExists());
                 } else if (alterTableOperation instanceof AlterTableSchemaOperation) {
                     AlterTableSchemaOperation alterTableSchemaOperation =
                             (AlterTableSchemaOperation) alterTableOperation;
                     catalogManager.alterTable(
                             alterTableSchemaOperation.getCatalogTable(),
                             alterTableSchemaOperation.getTableIdentifier(),
-                            false);
+                            alterTableSchemaOperation.isIfExists());
                 } else if (alterTableOperation instanceof AddPartitionsOperation) {
                     AddPartitionsOperation addPartitionsOperation =
                             (AddPartitionsOperation) alterTableOperation;
@@ -1046,14 +1050,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 } else if (alterViewOperation instanceof AlterViewPropertiesOperation) {
                     AlterViewPropertiesOperation alterTablePropertiesOp =
                             (AlterViewPropertiesOperation) operation;
-                    catalogManager.alterTable(
+                    catalogManager.alterView(
                             alterTablePropertiesOp.getCatalogView(),
                             alterTablePropertiesOp.getViewIdentifier(),
                             false);
                 } else if (alterViewOperation instanceof AlterViewAsOperation) {
                     AlterViewAsOperation alterViewAsOperation =
                             (AlterViewAsOperation) alterViewOperation;
-                    catalogManager.alterTable(
+                    catalogManager.alterView(
                             alterViewAsOperation.getNewView(),
                             alterViewAsOperation.getViewIdentifier(),
                             false);
