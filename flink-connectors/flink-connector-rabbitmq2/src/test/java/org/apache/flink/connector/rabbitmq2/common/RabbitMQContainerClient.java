@@ -119,7 +119,9 @@ public class RabbitMQContainerClient<T> {
     private void handleMessageReceivedCallback(String consumerTag, Delivery delivery) {
         byte[] body = delivery.getBody();
         messages.add(body);
-        latch.countDown();
+        if (latch != null) {
+            latch.countDown();
+        }
     }
 
     private Connection getRabbitMQConnection() throws TimeoutException, IOException {

@@ -75,13 +75,13 @@ public class RabbitMQSourceEnumerator
 
     @Override
     public void handleSplitRequest(int i, @Nullable String s) {
-        LOG.info("Split request from reader " + i);
+        LOG.info("Split request from reader {}.", i);
         assignSplitToReader(i, split);
     }
 
     @Override
     public void addSplitsBack(List<RabbitMQSourceSplit> list, int i) {
-        if (list.size() == 0) {
+        if (list == null || list.size() == 0) {
             return;
         }
 
@@ -91,7 +91,7 @@ public class RabbitMQSourceEnumerator
                     "There should only be one split added back at a time. per reader");
         }
 
-        LOG.info("Split returned from reader " + i);
+        LOG.info("Split returned from reader {}.", i);
         // In case of exactly-once (parallelism 1) the single split gets updated with the
         // correlation ids and in case of a recovery we have to store this split until we can
         // assign it to the recovered reader.
@@ -109,7 +109,7 @@ public class RabbitMQSourceEnumerator
 
     /** @return empty enum state object */
     @Override
-    public RabbitMQSourceEnumState snapshotState() {
+    public RabbitMQSourceEnumState snapshotState(long checkpointId) throws Exception {
         return new RabbitMQSourceEnumState();
     }
 

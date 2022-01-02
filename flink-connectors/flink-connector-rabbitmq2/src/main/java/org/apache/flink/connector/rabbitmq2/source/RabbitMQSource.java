@@ -145,7 +145,7 @@ public class RabbitMQSource<T>
     @Override
     public SourceReader<T, RabbitMQSourceSplit> createReader(
             SourceReaderContext sourceReaderContext) {
-        LOG.info("New Source Reader of type " + consistencyMode + " requested.");
+        LOG.info("New Source Reader of type {} requested.", consistencyMode);
         switch (consistencyMode) {
             case AT_MOST_ONCE:
                 return new RabbitMQSourceReaderAtMostOnce<>(

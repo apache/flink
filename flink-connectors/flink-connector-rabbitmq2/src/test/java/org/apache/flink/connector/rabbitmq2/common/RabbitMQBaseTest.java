@@ -21,6 +21,7 @@ package org.apache.flink.connector.rabbitmq2.common;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.connector.rabbitmq2.sink.RabbitMQSink;
 import org.apache.flink.connector.rabbitmq2.source.RabbitMQSource;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -78,6 +79,33 @@ public abstract class RabbitMQBaseTest {
     protected void executeFlinkJob() {
         JobGraph job = env.getStreamGraph().getJobGraph();
         flinkCluster.getClusterClient().submitJob(job);
+    }
+
+    public RabbitMQContainerClient<String> addSinkOn(
+            DataStream<String> stream, ConsistencyMode consistencyMode, int countDownLatchSize)
+            throws IOException, TimeoutException {
+        RabbitMQContainerClient<String> client =
+                new RabbitMQContainerClient<>(
+                        rabbitMq, new SimpleStringSchema(), countDownLatchSize);
+        String queueName = client.createQueue();
+        final RabbitMQConnectionConfig connectionConfig =
+                new RabbitMQConnectionConfig.Builder()
+                        .setHost(rabbitMq.getHost())
+                        .setVirtualHost("/")
+                        .setUserName(rabbitMq.getAdminUsername())
+                        .setPassword(rabbitMq.getAdminPassword())
+                        .setPort(rabbitMq.getMappedPort(RABBITMQ_PORT))
+                        .build();
+
+        RabbitMQSink<String> sink =
+                RabbitMQSink.<String>builder()
+                        .setConnectionConfig(connectionConfig)
+                        .setQueueName(queueName)
+                        .setSerializationSchema(new SimpleStringSchema())
+                        .setConsistencyMode(consistencyMode)
+                        .build();
+        stream.sinkTo(sink).setParallelism(1);
+        return client;
     }
 
     protected DataStream<String> addSourceOn(

@@ -30,6 +30,8 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Optional;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * This class is copied from the previous RabbitMQ connector. Connection Configuration for RMQ. If
  * {@link Builder#setUri(String)} has been set then {@link
@@ -92,16 +94,11 @@ public class RabbitMQConnectionConfig implements Serializable {
             Integer requestedFrameMax,
             Integer requestedHeartbeat,
             Integer prefetchCount) {
-        Preconditions.checkNotNull(host, "host can not be null");
-        Preconditions.checkNotNull(port, "port can not be null");
-        Preconditions.checkNotNull(virtualHost, "virtualHost can not be null");
-        Preconditions.checkNotNull(username, "username can not be null");
-        Preconditions.checkNotNull(password, "password can not be null");
-        this.host = host;
-        this.port = port;
-        this.virtualHost = virtualHost;
-        this.username = username;
-        this.password = password;
+        this.host = requireNonNull(host);
+        this.port = requireNonNull(port);
+        this.virtualHost = requireNonNull(virtualHost);
+        this.username = requireNonNull(username);
+        this.password = requireNonNull(password);
 
         this.networkRecoveryInterval = networkRecoveryInterval;
         this.automaticRecovery = automaticRecovery;
