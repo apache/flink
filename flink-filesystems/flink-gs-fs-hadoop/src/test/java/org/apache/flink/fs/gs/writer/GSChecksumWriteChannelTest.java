@@ -43,9 +43,9 @@ public class GSChecksumWriteChannelTest {
 
     /* The sizes of each buffer of bytes used for writing. */
     @Parameterized.Parameter(value = 0)
-    public int[] writeSizes;
+    public int[] bufferSizes;
 
-    /* The start positions in the write buffers. */
+    /* The start positions in write buffers. */
     @Parameterized.Parameter(value = 1)
     public int[] writeStarts;
 
@@ -60,14 +60,23 @@ public class GSChecksumWriteChannelTest {
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
-                    {new int[] {64}, new int[] {0}, new int[] {64}, "simple write"},
                     {
+                        // a simple write of 64 bytes from the start of a 64-byte byte
+                        new int[] {64}, new int[] {0}, new int[] {64}, "simple write"
+                    },
+                    {
+                        // write 64 bytes from the start of a 64-byte buffer, then 128 bytes
+                        // from the start of a 128-byte buffer, then 64 bytes from the start
+                        // of a 64-byte buffer
                         new int[] {64, 128, 64},
                         new int[] {0, 0, 0},
                         new int[] {64, 128, 64},
                         "multiple write"
                     },
                     {
+                        // write 32 bytes from position 16 of a 64-byte buffer,
+                        // then 48 bytes from position 32 of a 128-byte buffer,
+                        // then 1 byte from position 32 of a 64-byte buffer
                         new int[] {64, 128, 64},
                         new int[] {16, 32, 32},
                         new int[] {32, 48, 1},
@@ -86,12 +95,12 @@ public class GSChecksumWriteChannelTest {
         random.setSeed(RANDOM_SEED);
 
         // initialize the byte buffers and determine what we expect to be written
-        byteBuffers = new byte[writeSizes.length][];
+        byteBuffers = new byte[bufferSizes.length][];
         try (ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
 
-            for (int i = 0; i < writeSizes.length; i++) {
+            for (int i = 0; i < bufferSizes.length; i++) {
 
-                int size = writeSizes[i];
+                int size = bufferSizes[i];
                 byteBuffers[i] = new byte[size];
                 random.nextBytes(byteBuffers[i]);
 
@@ -107,7 +116,7 @@ public class GSChecksumWriteChannelTest {
 
     /**
      * Write each of the partial byte buffers and confirm we get the expected results, including a
-     * valid checksum the expected data in the storage.
+     * valid checksum and the expected data in the storage.
      *
      * @throws IOException On storage failure.
      */

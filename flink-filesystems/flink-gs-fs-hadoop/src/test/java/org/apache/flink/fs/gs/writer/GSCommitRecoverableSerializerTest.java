@@ -49,9 +49,13 @@ public class GSCommitRecoverableSerializerTest {
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
+                    // commit recoverable for foo/bar with 4 component object uuids
                     {"foo", "bar", 4},
+                    // commit recoverable for foo2/bar with 0 component object uuids
                     {"foo2", "bar", 0},
+                    // commit recoverable for foo/bar2 with 8 component object uuids
                     {"foo", "bar2", 8},
+                    // commit recoverable for foo2/bar2 with 0 component object uuids
                     {"foo2", "bar2", 0},
                 });
     }

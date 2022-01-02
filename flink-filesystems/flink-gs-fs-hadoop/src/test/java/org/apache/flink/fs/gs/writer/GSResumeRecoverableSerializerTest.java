@@ -56,9 +56,16 @@ public class GSResumeRecoverableSerializerTest {
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
+                    // resume recoverable for foo/bar at position 0, closed, with 4 component ids
                     {"foo", "bar", 0, true, 4},
+                    // resume recoverable for foo2/bar at position 1024, not closed, with 0
+                    // component ids
                     {"foo2", "bar", 1024, false, 0},
+                    // resume recoverable for foo/bar2 at position 2048, closed, with 8 component
+                    // ids
                     {"foo", "bar2", 2048, true, 8},
+                    // resume recoverable for foo2/bar2 at position 2048, not closed, with 0
+                    // component ids
                     {"foo2", "bar2", 2048, false, 0},
                 });
     }

@@ -18,47 +18,156 @@
 
 package org.apache.flink.fs.gs.writer;
 
-import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.fs.gs.GSFileSystemOptions;
+import org.apache.flink.fs.gs.TestUtils;
+import org.apache.flink.fs.gs.storage.MockBlobStorage;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 /** Test {@link GSRecoverableWriter}. */
 @RunWith(Parameterized.class)
 public class GSRecoverableWriterTest {
 
     @Parameterized.Parameter(value = 0)
-    public List<UUID> componentObjectIds;
+    public long position = 16;
 
     @Parameterized.Parameter(value = 1)
-    public String temporaryBucketName;
+    public boolean closed = false;
 
-    @Parameterized.Parameters(name = "componentObjectIds={0}, temporaryBucketName={1}")
+    @Parameterized.Parameter(value = 2)
+    public int componentCount;
+
+    private GSFileSystemOptions options;
+
+    private GSRecoverableWriter writer;
+
+    private List<UUID> componentObjectIds;
+
+    private GSResumeRecoverable resumeRecoverable;
+
+    private GSCommitRecoverable commitRecoverable;
+
+    @Parameterized.Parameters(name = "position={0}, closed={1}, componentCount={2}")
     public static Collection<Object[]> data() {
-
-        ArrayList<UUID> emptyComponentObjectIds = new ArrayList<>();
-        ArrayList<UUID> populatedComponentObjectIds = new ArrayList<>();
-        for (int i = 0; i < 2; i++) {
-            populatedComponentObjectIds.add(UUID.randomUUID());
-        }
-        GSBlobIdentifier blobIdentifier = new GSBlobIdentifier("foo", "bar");
-
         return Arrays.asList(
                 new Object[][] {
-                    {emptyComponentObjectIds, null},
-                    {emptyComponentObjectIds, "temporary-bucket"},
-                    {populatedComponentObjectIds, null},
-                    {populatedComponentObjectIds, "temporary-bucket"},
+                    // position 0, not closed, component count = 0
+                    {0, false, 0},
+                    // position 16, not closed, component count = 2
+                    {16, false, 2},
+                    // position 0, closed, component count = 0
+                    {0, true, 0},
+                    // position 16, closed, component count = 2
+                    {16, true, 2},
                 });
     }
 
+    @Before
+    public void before() {
+        MockBlobStorage storage = new MockBlobStorage();
+        Configuration flinkConfig = new Configuration();
+        options = new GSFileSystemOptions(flinkConfig);
+        writer = new GSRecoverableWriter(storage, options);
+
+        componentObjectIds = new ArrayList<UUID>();
+        for (int i = 0; i < componentCount; i++) {
+            componentObjectIds.add(UUID.randomUUID());
+        }
+
+        resumeRecoverable =
+                new GSResumeRecoverable(
+                        TestUtils.BLOB_IDENTIFIER, componentObjectIds, position, closed);
+        commitRecoverable = new GSCommitRecoverable(TestUtils.BLOB_IDENTIFIER, componentObjectIds);
+    }
+
     @Test
-    public void dummy() {}
+    public void testRequiresCleanupOfRecoverableState() {
+        assertFalse(writer.requiresCleanupOfRecoverableState());
+    }
+
+    @Test
+    public void testSupportsResume() {
+        assertTrue(writer.supportsResume());
+    }
+
+    @Test
+    public void testOpen() throws IOException {
+        Path path = new Path("gs://foo/bar");
+        GSRecoverableFsDataOutputStream stream =
+                (GSRecoverableFsDataOutputStream) writer.open(path);
+        assertEquals("foo", stream.finalBlobIdentifier.bucketName);
+        assertEquals("bar", stream.finalBlobIdentifier.objectName);
+        assertEquals(options, stream.options);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testOpenWithEmptyBucketName() throws IOException {
+        Path path = new Path("gs:///bar");
+        writer.open(path);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testOpenWithEmptyObjectName() throws IOException {
+        Path path = new Path("gs://foo/");
+        writer.open(path);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testOpenWithMissingObjectName() throws IOException {
+        Path path = new Path("gs://foo");
+        writer.open(path);
+    }
+
+    @Test
+    public void testCleanupRecoverableState() {
+        assertTrue(writer.cleanupRecoverableState(resumeRecoverable));
+    }
+
+    @Test
+    public void testRecover() {
+        GSRecoverableFsDataOutputStream stream =
+                (GSRecoverableFsDataOutputStream) writer.recover(resumeRecoverable);
+        assertEquals(position, stream.position);
+        assertEquals(closed, stream.closed);
+        assertEquals(options, stream.options);
+        assertEquals(TestUtils.BLOB_IDENTIFIER, stream.finalBlobIdentifier);
+        assertArrayEquals(componentObjectIds.toArray(), stream.componentObjectIds.toArray());
+    }
+
+    @Test
+    public void testRecoverForCommit() {
+        GSRecoverableWriterCommitter committer =
+                (GSRecoverableWriterCommitter) writer.recoverForCommit(commitRecoverable);
+        assertEquals(options, committer.options);
+        assertEquals(commitRecoverable, committer.recoverable);
+    }
+
+    @Test
+    public void testGetCommitRecoverableSerializer() {
+        Object serializer = writer.getCommitRecoverableSerializer();
+        assertEquals(GSCommitRecoverableSerializer.class, serializer.getClass());
+    }
+
+    @Test
+    public void testGetResumeRecoverableSerializer() {
+        Object serializer = writer.getResumeRecoverableSerializer();
+        assertEquals(GSResumeRecoverableSerializer.class, serializer.getClass());
+    }
 }

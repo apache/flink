@@ -18,6 +18,7 @@
 
 package org.apache.flink.fs.gs.writer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.gs.GSFileSystemOptions;
@@ -44,10 +45,10 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
     private final GSBlobStorage storage;
 
     /** The GS file system options. */
-    private final GSFileSystemOptions options;
+    @VisibleForTesting final GSFileSystemOptions options;
 
     /** The recoverable for the commit operation. */
-    private final GSCommitRecoverable recoverable;
+    @VisibleForTesting final GSCommitRecoverable recoverable;
 
     /** The max number of blobs to compose in a single operation. */
     private final int composeMaxBlobs;

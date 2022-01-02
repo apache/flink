@@ -72,11 +72,18 @@ public class GSRecoverableFsDataOutputStreamTest {
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
-                    {false, null, 0, 32, false},
-                    {false, null, 4, 0, true},
-                    {false, "temporary-bucket", 0, 32, false},
+                    // not empty, no explicit temporary bucket, 0 components, position=0, not closed
+                    {false, null, 0, 0, false},
+                    // not empty, no explicit temporary bucket, 4 components, position=32, not
+                    // closed
+                    {false, null, 4, 32, true},
+                    // not empty, explicit temporary bucket, 4 components, position=32, not closed
+                    {false, "temporary-bucket", 4, 32, false},
+                    // not empty, explicit temporary bucket, 4 components, position=64, closed
                     {false, "temporary-bucket", 4, 64, true},
+                    // empty, no explicit temporary bucket, 0 components, position=0, not closed
                     {true, null, 0, 0, false},
+                    // empty, explicit temporary bucket, 0 components, position=0, not closed
                     {true, "temporary-bucket", 0, 0, false},
                 });
     }
@@ -120,6 +127,14 @@ public class GSRecoverableFsDataOutputStreamTest {
                             TestUtils.BLOB_IDENTIFIER, componentObjectIds, position, closed);
             fsDataOutputStream =
                     new GSRecoverableFsDataOutputStream(blobStorage, options, resumeRecoverable);
+        }
+    }
+
+    @Test
+    public void emptyStreamShouldHaveProperPositionAndComponentObjectCount() {
+        if (empty) {
+            assertEquals(0, position);
+            assertEquals(0, componentObjectCount);
         }
     }
 

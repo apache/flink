@@ -61,11 +61,21 @@ public class GSResumeRecoverableTest {
 
         return Arrays.asList(
                 new Object[][] {
+                    //  position=0, closed, no component ids, no explicit temporary bucket name
                     {0, true, emptyComponentObjectIds, null},
+                    //  position=1024, not closed, no component ids, no explicit temporary bucket
+                    // name
                     {1024, false, emptyComponentObjectIds, null},
+                    //  position=0, closed, populated component ids, no explicit temporary bucket
+                    // name
                     {0, true, populatedComponentObjectIds, null},
+                    //  position=1024, not closed, populated component ids, no explicit temporary
+                    // bucket name
                     {1024, false, populatedComponentObjectIds, null},
+                    //  position=0, closed, populated component ids, explicit temporary bucket name
                     {0, true, populatedComponentObjectIds, "temporary-bucket"},
+                    //  position=1024, not closed, populated component ids, explicit temporary
+                    // bucket name
                     {1024, false, populatedComponentObjectIds, "temporary-bucket"},
                 });
     }

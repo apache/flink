@@ -57,9 +57,13 @@ public class GSCommitRecoverableTest {
 
         return Arrays.asList(
                 new Object[][] {
+                    // no component ids with no temporary bucket specified
                     {emptyComponentObjectIds, null},
+                    // no component ids with a temporary bucket specified
                     {emptyComponentObjectIds, "temporary-bucket"},
+                    // populated component ids with no temporary bucket specified
                     {populatedComponentObjectIds, null},
+                    //  populated component ids with temporary bucket specified
                     {populatedComponentObjectIds, "temporary-bucket"},
                 });
     }

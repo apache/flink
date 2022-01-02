@@ -67,13 +67,29 @@ public class GSRecoverableWriterCommitterTest {
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
+                    // no specified temporary bucket, compose up to 4 blobs at once, compose no
+                    // blobs; commit after 0 blobs
                     {null, 4, new int[] {}, 0},
+                    // no specified temporary bucket, compose up to 4 blobs at once, compose blob of
+                    // size 64; commit after 1 blobs
                     {null, 4, new int[] {64}, 1},
+                    // no specified temporary bucket, compose up to 4 blobs at once, compose blob of
+                    // size 64, 128, and 96; commit after 2 blobs
                     {null, 4, new int[] {64, 128, 96}, 2},
+                    // no specified temporary bucket, compose up to 4 blobs at once, compose blob of
+                    // size 64, 128, 96, 32, 256, and 128; commit after 5 blobs
                     {null, 4, new int[] {64, 128, 96, 32, 256, 128}, 5},
+                    // specified temporary bucket, compose up to 4 blobs at once, compose no blobs;
+                    // commit after 0 blobs
                     {"temporary-bucket", 4, new int[] {}, 0},
+                    // specified temporary bucket, compose up to 4 blobs at once, compose blobs of
+                    // size 64; commit after 1 blobs
                     {"temporary-bucket", 4, new int[] {64}, 1},
+                    // specified temporary bucket, compose up to 4 blobs at once, compose blobs of
+                    // size 64, 128, and 96; commit after 2 blobs
                     {"temporary-bucket", 4, new int[] {64, 128, 96}, 2},
+                    // specified temporary bucket, compose up to 4 blobs at once, compose blobs of
+                    // size 64, 128, 96, 32, 256, and 128; commit after 5 blobs
                     {"temporary-bucket", 4, new int[] {64, 128, 96, 32, 256, 128}, 5},
                 });
     }
@@ -151,7 +167,7 @@ public class GSRecoverableWriterCommitterTest {
 
     /**
      * Internal commit function called by other tests. Writes some number of blobs, creates a commit
-     * recoverable after some number of them, and then commits.
+     * recoverable after some number of them (possibly not all of them!), and then commits.
      *
      * @return The committer
      * @throws IOException On underlying failure
@@ -187,19 +203,6 @@ public class GSRecoverableWriterCommitterTest {
         // create the recoverable and commit
         GSCommitRecoverable recoverable =
                 new GSCommitRecoverable(TestUtils.BLOB_IDENTIFIER, componentObjectIdsToCommit);
-        GSRecoverableWriterCommitter committer =
-                new GSRecoverableWriterCommitter(
-                        blobStorage, options, recoverable, composeMaxBlobs);
-        return committer;
-
-        /*
-        committable.commit(committer);
-
-        // there should be exactly one blob left, the final blob identifier. validate its contents.
-        assertEquals(1, blobStorage.blobs.size());
-        MockBlobStorage.BlobValue blobValue = blobStorage.blobs.get(TestUtils.BLOB_IDENTIFIER);
-        assertNotNull(blobValue);
-        assertArrayEquals(expectedBytes.toByteArray(), blobValue.content);
-         */
+        return new GSRecoverableWriterCommitter(blobStorage, options, recoverable, composeMaxBlobs);
     }
 }
