@@ -21,10 +21,8 @@ package org.apache.flink.runtime.rpc;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledFutureAdapter;
-import org.apache.flink.runtime.concurrent.ThrowingScheduledFuture;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,9 +32,7 @@ import javax.annotation.Nonnull;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -130,8 +126,7 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 
         this.rpcServer = rpcService.startServer(this);
 
-        this.mainThreadExecutor =
-                new MainThreadExecutor(rpcServer, this::validateRunsInMainThread, endpointId);
+        this.mainThreadExecutor = new MainThreadExecutor(rpcServer, this::validateRunsInMainThread);
     }
 
     /**
@@ -233,7 +228,6 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
      *     occurs this future is completed exceptionally
      */
     protected CompletableFuture<Void> onStop() {
-        mainThreadExecutor.close();
         return CompletableFuture.completedFuture(null);
     }
 
@@ -405,72 +399,40 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
     //  Utilities
     // ------------------------------------------------------------------------
 
-    /**
-     * Executor which executes runnables in the main thread context. The executor will holds all the
-     * periodic tasks, sends them to akka thread pool via gateway when they should be executed.
-     */
+    /** Executor which executes runnables in the main thread context. */
     protected static class MainThreadExecutor implements ComponentMainThreadExecutor {
-        private final Logger log = LoggerFactory.getLogger(getClass());
 
         private final MainThreadExecutable gateway;
         private final Runnable mainThreadCheck;
-        private final ScheduledExecutorService scheduledExecutorService;
 
-        MainThreadExecutor(
-                MainThreadExecutable gateway, Runnable mainThreadCheck, String endpointId) {
+        MainThreadExecutor(MainThreadExecutable gateway, Runnable mainThreadCheck) {
             this.gateway = Preconditions.checkNotNull(gateway);
             this.mainThreadCheck = Preconditions.checkNotNull(mainThreadCheck);
-            this.scheduledExecutorService =
-                    Executors.newSingleThreadScheduledExecutor(
-                            new ExecutorThreadFactory(endpointId + "-scheduled-main-executor"));
+        }
+
+        private void scheduleRunAsync(Runnable runnable, long delayMillis) {
+            gateway.scheduleRunAsync(runnable, delayMillis);
         }
 
         @Override
         public void execute(@Nonnull Runnable command) {
-            if (!scheduledExecutorService.isShutdown()) {
-                gateway.runAsync(command);
-            } else {
-                log.warn(
-                        "The scheduled executor service is shutdown and main thread executor will ignore the command {}",
-                        command);
-            }
+            gateway.runAsync(command);
         }
 
-        /**
-         * The result future will be used to cancel the runnable, we return a throwing scheduled
-         * future when the scheduled executor service is shutdown.
-         *
-         * @param command the task to execute in the future
-         * @param delay the time from now to delay the execution
-         * @param unit the time unit of the delay parameter
-         * @return the result future
-         */
         @Override
         public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
-            // If the scheduled executor service is shutdown, the command won't be executed.
-            if (scheduledExecutorService.isShutdown()) {
-                log.warn(
-                        "The scheduled executor service is shutdown and return throwing scheduled future for command {}",
-                        command);
-                return ThrowingScheduledFuture.create();
-            } else {
-                return scheduledExecutorService.schedule(() -> execute(command), delay, unit);
-            }
+            final long delayMillis = TimeUnit.MILLISECONDS.convert(delay, unit);
+            FutureTask<Void> ft = new FutureTask<>(command, null);
+            scheduleRunAsync(ft, delayMillis);
+            return new ScheduledFutureAdapter<>(ft, delayMillis, TimeUnit.MILLISECONDS);
         }
 
         @Override
         public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
-            // If the scheduled executor service is shutdown, the callable won't be executed.
-            if (scheduledExecutorService.isShutdown()) {
-                log.warn(
-                        "The scheduled executor service is shutdown and return throwing scheduled future for callable {}",
-                        callable);
-                return ThrowingScheduledFuture.create();
-            } else {
-                final FutureTask<V> ft = new FutureTask<>(callable);
-                scheduledExecutorService.schedule(() -> execute(ft), delay, unit);
-                return new ScheduledFutureAdapter<>(ft, delay, unit);
-            }
+            final long delayMillis = TimeUnit.MILLISECONDS.convert(delay, unit);
+            FutureTask<V> ft = new FutureTask<>(callable);
+            scheduleRunAsync(ft, delayMillis);
+            return new ScheduledFutureAdapter<>(ft, delayMillis, TimeUnit.MILLISECONDS);
         }
 
         @Override
@@ -490,17 +452,6 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
         @Override
         public void assertRunningInMainThread() {
             mainThreadCheck.run();
-        }
-
-        /**
-         * Shutdown the scheduled executor service and clear all the pending periodic tasks. The
-         * main thread executor will not execute periodic tasks later.
-         */
-        @Override
-        public void close() {
-            if (!scheduledExecutorService.isShutdown()) {
-                scheduledExecutorService.shutdownNow().clear();
-            }
         }
     }
 }
