@@ -72,7 +72,7 @@ public interface Factory {
      * Returns a set of {@link ConfigOption} that an implementation of this factory requires in
      * addition to {@link #optionalOptions()}.
      *
-     * <p>See the documentation of {@link Factory} for more information.
+     * @see Factory
      */
     Set<ConfigOption<?>> requiredOptions();
 
@@ -80,7 +80,7 @@ public interface Factory {
      * Returns a set of {@link ConfigOption} that an implementation of this factory consumes in
      * addition to {@link #requiredOptions()}.
      *
-     * <p>See the documentation of {@link Factory} for more information.
+     * @see Factory
      */
     Set<ConfigOption<?>> optionalOptions();
 }

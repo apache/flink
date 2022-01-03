@@ -499,6 +499,22 @@ public final class FactoryUtil {
      */
     public static void validateFactoryOptions(Factory factory, ReadableConfig options) {
         validateFactoryOptions(factory.requiredOptions(), factory.optionalOptions(), options);
+
+        if (factory instanceof ReloadableFactory) {
+            // Validate that mutableOptionKeys are all included within either requiredOptions or
+            // optionalOptions
+            Set<String> definedOptionKeys =
+                    Stream.concat(
+                                    factory.requiredOptions().stream(),
+                                    factory.optionalOptions().stream())
+                            .map(ConfigOption::key)
+                            .collect(Collectors.toSet());
+            if (!definedOptionKeys.containsAll(((ReloadableFactory) factory).mutableOptionKeys())) {
+                throw new TableException(
+                        "One or more mutable options are not defined among required or optional options. "
+                                + "This is a Factory bug, please contact the developers.");
+            }
+        }
     }
 
     /**

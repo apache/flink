@@ -43,7 +43,7 @@ import org.apache.flink.table.types.DataType;
  * implicitly added and must not be declared.
  */
 @PublicEvolving
-public interface DynamicTableFactory extends Factory {
+public interface DynamicTableFactory extends ReloadableFactory {
 
     /** Provides catalog and session information describing the dynamic table to be accessed. */
     @PublicEvolving
