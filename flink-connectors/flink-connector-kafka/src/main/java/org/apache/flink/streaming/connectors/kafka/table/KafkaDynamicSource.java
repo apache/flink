@@ -34,6 +34,7 @@ import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaDeserializationSchema.MetadataConverter;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -50,7 +51,9 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.header.Header;
 
@@ -393,7 +396,13 @@ public class KafkaDynamicSource
                 kafkaSourceBuilder.setStartingOffsets(OffsetsInitializer.latest());
                 break;
             case GROUP_OFFSETS:
-                kafkaSourceBuilder.setStartingOffsets(OffsetsInitializer.committedOffsets());
+                String autoOffsetReset =
+                        properties.getProperty(
+                                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                                OffsetResetStrategy.NONE.name());
+                kafkaSourceBuilder.setStartingOffsets(
+                        OffsetsInitializer.committedOffsets(
+                                getOffsetResetStrategy(autoOffsetReset)));
                 break;
             case SPECIFIC_OFFSETS:
                 Map<TopicPartition, Long> offsets = new HashMap<>();
@@ -415,6 +424,18 @@ public class KafkaDynamicSource
                 .setDeserializer(KafkaRecordDeserializationSchema.of(kafkaDeserializer));
 
         return kafkaSourceBuilder.build();
+    }
+
+    private OffsetResetStrategy getOffsetResetStrategy(String autoOffsetReset) {
+        for (OffsetResetStrategy offsetResetStrategy : OffsetResetStrategy.values()) {
+            if (offsetResetStrategy.name().equals(autoOffsetReset.toUpperCase())) {
+                return offsetResetStrategy;
+            }
+        }
+        throw new ValidationException(
+                String.format(
+                        "invalid properties 'properties.auto.offset.reset' should be 'latest', 'earliest' or 'none', but is '%s'.",
+                        autoOffsetReset));
     }
 
     private KafkaDeserializationSchema<RowData> createKafkaDeserializationSchema(

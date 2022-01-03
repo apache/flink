@@ -38,11 +38,16 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.OffsetResetStrategy;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
+import org.hamcrest.CoreMatchers;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -246,6 +251,68 @@ public class KafkaPartitionSplitReaderTest {
         // Fetch again and check empty split set is cleared
         recordsWithSplitIds = reader.fetch();
         assertTrue(recordsWithSplitIds.finishedSplits().isEmpty());
+    }
+
+    @Test
+    public void testUsingCommittedOffsetsWithNoneOffsetResetStrategy() {
+        final Properties props = new Properties();
+        props.setProperty(
+                ConsumerConfig.GROUP_ID_CONFIG, "UsingCommittedOffsetsWithNoneOffsetResetStrategy");
+        KafkaPartitionSplitReader reader =
+                createReader(props, UnregisteredMetricsGroup.createSourceReaderMetricGroup());
+        // Add a split
+        final KafkaException committedOffsetsWithNoneOffsetResetStrategyException =
+                Assertions.assertThrows(
+                        KafkaException.class,
+                        () ->
+                                reader.handleSplitsChanges(
+                                        new SplitsAddition<>(
+                                                Collections.singletonList(
+                                                        new KafkaPartitionSplit(
+                                                                new TopicPartition(TOPIC1, 0),
+                                                                KafkaPartitionSplit
+                                                                        .COMMITTED_OFFSET)))));
+        MatcherAssert.assertThat(
+                committedOffsetsWithNoneOffsetResetStrategyException.getMessage(),
+                CoreMatchers.containsString("Undefined offset with no reset policy for partition"));
+    }
+
+    @Test
+    public void testUsingCommittedOffsetsWithEarliestOffsetResetStrategy() throws Throwable {
+        MetricListener metricListener = new MetricListener();
+        final Properties props = new Properties();
+        props.setProperty(
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                OffsetResetStrategy.EARLIEST.name().toLowerCase());
+        props.setProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "1");
+        props.setProperty(
+                ConsumerConfig.GROUP_ID_CONFIG,
+                "UsingCommittedOffsetsWithEarliestOffsetResetStrategy");
+        KafkaPartitionSplitReader reader =
+                createReader(
+                        props,
+                        InternalSourceReaderMetricGroup.mock(metricListener.getMetricGroup()));
+        // Add a split
+        reader.handleSplitsChanges(
+                new SplitsAddition<>(
+                        Collections.singletonList(
+                                new KafkaPartitionSplit(
+                                        new TopicPartition(TOPIC1, 0),
+                                        KafkaPartitionSplit.COMMITTED_OFFSET))));
+        // pendingRecords should have not been registered because of lazily registration
+        assertFalse(metricListener.getGauge(MetricNames.PENDING_RECORDS).isPresent());
+        // Trigger first fetch
+        reader.fetch();
+        final Optional<Gauge<Long>> pendingRecords =
+                metricListener.getGauge(MetricNames.PENDING_RECORDS);
+        assertTrue(pendingRecords.isPresent());
+        // Validate pendingRecords
+        assertNotNull(pendingRecords);
+        assertEquals(NUM_RECORDS_PER_PARTITION - 1, (long) pendingRecords.get().getValue());
+        for (int i = 1; i < NUM_RECORDS_PER_PARTITION; i++) {
+            reader.fetch();
+            assertEquals(NUM_RECORDS_PER_PARTITION - i - 1, (long) pendingRecords.get().getValue());
+        }
     }
 
     // ------------------
