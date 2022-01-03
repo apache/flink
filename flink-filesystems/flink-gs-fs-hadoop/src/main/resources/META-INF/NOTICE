@@ -45,7 +45,6 @@ This project bundles the following dependencies under the Apache Software Licens
 - io.grpc:grpc-auth:1.41.1
 - io.grpc:grpc-core:1.41.1
 - io.grpc:grpc-context:1.42.1
-- io.grpc:grpc-core:1.41.1
 - io.grpc:grpc-grpclb:1.41.1
 - io.grpc:grpc-netty-shaded:1.41.1
 - io.grpc:grpc-protobuf-lite:1.41.1
