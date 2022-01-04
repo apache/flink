@@ -39,7 +39,7 @@ public class FlinkCalciteSqlValidatorTest {
     public void testUpsertInto() {
         assertThatThrownBy(() -> plannerMocks.getParser().parse("UPSERT INTO t1 VALUES(1)"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessage(
+                .hasMessageContaining(
                         "UPSERT INTO statement is not supported. Please use INSERT INTO instead.");
     }
 
@@ -47,7 +47,7 @@ public class FlinkCalciteSqlValidatorTest {
     public void testExplainUpsertInto() {
         assertThatThrownBy(() -> plannerMocks.getParser().parse("EXPLAIN UPSERT INTO t1 VALUES(1)"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessage(
+                .hasMessageContaining(
                         "UPSERT INTO statement is not supported. Please use INSERT INTO instead.");
     }
 }
