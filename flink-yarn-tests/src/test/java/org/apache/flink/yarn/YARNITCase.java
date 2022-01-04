@@ -140,8 +140,12 @@ public class YARNITCase extends YarnTestBase {
         runTest(() -> deployPerJob(flinkConfig, archiveJobGraph, true));
     }
 
+    /**
+     * Once YARN app is accepted, it will return cluster client provider. Till invoking
+     * getClusterClient method, it will wait app state from accepted to running.
+     */
     @Test
-    public void testPerJobModeWithAsyncClusterClientProvider() throws Exception {
+    public void testPerJobOnceAppAccepted() throws Exception {
         runTest(
                 () -> {
                     Configuration configuration =

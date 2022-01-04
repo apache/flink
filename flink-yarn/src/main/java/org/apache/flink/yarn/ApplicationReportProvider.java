@@ -25,5 +25,5 @@ import org.apache.hadoop.yarn.api.records.ApplicationReport;
 /** ApplicationReportProvider. */
 @Internal
 public interface ApplicationReportProvider {
-    ApplicationReport waitSubmissionFinish() throws Exception;
+    ApplicationReport waitTillSubmissionFinish() throws Exception;
 }
