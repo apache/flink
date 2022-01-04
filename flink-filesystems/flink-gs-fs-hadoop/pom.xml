@@ -35,9 +35,7 @@ under the License.
 	<!-- need to use a release which includes this patch: https://github.com/apache/hadoop/commit/02cadbd24bf69925078d044701741e2e3fcb4b2f -->
 	<properties>
 		<fs.gs.sdk.version>2.2.2</fs.gs.sdk.version>
-		<!--fs.gs.sdk.version>1.113.14</fs.gs.sdk.version-->
 		<fs.gs.connector.version>hadoop3-2.2.4</fs.gs.connector.version>
-		<!--fs.gs.guava.version>30.1.1-jre</fs.gs.guava.version-->
 	</properties>
 
 	<dependencies>
@@ -60,13 +58,6 @@ under the License.
 			<artifactId>flink-fs-hadoop-shaded</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-
-		<!-- Google dependencies require a newer version of guava than comes from flink-fs-hadoop-shaded -->
-		<!--dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>${fs.gs.guava.version}</version>
-		</dependency-->
 
 		<dependency>
 			<groupId>com.google.cloud</groupId>
@@ -102,16 +93,6 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
-
-		<!-- for the behavior test suite -->
-		<!-- TODO: add back if needed, or remove -->
-		<!--dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency-->
 
 	</dependencies>
 
@@ -163,12 +144,6 @@ under the License.
 									<pattern>org.apache.commons</pattern>
 									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.commons</shadedPattern>
 								</relocation>
-
-								<!-- shade Guava since we're pulling in a different version from flink-fs-hadoop-shaded -->
-								<!--relocation>
-									<pattern>com.google.common</pattern>
-									<shadedPattern>org.apache.flink.fs.gs.com.google.common</shadedPattern>
-								</relocation-->
 
 								<!-- shade Flink's Hadoop FS adapter classes  -->
 								<relocation>
