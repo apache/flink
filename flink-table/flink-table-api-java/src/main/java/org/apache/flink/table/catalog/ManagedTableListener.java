@@ -46,8 +46,7 @@ public class ManagedTableListener {
     }
 
     /** Notify for creating managed table. */
-    public ResolvedCatalogBaseTable<?> 
-      (
+    public ResolvedCatalogBaseTable<?> notifyTableCreation(
             @Nullable Catalog catalog,
             ObjectIdentifier identifier,
             ResolvedCatalogBaseTable<?> table,
