@@ -50,13 +50,13 @@ public class EvictingBoundedList<T> implements Iterable<T>, Serializable {
     /** the array (viewed as a circular buffer) that holds the latest (= non-evicted) elements */
     private final Object[] elements;
 
-    /** The next index to put an element in the array */
+    /** The next index to put an element in the array. */
     private int idx;
 
-    /** The current number of (virtual) elements in the list */
+    /** The current number of (virtual) elements in the list. */
     private int count;
 
-    /** Modification count for fail-fast iterators */
+    /** Modification count for fail-fast iterators. */
     private long modCount;
 
     // ------------------------------------------------------------------------
