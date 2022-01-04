@@ -29,7 +29,6 @@ import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.StructuredType;
@@ -37,8 +36,8 @@ import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rel.type.RelDataType;
@@ -50,6 +49,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -257,7 +257,7 @@ public class RelDataTypeSerdeTest {
     @Parameterized.Parameter public RelDataType relDataType;
 
     @Test
-    public void testTypeSerde() throws Exception {
+    public void testTypeSerde() throws IOException {
         SerdeContext serdeCtx =
                 new SerdeContext(
                         new FlinkContextImpl(
@@ -270,23 +270,16 @@ public class RelDataTypeSerdeTest {
                         Thread.currentThread().getContextClassLoader(),
                         FlinkTypeFactory.INSTANCE(),
                         FlinkSqlOperatorTable.instance());
-        ObjectMapper mapper = JsonSerdeUtil.createObjectMapper(serdeCtx);
-        SimpleModule module = new SimpleModule();
+        ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
+        ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
 
-        module.addSerializer(new RelDataTypeJsonSerializer());
-        module.addSerializer(new LogicalTypeJsonSerializer());
-        module.addSerializer(new ObjectIdentifierJsonSerializer());
-        module.addDeserializer(RelDataType.class, new RelDataTypeJsonDeserializer());
-        module.addDeserializer(LogicalType.class, new LogicalTypeJsonDeserializer());
-        module.addDeserializer(ObjectIdentifier.class, new ObjectIdentifierJsonDeserializer());
-        mapper.registerModule(module);
         StringWriter writer = new StringWriter(100);
-        try (JsonGenerator gen = mapper.getFactory().createGenerator(writer)) {
+        try (JsonGenerator gen = objectWriter.getFactory().createGenerator(writer)) {
             gen.writeObject(relDataType);
         }
 
         String json = writer.toString();
-        RelDataType actual = mapper.readValue(json, RelDataType.class);
+        RelDataType actual = objectReader.readValue(json, RelDataType.class);
         // type system will fill the default precision if the precision is not defined
         if (relDataType.toString().equals("DECIMAL")) {
             assertEquals(SqlTypeName.DECIMAL, actual.getSqlTypeName());

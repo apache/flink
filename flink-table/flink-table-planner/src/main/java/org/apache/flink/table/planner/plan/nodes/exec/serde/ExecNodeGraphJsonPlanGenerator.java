@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
@@ -33,28 +32,17 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLookupJoi
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitorImpl;
-import org.apache.flink.table.planner.plan.utils.ReflectionsUtil;
-import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.jsontype.NamedType;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
-
-import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.rex.RexNode;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -74,13 +62,10 @@ public class ExecNodeGraphJsonPlanGenerator {
     public static String generateJsonPlan(ExecNodeGraph execGraph, SerdeContext serdeCtx)
             throws IOException {
         validate(execGraph);
-        final ObjectMapper mapper = JsonSerdeUtil.createObjectMapper(serdeCtx);
-        final SimpleModule module = new SimpleModule();
-        registerSerializers(module);
-        mapper.registerModule(module);
 
         final StringWriter writer = new StringWriter(1024);
-        try (JsonGenerator gen = mapper.getFactory().createGenerator(writer)) {
+        try (JsonGenerator gen =
+                JsonSerdeUtil.createObjectWriter(serdeCtx).getFactory().createGenerator(writer)) {
             JsonPlanGraph jsonPlanGraph = JsonPlanGraph.fromExecNodeGraph(execGraph);
             gen.writeObject(jsonPlanGraph);
         }
@@ -89,47 +74,12 @@ public class ExecNodeGraphJsonPlanGenerator {
     }
 
     /** Generate {@link ExecNodeGraph} based on the given JSON plan. */
-    @SuppressWarnings({"rawtypes"})
     public static ExecNodeGraph generateExecNodeGraph(String jsonPlan, SerdeContext serdeCtx)
             throws IOException {
-        final ObjectMapper mapper = JsonSerdeUtil.createObjectMapper(serdeCtx);
-        final SimpleModule module = new SimpleModule();
-        final Set<Class<? extends ExecNode>> nodeClasses =
-                ReflectionsUtil.scanSubClasses(
-                        "org.apache.flink.table.planner.plan.nodes.exec", ExecNode.class);
-        nodeClasses.forEach(c -> module.registerSubtypes(new NamedType(c, c.getName())));
-        registerDeserializers(module);
-        mapper.registerModule(module);
 
-        final JsonPlanGraph jsonPlanGraph = mapper.readValue(jsonPlan, JsonPlanGraph.class);
+        final JsonPlanGraph jsonPlanGraph =
+                JsonSerdeUtil.createObjectReader(serdeCtx).readValue(jsonPlan, JsonPlanGraph.class);
         return jsonPlanGraph.convertToExecNodeGraph(serdeCtx);
-    }
-
-    private static void registerSerializers(SimpleModule module) {
-        // ObjectIdentifierJsonSerializer is needed for LogicalType serialization
-        module.addSerializer(new ObjectIdentifierJsonSerializer());
-        // LogicalTypeJsonSerializer is needed for RelDataType serialization
-        module.addSerializer(new LogicalTypeJsonSerializer());
-        // RelDataTypeJsonSerializer is needed for RexNode serialization
-        module.addSerializer(new RelDataTypeJsonSerializer());
-        // RexNode is used in many exec nodes, so we register its serializer directly here
-        module.addSerializer(new RexNodeJsonSerializer());
-        module.addSerializer(new AggregateCallJsonSerializer());
-        module.addSerializer(new DurationJsonSerializer());
-    }
-
-    private static void registerDeserializers(SimpleModule module) {
-        // ObjectIdentifierJsonDeserializer is needed for LogicalType deserialization
-        module.addDeserializer(ObjectIdentifier.class, new ObjectIdentifierJsonDeserializer());
-        // LogicalTypeJsonSerializer is needed for RelDataType serialization
-        module.addDeserializer(LogicalType.class, new LogicalTypeJsonDeserializer());
-        // RelDataTypeJsonSerializer is needed for RexNode serialization
-        module.addDeserializer(RelDataType.class, new RelDataTypeJsonDeserializer());
-        // RexNode is used in many exec nodes, so we register its deserializer directly here
-        module.addDeserializer(RexNode.class, new RexNodeJsonDeserializer());
-        module.addDeserializer(RexLiteral.class, new RexLiteralJsonDeserializer());
-        module.addDeserializer(AggregateCall.class, new AggregateCallJsonDeserializer());
-        module.addDeserializer(Duration.class, new DurationJsonDeserializer());
     }
 
     /** Check whether the given {@link ExecNodeGraph} is completely legal. */

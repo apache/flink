@@ -88,8 +88,7 @@ public class AggregateCallJsonDeserializer extends StdDeserializer<AggregateCall
             throws IOException, JsonProcessingException {
         JsonNode jsonNode = jsonParser.readValueAsTree();
         JsonNode aggFunNode = jsonNode.get(FIELD_NAME_AGG_FUNCTION);
-        SqlAggFunction aggFunction =
-                toSqlAggFunction(aggFunNode, ((FlinkDeserializationContext) ctx).getSerdeContext());
+        SqlAggFunction aggFunction = toSqlAggFunction(aggFunNode, SerdeContext.get(ctx));
 
         List<Integer> argList = new ArrayList<>();
         JsonNode argListNode = jsonNode.get(FIELD_NAME_ARG_LIST);
@@ -102,9 +101,7 @@ public class AggregateCallJsonDeserializer extends StdDeserializer<AggregateCall
         boolean ignoreNulls = jsonNode.get(FIELD_NAME_IGNORE_NULLS).asBoolean();
         JsonNode typeNode = jsonNode.get(FIELD_NAME_TYPE);
         RelDataType relDataType =
-                ((FlinkDeserializationContext) ctx)
-                        .getObjectMapper()
-                        .readValue(typeNode.toPrettyString(), RelDataType.class);
+                ctx.readValue(typeNode.traverse(jsonParser.getCodec()), RelDataType.class);
         String name = jsonNode.get(FIELD_NAME_NAME).asText();
 
         return AggregateCall.create(
