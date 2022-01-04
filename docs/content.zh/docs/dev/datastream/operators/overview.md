@@ -691,8 +691,7 @@ data_stream.broadcast()
 
 ### 创建新链
 
-基于当前算子创建一个新的算子链。
-
+基于当前算子创建一个新的算子链。  
 后面两个 map 将被链接起来，而 filter 和第一个 map 不会链接在一起。
 
 {{< tabs startnewchain >}}
