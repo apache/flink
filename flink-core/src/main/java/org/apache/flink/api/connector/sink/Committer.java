@@ -33,11 +33,12 @@ import java.util.List;
 public interface Committer<CommT> extends AutoCloseable {
 
     /**
-     * Commit the given list of {@link CommT}.
+     * Commits the given list of {@link CommT} and returns a list of {@link CommT} that need to be
+     * re-committed. The elements of the return list must be a subset of the input list, so that
+     * successful committables can be inferred.
      *
      * @param committables A list of information needed to commit data staged by the sink.
-     * @return A list of {@link CommT} needed to re-commit, which is needed in case we implement a
-     *     "commit-with-retry" pattern.
+     * @return a list of {@link CommT} that need to be re-committed.
      * @throws IOException if the commit operation fail and do not want to retry any more.
      */
     List<CommT> commit(List<CommT> committables) throws IOException, InterruptedException;
