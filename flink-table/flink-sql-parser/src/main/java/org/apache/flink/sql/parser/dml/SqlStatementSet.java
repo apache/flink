@@ -31,7 +31,13 @@ import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Statement Set. */
+/**
+ * Statement Set contains a group of inserts. eg:
+ *
+ * <ul>
+ *   execute statement set begin insert into A select * from B; insert into C select * from D; end
+ * </ul>
+ */
 public class SqlStatementSet extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =

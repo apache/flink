@@ -1038,16 +1038,16 @@ public class SqlToOperationConverter {
 
     /** Convert RICH EXPLAIN statement. */
     private Operation convertRichExplain(SqlRichExplain sqlExplain) {
-        List<Operation> operations = new ArrayList<>();
         SqlNode sqlNode = sqlExplain.getStatement();
         Set<String> explainDetails = sqlExplain.getExplainDetails();
 
+        List<Operation> operations;
         if (sqlNode instanceof RichSqlInsert) {
-            operations.add(convertSqlInsert((RichSqlInsert) sqlNode));
+            operations = Collections.singletonList(convertSqlInsert((RichSqlInsert) sqlNode));
         } else if (sqlNode instanceof SqlStatementSet) {
-            operations.addAll(convertSqlStatementSet((SqlStatementSet) sqlNode).getOperations());
+            operations = convertSqlStatementSet((SqlStatementSet) sqlNode).getOperations();
         } else if (sqlNode.getKind().belongsTo(SqlKind.QUERY)) {
-            operations.add(convertSqlQuery(sqlExplain.getStatement()));
+            operations = Collections.singletonList(convertSqlQuery(sqlExplain.getStatement()));
         } else {
             throw new ValidationException(
                     String.format("EXPLAIN statement doesn't support %s", sqlNode.getKind()));

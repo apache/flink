@@ -23,14 +23,12 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.utils.PlannerMocks;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link FlinkCalciteSqlValidator}. */
 public class FlinkCalciteSqlValidatorTest {
-
-    @Rule public final ExpectedException thrown = ExpectedException.none();
 
     private final PlannerMocks plannerMocks =
             PlannerMocks.create()
@@ -39,17 +37,17 @@ public class FlinkCalciteSqlValidatorTest {
 
     @Test
     public void testUpsertInto() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "UPSERT INTO statement is not supported. Please use INSERT INTO instead.");
-        plannerMocks.getParser().parse("UPSERT INTO t1 VALUES(1)");
+        assertThatThrownBy(() -> plannerMocks.getParser().parse("UPSERT INTO t1 VALUES(1)"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "UPSERT INTO statement is not supported. Please use INSERT INTO instead.");
     }
 
     @Test
     public void testExplainUpsertInto() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "UPSERT INTO statement is not supported. Please use INSERT INTO instead.");
-        plannerMocks.getParser().parse("EXPLAIN UPSERT INTO t1 VALUES(1)");
+        assertThatThrownBy(() -> plannerMocks.getParser().parse("EXPLAIN UPSERT INTO t1 VALUES(1)"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "UPSERT INTO statement is not supported. Please use INSERT INTO instead.");
     }
 }

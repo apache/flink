@@ -34,7 +34,19 @@ import java.util.List;
 
 /**
  * SqlExecute contains a statement to execute. the statement can be {@link SqlSelect}, {@link
- * SqlStatementSet}, or {@link RichSqlInsert}.
+ * SqlStatementSet}, or {@link RichSqlInsert}, such as:
+ *
+ * <ul>
+ *   execute select * from Table
+ * </ul>
+ *
+ * <ul>
+ *   execute insert into A select * from B
+ * </ul>
+ *
+ * <ul>
+ *   execute statement set begin insert into A select * from B; insert into C select * from D; end
+ * </ul>
  */
 public class SqlExecute extends SqlCall {
 

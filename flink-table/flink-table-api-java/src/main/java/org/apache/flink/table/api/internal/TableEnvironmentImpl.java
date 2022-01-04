@@ -683,12 +683,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public String explainSql(String statement, ExplainDetail... extraDetails) {
         List<Operation> operations = getParser().parse(statement);
-
-        if (operations.size() != 1) {
-            throw new TableException(
-                    "Unsupported SQL query! explainSql() only accepts a single SQL query.");
-        }
-
         return explainInternal(operations, extraDetails);
     }
 

@@ -176,6 +176,7 @@ class TableEnvironmentTest {
       TableTestUtil.readFromResource("/explain/testStatementSetExecutionExplain.out")
     val statementSet = tEnv.createStatementSet()
     statementSet.addInsertSql("insert into MySink select last from MyTable")
+    statementSet.addInsertSql("insert into MySink select first from MyTable")
     val actual = statementSet.explain(ExplainDetail.JSON_EXECUTION_PLAN)
 
     assertEquals(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(expected)),
@@ -198,7 +199,9 @@ class TableEnvironmentTest {
       TableTestUtil.readFromResource("/explain/testStatementSetExecutionExplain.out")
 
     val actual = tEnv.explainSql(
-      "execute statement set begin insert into MySink select last from MyTable; end",
+      "execute statement set begin " +
+        "insert into MySink select last from MyTable; " +
+        "insert into MySink select first from MyTable; end",
       ExplainDetail.JSON_EXECUTION_PLAN)
 
     assertEquals(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(expected)),
