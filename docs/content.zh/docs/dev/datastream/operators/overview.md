@@ -24,18 +24,15 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-
 # 算子
 
 用户通过算子能将一个或多个 DataStream 转换成新的 DataStream，在应用程序中可以将多个数据转换算子合并成一个复杂的数据流拓扑。
 
 这部分内容将描述 Flink DataStream API 中基本的数据转换 API，数据转换后各种数据分区方式，以及算子的链接策略。
 
-
 ## 数据流转换
 
 ### Map
-
 #### DataStream &rarr; DataStream
 
 输入一个元素同时输出一个元素。下面是将输入流中元素数值加倍的 map function：
@@ -66,7 +63,6 @@ data_stream.map(lambda x: 2 * x, output_type=Types.INT())
 {{< /tabs>}}
 
 ### FlatMap
-
 #### DataStream &rarr; DataStream
 
 输入一个元素同时产生零个、一个或多个元素。下面是将句子拆分为单词的 flatmap function：
@@ -99,7 +95,6 @@ data_stream.flat_map(lambda x: x.split(' '), output_type=Types.STRING())
 {{< /tabs>}}
 
 ### Filter
-
 #### DataStream &rarr; DataStream
 
 为每个元素执行一个布尔 function，并保留那些 function 输出值为 true 的元素。下面是过滤掉零值的 filter：
@@ -135,7 +130,6 @@ data_stream.filter(lambda x: x != 0)
 
 {{< tabs keybyfunc >}}
 {{< tab "Java">}}
-
 ```java
 dataStream.keyBy(value -> value.getSomeKey());
 dataStream.keyBy(value -> value.f0);
@@ -156,12 +150,10 @@ data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) // Key by the result
 {{< /tabs>}}
 
 {{< hint warning >}}
-
 以下情况，一个类**不能作为 key**：
 
 1. 它是一种 POJO 类，但没有重写 hashCode() 方法而是依赖于 Object.hashCode() 实现。
 2. 它是任意类的数组。
-
 {{< /hint >}}
 
 ### Reduce
@@ -203,7 +195,6 @@ data_stream.key_by(lambda x: x[1]).reduce(lambda a, b: (a[0] + b[0], b[1]))
 
 {{< tabs window >}}
 {{< tab "Java">}}
-
 ```java
 dataStream
   .keyBy(value -> value.f0)
@@ -228,13 +219,11 @@ Python 中尚不支持此特性。
 可以在普通 DataStream 上定义 Window。 Window 根据某些特征（例如，最近 5 秒内到达的数据）对所有流事件进行分组。请参阅[windows]({{< ref "docs/dev/datastream/operators/windows" >}})获取有关 window 的完整说明。
 
 {{< hint warning >}}
-
 这适用于非并行转换的大多数场景。所有记录都将收集到 windowAll 算子对应的一个任务中。
 {{< /hint >}}
 
 {{< tabs windowAll >}}
 {{< tab "Java">}}
-
 ```java
 dataStream
   .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)));
@@ -386,7 +375,6 @@ Python 中尚不支持此特性。
 
 {{< tabs intervaljoin >}}
 {{< tab "Java" >}}
-
 ```java
 // this will join the two streams so that
 // key1 == key2 && leftTs - 2 < rightTs < leftTs + 2
@@ -421,7 +409,6 @@ Python 中尚不支持此特性。
 
 {{< tabs windowcogroup >}}
 {{< tab "Java" >}}
-
 ```java
 dataStream.coGroup(otherStream)
     .where(0).equalTo(1)
@@ -449,7 +436,6 @@ Python 中尚不支持此特性。
 
 {{< tabs connect >}}
 {{< tab "Java" >}}
-
 ```java
 DataStream<Integer> someStream = //...
 DataStream<String> otherStream = //...
@@ -481,7 +467,6 @@ connected_streams = stream_1.connect(stream_2)
 
 {{< tabs comap >}}
 {{< tab "Java" >}}
-
 ```java
 connectedStreams.map(new CoMapFunction<Integer, String, Boolean>() {
     @Override
@@ -712,7 +697,6 @@ data_stream.broadcast()
 
 {{< tabs startnewchain >}}
 {{< tab "Java" >}}
-
 ```java
 someStream.filter(...).map(...).startNewChain().map(...);
 ```
