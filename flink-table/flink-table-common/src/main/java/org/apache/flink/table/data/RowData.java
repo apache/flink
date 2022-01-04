@@ -210,7 +210,7 @@ public interface RowData {
      * position.
      *
      * @param fieldType the element type of the row
-     * @param fieldPos the element type of the row
+     * @param fieldPos the element position of the row
      */
     static FieldGetter createFieldGetter(LogicalType fieldType, int fieldPos) {
         final FieldGetter fieldGetter;
