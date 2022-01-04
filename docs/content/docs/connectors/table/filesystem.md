@@ -195,7 +195,7 @@ When running file compaction in production, please be aware that:
 - Only files in a single checkpoint are compacted, that is, at least the same number of files as the number of checkpoints is generated.
 - The file before merging is invisible, so the visibility of the file may be: checkpoint interval + compaction time.
 - If the compaction takes too long, it will backpressure the job and extend the time period of checkpoint.
-- unsupported at-least-once mode
+- Unsupported at-least-once mode
 
 ### Partition Commit
 
