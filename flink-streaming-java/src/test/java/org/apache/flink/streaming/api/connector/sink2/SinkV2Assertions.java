@@ -18,29 +18,10 @@
 
 package org.apache.flink.streaming.api.connector.sink2;
 
-import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.core.memory.DataInputDeserializer;
-import org.apache.flink.core.memory.DataOutputSerializer;
+/** Custom assertions for Sink V2 related classes. */
+public class SinkV2Assertions {
 
-import java.io.IOException;
-
-/** Simple serializer for int values. */
-public class IntegerSerializer implements SimpleVersionedSerializer<Integer> {
-    @Override
-    public int getVersion() {
-        return 0;
-    }
-
-    @Override
-    public byte[] serialize(Integer obj) throws IOException {
-        final DataOutputSerializer out = new DataOutputSerializer(256);
-        out.writeInt(obj);
-        return out.getCopyOfBuffer();
-    }
-
-    @Override
-    public Integer deserialize(int version, byte[] serialized) throws IOException {
-        final DataInputDeserializer in = new DataInputDeserializer(serialized);
-        return in.readInt();
+    public static CommittableSummaryAssert assertThat(CommittableSummary<?> summary) {
+        return new CommittableSummaryAssert(summary);
     }
 }
