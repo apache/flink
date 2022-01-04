@@ -100,6 +100,7 @@ import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -366,6 +367,7 @@ public class SavepointITCase extends TestLogger {
     @Rule public SharedObjects sharedObjects = SharedObjects.create();
 
     @Test
+    @Ignore("Disabling this test because it regularly fails on AZP. See FLINK-25427.")
     public void testTriggerSavepointAndResumeWithNoClaim() throws Exception {
         final int numTaskManagers = 2;
         final int numSlotsPerTaskManager = 2;
