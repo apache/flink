@@ -57,11 +57,12 @@ public interface GlobalCommitter<CommT, GlobalCommT> extends AutoCloseable {
     GlobalCommT combine(List<CommT> committables) throws IOException;
 
     /**
-     * Commit the given list of {@link GlobalCommT}.
+     * Commits the given list of {@link GlobalCommT} and returns a list of {@link GlobalCommT} that
+     * need to be re-committed. The elements of the return list must be a subset of the input list,
+     * so that successful committables can be inferred.
      *
      * @param globalCommittables a list of {@link GlobalCommT}.
-     * @return A list of {@link GlobalCommT} needed to re-commit, which is needed in case we
-     *     implement a "commit-with-retry" pattern.
+     * @return a list of {@link GlobalCommT} that need to be re-committed.
      * @throws IOException if the commit operation fail and do not want to retry any more.
      */
     List<GlobalCommT> commit(List<GlobalCommT> globalCommittables)
