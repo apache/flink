@@ -39,11 +39,10 @@ import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
@@ -79,22 +78,18 @@ public class TemporalTableSourceSpecSerdeTest {
                         classLoader,
                         FlinkTypeFactory.INSTANCE(),
                         FlinkSqlOperatorTable.instance());
-        ObjectMapper mapper = JsonSerdeUtil.createObjectMapper(serdeCtx);
+        ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
+        ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
 
-        SimpleModule module = new SimpleModule();
-        module.addSerializer(new RexNodeJsonSerializer());
-        module.addSerializer(new RelDataTypeJsonSerializer());
-        module.addDeserializer(RexNode.class, new RexNodeJsonDeserializer());
-        module.addDeserializer(RelDataType.class, new RelDataTypeJsonDeserializer());
-        mapper.registerModule(module);
         StringWriter writer = new StringWriter(100);
         List<TemporalTableSourceSpec> specs = testData();
         for (TemporalTableSourceSpec spec : specs) {
-            try (JsonGenerator gen = mapper.getFactory().createGenerator(writer)) {
+            try (JsonGenerator gen = objectWriter.getFactory().createGenerator(writer)) {
                 gen.writeObject(spec);
             }
             String json = writer.toString();
-            TemporalTableSourceSpec actual = mapper.readValue(json, TemporalTableSourceSpec.class);
+            TemporalTableSourceSpec actual =
+                    objectReader.readValue(json, TemporalTableSourceSpec.class);
             assertEquals(spec.getTableSourceSpec(), actual.getTableSourceSpec());
             assertEquals(spec.getOutputType(), actual.getOutputType());
         }

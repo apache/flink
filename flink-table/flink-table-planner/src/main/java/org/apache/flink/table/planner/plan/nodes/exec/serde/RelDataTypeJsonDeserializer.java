@@ -30,7 +30,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.table.utils.EncodingUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.ObjectCodec;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
@@ -78,14 +78,15 @@ public class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
 
     @Override
     public RelDataType deserialize(JsonParser jsonParser, DeserializationContext ctx)
-            throws IOException, JsonProcessingException {
+            throws IOException {
         JsonNode jsonNode = jsonParser.readValueAsTree();
-        return deserialize(jsonNode, ((FlinkDeserializationContext) ctx));
+        return deserialize(jsonNode, jsonParser.getCodec(), ctx);
     }
 
-    private RelDataType deserialize(JsonNode jsonNode, FlinkDeserializationContext ctx)
-            throws JsonProcessingException {
-        FlinkTypeFactory typeFactory = ctx.getSerdeContext().getTypeFactory();
+    private RelDataType deserialize(
+            JsonNode jsonNode, ObjectCodec codec, DeserializationContext ctx) throws IOException {
+        SerdeContext serdeContext = SerdeContext.get(ctx);
+        FlinkTypeFactory typeFactory = serdeContext.getTypeFactory();
         if (jsonNode instanceof ObjectNode) {
             ObjectNode objectNode = (ObjectNode) jsonNode;
             if (objectNode.has(FIELD_NAME_TIMESTAMP_KIND)) {
@@ -107,17 +108,16 @@ public class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
             } else if (objectNode.has(FIELD_NAME_STRUCTURED_TYPE)) {
                 JsonNode structuredTypeNode = objectNode.get(FIELD_NAME_STRUCTURED_TYPE);
                 LogicalType structuredType =
-                        ctx.getObjectMapper()
-                                .readValue(structuredTypeNode.toPrettyString(), LogicalType.class);
+                        ctx.readValue(structuredTypeNode.traverse(codec), LogicalType.class);
                 checkArgument(structuredType instanceof StructuredType);
-                return ctx.getSerdeContext()
-                        .getTypeFactory()
-                        .createFieldTypeFromLogicalType(structuredType);
+                return serdeContext.getTypeFactory().createFieldTypeFromLogicalType(structuredType);
             } else if (objectNode.has(FIELD_NAME_STRUCT_KIND)) {
                 ArrayNode arrayNode = (ArrayNode) objectNode.get(FIELD_NAME_FIELDS);
                 RelDataTypeFactory.Builder builder = typeFactory.builder();
                 for (JsonNode node : arrayNode) {
-                    builder.add(node.get(FIELD_NAME_FILED_NAME).asText(), deserialize(node, ctx));
+                    builder.add(
+                            node.get(FIELD_NAME_FILED_NAME).asText(),
+                            deserialize(node, codec, ctx));
                 }
                 StructKind structKind =
                         StructKind.valueOf(
@@ -127,7 +127,7 @@ public class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
             } else if (objectNode.has(FIELD_NAME_FIELDS)) {
                 JsonNode fields = objectNode.get(FIELD_NAME_FIELDS);
                 // Nested struct
-                return deserialize(fields, ctx);
+                return deserialize(fields, codec, ctx);
             } else {
                 SqlTypeName sqlTypeName =
                         Util.enumVal(
@@ -147,7 +147,7 @@ public class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
                             (RawType<?>)
                                     LogicalTypeParser.parse(
                                             objectNode.get(FIELD_NAME_RAW_TYPE).asText(),
-                                            ctx.getSerdeContext().getClassLoader());
+                                            serdeContext.getClassLoader());
                     return typeFactory.createTypeWithNullability(
                             typeFactory.createFieldTypeFromLogicalType(rawType), nullable);
                 }
@@ -159,7 +159,7 @@ public class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
                             EncodingUtils.decodeStringToObject(
                                     rawTypeNode.get(FIELD_NAME_TYPE_INFO).asText(),
                                     TypeInformation.class,
-                                    ctx.getSerdeContext().getClassLoader());
+                                    serdeContext.getClassLoader());
                     TypeInformationRawType<?> rawType =
                             new TypeInformationRawType<>(nullableOfTypeInfo, typeInfo);
                     return typeFactory.createTypeWithNullability(
@@ -176,14 +176,17 @@ public class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
                                 : null;
                 final RelDataType type;
                 if (sqlTypeName == SqlTypeName.ARRAY) {
-                    RelDataType elementType = deserialize(objectNode.get(FIELD_NAME_ELEMENT), ctx);
+                    RelDataType elementType =
+                            deserialize(objectNode.get(FIELD_NAME_ELEMENT), codec, ctx);
                     type = typeFactory.createArrayType(elementType, -1);
                 } else if (sqlTypeName == SqlTypeName.MULTISET) {
-                    RelDataType elementType = deserialize(objectNode.get(FIELD_NAME_ELEMENT), ctx);
+                    RelDataType elementType =
+                            deserialize(objectNode.get(FIELD_NAME_ELEMENT), codec, ctx);
                     type = typeFactory.createMultisetType(elementType, -1);
                 } else if (sqlTypeName == SqlTypeName.MAP) {
-                    RelDataType keyType = deserialize(objectNode.get(FIELD_NAME_KEY), ctx);
-                    RelDataType valueType = deserialize(objectNode.get(FIELD_NAME_VALUE), ctx);
+                    RelDataType keyType = deserialize(objectNode.get(FIELD_NAME_KEY), codec, ctx);
+                    RelDataType valueType =
+                            deserialize(objectNode.get(FIELD_NAME_VALUE), codec, ctx);
                     type = typeFactory.createMapType(keyType, valueType);
                 } else if (precision == null) {
                     type = typeFactory.createSqlType(sqlTypeName);

@@ -50,13 +50,11 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
 import org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -99,20 +97,15 @@ public class DynamicTableSourceSpecSerdeTest {
                         classLoader,
                         FlinkTypeFactory.INSTANCE(),
                         FlinkSqlOperatorTable.instance());
-        ObjectMapper mapper = JsonSerdeUtil.createObjectMapper(serdeCtx);
+        ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
+        ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
 
-        SimpleModule module = new SimpleModule();
-        module.addSerializer(new RexNodeJsonSerializer());
-        module.addSerializer(new RelDataTypeJsonSerializer());
-        module.addDeserializer(RexNode.class, new RexNodeJsonDeserializer());
-        module.addDeserializer(RelDataType.class, new RelDataTypeJsonDeserializer());
-        mapper.registerModule(module);
         StringWriter writer = new StringWriter(100);
-        try (JsonGenerator gen = mapper.getFactory().createGenerator(writer)) {
+        try (JsonGenerator gen = objectWriter.getFactory().createGenerator(writer)) {
             gen.writeObject(spec);
         }
         String json = writer.toString();
-        DynamicTableSourceSpec actual = mapper.readValue(json, DynamicTableSourceSpec.class);
+        DynamicTableSourceSpec actual = objectReader.readValue(json, DynamicTableSourceSpec.class);
         assertEquals(spec, actual);
         assertNull(actual.getClassLoader());
         actual.setClassLoader(classLoader);

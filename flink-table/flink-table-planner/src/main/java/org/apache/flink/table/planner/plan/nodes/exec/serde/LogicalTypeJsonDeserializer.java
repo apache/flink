@@ -100,7 +100,7 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
     public LogicalType deserialize(JsonParser jsonParser, DeserializationContext ctx)
             throws IOException, JsonProcessingException {
         final JsonNode logicalTypeNode = jsonParser.readValueAsTree();
-        SerdeContext serdeCtx = ((FlinkDeserializationContext) ctx).getSerdeContext();
+        SerdeContext serdeCtx = SerdeContext.get(ctx);
         return deserialize(logicalTypeNode, serdeCtx);
     }
 

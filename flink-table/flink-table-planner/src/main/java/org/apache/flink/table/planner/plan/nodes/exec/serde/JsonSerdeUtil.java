@@ -18,14 +18,32 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.planner.plan.logical.LogicalWindow;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.utils.ReflectionsUtil;
+import org.apache.flink.table.types.logical.LogicalType;
+
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.MapperFeature;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.Module;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.BeanDeserializerFactory;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.DefaultDeserializationContext;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.jsontype.NamedType;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
+
+import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexWindowBound;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
+import java.time.Duration;
 
 /** An utility class that provide abilities for JSON serialization and deserialization. */
 public class JsonSerdeUtil {
@@ -42,22 +60,83 @@ public class JsonSerdeUtil {
         return false;
     }
 
-    /** Create an {@link ObjectMapper} which DeserializationContext wraps a {@link SerdeContext}. */
-    public static ObjectMapper createObjectMapper(SerdeContext serdeCtx) {
-        FlinkDeserializationContext ctx =
-                new FlinkDeserializationContext(
-                        new DefaultDeserializationContext.Impl(BeanDeserializerFactory.instance),
-                        serdeCtx);
-        ObjectMapper mapper =
-                new ObjectMapper(
-                        null, // JsonFactory
-                        null, // DefaultSerializerProvider
-                        ctx);
-        mapper.setTypeFactory(
-                mapper.getTypeFactory().withClassLoader(JsonSerdeUtil.class.getClassLoader()));
-        mapper.configure(MapperFeature.USE_GETTERS_AS_SETTERS, false);
-        ctx.setObjectMapper(mapper);
-        return mapper;
+    // Object mapper shared instance to serialize and deserialize the plan
+    private static final ObjectMapper OBJECT_MAPPER_INSTANCE;
+
+    static {
+        OBJECT_MAPPER_INSTANCE = new ObjectMapper();
+
+        OBJECT_MAPPER_INSTANCE.setTypeFactory(
+                // Make sure to register the classloader of the planner
+                OBJECT_MAPPER_INSTANCE
+                        .getTypeFactory()
+                        .withClassLoader(JsonSerdeUtil.class.getClassLoader()));
+        OBJECT_MAPPER_INSTANCE.configure(MapperFeature.USE_GETTERS_AS_SETTERS, false);
+        OBJECT_MAPPER_INSTANCE.registerModule(createFlinkTableJacksonModule());
+    }
+
+    /** Get the {@link ObjectMapper} instance. */
+    public static ObjectMapper getObjectMapper() {
+        return OBJECT_MAPPER_INSTANCE;
+    }
+
+    public static ObjectReader createObjectReader(SerdeContext serdeContext) {
+        return OBJECT_MAPPER_INSTANCE
+                .reader()
+                .withAttribute(SerdeContext.SERDE_CONTEXT_KEY, serdeContext);
+    }
+
+    public static ObjectWriter createObjectWriter(SerdeContext serdeContext) {
+        return OBJECT_MAPPER_INSTANCE
+                .writer()
+                .withAttribute(SerdeContext.SERDE_CONTEXT_KEY, serdeContext);
+    }
+
+    private static Module createFlinkTableJacksonModule() {
+        final SimpleModule module = new SimpleModule("Flink table module");
+        ReflectionsUtil.scanSubClasses(
+                        "org.apache.flink.table.planner.plan.nodes.exec", ExecNode.class)
+                .forEach(c -> module.registerSubtypes(new NamedType(c, c.getName())));
+        registerSerializers(module);
+        registerDeserializers(module);
+
+        return module;
+    }
+
+    private static void registerSerializers(SimpleModule module) {
+        // ObjectIdentifierJsonSerializer is needed for LogicalType serialization
+        module.addSerializer(new ObjectIdentifierJsonSerializer());
+        // LogicalTypeJsonSerializer is needed for RelDataType serialization
+        module.addSerializer(new LogicalTypeJsonSerializer());
+        // RelDataTypeJsonSerializer is needed for RexNode serialization
+        module.addSerializer(new RelDataTypeJsonSerializer());
+        // RexNode is used in many exec nodes, so we register its serializer directly here
+        module.addSerializer(new RexNodeJsonSerializer());
+        module.addSerializer(new AggregateCallJsonSerializer());
+        module.addSerializer(new DurationJsonSerializer());
+        module.addSerializer(new ChangelogModeJsonSerializer());
+        module.addSerializer(new LogicalWindowJsonSerializer());
+        module.addSerializer(new RexWindowBoundJsonSerializer());
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static void registerDeserializers(SimpleModule module) {
+        // ObjectIdentifierJsonDeserializer is needed for LogicalType deserialization
+        module.addDeserializer(ObjectIdentifier.class, new ObjectIdentifierJsonDeserializer());
+        // LogicalTypeJsonSerializer is needed for RelDataType serialization
+        module.addDeserializer(LogicalType.class, new LogicalTypeJsonDeserializer());
+        // RelDataTypeJsonSerializer is needed for RexNode serialization
+        module.addDeserializer(RelDataType.class, new RelDataTypeJsonDeserializer());
+        // RexNode is used in many exec nodes, so we register its deserializer directly here
+        module.addDeserializer(RexNode.class, new RexNodeJsonDeserializer());
+        // We need this explicit mapping to make sure Jackson can deserialize POJOs declaring fields
+        // with RexLiteral instead of RexNode.
+        module.addDeserializer(RexLiteral.class, (StdDeserializer) new RexNodeJsonDeserializer());
+        module.addDeserializer(AggregateCall.class, new AggregateCallJsonDeserializer());
+        module.addDeserializer(Duration.class, new DurationJsonDeserializer());
+        module.addDeserializer(ChangelogMode.class, new ChangelogModeJsonDeserializer());
+        module.addDeserializer(LogicalWindow.class, new LogicalWindowJsonDeserializer());
+        module.addDeserializer(RexWindowBound.class, new RexWindowBoundJsonDeserializer());
     }
 
     private JsonSerdeUtil() {}

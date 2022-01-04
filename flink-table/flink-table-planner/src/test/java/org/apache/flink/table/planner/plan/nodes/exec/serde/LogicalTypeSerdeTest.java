@@ -68,8 +68,8 @@ import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -106,19 +106,15 @@ public class LogicalTypeSerdeTest {
                         Thread.currentThread().getContextClassLoader(),
                         FlinkTypeFactory.INSTANCE(),
                         FlinkSqlOperatorTable.instance());
-        ObjectMapper mapper = JsonSerdeUtil.createObjectMapper(serdeCtx);
-        SimpleModule module = new SimpleModule();
+        ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
+        ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
 
-        module.addSerializer(new LogicalTypeJsonSerializer());
-        module.addSerializer(new ObjectIdentifierJsonSerializer());
-        module.addDeserializer(LogicalType.class, new LogicalTypeJsonDeserializer());
-        mapper.registerModule(module);
         StringWriter writer = new StringWriter(100);
-        try (JsonGenerator gen = mapper.getFactory().createGenerator(writer)) {
+        try (JsonGenerator gen = objectWriter.getFactory().createGenerator(writer)) {
             gen.writeObject(logicalType);
         }
         String json = writer.toString();
-        LogicalType actual = mapper.readValue(json, LogicalType.class);
+        LogicalType actual = objectReader.readValue(json, LogicalType.class);
         assertEquals(logicalType, actual);
         assertEquals(logicalType.asSummaryString(), actual.asSummaryString());
     }
