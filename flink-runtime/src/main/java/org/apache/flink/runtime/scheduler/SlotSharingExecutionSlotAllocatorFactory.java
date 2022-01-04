@@ -73,7 +73,7 @@ class SlotSharingExecutionSlotAllocatorFactory implements ExecutionSlotAllocator
         SharedSlotProfileRetrieverFactory sharedSlotProfileRetrieverFactory =
                 new MergingSharedSlotProfileRetrieverFactory(
                         preferredLocationsRetriever,
-                        context::getPriorAllocationId,
+                        context::findPriorAllocationId,
                         context::getReservedAllocations);
         return new SlotSharingExecutionSlotAllocator(
                 slotProvider,

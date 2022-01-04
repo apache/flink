@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -29,6 +30,9 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
+import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -94,5 +98,51 @@ public class ExecutionVertexTest extends TestLogger {
                         .getResultPartitionID();
 
         assertThat(releasePartitionsFuture.get()).contains(resultPartitionID);
+    }
+
+    @Test
+    public void testFindLatestAllocationIgnoresFailedAttempts() throws Exception {
+        final JobVertex source = ExecutionGraphTestUtils.createNoOpVertex(1);
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(source);
+        final TestingPhysicalSlotProvider withLimitedAmountOfPhysicalSlots =
+                TestingPhysicalSlotProvider.createWithLimitedAmountOfPhysicalSlots(1);
+        final SchedulerBase scheduler =
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                        .setExecutionSlotAllocatorFactory(
+                                SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
+                                        withLimitedAmountOfPhysicalSlots))
+                        .build();
+
+        scheduler.startScheduling();
+
+        final ExecutionJobVertex sourceExecutionJobVertex =
+                scheduler.getExecutionJobVertex(source.getID());
+
+        final ExecutionVertex sourceExecutionVertex = sourceExecutionJobVertex.getTaskVertices()[0];
+        final Execution firstExecution = sourceExecutionVertex.getCurrentExecutionAttempt();
+
+        final TestingPhysicalSlot physicalSlot =
+                withLimitedAmountOfPhysicalSlots.getFirstResponseOrFail().join();
+        final AllocationID allocationId = physicalSlot.getAllocationId();
+        final TaskManagerLocation taskManagerLocation = physicalSlot.getTaskManagerLocation();
+
+        cancelExecution(firstExecution);
+        sourceExecutionVertex.resetForNewExecution();
+
+        assertThat(sourceExecutionVertex.findLatestPriorAllocation()).hasValue(allocationId);
+        assertThat(sourceExecutionVertex.findLatestPriorLocation()).hasValue(taskManagerLocation);
+
+        final Execution secondExecution = sourceExecutionVertex.getCurrentExecutionAttempt();
+        cancelExecution(secondExecution);
+        sourceExecutionVertex.resetForNewExecution();
+
+        assertThat(sourceExecutionVertex.findLatestPriorAllocation()).hasValue(allocationId);
+        assertThat(sourceExecutionVertex.findLatestPriorLocation()).hasValue(taskManagerLocation);
+    }
+
+    private void cancelExecution(Execution execution) {
+        execution.cancel();
+        execution.completeCancelling();
     }
 }

@@ -680,8 +680,9 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         }
 
         @Override
-        public AllocationID getPriorAllocationId(final ExecutionVertexID executionVertexId) {
-            return getExecutionVertex(executionVertexId).getLatestPriorAllocation();
+        public Optional<AllocationID> findPriorAllocationId(
+                final ExecutionVertexID executionVertexId) {
+            return getExecutionVertex(executionVertexId).findLatestPriorAllocation();
         }
 
         @Override

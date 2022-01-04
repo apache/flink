@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -283,15 +284,30 @@ public class ExecutionVertex
         }
     }
 
-    public ArchivedExecution getLatestPriorExecution() {
-        synchronized (priorExecutions) {
-            final int size = priorExecutions.size();
-            if (size > 0) {
-                return priorExecutions.get(size - 1);
-            } else {
-                return null;
+    /**
+     * Gets the latest property from a prior execution that is not null.
+     *
+     * @param extractor defining the property to extract
+     * @param <T> type of the property
+     * @return Optional containing the latest property if it exists; otherwise {@code
+     *     Optional.empty()}.
+     */
+    private <T> Optional<T> getLatestPriorProperty(Function<ArchivedExecution, T> extractor) {
+        int index = priorExecutions.size() - 1;
+
+        while (index >= 0 && !priorExecutions.isDroppedIndex(index)) {
+            final ArchivedExecution archivedExecution = priorExecutions.get(index);
+
+            final T extractedValue = extractor.apply(archivedExecution);
+
+            if (extractedValue != null) {
+                return Optional.of(extractedValue);
             }
+
+            index -= 1;
         }
+
+        return Optional.empty();
     }
 
     /**
@@ -300,16 +316,12 @@ public class ExecutionVertex
      *
      * @return The latest prior execution location, or null, if there is none, yet.
      */
-    public TaskManagerLocation getLatestPriorLocation() {
-        ArchivedExecution latestPriorExecution = getLatestPriorExecution();
-        return latestPriorExecution != null
-                ? latestPriorExecution.getAssignedResourceLocation()
-                : null;
+    public Optional<TaskManagerLocation> findLatestPriorLocation() {
+        return getLatestPriorProperty(ArchivedExecution::getAssignedResourceLocation);
     }
 
-    public AllocationID getLatestPriorAllocation() {
-        ArchivedExecution latestPriorExecution = getLatestPriorExecution();
-        return latestPriorExecution != null ? latestPriorExecution.getAssignedAllocationID() : null;
+    public Optional<AllocationID> findLatestPriorAllocation() {
+        return getLatestPriorProperty(ArchivedExecution::getAssignedAllocationID);
     }
 
     EvictingBoundedList<ArchivedExecution> getCopyOfPriorExecutionsList() {
@@ -345,7 +357,7 @@ public class ExecutionVertex
         // only restore to same execution if it has state
         if (currentExecution.getTaskRestore() != null
                 && currentExecution.getTaskRestore().getTaskStateSnapshot().hasState()) {
-            return Optional.ofNullable(getLatestPriorLocation());
+            return findLatestPriorLocation();
         }
 
         return Optional.empty();
