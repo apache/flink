@@ -93,6 +93,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -309,7 +310,7 @@ public class StreamGraphGenerator {
         shouldExecuteInBatchMode = shouldExecuteInBatchMode();
         configureStreamGraph(streamGraph);
 
-        alreadyTransformed = new HashMap<>();
+        alreadyTransformed = new IdentityHashMap<>();
 
         for (Transformation<?> transformation : transformations) {
             transform(transformation);
