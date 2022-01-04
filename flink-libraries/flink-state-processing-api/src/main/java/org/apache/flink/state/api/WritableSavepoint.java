@@ -43,6 +43,7 @@ import java.util.List;
  * @param <F> The implementation type.
  */
 @PublicEvolving
+@Deprecated
 @SuppressWarnings("WeakerAccess")
 public abstract class WritableSavepoint<F extends WritableSavepoint> {
 

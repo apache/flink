@@ -36,6 +36,51 @@ import static org.apache.flink.table.factories.ManagedTableFactory.discoverManag
 @Internal
 public class ManagedTableListener {
 
+    private final ClassLoader classLoader;
+
+    private final ReadableConfig config;
+
+    public ManagedTableListener(ClassLoader classLoader, ReadableConfig config) {
+        this.classLoader = classLoader;
+        this.config = config;
+    }
+
+    /** Notify for creating managed table. */
+    public ResolvedCatalogBaseTable<?> 
+      (
+            @Nullable Catalog catalog,
+            ObjectIdentifier identifier,
+            ResolvedCatalogBaseTable<?> table,
+            boolean isTemporary,
+            boolean ignoreIfExists) {
+        if (isManagedTable(catalog, table)) {
+            ResolvedCatalogTable managedTable = enrichOptions(identifier, table, isTemporary);
+            discoverManagedTableFactory(classLoader)
+                    .onCreateTable(
+                            createTableFactoryContext(identifier, managedTable, isTemporary),
+                            ignoreIfExists);
+            return managedTable;
+        }
+        return table;
+    }
+
+    /** Notify for dropping managed table. */
+    public void notifyTableDrop(
+            @Nullable Catalog catalog,
+            ObjectIdentifier identifier,
+            ResolvedCatalogBaseTable<?> table,
+            boolean isTemporary,
+            boolean ignoreIfNotExists) {
+        if (isManagedTable(catalog, table)) {
+            discoverManagedTableFactory(classLoader)
+                    .onDropTable(
+                            createTableFactoryContext(
+                                    identifier, (ResolvedCatalogTable) table, isTemporary),
+                            ignoreIfNotExists);
+        }
+    }
+
+    /** Check a resolved catalog table is Flink's managed table or not. */
     public static boolean isManagedTable(
             @Nullable Catalog catalog, ResolvedCatalogBaseTable<?> table) {
         if (catalog == null || !catalog.supportsManagedTable()) {
@@ -69,49 +114,6 @@ public class ManagedTableListener {
 
         // ConnectorCatalogTable is not managed table
         return !(table.getOrigin() instanceof ConnectorCatalogTable);
-    }
-
-    private final ClassLoader classLoader;
-
-    private final ReadableConfig config;
-
-    public ManagedTableListener(ClassLoader classLoader, ReadableConfig config) {
-        this.classLoader = classLoader;
-        this.config = config;
-    }
-
-    /** Notify for creating managed table. */
-    public ResolvedCatalogBaseTable<?> notifyTableCreation(
-            @Nullable Catalog catalog,
-            ObjectIdentifier identifier,
-            ResolvedCatalogBaseTable<?> table,
-            boolean isTemporary,
-            boolean ignoreIfExists) {
-        if (isManagedTable(catalog, table)) {
-            ResolvedCatalogTable managedTable = enrichOptions(identifier, table, isTemporary);
-            discoverManagedTableFactory(classLoader)
-                    .onCreateTable(
-                            createTableFactoryContext(identifier, managedTable, isTemporary),
-                            ignoreIfExists);
-            return managedTable;
-        }
-        return table;
-    }
-
-    /** Notify for dropping managed table. */
-    public void notifyTableDrop(
-            @Nullable Catalog catalog,
-            ObjectIdentifier identifier,
-            ResolvedCatalogBaseTable<?> table,
-            boolean isTemporary,
-            boolean ignoreIfNotExists) {
-        if (isManagedTable(catalog, table)) {
-            discoverManagedTableFactory(classLoader)
-                    .onDropTable(
-                            createTableFactoryContext(
-                                    identifier, (ResolvedCatalogTable) table, isTemporary),
-                            ignoreIfNotExists);
-        }
     }
 
     /** Enrich options for creating managed table. */

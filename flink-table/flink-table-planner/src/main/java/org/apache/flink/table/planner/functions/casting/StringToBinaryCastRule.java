@@ -23,12 +23,12 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
-import java.util.Arrays;
-
 import static org.apache.flink.table.codesplit.CodeSplitUtil.newName;
+import static org.apache.flink.table.planner.functions.casting.BinaryToBinaryCastRule.couldPad;
+import static org.apache.flink.table.planner.functions.casting.BinaryToBinaryCastRule.couldTrim;
+import static org.apache.flink.table.planner.functions.casting.BinaryToBinaryCastRule.trimOrPadByteArray;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.arrayLength;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
 /**
  * {@link LogicalTypeFamily#CHARACTER_STRING} to {@link LogicalTypeFamily#BINARY_STRING} cast rule.
@@ -63,7 +63,7 @@ class StringToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Stri
         if (byteArrayTerm$0.length <= 2) {
             result$1 = byteArrayTerm$0;
         } else {
-            result$1 = java.util.Arrays.copyOfRange(byteArrayTerm$0, 0, 2);
+            result$1 = java.util.Arrays.copyOf(byteArrayTerm$0, 2);
         }
         isNull$0 = result$1 == null;
     } else {
@@ -83,7 +83,8 @@ class StringToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Stri
 
         final String byteArrayTerm = newName("byteArrayTerm");
 
-        if (context.legacyBehaviour()) {
+        if (context.legacyBehaviour()
+                || !(couldTrim(targetLength) || couldPad(targetLogicalType, targetLength))) {
             return new CastRuleUtils.CodeWriter()
                     .assignStmt(returnVariable, methodCall(inputTerm, "toBytes"))
                     .toString();
@@ -92,16 +93,23 @@ class StringToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Stri
                     .declStmt(byte[].class, byteArrayTerm, methodCall(inputTerm, "toBytes"))
                     .ifStmt(
                             arrayLength(byteArrayTerm) + " <= " + targetLength,
-                            thenWriter -> thenWriter.assignStmt(returnVariable, byteArrayTerm),
-                            elseWriter ->
-                                    elseWriter.assignStmt(
+                            thenWriter -> {
+                                if (couldPad(targetLogicalType, targetLength)) {
+                                    trimOrPadByteArray(
                                             returnVariable,
-                                            staticCall(
-                                                    Arrays.class,
-                                                    "copyOfRange",
-                                                    byteArrayTerm,
-                                                    0,
-                                                    targetLength)))
+                                            targetLength,
+                                            byteArrayTerm,
+                                            thenWriter);
+                                } else {
+                                    thenWriter.assignStmt(returnVariable, byteArrayTerm);
+                                }
+                            },
+                            elseWriter ->
+                                    trimOrPadByteArray(
+                                            returnVariable,
+                                            targetLength,
+                                            byteArrayTerm,
+                                            elseWriter))
                     .toString();
         }
     }

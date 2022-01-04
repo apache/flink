@@ -301,12 +301,17 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(CHAR(3), "foo", new byte[] {102, 111})
                         .fromCase(VARCHAR(5), "Flink", new byte[] {70, 108})
                         .fromCase(STRING(), "Apache", new byte[] {65, 112})
+                        .fromCase(VARCHAR(5), "f", new byte[] {102, 0})
+                        .fromCase(STRING(), "f", new byte[] {102, 0})
                         // Not supported - no fix
                         .fail(BOOLEAN(), true)
                         //
                         .fromCase(BINARY(2), DEFAULT_BINARY, DEFAULT_BINARY)
                         .fromCase(VARBINARY(3), DEFAULT_VARBINARY, new byte[] {0, 1})
                         .fromCase(BYTES(), DEFAULT_BYTES, new byte[] {0, 1})
+                        .fromCase(BINARY(1), new byte[] {111}, new byte[] {111, 0})
+                        .fromCase(VARBINARY(1), new byte[] {111}, new byte[] {111, 0})
+                        .fromCase(BYTES(), new byte[] {11}, new byte[] {11, 0})
                         // Not supported - no fix
                         .fail(DECIMAL(5, 3), 12.345)
                         .fail(TINYINT(), DEFAULT_NEGATIVE_TINY_INT)

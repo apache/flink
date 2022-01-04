@@ -152,6 +152,12 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!-- Bump protobuf version, see FLINK-23230 -->
+		<dependency>
+			<groupId>com.google.protobuf</groupId>
+			<artifactId>protobuf-java</artifactId>
+			<version>${protoc.version}</version>
+		</dependency>
 
 		<!-- Tests -->
 
@@ -254,7 +260,7 @@ under the License.
 					<protoTestSourceRoot>${project.basedir}/src/test/resources/protobuf</protoTestSourceRoot>
 					<!-- Generates classes into a separate directory since the generator always removes existing files. -->
 					<outputDirectory>${project.build.directory}/generated-test-sources/protobuf/java</outputDirectory>
-					<protocArtifact>com.google.protobuf:protoc:3.5.1:exe:${os.detected.classifier}</protocArtifact>
+					<protocArtifact>com.google.protobuf:protoc:${protoc.version}:exe:${os.detected.classifier}</protocArtifact>
 				</configuration>
 				<executions>
 					<execution>

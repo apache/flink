@@ -23,7 +23,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
-import org.apache.flink.table.api.{PlannerType, SqlDialect, TableConfig, TableEnvironment, TableException}
+import org.apache.flink.table.api._
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.delegation.{Executor, Parser, Planner}
@@ -161,8 +161,8 @@ abstract class PlannerBase(
 
   def createNewParser: Parser = {
     val factoryIdentifier = getTableConfig.getSqlDialect.name().toLowerCase
-    val parserFactory = FactoryUtil.discoverFactory(Thread.currentThread.getContextClassLoader,
-      classOf[ParserFactory], factoryIdentifier)
+    val parserFactory = FactoryUtil.discoverFactory(
+      getClass.getClassLoader, classOf[ParserFactory], factoryIdentifier)
 
     val context = new DefaultParserContext(catalogManager, plannerContext)
     parserFactory.create(context)

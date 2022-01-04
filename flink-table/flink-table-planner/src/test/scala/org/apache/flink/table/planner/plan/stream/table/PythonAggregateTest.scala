@@ -24,8 +24,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.dataview.{ListView, MapView}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.TestPythonAggregateFunction
-import org.apache.flink.table.planner.typeutils.DataViewUtils.{ListViewSpec, MapViewSpec}
 import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.runtime.dataview.{ListViewSpec, MapViewSpec}
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

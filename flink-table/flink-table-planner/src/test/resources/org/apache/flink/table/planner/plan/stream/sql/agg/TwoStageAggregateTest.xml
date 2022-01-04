@@ -56,7 +56,7 @@ LogicalAggregate(group=[{}], EXPR$0=[AVG($0)]), rowType=[RecordType(DOUBLE EXPR$
 GlobalGroupAggregate(select=[AVG((sum$0, count$1)) AS EXPR$0]), rowType=[RecordType(DOUBLE EXPR$0)]
 +- Exchange(distribution=[single]), rowType=[RecordType(DOUBLE sum$0, BIGINT count$1)]
    +- LocalGroupAggregate(select=[AVG($f0) AS (sum$0, count$1)]), rowType=[RecordType(DOUBLE sum$0, BIGINT count$1)]
-      +- Calc(select=[CAST(a) AS $f0]), rowType=[RecordType(DOUBLE $f0)]
+      +- Calc(select=[CAST(a AS DOUBLE) AS $f0]), rowType=[RecordType(DOUBLE $f0)]
          +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
             +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
 ]]>
@@ -147,11 +147,11 @@ LogicalProject(b=[$0], EXPR$1=[$1])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(2:BIGINT) AS b, EXPR$1])
+Calc(select=[CAST(2 AS BIGINT) AS b, EXPR$1])
 +- GlobalGroupAggregate(groupBy=[b], select=[b, SUM(sum$0) AS EXPR$1])
    +- Exchange(distribution=[hash[b]])
       +- LocalGroupAggregate(groupBy=[b], select=[b, SUM(a) AS sum$0])
-         +- Calc(select=[CAST(2:BIGINT) AS b, a], where=[(b = 2:BIGINT)])
+         +- Calc(select=[CAST(2 AS BIGINT) AS b, a], where=[(b = 2)])
             +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
                +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>

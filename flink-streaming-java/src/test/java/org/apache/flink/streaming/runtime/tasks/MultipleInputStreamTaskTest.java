@@ -70,7 +70,6 @@ import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractInput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -972,11 +971,6 @@ public class MultipleInputStreamTaskTest {
                                         config.setUnalignedCheckpointsEnabled(
                                                 checkpointOptions.isUnalignedCheckpoint()
                                                         || checkpointOptions.isTimeoutable());
-                                        config.getConfiguration()
-                                                .set(
-                                                        ExecutionCheckpointingOptions
-                                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                        true);
                                     })
                             .setupOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)

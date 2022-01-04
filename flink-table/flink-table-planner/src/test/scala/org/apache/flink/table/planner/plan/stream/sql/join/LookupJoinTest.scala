@@ -525,7 +525,21 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     verifyTranslationSuccess(sql)
   }
 
-  // ==========================================================================================
+  @Test
+  def testJoinTemporalTableWithCTE(): Unit = {
+    val sql =
+      """
+        |WITH MyLookupTable AS (SELECT * FROM MyTable),
+        |OtherLookupTable AS (SELECT * FROM LookupTable)
+        |SELECT MyLookupTable.b FROM MyLookupTable
+        |JOIN OtherLookupTable FOR SYSTEM_TIME AS OF MyLookupTable.proctime AS D
+        |ON MyLookupTable.a = D.id AND D.age = 10
+      """.stripMargin
+
+    util.verifyExecPlan(sql)
+  }
+
+    // ==========================================================================================
 
   private def createLookupTable(tableName: String, lookupFunction: UserDefinedFunction): Unit = {
     if (legacyTableSource) {

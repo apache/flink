@@ -280,7 +280,7 @@ file sink 支持文件合并，以允许应用程序可以使用较小的检查�
         <td><h5>partition.time-extractor.timestamp-pattern</h5></td>
         <td style="word-wrap: break-word;">(none)</td>
         <td>String</td>
-        <td> 'default' 时间提取器允许用户从分区字段中提取合法的时间戳模式。默认支持从第一个字段按 'yyyy-mm-dd hh:mm:ss' 时间戳模式提取。
+        <td> 'default' 时间提取器允许用户从分区字段中提取合法的时间戳模式。默认支持从第一个字段按 'yyyy-MM-dd hh:mm:ss' 时间戳模式提取。
         如果需要从一个分区字段比如 ‘dt’ 提取时间戳，可以配置为: '$dt';
         如果需要从多个分区字段，比如 'year', 'month', 'day' 和 'hour'提取时间戳，可以配置为：'$year-$month-$day $hour:00:00';
         如果需要从两字分区字段，比如 'dt' 和 'hour' 提取时间戳，可以配置为：'$dt $hour:00:00'.</td>

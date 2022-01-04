@@ -80,12 +80,13 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
                 new EmbeddedHaServicesWithLeadershipControl(TestingUtils.defaultExecutor());
 
         miniCluster =
-                new TestingMiniCluster(
-                        TestingMiniClusterConfiguration.newBuilder()
-                                .setNumTaskManagers(NUM_TMS)
-                                .setNumSlotsPerTaskManager(SLOTS_PER_TM)
-                                .build(),
-                        () -> highAvailabilityServices);
+                TestingMiniCluster.newBuilder(
+                                TestingMiniClusterConfiguration.newBuilder()
+                                        .setNumTaskManagers(NUM_TMS)
+                                        .setNumSlotsPerTaskManager(SLOTS_PER_TM)
+                                        .build())
+                        .setHighAvailabilityServicesSupplier(() -> highAvailabilityServices)
+                        .build();
 
         miniCluster.start();
     }

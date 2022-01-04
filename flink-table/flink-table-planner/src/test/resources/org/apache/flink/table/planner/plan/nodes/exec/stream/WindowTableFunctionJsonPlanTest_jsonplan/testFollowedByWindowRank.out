@@ -220,7 +220,6 @@
       "timeAttributeIndex" : 3,
       "isRowtime" : true
     },
-    "emitPerRecord" : true,
     "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -275,7 +274,7 @@
         }
       } ]
     },
-    "description" : "WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])"
+    "description" : "WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
     "projection" : [ {

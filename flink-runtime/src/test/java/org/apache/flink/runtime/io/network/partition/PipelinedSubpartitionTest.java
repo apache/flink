@@ -275,8 +275,8 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
         if (!buffer2Recycled) {
             Assert.fail("buffer 2 not recycled");
         }
-        assertEquals(2, partition.getTotalNumberOfBuffers());
-        assertEquals(0, partition.getTotalNumberOfBytes()); // buffer data is never consumed
+        assertEquals(2, partition.getTotalNumberOfBuffersUnsafe());
+        assertEquals(0, partition.getTotalNumberOfBytesUnsafe()); // buffer data is never consumed
     }
 
     @Test

@@ -762,10 +762,10 @@ public final class BuiltInFunctionDefinitions {
                     .build();
 
     /**
-     * Special "+" operator used internally by {@code SumAggFunction} to implement SUM aggregation
-     * on a Decimal type. Uses the {@link LogicalTypeMerging#findSumAggType(LogicalType)} to avoid
-     * the normal {@link #PLUS} override the special calculation for precision and scale needed by
-     * SUM.
+     * Special "+" operator used internally for implementing SUM/AVG aggregations (with and without
+     * retractions) on a Decimal type. Uses the {@link
+     * LogicalTypeMerging#findSumAggType(LogicalType)} to prevent the normal {@link #PLUS} from
+     * overriding the special calculation for precision and scale needed by the aggregate function.
      */
     public static final BuiltInFunctionDefinition AGG_DECIMAL_PLUS =
             BuiltInFunctionDefinition.newBuilder()
@@ -800,6 +800,24 @@ public final class BuiltInFunctionDefinitions {
                                             logical(LogicalTypeFamily.INTERVAL))))
                     .outputTypeStrategy(
                             nullableIfArgs(first(SpecificTypeStrategies.DECIMAL_PLUS, COMMON)))
+                    .build();
+
+    /**
+     * Special "-" operator used internally for implementing SUM/AVG aggregations (with and without
+     * retractions) on a Decimal type. Uses the {@link
+     * LogicalTypeMerging#findSumAggType(LogicalType)} to prevent the normal {@link #MINUS} from
+     * overriding the special calculation for precision and scale needed by the aggregate function.
+     */
+    public static final BuiltInFunctionDefinition AGG_DECIMAL_MINUS =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("AGG_DECIMAL_MINUS")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeRoot.DECIMAL),
+                                    logical(LogicalTypeRoot.DECIMAL)))
+                    .outputTypeStrategy(SpecificTypeStrategies.AGG_DECIMAL_PLUS)
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition DIVIDE =

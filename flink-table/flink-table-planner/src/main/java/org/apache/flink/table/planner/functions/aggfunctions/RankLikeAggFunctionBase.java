@@ -43,6 +43,7 @@ import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.
 
 /** built-in rank like aggregate function, e.g. rank, dense_rank */
 public abstract class RankLikeAggFunctionBase extends DeclarativeAggregateFunction {
+
     protected UnresolvedReferenceExpression sequence = unresolvedRef("sequence");
     protected UnresolvedReferenceExpression[] lastValues;
     protected LogicalType[] orderKeyTypes;

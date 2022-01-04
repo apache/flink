@@ -147,6 +147,16 @@ function add_optional_plugin() {
     cp "$FLINK_DIR/opt/flink-$plugin"*".jar" "$plugin_dir"
 }
 
+function swap_planner_loader_with_planner_scala() {
+  mv "$FLINK_DIR/lib/flink-table-planner-loader"*".jar" "$FLINK_DIR/opt"
+  mv "$FLINK_DIR/opt/flink-table-planner_"*".jar" "$FLINK_DIR/lib"
+}
+
+function swap_planner_scala_with_planner_loader() {
+  mv "$FLINK_DIR/opt/flink-table-planner-loader"*".jar" "$FLINK_DIR/lib"
+  mv "$FLINK_DIR/lib/flink-table-planner_"*".jar" "$FLINK_DIR/opt"
+}
+
 function delete_config_key() {
     local config_key=$1
     sed -i -e "/^${config_key}: /d" ${FLINK_DIR}/conf/flink-conf.yaml
@@ -369,6 +379,7 @@ function check_logs_for_errors {
       | grep -v "error_prone_annotations" \
       | grep -v "Error sending fetch request" \
       | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
+      | grep -v "Options.*error_*" \
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
     echo "Found error in log files; printing first 500 lines; see full logs for details:"

@@ -515,7 +515,7 @@
         "max_c" : "VARCHAR(2147483647)"
       } ]
     },
-    "description" : "Calc(select=[CAST(avg_a) AS avg_a, CAST(cnt) AS cnt, CAST(cnt) AS cnt_b, CAST(min_b) AS min_b, max_c])"
+    "description" : "Calc(select=[CAST(avg_a AS DOUBLE) AS avg_a, CAST(cnt AS BIGINT) AS cnt, CAST(cnt AS BIGINT) AS cnt_b, CAST(min_b AS BIGINT) AS min_b, max_c])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {

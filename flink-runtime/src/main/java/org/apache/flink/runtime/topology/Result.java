@@ -35,6 +35,4 @@ public interface Result<
     ResultPartitionType getResultType();
 
     V getProducer();
-
-    Iterable<? extends V> getConsumers();
 }

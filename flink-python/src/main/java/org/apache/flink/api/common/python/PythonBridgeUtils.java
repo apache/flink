@@ -43,14 +43,11 @@ import org.apache.flink.types.Row;
 
 import net.razorvine.pickle.Pickler;
 import net.razorvine.pickle.Unpickler;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -127,65 +124,9 @@ public final class PythonBridgeUtils {
                 .collect(Collectors.toList());
     }
 
-    public static byte[] convertLiteralToPython(RexLiteral o, SqlTypeName typeName) {
-        byte type;
-        Object value;
+    // This method is reflected from planner
+    public static byte[] pickleValue(Object value, byte type) {
         Pickler pickler = new Pickler();
-        if (o.getValue3() == null) {
-            type = 0;
-            value = null;
-        } else {
-            switch (typeName) {
-                case TINYINT:
-                    type = 0;
-                    value = ((BigDecimal) o.getValue3()).byteValueExact();
-                    break;
-                case SMALLINT:
-                    type = 0;
-                    value = ((BigDecimal) o.getValue3()).shortValueExact();
-                    break;
-                case INTEGER:
-                    type = 0;
-                    value = ((BigDecimal) o.getValue3()).intValueExact();
-                    break;
-                case BIGINT:
-                    type = 0;
-                    value = ((BigDecimal) o.getValue3()).longValueExact();
-                    break;
-                case FLOAT:
-                    type = 0;
-                    value = ((BigDecimal) o.getValue3()).floatValue();
-                    break;
-                case DOUBLE:
-                    type = 0;
-                    value = ((BigDecimal) o.getValue3()).doubleValue();
-                    break;
-                case DECIMAL:
-                case BOOLEAN:
-                    type = 0;
-                    value = o.getValue3();
-                    break;
-                case CHAR:
-                case VARCHAR:
-                    type = 0;
-                    value = o.getValue3().toString();
-                    break;
-                case DATE:
-                    type = 1;
-                    value = o.getValue3();
-                    break;
-                case TIME:
-                    type = 2;
-                    value = o.getValue3();
-                    break;
-                case TIMESTAMP:
-                    type = 3;
-                    value = o.getValue3();
-                    break;
-                default:
-                    throw new RuntimeException("Unsupported type " + typeName);
-            }
-        }
         byte[] pickledData;
         try {
             pickledData = pickler.dumps(value);

@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.rules.physical.stream.TwoStageOptimizedWindowAggregateRule
 import org.apache.flink.table.planner.plan.utils.WindowUtil.checkEmitConfiguration
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil, RelExplainUtil, WindowUtil}
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -59,7 +60,7 @@ class StreamPhysicalGlobalWindowAggregate(
     val grouping: Array[Int],
     val aggCalls: Seq[AggregateCall],
     val windowing: WindowingStrategy,
-    val namedWindowProperties: Seq[PlannerNamedWindowProperty])
+    val namedWindowProperties: Seq[NamedWindowProperty])
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel {
 

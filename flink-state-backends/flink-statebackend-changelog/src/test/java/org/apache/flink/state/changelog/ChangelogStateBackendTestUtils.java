@@ -19,6 +19,7 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -139,7 +140,10 @@ public class ChangelogStateBackendTestUtils {
     }
 
     public static void testMaterializedRestore(
-            StateBackend stateBackend, Environment env, CheckpointStreamFactory streamFactory)
+            StateBackend stateBackend,
+            StateTtlConfig stateTtlConfig,
+            Environment env,
+            CheckpointStreamFactory streamFactory)
             throws Exception {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
@@ -147,6 +151,9 @@ public class ChangelogStateBackendTestUtils {
                 new GenericTypeInfo<>(StateBackendTestBase.TestPojo.class);
         ValueStateDescriptor<StateBackendTestBase.TestPojo> kvId =
                 new ValueStateDescriptor<>("id", pojoType);
+        if (stateTtlConfig.isEnabled()) {
+            kvId.enableTimeToLive(stateTtlConfig);
+        }
 
         ChangelogKeyedStateBackend<Integer> keyedBackend =
                 (ChangelogKeyedStateBackend<Integer>) createKeyedBackend(stateBackend, env);

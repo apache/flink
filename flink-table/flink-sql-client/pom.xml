@@ -27,7 +27,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-sql-client_${scala.binary.version}</artifactId>
+	<artifactId>flink-sql-client</artifactId>
 	<name>Flink : Table : SQL Client</name>
 	<description>
 		This module contains the SQL Client for exploring and
@@ -38,55 +38,17 @@ under the License.
 
 	<dependencies>
 
-		<!-- core dependencies -->
-
-		<!-- Flink modules -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
+		<!-- Flink client to submit jobs -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
 		<!-- Table ecosystem -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-common</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-java</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-java-bridge</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-runtime</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -153,8 +115,7 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-hive_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
-			<scope>provided</scope>
-			<optional>true</optional>
+			<scope>test</scope>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.hadoop</groupId>
@@ -172,10 +133,18 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
@@ -504,7 +473,7 @@ under the License.
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-mapreduce-client-core</artifactId>
 			<version>${hivemetastore.hadoop.version}</version>
-			<scope>provided</scope>
+			<scope>test</scope>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.curator</groupId>

@@ -23,8 +23,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
-
-import org.apache.calcite.avatica.util.DateTimeUtils;
+import org.apache.flink.table.utils.DateTimeUtils;
 
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.TIMESTAMP_TO_STRING_TIME_ZONE;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.accessStaticField;

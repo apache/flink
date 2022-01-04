@@ -277,12 +277,12 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
     }
 
     @Override
-    protected long getTotalNumberOfBuffers() {
+    protected long getTotalNumberOfBuffersUnsafe() {
         return numBuffersAndEventsWritten;
     }
 
     @Override
-    protected long getTotalNumberOfBytes() {
+    protected long getTotalNumberOfBytesUnsafe() {
         return data.getSize();
     }
 

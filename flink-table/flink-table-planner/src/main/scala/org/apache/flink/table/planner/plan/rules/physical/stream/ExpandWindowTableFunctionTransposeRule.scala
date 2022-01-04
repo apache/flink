@@ -170,8 +170,7 @@ class ExpandWindowTableFunctionTransposeRule
       windowTVF.getTraitSet,
       newExpand,
       newOutputType,
-      newWindowing,
-      windowTVF.emitPerRecord)
+      newWindowing)
 
     // -------------------------------------------------------------------------
     //  4. Apply Calc on the new WindowTVF to adjust the fields mapping

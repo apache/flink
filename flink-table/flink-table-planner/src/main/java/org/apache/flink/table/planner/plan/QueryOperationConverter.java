@@ -62,12 +62,6 @@ import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerProctimeAttribute;
-import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
-import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
-import org.apache.flink.table.planner.expressions.PlannerWindowReference;
-import org.apache.flink.table.planner.expressions.PlannerWindowStart;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.expressions.SqlAggFunctionVisitor;
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
@@ -87,6 +81,12 @@ import org.apache.flink.table.planner.plan.schema.TypedFlinkTableFunction;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
+import org.apache.flink.table.runtime.groupwindow.ProctimeAttribute;
+import org.apache.flink.table.runtime.groupwindow.RowtimeAttribute;
+import org.apache.flink.table.runtime.groupwindow.WindowEnd;
+import org.apache.flink.table.runtime.groupwindow.WindowReference;
+import org.apache.flink.table.runtime.groupwindow.WindowStart;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
@@ -181,8 +181,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
             List<RexNode> groupings = convertToRexNodes(windowAggregate.getGroupingExpressions());
             LogicalWindow logicalWindow = toLogicalWindow(windowAggregate.getGroupWindow());
-            PlannerWindowReference windowReference = logicalWindow.aliasAttribute();
-            List<PlannerNamedWindowProperty> windowProperties =
+            WindowReference windowReference = logicalWindow.aliasAttribute();
+            List<NamedWindowProperty> windowProperties =
                     windowAggregate.getWindowPropertiesExpressions().stream()
                             .map(expr -> convertToWindowProperty(expr, windowReference))
                             .collect(toList());
@@ -192,8 +192,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                     .build();
         }
 
-        private PlannerNamedWindowProperty convertToWindowProperty(
-                Expression expression, PlannerWindowReference windowReference) {
+        private NamedWindowProperty convertToWindowProperty(
+                Expression expression, WindowReference windowReference) {
             Preconditions.checkArgument(
                     expression instanceof CallExpression, "This should never happened");
             CallExpression aliasExpr = (CallExpression) expression;
@@ -210,16 +210,13 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             CallExpression windowPropertyCallExpr = (CallExpression) windowPropertyExpr;
             FunctionDefinition fd = windowPropertyCallExpr.getFunctionDefinition();
             if (BuiltInFunctionDefinitions.WINDOW_START == fd) {
-                return new PlannerNamedWindowProperty(
-                        name, new PlannerWindowStart(windowReference));
+                return new NamedWindowProperty(name, new WindowStart(windowReference));
             } else if (BuiltInFunctionDefinitions.WINDOW_END == fd) {
-                return new PlannerNamedWindowProperty(name, new PlannerWindowEnd(windowReference));
+                return new NamedWindowProperty(name, new WindowEnd(windowReference));
             } else if (BuiltInFunctionDefinitions.PROCTIME == fd) {
-                return new PlannerNamedWindowProperty(
-                        name, new PlannerProctimeAttribute(windowReference));
+                return new NamedWindowProperty(name, new ProctimeAttribute(windowReference));
             } else if (BuiltInFunctionDefinitions.ROWTIME == fd) {
-                return new PlannerNamedWindowProperty(
-                        name, new PlannerRowtimeAttribute(windowReference));
+                return new NamedWindowProperty(name, new RowtimeAttribute(windowReference));
             } else {
                 throw new TableException("Invalid literal.");
             }
@@ -613,9 +610,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
         private LogicalWindow toLogicalWindow(ResolvedGroupWindow window) {
             DataType windowType = window.getTimeAttribute().getOutputDataType();
-            PlannerWindowReference windowReference =
-                    new PlannerWindowReference(
-                            window.getAlias(), fromDataToLogicalType(windowType));
+            WindowReference windowReference =
+                    new WindowReference(window.getAlias(), fromDataToLogicalType(windowType));
             switch (window.getType()) {
                 case SLIDE:
                     return new SlidingGroupWindow(

@@ -120,15 +120,16 @@ public class ExecutionConfigOptions {
                             "Determines how Flink enforces NOT NULL column constraints when inserting null values.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    public static final ConfigOption<CharLengthEnforcer> TABLE_EXEC_SINK_CHAR_LENGTH_ENFORCER =
-            key("table.exec.sink.char-length-enforcer")
-                    .enumType(CharLengthEnforcer.class)
-                    .defaultValue(CharLengthEnforcer.IGNORE)
+    public static final ConfigOption<TypeLengthEnforcer> TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER =
+            key("table.exec.sink.type-length-enforcer")
+                    .enumType(TypeLengthEnforcer.class)
+                    .defaultValue(TypeLengthEnforcer.IGNORE)
                     .withDescription(
-                            "Determines whether string values for columns with CHAR(<length>)/VARCHAR(<length>) "
-                                    + "types will be trimmed or padded (only for CHAR(<length>)), so that their "
-                                    + "length will match the one defined by the length of their respective "
-                                    + "CHAR/VARCHAR column type.");
+                            "Determines whether values for columns with CHAR(<length>)/VARCHAR(<length>)"
+                                    + "/BINARY(<length>)/VARBINARY(<length>) types will be trimmed or padded "
+                                    + "(only for CHAR(<length>)/BINARY(<length>)), so that their length "
+                                    + "will match the one defined by the length of their respective "
+                                    + "CHAR/VARCHAR/BINARY/VARBINARY column type.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<UpsertMaterialize> TABLE_EXEC_SINK_UPSERT_MATERIALIZE =
@@ -440,23 +441,23 @@ public class ExecutionConfigOptions {
     }
 
     /**
-     * The enforcer to guarantee that length of CHAR/VARCHAR columns is respected when writing data
-     * into sink.
+     * The enforcer to guarantee that length of CHAR/VARCHAR/BINARY/VARBINARY columns is respected
+     * when writing data into a sink.
      */
     @PublicEvolving
-    public enum CharLengthEnforcer implements DescribedEnum {
+    public enum TypeLengthEnforcer implements DescribedEnum {
         IGNORE(
                 text(
                         "Don't apply any trimming and padding, and instead "
-                                + "ignore the CHAR/VARCHAR length directive.")),
+                                + "ignore the CHAR/VARCHAR/BINARY/VARBINARY length directive.")),
         TRIM_PAD(
                 text(
-                        "Trim and pad string values to match the length "
-                                + "defined by the CHAR/VARCHAR length."));
+                        "Trim and pad string and binary values to match the length "
+                                + "defined by the CHAR/VARCHAR/BINARY/VARBINARY length."));
 
         private final InlineElement description;
 
-        CharLengthEnforcer(InlineElement description) {
+        TypeLengthEnforcer(InlineElement description) {
             this.description = description;
         }
 

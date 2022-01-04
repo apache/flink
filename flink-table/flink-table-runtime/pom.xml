@@ -37,9 +37,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<dependencies>
-
-		<!-- core dependencies -->
-
+		<!-- Table dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-common</artifactId>
@@ -64,27 +62,24 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
+		<!-- Flink dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-cep</artifactId>
 			<version>${project.version}</version>
-			<scope>provided</scope>
 		</dependency>
 
+		<!-- Java compiler -->
 		<dependency>
 			<groupId>org.codehaus.janino</groupId>
 			<artifactId>janino</artifactId>
-			<version>${janino.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.codehaus.janino</groupId>
+			<artifactId>commons-compiler</artifactId>
 		</dependency>
 
-		<!-- Jackson -->
+		<!-- JsonPath -->
 
 		<dependency>
 			<groupId>com.jayway.jsonpath</groupId>
@@ -92,7 +87,7 @@ under the License.
 			<version>${jsonpath.version}</version>
 		</dependency>
 
-		<!-- test dependencies -->
+		<!-- Test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -143,6 +138,7 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
+					<!-- Include runtime specific dependencies, janino and json-path. Jackson is packaged by flink distribution -->
 					<execution>
 						<id>shade-flink</id>
 						<phase>package</phase>
@@ -153,9 +149,12 @@ under the License.
 							<artifactSet>
 								<includes combine.children="append">
 									<include>com.jayway.jsonpath:json-path</include>
+									<include>org.codehaus.janino:*</include>
+									<include>org.apache.flink:flink-table-code-splitter</include>
 								</includes>
 							</artifactSet>
 							<relocations>
+								<!-- Make sure com.jayway and com.fasterxml relocations match the relocations in planner pom  -->
 								<relocation>
 									<pattern>com.jayway</pattern>
 									<shadedPattern>org.apache.flink.calcite.shaded.com.jayway</shadedPattern>

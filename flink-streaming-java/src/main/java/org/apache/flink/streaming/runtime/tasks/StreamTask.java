@@ -546,7 +546,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         PeriodTimer timer;
         CompletableFuture<?> resumeFuture;
         if (!recordWriter.isAvailable()) {
-            timer = new GaugePeriodTimer(ioMetrics.getBackPressuredTimePerSecond());
+            timer = new GaugePeriodTimer(ioMetrics.getSoftBackPressuredTimePerSecond());
             resumeFuture = recordWriter.getAvailableFuture();
         } else if (!inputProcessor.isAvailable()) {
             timer = new GaugePeriodTimer(ioMetrics.getIdleTimeMsPerSecond());

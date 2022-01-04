@@ -105,7 +105,7 @@ Connector Options
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The name of HBase table to connect.</td>
+      <td>The name of HBase table to connect. By default, the table is in 'default' namespace. To assign the table a specified namespace you need to use 'namespace:table'.</td>
     </tr>
     <tr>
       <td><h5>zookeeper.quorum</h5></td>

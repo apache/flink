@@ -614,7 +614,7 @@
         "e" : "BIGINT"
       } ]
     },
-    "description" : "Calc(select=[b AS a, CAST(w0$o0) AS b, CAST(CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER)) AS c, CAST(w0$o2) AS d, CASE((w0$o3 > 0:BIGINT), w0$o4, null:BIGINT) AS e])"
+    "description" : "Calc(select=[b AS a, CAST(w0$o0 AS BIGINT) AS b, CAST(CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS BIGINT) AS c, CAST(w0$o2 AS BIGINT) AS d, CASE((w0$o3 > 0), w0$o4, null:BIGINT) AS e])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {

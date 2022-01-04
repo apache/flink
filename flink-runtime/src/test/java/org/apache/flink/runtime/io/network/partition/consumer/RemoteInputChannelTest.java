@@ -1647,6 +1647,38 @@ public class RemoteInputChannelTest {
         assertInflightBufferSizes(channel, 2);
     }
 
+    @Test
+    public void testSizeOfQueuedBuffers() throws Exception {
+        int sequenceNumber = 0;
+        int bufferSize = 1;
+        int queueSize = 0;
+        final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
+        assertEquals(0, channel.unsynchronizedGetSizeOfQueuedBuffers());
+
+        // Receive a couple of buffers.
+        for (int i = 0; i < 2; i++) {
+            queueSize += bufferSize;
+            sendBuffer(channel, sequenceNumber++, bufferSize++);
+            assertEquals(queueSize, channel.unsynchronizedGetSizeOfQueuedBuffers());
+        }
+
+        // Receive the event.
+        queueSize +=
+                EventSerializer.toSerializedEvent(new CheckpointBarrier(1L, 123L, UNALIGNED))
+                        .remaining();
+        sendBarrier(channel, sequenceNumber++, UNALIGNED);
+        assertEquals(queueSize, channel.unsynchronizedGetSizeOfQueuedBuffers());
+
+        // Poll all received buffers.
+        for (int i = 0; i < 3; i++) {
+            Optional<BufferAndAvailability> nextBuffer = channel.getNextBuffer();
+            queueSize -= nextBuffer.get().buffer().getSize();
+            assertEquals(queueSize, channel.unsynchronizedGetSizeOfQueuedBuffers());
+        }
+
+        assertEquals(0, channel.unsynchronizedGetSizeOfQueuedBuffers());
+    }
+
     private void sendBarrier(
             RemoteInputChannel channel, int sequenceNumber, CheckpointOptions checkpointOptions)
             throws IOException {

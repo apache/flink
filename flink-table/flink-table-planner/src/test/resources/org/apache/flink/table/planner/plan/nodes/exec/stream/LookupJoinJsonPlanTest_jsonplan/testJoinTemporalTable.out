@@ -447,7 +447,7 @@
         "age" : "INT"
       } ]
     },
-    "description" : "Calc(select=[a, b, c, CAST(PROCTIME_MATERIALIZE(proctime)) AS proctime, CAST(rowtime) AS rowtime, id, name, age])"
+    "description" : "Calc(select=[a, b, c, CAST(PROCTIME_MATERIALIZE(proctime) AS TIMESTAMP(3)) AS proctime, CAST(rowtime AS TIMESTAMP(3)) AS rowtime, id, name, age])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {

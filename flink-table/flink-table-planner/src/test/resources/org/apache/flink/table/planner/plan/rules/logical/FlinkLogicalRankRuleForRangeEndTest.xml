@@ -113,7 +113,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, b, 2:BIGINT AS $2])
+FlinkLogicalCalc(select=[a, b, 2 AS $2])
 +- FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], select=[a, b, c])
    +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -258,7 +258,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, b, w0$o0], where=[>(CAST(b), 5:BIGINT)])
+FlinkLogicalCalc(select=[a, b, w0$o0], where=[>(CAST(b AS BIGINT), 5)])
 +- FlinkLogicalRank(rankType=[RANK], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[c ASC], select=[a, b, c, w0$o0])
    +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>

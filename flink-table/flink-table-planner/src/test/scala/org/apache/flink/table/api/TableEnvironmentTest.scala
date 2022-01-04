@@ -280,6 +280,43 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testAlterTableCompactOnNonManagedTable(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("ALTER TABLE COMPACT operation is not supported for " +
+          "non-managed table `default_catalog`.`default_database`.`MyTable`")
+    tableEnv.executeSql("alter table MyTable compact")
+  }
+
+  @Test
+  def testAlterTableCompactOnManagedTable(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |)
+      """.stripMargin
+      tableEnv.executeSql(statement)
+
+    assertEquals(ResultKind.SUCCESS,
+      tableEnv.executeSql("ALTER TABLE MyTable COMPACT").getResultKind)
+  }
+
+  @Test
   def testExecuteSqlWithCreateAlterDropTable(): Unit = {
     val createTableStmt =
       """
