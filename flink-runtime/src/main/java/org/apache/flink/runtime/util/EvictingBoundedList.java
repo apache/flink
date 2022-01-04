@@ -142,7 +142,14 @@ public class EvictingBoundedList<T> implements Iterable<T>, Serializable {
         return defaultElement;
     }
 
-    private boolean isDroppedIndex(int idx) {
+    /**
+     * True if the given index is no longer kept in the evicting list; otherwise false.
+     *
+     * @param idx index check wehther it has been dropped
+     * @return {@code true} iff the given index is no longer kept in the evicting list; otherwise
+     *     {@code false}.
+     */
+    public boolean isDroppedIndex(int idx) {
         return idx < count - elements.length;
     }
 
