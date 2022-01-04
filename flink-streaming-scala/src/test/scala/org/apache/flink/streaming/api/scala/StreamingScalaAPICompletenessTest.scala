@@ -66,6 +66,7 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.getCheckpointingMode",
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.isForceCheckpointing",
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.generateStreamGraph",
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.getTransformations",
 
 
       // TypeHints are only needed for Java API, Scala API doesn't need them

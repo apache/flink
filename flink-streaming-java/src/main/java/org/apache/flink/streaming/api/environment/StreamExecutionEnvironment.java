@@ -2499,4 +2499,9 @@ public class StreamExecutionEnvironment {
         }
         return (T) resolvedTypeInfo;
     }
+
+    @Internal
+    public List<Transformation<?>> getTransformations() {
+        return transformations;
+    }
 }
