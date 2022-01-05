@@ -126,6 +126,8 @@ public final class CatalogManager {
 
         private @Nullable ExecutionConfig executionConfig;
 
+        private @Nullable DataTypeFactory dataTypeFactory;
+
         public Builder classLoader(ClassLoader classLoader) {
             this.classLoader = classLoader;
             return this;
@@ -147,13 +149,20 @@ public final class CatalogManager {
             return this;
         }
 
+        public Builder dataTypeFactory(DataTypeFactory dataTypeFactory) {
+            this.dataTypeFactory = dataTypeFactory;
+            return this;
+        }
+
         public CatalogManager build() {
             checkNotNull(classLoader, "Class loader cannot be null");
             checkNotNull(config, "Config cannot be null");
             return new CatalogManager(
                     defaultCatalogName,
                     defaultCatalog,
-                    new DataTypeFactoryImpl(classLoader, config, executionConfig),
+                    dataTypeFactory != null
+                            ? dataTypeFactory
+                            : new DataTypeFactoryImpl(classLoader, config, executionConfig),
                     new ManagedTableListener(classLoader, config));
         }
     }
