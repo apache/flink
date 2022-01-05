@@ -104,7 +104,7 @@ MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="--no-snapshot-updates "
 # enable non-interactive batch mode
 MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-B "
 # globally control the build profile details
-MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="$PROFILE "
+MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="$PROFILE -U"
 
 export MVN_GLOBAL_OPTIONS="${MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR} "
 # use google mirror everywhere
