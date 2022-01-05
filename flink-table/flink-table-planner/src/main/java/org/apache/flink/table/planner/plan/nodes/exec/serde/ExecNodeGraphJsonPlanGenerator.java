@@ -37,12 +37,11 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.io.IOException;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -62,21 +61,14 @@ public class ExecNodeGraphJsonPlanGenerator {
     public static String generateJsonPlan(ExecNodeGraph execGraph, SerdeContext serdeCtx)
             throws IOException {
         validate(execGraph);
-
-        final StringWriter writer = new StringWriter(1024);
-        try (JsonGenerator gen =
-                JsonSerdeUtil.createObjectWriter(serdeCtx).getFactory().createGenerator(writer)) {
-            JsonPlanGraph jsonPlanGraph = JsonPlanGraph.fromExecNodeGraph(execGraph);
-            gen.writeObject(jsonPlanGraph);
-        }
-
-        return writer.toString();
+        final JsonPlanGraph jsonPlanGraph = JsonPlanGraph.fromExecNodeGraph(execGraph);
+        final ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
+        return objectWriter.writeValueAsString(jsonPlanGraph);
     }
 
     /** Generate {@link ExecNodeGraph} based on the given JSON plan. */
     public static ExecNodeGraph generateExecNodeGraph(String jsonPlan, SerdeContext serdeCtx)
             throws IOException {
-
         final JsonPlanGraph jsonPlanGraph =
                 JsonSerdeUtil.createObjectReader(serdeCtx).readValue(jsonPlan, JsonPlanGraph.class);
         return jsonPlanGraph.convertToExecNodeGraph(serdeCtx);

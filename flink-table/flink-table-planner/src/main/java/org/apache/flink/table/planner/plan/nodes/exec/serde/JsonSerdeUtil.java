@@ -23,6 +23,8 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.utils.ReflectionsUtil;
+import org.apache.flink.table.runtime.groupwindow.WindowReference;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -60,7 +62,10 @@ public class JsonSerdeUtil {
         return false;
     }
 
-    // Object mapper shared instance to serialize and deserialize the plan
+    /**
+     * Object mapper shared instance to serialize and deserialize the plan. Note that creating and
+     * copying of object mappers is expensive and should be avoided.
+     */
     private static final ObjectMapper OBJECT_MAPPER_INSTANCE;
 
     static {
@@ -108,6 +113,8 @@ public class JsonSerdeUtil {
         module.addSerializer(new ObjectIdentifierJsonSerializer());
         // LogicalTypeJsonSerializer is needed for RelDataType serialization
         module.addSerializer(new LogicalTypeJsonSerializer());
+        // DataTypeJsonSerializer is needed for LogicalType serialization
+        module.addSerializer(new DataTypeJsonSerializer());
         // RelDataTypeJsonSerializer is needed for RexNode serialization
         module.addSerializer(new RelDataTypeJsonSerializer());
         // RexNode is used in many exec nodes, so we register its serializer directly here
@@ -117,6 +124,7 @@ public class JsonSerdeUtil {
         module.addSerializer(new ChangelogModeJsonSerializer());
         module.addSerializer(new LogicalWindowJsonSerializer());
         module.addSerializer(new RexWindowBoundJsonSerializer());
+        module.addSerializer(new WindowReferenceJsonSerializer());
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -125,6 +133,8 @@ public class JsonSerdeUtil {
         module.addDeserializer(ObjectIdentifier.class, new ObjectIdentifierJsonDeserializer());
         // LogicalTypeJsonSerializer is needed for RelDataType serialization
         module.addDeserializer(LogicalType.class, new LogicalTypeJsonDeserializer());
+        // DataTypeJsonDeserializer is needed for LogicalType serialization
+        module.addDeserializer(DataType.class, new DataTypeJsonDeserializer());
         // RelDataTypeJsonSerializer is needed for RexNode serialization
         module.addDeserializer(RelDataType.class, new RelDataTypeJsonDeserializer());
         // RexNode is used in many exec nodes, so we register its deserializer directly here
@@ -137,6 +147,7 @@ public class JsonSerdeUtil {
         module.addDeserializer(ChangelogMode.class, new ChangelogModeJsonDeserializer());
         module.addDeserializer(LogicalWindow.class, new LogicalWindowJsonDeserializer());
         module.addDeserializer(RexWindowBound.class, new RexWindowBoundJsonDeserializer());
+        module.addDeserializer(WindowReference.class, new WindowReferenceJsonDeserializer());
     }
 
     private JsonSerdeUtil() {}

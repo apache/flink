@@ -70,9 +70,9 @@ public class LogicalWindowJsonDeserializer extends StdDeserializer<LogicalWindow
         JsonNode jsonNode = jsonParser.readValueAsTree();
         String kind = jsonNode.get(FIELD_NAME_KIND).asText().toUpperCase();
         WindowReference alias =
-                jsonParser
-                        .getCodec()
-                        .treeToValue(jsonNode.get(FIELD_NAME_ALIAS), WindowReference.class);
+                deserializationContext.readValue(
+                        jsonNode.get(FIELD_NAME_ALIAS).traverse(jsonParser.getCodec()),
+                        WindowReference.class);
         FieldReferenceExpression timeField =
                 deserializeFieldReferenceExpression(
                         jsonNode.get(FIELD_NAME_TIME_FIELD), jsonParser, deserializationContext);

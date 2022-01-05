@@ -31,10 +31,7 @@ import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.dataview.ListViewSpec;
 import org.apache.flink.table.runtime.dataview.MapViewSpec;
 import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
-import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.FieldsDataType;
-import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.inference.TypeTransformation;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RawType;
@@ -137,55 +134,16 @@ public final class DataViewUtils {
 
     // --------------------------------------------------------------------------------------------
 
-    public static boolean isDataView(LogicalType t, Class<? extends DataView> viewClass) {
+    private static String createStateId(int fieldIndex, String fieldName) {
+        return "agg" + fieldIndex + "$" + fieldName;
+    }
+
+    private static boolean isDataView(LogicalType t, Class<? extends DataView> viewClass) {
         return t.is(STRUCTURED_TYPE)
                 && ((StructuredType) t)
                         .getImplementationClass()
                         .map(viewClass::isAssignableFrom)
                         .orElse(false);
-    }
-
-    /**
-     * Check if the given data type represents a {@link ListView}. This method must be in sync with
-     * {@link ListView#newListViewDataType(DataType)}.
-     */
-    public static boolean isListViewDataType(DataType dataType) {
-        return dataType.getConversionClass().equals(ListView.class)
-                && dataType instanceof FieldsDataType
-                && dataType.getChildren().size() == 1
-                && dataType.getChildren().get(0) instanceof CollectionDataType;
-    }
-
-    public static DataType extractElementDataTypeForListView(DataType dataType) {
-        if (!isListViewDataType(dataType)) {
-            throw new TableException(
-                    "The given type: " + dataType + " is not the expected type for ListView.");
-        }
-        CollectionDataType collectionDataType = (CollectionDataType) dataType.getChildren().get(0);
-        return collectionDataType.getElementDataType();
-    }
-
-    /**
-     * Check if the given data type represents a {@link MapView}. This method must be in sync with
-     * {@link MapView#newMapViewDataType(DataType, DataType)}.
-     */
-    public static boolean isMapViewDataType(DataType dataType) {
-        return dataType.getConversionClass().equals(MapView.class)
-                && dataType instanceof FieldsDataType
-                && dataType.getChildren().size() == 1
-                && dataType.getChildren().get(0) instanceof KeyValueDataType;
-    }
-
-    public static KeyValueDataType extractKeyValueDataTypeForMapView(DataType dataType) {
-        if (!isMapViewDataType(dataType)) {
-            throw new TableException(
-                    "The given type: " + dataType + " is not the expected type for MapView.");
-        }
-        return (KeyValueDataType) dataType.getChildren().get(0);
-    }
-
-    private static String createStateId(int fieldIndex, String fieldName) {
-        return "agg" + fieldIndex + "$" + fieldName;
     }
 
     // --------------------------------------------------------------------------------------------

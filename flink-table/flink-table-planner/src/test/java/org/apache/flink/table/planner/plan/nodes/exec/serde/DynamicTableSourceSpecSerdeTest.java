@@ -49,7 +49,6 @@ import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
@@ -64,7 +63,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
@@ -100,11 +98,7 @@ public class DynamicTableSourceSpecSerdeTest {
         ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
         ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
 
-        StringWriter writer = new StringWriter(100);
-        try (JsonGenerator gen = objectWriter.getFactory().createGenerator(writer)) {
-            gen.writeObject(spec);
-        }
-        String json = writer.toString();
+        String json = objectWriter.writeValueAsString(spec);
         DynamicTableSourceSpec actual = objectReader.readValue(json, DynamicTableSourceSpec.class);
         assertEquals(spec, actual);
         assertNull(actual.getClassLoader());

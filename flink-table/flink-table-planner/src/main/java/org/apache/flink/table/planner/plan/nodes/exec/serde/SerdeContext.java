@@ -23,6 +23,8 @@ import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DatabindContext;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
 
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.sql.SqlOperatorTable;
@@ -51,6 +53,14 @@ public class SerdeContext {
         this.rexBuilder = new RexBuilder(typeFactory);
     }
 
+    /** Retrieve context from {@link SerializerProvider} and {@link DeserializationContext}. */
+    public static SerdeContext get(DatabindContext databindContext) {
+        final SerdeContext serdeContext =
+                (SerdeContext) databindContext.getAttribute(SERDE_CONTEXT_KEY);
+        assert serdeContext != null;
+        return serdeContext;
+    }
+
     public Configuration getConfiguration() {
         return flinkContext.getTableConfig().getConfiguration();
     }
@@ -73,9 +83,5 @@ public class SerdeContext {
 
     public RexBuilder getRexBuilder() {
         return rexBuilder;
-    }
-
-    public static SerdeContext get(DatabindContext databindContext) {
-        return (SerdeContext) databindContext.getAttribute(SERDE_CONTEXT_KEY);
     }
 }

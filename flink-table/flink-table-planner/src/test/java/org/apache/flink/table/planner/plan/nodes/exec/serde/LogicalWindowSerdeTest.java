@@ -34,6 +34,7 @@ import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
@@ -119,7 +120,7 @@ public class LogicalWindowSerdeTest {
                                 TableConfig.getDefault(),
                                 new ModuleManager(),
                                 null,
-                                null,
+                                CatalogManagerMocks.createEmptyCatalogManager(),
                                 null),
                         Thread.currentThread().getContextClassLoader(),
                         FlinkTypeFactory.INSTANCE(),
