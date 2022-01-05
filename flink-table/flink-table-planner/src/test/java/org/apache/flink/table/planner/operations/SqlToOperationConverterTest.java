@@ -1501,7 +1501,7 @@ public class SqlToOperationConverterTest {
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         Operation operation = parse(sql, planner, parser);
-        assertTrue(operation instanceof ExplainOperation);
+        assertThat(operation).isInstanceOf(ExplainOperation.class);
     }
 
     @Test
@@ -1514,7 +1514,7 @@ public class SqlToOperationConverterTest {
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         Operation operation = parse(sql, planner, parser);
-        assertTrue(operation instanceof GroupOperation);
+        assertThat(operation).isInstanceOf(GroupOperation.class);
     }
 
     @Test
@@ -1523,7 +1523,7 @@ public class SqlToOperationConverterTest {
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         Operation operation = parse(sql, planner, parser);
-        assertTrue(operation instanceof CatalogSinkModifyOperation);
+        assertThat(operation).isInstanceOf(CatalogSinkModifyOperation.class);
     }
 
     @Test
@@ -1532,7 +1532,7 @@ public class SqlToOperationConverterTest {
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         Operation operation = parse(sql, planner, parser);
-        assertTrue(operation instanceof QueryOperation);
+        assertThat(operation).isInstanceOf(QueryOperation.class);
     }
 
     @Test

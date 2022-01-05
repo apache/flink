@@ -18,12 +18,9 @@
 
 package org.apache.flink.table.api
 
-import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
@@ -37,7 +34,12 @@ import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperat
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
-import org.junit.Assert._
+
+import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.sql.SqlExplainLevel
+
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
@@ -179,8 +181,8 @@ class TableEnvironmentTest {
     statementSet.addInsertSql("insert into MySink select first from MyTable")
     val actual = statementSet.explain(ExplainDetail.JSON_EXECUTION_PLAN)
 
-    assertEquals(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(expected)),
-      TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
+    assertThat(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
+      .isEqualTo(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(expected)))
   }
 
   @Test
@@ -242,17 +244,13 @@ class TableEnvironmentTest {
         |)
       """.stripMargin
     tableEnv.executeSql(statementWithTypo)
-    try {
-      tableEnv.executeSql("explain plan for select * from MyTable where a > 10")
-      fail("Expected an exception")
-    } catch {
-      case t: Throwable =>
-        assertThat(t,
-          containsMessage("Unable to create a source for reading table " +
-            "'default_catalog.default_database.MyTable'.\n\n" +
-            "Table options are:\n\n'connector'='datagen'\n" +
-            "'invalid-key'='invalid-value'" ))
-    }
+    assertThatThrownBy(
+        () => tableEnv.executeSql("explain plan for select * from MyTable where a > 10"))
+      .hasMessageContaining("Unable to create a source for reading table " +
+      "'default_catalog.default_database.MyTable'.\n\n" +
+      "Table options are:\n\n'connector'='datagen'\n" +
+      "'invalid-key'='invalid-value'" )
+
     // remove invalid key by RESET
     val alterTableResetStatement = "ALTER TABLE MyTable RESET ('invalid-key')"
     val tableResult = tableEnv.executeSql(alterTableResetStatement)
@@ -766,15 +764,10 @@ class TableEnvironmentTest {
         |)
       """.stripMargin
 
-    try {
-      tableEnv.executeSql(statement1)
-      fail("Expected an exception")
-    } catch {
-      case t: Throwable =>
-        assertThat(t, containsMessage(
-          "Could not execute LOAD MODULE `Dummy` WITH ('dummy-version' = '1')."
-          + " Unable to create module 'Dummy'."))
-    }
+    assertThatThrownBy(() => tableEnv.executeSql(statement1))
+      .hasMessageContaining(
+        "Could not execute LOAD MODULE `Dummy` WITH ('dummy-version' = '1')."
+        + " Unable to create module 'Dummy'.")
 
     val statement2 =
       """

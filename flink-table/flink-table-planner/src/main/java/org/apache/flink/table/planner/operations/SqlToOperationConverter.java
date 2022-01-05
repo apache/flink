@@ -1039,8 +1039,6 @@ public class SqlToOperationConverter {
     /** Convert RICH EXPLAIN statement. */
     private Operation convertRichExplain(SqlRichExplain sqlExplain) {
         SqlNode sqlNode = sqlExplain.getStatement();
-        Set<String> explainDetails = sqlExplain.getExplainDetails();
-
         List<Operation> operations;
         if (sqlNode instanceof RichSqlInsert) {
             operations = Collections.singletonList(convertSqlInsert((RichSqlInsert) sqlNode));
@@ -1052,7 +1050,7 @@ public class SqlToOperationConverter {
             throw new ValidationException(
                     String.format("EXPLAIN statement doesn't support %s", sqlNode.getKind()));
         }
-        return new ExplainOperation(operations, explainDetails);
+        return new ExplainOperation(operations, sqlExplain.getExplainDetails());
     }
 
     /** Convert DESCRIBE [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier. */
