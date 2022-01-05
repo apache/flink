@@ -620,7 +620,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             logDetachedClusterInformation(applicationId, LOG);
         }
 
-        return YarnClusterClientProvider.of(appReportProvider, flinkConfiguration);
+        return YarnClusterClientProvider.of(appReportProvider, flinkConfiguration, applicationId);
     }
 
     private ClusterSpecification validateClusterResources(

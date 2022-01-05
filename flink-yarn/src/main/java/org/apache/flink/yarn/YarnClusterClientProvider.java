@@ -38,25 +38,30 @@ public class YarnClusterClientProvider implements ClusterClientProvider {
 
     private final Object lock = new Object();
 
-    private volatile ApplicationId applicationId;
-    private ApplicationReportProvider appReportProvider;
-    private Configuration flinkConf;
+    private final ApplicationId applicationId;
+    private final ApplicationReportProvider appReportProvider;
+    private final Configuration flinkConf;
+
+    private volatile boolean submissionFinished = false;
 
     private YarnClusterClientProvider(
-            ApplicationReportProvider applicationReportProvider, Configuration flinkConfiguration) {
+            ApplicationReportProvider applicationReportProvider,
+            Configuration flinkConfiguration,
+            ApplicationId applicationId) {
         this.appReportProvider = applicationReportProvider;
         this.flinkConf = flinkConfiguration;
+        this.applicationId = applicationId;
     }
 
     @Override
     public ClusterClient getClusterClient() {
         try {
-            if (applicationId != null) {
+            if (!submissionFinished) {
                 synchronized (lock) {
-                    if (applicationId != null) {
+                    if (!submissionFinished) {
                         ApplicationReport report = appReportProvider.waitTillSubmissionFinish();
-                        this.applicationId = report.getApplicationId();
                         setClusterEntrypointInfoToConfig(flinkConf, report);
+                        submissionFinished = true;
                     }
                 }
             }
@@ -68,7 +73,9 @@ public class YarnClusterClientProvider implements ClusterClientProvider {
 
     static YarnClusterClientProvider of(
             ApplicationReportProvider applicationReportProvider,
-            final Configuration flinkConfiguration) {
-        return new YarnClusterClientProvider(applicationReportProvider, flinkConfiguration);
+            final Configuration flinkConfiguration,
+            final ApplicationId applicationId) {
+        return new YarnClusterClientProvider(
+                applicationReportProvider, flinkConfiguration, applicationId);
     }
 }

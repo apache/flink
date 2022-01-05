@@ -27,11 +27,11 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 
 import java.io.IOException;
 
-/** Then implementation of ApplicationReportProvider. */
+/** The implementation of ApplicationReportProvider. */
 @Internal
 public class ApplicationReportProviderImpl implements ApplicationReportProvider {
-    private YarnClient yarnClient;
-    private ApplicationId appId;
+    private final YarnClient yarnClient;
+    private final ApplicationId appId;
 
     private ApplicationReportProviderImpl(YarnClient yarnClient, ApplicationId applicationId) {
         this.yarnClient = yarnClient;
@@ -44,7 +44,7 @@ public class ApplicationReportProviderImpl implements ApplicationReportProvider 
             return YarnClusterDescriptor.waitTillTargetState(
                     yarnClient, appId, YarnApplicationState.RUNNING);
         } catch (IOException e) {
-            throw new RuntimeException(
+            throw new Exception(
                     "Errors on getting YARN application report. Maybe application has finished.",
                     e);
         }
