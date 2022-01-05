@@ -700,7 +700,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                 startupMode,
                 specificStartupOffsets,
                 startupTimestampMillis,
-                false);
+                false,
+                -1);
     }
 
     private static KafkaDynamicSink createExpectedSink(

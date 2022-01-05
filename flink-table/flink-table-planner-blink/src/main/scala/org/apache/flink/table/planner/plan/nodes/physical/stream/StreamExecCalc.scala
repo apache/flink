@@ -19,14 +19,13 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
+import org.apache.flink.streaming.api.transformations.{LegacySourceTransformation, OneInputTransformation}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CalcCodeGenerator, CodeGeneratorContext}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
@@ -83,12 +82,17 @@ class StreamExecCalc(
       retainHeader = true,
       "StreamExecCalc"
     )
+    val parallelism = inputTransform match {
+      case _: LegacySourceTransformation[RowData] => -1
+      case _=> inputTransform.getParallelism
+    }
+
     val ret = new OneInputTransformation(
       inputTransform,
       getRelDetailedDescription,
       substituteStreamOperator,
       InternalTypeInfo.of(outputType),
-      inputTransform.getParallelism)
+      parallelism)
 
     if (inputsContainSingleton()) {
       ret.setParallelism(1)

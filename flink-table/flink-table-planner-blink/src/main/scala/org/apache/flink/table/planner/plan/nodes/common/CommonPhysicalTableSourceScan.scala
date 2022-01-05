@@ -28,11 +28,12 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelWriter
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.connector.ParallelismProvider
 
 import scala.collection.JavaConverters._
 
@@ -74,9 +75,19 @@ abstract class CommonPhysicalTableSourceScan(
     runtimeProvider match {
       case provider: SourceFunctionProvider =>
         val sourceFunction = provider.createSourceFunction()
-        env
+        val transformation = env
           .addSource(sourceFunction, name, outTypeInfo)
           .getTransformation
+        val parallelismOptional = runtimeProvider.asInstanceOf[ParallelismProvider].getParallelism
+        if (parallelismOptional.isPresent) {
+          val parallelismPassedIn = parallelismOptional.get().intValue()
+          if (parallelismPassedIn <= 0) {
+            throw new TableException(s"Table: $relOptTable configured source parallelism: " +
+              s"$parallelismPassedIn should not be less than zero or equal to zero")
+          }
+          transformation.setParallelism(parallelismPassedIn)
+        }
+        transformation
       case provider: InputFormatProvider =>
         val inputFormat = provider.createInputFormat()
         createInputFormatTransformation(env, inputFormat, name, outTypeInfo)
