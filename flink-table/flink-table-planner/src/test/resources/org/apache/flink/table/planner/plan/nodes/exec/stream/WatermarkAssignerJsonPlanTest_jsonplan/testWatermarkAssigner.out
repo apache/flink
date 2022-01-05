@@ -25,22 +25,7 @@
       }
     },
     "id" : 1,
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "BIGINT"
-      }, {
-        "b" : "INT"
-      }, {
-        "c" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      } ]
-    },
+    "outputType" : "ROW<`a` BIGINT, `b` INT, `c` TIMESTAMP(3)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, WatermarkTable]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
@@ -87,15 +72,16 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "a" : "BIGINT"
+        "name" : "a",
+        "fieldType" : "BIGINT"
       }, {
-        "b" : "INT"
+        "name" : "b",
+        "fieldType" : "INT"
       }, {
-        "c" : {
+        "name" : "c",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
@@ -132,15 +118,16 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "a" : "BIGINT"
+        "name" : "a",
+        "fieldType" : "BIGINT"
       }, {
-        "b" : "INT"
+        "name" : "b",
+        "fieldType" : "INT"
       }, {
-        "c" : {
+        "name" : "c",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }

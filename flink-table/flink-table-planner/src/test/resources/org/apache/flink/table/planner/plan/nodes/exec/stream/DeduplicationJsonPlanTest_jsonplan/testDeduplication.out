@@ -26,24 +26,7 @@
       }
     },
     "id" : 1,
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "order_id" : "BIGINT"
-      }, {
-        "user" : "VARCHAR(2147483647)"
-      }, {
-        "product" : "VARCHAR(2147483647)"
-      }, {
-        "order_time" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      } ]
-    },
+    "outputType" : "ROW<`order_id` BIGINT, `user` VARCHAR(2147483647), `product` VARCHAR(2147483647), `order_time` TIMESTAMP(3)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, srcValuesTable]], fields=[order_id, user, product, order_time])",
     "inputProperties" : [ ]
   }, {
@@ -104,22 +87,21 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "order_id" : "BIGINT"
+        "name" : "order_id",
+        "fieldType" : "BIGINT"
       }, {
-        "user" : "VARCHAR(2147483647)"
+        "name" : "user",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
-        "product" : "VARCHAR(2147483647)"
+        "name" : "product",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
-        "order_time" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
+        "name" : "order_time",
+        "fieldType" : "TIMESTAMP(3)"
       }, {
-        "$4" : {
+        "name" : "$4",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
@@ -141,22 +123,21 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "order_id" : "BIGINT"
+        "name" : "order_id",
+        "fieldType" : "BIGINT"
       }, {
-        "user" : "VARCHAR(2147483647)"
+        "name" : "user",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
-        "product" : "VARCHAR(2147483647)"
+        "name" : "product",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
-        "order_time" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
+        "name" : "order_time",
+        "fieldType" : "TIMESTAMP(3)"
       }, {
-        "$4" : {
+        "name" : "$4",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
@@ -181,22 +162,21 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "order_id" : "BIGINT"
+        "name" : "order_id",
+        "fieldType" : "BIGINT"
       }, {
-        "user" : "VARCHAR(2147483647)"
+        "name" : "user",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
-        "product" : "VARCHAR(2147483647)"
+        "name" : "product",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
-        "order_time" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
+        "name" : "order_time",
+        "fieldType" : "TIMESTAMP(3)"
       }, {
-        "$4" : {
+        "name" : "$4",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
@@ -248,24 +228,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "order_id" : "BIGINT"
-      }, {
-        "user" : "VARCHAR(2147483647)"
-      }, {
-        "product" : "VARCHAR(2147483647)"
-      }, {
-        "order_time" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      } ]
-    },
+    "outputType" : "ROW<`order_id` BIGINT, `user` VARCHAR(2147483647), `product` VARCHAR(2147483647), `order_time` TIMESTAMP(3)>",
     "description" : "Calc(select=[order_id, user, product, order_time])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -297,24 +260,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "order_id" : "BIGINT"
-      }, {
-        "user" : "VARCHAR(2147483647)"
-      }, {
-        "product" : "VARCHAR(2147483647)"
-      }, {
-        "order_time" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      } ]
-    },
+    "outputType" : "ROW<`order_id` BIGINT, `user` VARCHAR(2147483647), `product` VARCHAR(2147483647), `order_time` TIMESTAMP(3)>",
     "description" : "Sink(table=[default_catalog.default_database.sink], fields=[order_id, user, product, order_time])"
   } ],
   "edges" : [ {
