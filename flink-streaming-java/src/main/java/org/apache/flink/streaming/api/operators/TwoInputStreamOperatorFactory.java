@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * A factory to create {@link TwoInputStreamOperator}.
  *
@@ -25,4 +27,5 @@ package org.apache.flink.streaming.api.operators;
  * @param <IN2> The input type of the operator
  * @param <OUT> The output type of the operator
  */
+@PublicEvolving
 public interface TwoInputStreamOperatorFactory<IN1, IN2, OUT> extends StreamOperatorFactory<OUT> {}
