@@ -97,4 +97,10 @@ public class RowDataAssert extends AbstractAssert<RowDataAssert, RowData> {
                             return Objects.hashCode(x) < Objects.hashCode(y) ? -1 : 1;
                         });
     }
+
+    /** In order to execute this assertion, you need flink-table-runtime in the classpath. */
+    public RowAssert asRow(DataType dataType) {
+        return new RowAssert(
+                InternalDataUtils.resolveToExternalOrNull(dataType).apply(this.actual));
+    }
 }

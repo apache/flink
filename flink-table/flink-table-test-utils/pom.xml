@@ -30,7 +30,7 @@ under the License.
 	<artifactId>flink-table-test-utils</artifactId>
 	<name>Flink : Table : Test Utils</name>
 	<description>
-		This module contains test utilities for the Table API/SQL ecosystem.
+		This module contains test utilities for the Table API/SQL ecosystem for end users, connectors and formats.
 	</description>
 
 	<packaging>jar</packaging>
@@ -105,13 +105,8 @@ under the License.
 									<!-- Include from table-common test jar the assertions -->
 									<artifact>org.apache.flink:flink-table-common:tests</artifact>
 									<includes>
-										<include>org/apache/flink/table/test/**</include>
+										<include>org/apache/flink/table/test/*.java</include>
 									</includes>
-									<excludes>
-										<!-- These are manually overridden by this package -->
-										<exclude>org/apache/flink/table/test/RowDataAssert.Java</exclude>
-										<exclude>org/apache/flink/table/test/RowDataListAssert.Java</exclude>
-									</excludes>
 								</filter>
 							</filters>
 							<artifactSet>

@@ -22,8 +22,10 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.types.Row;
 
 import org.assertj.core.api.AbstractListAssert;
+import org.assertj.core.api.ListAssert;
 
 import java.util.List;
 import java.util.Objects;
@@ -68,5 +70,11 @@ public class RowDataListAssert
                     }
                     return Objects.hashCode(x) < Objects.hashCode(y) ? -1 : 1;
                 });
+    }
+
+    /** In order to execute this assertion, you need flink-table-runtime in the classpath. */
+    public ListAssert<Row> asRows(DataType dataType) {
+        return new ListAssert<>(
+                this.actual.stream().map(InternalDataUtils.resolveToExternalOrNull(dataType)));
     }
 }

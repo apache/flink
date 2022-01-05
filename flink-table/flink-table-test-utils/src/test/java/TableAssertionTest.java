@@ -21,6 +21,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.test.TableAssertions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
@@ -36,6 +37,7 @@ import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.test.TableAssertions.assertThat;
 import static org.apache.flink.table.test.TableAssertions.assertThatRows;
 
+/** Tests for {@link TableAssertions} assertions. */
 class TableAssertionTest {
 
     @Test

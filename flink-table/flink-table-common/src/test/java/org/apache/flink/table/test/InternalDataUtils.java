@@ -24,6 +24,7 @@ import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -31,9 +32,15 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.types.Row;
 
+import org.junit.jupiter.api.Assertions;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.function.Function;
 
 class InternalDataUtils {
 
@@ -115,5 +122,44 @@ class InternalDataUtils {
             newMap.put(key, value);
         }
         return new GenericMapData(newMap);
+    }
+
+    static Function<RowData, Row> resolveToExternalOrNull(DataType dataType) {
+        try {
+            // Create the converter
+            Method getConverter =
+                    Class.forName("org.apache.flink.table.data.conversion.DataStructureConverters")
+                            .getMethod("getConverter", DataType.class);
+            Object converter = getConverter.invoke(null, dataType);
+
+            // Open the converter
+            converter
+                    .getClass()
+                    .getMethod("open", ClassLoader.class)
+                    .invoke(converter, Thread.currentThread().getContextClassLoader());
+            Method toExternalOrNull =
+                    converter.getClass().getMethod("toExternalOrNull", Object.class);
+
+            // Return the lambda to invoke the converter
+            return rowData -> {
+                try {
+                    return (Row) toExternalOrNull.invoke(converter, rowData);
+                } catch (IllegalAccessException | InvocationTargetException e) {
+                    Assertions.fail(
+                            "Something went wrong when trying to use the DataStructureConverter from flink-table-runtime",
+                            e);
+                    return null; // For the compiler
+                }
+            };
+        } catch (ClassNotFoundException
+                | InvocationTargetException
+                | NoSuchMethodException
+                | IllegalAccessException e) {
+            Assertions.fail(
+                    "Error when trying to use the RowData to Row conversion. "
+                            + "Perhaps you miss flink-table-runtime in your test classpath?",
+                    e);
+            return null; // For the compiler
+        }
     }
 }
