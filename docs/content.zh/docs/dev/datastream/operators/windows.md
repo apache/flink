@@ -83,7 +83,7 @@ Trigger 还可以在 window 被创建后、删除前的这段时间内定义何�
 
 接下来我们会更详细地介绍上面提到的内容。开头的例子中有必填项和可选项。
 我们先从必填项开始（详见 [Keyed vs Non-Keyed Windows](#keyed-和-non-keyed-windows)、
-[Window Assigner](#window-assigners)、[Window Function](#窗口函数window-functions)）。
+[Window Assigners](#window-assigners)、[Window Functions](#窗口函数window-functions)）。
 
 ## Keyed 和 Non-Keyed Windows
 
