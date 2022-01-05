@@ -132,7 +132,7 @@ public class NetUtils {
      *     if SO_TIMEOUT is greater than 0, then this method will suppress SocketTimeoutException;
      *     must not be null; SO_TIMEOUT option must be set to 0
      * @return the new Socket
-     * @exception IOException see {@link ServerSocket#accept()}
+     * @throws IOException see {@link ServerSocket#accept()}
      * @see <a href="https://bugs.openjdk.java.net/browse/JDK-8237858">JDK-8237858</a>
      */
     public static Socket acceptWithoutTimeout(ServerSocket serverSocket) throws IOException {
@@ -158,12 +158,17 @@ public class NetUtils {
      *
      * @return A non-occupied port.
      */
-    public static int getAvailablePort() {
+    public static Port getAvailablePort() {
         for (int i = 0; i < 50; i++) {
             try (ServerSocket serverSocket = new ServerSocket(0)) {
                 int port = serverSocket.getLocalPort();
                 if (port != 0) {
-                    return port;
+                    FileLock fileLock = new FileLock(NetUtils.class.getName() + port);
+                    if (fileLock.tryLock()) {
+                        return new Port(port, fileLock);
+                    } else {
+                        fileLock.unlockAndDestroy();
+                    }
                 }
             } catch (IOException ignored) {
             }
@@ -497,5 +502,30 @@ public class NetUtils {
      */
     public static boolean isValidHostPort(int port) {
         return 0 <= port && port <= 65535;
+    }
+
+    /**
+     * Port wrapper class which holds a {@link FileLock} until it releases. Used to avoid race
+     * condition among multiple threads/processes.
+     */
+    public static class Port implements AutoCloseable {
+        private final int port;
+        private final FileLock fileLock;
+
+        public Port(int port, FileLock fileLock) throws IOException {
+            Preconditions.checkNotNull(fileLock, "FileLock should not be null");
+            Preconditions.checkState(fileLock.isValid(), "FileLock should be locked");
+            this.port = port;
+            this.fileLock = fileLock;
+        }
+
+        public int getPort() {
+            return port;
+        }
+
+        @Override
+        public void close() throws Exception {
+            fileLock.unlockAndDestroy();
+        }
     }
 }

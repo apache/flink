@@ -119,7 +119,10 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
         zookeeper = null;
         brokers.clear();
 
-        zookeeper = new TestingServer(-1, tmpZkDir);
+        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+            zookeeper = new TestingServer(port.getPort(), tmpZkDir);
+        }
+
         zookeeperConnectionString = zookeeper.getConnectString();
         LOG.info(
                 "Starting Zookeeper with zookeeperConnectionString: {}", zookeeperConnectionString);
@@ -427,22 +430,23 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
         final int numTries = 5;
 
         for (int i = 1; i <= numTries; i++) {
-            int kafkaPort = NetUtils.getAvailablePort();
-            kafkaProperties.put("port", Integer.toString(kafkaPort));
+            try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+                int kafkaPort = port.getPort();
+                kafkaProperties.put("port", Integer.toString(kafkaPort));
 
-            // to support secure kafka cluster
-            if (config.isSecureMode()) {
-                LOG.info("Adding Kafka secure configurations");
-                kafkaProperties.put(
-                        "listeners", "SASL_PLAINTEXT://" + KAFKA_HOST + ":" + kafkaPort);
-                kafkaProperties.put(
-                        "advertised.listeners", "SASL_PLAINTEXT://" + KAFKA_HOST + ":" + kafkaPort);
-                kafkaProperties.putAll(getSecureProperties());
-            }
+                // to support secure kafka cluster
+                if (config.isSecureMode()) {
+                    LOG.info("Adding Kafka secure configurations");
+                    kafkaProperties.put(
+                            "listeners", "SASL_PLAINTEXT://" + KAFKA_HOST + ":" + kafkaPort);
+                    kafkaProperties.put(
+                            "advertised.listeners",
+                            "SASL_PLAINTEXT://" + KAFKA_HOST + ":" + kafkaPort);
+                    kafkaProperties.putAll(getSecureProperties());
+                }
 
-            KafkaConfig kafkaConfig = new KafkaConfig(kafkaProperties);
+                KafkaConfig kafkaConfig = new KafkaConfig(kafkaProperties);
 
-            try {
                 scala.Option<String> stringNone = scala.Option.apply(null);
                 KafkaServer server = new KafkaServer(kafkaConfig, Time.SYSTEM, stringNone, false);
                 server.startup();

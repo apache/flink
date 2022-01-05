@@ -68,9 +68,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class JdbcOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementExecutor<JdbcIn>>
         extends RichOutputFormat<In> implements Flushable, InputTypeConfigurable {
 
-    public static final int DEFAULT_FLUSH_MAX_SIZE = 5000;
-    public static final long DEFAULT_FLUSH_INTERVAL_MILLS = 0L;
-
     protected final JdbcConnectionProvider connectionProvider;
     @Nullable private TypeSerializer<In> serializer;
 
