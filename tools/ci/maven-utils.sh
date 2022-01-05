@@ -97,8 +97,9 @@ set_mirror_config
 export MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR="$MAVEN_ARGS "
 # see https://developercommunity.visualstudio.com/content/problem/851041/microsoft-hosted-agents-run-into-maven-central-tim.html
 MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Dmaven.wagon.http.pool=false "
-# logging 
-MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn "
+# logging
+# -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn
+MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS  "
 # suppress snapshot updates
 MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="--no-snapshot-updates "
 # enable non-interactive batch mode
