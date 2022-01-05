@@ -18,11 +18,19 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.junit.Test;
+
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.util.Arrays;
 import java.util.Collection;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /** Test for (un)marshalling of the {@link ThreadDumpInfo}. */
 public class ThreadDumpInfoTest extends RestResponseMarshallingTestBase<ThreadDumpInfo> {
@@ -47,5 +55,45 @@ public class ThreadDumpInfoTest extends RestResponseMarshallingTestBase<ThreadDu
             ThreadDumpInfo expected, ThreadDumpInfo actual) {
         assertThat(
                 actual.getThreadInfos(), containsInAnyOrder(expected.getThreadInfos().toArray()));
+    }
+
+    @Test
+    public void testComparedWithDefaultJDKImplemetation() {
+        ThreadMXBean threadMxBean = ManagementFactory.getThreadMXBean();
+        ThreadInfo threadInfo =
+                threadMxBean.getThreadInfo(Thread.currentThread().getId(), Integer.MAX_VALUE);
+
+        // JDK11 has increased the output info of threadInfo.daemon and threadInfo.priority compared
+        // to JDK8, hence only compare the output of stacktrace content for compatibility.
+        String[] threadInfoLines = threadInfo.toString().split("\n");
+        String[] expected = Arrays.copyOfRange(threadInfoLines, 1, threadInfoLines.length);
+
+        String stringifyThreadInfo = ThreadDumpInfo.stringifyThreadInfo(threadInfo, 8);
+        String[] stringifyThreadInfoLines = stringifyThreadInfo.split("\n");
+        String[] stringified =
+                Arrays.copyOfRange(stringifyThreadInfoLines, 1, stringifyThreadInfoLines.length);
+
+        assertArrayEquals(expected, stringified);
+    }
+
+    @Test
+    public void testStacktraceDepthLimitation() {
+        ThreadMXBean threadMxBean = ManagementFactory.getThreadMXBean();
+        ThreadInfo threadInfo =
+                threadMxBean.getThreadInfo(Thread.currentThread().getId(), Integer.MAX_VALUE);
+
+        int expectedStacktraceDepth = threadInfo.getStackTrace().length;
+
+        String stringifiedInfo = ThreadDumpInfo.stringifyThreadInfo(threadInfo, Integer.MAX_VALUE);
+        assertEquals(expectedStacktraceDepth, getOutputDepth(stringifiedInfo));
+
+        String stringifiedInfoExceedMaxDepth =
+                ThreadDumpInfo.stringifyThreadInfo(threadInfo, expectedStacktraceDepth - 1);
+        assertEquals(expectedStacktraceDepth - 1, getOutputDepth(stringifiedInfoExceedMaxDepth));
+        assertTrue(stringifiedInfoExceedMaxDepth.contains("\t..."));
+    }
+
+    private long getOutputDepth(String stringifiedInfo) {
+        return Arrays.stream(stringifiedInfo.split("\n")).filter(x -> x.contains("\tat ")).count();
     }
 }

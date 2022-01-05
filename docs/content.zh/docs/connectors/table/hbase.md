@@ -105,7 +105,7 @@ ON myTopic.key = hTable.rowkey;
       <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>连接的 HBase 表名。</td>
+      <td>连接的 HBase 表名。默认该表在 "default" 命名空间下，指定命名空间下的表需要使用 "namespace:table"。</td>
     </tr>
     <tr>
       <td><h5>zookeeper.quorum</h5></td>

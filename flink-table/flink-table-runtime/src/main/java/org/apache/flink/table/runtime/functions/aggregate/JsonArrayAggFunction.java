@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.aggfunctions;
+package org.apache.flink.table.runtime.functions.aggregate;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
@@ -24,8 +24,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
-import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -47,7 +45,7 @@ import static org.apache.flink.table.runtime.functions.SqlJsonUtils.serializeJso
  * Implementation for {@link BuiltInFunctionDefinitions#JSON_ARRAYAGG_ABSENT_ON_NULL} / {@link
  * BuiltInFunctionDefinitions#JSON_ARRAYAGG_NULL_ON_NULL}.
  *
- * <p>Note that this function only ever receives strings to accumulate because {@link
+ * <p>Note that this function only ever receives strings to accumulate because {@code
  * WrapJsonAggFunctionArgumentsRule} wraps arguments into {@link
  * BuiltInFunctionDefinitions#JSON_STRING}.
  */
@@ -60,7 +58,7 @@ public class JsonArrayAggFunction
     /**
      * Marker that represents a {@code null} since {@link ListView} does not allow {@code null}s.
      *
-     * <p>Note that due to {@link WrapJsonAggFunctionArgumentsRule} and the fact that this function
+     * <p>Note that due to {@code WrapJsonAggFunctionArgumentsRule} and the fact that this function
      * already only receives JSON strings, this value cannot be created by the user and is thus safe
      * to use.
      */

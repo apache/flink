@@ -51,8 +51,12 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     private final Meter numRecordsOutRate;
     private final Meter numBuffersOutRate;
     private final TimerGauge idleTimePerSecond;
-    private final Gauge busyTimePerSecond;
-    private final TimerGauge backPressuredTimePerSecond;
+    private final Gauge<Double> busyTimePerSecond;
+    private final Gauge<Long> backPressuredTimePerSecond;
+    private final TimerGauge softBackPressuredTimePerSecond;
+    private final TimerGauge hardBackPressuredTimePerSecond;
+    private final Gauge<Long> maxSoftBackPressuredTime;
+    private final Gauge<Long> maxHardBackPressuredTime;
 
     private volatile boolean busyTimeEnabled;
 
@@ -79,8 +83,22 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
                 meter(MetricNames.IO_NUM_BUFFERS_OUT_RATE, new MeterView(numBuffersOut));
 
         this.idleTimePerSecond = gauge(MetricNames.TASK_IDLE_TIME, new TimerGauge());
+        this.softBackPressuredTimePerSecond =
+                gauge(MetricNames.TASK_SOFT_BACK_PRESSURED_TIME, new TimerGauge());
+        this.hardBackPressuredTimePerSecond =
+                gauge(MetricNames.TASK_HARD_BACK_PRESSURED_TIME, new TimerGauge());
         this.backPressuredTimePerSecond =
-                gauge(MetricNames.TASK_BACK_PRESSURED_TIME, new TimerGauge());
+                gauge(MetricNames.TASK_BACK_PRESSURED_TIME, this::getBackPressuredTimeMsPerSecond);
+
+        this.maxSoftBackPressuredTime =
+                gauge(
+                        MetricNames.TASK_MAX_SOFT_BACK_PRESSURED_TIME,
+                        softBackPressuredTimePerSecond::getMaxSingleMeasurement);
+        this.maxHardBackPressuredTime =
+                gauge(
+                        MetricNames.TASK_MAX_HARD_BACK_PRESSURED_TIME,
+                        hardBackPressuredTimePerSecond::getMaxSingleMeasurement);
+
         this.busyTimePerSecond = gauge(MetricNames.TASK_BUSY_TIME, this::getBusyTimePerSecond);
     }
 
@@ -121,8 +139,17 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         return idleTimePerSecond;
     }
 
-    public TimerGauge getBackPressuredTimePerSecond() {
-        return backPressuredTimePerSecond;
+    public TimerGauge getSoftBackPressuredTimePerSecond() {
+        return softBackPressuredTimePerSecond;
+    }
+
+    public TimerGauge getHardBackPressuredTimePerSecond() {
+        return hardBackPressuredTimePerSecond;
+    }
+
+    public long getBackPressuredTimeMsPerSecond() {
+        return getSoftBackPressuredTimePerSecond().getValue()
+                + getHardBackPressuredTimePerSecond().getValue();
     }
 
     public void setEnableBusyTime(boolean enabled) {
@@ -130,7 +157,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     }
 
     private double getBusyTimePerSecond() {
-        double busyTime = idleTimePerSecond.getValue() + backPressuredTimePerSecond.getValue();
+        double busyTime = idleTimePerSecond.getValue() + getBackPressuredTimeMsPerSecond();
         return busyTimeEnabled ? 1000.0 - Math.min(busyTime, 1000.0) : Double.NaN;
     }
 

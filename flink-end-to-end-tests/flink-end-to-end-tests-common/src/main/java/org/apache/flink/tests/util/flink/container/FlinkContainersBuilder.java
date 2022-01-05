@@ -26,7 +26,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 
-import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
@@ -165,13 +164,10 @@ public class FlinkContainersBuilder {
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
                 CHECKPOINT_PATH.toAbsolutePath().toUri().toString());
 
-        final List<Path> temporaryPaths = new ArrayList<>();
-
         // Create temporary directory for building Flink image
         final Path imageBuildingTempDir;
         try {
             imageBuildingTempDir = Files.createTempDirectory("flink-image-build");
-            temporaryPaths.add(imageBuildingTempDir);
         } catch (IOException e) {
             throw new RuntimeException("Failed to create temporary directory", e);
         }
@@ -185,22 +181,13 @@ public class FlinkContainersBuilder {
 
         // Mount HA storage to JobManager
         if (enableZookeeperHA) {
-            final Path haStorage =
-                    createTempDirAndMountToContainer("flink-recovery", HA_STORAGE_PATH, jobManager);
-            temporaryPaths.add(haStorage);
+            createTempDirAndMountToContainer("flink-recovery", HA_STORAGE_PATH, jobManager);
         }
 
         // Mount checkpoint storage to JobManager
-        final Path checkpointPath =
-                createTempDirAndMountToContainer("flink-checkpoint", CHECKPOINT_PATH, jobManager);
-        temporaryPaths.add(checkpointPath);
+        createTempDirAndMountToContainer("flink-checkpoint", CHECKPOINT_PATH, jobManager);
 
-        return new FlinkContainers(
-                jobManager,
-                taskManagers,
-                zookeeper,
-                conf,
-                () -> deleteTemporaryPaths(temporaryPaths));
+        return new FlinkContainers(jobManager, taskManagers, zookeeper, conf);
     }
 
     // --------------------------- Helper Functions -------------------------------------
@@ -292,30 +279,15 @@ public class FlinkContainersBuilder {
         conf.set(HighAvailabilityOptions.HA_STORAGE_PATH, HA_STORAGE_PATH.toUri().toString());
     }
 
-    private Path createTempDirAndMountToContainer(
+    private void createTempDirAndMountToContainer(
             String tempDirPrefix, Path containerPath, GenericContainer<?> container) {
         try {
             Path tempDirPath = Files.createTempDirectory(tempDirPrefix);
             container.withFileSystemBind(
                     tempDirPath.toAbsolutePath().toString(),
                     containerPath.toAbsolutePath().toString());
-            return tempDirPath;
         } catch (IOException e) {
             throw new IllegalStateException("Failed to create temporary recovery directory", e);
         }
-    }
-
-    private void deleteTemporaryPaths(List<Path> temporaryPaths) {
-        temporaryPaths.forEach(
-                (path) -> {
-                    try {
-                        FileUtils.deleteDirectory(path.toFile());
-                    } catch (IOException e) {
-                        throw new RuntimeException(
-                                String.format(
-                                        "Failed to delete path \"%s\"", path.toAbsolutePath()),
-                                e);
-                    }
-                });
     }
 }

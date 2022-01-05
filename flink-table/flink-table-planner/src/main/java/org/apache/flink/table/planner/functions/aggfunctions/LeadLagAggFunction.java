@@ -54,12 +54,12 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeL
  */
 public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 
-    private int operandCount;
+    private final int operandCount;
 
     // If the length of function's args is 3, then the function has the default value.
-    private boolean existDefaultValue;
+    private final boolean existDefaultValue;
 
-    private UnresolvedReferenceExpression value = unresolvedRef("leadlag");
+    private final UnresolvedReferenceExpression value = unresolvedRef("leadlag");
 
     public LeadLagAggFunction(int operandCount) {
         this.operandCount = operandCount;

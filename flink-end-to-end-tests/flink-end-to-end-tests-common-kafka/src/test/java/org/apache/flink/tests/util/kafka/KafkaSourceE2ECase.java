@@ -29,12 +29,10 @@ import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.flink.FlinkContainerTestEnvironment;
 import org.apache.flink.util.DockerImageVersions;
 
-import org.junit.jupiter.api.Disabled;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /** Kafka E2E test based on connector testing framework. */
-@Disabled("FLINK-25263")
 public class KafkaSourceE2ECase extends SourceTestSuiteBase<String> {
     private static final String KAFKA_HOSTNAME = "kafka";
 

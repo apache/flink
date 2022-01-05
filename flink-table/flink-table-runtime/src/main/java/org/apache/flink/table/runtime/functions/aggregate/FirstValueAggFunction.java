@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.aggfunctions;
+package org.apache.flink.table.runtime.functions.aggregate;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
@@ -24,7 +24,6 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
-import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -37,7 +36,7 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataTyp
 @Internal
 public final class FirstValueAggFunction<T> extends BuiltInAggregateFunction<T, RowData> {
 
-    private transient DataType valueDataType;
+    private final transient DataType valueDataType;
 
     public FirstValueAggFunction(LogicalType valueType) {
         this.valueDataType = toInternalDataType(valueType);

@@ -617,7 +617,6 @@ public class RescalingITCase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(parallelism);
         env.getConfig().setMaxParallelism(maxParallelism);
-        env.enableCheckpointing(Long.MAX_VALUE);
         env.setRestartStrategy(RestartStrategies.noRestart());
 
         StateSourceBase.workStartedLatch = new CountDownLatch(parallelism);

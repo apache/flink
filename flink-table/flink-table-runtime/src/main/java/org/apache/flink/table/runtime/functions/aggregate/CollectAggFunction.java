@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.aggfunctions;
+package org.apache.flink.table.runtime.functions.aggregate;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.MapData;
-import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -41,7 +40,7 @@ public final class CollectAggFunction<T>
 
     private static final long serialVersionUID = -5860934997657147836L;
 
-    private transient DataType elementDataType;
+    private final transient DataType elementDataType;
 
     public CollectAggFunction(LogicalType elementType) {
         this.elementDataType = toInternalDataType(elementType);

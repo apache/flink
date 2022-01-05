@@ -16,12 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.aggfunctions;
+package org.apache.flink.table.runtime.functions.aggregate;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.MapView;
-import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -32,17 +31,17 @@ import java.util.Objects;
 
 import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
 
-/** Built-in MAX with retraction aggregate function. */
+/** Built-in MIN with retraction aggregate function. */
 @Internal
-public final class MaxWithRetractAggFunction<T extends Comparable<T>>
+public final class MinWithRetractAggFunction<T extends Comparable<T>>
         extends BuiltInAggregateFunction<
-                T, MaxWithRetractAggFunction.MaxWithRetractAccumulator<T>> {
+                T, MinWithRetractAggFunction.MinWithRetractAccumulator<T>> {
 
-    private static final long serialVersionUID = -5860934997657147836L;
+    private static final long serialVersionUID = 4253774292802374843L;
 
-    private transient DataType valueDataType;
+    private final transient DataType valueDataType;
 
-    public MaxWithRetractAggFunction(LogicalType valueType) {
+    public MinWithRetractAggFunction(LogicalType valueType) {
         this.valueDataType = toInternalDataType(valueType);
     }
 
@@ -58,8 +57,8 @@ public final class MaxWithRetractAggFunction<T extends Comparable<T>>
     @Override
     public DataType getAccumulatorDataType() {
         return DataTypes.STRUCTURED(
-                MaxWithRetractAccumulator.class,
-                DataTypes.FIELD("max", valueDataType.nullable()),
+                MinWithRetractAccumulator.class,
+                DataTypes.FIELD("min", valueDataType.nullable()),
                 DataTypes.FIELD("mapSize", DataTypes.BIGINT()),
                 DataTypes.FIELD(
                         "map",
@@ -75,9 +74,9 @@ public final class MaxWithRetractAggFunction<T extends Comparable<T>>
     // Runtime
     // --------------------------------------------------------------------------------------------
 
-    /** Accumulator for MAX with retraction. */
-    public static class MaxWithRetractAccumulator<T> {
-        public T max;
+    /** Accumulator for MIN with retraction. */
+    public static class MinWithRetractAccumulator<T> {
+        public T min;
         public Long mapSize;
         public MapView<T, Long> map;
 
@@ -86,34 +85,34 @@ public final class MaxWithRetractAggFunction<T extends Comparable<T>>
             if (this == o) {
                 return true;
             }
-            if (!(o instanceof MaxWithRetractAccumulator)) {
+            if (!(o instanceof MinWithRetractAccumulator)) {
                 return false;
             }
-            MaxWithRetractAccumulator<?> that = (MaxWithRetractAccumulator<?>) o;
-            return Objects.equals(max, that.max)
+            MinWithRetractAccumulator<?> that = (MinWithRetractAccumulator<?>) o;
+            return Objects.equals(min, that.min)
                     && Objects.equals(mapSize, that.mapSize)
                     && Objects.equals(map, that.map);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(max, mapSize, map);
+            return Objects.hash(min, mapSize, map);
         }
     }
 
     @Override
-    public MaxWithRetractAccumulator<T> createAccumulator() {
-        final MaxWithRetractAccumulator<T> acc = new MaxWithRetractAccumulator<>();
-        acc.max = null;
+    public MinWithRetractAccumulator<T> createAccumulator() {
+        final MinWithRetractAccumulator<T> acc = new MinWithRetractAccumulator<>();
+        acc.min = null;
         acc.mapSize = 0L;
         acc.map = new MapView<>();
         return acc;
     }
 
-    public void accumulate(MaxWithRetractAccumulator<T> acc, T value) throws Exception {
+    public void accumulate(MinWithRetractAccumulator<T> acc, T value) throws Exception {
         if (value != null) {
-            if (acc.mapSize == 0L || acc.max.compareTo(value) < 0) {
-                acc.max = value;
+            if (acc.mapSize == 0L || acc.min.compareTo(value) > 0) {
+                acc.min = value;
             }
 
             Long count = acc.map.get(value);
@@ -135,7 +134,7 @@ public final class MaxWithRetractAggFunction<T extends Comparable<T>>
         }
     }
 
-    public void retract(MaxWithRetractAccumulator<T> acc, T value) throws Exception {
+    public void retract(MinWithRetractAccumulator<T> acc, T value) throws Exception {
         if (value != null) {
             Long count = acc.map.get(value);
             if (count == null) {
@@ -147,16 +146,16 @@ public final class MaxWithRetractAggFunction<T extends Comparable<T>>
                 acc.map.remove(value);
                 acc.mapSize -= 1L;
 
-                // if the total count is 0, we could just simply set the f0(max) to the initial
+                // if the total count is 0, we could just simply set the f0(min) to the initial
                 // value
                 if (acc.mapSize == 0) {
-                    acc.max = null;
+                    acc.min = null;
                     return;
                 }
-                // if v is the current max value, we have to iterate the map to find the 2nd biggest
-                // value to replace v as the max value
-                if (value.equals(acc.max)) {
-                    updateMax(acc);
+                // if v is the current min value, we have to iterate the map to find the 2nd biggest
+                // value to replace v as the min value
+                if (value.equals(acc.min)) {
+                    updateMin(acc);
                 }
             } else {
                 // store it when count is NOT zero
@@ -166,32 +165,32 @@ public final class MaxWithRetractAggFunction<T extends Comparable<T>>
         }
     }
 
-    private void updateMax(MaxWithRetractAccumulator<T> acc) throws Exception {
-        boolean hasMax = false;
+    private void updateMin(MinWithRetractAccumulator<T> acc) throws Exception {
+        boolean hasMin = false;
         for (T key : acc.map.keys()) {
-            if (!hasMax || acc.max.compareTo(key) < 0) {
-                acc.max = key;
-                hasMax = true;
+            if (!hasMin || acc.min.compareTo(key) > 0) {
+                acc.min = key;
+                hasMin = true;
             }
         }
         // The behavior of deleting expired data in the state backend is uncertain.
         // so `mapSize` data may exist, while `map` data may have been deleted
         // when both of them are expired.
-        if (!hasMax) {
+        if (!hasMin) {
             acc.mapSize = 0L;
-            // we should also override max value, because it may have an old value.
-            acc.max = null;
+            // we should also override min value, because it may have an old value.
+            acc.min = null;
         }
     }
 
-    public void merge(MaxWithRetractAccumulator<T> acc, Iterable<MaxWithRetractAccumulator<T>> its)
+    public void merge(MinWithRetractAccumulator<T> acc, Iterable<MinWithRetractAccumulator<T>> its)
             throws Exception {
-        boolean needUpdateMax = false;
-        for (MaxWithRetractAccumulator<T> a : its) {
-            // set max element
+        boolean needUpdateMin = false;
+        for (MinWithRetractAccumulator<T> a : its) {
+            // set min element
             if (acc.mapSize == 0
-                    || (a.mapSize > 0 && a.max != null && acc.max.compareTo(a.max) < 0)) {
-                acc.max = a.max;
+                    || (a.mapSize > 0 && a.min != null && acc.min.compareTo(a.min) > 0)) {
+                acc.min = a.min;
             }
             // merge the count for each key
             for (Map.Entry<T, Long> entry : a.map.entries()) {
@@ -208,8 +207,8 @@ public final class MaxWithRetractAggFunction<T extends Comparable<T>>
                     if (thisCount > 0) {
                         // origin is > 0, and retract to 0
                         acc.mapSize -= 1;
-                        if (key.equals(acc.max)) {
-                            needUpdateMax = true;
+                        if (key.equals(acc.min)) {
+                            needUpdateMin = true;
                         }
                     }
                 } else if (mergedCount < 0) {
@@ -217,8 +216,8 @@ public final class MaxWithRetractAggFunction<T extends Comparable<T>>
                     if (thisCount > 0) {
                         // origin is > 0, and retract to < 0
                         acc.mapSize -= 1;
-                        if (key.equals(acc.max)) {
-                            needUpdateMax = true;
+                        if (key.equals(acc.min)) {
+                            needUpdateMin = true;
                         }
                     }
                 } else { // mergedCount > 0
@@ -230,21 +229,21 @@ public final class MaxWithRetractAggFunction<T extends Comparable<T>>
                 }
             }
         }
-        if (needUpdateMax) {
-            updateMax(acc);
+        if (needUpdateMin) {
+            updateMin(acc);
         }
     }
 
-    public void resetAccumulator(MaxWithRetractAccumulator<T> acc) {
-        acc.max = null;
+    public void resetAccumulator(MinWithRetractAccumulator<T> acc) {
+        acc.min = null;
         acc.mapSize = 0L;
         acc.map.clear();
     }
 
     @Override
-    public T getValue(MaxWithRetractAccumulator<T> acc) {
+    public T getValue(MinWithRetractAccumulator<T> acc) {
         if (acc.mapSize > 0) {
-            return acc.max;
+            return acc.min;
         } else {
             return null;
         }

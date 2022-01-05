@@ -56,12 +56,10 @@ public abstract class FencedRpcEndpoint<F extends Serializable> extends RpcEndpo
         this.fencingToken = fencingToken;
         this.unfencedMainThreadExecutor =
                 new UnfencedMainThreadExecutor((FencedMainThreadExecutable) rpcServer);
-
-        MainThreadExecutable mainThreadExecutable =
-                getRpcService().fenceRpcServer(rpcServer, fencingToken);
         this.fencedMainThreadExecutor =
                 new MainThreadExecutor(
-                        mainThreadExecutable, this::validateRunsInMainThread, endpointId);
+                        getRpcService().fenceRpcServer(rpcServer, fencingToken),
+                        this::validateRunsInMainThread);
     }
 
     protected FencedRpcEndpoint(RpcService rpcService, @Nullable F fencingToken) {
@@ -83,12 +81,8 @@ public abstract class FencedRpcEndpoint<F extends Serializable> extends RpcEndpo
         MainThreadExecutable mainThreadExecutable =
                 getRpcService().fenceRpcServer(rpcServer, newFencingToken);
 
-        if (this.fencedMainThreadExecutor != null) {
-            this.fencedMainThreadExecutor.close();
-        }
         this.fencedMainThreadExecutor =
-                new MainThreadExecutor(
-                        mainThreadExecutable, this::validateRunsInMainThread, getEndpointId());
+                new MainThreadExecutor(mainThreadExecutable, this::validateRunsInMainThread);
     }
 
     /**
@@ -146,19 +140,6 @@ public abstract class FencedRpcEndpoint<F extends Serializable> extends RpcEndpo
             throw new RuntimeException(
                     "FencedRpcEndpoint has not been started with a FencedMainThreadExecutable RpcServer.");
         }
-    }
-
-    /**
-     * Close the closable scheduled executor in {@link FencedRpcEndpoint} here.
-     *
-     * @return Future containing the onStop result.
-     */
-    @Override
-    protected CompletableFuture<Void> onStop() {
-        if (fencedMainThreadExecutor != null) {
-            fencedMainThreadExecutor.close();
-        }
-        return super.onStop();
     }
 
     // ------------------------------------------------------------------------

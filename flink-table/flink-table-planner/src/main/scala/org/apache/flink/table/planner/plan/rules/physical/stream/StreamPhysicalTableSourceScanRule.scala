@@ -90,7 +90,9 @@ class StreamPhysicalTableSourceScanRule
         scan.getCluster,
         traitSet,
         newInput,
-        primaryKeyIndices)
+        primaryKeyIndices,
+        table.tableIdentifier,
+        table.catalogTable)
     } else {
       newScan
     }

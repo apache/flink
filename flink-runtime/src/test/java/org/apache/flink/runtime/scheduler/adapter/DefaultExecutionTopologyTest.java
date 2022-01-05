@@ -233,16 +233,10 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 
             assertPartitionEquals(originalPartition, adaptedPartition);
 
-            List<ExecutionVertexID> originalConsumerIds = new ArrayList<>();
-            for (ConsumerVertexGroup consumerVertexGroup :
-                    originalPartition.getConsumerVertexGroups()) {
-                for (ExecutionVertexID executionVertexId : consumerVertexGroup) {
-                    originalConsumerIds.add(executionVertexId);
-                }
-            }
-            Iterable<DefaultExecutionVertex> adaptedConsumers = adaptedPartition.getConsumers();
-
-            for (ExecutionVertexID originalId : originalConsumerIds) {
+            ConsumerVertexGroup consumerVertexGroup = originalPartition.getConsumerVertexGroup();
+            Iterable<ExecutionVertexID> adaptedConsumers =
+                    adaptedPartition.getConsumerVertexGroup();
+            for (ExecutionVertexID originalId : consumerVertexGroup) {
                 // it is sufficient to verify that some vertex exists with the correct ID here,
                 // since deep equality is verified later in the main loop
                 // this DOES rely on an implicit assumption that the vertices objects returned by
@@ -250,9 +244,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
                 // identical to those stored in the partition
                 assertTrue(
                         IterableUtils.toStream(adaptedConsumers)
-                                .anyMatch(
-                                        adaptedConsumer ->
-                                                adaptedConsumer.getId().equals(originalId)));
+                                .anyMatch(adaptedConsumer -> adaptedConsumer.equals(originalId)));
             }
         }
     }

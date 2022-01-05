@@ -21,6 +21,12 @@
             <td>Whether processes should halt on fatal errors instead of performing a graceful shutdown. In some environments (e.g. Java 8 with the G1 garbage collector), a regular graceful shutdown can lead to a JVM deadlock. See <a href="https://issues.apache.org/jira/browse/FLINK-16510">FLINK-16510</a> for details.</td>
         </tr>
         <tr>
+            <td><h5>cluster.thread-dump.stacktrace-max-depth</h5></td>
+            <td style="word-wrap: break-word;">8</td>
+            <td>Integer</td>
+            <td>The maximum stacktrace depth of TaskManager and JobManager's thread dump web-frontend displayed.</td>
+        </tr>
+        <tr>
             <td><h5>cluster.uncaught-exception-handling</h5></td>
             <td style="word-wrap: break-word;">LOG</td>
             <td><p>Enum</p></td>

@@ -32,7 +32,8 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
 
 /** built-in count aggregate function. */
 public class CountAggFunction extends DeclarativeAggregateFunction {
-    private UnresolvedReferenceExpression count = unresolvedRef("count");
+
+    private final UnresolvedReferenceExpression count = unresolvedRef("count");
 
     @Override
     public int operandCount() {

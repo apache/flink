@@ -34,10 +34,11 @@ import java.util.Optional;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /**
- * Type strategy that returns the result decimal addition used, internally by {@code SumAggFunction}
- * to implement SUM aggregation on a Decimal type. Uses the {@link
- * LogicalTypeMerging#findSumAggType(LogicalType)} and prevents the {@link DecimalPlusTypeStrategy}
- * from overriding the special calculation for precision and scale needed by SUM.
+ * Type strategy that returns the result type of a decimal addition, used internally for
+ * implementing SUM/AVG aggregations (with and without retractions) on a Decimal type. Uses the
+ * {@link LogicalTypeMerging#findSumAggType(LogicalType)} and prevents the {@link
+ * DecimalPlusTypeStrategy} from overriding the special calculation for precision and scale needed
+ * by the aggregate function.
  */
 @Internal
 class AggDecimalPlusTypeStrategy implements TypeStrategy {

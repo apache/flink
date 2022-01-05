@@ -27,12 +27,11 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-table-uber_${scala.binary.version}</artifactId>
-	<name>Flink : Table : Uber</name>
+	<artifactId>flink-table-api-java-uber</artifactId>
+	<name>Flink : Table : API Java Uber</name>
 	<description>
-		This module contains the entire Table/SQL distribution for writing table programs
-		within the table ecosystem or between other Flink APIs. Users can either use the
-		Scala or Java programming language.
+		This module contains all the Java APIs of the Table/SQL ecosystem for writing table programs
+		within the table ecosystem or between other Flink APIs.
 	</description>
 
 	<packaging>jar</packaging>
@@ -45,22 +44,7 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-parser</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-parser-hive</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-java</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
@@ -71,26 +55,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-java-bridge</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-runtime</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-cep</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
@@ -109,18 +73,25 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<filters combine.children="append">
+								<filter>
+									<artifact>com.ibm.icu:icu4j</artifact>
+									<excludes>
+										<!-- com.ibm.icu:icu4j includes a LICENSE file in its root folder -->
+										<exclude>LICENSE</exclude>
+									</excludes>
+								</filter>
+							</filters>
 							<artifactSet>
 								<includes combine.children="append">
-									<!--Sql parser is included in planners-->
+									<!-- Table API modules -->
 									<include>org.apache.flink:flink-table-common</include>
 									<include>org.apache.flink:flink-table-api-java</include>
-									<include>org.apache.flink:flink-table-api-scala_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-table-api-bridge-base</include>
 									<include>org.apache.flink:flink-table-api-java-bridge</include>
-									<include>org.apache.flink:flink-table-api-scala-bridge_${scala.binary.version}</include>
-									<include>org.apache.flink:flink-table-planner_${scala.binary.version}</include>
-									<include>org.apache.flink:flink-table-runtime</include>
-									<include>org.apache.flink:flink-cep</include>
+
+									<!-- Tools to unify display format for different languages -->
+									<include>com.ibm.icu:icu4j</include>
 								</includes>
 							</artifactSet>
 							<relocations>

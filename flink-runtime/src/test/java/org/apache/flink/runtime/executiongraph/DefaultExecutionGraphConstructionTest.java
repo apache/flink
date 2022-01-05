@@ -26,7 +26,6 @@ import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -46,8 +45,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -153,72 +150,6 @@ public class DefaultExecutionGraphConstructionTest {
             fail("Job failed with exception: " + e.getMessage());
         }
 
-        verifyTestGraph(eg, v1, v2, v3, v4, v5);
-    }
-
-    @Test
-    public void testAttachViaDataSets() throws Exception {
-        // construct part one of the execution graph
-        JobVertex v1 = new JobVertex("vertex1");
-        JobVertex v2 = new JobVertex("vertex2");
-        JobVertex v3 = new JobVertex("vertex3");
-
-        v1.setParallelism(5);
-        v2.setParallelism(7);
-        v3.setParallelism(2);
-
-        v1.setInvokableClass(AbstractInvokable.class);
-        v2.setInvokableClass(AbstractInvokable.class);
-        v3.setInvokableClass(AbstractInvokable.class);
-
-        // this creates an intermediate result for v1
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-
-        // create results for v2 and v3
-        IntermediateDataSet v2result = v2.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
-        IntermediateDataSet v3Result1 = v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
-        IntermediateDataSet v3Result2 = v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
-
-        JobVertex v4 = new JobVertex("vertex4");
-        JobVertex v5 = new JobVertex("vertex5");
-        v4.setParallelism(11);
-        v5.setParallelism(4);
-
-        v4.setInvokableClass(AbstractInvokable.class);
-        v5.setInvokableClass(AbstractInvokable.class);
-
-        v4.connectDataSetAsInput(v2result, DistributionPattern.ALL_TO_ALL);
-        v4.connectDataSetAsInput(v3Result1, DistributionPattern.ALL_TO_ALL);
-        v5.connectNewDataSetAsInput(
-                v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        v5.connectDataSetAsInput(v3Result2, DistributionPattern.ALL_TO_ALL);
-
-        List<JobVertex> ordered = Arrays.asList(v1, v2, v3);
-
-        List<JobVertex> ordered2 = Arrays.asList(v4, v5);
-
-        ExecutionGraph eg =
-                createDefaultExecutionGraph(
-                        Stream.concat(ordered.stream(), ordered2.stream())
-                                .collect(Collectors.toList()));
-        try {
-            eg.attachJobGraph(ordered);
-        } catch (JobException e) {
-            e.printStackTrace();
-            fail("Job failed with exception: " + e.getMessage());
-        }
-
-        // attach the second part of the graph
-
-        try {
-            eg.attachJobGraph(ordered2);
-        } catch (JobException e) {
-            e.printStackTrace();
-            fail("Job failed with exception: " + e.getMessage());
-        }
-
-        // verify
         verifyTestGraph(eg, v1, v2, v3, v4, v5);
     }
 
@@ -349,38 +280,6 @@ public class DefaultExecutionGraphConstructionTest {
 
             assertEquals(assigner1, eg.getAllVertices().get(v3.getID()).getSplitAssigner());
             assertEquals(assigner2, eg.getAllVertices().get(v5.getID()).getSplitAssigner());
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
-    }
-
-    @Test
-    public void testMoreThanOneConsumerForIntermediateResult() {
-        try {
-            JobVertex v1 = new JobVertex("vertex1");
-            JobVertex v2 = new JobVertex("vertex2");
-            JobVertex v3 = new JobVertex("vertex3");
-
-            v1.setParallelism(5);
-            v2.setParallelism(7);
-            v3.setParallelism(2);
-
-            IntermediateDataSet result =
-                    v1.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
-            v2.connectDataSetAsInput(result, DistributionPattern.ALL_TO_ALL);
-            v3.connectDataSetAsInput(result, DistributionPattern.ALL_TO_ALL);
-
-            List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
-
-            ExecutionGraph eg = createDefaultExecutionGraph(ordered);
-
-            try {
-                eg.attachJobGraph(ordered);
-                fail("Should not be possible");
-            } catch (RuntimeException e) {
-                // expected
-            }
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
