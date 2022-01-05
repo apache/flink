@@ -34,8 +34,8 @@ import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
@@ -50,7 +50,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -61,7 +60,7 @@ import static org.junit.Assert.assertSame;
 
 /** Tests for serialization/deserialization of {@link RelDataType}. */
 @RunWith(Parameterized.class)
-public class RelDataTypeSerdeTest {
+public class RelDataTypeJsonSerdeTest {
     private static final FlinkTypeFactory FACTORY = FlinkTypeFactory.INSTANCE();
 
     @Parameterized.Parameters(name = "type = {0}")
@@ -197,7 +196,7 @@ public class RelDataTypeSerdeTest {
                         FACTORY.createFieldTypeFromLogicalType(
                                 StructuredType.newBuilder(
                                                 ObjectIdentifier.of("cat", "db", "structuredType"),
-                                                LogicalTypeSerdeTest.PojoClass.class)
+                                                DataTypeJsonSerdeTest.PojoClass.class)
                                         .attributes(
                                                 Arrays.asList(
                                                         new StructuredType.StructuredAttribute(
@@ -265,7 +264,7 @@ public class RelDataTypeSerdeTest {
                                 TableConfig.getDefault(),
                                 new ModuleManager(),
                                 null,
-                                null,
+                                CatalogManagerMocks.createEmptyCatalogManager(),
                                 null),
                         Thread.currentThread().getContextClassLoader(),
                         FlinkTypeFactory.INSTANCE(),
@@ -273,12 +272,8 @@ public class RelDataTypeSerdeTest {
         ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
         ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
 
-        StringWriter writer = new StringWriter(100);
-        try (JsonGenerator gen = objectWriter.getFactory().createGenerator(writer)) {
-            gen.writeObject(relDataType);
-        }
+        final String json = objectWriter.writeValueAsString(relDataType);
 
-        String json = writer.toString();
         RelDataType actual = objectReader.readValue(json, RelDataType.class);
         // type system will fill the default precision if the precision is not defined
         if (relDataType.toString().equals("DECIMAL")) {

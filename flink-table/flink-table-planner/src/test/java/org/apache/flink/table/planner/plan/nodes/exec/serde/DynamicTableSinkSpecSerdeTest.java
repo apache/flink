@@ -43,7 +43,6 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
@@ -52,7 +51,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -87,11 +85,7 @@ public class DynamicTableSinkSpecSerdeTest {
         ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
         ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
 
-        StringWriter writer = new StringWriter(100);
-        try (JsonGenerator gen = objectWriter.getFactory().createGenerator(writer)) {
-            gen.writeObject(spec);
-        }
-        String json = writer.toString();
+        String json = objectWriter.writeValueAsString(spec);
         DynamicTableSinkSpec actual = objectReader.readValue(json, DynamicTableSinkSpec.class);
         assertEquals(spec, actual);
         assertNull(actual.getClassLoader());

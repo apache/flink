@@ -72,11 +72,13 @@ public class RelDataTypeJsonSerializer extends StdSerializer<RelDataType> {
             SerializerProvider serializerProvider)
             throws IOException {
         jsonGenerator.writeStartObject();
-        serialize(relDataType, jsonGenerator);
+        serializeInternal(relDataType, jsonGenerator, serializerProvider);
         jsonGenerator.writeEndObject();
     }
 
-    private void serialize(RelDataType relDataType, JsonGenerator gen) throws IOException {
+    private void serializeInternal(
+            RelDataType relDataType, JsonGenerator gen, SerializerProvider serializerProvider)
+            throws IOException {
         if (relDataType instanceof TimeIndicatorRelDataType) {
             TimeIndicatorRelDataType timeIndicatorType = (TimeIndicatorRelDataType) relDataType;
             gen.writeStringField(
@@ -89,7 +91,8 @@ public class RelDataTypeJsonSerializer extends StdSerializer<RelDataType> {
             gen.writeBooleanField(FIELD_NAME_NULLABLE, relDataType.isNullable());
         } else if (relDataType instanceof StructuredRelDataType) {
             StructuredRelDataType structuredType = (StructuredRelDataType) relDataType;
-            gen.writeObjectField(FIELD_NAME_STRUCTURED_TYPE, structuredType.getStructuredType());
+            serializerProvider.defaultSerializeField(
+                    FIELD_NAME_STRUCTURED_TYPE, structuredType.getStructuredType(), gen);
         } else if (relDataType.isStruct()) {
             gen.writeStringField(FIELD_NAME_STRUCT_KIND, relDataType.getStructKind().name());
             gen.writeBooleanField(FIELD_NAME_NULLABLE, relDataType.isNullable());
@@ -98,7 +101,7 @@ public class RelDataTypeJsonSerializer extends StdSerializer<RelDataType> {
             gen.writeStartArray();
             for (RelDataTypeField field : relDataType.getFieldList()) {
                 gen.writeStartObject();
-                serialize(field.getType(), gen);
+                serializeInternal(field.getType(), gen, serializerProvider);
                 gen.writeStringField(FIELD_NAME_FILED_NAME, field.getName());
                 gen.writeEndObject();
             }
@@ -109,7 +112,7 @@ public class RelDataTypeJsonSerializer extends StdSerializer<RelDataType> {
 
             gen.writeFieldName(FIELD_NAME_ELEMENT);
             gen.writeStartObject();
-            serialize(arraySqlType.getComponentType(), gen);
+            serializeInternal(arraySqlType.getComponentType(), gen, serializerProvider);
             gen.writeEndObject();
         } else if (relDataType.getSqlTypeName() == SqlTypeName.MULTISET) {
             assert relDataType instanceof MultisetSqlType;
@@ -118,7 +121,7 @@ public class RelDataTypeJsonSerializer extends StdSerializer<RelDataType> {
 
             gen.writeFieldName(FIELD_NAME_ELEMENT);
             gen.writeStartObject();
-            serialize(multisetSqlType.getComponentType(), gen);
+            serializeInternal(multisetSqlType.getComponentType(), gen, serializerProvider);
             gen.writeEndObject();
         } else if (relDataType.getSqlTypeName() == SqlTypeName.MAP) {
             assert relDataType instanceof MapSqlType;
@@ -127,12 +130,12 @@ public class RelDataTypeJsonSerializer extends StdSerializer<RelDataType> {
 
             gen.writeFieldName(FIELD_NAME_KEY);
             gen.writeStartObject();
-            serialize(mapSqlType.getKeyType(), gen);
+            serializeInternal(mapSqlType.getKeyType(), gen, serializerProvider);
             gen.writeEndObject();
 
             gen.writeFieldName(FIELD_NAME_VALUE);
             gen.writeStartObject();
-            serialize(mapSqlType.getValueType(), gen);
+            serializeInternal(mapSqlType.getValueType(), gen, serializerProvider);
             gen.writeEndObject();
         } else if (relDataType instanceof GenericRelDataType) {
             assert relDataType.getSqlTypeName() == SqlTypeName.ANY;

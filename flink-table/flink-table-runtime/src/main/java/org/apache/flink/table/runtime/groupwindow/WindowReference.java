@@ -21,9 +21,7 @@ package org.apache.flink.table.runtime.groupwindow;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import javax.annotation.Nullable;
 
@@ -40,19 +38,11 @@ import java.util.Optional;
 @Internal
 public class WindowReference {
 
-    public static final String FIELD_NAME_NAME = "name";
-    public static final String FIELD_NAME_TYPE = "type";
+    public final String name;
 
-    @JsonProperty(FIELD_NAME_NAME)
-    private final String name;
+    public final @Nullable LogicalType type;
 
-    @JsonProperty(FIELD_NAME_TYPE)
-    private final @Nullable LogicalType type;
-
-    @JsonCreator
-    public WindowReference(
-            @JsonProperty(FIELD_NAME_NAME) String name,
-            @JsonProperty(FIELD_NAME_TYPE) @Nullable LogicalType type) {
+    public WindowReference(String name, @Nullable LogicalType type) {
         this.name = name;
         this.type = type;
     }

@@ -18,19 +18,19 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.expressions.TimeIntervalUnit;
-import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.planner.calcite.FlinkContextImpl;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.DataTypeJsonSerdeTest.PojoClass;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
+import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -44,10 +44,8 @@ import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
@@ -60,68 +58,142 @@ import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
-import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.table.types.utils.DataTypeFactoryMock;
+import org.apache.flink.table.utils.CatalogManagerMocks;
+import org.apache.flink.types.Row;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.runners.Parameterized.Parameters;
 
 import java.io.IOException;
-import java.io.StringWriter;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
-import static org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter.toDataType;
-import static org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter.toLogicalType;
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanCompilation.ALL;
+import static org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanCompilation.IDENTIFIER;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.DataTypeJsonSerdeTest.configuredSerdeContext;
+import static org.apache.flink.table.utils.CatalogManagerMocks.preparedCatalogManager;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link LogicalType} serialization and deserialization. */
-@RunWith(Parameterized.class)
-public class LogicalTypeSerdeTest {
+public class LogicalTypeJsonSerdeTest {
 
-    @Parameterized.Parameter public LogicalType logicalType;
+    @ParameterizedTest
+    @MethodSource("testLogicalTypeSerde")
+    public void testLogicalTypeSerde(LogicalType logicalType) throws IOException {
+        final SerdeContext serdeContext = configuredSerdeContext();
 
-    @Test
-    public void testLogicalTypeSerde() throws IOException {
-        SerdeContext serdeCtx =
-                new SerdeContext(
-                        new FlinkContextImpl(
-                                false,
-                                TableConfig.getDefault(),
-                                new ModuleManager(),
-                                null,
-                                null,
-                                null),
-                        Thread.currentThread().getContextClassLoader(),
-                        FlinkTypeFactory.INSTANCE(),
-                        FlinkSqlOperatorTable.instance());
-        ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
-        ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
+        final String json = toJson(serdeContext, logicalType);
+        final LogicalType actual = toLogicalType(serdeContext, json);
 
-        StringWriter writer = new StringWriter(100);
-        try (JsonGenerator gen = objectWriter.getFactory().createGenerator(writer)) {
-            gen.writeObject(logicalType);
-        }
-        String json = writer.toString();
-        LogicalType actual = objectReader.readValue(json, LogicalType.class);
-        assertEquals(logicalType, actual);
-        assertEquals(logicalType.asSummaryString(), actual.asSummaryString());
+        assertThat(actual).isEqualTo(logicalType);
     }
 
-    @Parameterized.Parameters(name = "{0}")
-    public static List<LogicalType> testData() {
-        List<LogicalType> types =
+    @Test
+    public void testIdentifierSerde() throws JsonProcessingException {
+        final DataTypeFactoryMock dataTypeFactoryMock = new DataTypeFactoryMock();
+        final TableConfig tableConfig = TableConfig.getDefault();
+        final Configuration config = tableConfig.getConfiguration();
+        final CatalogManager catalogManager =
+                preparedCatalogManager().dataTypeFactory(dataTypeFactoryMock).build();
+        final SerdeContext serdeContext = configuredSerdeContext(catalogManager, tableConfig);
+
+        // minimal plan content
+        config.set(TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS, IDENTIFIER);
+        final String minimalJson = toJson(serdeContext, STRUCTURED_TYPE);
+        assertThat(minimalJson).isEqualTo("\"`default_catalog`.`default_database`.`MyType`\"");
+
+        // catalog lookup with miss
+        config.set(
+                TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS,
+                TableConfigOptions.CatalogPlanRestore.IDENTIFIER);
+        dataTypeFactoryMock.logicalType = Optional.empty();
+        assertThatThrownBy(() -> toLogicalType(serdeContext, minimalJson))
+                .satisfies(anyCauseMatches(ValidationException.class, "No type found."));
+
+        // catalog lookup
+        config.set(
+                TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS,
+                TableConfigOptions.CatalogPlanRestore.IDENTIFIER);
+        dataTypeFactoryMock.logicalType = Optional.of(STRUCTURED_TYPE);
+        assertThat(toLogicalType(serdeContext, minimalJson)).isEqualTo(STRUCTURED_TYPE);
+
+        // maximum plan content
+        config.set(TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS, ALL);
+        final String maximumJson = toJson(serdeContext, STRUCTURED_TYPE);
+        final ObjectMapper mapper = new ObjectMapper();
+        final JsonNode maximumJsonNode = mapper.readTree(maximumJson);
+        assertThat(maximumJsonNode.get(LogicalTypeJsonSerializer.FIELD_NAME_ATTRIBUTES))
+                .isNotNull();
+        assertThat(maximumJsonNode.get(LogicalTypeJsonSerializer.FIELD_NAME_DESCRIPTION).asText())
+                .isEqualTo("My original type.");
+
+        // catalog lookup with miss
+        config.set(
+                TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS,
+                TableConfigOptions.CatalogPlanRestore.IDENTIFIER);
+        dataTypeFactoryMock.logicalType = Optional.empty();
+        assertThatThrownBy(() -> toLogicalType(serdeContext, maximumJson))
+                .satisfies(anyCauseMatches(ValidationException.class, "No type found."));
+
+        // catalog lookup
+        config.set(
+                TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS,
+                TableConfigOptions.CatalogPlanRestore.IDENTIFIER);
+        dataTypeFactoryMock.logicalType = Optional.of(UPDATED_STRUCTURED_TYPE);
+        assertThat(toLogicalType(serdeContext, maximumJson)).isEqualTo(UPDATED_STRUCTURED_TYPE);
+
+        // no lookup
+        config.set(
+                TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS,
+                TableConfigOptions.CatalogPlanRestore.ALL);
+        dataTypeFactoryMock.logicalType = Optional.of(UPDATED_STRUCTURED_TYPE);
+        assertThat(toLogicalType(serdeContext, maximumJson)).isEqualTo(STRUCTURED_TYPE);
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Test data
+    // --------------------------------------------------------------------------------------------
+
+    private static final StructuredType STRUCTURED_TYPE =
+            StructuredType.newBuilder(
+                            ObjectIdentifier.of(
+                                    CatalogManagerMocks.DEFAULT_CATALOG,
+                                    CatalogManagerMocks.DEFAULT_DATABASE,
+                                    "MyType"))
+                    .description("My original type.")
+                    .build();
+
+    private static final StructuredType UPDATED_STRUCTURED_TYPE =
+            StructuredType.newBuilder(
+                            ObjectIdentifier.of(
+                                    CatalogManagerMocks.DEFAULT_CATALOG,
+                                    CatalogManagerMocks.DEFAULT_DATABASE,
+                                    "MyType"))
+                    .description("My original type with update description.")
+                    .build();
+
+    @Parameters(name = "{0}")
+    private static List<LogicalType> testLogicalTypeSerde() {
+        final List<LogicalType> types =
                 Arrays.asList(
                         new BooleanType(),
                         new TinyIntType(),
@@ -168,10 +240,7 @@ public class LogicalTypeSerdeTest {
                         new ZonedTimestampType(),
                         new LocalZonedTimestampType(),
                         new LocalZonedTimestampType(false, TimestampKind.PROCTIME, 3),
-                        new SymbolType<>(TimeIntervalUnit.class),
-                        new TypeInformationRawType<>(),
-                        new TypeInformationRawType<>(Types.STRING),
-                        new LegacyTypeInformationType<>(LogicalTypeRoot.RAW, Types.STRING),
+                        new SymbolType<>(),
                         new ArrayType(new IntType(false)),
                         new ArrayType(new LocalZonedTimestampType(false, TimestampKind.ROWTIME, 3)),
                         new ArrayType(new ZonedTimestampType(false, TimestampKind.ROWTIME, 3)),
@@ -214,6 +283,7 @@ public class LogicalTypeSerdeTest {
                                 VarCharType.ofEmptyLiteral(),
                                 BinaryType.ofEmptyLiteral(),
                                 VarBinaryType.ofEmptyLiteral()),
+                        // registered structured type
                         StructuredType.newBuilder(
                                         ObjectIdentifier.of("cat", "db", "structuredType"),
                                         PojoClass.class)
@@ -241,6 +311,18 @@ public class LogicalTypeSerdeTest {
                                                 .build())
                                 .description("description for StructuredType")
                                 .build(),
+                        // unregistered structured type
+                        StructuredType.newBuilder(PojoClass.class)
+                                .attributes(
+                                        Arrays.asList(
+                                                new StructuredType.StructuredAttribute(
+                                                        "f0", new IntType(true)),
+                                                new StructuredType.StructuredAttribute(
+                                                        "f1", new BigIntType(true)),
+                                                new StructuredType.StructuredAttribute(
+                                                        "f2", new VarCharType(200), "desc")))
+                                .build(),
+                        // registered distinct type
                         DistinctType.newBuilder(
                                         ObjectIdentifier.of("cat", "db", "distinctType"),
                                         new VarCharType(5))
@@ -249,28 +331,44 @@ public class LogicalTypeSerdeTest {
                                         ObjectIdentifier.of("cat", "db", "distinctType"),
                                         new VarCharType(false, 5))
                                 .build(),
+                        // custom RawType
+                        new RawType<>(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE),
+                        // external RawType
                         new RawType<>(
-                                PojoClass.class,
-                                new KryoSerializer<>(PojoClass.class, new ExecutionConfig())));
-        List<LogicalType> mutableTypes = new ArrayList<>(types);
+                                Row.class,
+                                ExternalSerializer.of(
+                                        DataTypes.ROW(DataTypes.INT(), DataTypes.STRING()))));
+
+        final List<LogicalType> mutableTypes = new ArrayList<>(types);
+
         // RawType for MapView
         addRawTypesForMapView(mutableTypes, new VarCharType(100), new VarCharType(100));
         addRawTypesForMapView(mutableTypes, new VarCharType(100), new BigIntType());
         addRawTypesForMapView(mutableTypes, new BigIntType(), new VarCharType(100));
         addRawTypesForMapView(mutableTypes, new BigIntType(), new BigIntType());
+
         // RawType for ListView
         addRawTypesForListView(mutableTypes, new VarCharType(100));
         addRawTypesForListView(mutableTypes, new BigIntType());
 
-        List<LogicalType> finalTypes = new ArrayList<>();
+        // RawType for custom MapView
+        mutableTypes.add(
+                DataViewUtils.adjustDataViews(
+                                MapView.newMapViewDataType(
+                                        DataTypes.STRING().toInternal(),
+                                        DataTypes.STRING().bridgedTo(byte[].class)),
+                                false)
+                        .getLogicalType());
+
+        final List<LogicalType> allTypes = new ArrayList<>();
         // consider nullable
         for (LogicalType type : mutableTypes) {
-            finalTypes.add(type.copy(true));
-            finalTypes.add(type.copy(false));
+            allTypes.add(type.copy(true));
+            allTypes.add(type.copy(false));
         }
         // ignore nullable for NullType
-        finalTypes.add(new NullType());
-        return finalTypes;
+        allTypes.add(new NullType());
+        return allTypes;
     }
 
     private static void addRawTypesForMapView(
@@ -280,21 +378,18 @@ public class LogicalTypeSerdeTest {
                 for (boolean isInternalKeyType : Arrays.asList(true, false)) {
                     for (boolean valueNullable : Arrays.asList(true, false)) {
                         for (boolean isInternalValueType : Arrays.asList(true, false)) {
-                            types.add(
-                                    toLogicalType(
-                                            DataViewUtils.adjustDataViews(
-                                                    MapView.newMapViewDataType(
-                                                            convertToInternalTypeIfNeeded(
-                                                                    toDataType(
-                                                                            keyType.copy(
-                                                                                    keyNullable)),
-                                                                    isInternalKeyType),
-                                                            convertToInternalTypeIfNeeded(
-                                                                    toDataType(
-                                                                            valueType.copy(
-                                                                                    valueNullable)),
-                                                                    isInternalValueType)),
-                                                    hasStateBackedDataViews)));
+                            final DataType viewDataType =
+                                    DataViewUtils.adjustDataViews(
+                                            MapView.newMapViewDataType(
+                                                    convertToInternalTypeIfNeeded(
+                                                            DataTypes.of(keyType.copy(keyNullable)),
+                                                            isInternalKeyType),
+                                                    convertToInternalTypeIfNeeded(
+                                                            DataTypes.of(
+                                                                    valueType.copy(valueNullable)),
+                                                            isInternalValueType)),
+                                            hasStateBackedDataViews);
+                            types.add(viewDataType.getLogicalType());
                         }
                     }
                 }
@@ -306,16 +401,14 @@ public class LogicalTypeSerdeTest {
         for (boolean hasStateBackedDataViews : Arrays.asList(true, false)) {
             for (boolean elementNullable : Arrays.asList(true, false)) {
                 for (boolean isInternalType : Arrays.asList(true, false)) {
-                    types.add(
-                            toLogicalType(
-                                    DataViewUtils.adjustDataViews(
-                                            ListView.newListViewDataType(
-                                                    convertToInternalTypeIfNeeded(
-                                                            toDataType(
-                                                                    elementType.copy(
-                                                                            elementNullable)),
-                                                            isInternalType)),
-                                            hasStateBackedDataViews)));
+                    final DataType viewDataType =
+                            DataViewUtils.adjustDataViews(
+                                    ListView.newListViewDataType(
+                                            convertToInternalTypeIfNeeded(
+                                                    DataTypes.of(elementType.copy(elementNullable)),
+                                                    isInternalType)),
+                                    hasStateBackedDataViews);
+                    types.add(viewDataType.getLogicalType());
                 }
             }
         }
@@ -323,19 +416,30 @@ public class LogicalTypeSerdeTest {
 
     private static DataType convertToInternalTypeIfNeeded(
             DataType dataType, boolean isInternalType) {
-        return isInternalType ? DataTypeUtils.toInternalDataType(dataType) : dataType;
+        return isInternalType ? dataType.toInternal() : dataType;
     }
 
-    /** Testing class. */
-    public static class PojoClass {
-        private final int f0;
-        private final long f1;
-        private final String f2;
+    // --------------------------------------------------------------------------------------------
+    // Shared utilities
+    // --------------------------------------------------------------------------------------------
 
-        public PojoClass(int f0, long f1, String f2) {
-            this.f0 = f0;
-            this.f1 = f1;
-            this.f2 = f2;
+    static String toJson(SerdeContext serdeContext, LogicalType logicalType) {
+        final ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeContext);
+        final String json;
+        try {
+            json = objectWriter.writeValueAsString(logicalType);
+        } catch (JsonProcessingException e) {
+            throw new AssertionError(e);
+        }
+        return json;
+    }
+
+    static LogicalType toLogicalType(SerdeContext serdeContext, String json) {
+        final ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeContext);
+        try {
+            return objectReader.readValue(json, LogicalType.class);
+        } catch (IOException e) {
+            throw new AssertionError(e);
         }
     }
 }
