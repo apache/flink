@@ -53,16 +53,16 @@ public interface DataTypeFactory {
      * Creates a type by a fully or partially defined name.
      *
      * <p>The factory will parse and resolve the name of a type to a {@link DataType}. This includes
-     * both built-in types as well as user-defined types (see {@link DistinctType} and {@link
+     * both built-in types and user-defined types (see {@link DistinctType} and {@link
      * StructuredType}).
      */
-    DataType createDataType(String name);
+    DataType createDataType(String typeString);
 
     /**
      * Creates a type by a fully or partially defined identifier.
      *
      * <p>The factory will parse and resolve the name of a type to a {@link DataType}. This includes
-     * both built-in types as well as user-defined types (see {@link DistinctType} and {@link
+     * both built-in types and user-defined types (see {@link DistinctType} and {@link
      * StructuredType}).
      */
     DataType createDataType(UnresolvedIdentifier identifier);
@@ -112,4 +112,23 @@ public interface DataTypeFactory {
      * edges of the API.
      */
     <T> DataType createRawDataType(TypeInformation<T> typeInfo);
+
+    // --------------------------------------------------------------------------------------------
+    // LogicalType creation
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Creates a {@link LogicalType} by a fully or partially defined name.
+     *
+     * <p>The factory will parse and resolve the name of a type to a {@link LogicalType}. This
+     * includes both built-in types and user-defined types (see {@link DistinctType} and {@link
+     * StructuredType}).
+     */
+    LogicalType createLogicalType(String typeString);
+
+    /**
+     * Creates a {@link LogicalType} from an {@link UnresolvedIdentifier} for resolving user-defined
+     * types (see {@link DistinctType} and {@link StructuredType}).
+     */
+    LogicalType createLogicalType(UnresolvedIdentifier identifier);
 }
