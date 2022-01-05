@@ -146,6 +146,7 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<keepDependenciesWithProvidedScope>false</keepDependenciesWithProvidedScope>
 							<artifactSet>
 								<includes combine.children="append">
 									<include>com.jayway.jsonpath:json-path</include>
@@ -157,7 +158,7 @@ under the License.
 								<!-- Make sure com.jayway and com.fasterxml relocations match the relocations in planner pom  -->
 								<relocation>
 									<pattern>com.jayway</pattern>
-									<shadedPattern>org.apache.flink.calcite.shaded.com.jayway</shadedPattern>
+									<shadedPattern>org.apache.flink.table.shaded.com.jayway</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>com.fasterxml</pattern>
