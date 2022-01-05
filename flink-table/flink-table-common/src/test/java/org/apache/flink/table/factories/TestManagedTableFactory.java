@@ -19,11 +19,13 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.types.RowKind;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,9 +44,16 @@ public class TestManagedTableFactory implements DynamicTableSourceFactory, Manag
     public static final Map<ObjectIdentifier, AtomicReference<Map<String, String>>> MANAGED_TABLES =
             new ConcurrentHashMap<>();
 
+    private static final ConfigOption<String> CHANGELOG_MODE =
+            ConfigOptions.key("changelog-mode")
+                    .stringType()
+                    .defaultValue("I"); // all available "I,UA,UB,D"
+
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
-        return new HashSet<>();
+        HashSet<ConfigOption<?>> configOptions = new HashSet<>();
+        configOptions.add(CHANGELOG_MODE);
+        return configOptions;
     }
 
     @Override
@@ -91,40 +100,71 @@ public class TestManagedTableFactory implements DynamicTableSourceFactory, Manag
 
     @Override
     public DynamicTableSource createDynamicTableSource(Context context) {
-        return new TestManagedTableSource();
+        FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+        ChangelogMode changelogMode = parseChangelogMode(helper.getOptions().get(CHANGELOG_MODE));
+        return new TestManagedTableSource(changelogMode);
     }
 
     /** Managed {@link DynamicTableSource} for testing. */
     public static class TestManagedTableSource implements ScanTableSource {
 
+        private final ChangelogMode changelogMode;
+
+        public TestManagedTableSource(ChangelogMode changelogMode) {
+            this.changelogMode = changelogMode;
+        }
+
         @Override
         public ChangelogMode getChangelogMode() {
-            throw new UnsupportedOperationException();
+            return changelogMode;
         }
 
         @Override
         public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public DynamicTableSource copy() {
-            throw new UnsupportedOperationException();
+            return new TestManagedTableSource(changelogMode);
         }
 
         @Override
         public String asSummaryString() {
-            throw new UnsupportedOperationException();
+            return "TestManagedSource";
         }
 
         @Override
         public boolean equals(Object o) {
-            throw new UnsupportedOperationException();
+            return super.equals(o);
         }
 
         @Override
         public int hashCode() {
-            throw new UnsupportedOperationException();
+            return super.hashCode();
         }
+    }
+
+    private ChangelogMode parseChangelogMode(String string) {
+        ChangelogMode.Builder builder = ChangelogMode.newBuilder();
+        for (String split : string.split(",")) {
+            switch (split.trim()) {
+                case "I":
+                    builder.addContainedKind(RowKind.INSERT);
+                    break;
+                case "UB":
+                    builder.addContainedKind(RowKind.UPDATE_BEFORE);
+                    break;
+                case "UA":
+                    builder.addContainedKind(RowKind.UPDATE_AFTER);
+                    break;
+                case "D":
+                    builder.addContainedKind(RowKind.DELETE);
+                    break;
+                default:
+                    throw new IllegalArgumentException("Invalid ChangelogMode string: " + string);
+            }
+        }
+        return builder.build();
     }
 }
