@@ -29,39 +29,15 @@
       "sourceAbilitySpecs" : [ {
         "type" : "ProjectPushDown",
         "projectedFields" : [ [ 1 ], [ 2 ] ],
-        "producedType" : {
-          "type" : "ROW",
-          "nullable" : false,
-          "fields" : [ {
-            "b" : "BIGINT"
-          }, {
-            "c" : "VARCHAR(2147483647)"
-          } ]
-        }
+        "producedType" : "ROW<`b` BIGINT, `c` VARCHAR(2147483647)> NOT NULL"
       }, {
         "type" : "ReadingMetadata",
         "metadataKeys" : [ ],
-        "producedType" : {
-          "type" : "ROW",
-          "nullable" : false,
-          "fields" : [ {
-            "b" : "BIGINT"
-          }, {
-            "c" : "VARCHAR(2147483647)"
-          } ]
-        }
+        "producedType" : "ROW<`b` BIGINT, `c` VARCHAR(2147483647)> NOT NULL"
       } ]
     },
     "id" : 1,
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "b" : "BIGINT"
-      }, {
-        "c" : "VARCHAR(2147483647)"
-      } ]
-    },
+    "outputType" : "ROW<`b` BIGINT, `c` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, c], metadata=[]]], fields=[b, c])",
     "inputProperties" : [ ]
   }, {
@@ -127,25 +103,23 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "b" : "BIGINT"
+        "name" : "b",
+        "fieldType" : "BIGINT"
       }, {
-        "c" : "VARCHAR(2147483647)"
+        "name" : "c",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
-        "proctime" : {
+        "name" : "proctime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
         }
       }, {
-        "rowtime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
+        "name" : "rowtime",
+        "fieldType" : "TIMESTAMP(3)"
       } ]
     },
     "description" : "Calc(select=[b, c, PROCTIME() AS proctime, TO_TIMESTAMP(c) AS rowtime])"
@@ -193,22 +167,24 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "b" : "BIGINT"
+        "name" : "b",
+        "fieldType" : "BIGINT"
       }, {
-        "c" : "VARCHAR(2147483647)"
+        "name" : "c",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
-        "proctime" : {
+        "name" : "proctime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
         }
       }, {
-        "rowtime" : {
+        "name" : "rowtime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
@@ -252,13 +228,15 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "b" : "BIGINT"
+        "name" : "b",
+        "fieldType" : "BIGINT"
       }, {
-        "c" : "VARCHAR(2147483647)"
+        "name" : "c",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
-        "proctime" : {
+        "name" : "proctime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
@@ -280,13 +258,15 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "b" : "BIGINT"
+        "name" : "b",
+        "fieldType" : "BIGINT"
       }, {
-        "c" : "VARCHAR(2147483647)"
+        "name" : "c",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
-        "proctime" : {
+        "name" : "proctime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
@@ -368,29 +348,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "b" : "BIGINT"
-      }, {
-        "EXPR$1" : "BIGINT NOT NULL"
-      }, {
-        "window_start" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      }, {
-        "window_end" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      } ]
-    },
+    "outputType" : "ROW<`b` BIGINT, `EXPR$1` BIGINT NOT NULL, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL>",
     "description" : "WindowAggregate(groupBy=[b], window=[CUMULATE(time_col=[proctime], max_size=[15 s], step=[5 s])], select=[b, COUNT(c) AS EXPR$1, start('w$) AS window_start, end('w$) AS window_end])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
@@ -418,15 +376,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "b" : "BIGINT"
-      }, {
-        "EXPR$1" : "BIGINT NOT NULL"
-      } ]
-    },
+    "outputType" : "ROW<`b` BIGINT, `EXPR$1` BIGINT NOT NULL>",
     "description" : "Calc(select=[b, EXPR$1])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -453,15 +403,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "b" : "BIGINT"
-      }, {
-        "EXPR$1" : "BIGINT NOT NULL"
-      } ]
-    },
+    "outputType" : "ROW<`b` BIGINT, `EXPR$1` BIGINT NOT NULL>",
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, EXPR$1])"
   } ],
   "edges" : [ {

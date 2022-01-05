@@ -26,24 +26,7 @@
       } ]
     },
     "id" : 1,
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "BIGINT"
-      }, {
-        "b" : "INT NOT NULL"
-      }, {
-        "c" : "VARCHAR(2147483647)"
-      }, {
-        "d" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      } ]
-    },
+    "outputType" : "ROW<`a` BIGINT, `b` INT NOT NULL, `c` VARCHAR(2147483647), `d` TIMESTAMP(3)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[]]], fields=[a, b, c, d])",
     "inputProperties" : [ ]
   }, {
@@ -379,30 +362,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "BIGINT"
-      }, {
-        "a1" : "VARCHAR(2147483647)"
-      }, {
-        "b" : "INT NOT NULL"
-      }, {
-        "b1" : "VARCHAR(2147483647)"
-      }, {
-        "c1" : "VARCHAR(2147483647)"
-      }, {
-        "c2" : "VARCHAR(2147483647)"
-      }, {
-        "d1" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      } ]
-    },
+    "outputType" : "ROW<`a` BIGINT, `a1` VARCHAR(2147483647), `b` INT NOT NULL, `b1` VARCHAR(2147483647), `c1` VARCHAR(2147483647), `c2` VARCHAR(2147483647), `d1` TIMESTAMP(3)>",
     "description" : "Calc(select=[a, CAST(a AS VARCHAR(2147483647)) AS a1, b, udf2(b, b, d) AS b1, udf3(c, b) AS c1, udf4(SUBSTRING(c, 1, 5)) AS c2, udf5(d, 1000) AS d1], where=[(((udf1(a) > 0) OR ((a * b) < 100)) AND (b > 10))])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -440,30 +400,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "BIGINT"
-      }, {
-        "a1" : "VARCHAR(2147483647)"
-      }, {
-        "b" : "INT NOT NULL"
-      }, {
-        "b1" : "VARCHAR(2147483647)"
-      }, {
-        "c1" : "VARCHAR(2147483647)"
-      }, {
-        "c2" : "VARCHAR(2147483647)"
-      }, {
-        "d1" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      } ]
-    },
+    "outputType" : "ROW<`a` BIGINT, `a1` VARCHAR(2147483647), `b` INT NOT NULL, `b1` VARCHAR(2147483647), `c1` VARCHAR(2147483647), `c2` VARCHAR(2147483647), `d1` TIMESTAMP(3)>",
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, a1, b, b1, c1, c2, d1])"
   } ],
   "edges" : [ {

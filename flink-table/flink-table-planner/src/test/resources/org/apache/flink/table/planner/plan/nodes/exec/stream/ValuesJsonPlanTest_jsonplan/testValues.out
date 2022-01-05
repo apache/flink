@@ -48,17 +48,7 @@
       }
     } ] ],
     "id" : 1,
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "EXPR$0" : "INT NOT NULL"
-      }, {
-        "EXPR$1" : "INT NOT NULL"
-      }, {
-        "EXPR$2" : "VARCHAR(5) NOT NULL"
-      } ]
-    },
+    "outputType" : "ROW<`EXPR$0` INT NOT NULL, `EXPR$1` INT NOT NULL, `EXPR$2` VARCHAR(5) NOT NULL>",
     "description" : "Values(tuples=[[{ 1, 2, _UTF-16LE'Hi' }, { 3, 4, _UTF-16LE'Hello' }]])",
     "inputProperties" : [ ]
   }, {
@@ -132,17 +122,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "BIGINT"
-      }, {
-        "b" : "BIGINT"
-      }, {
-        "c" : "VARCHAR(2147483647)"
-      } ]
-    },
+    "outputType" : "ROW<`a` BIGINT, `b` BIGINT, `c` VARCHAR(2147483647)>",
     "description" : "Calc(select=[CAST(EXPR$0 AS BIGINT) AS a, CAST(EXPR$1 AS BIGINT) AS b, CAST(EXPR$2 AS VARCHAR(2147483647)) AS c])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -173,17 +153,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "BIGINT"
-      }, {
-        "b" : "BIGINT"
-      }, {
-        "c" : "VARCHAR(2147483647)"
-      } ]
-    },
+    "outputType" : "ROW<`a` BIGINT, `b` BIGINT, `c` VARCHAR(2147483647)>",
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])"
   } ],
   "edges" : [ {

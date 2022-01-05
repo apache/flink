@@ -29,17 +29,7 @@
       }
     },
     "id" : 1,
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "INT"
-      }, {
-        "b" : "VARCHAR(2147483647)"
-      }, {
-        "c" : "BIGINT"
-      } ]
-    },
+    "outputType" : "ROW<`a` INT, `b` VARCHAR(2147483647), `c` BIGINT>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
@@ -124,27 +114,26 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "a" : "INT"
+        "name" : "a",
+        "fieldType" : "INT"
       }, {
-        "b" : "VARCHAR(2147483647)"
+        "name" : "b",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
-        "c" : "BIGINT"
+        "name" : "c",
+        "fieldType" : "BIGINT"
       }, {
-        "proctime" : {
+        "name" : "proctime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
         }
       }, {
-        "rowtime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
+        "name" : "rowtime",
+        "fieldType" : "TIMESTAMP(3)"
       } ]
     },
     "description" : "Calc(select=[a, b, c, PROCTIME() AS proctime, TO_TIMESTAMP(FROM_UNIXTIME(c)) AS rowtime])"
@@ -192,24 +181,27 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "a" : "INT"
+        "name" : "a",
+        "fieldType" : "INT"
       }, {
-        "b" : "VARCHAR(2147483647)"
+        "name" : "b",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
-        "c" : "BIGINT"
+        "name" : "c",
+        "fieldType" : "BIGINT"
       }, {
-        "proctime" : {
+        "name" : "proctime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
         }
       }, {
-        "rowtime" : {
+        "name" : "rowtime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
@@ -275,33 +267,39 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "a" : "INT"
+        "name" : "a",
+        "fieldType" : "INT"
       }, {
-        "b" : "VARCHAR(2147483647)"
+        "name" : "b",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
-        "c" : "BIGINT"
+        "name" : "c",
+        "fieldType" : "BIGINT"
       }, {
-        "proctime" : {
+        "name" : "proctime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
         }
       }, {
-        "rowtime" : {
+        "name" : "rowtime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
       }, {
-        "id" : "INT"
+        "name" : "id",
+        "fieldType" : "INT"
       }, {
-        "name" : "VARCHAR(2147483647)"
+        "name" : "name",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
-        "age" : "INT"
+        "name" : "age",
+        "fieldType" : "INT"
       } ]
     },
     "description" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])"
@@ -416,37 +414,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "INT"
-      }, {
-        "b" : "VARCHAR(2147483647)"
-      }, {
-        "c" : "BIGINT"
-      }, {
-        "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      }, {
-        "rowtime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      }, {
-        "id" : "INT"
-      }, {
-        "name" : "VARCHAR(2147483647)"
-      }, {
-        "age" : "INT"
-      } ]
-    },
+    "outputType" : "ROW<`a` INT, `b` VARCHAR(2147483647), `c` BIGINT, `proctime` TIMESTAMP(3), `rowtime` TIMESTAMP(3), `id` INT, `name` VARCHAR(2147483647), `age` INT>",
     "description" : "Calc(select=[a, b, c, CAST(PROCTIME_MATERIALIZE(proctime) AS TIMESTAMP(3)) AS proctime, CAST(rowtime AS TIMESTAMP(3)) AS rowtime, id, name, age])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -486,37 +454,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "INT"
-      }, {
-        "b" : "VARCHAR(2147483647)"
-      }, {
-        "c" : "BIGINT"
-      }, {
-        "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      }, {
-        "rowtime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      }, {
-        "id" : "INT"
-      }, {
-        "name" : "VARCHAR(2147483647)"
-      }, {
-        "age" : "INT"
-      } ]
-    },
+    "outputType" : "ROW<`a` INT, `b` VARCHAR(2147483647), `c` BIGINT, `proctime` TIMESTAMP(3), `rowtime` TIMESTAMP(3), `id` INT, `name` VARCHAR(2147483647), `age` INT>",
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c, proctime, rowtime, id, name, age])"
   } ],
   "edges" : [ {
