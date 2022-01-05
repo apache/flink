@@ -1893,7 +1893,7 @@ public class StreamExecutionEnvironment {
      * @param <OUT> type of the returned stream
      * @return the data stream constructed
      */
-    @Experimental
+    @PublicEvolving
     public <OUT> DataStreamSource<OUT> fromSource(
             Source<OUT, ?, ?> source,
             WatermarkStrategy<OUT> timestampsAndWatermarks,
