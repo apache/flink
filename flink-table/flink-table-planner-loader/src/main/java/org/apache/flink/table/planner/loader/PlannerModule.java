@@ -37,6 +37,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
 
@@ -55,8 +57,35 @@ class PlannerModule {
      */
     static final String FLINK_TABLE_PLANNER_FAT_JAR = "flink-table-planner.jar";
 
-    static final String HINT_USAGE =
+    private static final String HINT_USAGE =
             "mvn clean package -pl flink-table/flink-table-planner,flink-table/flink-table-planner-loader -DskipTests";
+
+    private static final String[] OWNER_CLASSPATH =
+            Stream.concat(
+                            Arrays.stream(CoreOptions.PARENT_FIRST_LOGGING_PATTERNS),
+                            Stream.of(
+                                    // These packages are shipped either by
+                                    // flink-table-runtime or flink-dist itself
+                                    "org.codehaus.janino",
+                                    "org.codehaus.commons",
+                                    "org.apache.commons.lang3",
+                                    // Used by org.reflections
+                                    "javassist"))
+                    .toArray(String[]::new);
+
+    private static final String[] COMPONENT_CLASSPATH = new String[] {"org.apache.flink"};
+
+    private static final Map<String, String> KNOWN_MODULE_ASSOCIATIONS = new HashMap<>();
+
+    static {
+        KNOWN_MODULE_ASSOCIATIONS.put("org.apache.flink.table.runtime", "flink-table-runtime");
+        KNOWN_MODULE_ASSOCIATIONS.put("org.apache.flink.formats.raw", "flink-table-runtime");
+
+        KNOWN_MODULE_ASSOCIATIONS.put("org.codehaus.janino", "flink-table-runtime");
+        KNOWN_MODULE_ASSOCIATIONS.put("org.codehaus.commons", "flink-table-runtime");
+        KNOWN_MODULE_ASSOCIATIONS.put(
+                "org.apache.flink.table.shaded.com.jayway", "flink-table-runtime");
+    }
 
     private final ClassLoader submoduleClassLoader;
 
@@ -85,26 +114,13 @@ class PlannerModule {
 
             IOUtils.copyBytes(resourceStream, Files.newOutputStream(tempFile));
 
-            String[] ownerClassPath =
-                    Stream.concat(
-                                    Arrays.stream(CoreOptions.PARENT_FIRST_LOGGING_PATTERNS),
-                                    Stream.of(
-                                            // These packages are shipped either by
-                                            // flink-table-runtime or flink-dist itself
-                                            "org.codehaus.janino",
-                                            "org.codehaus.commons",
-                                            "org.apache.commons.lang3",
-                                            // Used by org.reflections
-                                            "javassist"))
-                            .toArray(String[]::new);
-            String[] componentClassPath = new String[] {"org.apache.flink"};
-
             this.submoduleClassLoader =
                     new ComponentClassLoader(
                             new URL[] {tempFile.toUri().toURL()},
                             flinkClassLoader,
-                            ownerClassPath,
-                            componentClassPath);
+                            OWNER_CLASSPATH,
+                            COMPONENT_CLASSPATH,
+                            KNOWN_MODULE_ASSOCIATIONS);
         } catch (IOException e) {
             throw new TableException(
                     "Could not initialize the table planner components loader.", e);
