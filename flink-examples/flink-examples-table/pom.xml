@@ -52,6 +52,27 @@ under the License.
 			<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+		<!-- The following two dependencies are not required to define a SQL job pipeline,
+		but only to execute it.
+
+		In particular, here we're forced to use flink-table-planner_${scala.binary.version} instead of
+		flink-table-planner-loader, because otherwise we hit this bug https://youtrack.jetbrains.com/issue/IDEA-93855
+		when trying to run the examples from within Intellij IDEA. This is only relevant to this specific
+		examples project, as it's in the same build tree of flink-parent.
+
+		In a real environment, you need flink-table-runtime and flink-table-planner-loader either
+		at test scope, for executing tests, or at provided scope, to run the main directly.
+		 -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-runtime</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 
 		<!-- Table connectors and formats -->
 		<dependency>
@@ -69,18 +90,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-runtime</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner-loader</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
