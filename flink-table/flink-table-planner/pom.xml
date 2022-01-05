@@ -102,15 +102,6 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-		<!-- Flink dependencies (not included in the uber) -->
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-cep</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
 		<!-- Other 3rd party dependencies (included in the uber) -->
 
 		<dependency>
@@ -341,6 +332,7 @@ under the License.
 				<configuration>
 					<!-- Base config -->
 					<createDependencyReducedPom>true</createDependencyReducedPom>
+					<keepDependenciesWithProvidedScope>false</keepDependenciesWithProvidedScope>
 					<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
 					<filters combine.children="append">
 						<filter>
@@ -398,14 +390,6 @@ under the License.
 							<shadedPattern>org.apache.flink.calcite.shaded.com.google</shadedPattern>
 						</relocation>
 						<relocation>
-							<pattern>com.jayway</pattern>
-							<shadedPattern>org.apache.flink.calcite.shaded.com.jayway</shadedPattern>
-						</relocation>
-						<relocation>
-							<pattern>com.fasterxml</pattern>
-							<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml</shadedPattern>
-						</relocation>
-						<relocation>
 							<pattern>org.apache.commons.codec</pattern>
 							<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.codec</shadedPattern>
 						</relocation>
@@ -414,11 +398,23 @@ under the License.
 							<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.io</shadedPattern>
 						</relocation>
 
+						<!-- These are relocated to match package names, but not included in this jar -->
+						<relocation>
+							<pattern>com.fasterxml</pattern>
+							<!-- From flink-shaded-jackson -->
+							<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml</shadedPattern>
+						</relocation>
+						<relocation>
+							<pattern>com.jayway</pattern>
+							<!-- From flink-table-runtime -->
+							<shadedPattern>org.apache.flink.table.shaded.com.jayway</shadedPattern>
+						</relocation>
+
+						<!-- Other table dependencies -->
 						<relocation>
 							<pattern>org.reflections</pattern>
 							<shadedPattern>org.apache.flink.table.shaded.org.reflections</shadedPattern>
 						</relocation>
-
 						<relocation>
 							<!-- icu4j's dependencies -->
 							<pattern>com.ibm.icu</pattern>
