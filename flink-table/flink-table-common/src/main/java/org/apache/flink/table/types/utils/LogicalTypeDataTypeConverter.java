@@ -56,7 +56,6 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -203,9 +202,29 @@ public final class LogicalTypeDataTypeConverter {
 
         @Override
         public DataType visit(DistinctType distinctType) {
-            return new FieldsDataType(
-                    distinctType,
-                    Collections.singletonList(distinctType.getSourceType().accept(this)));
+            final DataType sourceDataType = distinctType.getSourceType().accept(this);
+            if (sourceDataType instanceof AtomicDataType) {
+                return new AtomicDataType(distinctType, sourceDataType.getConversionClass());
+            } else if (sourceDataType instanceof CollectionDataType) {
+                final CollectionDataType collectionDataType = (CollectionDataType) sourceDataType;
+                return new CollectionDataType(
+                        distinctType,
+                        collectionDataType.getConversionClass(),
+                        collectionDataType.getElementDataType());
+            } else if (sourceDataType instanceof KeyValueDataType) {
+                final KeyValueDataType keyValueDataType = (KeyValueDataType) sourceDataType;
+                return new KeyValueDataType(
+                        distinctType,
+                        keyValueDataType.getConversionClass(),
+                        keyValueDataType.getKeyDataType(),
+                        keyValueDataType.getValueDataType());
+            } else if (sourceDataType instanceof FieldsDataType) {
+                return new FieldsDataType(
+                        distinctType,
+                        sourceDataType.getConversionClass(),
+                        sourceDataType.getChildren());
+            }
+            throw new IllegalStateException("Unexpected data type instance.");
         }
 
         @Override
