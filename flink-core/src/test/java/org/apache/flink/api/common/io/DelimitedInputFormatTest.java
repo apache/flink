@@ -43,6 +43,7 @@ import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.zip.GZIPOutputStream;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -197,6 +198,29 @@ public class DelimitedInputFormatTest {
 
         assertNull(format.nextRecord(null));
         assertTrue(format.reachedEnd());
+    }
+
+    @Test
+    public void testReadGzipCustomDelimiter() throws IOException {
+        StringBuilder sb = new StringBuilder();
+        String delimiter = "\0";
+        for (int i = 0; i < 100; i++) {
+            sb.append(i + "").append(delimiter);
+        }
+        final FileInputSplit split = createTempGzipFile(sb.toString());
+
+        final Configuration parameters = new Configuration();
+
+        format.setDelimiter(delimiter);
+        format.configure(parameters);
+        format.open(split);
+
+        List<String> results = new ArrayList<>();
+        while (!format.reachedEnd()) {
+            results.add(format.nextRecord(null));
+        }
+
+        assertEquals(results.size(), 101);
     }
 
     @Test
@@ -581,6 +605,23 @@ public class DelimitedInputFormatTest {
         tempFile.deleteOnExit();
 
         try (Writer out = new OutputStreamWriter(new FileOutputStream(tempFile))) {
+            out.write(contents);
+        }
+
+        return new FileInputSplit(
+                0,
+                new Path(tempFile.toURI().toString()),
+                0,
+                tempFile.length(),
+                new String[] {"localhost"});
+    }
+
+    static FileInputSplit createTempGzipFile(String contents) throws IOException {
+        File tempFile = File.createTempFile("test_contents", ".gz");
+        tempFile.deleteOnExit();
+
+        try (Writer out =
+                new OutputStreamWriter(new GZIPOutputStream(new FileOutputStream(tempFile)))) {
             out.write(contents);
         }
 

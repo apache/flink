@@ -899,6 +899,8 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
         InflaterInputStreamFactory<?> inflaterInputStreamFactory =
                 getInflaterInputStreamFactory(fileSplit.getPath());
         if (inflaterInputStreamFactory != null) {
+            // compressed format should use splitLength specially
+            this.splitLength = -1;
             return new InputStreamFSInputWrapper(inflaterInputStreamFactory.create(stream));
         }
 
