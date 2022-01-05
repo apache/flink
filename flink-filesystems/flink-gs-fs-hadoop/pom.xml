@@ -108,6 +108,12 @@ under the License.
 				<version>${fs.hadoopshaded.version}</version>
 			</dependency>
 
+			<dependency>
+				<groupId>io.grpc</groupId>
+				<artifactId>grpc-core</artifactId>
+				<version>1.41.1</version>
+			</dependency>
+
 		</dependencies>
 	</dependencyManagement>
 
