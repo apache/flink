@@ -31,12 +31,13 @@ import org.slf4j.LoggerFactory;
 
 import static org.apache.flink.yarn.YarnClusterDescriptor.setClusterEntrypointInfoToConfig;
 
-/** The implementation of ClusterClientProvider. */
+/**
+ * The implementation of {@link ClusterClientProvider}, waiting for the job to be running and then
+ * creating a {@link RestClusterClient} with the respective connection information.
+ */
 @Internal
 public class YarnClusterClientProvider implements ClusterClientProvider {
     private static final Logger LOG = LoggerFactory.getLogger(YarnClusterClientProvider.class);
-
-    private final Object lock = new Object();
 
     private final ApplicationId applicationId;
     private final ApplicationReportProvider appReportProvider;
@@ -57,13 +58,9 @@ public class YarnClusterClientProvider implements ClusterClientProvider {
     public ClusterClient getClusterClient() {
         try {
             if (!submissionFinished) {
-                synchronized (lock) {
-                    if (!submissionFinished) {
-                        ApplicationReport report = appReportProvider.waitTillSubmissionFinish();
-                        setClusterEntrypointInfoToConfig(flinkConf, report);
-                        submissionFinished = true;
-                    }
-                }
+                ApplicationReport report = appReportProvider.waitTillSubmissionFinish();
+                setClusterEntrypointInfoToConfig(flinkConf, report);
+                submissionFinished = true;
             }
             return new RestClusterClient(flinkConf, applicationId);
         } catch (Exception e) {

@@ -20,6 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.Internal;
 
+import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -40,6 +41,13 @@ public class ApplicationReportProviderImpl implements ApplicationReportProvider 
 
     @Override
     public ApplicationReport waitTillSubmissionFinish() throws Exception {
+        // Make access to the YarnClient fail fast if the client has been closed by the
+        // YarnClusterDescriptor
+        if (yarnClient.isInState(Service.STATE.STOPPED)) {
+            throw new Exception(
+                    "Errors on using YarnClient to retrieve application report. Maybe it has been closed by YarnClusterDescriptor.");
+        }
+
         try {
             return YarnClusterDescriptor.waitTillTargetState(
                     yarnClient, appId, YarnApplicationState.RUNNING);

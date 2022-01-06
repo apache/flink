@@ -22,8 +22,9 @@ import org.apache.flink.annotation.Internal;
 
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 
-/** A provider to wait app submitted to Yarn and return application report. */
+/** Factory for getting {@link ApplicationReport}. */
 @Internal
 public interface ApplicationReportProvider {
+    /** Waiting for the job to be running and then return the latest {@link ApplicationReport}. */
     ApplicationReport waitTillSubmissionFinish() throws Exception;
 }
