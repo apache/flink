@@ -137,6 +137,19 @@ public final class CsvFormatFactory
         return options;
     }
 
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(FIELD_DELIMITER);
+        options.add(DISABLE_QUOTE_CHARACTER);
+        options.add(QUOTE_CHARACTER);
+        options.add(ALLOW_COMMENTS);
+        options.add(ARRAY_ELEMENT_DELIMITER);
+        options.add(ESCAPE_CHARACTER);
+        options.add(NULL_LITERAL);
+        return options;
+    }
+
     // ------------------------------------------------------------------------
     //  Validation
     // ------------------------------------------------------------------------
