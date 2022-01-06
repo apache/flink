@@ -30,7 +30,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.table.utils.EncodingUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.ObjectCodec;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
@@ -78,8 +78,13 @@ public class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
 
     @Override
     public RelDataType deserialize(JsonParser jsonParser, DeserializationContext ctx)
-            throws IOException, JsonProcessingException {
+            throws IOException {
         JsonNode jsonNode = jsonParser.readValueAsTree();
+        return deserialize(jsonNode, jsonParser.getCodec(), ctx);
+    }
+
+    private RelDataType deserialize(
+            JsonNode jsonNode, ObjectCodec codec, DeserializationContext ctx) throws IOException {
         SerdeContext serdeContext = SerdeContext.get(ctx);
         FlinkTypeFactory typeFactory = serdeContext.getTypeFactory();
         if (jsonNode instanceof ObjectNode) {
@@ -103,9 +108,7 @@ public class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
             } else if (objectNode.has(FIELD_NAME_STRUCTURED_TYPE)) {
                 JsonNode structuredTypeNode = objectNode.get(FIELD_NAME_STRUCTURED_TYPE);
                 LogicalType structuredType =
-                        ctx.readValue(
-                                structuredTypeNode.traverse(jsonParser.getCodec()),
-                                LogicalType.class);
+                        ctx.readValue(structuredTypeNode.traverse(codec), LogicalType.class);
                 checkArgument(structuredType instanceof StructuredType);
                 return serdeContext.getTypeFactory().createFieldTypeFromLogicalType(structuredType);
             } else if (objectNode.has(FIELD_NAME_STRUCT_KIND)) {
@@ -114,7 +117,7 @@ public class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
                 for (JsonNode node : arrayNode) {
                     builder.add(
                             node.get(FIELD_NAME_FILED_NAME).asText(),
-                            deserialize(node.traverse(jsonParser.getCodec()), ctx));
+                            deserialize(node, codec, ctx));
                 }
                 StructKind structKind =
                         StructKind.valueOf(
@@ -124,7 +127,7 @@ public class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
             } else if (objectNode.has(FIELD_NAME_FIELDS)) {
                 JsonNode fields = objectNode.get(FIELD_NAME_FIELDS);
                 // Nested struct
-                return deserialize(fields.traverse(jsonParser.getCodec()), ctx);
+                return deserialize(fields, codec, ctx);
             } else {
                 SqlTypeName sqlTypeName =
                         Util.enumVal(
@@ -174,31 +177,16 @@ public class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
                 final RelDataType type;
                 if (sqlTypeName == SqlTypeName.ARRAY) {
                     RelDataType elementType =
-                            deserialize(
-                                    objectNode
-                                            .get(FIELD_NAME_ELEMENT)
-                                            .traverse(jsonParser.getCodec()),
-                                    ctx);
+                            deserialize(objectNode.get(FIELD_NAME_ELEMENT), codec, ctx);
                     type = typeFactory.createArrayType(elementType, -1);
                 } else if (sqlTypeName == SqlTypeName.MULTISET) {
                     RelDataType elementType =
-                            deserialize(
-                                    objectNode
-                                            .get(FIELD_NAME_ELEMENT)
-                                            .traverse(jsonParser.getCodec()),
-                                    ctx);
+                            deserialize(objectNode.get(FIELD_NAME_ELEMENT), codec, ctx);
                     type = typeFactory.createMultisetType(elementType, -1);
                 } else if (sqlTypeName == SqlTypeName.MAP) {
-                    RelDataType keyType =
-                            deserialize(
-                                    objectNode.get(FIELD_NAME_KEY).traverse(jsonParser.getCodec()),
-                                    ctx);
+                    RelDataType keyType = deserialize(objectNode.get(FIELD_NAME_KEY), codec, ctx);
                     RelDataType valueType =
-                            deserialize(
-                                    objectNode
-                                            .get(FIELD_NAME_VALUE)
-                                            .traverse(jsonParser.getCodec()),
-                                    ctx);
+                            deserialize(objectNode.get(FIELD_NAME_VALUE), codec, ctx);
                     type = typeFactory.createMapType(keyType, valueType);
                 } else if (precision == null) {
                     type = typeFactory.createSqlType(sqlTypeName);

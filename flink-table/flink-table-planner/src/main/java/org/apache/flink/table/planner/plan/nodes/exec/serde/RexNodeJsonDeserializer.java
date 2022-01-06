@@ -31,7 +31,7 @@ import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.ObjectCodec;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
@@ -102,72 +102,66 @@ public class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
 
     @Override
     public RexNode deserialize(JsonParser jsonParser, DeserializationContext ctx)
-            throws IOException, JsonProcessingException {
+            throws IOException {
         JsonNode jsonNode = jsonParser.readValueAsTree();
+        return deserialize(jsonNode, jsonParser.getCodec(), ctx);
+    }
+
+    private RexNode deserialize(JsonNode jsonNode, ObjectCodec codec, DeserializationContext ctx)
+            throws IOException {
         String kind = jsonNode.get(FIELD_NAME_KIND).asText().toUpperCase();
         switch (kind) {
             case SQL_KIND_INPUT_REF:
-                return deserializeInputRef(jsonNode, jsonParser, ctx);
+                return deserializeInputRef(jsonNode, codec, ctx);
             case SQL_KIND_LITERAL:
-                return deserializeLiteral(jsonNode, jsonParser, ctx);
+                return deserializeLiteral(jsonNode, codec, ctx);
             case SQL_KIND_FIELD_ACCESS:
-                return deserializeFieldAccess(jsonNode, jsonParser, ctx);
+                return deserializeFieldAccess(jsonNode, codec, ctx);
             case SQL_KIND_CORREL_VARIABLE:
-                return deserializeCorrelVariable(jsonNode, jsonParser, ctx);
+                return deserializeCorrelVariable(jsonNode, codec, ctx);
             case SQL_KIND_REX_CALL:
-                return deserializeCall(jsonNode, jsonParser, ctx);
+                return deserializeCall(jsonNode, codec, ctx);
             case SQL_KIND_PATTERN_INPUT_REF:
-                return deserializePatternInputRef(jsonNode, jsonParser, ctx);
+                return deserializePatternInputRef(jsonNode, codec, ctx);
             default:
                 throw new TableException("Cannot convert to RexNode: " + jsonNode.toPrettyString());
         }
     }
 
     private RexNode deserializeInputRef(
-            JsonNode jsonNode, JsonParser jsonParser, DeserializationContext ctx)
-            throws IOException {
+            JsonNode jsonNode, ObjectCodec codec, DeserializationContext ctx) throws IOException {
         int inputIndex = jsonNode.get(FIELD_NAME_INPUT_INDEX).intValue();
         JsonNode typeNode = jsonNode.get(FIELD_NAME_TYPE);
-        RelDataType fieldType =
-                ctx.readValue(typeNode.traverse(jsonParser.getCodec()), RelDataType.class);
+        RelDataType fieldType = ctx.readValue(typeNode.traverse(codec), RelDataType.class);
         return SerdeContext.get(ctx).getRexBuilder().makeInputRef(fieldType, inputIndex);
     }
 
     private RexNode deserializePatternInputRef(
-            JsonNode jsonNode, JsonParser jsonParser, DeserializationContext ctx)
-            throws IOException {
+            JsonNode jsonNode, ObjectCodec codec, DeserializationContext ctx) throws IOException {
         int inputIndex = jsonNode.get(FIELD_NAME_INPUT_INDEX).intValue();
         String alpha = jsonNode.get(FIELD_NAME_ALPHA).asText();
         JsonNode typeNode = jsonNode.get(FIELD_NAME_TYPE);
-        RelDataType fieldType =
-                ctx.readValue(typeNode.traverse(jsonParser.getCodec()), RelDataType.class);
+        RelDataType fieldType = ctx.readValue(typeNode.traverse(codec), RelDataType.class);
         return SerdeContext.get(ctx)
                 .getRexBuilder()
                 .makePatternFieldRef(alpha, fieldType, inputIndex);
     }
 
     private RexNode deserializeLiteral(
-            JsonNode jsonNode, JsonParser jsonParser, DeserializationContext ctx)
-            throws IOException {
+            JsonNode jsonNode, ObjectCodec codec, DeserializationContext ctx) throws IOException {
         RexBuilder rexBuilder = SerdeContext.get(ctx).getRexBuilder();
         JsonNode typeNode = jsonNode.get(FIELD_NAME_TYPE);
-        RelDataType literalType =
-                ctx.readValue(typeNode.traverse(jsonParser.getCodec()), RelDataType.class);
+        RelDataType literalType = ctx.readValue(typeNode.traverse(codec), RelDataType.class);
         if (jsonNode.has(FIELD_NAME_SARG)) {
             Sarg<?> sarg =
-                    toSarg(
-                            jsonNode.get(FIELD_NAME_SARG),
-                            literalType.getSqlTypeName(),
-                            jsonParser,
-                            ctx);
+                    toSarg(jsonNode.get(FIELD_NAME_SARG), literalType.getSqlTypeName(), codec, ctx);
             return rexBuilder.makeSearchArgumentLiteral(sarg, literalType);
         } else if (jsonNode.has(FIELD_NAME_VALUE)) {
             JsonNode literalNode = jsonNode.get(FIELD_NAME_VALUE);
             if (literalNode.isNull()) {
                 return rexBuilder.makeNullLiteral(literalType);
             }
-            Object literal =
-                    toLiteralValue(jsonNode, literalType.getSqlTypeName(), jsonParser, ctx);
+            Object literal = toLiteralValue(jsonNode, literalType.getSqlTypeName(), codec, ctx);
             return rexBuilder.makeLiteral(literal, literalType, true);
         } else {
             throw new TableException("Unknown literal: " + jsonNode.toPrettyString());
@@ -177,7 +171,7 @@ public class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
     private Object toLiteralValue(
             JsonNode literalNode,
             SqlTypeName sqlTypeName,
-            JsonParser jsonParser,
+            ObjectCodec codec,
             DeserializationContext ctx)
             throws IOException {
         JsonNode valueNode = literalNode.get(FIELD_NAME_VALUE);
@@ -238,7 +232,7 @@ public class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
                 ArrayNode valuesNode = (ArrayNode) valueNode;
                 List<RexNode> list = new ArrayList<>();
                 for (int i = 0; i < valuesNode.size(); ++i) {
-                    list.add(deserialize(valuesNode.get(i).traverse(jsonParser.getCodec()), ctx));
+                    list.add(deserialize(valuesNode.get(i), codec, ctx));
                 }
                 return list;
             default:
@@ -261,7 +255,7 @@ public class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
     private Sarg<?> toSarg(
             JsonNode jsonNode,
             SqlTypeName sqlTypeName,
-            JsonParser jsonParser,
+            ObjectCodec codec,
             DeserializationContext ctx)
             throws IOException {
         ArrayNode rangesNode = (ArrayNode) jsonNode.get(FIELD_NAME_RANGES);
@@ -273,8 +267,7 @@ public class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
                 JsonNode lowerNode = rangeNode.get(FIELD_NAME_BOUND_LOWER);
                 Comparable<?> boundValue =
                         checkNotNull(
-                                (Comparable<?>)
-                                        toLiteralValue(lowerNode, sqlTypeName, jsonParser, ctx));
+                                (Comparable<?>) toLiteralValue(lowerNode, sqlTypeName, codec, ctx));
                 com.google.common.collect.BoundType boundType =
                         com.google.common.collect.BoundType.valueOf(
                                 lowerNode.get(FIELD_NAME_BOUND_TYPE).asText().toUpperCase());
@@ -288,8 +281,7 @@ public class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
                 JsonNode upperNode = rangeNode.get(FIELD_NAME_BOUND_UPPER);
                 Comparable<?> boundValue =
                         checkNotNull(
-                                (Comparable<?>)
-                                        toLiteralValue(upperNode, sqlTypeName, jsonParser, ctx));
+                                (Comparable<?>) toLiteralValue(upperNode, sqlTypeName, codec, ctx));
                 com.google.common.collect.BoundType boundType =
                         com.google.common.collect.BoundType.valueOf(
                                 upperNode.get(FIELD_NAME_BOUND_TYPE).asText().toUpperCase());
@@ -308,40 +300,36 @@ public class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
     }
 
     private RexNode deserializeFieldAccess(
-            JsonNode jsonNode, JsonParser jsonParser, DeserializationContext ctx)
-            throws IOException {
+            JsonNode jsonNode, ObjectCodec codec, DeserializationContext ctx) throws IOException {
         String fieldName = jsonNode.get(FIELD_NAME_NAME).asText();
         JsonNode exprNode = jsonNode.get(FIELD_NAME_EXPR);
-        RexNode refExpr = deserialize(exprNode.traverse(jsonParser.getCodec()), ctx);
+        RexNode refExpr = deserialize(exprNode, codec, ctx);
         return SerdeContext.get(ctx).getRexBuilder().makeFieldAccess(refExpr, fieldName, true);
     }
 
     private RexNode deserializeCorrelVariable(
-            JsonNode jsonNode, JsonParser jsonParser, DeserializationContext ctx)
-            throws IOException {
+            JsonNode jsonNode, ObjectCodec codec, DeserializationContext ctx) throws IOException {
         String correl = jsonNode.get(FIELD_NAME_CORREL).asText();
         JsonNode typeNode = jsonNode.get(FIELD_NAME_TYPE);
-        RelDataType fieldType =
-                ctx.readValue(typeNode.traverse(jsonParser.getCodec()), RelDataType.class);
+        RelDataType fieldType = ctx.readValue(typeNode.traverse(codec), RelDataType.class);
         return SerdeContext.get(ctx)
                 .getRexBuilder()
                 .makeCorrel(fieldType, new CorrelationId(correl));
     }
 
     private RexNode deserializeCall(
-            JsonNode jsonNode, JsonParser jsonParser, DeserializationContext ctx)
-            throws IOException {
+            JsonNode jsonNode, ObjectCodec codec, DeserializationContext ctx) throws IOException {
         RexBuilder rexBuilder = SerdeContext.get(ctx).getRexBuilder();
         SqlOperator operator = toOperator(jsonNode.get(FIELD_NAME_OPERATOR), SerdeContext.get(ctx));
         ArrayNode operandNodes = (ArrayNode) jsonNode.get(FIELD_NAME_OPERANDS);
         List<RexNode> rexOperands = new ArrayList<>();
         for (JsonNode node : operandNodes) {
-            rexOperands.add(deserialize(node.traverse(jsonParser.getCodec()), ctx));
+            rexOperands.add(deserialize(node, codec, ctx));
         }
         final RelDataType callType;
         if (jsonNode.has(FIELD_NAME_TYPE)) {
             JsonNode typeNode = jsonNode.get(FIELD_NAME_TYPE);
-            callType = ctx.readValue(typeNode.traverse(jsonParser.getCodec()), RelDataType.class);
+            callType = ctx.readValue(typeNode.traverse(codec), RelDataType.class);
         } else {
             callType = rexBuilder.deriveReturnType(operator, rexOperands);
         }

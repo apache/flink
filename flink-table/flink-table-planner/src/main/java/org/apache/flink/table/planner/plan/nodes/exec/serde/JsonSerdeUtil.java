@@ -93,7 +93,7 @@ public class JsonSerdeUtil {
     }
 
     private static Module createFlinkTableJacksonModule() {
-        final SimpleModule module = new SimpleModule("Flink table types");
+        final SimpleModule module = new SimpleModule("Flink table module");
         ReflectionsUtil.scanSubClasses(
                         "org.apache.flink.table.planner.plan.nodes.exec", ExecNode.class)
                 .forEach(c -> module.registerSubtypes(new NamedType(c, c.getName())));
