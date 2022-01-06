@@ -17,16 +17,16 @@
  */
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.{DataTypes, ValidationException}
 import org.apache.flink.table.data.binary.BinaryArrayData
 import org.apache.flink.table.data.util.MapDataUtil
 import org.apache.flink.table.data.utils.CastExecutor
 import org.apache.flink.table.data.writer.{BinaryArrayWriter, BinaryRowWriter}
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
-import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
+import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
+import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.planner.functions.casting.{CastRule, CastRuleProvider, CodeGeneratorCastRule, ExpressionCodeGeneratorCastRule}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.planner.utils.TableConfigUtils
@@ -34,16 +34,15 @@ import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.{isInteroperable, isPrimitive}
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils._
-import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeFamily.DATETIME
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
+import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 import org.apache.flink.table.utils.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.flink.util.Preconditions.checkArgument
 
 import java.time.ZoneId
-
 import scala.collection.JavaConversions._
 
 /**
@@ -1402,13 +1401,12 @@ object ScalarOperatorGens {
     GeneratedExpression(result, nullTerm, code, resultType)
   }
 
-  def generateMap(
+  def generateMapOrMultiset(
       ctx: CodeGeneratorContext,
       resultType: LogicalType,
       elements: Seq[GeneratedExpression]): GeneratedExpression = {
 
-    checkArgument(resultType.isInstanceOf[MapType])
-    val mapType = resultType.asInstanceOf[MapType]
+    checkArgument(resultType.isInstanceOf[MapType] || resultType.isInstanceOf[MultisetType])
     val baseMap = newName("map")
 
     // prepare map key array
@@ -1420,7 +1418,10 @@ object ScalarOperatorGens {
       .map(_._2.last)
       .keys
       .toSeq
-    val keyType = mapType.getKeyType
+    val keyType = resultType match {
+      case mapType1: MapType => mapType1.getKeyType
+      case _ => resultType.asInstanceOf[MultisetType].getElementType
+    }
     val keyExpr = generateArray(ctx, new ArrayType(keyType), keyElements)
     val isKeyFixLength = isPrimitive(keyType)
 
@@ -1433,7 +1434,10 @@ object ScalarOperatorGens {
       .map(_._2.last)
       .values
       .toSeq
-    val valueType = mapType.getValueType
+    val valueType = resultType match {
+      case mapType1: MapType => mapType1.getValueType
+      case _ => DataTypes.INT().getLogicalType
+    }
     val valueExpr = generateArray(ctx, new ArrayType(valueType), valueElements)
     val isValueFixLength = isPrimitive(valueType)
 

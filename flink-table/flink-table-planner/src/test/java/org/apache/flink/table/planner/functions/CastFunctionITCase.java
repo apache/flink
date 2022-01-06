@@ -41,10 +41,13 @@ import java.time.Period;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
@@ -63,6 +66,7 @@ import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
 import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.MONTH;
+import static org.apache.flink.table.api.DataTypes.MULTISET;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.SECOND;
 import static org.apache.flink.table.api.DataTypes.SMALLINT;
@@ -75,8 +79,6 @@ import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.util.CollectionUtil.entry;
-import static org.apache.flink.util.CollectionUtil.map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link BuiltInFunctionDefinitions#CAST}. */
@@ -112,6 +114,10 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     private static final Duration DEFAULT_INTERVAL_DAY = Duration.ofHours(12);
 
     private static final int[] DEFAULT_ARRAY = new int[] {0, 1, 2};
+
+    private static final Map<Integer, Integer> DEFAULT_MAP = map(entry(0, 1), entry(2, 3));
+
+    private static final Map<Integer, Integer> DEFAULT_MULTISET = map(entry(0, 1), entry(2, 3));
 
     @Override
     Configuration getConfiguration() {
@@ -174,8 +180,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
                         .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
                         .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
+                        .failValidation(MAP(INT(), INT()), DEFAULT_MAP)
+                        .failValidation(MULTISET(INT()), DEFAULT_MULTISET)
                         // ROW
                         // RAW
                         .build(),
@@ -211,8 +217,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
                         .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
                         .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
+                        .failValidation(MAP(INT(), INT()), DEFAULT_MAP)
+                        .failValidation(MULTISET(INT()), DEFAULT_MULTISET)
                         // ROW
                         //
                         // RAW supported - check CastFunctionMiscITCase
@@ -245,8 +251,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
                         .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
                         .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
+                        .failValidation(MAP(INT(), INT()), DEFAULT_MAP)
+                        .failValidation(MULTISET(INT()), DEFAULT_MULTISET)
                         // ROW
                         //
                         // RAW supported - check CastFunctionMiscITCase
@@ -281,8 +287,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
                         .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
                         .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
+                        .failValidation(MAP(INT(), INT()), DEFAULT_MAP)
+                        .failValidation(MULTISET(INT()), DEFAULT_MULTISET)
                         // ROW
                         //
                         // RAW supported - check CastFunctionMiscITCase
@@ -317,8 +323,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
                         .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
                         .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
+                        .failValidation(MAP(INT(), INT()), DEFAULT_MAP)
+                        .failValidation(MULTISET(INT()), DEFAULT_MULTISET)
                         // ROW
                         // RAW
                         .build(),
@@ -364,8 +370,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
                         .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
                         .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
+                        .failValidation(MAP(INT(), INT()), DEFAULT_MAP)
+                        .failValidation(MULTISET(INT()), DEFAULT_MULTISET)
                         // ROW
                         // RAW
                         .build(),
@@ -422,8 +428,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
                         .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
                         .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
+                        .failValidation(MAP(INT(), INT()), DEFAULT_MAP)
+                        .failValidation(MULTISET(INT()), DEFAULT_MULTISET)
                         // ROW
                         // RAW
                         .build(),
@@ -482,8 +488,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
                         .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
                         .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
+                        .failValidation(MAP(INT(), INT()), DEFAULT_MAP)
+                        .failValidation(MULTISET(INT()), DEFAULT_MULTISET)
                         // ROW
                         // RAW
                         .build(),
@@ -539,8 +545,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
                         .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
                         .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
+                        .failValidation(MAP(INT(), INT()), DEFAULT_MAP)
+                        .failValidation(MULTISET(INT()), DEFAULT_MULTISET)
                         // ROW
                         // RAW
                         .build(),
@@ -601,8 +607,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
                         .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
                         .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
+                        .failValidation(MAP(INT(), INT()), DEFAULT_MAP)
+                        .failValidation(MULTISET(INT()), DEFAULT_MULTISET)
                         // ROW
                         // RAW
                         .build(),
@@ -664,8 +670,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
                         .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
                         .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
+                        .failValidation(MAP(INT(), INT()), DEFAULT_MAP)
+                        .failValidation(MULTISET(INT()), DEFAULT_MULTISET)
                         // ROW
                         // RAW
                         .build(),
@@ -710,8 +716,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
                         .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
                         .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
+                        .failValidation(MAP(INT(), INT()), DEFAULT_MAP)
+                        .failValidation(MULTISET(INT()), DEFAULT_MULTISET)
                         // ROW
                         // RAW
                         .build(),
@@ -758,8 +764,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
                         .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
                         .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
+                        .failValidation(MAP(INT(), INT()), DEFAULT_MAP)
+                        .failValidation(MULTISET(INT()), DEFAULT_MULTISET)
                         // ROW
                         // RAW
                         .build(),
@@ -824,8 +830,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
                         .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
                         .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
+                        .failValidation(MAP(INT(), INT()), DEFAULT_MAP)
+                        .failValidation(MULTISET(INT()), DEFAULT_MULTISET)
                         // ROW
                         // RAW
                         .build(),
@@ -908,8 +914,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
                         .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
                         .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
+                        .failValidation(MAP(INT(), INT()), DEFAULT_MAP)
+                        .failValidation(MULTISET(INT()), DEFAULT_MULTISET)
                         // ROW
                         // RAW
                         .build(),
@@ -1166,14 +1172,21 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 Collections.singletonMap(1, 2),
                                 Collections.singletonMap("1", "2"))
                         .build(),
-                // https://issues.apache.org/jira/browse/FLINK-25567
-                // CastTestSpecBuilder.testCastTo(MULTISET(STRING()))
-                //        .fromCase(MULTISET(TIMESTAMP()), null, null)
-                //        .fromCase(
-                //                MULTISET(INT()),
-                //                map(entry(1, 2), entry(3, 4)),
-                //                map(entry("1", 2), entry("3", 4)))
-                //        .build(),
+                CastTestSpecBuilder.testCastTo(MULTISET(STRING()))
+                        .fromCase(MULTISET(TIMESTAMP()), null, null)
+                        .fromCase(
+                                MULTISET(INT()),
+                                map(entry(1, 2), entry(3, 4)),
+                                map(entry("1", 2), entry("3", 4)))
+                        .fromCase(
+                                MULTISET(DOUBLE()),
+                                map(entry(12.3, 1), entry(0.1, 2)),
+                                map(entry("12.3", 1), entry("0.1", 2)))
+                        .fromCase(
+                                MULTISET(TIMESTAMP(4)),
+                                map(entry(LocalDateTime.parse("2021-09-24T12:34:56.123456"), 2)),
+                                map(entry("2021-09-24 12:34:56.1234", 2)))
+                        .build(),
                 CastTestSpecBuilder.testCastTo(ARRAY(INT()))
                         .fromCase(ARRAY(INT()), null, null)
                         .fromCase(
@@ -1371,5 +1384,21 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
     private static boolean isTimestampToNumeric(LogicalType srcType, LogicalType trgType) {
         return srcType.is(LogicalTypeFamily.TIMESTAMP) && trgType.is(LogicalTypeFamily.NUMERIC);
+    }
+
+    private static <K, V> Map.Entry<K, V> entry(K k, V v) {
+        return new AbstractMap.SimpleImmutableEntry<>(k, v);
+    }
+
+    @SafeVarargs
+    private static <K, V> Map<K, V> map(Map.Entry<K, V>... entries) {
+        if (entries == null) {
+            return Collections.emptyMap();
+        }
+        Map<K, V> map = new HashMap<>();
+        for (Map.Entry<K, V> entry : entries) {
+            map.put(entry.getKey(), entry.getValue());
+        }
+        return map;
     }
 }

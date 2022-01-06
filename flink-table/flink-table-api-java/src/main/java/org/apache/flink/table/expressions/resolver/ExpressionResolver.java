@@ -409,6 +409,11 @@ public class ExpressionResolver {
                     BuiltInFunctionDefinitions.MAP, Arrays.asList(expression), dataType);
         }
 
+        public CallExpression multiset(DataType dataType, ResolvedExpression... expression) {
+            return createCallExpression(
+                    BuiltInFunctionDefinitions.MULTISET, Arrays.asList(expression), dataType);
+        }
+
         public CallExpression wrappingCall(
                 BuiltInFunctionDefinition definition, ResolvedExpression expression) {
             return createCallExpression(

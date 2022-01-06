@@ -106,6 +106,8 @@ public final class SpecificInputTypeStrategies {
     public static final InputTypeStrategy ARRAY =
             new CommonInputTypeStrategy(ConstantArgumentCount.from(1));
 
+    public static final InputTypeStrategy MULTISET =
+            new CommonInputTypeStrategy(ConstantArgumentCount.from(1));
     /**
      * Strategy that checks all types are fully comparable with each other. Requires exactly two
      * arguments.
