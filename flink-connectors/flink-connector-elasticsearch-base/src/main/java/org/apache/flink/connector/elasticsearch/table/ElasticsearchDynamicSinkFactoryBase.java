@@ -21,7 +21,6 @@ package org.apache.flink.connector.elasticsearch.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -29,7 +28,6 @@ import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
@@ -83,7 +81,7 @@ abstract class ElasticsearchDynamicSinkFactoryBase implements DynamicTableSinkFa
     }
 
     @Nullable
-    String getDocumentType(Context context) {
+    String getDocumentType(ElasticsearchConfiguration configuration) {
         return null; // document type is only set in Elasticsearch versions < 7
     }
 
@@ -91,10 +89,14 @@ abstract class ElasticsearchDynamicSinkFactoryBase implements DynamicTableSinkFa
     public DynamicTableSink createDynamicTableSink(Context context) {
         List<LogicalTypeWithIndex> primaryKeyLogicalTypesWithIndex =
                 getPrimaryKeyLogicalTypesWithIndex(context);
-        EncodingFormat<SerializationSchema<RowData>> format =
-                getValidatedEncodingFormat(this, context);
 
-        ElasticsearchConfiguration config = getConfiguration(context);
+        final FactoryUtil.TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(this, context);
+        EncodingFormat<SerializationSchema<RowData>> format =
+                helper.discoverEncodingFormat(SerializationFormatFactory.class, FORMAT_OPTION);
+
+        ElasticsearchConfiguration config = getConfiguration(helper);
+        helper.validate();
         validateConfiguration(config);
 
         return new ElasticsearchDynamicSink(
@@ -104,12 +106,11 @@ abstract class ElasticsearchDynamicSinkFactoryBase implements DynamicTableSinkFa
                 context.getPhysicalRowDataType(),
                 capitalize(factoryIdentifier),
                 sinkBuilderSupplier,
-                getDocumentType(context));
+                getDocumentType(config));
     }
 
-    ElasticsearchConfiguration getConfiguration(Context context) {
-        return new ElasticsearchConfiguration(
-                Configuration.fromMap(context.getCatalogTable().getOptions()));
+    ElasticsearchConfiguration getConfiguration(FactoryUtil.TableFactoryHelper helper) {
+        return new ElasticsearchConfiguration(helper.getOptions());
     }
 
     void validateConfiguration(ElasticsearchConfiguration config) {
@@ -159,16 +160,6 @@ abstract class ElasticsearchDynamicSinkFactoryBase implements DynamicTableSinkFa
         if (!condition) {
             throw new ValidationException(message.get());
         }
-    }
-
-    EncodingFormat<SerializationSchema<RowData>> getValidatedEncodingFormat(
-            DynamicTableFactory factory, DynamicTableFactory.Context context) {
-        final FactoryUtil.TableFactoryHelper helper =
-                FactoryUtil.createTableFactoryHelper(factory, context);
-        final EncodingFormat<SerializationSchema<RowData>> format =
-                helper.discoverEncodingFormat(SerializationFormatFactory.class, FORMAT_OPTION);
-        helper.validate();
-        return format;
     }
 
     List<LogicalTypeWithIndex> getPrimaryKeyLogicalTypesWithIndex(Context context) {
@@ -221,6 +212,27 @@ abstract class ElasticsearchDynamicSinkFactoryBase implements DynamicTableSinkFa
                         PASSWORD_OPTION,
                         USERNAME_OPTION,
                         SINK_PARALLELISM)
+                .collect(Collectors.toSet());
+    }
+
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        return Stream.of(
+                        HOSTS_OPTION,
+                        INDEX_OPTION,
+                        PASSWORD_OPTION,
+                        USERNAME_OPTION,
+                        KEY_DELIMITER_OPTION,
+                        BULK_FLUSH_MAX_ACTIONS_OPTION,
+                        BULK_FLUSH_MAX_SIZE_OPTION,
+                        BULK_FLUSH_INTERVAL_OPTION,
+                        BULK_FLUSH_BACKOFF_TYPE_OPTION,
+                        BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION,
+                        BULK_FLUSH_BACKOFF_DELAY_OPTION,
+                        CONNECTION_PATH_PREFIX_OPTION,
+                        CONNECTION_REQUEST_TIMEOUT,
+                        CONNECTION_TIMEOUT,
+                        SOCKET_TIMEOUT)
                 .collect(Collectors.toSet());
     }
 
