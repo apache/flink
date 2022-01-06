@@ -131,7 +131,7 @@ under the License.
 			</dependency>
 			<dependency>
 				<groupId>io.grpc</groupId>
-				<artifactId>grpc-grpclib</artifactId>
+				<artifactId>grpc-grpclb</artifactId>
 				<version>${grpc.version}</version>
 			</dependency>
 			<dependency>
