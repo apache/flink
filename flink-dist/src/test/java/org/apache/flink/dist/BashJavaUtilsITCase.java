@@ -25,7 +25,6 @@ import org.apache.flink.runtime.util.bash.BashJavaUtils;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
-import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -135,17 +134,15 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 
         Map<String, String> actualDynamicParameters = new HashMap<>();
         String[] dynamicParameterTokens = dynamicParametersStr.split(" ");
-        assertThat(dynamicParameterTokens.length % 2, Matchers.is(0));
         for (int i = 0; i < dynamicParameterTokens.length; ++i) {
             String parameterKeyValueStr = dynamicParameterTokens[i];
-            if (i % 2 == 0) {
-                assertThat(parameterKeyValueStr, Matchers.is("-D"));
-            } else {
+            if (parameterKeyValueStr.startsWith("-D") && parameterKeyValueStr.length() > 2) {
                 String[] parameterKeyValue = parameterKeyValueStr.split("=");
                 assertThat(parameterKeyValue, arrayWithSize(2));
-                assertThat(parameterKeyValue[0], isIn(expectedDynamicParameters));
+                assertThat(parameterKeyValue[0].substring(2), isIn(expectedDynamicParameters));
 
-                actualDynamicParameters.put(parameterKeyValue[0], parameterKeyValue[1]);
+                actualDynamicParameters.put(
+                        parameterKeyValue[0].substring(2), parameterKeyValue[1]);
             }
         }
 
