@@ -60,12 +60,9 @@ class StreamPhysicalTableSourceScan(
 
   override def translateToExecNode(): ExecNode[_] = {
     val tableSourceSpec = new DynamicTableSourceSpec(
-      tableSourceTable.contextResolvedTable.getIdentifier,
-      tableSourceTable.contextResolvedTable.getResolvedTable[ResolvedCatalogTable],
+      tableSourceTable.contextResolvedTable,
       util.Arrays.asList(tableSourceTable.abilitySpecs: _*))
     tableSourceSpec.setTableSource(tableSource)
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
-    tableSourceSpec.setReadableConfig(tableConfig.getConfiguration)
 
     new StreamExecTableSourceScan(
       tableSourceSpec,

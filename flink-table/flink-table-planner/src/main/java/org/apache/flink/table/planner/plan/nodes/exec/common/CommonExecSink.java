@@ -113,7 +113,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
 
     @Override
     public String getSimplifiedName() {
-        return tableSinkSpec.getObjectIdentifier().getObjectName();
+        return tableSinkSpec.getContextResolvedTable().getIdentifier().getObjectName();
     }
 
     public DynamicTableSinkSpec getTableSinkSpec() {
@@ -127,7 +127,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             DynamicTableSink tableSink,
             int rowtimeFieldIndex,
             boolean upsertMaterialize) {
-        final ResolvedSchema schema = tableSinkSpec.getCatalogTable().getResolvedSchema();
+        final ResolvedSchema schema = tableSinkSpec.getContextResolvedTable().getResolvedSchema();
         final SinkRuntimeProvider runtimeProvider =
                 tableSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(isBounded));
         final RowType physicalRowType = getPhysicalRowType(schema);
@@ -144,7 +144,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                                     + "Since the configured parallelism is different from the input's parallelism and "
                                     + "the changelog mode is not insert-only, a primary key is required but could not "
                                     + "be found.",
-                            tableSinkSpec.getObjectIdentifier().asSummaryString(),
+                            tableSinkSpec
+                                    .getContextResolvedTable()
+                                    .getIdentifier()
+                                    .asSummaryString(),
                             sinkParallelism,
                             inputParallelism));
         }
@@ -329,7 +332,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                                                 "Invalid configured parallelism %s for table '%s'.",
                                                 sinkParallelism,
                                                 tableSinkSpec
-                                                        .getObjectIdentifier()
+                                                        .getContextResolvedTable()
+                                                        .getIdentifier()
                                                         .asSummaryString()));
                             }
                             return sinkParallelism;
