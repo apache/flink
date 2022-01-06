@@ -42,6 +42,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.DRIVER;
 import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.LOOKUP_CACHE_MAX_ROWS;
@@ -214,6 +216,27 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
         optionalOptions.add(SINK_PARALLELISM);
         optionalOptions.add(MAX_RETRY_TIMEOUT);
         return optionalOptions;
+    }
+
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        return Stream.of(
+                        URL,
+                        TABLE_NAME,
+                        USERNAME,
+                        PASSWORD,
+                        DRIVER,
+                        SINK_BUFFER_FLUSH_MAX_ROWS,
+                        SINK_BUFFER_FLUSH_INTERVAL,
+                        SINK_MAX_RETRIES,
+                        MAX_RETRY_TIMEOUT,
+                        SCAN_FETCH_SIZE,
+                        SCAN_AUTO_COMMIT,
+                        LOOKUP_CACHE_MAX_ROWS,
+                        LOOKUP_CACHE_TTL,
+                        LOOKUP_MAX_RETRIES,
+                        LOOKUP_CACHE_MISSING_KEY)
+                .collect(Collectors.toSet());
     }
 
     private void validateConfigOptions(ReadableConfig config) {
