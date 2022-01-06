@@ -31,11 +31,14 @@ import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static org.apache.flink.connector.kinesis.table.KinesisConnectorOptions.SINK_PARTITIONER;
+import static org.apache.flink.connector.kinesis.table.KinesisConnectorOptions.SINK_PARTITIONER_FIELD_DELIMITER;
 import static org.apache.flink.connector.kinesis.table.KinesisConnectorOptions.STREAM;
 import static org.apache.flink.table.factories.FactoryUtil.FORMAT;
 
@@ -82,6 +85,15 @@ public class KinesisDynamicTableFactory implements DynamicTableSourceFactory {
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        return Collections.emptySet();
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(SINK_PARTITIONER);
+        options.add(SINK_PARTITIONER_FIELD_DELIMITER);
+        return options;
+    }
+
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        return Stream.of(STREAM, SINK_PARTITIONER, SINK_PARTITIONER_FIELD_DELIMITER)
+                .collect(Collectors.toSet());
     }
 }
