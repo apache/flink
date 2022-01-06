@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source.reader;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -218,6 +219,11 @@ public class KafkaPartitionSplitReader
             Map<TopicPartition, OffsetAndMetadata> offsetsToCommit,
             OffsetCommitCallback offsetCommitCallback) {
         consumer.commitAsync(offsetsToCommit, offsetCommitCallback);
+    }
+
+    @VisibleForTesting
+    KafkaConsumer<byte[], byte[]> consumer() {
+        return consumer;
     }
 
     // --------------- private helper method ----------------------
