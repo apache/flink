@@ -55,6 +55,8 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -65,7 +67,6 @@ import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -117,20 +118,22 @@ public class FileSystemTableSink extends AbstractFileSystemTable
     @Nullable private Integer configuredParallelism;
 
     FileSystemTableSink(
-            DynamicTableFactory.Context context,
+            ObjectIdentifier tableIdentifier,
+            ResolvedSchema schema,
+            List<String> partitionKeys,
+            ReadableConfig tableOptions,
             @Nullable DecodingFormat<BulkFormat<RowData, FileSourceSplit>> bulkReaderFormat,
             @Nullable DecodingFormat<DeserializationSchema<RowData>> deserializationFormat,
             @Nullable FileSystemFormatFactory formatFactory,
             @Nullable EncodingFormat<BulkWriter.Factory<RowData>> bulkWriterFormat,
             @Nullable EncodingFormat<SerializationSchema<RowData>> serializationFormat) {
-        super(context);
+        super(tableIdentifier, schema, partitionKeys, tableOptions);
         this.bulkReaderFormat = bulkReaderFormat;
         this.deserializationFormat = deserializationFormat;
         this.formatFactory = formatFactory;
         if (Stream.of(bulkWriterFormat, serializationFormat, formatFactory)
                 .allMatch(Objects::isNull)) {
-            Configuration options = Configuration.fromMap(context.getCatalogTable().getOptions());
-            String identifier = options.get(FactoryUtil.FORMAT);
+            String identifier = tableOptions.get(FactoryUtil.FORMAT);
             throw new ValidationException(
                     String.format(
                             "Could not find any format factory for identifier '%s' in the classpath.",
@@ -138,7 +141,8 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         }
         this.bulkWriterFormat = bulkWriterFormat;
         this.serializationFormat = serializationFormat;
-        this.configuredParallelism = tableOptions.get(FileSystemConnectorOptions.SINK_PARALLELISM);
+        this.configuredParallelism =
+                this.tableOptions.get(FileSystemConnectorOptions.SINK_PARALLELISM);
     }
 
     @Override
@@ -545,7 +549,10 @@ public class FileSystemTableSink extends AbstractFileSystemTable
     public DynamicTableSink copy() {
         FileSystemTableSink sink =
                 new FileSystemTableSink(
-                        context,
+                        tableIdentifier,
+                        schema,
+                        partitionKeys,
+                        tableOptions,
                         bulkReaderFormat,
                         deserializationFormat,
                         formatFactory,

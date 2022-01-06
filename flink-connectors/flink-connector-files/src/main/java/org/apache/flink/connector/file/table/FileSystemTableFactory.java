@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.time.ZoneId.SHORT_IDS;
 
@@ -70,7 +71,10 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         validate(helper);
         return new FileSystemTableSource(
-                context,
+                context.getObjectIdentifier(),
+                context.getCatalogTable().getResolvedSchema(),
+                context.getCatalogTable().getPartitionKeys(),
+                helper.getOptions(),
                 discoverDecodingFormat(context, BulkReaderFormatFactory.class),
                 discoverDecodingFormat(context, DeserializationFormatFactory.class),
                 discoverFormatFactory(context));
@@ -81,7 +85,10 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         validate(helper);
         return new FileSystemTableSink(
-                context,
+                context.getObjectIdentifier(),
+                context.getCatalogTable().getResolvedSchema(),
+                context.getCatalogTable().getPartitionKeys(),
+                helper.getOptions(),
                 discoverDecodingFormat(context, BulkReaderFormatFactory.class),
                 discoverDecodingFormat(context, DeserializationFormatFactory.class),
                 discoverFormatFactory(context),
@@ -120,6 +127,24 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         options.add(FileSystemConnectorOptions.COMPACTION_FILE_SIZE);
         options.add(FileSystemConnectorOptions.SINK_PARALLELISM);
         return options;
+    }
+
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        return Stream.of(
+                        FileSystemConnectorOptions.PATH,
+                        FileSystemConnectorOptions.PARTITION_DEFAULT_NAME,
+                        FileSystemConnectorOptions.SINK_ROLLING_POLICY_FILE_SIZE,
+                        FileSystemConnectorOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL,
+                        FileSystemConnectorOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL,
+                        FileSystemConnectorOptions.SINK_PARTITION_COMMIT_TRIGGER,
+                        FileSystemConnectorOptions.SINK_PARTITION_COMMIT_DELAY,
+                        FileSystemConnectorOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE,
+                        FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND,
+                        FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS,
+                        FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME,
+                        FileSystemConnectorOptions.COMPACTION_FILE_SIZE)
+                .collect(Collectors.toSet());
     }
 
     private void validate(FactoryUtil.TableFactoryHelper helper) {
