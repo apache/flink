@@ -55,6 +55,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -135,12 +136,18 @@ public final class FactoryUtil {
             @Nullable DynamicTableSourceFactory preferredFactory,
             ObjectIdentifier objectIdentifier,
             ResolvedCatalogTable catalogTable,
+            Map<String, String> mergeableOptions,
             ReadableConfig configuration,
             ClassLoader classLoader,
             boolean isTemporary) {
         final DefaultDynamicTableContext context =
                 new DefaultDynamicTableContext(
-                        objectIdentifier, catalogTable, configuration, classLoader, isTemporary);
+                        objectIdentifier,
+                        catalogTable,
+                        mergeableOptions,
+                        configuration,
+                        classLoader,
+                        isTemporary);
         try {
             final DynamicTableSourceFactory factory =
                     preferredFactory != null
@@ -163,12 +170,34 @@ public final class FactoryUtil {
     }
 
     /**
+     * @deprecated Use {@link #createDynamicTableSource(DynamicTableSourceFactory, ObjectIdentifier,
+     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)}
+     */
+    @Deprecated
+    public static DynamicTableSource createDynamicTableSource(
+            @Nullable DynamicTableSourceFactory preferredFactory,
+            ObjectIdentifier objectIdentifier,
+            ResolvedCatalogTable catalogTable,
+            ReadableConfig configuration,
+            ClassLoader classLoader,
+            boolean isTemporary) {
+        return createDynamicTableSource(
+                preferredFactory,
+                objectIdentifier,
+                catalogTable,
+                Collections.emptyMap(),
+                configuration,
+                classLoader,
+                isTemporary);
+    }
+
+    /**
      * Creates a {@link DynamicTableSource} from a {@link CatalogTable}.
      *
      * <p>It considers {@link Catalog#getFactory()} if provided.
      *
      * @deprecated Use {@link #createDynamicTableSource(DynamicTableSourceFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, ReadableConfig, ClassLoader, boolean)} instead.
+     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)} instead.
      */
     @Deprecated
     public static DynamicTableSource createTableSource(
@@ -180,12 +209,18 @@ public final class FactoryUtil {
             boolean isTemporary) {
         final DefaultDynamicTableContext context =
                 new DefaultDynamicTableContext(
-                        objectIdentifier, catalogTable, configuration, classLoader, isTemporary);
+                        objectIdentifier,
+                        catalogTable,
+                        Collections.emptyMap(),
+                        configuration,
+                        classLoader,
+                        isTemporary);
 
         return createDynamicTableSource(
                 getDynamicTableFactory(DynamicTableSourceFactory.class, catalog, context),
                 objectIdentifier,
                 catalogTable,
+                Collections.emptyMap(),
                 configuration,
                 classLoader,
                 isTemporary);
@@ -202,12 +237,18 @@ public final class FactoryUtil {
             @Nullable DynamicTableSinkFactory preferredFactory,
             ObjectIdentifier objectIdentifier,
             ResolvedCatalogTable catalogTable,
+            Map<String, String> mergeableOptions,
             ReadableConfig configuration,
             ClassLoader classLoader,
             boolean isTemporary) {
         final DefaultDynamicTableContext context =
                 new DefaultDynamicTableContext(
-                        objectIdentifier, catalogTable, configuration, classLoader, isTemporary);
+                        objectIdentifier,
+                        catalogTable,
+                        mergeableOptions,
+                        configuration,
+                        classLoader,
+                        isTemporary);
 
         try {
             final DynamicTableSinkFactory factory =
@@ -232,12 +273,34 @@ public final class FactoryUtil {
     }
 
     /**
+     * @deprecated Use {@link #createDynamicTableSink(DynamicTableSinkFactory, ObjectIdentifier,
+     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)}
+     */
+    @Deprecated
+    public static DynamicTableSink createDynamicTableSink(
+            @Nullable DynamicTableSinkFactory preferredFactory,
+            ObjectIdentifier objectIdentifier,
+            ResolvedCatalogTable catalogTable,
+            ReadableConfig configuration,
+            ClassLoader classLoader,
+            boolean isTemporary) {
+        return createDynamicTableSink(
+                preferredFactory,
+                objectIdentifier,
+                catalogTable,
+                Collections.emptyMap(),
+                configuration,
+                classLoader,
+                isTemporary);
+    }
+
+    /**
      * Creates a {@link DynamicTableSink} from a {@link CatalogTable}.
      *
      * <p>It considers {@link Catalog#getFactory()} if provided.
      *
      * @deprecated Use {@link #createDynamicTableSink(DynamicTableSinkFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, ReadableConfig, ClassLoader, boolean)} instead.
+     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)} instead.
      */
     @Deprecated
     public static DynamicTableSink createTableSink(
@@ -249,12 +312,18 @@ public final class FactoryUtil {
             boolean isTemporary) {
         final DefaultDynamicTableContext context =
                 new DefaultDynamicTableContext(
-                        objectIdentifier, catalogTable, configuration, classLoader, isTemporary);
+                        objectIdentifier,
+                        catalogTable,
+                        Collections.emptyMap(),
+                        configuration,
+                        classLoader,
+                        isTemporary);
 
         return createDynamicTableSink(
                 getDynamicTableFactory(DynamicTableSinkFactory.class, catalog, context),
                 objectIdentifier,
                 catalogTable,
+                Collections.emptyMap(),
                 configuration,
                 classLoader,
                 isTemporary);
@@ -1046,6 +1115,7 @@ public final class FactoryUtil {
 
         private final ObjectIdentifier objectIdentifier;
         private final ResolvedCatalogTable catalogTable;
+        private final Map<String, String> mergeableOptions;
         private final ReadableConfig configuration;
         private final ClassLoader classLoader;
         private final boolean isTemporary;
@@ -1053,11 +1123,13 @@ public final class FactoryUtil {
         public DefaultDynamicTableContext(
                 ObjectIdentifier objectIdentifier,
                 ResolvedCatalogTable catalogTable,
+                Map<String, String> mergeableOptions,
                 ReadableConfig configuration,
                 ClassLoader classLoader,
                 boolean isTemporary) {
             this.objectIdentifier = objectIdentifier;
             this.catalogTable = catalogTable;
+            this.mergeableOptions = mergeableOptions;
             this.configuration = configuration;
             this.classLoader = classLoader;
             this.isTemporary = isTemporary;
@@ -1071,6 +1143,11 @@ public final class FactoryUtil {
         @Override
         public ResolvedCatalogTable getCatalogTable() {
             return catalogTable;
+        }
+
+        @Override
+        public Map<String, String> mergeableOptions() {
+            return mergeableOptions;
         }
 
         @Override

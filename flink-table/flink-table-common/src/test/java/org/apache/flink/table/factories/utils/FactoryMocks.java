@@ -65,6 +65,7 @@ public final class FactoryMocks {
                                 Collections.emptyList(),
                                 options),
                         schema),
+                Collections.emptyMap(),
                 new Configuration(),
                 FactoryMocks.class.getClassLoader(),
                 false);
@@ -103,6 +104,7 @@ public final class FactoryMocks {
                                 Collections.emptyList(),
                                 options),
                         schema),
+                Collections.emptyMap(),
                 new Configuration(),
                 FactoryMocks.class.getClassLoader(),
                 false);
