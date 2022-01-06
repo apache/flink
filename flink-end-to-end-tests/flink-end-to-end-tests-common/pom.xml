@@ -62,7 +62,7 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-testing_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-testing</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>

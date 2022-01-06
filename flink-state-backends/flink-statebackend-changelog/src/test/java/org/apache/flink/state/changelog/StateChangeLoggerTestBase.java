@@ -135,5 +135,10 @@ abstract class StateChangeLoggerTestBase<Namespace> {
 
         @Override
         public void close() {}
+
+        @Override
+        public SequenceNumber getLowestSequenceNumber() {
+            return initialSequenceNumber();
+        }
     }
 }

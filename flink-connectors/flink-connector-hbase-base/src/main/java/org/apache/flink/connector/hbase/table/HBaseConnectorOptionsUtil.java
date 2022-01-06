@@ -24,7 +24,7 @@ import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
 import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.types.DataType;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
@@ -57,29 +57,31 @@ public class HBaseConnectorOptionsUtil {
      * type columns in the schema. The PRIMARY KEY constraint is optional, if exist, the primary key
      * constraint must be defined on the single row key field.
      */
-    public static void validatePrimaryKey(TableSchema schema) {
-        HBaseTableSchema hbaseSchema = HBaseTableSchema.fromTableSchema(schema);
+    public static void validatePrimaryKey(DataType dataType, int[] primaryKeyIndexes) {
+        HBaseTableSchema hbaseSchema = HBaseTableSchema.fromDataType(dataType);
         if (!hbaseSchema.getRowKeyName().isPresent()) {
             throw new IllegalArgumentException(
                     "HBase table requires to define a row key field. "
                             + "A row key field is defined as an atomic type, "
                             + "column families and qualifiers are defined as ROW type.");
         }
-        schema.getPrimaryKey()
-                .ifPresent(
-                        k -> {
-                            if (k.getColumns().size() > 1) {
-                                throw new IllegalArgumentException(
-                                        "HBase table doesn't support a primary Key on multiple columns. "
-                                                + "The primary key of HBase table must be defined on row key field.");
-                            }
-                            if (!hbaseSchema.getRowKeyName().get().equals(k.getColumns().get(0))) {
-                                throw new IllegalArgumentException(
-                                        "Primary key of HBase table must be defined on the row key field. "
-                                                + "A row key field is defined as an atomic type, "
-                                                + "column families and qualifiers are defined as ROW type.");
-                            }
-                        });
+        if (primaryKeyIndexes.length == 0) {
+            return;
+        }
+        if (primaryKeyIndexes.length > 1) {
+            throw new IllegalArgumentException(
+                    "HBase table doesn't support a primary Key on multiple columns. "
+                            + "The primary key of HBase table must be defined on row key field.");
+        }
+        if (!hbaseSchema
+                .getRowKeyName()
+                .get()
+                .equals(DataType.getFieldNames(dataType).get(primaryKeyIndexes[0]))) {
+            throw new IllegalArgumentException(
+                    "Primary key of HBase table must be defined on the row key field. "
+                            + "A row key field is defined as an atomic type, "
+                            + "column families and qualifiers are defined as ROW type.");
+        }
     }
 
     public static HBaseWriteOptions getHBaseWriteOptions(ReadableConfig tableOptions) {

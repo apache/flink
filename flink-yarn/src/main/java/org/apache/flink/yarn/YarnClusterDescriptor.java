@@ -744,10 +744,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                     }
                 }
                 if (!queueFound) {
-                    String queueNames = "";
-                    for (QueueInfo queue : queues) {
-                        queueNames += queue.getQueueName() + ", ";
-                    }
+                    String queueNames = StringUtils.toQuotedListString(queues.toArray());
                     LOG.warn(
                             "The specified queue '"
                                     + this.yarnQueue
@@ -800,10 +797,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         final List<Path> providedLibDirs =
                 Utils.getQualifiedRemoteSharedPaths(configuration, yarnConfiguration);
 
+        Path stagingDirPath = getStagingDir(fs);
+        FileSystem stagingDirFs = stagingDirPath.getFileSystem(yarnConfiguration);
         final YarnApplicationFileUploader fileUploader =
                 YarnApplicationFileUploader.from(
-                        fs,
-                        getStagingDir(fs),
+                        stagingDirFs,
+                        stagingDirPath,
                         providedLibDirs,
                         appContext.getApplicationId(),
                         getFileReplication());
@@ -1250,15 +1249,19 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
      * Returns the configured remote target home directory if set, otherwise returns the default
      * home directory.
      *
-     * @param fileSystem file system used
+     * @param defaultFileSystem default file system used
      * @return the remote target home directory
      */
-    private Path getStagingDir(FileSystem fileSystem) {
+    @VisibleForTesting
+    Path getStagingDir(FileSystem defaultFileSystem) throws IOException {
         final String configuredStagingDir =
                 flinkConfiguration.getString(YarnConfigOptions.STAGING_DIRECTORY);
-        return configuredStagingDir != null
-                ? fileSystem.makeQualified(new Path(configuredStagingDir))
-                : fileSystem.getHomeDirectory();
+        if (configuredStagingDir == null) {
+            return defaultFileSystem.getHomeDirectory();
+        }
+        FileSystem stagingDirFs =
+                new Path(configuredStagingDir).getFileSystem(defaultFileSystem.getConf());
+        return stagingDirFs.makeQualified(new Path(configuredStagingDir));
     }
 
     private int getFileReplication() {

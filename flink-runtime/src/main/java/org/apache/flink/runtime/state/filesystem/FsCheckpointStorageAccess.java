@@ -112,15 +112,12 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
     public void initializeBaseLocationsForCheckpoint() throws IOException {
         fileSystem.mkdirs(sharedStateDirectory);
         fileSystem.mkdirs(taskOwnedStateDirectory);
-        baseLocationsInitialized = true;
     }
 
     @Override
     public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId)
             throws IOException {
         checkArgument(checkpointId >= 0, "Illegal negative checkpoint id: %s.", checkpointId);
-        checkArgument(
-                baseLocationsInitialized, "The base checkpoint location has not been initialized.");
 
         // prepare all the paths needed for the checkpoints
         final Path checkpointDir = createCheckpointDirectory(checkpointsDirectory, checkpointId);

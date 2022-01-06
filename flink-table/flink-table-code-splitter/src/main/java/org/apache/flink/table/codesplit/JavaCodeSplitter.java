@@ -32,6 +32,9 @@ public class JavaCodeSplitter {
 
     public static String split(String code, int maxMethodLength, int maxClassMemberCount) {
         try {
+            if (code.length() <= maxMethodLength) {
+                return code;
+            }
             return splitImpl(code, maxMethodLength, maxClassMemberCount);
         } catch (Throwable t) {
             System.out.println(code);

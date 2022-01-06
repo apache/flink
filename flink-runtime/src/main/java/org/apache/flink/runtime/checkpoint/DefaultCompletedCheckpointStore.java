@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.persistence.ResourceVersion;
 import org.apache.flink.runtime.persistence.StateHandleStore;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -31,6 +32,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -52,7 +54,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * to circumvent those situations.
  */
 public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
-        implements CompletedCheckpointStore {
+        extends AbstractCompleteCheckpointStore {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(DefaultCompletedCheckpointStore.class);
@@ -92,7 +94,9 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
             StateHandleStore<CompletedCheckpoint, R> stateHandleStore,
             CheckpointStoreUtil completedCheckpointStoreUtil,
             Collection<CompletedCheckpoint> completedCheckpoints,
+            SharedStateRegistry sharedStateRegistry,
             Executor executor) {
+        super(sharedStateRegistry);
         checkArgument(maxNumberOfCheckpointsToRetain >= 1, "Must retain at least one checkpoint.");
         this.maxNumberOfCheckpointsToRetain = maxNumberOfCheckpointsToRetain;
         this.checkpointStateHandleStore = checkNotNull(stateHandleStore);
@@ -117,7 +121,7 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
      *     metadata was fully written to the underlying systems or not.
      */
     @Override
-    public void addCheckpoint(
+    public CompletedCheckpoint addCheckpointAndSubsumeOldestOne(
             final CompletedCheckpoint checkpoint,
             CheckpointsCleaner checkpointsCleaner,
             Runnable postCleanup)
@@ -133,17 +137,24 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
 
         completedCheckpoints.addLast(checkpoint);
 
-        CheckpointSubsumeHelper.subsume(
-                completedCheckpoints,
-                maxNumberOfCheckpointsToRetain,
-                completedCheckpoint ->
-                        tryRemoveCompletedCheckpoint(
-                                completedCheckpoint,
-                                completedCheckpoint.shouldBeDiscardedOnSubsume(),
-                                checkpointsCleaner,
-                                postCleanup));
+        Optional<CompletedCheckpoint> subsume =
+                CheckpointSubsumeHelper.subsume(
+                        completedCheckpoints,
+                        maxNumberOfCheckpointsToRetain,
+                        completedCheckpoint ->
+                                tryRemoveCompletedCheckpoint(
+                                        completedCheckpoint,
+                                        completedCheckpoint.shouldBeDiscardedOnSubsume(),
+                                        checkpointsCleaner,
+                                        postCleanup));
+        unregisterUnusedState(completedCheckpoints);
 
-        LOG.debug("Added {} to {}.", checkpoint, path);
+        if (subsume.isPresent()) {
+            LOG.debug("Added {} to {} without any older checkpoint to subsume.", checkpoint, path);
+        } else {
+            LOG.debug("Added {} to {} and subsume {}.", checkpoint, path, subsume);
+        }
+        return subsume.orElse(null);
     }
 
     @Override
@@ -164,22 +175,36 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
     @Override
     public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner)
             throws Exception {
+        super.shutdown(jobStatus, checkpointsCleaner);
         if (running.compareAndSet(true, false)) {
             if (jobStatus.isGloballyTerminalState()) {
                 LOG.info("Shutting down");
+                long lowestRetained = Long.MAX_VALUE;
                 for (CompletedCheckpoint checkpoint : completedCheckpoints) {
                     try {
-                        tryRemoveCompletedCheckpoint(
+                        if (!tryRemoveCompletedCheckpoint(
                                 checkpoint,
                                 checkpoint.shouldBeDiscardedOnShutdown(jobStatus),
                                 checkpointsCleaner,
-                                () -> {});
+                                () -> {})) {
+                            lowestRetained = Math.min(lowestRetained, checkpoint.getCheckpointID());
+                        }
                     } catch (Exception e) {
                         LOG.warn("Fail to remove checkpoint during shutdown.", e);
+                        if (!checkpoint.shouldBeDiscardedOnShutdown(jobStatus)) {
+                            lowestRetained = Math.min(lowestRetained, checkpoint.getCheckpointID());
+                        }
                     }
                 }
                 completedCheckpoints.clear();
                 checkpointStateHandleStore.clearEntries();
+                // Now discard the shared state of not subsumed checkpoints - only if:
+                // - the job is in a globally terminal state. Otherwise,
+                // it can be a suspension, after which this state might still be needed.
+                // - checkpoint is not retained (it might be used externally)
+                // - checkpoint handle removal succeeded (e.g. from ZK) - otherwise, it might still
+                // be used in recovery if the job status is lost
+                getSharedStateRegistry().unregisterUnusedState(lowestRetained);
             } else {
                 LOG.info("Suspending");
                 // Clear the local handles, but don't remove any state
@@ -193,7 +218,7 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
     // Private methods
     // ---------------------------------------------------------------------------------------------------------
 
-    private void tryRemoveCompletedCheckpoint(
+    private boolean tryRemoveCompletedCheckpoint(
             CompletedCheckpoint completedCheckpoint,
             boolean shouldDiscard,
             CheckpointsCleaner checkpointsCleaner,
@@ -202,7 +227,9 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
         if (tryRemove(completedCheckpoint.getCheckpointID())) {
             checkpointsCleaner.cleanCheckpoint(
                     completedCheckpoint, shouldDiscard, postCleanup, ioExecutor);
+            return shouldDiscard;
         }
+        return shouldDiscard;
     }
 
     /**

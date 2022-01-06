@@ -31,7 +31,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-dstl-dfs_${scala.binary.version}</artifactId>
+	<artifactId>flink-dstl-dfs</artifactId>
 	<name>Flink : DSTL : DFS</name>
 
 	<packaging>jar</packaging>
@@ -53,7 +53,7 @@ under the License.
         <!-- needed for ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -69,7 +69,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>

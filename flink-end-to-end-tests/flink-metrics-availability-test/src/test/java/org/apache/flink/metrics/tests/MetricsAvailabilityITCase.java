@@ -33,7 +33,6 @@ import org.apache.flink.runtime.rest.messages.job.metrics.TaskManagerMetricsMess
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
-import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
@@ -47,7 +46,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import javax.annotation.Nullable;
 
@@ -65,7 +63,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /** End-to-end test for the availability of metrics. */
-@Category(TravisGroup1.class)
 public class MetricsAvailabilityITCase extends TestLogger {
 
     private static final String HOST = "localhost";

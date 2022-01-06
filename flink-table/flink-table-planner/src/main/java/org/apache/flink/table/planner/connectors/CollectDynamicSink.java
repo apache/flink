@@ -29,57 +29,61 @@ import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.internal.CollectResultProvider;
+import org.apache.flink.table.api.internal.ResultProvider;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.typeutils.ExternalTypeInfo;
+import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
 import java.time.Duration;
+import java.time.ZoneId;
+import java.util.function.Function;
 
 /** Table sink for {@link TableResult#collect()}. */
 @Internal
-final class CollectDynamicSink implements DynamicTableSink {
+public final class CollectDynamicSink implements DynamicTableSink {
 
     private final ObjectIdentifier tableIdentifier;
     private final DataType consumedDataType;
     private final MemorySize maxBatchSize;
     private final Duration socketTimeout;
+    private final ClassLoader classLoader;
+    private final ZoneId sessionZoneId;
+    private final boolean legacyCastBehaviour;
 
     // mutable attributes
-
     private CollectResultIterator<RowData> iterator;
+    private DataStructureConverter converter;
 
     CollectDynamicSink(
             ObjectIdentifier tableIdentifier,
             DataType consumedDataType,
             MemorySize maxBatchSize,
-            Duration socketTimeout) {
+            Duration socketTimeout,
+            ClassLoader classLoader,
+            ZoneId sessionZoneId,
+            boolean legacyCastBehaviour) {
         this.tableIdentifier = tableIdentifier;
         this.consumedDataType = consumedDataType;
         this.maxBatchSize = maxBatchSize;
         this.socketTimeout = socketTimeout;
+        this.classLoader = classLoader;
+        this.sessionZoneId = sessionZoneId;
+        this.legacyCastBehaviour = legacyCastBehaviour;
     }
 
-    public CollectResultProvider getSelectResultProvider() {
-        return new CollectResultProvider() {
-            @Override
-            public void setJobClient(JobClient jobClient) {
-                iterator.setJobClient(jobClient);
-            }
-
-            @Override
-            @SuppressWarnings({"unchecked", "rawtypes"})
-            public CloseableIterator<Row> getResultIterator() {
-                // Row after deserialization
-                return (CloseableIterator) iterator;
-            }
-        };
+    public ResultProvider getSelectResultProvider() {
+        return new CollectResultProvider(
+                new RowDataToStringConverterImpl(
+                        consumedDataType, sessionZoneId, classLoader, legacyCastBehaviour));
     }
 
     @Override
@@ -96,7 +100,7 @@ final class CollectDynamicSink implements DynamicTableSink {
                     final ExecutionConfig config = inputStream.getExecutionConfig();
 
                     final TypeSerializer<RowData> externalSerializer =
-                            ExternalTypeInfo.<RowData>of(consumedDataType, true)
+                            InternalTypeInfo.<RowData>of(consumedDataType.getLogicalType())
                                     .createSerializer(config);
                     final String accumulatorName = tableIdentifier.getObjectName();
 
@@ -115,6 +119,8 @@ final class CollectDynamicSink implements DynamicTableSink {
                                     externalSerializer,
                                     accumulatorName,
                                     checkpointConfig);
+                    this.converter = context.createDataStructureConverter(consumedDataType);
+                    this.converter.open(RuntimeConverter.Context.create(classLoader));
 
                     final CollectStreamSink<RowData> sink =
                             new CollectStreamSink<>(inputStream, factory);
@@ -124,17 +130,99 @@ final class CollectDynamicSink implements DynamicTableSink {
 
     @Override
     public DynamicTableSink copy() {
-        final CollectDynamicSink copy =
-                new CollectDynamicSink(
-                        tableIdentifier, consumedDataType, maxBatchSize, socketTimeout);
-        // kind of violates the contract of copy() but should not harm
-        // as it is null during optimization anyway until physical translation
-        copy.iterator = iterator;
-        return copy;
+        return new CollectDynamicSink(
+                tableIdentifier,
+                consumedDataType,
+                maxBatchSize,
+                socketTimeout,
+                classLoader,
+                sessionZoneId,
+                legacyCastBehaviour);
     }
 
     @Override
     public String asSummaryString() {
         return String.format("TableToCollect(type=%s)", consumedDataType);
+    }
+
+    private final class CollectResultProvider implements ResultProvider {
+
+        private final RowDataToStringConverter rowDataToStringConverter;
+
+        private CloseableRowIteratorWrapper<RowData> rowDataIterator;
+        private CloseableRowIteratorWrapper<Row> rowIterator;
+
+        private CollectResultProvider(RowDataToStringConverter rowDataToStringConverter) {
+            this.rowDataToStringConverter = rowDataToStringConverter;
+        }
+
+        @Override
+        public ResultProvider setJobClient(JobClient jobClient) {
+            iterator.setJobClient(jobClient);
+            return this;
+        }
+
+        @Override
+        public CloseableIterator<RowData> toInternalIterator() {
+            if (this.rowDataIterator == null) {
+                this.rowDataIterator =
+                        new CloseableRowIteratorWrapper<>(iterator, Function.identity());
+            }
+            return this.rowDataIterator;
+        }
+
+        @Override
+        public CloseableIterator<Row> toExternalIterator() {
+            if (this.rowIterator == null) {
+                this.rowIterator =
+                        new CloseableRowIteratorWrapper<>(
+                                iterator, r -> (Row) converter.toExternal(r));
+            }
+            return this.rowIterator;
+        }
+
+        @Override
+        public RowDataToStringConverter getRowDataStringConverter() {
+            return rowDataToStringConverter;
+        }
+
+        @Override
+        public boolean isFirstRowReady() {
+            return (this.rowDataIterator != null && this.rowDataIterator.firstRowProcessed)
+                    || (this.rowIterator != null && this.rowIterator.firstRowProcessed)
+                    || iterator.hasNext();
+        }
+    }
+
+    private static final class CloseableRowIteratorWrapper<T> implements CloseableIterator<T> {
+        private final CloseableIterator<RowData> iterator;
+        private final Function<RowData, T> mapper;
+
+        private boolean firstRowProcessed = false;
+
+        private CloseableRowIteratorWrapper(
+                CloseableIterator<RowData> iterator, Function<RowData, T> mapper) {
+            this.iterator = iterator;
+            this.mapper = mapper;
+        }
+
+        @Override
+        public void close() throws Exception {
+            iterator.close();
+        }
+
+        @Override
+        public boolean hasNext() {
+            boolean hasNext = iterator.hasNext();
+            firstRowProcessed = firstRowProcessed || hasNext;
+            return hasNext;
+        }
+
+        @Override
+        public T next() {
+            RowData next = iterator.next();
+            firstRowProcessed = true;
+            return mapper.apply(next);
+        }
     }
 }

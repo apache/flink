@@ -39,7 +39,6 @@ from pyflink.datastream.slot_sharing_group import MemorySize
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
-from pyflink.pyflink_gateway_server import on_windows
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment, \
     EnvironmentSettings
 from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table
@@ -179,6 +178,19 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         self.assertEqual(output_backend._j_memory_state_backend,
                          input_backend._j_memory_state_backend)
+
+    def test_is_changelog_state_backend_enabled(self):
+        self.assertIsNone(self.env.is_changelog_state_backend_enabled())
+
+    def test_enable_changelog_state_backend(self):
+
+        self.env.enable_changelog_state_backend(True)
+
+        self.assertTrue(self.env.is_changelog_state_backend_enabled())
+
+        self.env.enable_changelog_state_backend(False)
+
+        self.assertFalse(self.env.is_changelog_state_backend_enabled())
 
     def test_get_set_stream_time_characteristic(self):
         default_time_characteristic = self.env.get_stream_time_characteristic()
@@ -541,14 +553,10 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         expected.sort()
         self.assertEqual(expected, result)
 
-    @unittest.skipIf(on_windows(), "Symbolic link is not supported on Windows, skipping.")
     def test_set_stream_env(self):
         import sys
-        python_exec = sys.executable
-        tmp_dir = self.tempdir
         env = self.env
-        python_exec_link_path = os.path.join(tmp_dir, "py_exec")
-        os.symlink(python_exec, python_exec_link_path)
+        python_exec_link_path = sys.executable
         env.set_python_executable(python_exec_link_path)
 
         def check_python_exec(i):

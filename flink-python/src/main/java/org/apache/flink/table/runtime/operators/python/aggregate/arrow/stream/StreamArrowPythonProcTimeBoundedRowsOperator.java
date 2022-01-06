@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.util.ArrayList;
@@ -48,22 +49,22 @@ public class StreamArrowPythonProcTimeBoundedRowsOperator<K>
             long maxRetentionTime,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType outputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             int inputTimeFieldIndex,
             long lowerBoundary,
-            int[] groupingSet,
-            int[] udafInputOffsets) {
+            GeneratedProjection inputGeneratedProjection) {
         super(
                 config,
                 minRetentionTime,
                 maxRetentionTime,
                 pandasAggFunctions,
                 inputType,
-                outputType,
+                udfInputType,
+                udfOutputType,
                 inputTimeFieldIndex,
                 lowerBoundary,
-                groupingSet,
-                udafInputOffsets);
+                inputGeneratedProjection);
     }
 
     @Override

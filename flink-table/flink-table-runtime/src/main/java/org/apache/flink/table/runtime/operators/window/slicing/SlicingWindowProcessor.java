@@ -36,6 +36,14 @@ public interface SlicingWindowProcessor<W> extends Serializable {
     void open(Context<W> context) throws Exception;
 
     /**
+     * Initializes the watermark which restores from state. The method is called after open method
+     * and before the actual working methods.
+     *
+     * @param watermark the initial watermark
+     */
+    void initializeWatermark(long watermark);
+
+    /**
      * Process an element with associated key from the input stream. Returns true if this element is
      * dropped because of late arrival.
      *

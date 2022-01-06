@@ -263,6 +263,7 @@ public class MiniDispatcherTest extends TestLogger {
                         testingFatalErrorHandlerResource.getFatalErrorHandler(),
                         VoidHistoryServerArchivist.INSTANCE,
                         null,
+                        new DispatcherOperationCaches(),
                         UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
                         highAvailabilityServices.getJobGraphStore(),
                         testingJobManagerRunnerFactory,

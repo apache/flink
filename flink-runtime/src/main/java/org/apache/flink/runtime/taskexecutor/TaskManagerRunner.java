@@ -33,6 +33,7 @@ import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.blob.TaskExecutorBlobService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
@@ -331,12 +332,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                 "Fatal error occurred while executing the TaskManager. Shutting it down...",
                 exception);
 
-        // In case of the Metaspace OutOfMemoryError, we expect that the graceful shutdown is
-        // possible,
-        // as it does not usually require more class loading to fail again with the Metaspace
-        // OutOfMemoryError.
-        if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(exception)
-                && !ExceptionUtils.isMetaspaceOutOfMemoryError(exception)) {
+        if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(exception)) {
             terminateJVM();
         } else {
             closeAsync(Result.FAILURE);
@@ -485,7 +481,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             HighAvailabilityServices highAvailabilityServices,
             HeartbeatServices heartbeatServices,
             MetricRegistry metricRegistry,
-            BlobCacheService blobCacheService,
+            TaskExecutorBlobService taskExecutorBlobService,
             boolean localCommunicationOnly,
             ExternalResourceInfoProvider externalResourceInfoProvider,
             FatalErrorHandler fatalErrorHandler)
@@ -526,7 +522,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
         TaskManagerServices taskManagerServices =
                 TaskManagerServices.fromConfiguration(
                         taskManagerServicesConfiguration,
-                        blobCacheService.getPermanentBlobService(),
+                        taskExecutorBlobService.getPermanentBlobService(),
                         taskManagerMetricGroup.f1,
                         ioExecutor,
                         fatalErrorHandler);
@@ -551,7 +547,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                 heartbeatServices,
                 taskManagerMetricGroup.f0,
                 metricQueryServiceAddress,
-                blobCacheService,
+                taskExecutorBlobService,
                 fatalErrorHandler,
                 new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
     }

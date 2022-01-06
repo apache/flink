@@ -52,11 +52,20 @@ mvn clean install -DskipTests
 
 This instructs [Maven](http://maven.apache.org) (`mvn`) to first remove all existing builds (`clean`) and then create a new Flink binary (`install`).
 
-To speed up the build you can skip tests, QA plugins, and JavaDocs:
+To speed up the build you can:
+- skip tests by using ' -DskipTests'
+- skip QA plugins and javadoc generation by using the `fast` Maven profile
+- skip the WebUI compilation by using the `skip-webui-build` Maven profile
+- use Maven's parallel build feature, e.g., 'mvn package -T 1C' will attempt to build 1 module for each CPU core in parallel.
+  {{< hint warning >}}
+  Parallel builds may deadlock due to a bug in the maven-shade-plugin. It is recommended to only use it as a 2 steps process, where you first run `mvn validate/test-compile/test` in parallel, and then run `mvn package/verify/install` with a single thread.
+  {{< /hint >}}
 
+The build script will be:
 ```bash
-mvn clean install -DskipTests -Dfast
+mvn clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
 ```
+The `fast` and `skip-webui-build` profiles have a significant impact on the build time, particularly on slower storage devices, due to them reading/writing many small files.
 
 ## Build PyFlink
 

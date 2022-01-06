@@ -54,6 +54,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
+import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
@@ -113,7 +114,7 @@ public class SubtaskCheckpointCoordinatorTest {
         coordinator.initInputsCheckpoint(
                 1L,
                 unalignedCheckpointEnabled
-                        ? CheckpointOptions.unaligned(locationReference)
+                        ? CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, locationReference)
                         : CheckpointOptions.alignedNoTimeout(checkpointType, locationReference));
         return writer.started;
     }
@@ -215,7 +216,9 @@ public class SubtaskCheckpointCoordinatorTest {
                     };
 
             CheckpointOptions forcedAlignedOptions =
-                    CheckpointOptions.unaligned(CheckpointStorageLocationReference.getDefault())
+                    CheckpointOptions.unaligned(
+                                    CheckpointType.CHECKPOINT,
+                                    CheckpointStorageLocationReference.getDefault())
                             .withUnalignedUnsupported();
             coordinator.checkpointState(
                     new CheckpointMetaData(checkpointId, 0),
@@ -249,6 +252,52 @@ public class SubtaskCheckpointCoordinatorTest {
                             new NoOpStreamTask<>(new DummyEnvironment()), new NonRecordWriter<>()),
                     false,
                     () -> true);
+        }
+    }
+
+    @Test
+    public void testNotifyCheckpointSubsumed() throws Exception {
+        TestTaskStateManager stateManager = new TestTaskStateManager();
+        MockEnvironment mockEnvironment =
+                MockEnvironment.builder().setTaskStateManager(stateManager).build();
+
+        try (SubtaskCheckpointCoordinatorImpl subtaskCheckpointCoordinator =
+                (SubtaskCheckpointCoordinatorImpl)
+                        new MockSubtaskCheckpointCoordinatorBuilder()
+                                .setEnvironment(mockEnvironment)
+                                .setUnalignedCheckpointEnabled(true)
+                                .build()) {
+
+            StreamMap<String, String> streamMap =
+                    new StreamMap<>((MapFunction<String, String>) value -> value);
+            streamMap.setProcessingTimeService(new TestProcessingTimeService());
+            final OperatorChain<String, AbstractStreamOperator<String>> operatorChain =
+                    operatorChain(streamMap);
+            StreamTaskStateInitializerImpl stateInitializer =
+                    new StreamTaskStateInitializerImpl(mockEnvironment, new TestStateBackend());
+            operatorChain.initializeStateAndOpenOperators(stateInitializer);
+
+            long checkpointId = 42L;
+
+            subtaskCheckpointCoordinator
+                    .getChannelStateWriter()
+                    .start(checkpointId, CheckpointOptions.forCheckpointWithDefaultLocation());
+            subtaskCheckpointCoordinator.checkpointState(
+                    new CheckpointMetaData(checkpointId, System.currentTimeMillis()),
+                    CheckpointOptions.forCheckpointWithDefaultLocation(),
+                    new CheckpointMetricsBuilder(),
+                    operatorChain,
+                    false,
+                    () -> false);
+
+            long notifySubsumeCheckpointId = checkpointId + 1L;
+            // notify checkpoint aborted before execution.
+            subtaskCheckpointCoordinator.notifyCheckpointSubsumed(
+                    notifySubsumeCheckpointId, operatorChain, () -> true);
+            assertEquals(
+                    notifySubsumeCheckpointId,
+                    ((TestStateBackend.TestKeyedStateBackend<?>) streamMap.getKeyedStateBackend())
+                            .getSubsumeCheckpointId());
         }
     }
 

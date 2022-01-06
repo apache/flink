@@ -63,6 +63,9 @@ public interface SinkWriter<InputT, CommT, WriterStateT> extends AutoCloseable {
      *
      * <p>This will be called before we checkpoint the Writer's state in Streaming execution mode.
      *
+     * <p>In case the sink has no explicit committer, this method is still called to allow the
+     * writer to implement a 1-phase commit protocol.
+     *
      * @param flush Whether flushing the un-staged data or not
      * @return The data is ready to commit.
      * @throws IOException if fail to prepare for a commit.

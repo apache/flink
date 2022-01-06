@@ -65,9 +65,9 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
         }
 
         @Override
-        public void registerSharedStates(SharedStateRegistry stateRegistry) {
-            stateRegistry.registerAll(materialized);
-            stateRegistry.registerAll(nonMaterialized);
+        public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
+            stateRegistry.registerAll(materialized, checkpointID);
+            stateRegistry.registerAll(nonMaterialized, checkpointID);
         }
 
         @Override

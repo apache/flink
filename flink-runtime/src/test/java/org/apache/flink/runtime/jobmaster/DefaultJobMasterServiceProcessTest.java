@@ -20,30 +20,30 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmaster.factories.TestingJobMasterServiceFactory;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
+import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
-import static org.apache.flink.core.testutils.FlinkMatchers.futureWillCompleteExceptionally;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DefaultJobMasterServiceProcess}. */
 public class DefaultJobMasterServiceProcessTest extends TestLogger {
@@ -63,11 +63,86 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
         final RuntimeException originalCause = new RuntimeException("Init error");
         jobMasterServiceFuture.completeExceptionally(originalCause);
 
-        assertTrue(serviceProcess.getResultFuture().join().isInitializationFailure());
-        final Throwable initializationFailure =
-                serviceProcess.getResultFuture().join().getInitializationFailure();
-        assertThat(initializationFailure, containsCause(JobInitializationException.class));
-        assertThat(initializationFailure, containsCause(originalCause));
+        final JobManagerRunnerResult actualJobManagerResult =
+                serviceProcess.getResultFuture().join();
+        assertThat(actualJobManagerResult.isInitializationFailure()).isTrue();
+        final Throwable initializationFailure = actualJobManagerResult.getInitializationFailure();
+
+        assertThat(initializationFailure)
+                .isInstanceOf(JobInitializationException.class)
+                .hasCause(originalCause);
+    }
+
+    @Test
+    public void testInitializationFailureSetsFailureInfoProperly()
+            throws ExecutionException, InterruptedException {
+        final CompletableFuture<JobMasterService> jobMasterServiceFuture =
+                new CompletableFuture<>();
+        DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
+        final RuntimeException originalCause = new RuntimeException("Expected RuntimeException");
+
+        long beforeFailureTimestamp = System.currentTimeMillis();
+        jobMasterServiceFuture.completeExceptionally(originalCause);
+        long afterFailureTimestamp = System.currentTimeMillis();
+
+        final JobManagerRunnerResult result = serviceProcess.getResultFuture().get();
+        final ErrorInfo executionGraphFailure =
+                result.getExecutionGraphInfo().getArchivedExecutionGraph().getFailureInfo();
+
+        assertThat(executionGraphFailure).isNotNull();
+        assertInitializationException(
+                executionGraphFailure.getException(),
+                originalCause,
+                executionGraphFailure.getTimestamp(),
+                beforeFailureTimestamp,
+                afterFailureTimestamp);
+    }
+
+    @Test
+    public void testInitializationFailureSetsExceptionHistoryProperly()
+            throws ExecutionException, InterruptedException {
+        final CompletableFuture<JobMasterService> jobMasterServiceFuture =
+                new CompletableFuture<>();
+        DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
+        final RuntimeException originalCause = new RuntimeException("Expected RuntimeException");
+
+        long beforeFailureTimestamp = System.currentTimeMillis();
+        jobMasterServiceFuture.completeExceptionally(originalCause);
+        long afterFailureTimestamp = System.currentTimeMillis();
+
+        final RootExceptionHistoryEntry entry =
+                Iterables.getOnlyElement(
+                        serviceProcess
+                                .getResultFuture()
+                                .get()
+                                .getExecutionGraphInfo()
+                                .getExceptionHistory());
+
+        assertInitializationException(
+                entry.getException(),
+                originalCause,
+                entry.getTimestamp(),
+                beforeFailureTimestamp,
+                afterFailureTimestamp);
+        assertThat(entry.isGlobal()).isTrue();
+    }
+
+    private static void assertInitializationException(
+            SerializedThrowable actualException,
+            Throwable expectedCause,
+            long actualTimestamp,
+            long expectedLowerTimestampThreshold,
+            long expectedUpperTimestampThreshold) {
+        final Throwable deserializedException =
+                actualException.deserializeError(Thread.currentThread().getContextClassLoader());
+
+        assertThat(deserializedException)
+                .isInstanceOf(JobInitializationException.class)
+                .hasCause(expectedCause);
+
+        assertThat(actualTimestamp)
+                .isGreaterThanOrEqualTo(expectedLowerTimestampThreshold)
+                .isLessThanOrEqualTo(expectedUpperTimestampThreshold);
     }
 
     @Test
@@ -78,8 +153,9 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
         jobMasterServiceFuture.completeExceptionally(new RuntimeException("Init error"));
 
         serviceProcess.closeAsync().get();
-        assertTrue(serviceProcess.getResultFuture().join().isInitializationFailure());
-        assertThat(serviceProcess.getJobMasterGatewayFuture().isCompletedExceptionally(), is(true));
+        assertThat(serviceProcess.getResultFuture())
+                .isCompletedWithValueMatching(JobManagerRunnerResult::isInitializationFailure);
+        assertThat(serviceProcess.getJobMasterGatewayFuture()).isCompletedExceptionally();
     }
 
     @Test
@@ -91,10 +167,12 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
         jobMasterServiceFuture.complete(testingJobMasterService);
 
         serviceProcess.closeAsync().get();
-        assertThat(testingJobMasterService.isClosed(), is(true));
-        assertThat(
-                serviceProcess.getResultFuture(),
-                futureWillCompleteExceptionally(JobNotFinishedException.class, TIMEOUT));
+        assertThat(testingJobMasterService.isClosed()).isTrue();
+        assertThat(serviceProcess.getResultFuture())
+                .failsWithin(TIMEOUT)
+                .withThrowableOfType(ExecutionException.class)
+                .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
+                .anySatisfy(t -> assertThat(t).isInstanceOf(JobNotFinishedException.class));
     }
 
     @Test
@@ -110,17 +188,15 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
         RuntimeException testException = new RuntimeException("Fake exception from JobMaster");
         jobMasterTerminationFuture.completeExceptionally(testException);
 
-        try {
-            serviceProcess.getResultFuture().get();
-            fail("Expect failure");
-        } catch (Throwable t) {
-            assertThat(t, containsCause(RuntimeException.class));
-            assertThat(t, containsMessage(testException.getMessage()));
-        }
+        assertThat(serviceProcess.getResultFuture())
+                .failsWithin(TIMEOUT)
+                .withThrowableOfType(ExecutionException.class)
+                .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
+                .anySatisfy(t -> assertThat(t).isEqualTo(testException));
     }
 
     @Test
-    public void testJobMasterGatewayGetsForwarded() throws Exception {
+    public void testJobMasterGatewayGetsForwarded() {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -129,7 +205,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
                 new TestingJobMasterService("localhost", null, testingGateway);
         jobMasterServiceFuture.complete(testingJobMasterService);
 
-        assertThat(serviceProcess.getJobMasterGatewayFuture().get(), is(testingGateway));
+        assertThat(serviceProcess.getJobMasterGatewayFuture()).isCompletedWithValue(testingGateway);
     }
 
     @Test
@@ -142,14 +218,14 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
                 new TestingJobMasterService(testingAddress, null, null);
         jobMasterServiceFuture.complete(testingJobMasterService);
 
-        assertThat(serviceProcess.getLeaderAddressFuture().get(), is(testingAddress));
+        assertThat(serviceProcess.getLeaderAddressFuture()).isCompletedWithValue(testingAddress);
     }
 
     @Test
     public void testIsNotInitialized() {
         DefaultJobMasterServiceProcess serviceProcess =
                 createTestInstance(new CompletableFuture<>());
-        assertThat(serviceProcess.isInitializedAndRunning(), is(false));
+        assertThat(serviceProcess.isInitializedAndRunning()).isFalse();
     }
 
     @Test
@@ -160,7 +236,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
 
         jobMasterServiceFuture.complete(new TestingJobMasterService());
 
-        assertThat(serviceProcess.isInitializedAndRunning(), is(true));
+        assertThat(serviceProcess.isInitializedAndRunning()).isTrue();
     }
 
     @Test
@@ -173,7 +249,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
 
         serviceProcess.closeAsync();
 
-        assertFalse(serviceProcess.isInitializedAndRunning());
+        assertThat(serviceProcess.isInitializedAndRunning()).isFalse();
     }
 
     @Test
@@ -188,15 +264,12 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
         serviceProcess.jobReachedGloballyTerminalState(
                 new ExecutionGraphInfo(archivedExecutionGraph));
 
-        assertThat(serviceProcess.getResultFuture().get().isSuccess(), is(true));
-        assertThat(
-                serviceProcess
-                        .getResultFuture()
-                        .get()
-                        .getExecutionGraphInfo()
-                        .getArchivedExecutionGraph()
-                        .getState(),
-                is(JobStatus.FINISHED));
+        assertThat(serviceProcess.getResultFuture())
+                .isCompletedWithValueMatching(JobManagerRunnerResult::isSuccess)
+                .isCompletedWithValueMatching(
+                        r ->
+                                r.getExecutionGraphInfo().getArchivedExecutionGraph().getState()
+                                        == JobStatus.FINISHED);
     }
 
     private DefaultJobMasterServiceProcess createTestInstance(

@@ -31,7 +31,7 @@ import java.time.LocalDateTime;
  * TimestampColumnVector.
  */
 public class OrcTimestampColumnVector extends AbstractOrcColumnVector
-        implements org.apache.flink.table.data.vector.TimestampColumnVector {
+        implements org.apache.flink.table.data.columnar.vector.TimestampColumnVector {
 
     private TimestampColumnVector vector;
 

@@ -131,6 +131,7 @@ public interface DynamicTableSink {
      * instances are {@link Serializable} and can be directly passed into the runtime implementation
      * class.
      */
+    @PublicEvolving
     interface Context {
 
         /**
@@ -148,6 +149,12 @@ public interface DynamicTableSink {
          * @see ResolvedSchema#toPhysicalRowDataType()
          */
         <T> TypeInformation<T> createTypeInformation(DataType consumedDataType);
+
+        /**
+         * Creates type information describing the internal data structures of the given {@link
+         * LogicalType}.
+         */
+        <T> TypeInformation<T> createTypeInformation(LogicalType consumedLogicalType);
 
         /**
          * Creates a converter for mapping between Flink's internal data structures and objects
@@ -172,6 +179,7 @@ public interface DynamicTableSink {
      *
      * @see LogicalType#supportsOutputConversion(Class)
      */
+    @PublicEvolving
     interface DataStructureConverter extends RuntimeConverter {
 
         /** Converts the given internal structure into an external object. */
@@ -192,6 +200,7 @@ public interface DynamicTableSink {
      *
      * @see SinkProvider
      */
+    @PublicEvolving
     interface SinkRuntimeProvider {
         // marker interface
     }

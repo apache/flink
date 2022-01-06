@@ -174,7 +174,7 @@ public class StreamTwoInputProcessorFactory {
 
         @Nullable
         FinishedOnRestoreWatermarkBypass watermarkBypass =
-                operatorChain.isFinishedOnRestore()
+                operatorChain.isTaskDeployedAsFinished()
                         ? new FinishedOnRestoreWatermarkBypass(operatorChain.getStreamOutputs())
                         : null;
         StreamTaskNetworkOutput<IN1> output1 =

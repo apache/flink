@@ -28,7 +28,7 @@ LogicalProject(EXPR$0=[PyUdf()], EXPR$1=[MyUdf(1)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[f0 AS EXPR$0, CAST(2) AS EXPR$1])
+Calc(select=[f0 AS EXPR$0, CAST(2 AS INTEGER) AS EXPR$1])
 +- PythonCalc(select=[PyUdf() AS f0])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -46,7 +46,7 @@ LogicalProject(EXPR$0=[MyUdf(1)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[CAST(2) AS EXPR$0])
+Calc(select=[CAST(2 AS INTEGER) AS EXPR$0])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

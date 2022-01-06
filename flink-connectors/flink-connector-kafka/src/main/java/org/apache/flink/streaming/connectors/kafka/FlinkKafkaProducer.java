@@ -86,7 +86,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -1059,7 +1058,7 @@ public class FlinkKafkaProducer<IN>
                         e);
             } finally {
                 if (producer != null) {
-                    producer.close(0, TimeUnit.SECONDS);
+                    producer.close(Duration.ofSeconds(0));
                 }
             }
         }
@@ -1082,7 +1081,7 @@ public class FlinkKafkaProducer<IN>
                 producer.initTransactions();
             } finally {
                 if (producer != null) {
-                    producer.close(0, TimeUnit.SECONDS);
+                    producer.close(Duration.ofSeconds(0));
                 }
             }
         }

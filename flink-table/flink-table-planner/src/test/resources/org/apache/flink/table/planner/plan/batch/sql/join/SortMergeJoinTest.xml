@@ -106,7 +106,7 @@ LogicalProject(a=[COALESCE($0, $3)], b=[$1], c=[$2], b0=[$4], c0=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CASE(a IS NOT NULL, a, a0) AS $f0, b, c, b0, c0])
+Calc(select=[COALESCE(a, a0) AS a, b, c, b0, c0])
 +- SortMergeJoin(joinType=[FullOuterJoin], where=[(a = a0)], select=[a, b, c, a0, b0, c0])
    :- Exchange(distribution=[hash[a]])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -460,7 +460,7 @@ LogicalProject(k=[$0], v=[$1], k0=[$2], v0=[$3])
       <![CDATA[
 SortMergeJoin(joinType=[LeftOuterJoin], where=[(k = k0)], select=[k, v, k0, v0])
 :- Exchange(distribution=[hash[k]])
-:  +- Calc(select=[CAST(0:BIGINT) AS k, v], where=[(k = 0:BIGINT)])
+:  +- Calc(select=[CAST(0 AS BIGINT) AS k, v], where=[(k = 0)])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, src, source: [TestTableSource(k, v)]]], fields=[k, v])
 +- Exchange(distribution=[hash[k]])
    +- Values(tuples=[[]], values=[k, v])

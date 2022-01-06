@@ -78,6 +78,7 @@ class AggCallSelectivityEstimatorTest {
   private def mockScan(
       statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): TableScan = {
     val tableConfig = new TableConfig
+    val moduleManager = new ModuleManager
     val catalogManager = CatalogManagerMocks.createEmptyCatalogManager()
     val rootSchema = CalciteSchema.createRootSchema(true, false).plus()
     val table = new MockMetaTable(relDataType, statistic)
@@ -86,7 +87,8 @@ class AggCallSelectivityEstimatorTest {
       new PlannerContext(
         false,
         tableConfig,
-        new FunctionCatalog(tableConfig, catalogManager, new ModuleManager),
+        moduleManager,
+        new FunctionCatalog(tableConfig, catalogManager, moduleManager),
         catalogManager,
         CalciteSchema.from(rootSchema),
         util.Arrays.asList(

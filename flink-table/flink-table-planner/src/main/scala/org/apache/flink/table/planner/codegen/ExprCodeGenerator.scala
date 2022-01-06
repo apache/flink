@@ -18,6 +18,10 @@
 
 package org.apache.flink.table.planner.codegen
 
+import org.apache.calcite.rex._
+import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
+import org.apache.calcite.sql.{SqlKind, SqlOperator}
+import org.apache.calcite.util.{Sarg, TimestampString}
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.RowData
@@ -25,7 +29,7 @@ import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.util.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, RexDistinctKeyVariable, RexFieldVariable}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{requireTemporal, requireTimeInterval, _}
+import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
@@ -42,12 +46,6 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isNumeric, isTem
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, isCompositeType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-
-import org.apache.calcite.rex._
-import org.apache.calcite.sql.{SqlKind, SqlOperator}
-import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
-import org.apache.calcite.util.{Sarg, TimestampString}
-import org.apache.flink.table.functions.{BuiltInFunctionDefinitions, FunctionDefinition}
 
 import scala.collection.JavaConversions._
 
@@ -784,6 +782,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case JSON_OBJECT => new JsonObjectCallGen(call).generate(ctx, operands, resultType)
 
+      case JSON_ARRAY => new JsonArrayCallGen(call).generate(ctx, operands, resultType)
+
       case _: SqlThrowExceptionFunction =>
         val nullValue = generateNullLiteral(resultType, nullCheck = true)
         val code =
@@ -808,21 +808,34 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case bsf: BridgingSqlFunction =>
         bsf.getDefinition match {
-          case functionDefinition : FunctionDefinition
-            if functionDefinition eq BuiltInFunctionDefinitions.CURRENT_WATERMARK =>
+          case BuiltInFunctionDefinitions.CURRENT_WATERMARK =>
             generateWatermark(ctx, contextTerm, resultType)
-          case functionDefinition : FunctionDefinition
-            if functionDefinition eq BuiltInFunctionDefinitions.GREATEST =>
+
+          case BuiltInFunctionDefinitions.GREATEST =>
             operands.foreach { operand =>
               requireComparable(operand)
             }
-            generateGreatestLeast(resultType, operands)
-          case functionDefinition : FunctionDefinition
-            if functionDefinition eq BuiltInFunctionDefinitions.LEAST =>
+            generateGreatestLeast(ctx, resultType, operands)
+
+          case BuiltInFunctionDefinitions.LEAST =>
             operands.foreach { operand =>
               requireComparable(operand)
             }
-            generateGreatestLeast(resultType, operands, false)
+            generateGreatestLeast(ctx, resultType, operands, greatest = false)
+
+          case BuiltInFunctionDefinitions.JSON_STRING =>
+            new JsonStringCallGen(call).generate(ctx, operands, resultType)
+
+          case BuiltInFunctionDefinitions.AGG_DECIMAL_PLUS =>
+            val left = operands.head
+            val right = operands(1)
+            generateBinaryArithmeticOperator(ctx, "+", resultType, left, right)
+
+          case BuiltInFunctionDefinitions.AGG_DECIMAL_MINUS =>
+            val left = operands.head
+            val right = operands(1)
+            generateBinaryArithmeticOperator(ctx, "-", resultType, left, right)
+
           case _ =>
             new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)
         }

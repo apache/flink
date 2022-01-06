@@ -24,7 +24,7 @@ under the License.
 
 # Windowing table-valued functions (Windowing TVFs)
 
-{{< label Streaming >}}
+{{< label Batch >}} {{< label Streaming >}}
 
 Windows are at the heart of processing infinite streams. Windows split the stream into “buckets” of finite size, over which we can apply computations. This document focuses on how windowing is performed in Flink SQL and how the programmer can benefit to the maximum from its offered functionality.
 
@@ -45,10 +45,14 @@ See more how to apply further computations based on windowing TVF:
 - [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}})
 - [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}})
 - [Window Join]({{< ref "docs/dev/table/sql/queries/window-join">}})
+- [Window Deduplication]({{< ref "docs/dev/table/sql/queries/window-deduplication">}})
 
 ## Window Functions
 
-Apache Flink provides 3 built-in windowing TVFs: `TUMBLE`, `HOP` and `CUMULATE`. The return value of windowing TVF is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The "window_time" field is a [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) of the window after windowing TVF which can be used in subsequent time-based operations, e.g. another windowing TVF, or <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a>, <a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over aggregations</a>. The value of `window_time` always equal to `window_end - 1ms`.
+Apache Flink provides 3 built-in windowing TVFs: `TUMBLE`, `HOP` and `CUMULATE`. The return value of windowing TVF is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. 
+In streaming mode, the "window_time" field is a [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) of the window. 
+In batch mode, the "window_time" field is an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ` based on input time field type. 
+The "window_time" field can be used in subsequent time-based operations, e.g. another windowing TVF, or <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a>, <a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over aggregations</a>. The value of `window_time` always equal to `window_end - 1ms`.
 
 ### TUMBLE
 
@@ -56,7 +60,10 @@ The `TUMBLE` function assigns each element to a window of specified window size.
 
 {{< img src="/fig/tumbling-windows.svg" alt="Tumbling Windows" width="70%">}}
 
-The `TUMBLE` function assigns a window for each row of a relation based on a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}) column. The return value of `TUMBLE` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after window TVF.
+The `TUMBLE` function assigns a window for each row of a relation based on a time attribute field.
+In streaming mode, the time attribute field must be either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). 
+In batch mode, the time attribute field of window table function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
+The return value of `TUMBLE` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after window TVF.
 
 `TUMBLE` function takes three required parameters, one optional parameter:
 
@@ -65,7 +72,7 @@ TUMBLE(TABLE data, DESCRIPTOR(timecol), size [, offset ])
 ```
 
 - `data`: is a table parameter that can be any relation with a time attribute column.
-- `timecol`: is a column descriptor indicating which [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) column of data should be mapped to tumbling windows.
+- `timecol`: is a column descriptor indicating which time attributes column of data should be mapped to tumbling windows.
 - `size`: is a duration specifying the width of the tumbling windows.
 - `offset`: is an optional parameter to specify the offset which window start would be shifted by.
 
@@ -94,9 +101,6 @@ Flink SQL> SELECT * FROM Bid;
 | 2020-04-15 08:17 |  6.00 | F    |
 +------------------+-------+------+
 
--- NOTE: Currently Flink doesn't support evaluating individual window table-valued function,
---  window table-valued function should be used with aggregate operation,
---  this example is just used for explaining the syntax and the data produced by table-valued function.
 Flink SQL> SELECT * FROM TABLE(
    TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES));
 -- or with the named params
@@ -141,7 +145,10 @@ For example, you could have windows of size 10 minutes that slides by 5 minutes.
 
 {{< img src="/fig/sliding-windows.svg" alt="Hopping windows" width="70%">}}
 
-The `HOP` function assigns windows that cover rows within the interval of size and shifting every slide based on a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}) column. The return value of `HOP` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after windowing TVF.
+The `HOP` function assigns windows that cover rows within the interval of size and shifting every slide based on a time attribute field.
+In streaming mode, the time attribute field must be either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). 
+In batch mode, the time attribute field of window table function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
+The return value of `HOP` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after windowing TVF.
 
 `HOP` takes four required parameters, one optional parameter:
 
@@ -150,7 +157,7 @@ HOP(TABLE data, DESCRIPTOR(timecol), slide, size [, offset ])
 ```
 
 - `data`: is a table parameter that can be any relation with an time attribute column.
-- `timecol`: is a column descriptor indicating which [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) column of data should be mapped to hopping windows.
+- `timecol`: is a column descriptor indicating which time attributes column of data should be mapped to hopping windows.
 - `slide`: is a duration specifying the duration between the start of sequential hopping windows
 - `size`: is a duration specifying the width of the hopping windows.
 - `offset`: is an optional parameter to specify the offset which window start would be shifted by.
@@ -158,9 +165,6 @@ HOP(TABLE data, DESCRIPTOR(timecol), slide, size [, offset ])
 Here is an example invocation on the `Bid` table:
 
 ```sql
--- NOTE: Currently Flink doesn't support evaluating individual window table-valued function,
---  window table-valued function should be used with aggregate operation,
---  this example is just used for explaining the syntax and the data produced by table-valued function.
 > SELECT * FROM TABLE(
     HOP(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES, INTERVAL '10' MINUTES));
 -- or with the named params
@@ -214,7 +218,10 @@ For example, you could have a cumulating window for 1 hour step and 1 day max si
 
 {{< img src="/fig/cumulating-windows.png" alt="Cumulating Windows" width="70%">}}
 
-The `CUMULATE` functions assigns windows based on a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}) column. The return value of `CUMULATE` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after window TVF.
+The `CUMULATE` functions assigns windows based on a time attribute column.
+In streaming mode, the time attribute field must be either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). 
+In batch mode, the time attribute field of window table function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
+The return value of `CUMULATE` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after window TVF.
 
 `CUMULATE` takes four required parameters, one optional parameter:
 
@@ -223,7 +230,7 @@ CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
 ```
 
 - `data`: is a table parameter that can be any relation with an time attribute column.
-- `timecol`: is a column descriptor indicating which [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) column of data should be mapped to tumbling windows.
+- `timecol`: is a column descriptor indicating which time attributes column of data should be mapped to cumulating windows.
 - `step`: is a duration specifying the increased window size between the end of sequential cumulating windows.
 - `size`: is a duration specifying the max width of the cumulating windows. `size` must be an integral multiple of `step`.
 - `offset`: is an optional parameter to specify the offset which window start would be shifted by.
@@ -231,9 +238,6 @@ CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
 Here is an example invocation on the Bid table:
 
 ```sql
--- NOTE: Currently Flink doesn't support evaluating individual window table-valued function,
---  window table-valued function should be used with aggregate operation,
---  this example is just used for explaining the syntax and the data produced by table-valued function.
 > SELECT * FROM TABLE(
     CUMULATE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES, INTERVAL '10' MINUTES));
 -- or with the named params

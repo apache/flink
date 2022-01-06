@@ -281,6 +281,13 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
         return checkpointStreamBackend;
     }
 
+    @Override
+    public boolean supportsNoClaimRestoreMode() {
+        // We are able to create CheckpointType#FULL_CHECKPOINT. (we might potentially reupload some
+        // shared files when taking incremental snapshots)
+        return true;
+    }
+
     // ------------------------------------------------------------------------
     //  Checkpoint initialization and persistent storage
     // ------------------------------------------------------------------------

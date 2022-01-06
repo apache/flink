@@ -18,18 +18,24 @@
 package org.apache.flink.streaming.examples.iteration;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.connector.file.sink.FileSink;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
+import java.time.Duration;
 import java.util.Random;
 
 /**
@@ -103,7 +109,15 @@ public class IterateExample {
 
         // emit results
         if (params.has("output")) {
-            numbers.writeAsText(params.get("output"));
+            numbers.sinkTo(
+                    FileSink.<Tuple2<Tuple2<Integer, Integer>, Integer>>forRowFormat(
+                                    new Path(params.get("output")), new SimpleStringEncoder<>())
+                            .withRollingPolicy(
+                                    DefaultRollingPolicy.builder()
+                                            .withMaxPartSize(MemorySize.ofMebiBytes(1))
+                                            .withRolloverInterval(Duration.ofSeconds(10))
+                                            .build())
+                            .build());
         } else {
             System.out.println("Printing result to stdout. Use --output to specify output path.");
             numbers.print();

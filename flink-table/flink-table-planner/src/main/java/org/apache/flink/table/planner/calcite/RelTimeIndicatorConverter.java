@@ -265,7 +265,7 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
         int leftFieldCount = newLeft.getRowType().getFieldCount();
 
         // temporal table join
-        if (TemporalJoinUtil.satisfyTemporalJoin(join)) {
+        if (TemporalJoinUtil.satisfyTemporalJoin(join, newLeft, newRight)) {
             RelNode rewrittenTemporalJoin =
                     join.copy(
                             join.getTraitSet(),
@@ -282,7 +282,7 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                             .collect(Collectors.toSet());
             return createCalcToMaterializeTimeIndicators(rewrittenTemporalJoin, rightIndices);
         } else {
-            if (JoinUtil.satisfyRegularJoin(join, join.getRight())) {
+            if (JoinUtil.satisfyRegularJoin(join, newLeft, newRight)) {
                 // materialize time attribute fields of regular join's inputs
                 newLeft = materializeTimeIndicators(newLeft);
                 newRight = materializeTimeIndicators(newRight);

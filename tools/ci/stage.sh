@@ -61,10 +61,12 @@ flink-table/flink-sql-parser-hive,\
 flink-table/flink-table-common,\
 flink-table/flink-table-api-java,\
 flink-table/flink-table-api-scala,\
+flink-table/flink-table-api-bridge-base,\
 flink-table/flink-table-api-java-bridge,\
 flink-table/flink-table-api-scala-bridge,\
 flink-table/flink-sql-client,\
 flink-table/flink-table-planner,\
+flink-table/flink-table-planner-loader,\
 flink-table/flink-table-runtime,\
 flink-table/flink-table-code-splitter"
 
@@ -94,9 +96,9 @@ flink-connectors/flink-connector-hbase-2.2,\
 flink-connectors/flink-hcatalog,\
 flink-connectors/flink-hadoop-compatibility,\
 flink-connectors,\
+flink-connectors/flink-connector-files,\
 flink-connectors/flink-connector-jdbc,\
 flink-connectors/flink-connector-cassandra,\
-flink-connectors/flink-connector-elasticsearch5,\
 flink-connectors/flink-connector-elasticsearch6,\
 flink-connectors/flink-connector-elasticsearch7,\
 flink-connectors/flink-sql-connector-elasticsearch6,\
@@ -106,6 +108,7 @@ flink-connectors/flink-connector-nifi,\
 flink-connectors/flink-connector-rabbitmq,\
 flink-connectors/flink-connector-twitter,\
 flink-connectors/flink-connector-kinesis,\
+flink-connectors/flink-connector-aws-kinesis-data-streams,\
 flink-metrics/flink-metrics-dropwizard,\
 flink-metrics/flink-metrics-graphite,\
 flink-metrics/flink-metrics-jmx,\
@@ -125,14 +128,10 @@ flink-connectors/flink-connector-kafka,\
 flink-connectors/flink-sql-connector-kafka,"
 
 MODULES_TESTS="\
-flink-tests"
+flink-tests,\
+flink-architecture-tests"
 
 MODULES_FINEGRAINED_RESOURCE_MANAGEMENT=${MODULES_CORE},${MODULES_TESTS}
-
-# we can only build the Scala Shell when building for Scala 2.11
-if [[ $PROFILE == *"scala-2.11"* ]]; then
-    MODULES_CORE="$MODULES_CORE,flink-scala-shell"
-fi
 
 function get_compile_modules_for_stage() {
     local stage=$1

@@ -151,9 +151,9 @@ For this Flink comes with a collection of so called test harnesses, which can be
 
 To use the test harnesses a set of additional dependencies (test scoped) is needed.
 
-{{< artifact flink-test-utils withScalaVersion withTestScope >}}
+{{< artifact flink-test-utils withTestScope >}}
 {{< artifact flink-runtime withTestScope >}}
-{{< artifact flink-streaming-java withScalaVersion withTestScope withTestClassifier >}}
+{{< artifact flink-streaming-java withTestScope withTestClassifier >}}
 
 Now, the test harnesses can be used to push records and watermarks into your user-defined functions or custom operators, control processing time and finally assert on the output of the operator (including side outputs).
 
@@ -399,7 +399,7 @@ called `MiniClusterWithClientResource`.
 
 To use `MiniClusterWithClientResource` one additional dependency (test scoped) is needed.
 
-{{< artifact flink-test-utils withScalaVersion withTestScope >}}
+{{< artifact flink-test-utils withTestScope >}}
 
 Let us take the same simple `MapFunction` as in the previous sections.
 
@@ -483,7 +483,7 @@ public class ExampleIntegrationTest {
 class StreamingJobIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter {
 
   val flinkCluster = new MiniClusterWithClientResource(new MiniClusterResourceConfiguration.Builder()
-    .setNumberSlotsPerTaskManager(1)
+    .setNumberSlotsPerTaskManager(2)
     .setNumberTaskManagers(1)
     .build)
 
@@ -507,7 +507,7 @@ class StreamingJobIntegrationTest extends FlatSpec with Matchers with BeforeAndA
     CollectSink.values.clear()
 
     // create a stream of custom elements and apply transformations
-    env.fromElements(1, 21, 22)
+    env.fromElements(1L, 21L, 22L)
        .map(new IncrementMapFunction())
        .addSink(new CollectSink())
 

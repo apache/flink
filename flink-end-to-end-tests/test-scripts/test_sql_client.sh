@@ -20,13 +20,14 @@
 set -Eeuo pipefail
 
 KAFKA_VERSION="2.2.2"
-CONFLUENT_VERSION="5.0.0"
-CONFLUENT_MAJOR_VERSION="5.0"
+CONFLUENT_VERSION="5.2.6"
+CONFLUENT_MAJOR_VERSION="5.2"
+# Check the Confluent Platform <> Apache Kafka compatibility matrix when updating KAFKA_VERSION
 KAFKA_SQL_VERSION="universal"
 ELASTICSEARCH_VERSION=7
 # we use the smallest version possible
-ELASTICSEARCH_MAC_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-oss-7.5.1-no-jdk-darwin-x86_64.tar.gz'
-ELASTICSEARCH_LINUX_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-oss-7.5.1-no-jdk-linux-x86_64.tar.gz'
+ELASTICSEARCH_MAC_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.15.2-darwin-x86_64.tar.gz'
+ELASTICSEARCH_LINUX_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.15.2-linux-x86_64.tar.gz'
 
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/kafka_sql_common.sh \
@@ -142,7 +143,7 @@ start_taskmanagers 2
 
 echo "Testing SQL statements..."
 
-KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka_" )
+KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka" )
 ELASTICSEARCH_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "elasticsearch$ELASTICSEARCH_VERSION" )
 
 # create session environment file

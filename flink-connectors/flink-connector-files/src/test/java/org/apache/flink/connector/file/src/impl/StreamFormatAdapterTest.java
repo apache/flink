@@ -89,7 +89,9 @@ public class StreamFormatAdapterTest extends AdapterTestBase<StreamFormat<Intege
         final StreamFormatAdapter<Integer> format =
                 new StreamFormatAdapter<>(new CheckpointedIntFormat());
         final BulkFormat.Reader<Integer> reader =
-                format.createReader(config, new FileSourceSplit("test-id", testPath, 0L, FILE_LEN));
+                format.createReader(
+                        config,
+                        new FileSourceSplit("test-id", testPath, 0L, FILE_LEN, 0L, FILE_LEN));
 
         final List<Integer> result = new ArrayList<>();
         readNumbers(reader, result, NUM_NUMBERS);

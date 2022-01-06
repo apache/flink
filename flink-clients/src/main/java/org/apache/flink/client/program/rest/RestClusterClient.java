@@ -436,10 +436,11 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
     @Override
     public CompletableFuture<Acknowledge> cancel(JobID jobID) {
-        JobCancellationMessageParameters params = new JobCancellationMessageParameters();
-        params.jobPathParameter.resolve(jobID);
-        params.terminationModeQueryParameter.resolve(
-                Collections.singletonList(TerminationModeQueryParameter.TerminationMode.CANCEL));
+        JobCancellationMessageParameters params =
+                new JobCancellationMessageParameters()
+                        .resolveJobId(jobID)
+                        .resolveTerminationMode(
+                                TerminationModeQueryParameter.TerminationMode.CANCEL);
         CompletableFuture<EmptyResponseBody> responseFuture =
                 sendRequest(JobCancellationHeaders.getInstance(), params);
         return responseFuture.thenApply(ignore -> Acknowledge.get());
@@ -462,7 +463,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                 sendRequest(
                         stopWithSavepointTriggerHeaders,
                         stopWithSavepointTriggerMessageParameters,
-                        new StopWithSavepointRequestBody(savepointDirectory, advanceToEndOfTime));
+                        new StopWithSavepointRequestBody(
+                                savepointDirectory, advanceToEndOfTime, null));
 
         return responseFuture
                 .thenCompose(
@@ -535,7 +537,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                 sendRequest(
                         savepointTriggerHeaders,
                         savepointTriggerMessageParameters,
-                        new SavepointTriggerRequestBody(savepointDirectory, cancelJob));
+                        new SavepointTriggerRequestBody(savepointDirectory, cancelJob, null));
 
         return responseFuture
                 .thenCompose(

@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.abilities.sink;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
-import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -33,7 +32,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A sub-class of {@link SinkAbilitySpec} that can not only serialize/deserialize the partition
- * to/from JSON, but also can write partitioned data for {@link SupportsWritingMetadata}.
+ * to/from JSON, but also can write partitioned data for {@link SupportsPartitioning}.
  */
 @JsonTypeName("Partitioning")
 public class PartitioningSpec implements SinkAbilitySpec {

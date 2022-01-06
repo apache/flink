@@ -28,6 +28,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -35,6 +36,7 @@ import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
@@ -44,7 +46,6 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.BufferWritingResultPartition;
-import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -56,6 +57,8 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
@@ -78,6 +81,8 @@ import static java.util.Arrays.asList;
 import static org.apache.flink.runtime.checkpoint.CheckpointOptions.alignedNoTimeout;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createRemoteInputChannel;
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createResultSubpartitionView;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.runtime.io.network.partition.InputGateFairnessTest.setupInputGate;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
@@ -235,20 +240,74 @@ public class SingleInputGateTest extends InputGateTestBase {
         verifyBufferOrEvent(inputGate, true, 0, true);
         verifyBufferOrEvent(inputGate, false, 1, true);
         // we have received EndOfData on a single channel only
-        assertFalse(inputGate.hasReceivedEndOfData());
+        assertEquals(
+                PullingAsyncDataInput.EndOfDataStatus.NOT_END_OF_DATA,
+                inputGate.hasReceivedEndOfData());
         verifyBufferOrEvent(inputGate, false, 0, true);
         assertFalse(inputGate.isFinished());
-        assertTrue(inputGate.hasReceivedEndOfData());
+        assertEquals(
+                PullingAsyncDataInput.EndOfDataStatus.DRAINED, inputGate.hasReceivedEndOfData());
         verifyBufferOrEvent(inputGate, false, 1, true);
         verifyBufferOrEvent(inputGate, false, 0, false);
 
         // Return null when the input gate has received all end-of-partition events
-        assertTrue(inputGate.hasReceivedEndOfData());
+        assertEquals(
+                PullingAsyncDataInput.EndOfDataStatus.DRAINED, inputGate.hasReceivedEndOfData());
         assertTrue(inputGate.isFinished());
 
         for (TestInputChannel ic : inputChannels) {
             ic.assertReturnedEventsAreRecycled();
         }
+    }
+
+    @Test
+    public void testDrainFlagComputation() throws Exception {
+        // Setup
+        final SingleInputGate inputGate1 = createInputGate();
+        final SingleInputGate inputGate2 = createInputGate();
+
+        final TestInputChannel[] inputChannels1 =
+                new TestInputChannel[] {
+                    new TestInputChannel(inputGate1, 0), new TestInputChannel(inputGate1, 1)
+                };
+        inputGate1.setInputChannels(inputChannels1);
+        final TestInputChannel[] inputChannels2 =
+                new TestInputChannel[] {
+                    new TestInputChannel(inputGate2, 0), new TestInputChannel(inputGate2, 1)
+                };
+        inputGate2.setInputChannels(inputChannels2);
+
+        // Test
+        inputChannels1[1].readEndOfData(StopMode.DRAIN);
+        inputChannels1[0].readEndOfData(StopMode.NO_DRAIN);
+
+        inputChannels2[1].readEndOfData(StopMode.DRAIN);
+        inputChannels2[0].readEndOfData(StopMode.DRAIN);
+
+        inputGate1.notifyChannelNonEmpty(inputChannels1[0]);
+        inputGate1.notifyChannelNonEmpty(inputChannels1[1]);
+        inputGate2.notifyChannelNonEmpty(inputChannels2[0]);
+        inputGate2.notifyChannelNonEmpty(inputChannels2[1]);
+
+        verifyBufferOrEvent(inputGate1, false, 0, true);
+        // we have received EndOfData on a single channel only
+        assertEquals(
+                PullingAsyncDataInput.EndOfDataStatus.NOT_END_OF_DATA,
+                inputGate1.hasReceivedEndOfData());
+        verifyBufferOrEvent(inputGate1, false, 1, true);
+        // one of the channels said we should not drain
+        assertEquals(
+                PullingAsyncDataInput.EndOfDataStatus.STOPPED, inputGate1.hasReceivedEndOfData());
+
+        verifyBufferOrEvent(inputGate2, false, 0, true);
+        // we have received EndOfData on a single channel only
+        assertEquals(
+                PullingAsyncDataInput.EndOfDataStatus.NOT_END_OF_DATA,
+                inputGate2.hasReceivedEndOfData());
+        verifyBufferOrEvent(inputGate2, false, 1, true);
+        // both channels said we should drain
+        assertEquals(
+                PullingAsyncDataInput.EndOfDataStatus.DRAINED, inputGate2.hasReceivedEndOfData());
     }
 
     /**
@@ -543,6 +602,8 @@ public class SingleInputGateTest extends InputGateTestBase {
                         .setPartitionRequestMaxBackoff(maxBackoff)
                         .build();
 
+        final TaskMetricGroup taskMetricGroup =
+                UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
         SingleInputGate gate =
                 new SingleInputGateFactory(
                                 localLocation,
@@ -552,11 +613,11 @@ public class SingleInputGateTest extends InputGateTestBase {
                                 new TaskEventDispatcher(),
                                 netEnv.getNetworkBufferPool())
                         .create(
-                                "TestTask",
+                                netEnv.createShuffleIOOwnerContext(
+                                        "TestTask", taskMetricGroup.executionId(), taskMetricGroup),
                                 0,
                                 gateDesc,
-                                SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
-                                InputChannelTestUtils.newUnregisteredInputChannelMetrics());
+                                SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER);
         gate.setChannelStateWriter(ChannelStateWriter.NO_OP);
 
         gate.finishReadRecoveredState();
@@ -854,6 +915,37 @@ public class SingleInputGateTest extends InputGateTestBase {
     }
 
     @Test
+    public void testAnnounceBufferSize() throws Exception {
+        final SingleInputGate inputGate = createSingleInputGate(2);
+        final LocalInputChannel localChannel =
+                createLocalInputChannel(
+                        inputGate,
+                        new TestingResultPartitionManager(createResultSubpartitionView()));
+        RemoteInputChannel remoteInputChannel = createRemoteInputChannel(inputGate, 1);
+
+        inputGate.setInputChannels(localChannel, remoteInputChannel);
+        inputGate.requestPartitions();
+
+        inputGate.announceBufferSize(10);
+
+        // Release all channels and gate one by one.
+
+        localChannel.releaseAllResources();
+
+        inputGate.announceBufferSize(11);
+
+        remoteInputChannel.releaseAllResources();
+
+        inputGate.announceBufferSize(12);
+
+        inputGate.close();
+
+        inputGate.announceBufferSize(13);
+
+        // No exceptions should happen.
+    }
+
+    @Test
     public void testInputGateRemovalFromNettyShuffleEnvironment() throws Exception {
         NettyShuffleEnvironment network = createNettyShuffleEnvironment();
 
@@ -936,6 +1028,32 @@ public class SingleInputGateTest extends InputGateTestBase {
         inputGate.notifyChannelNonEmpty(inputChannels[2]);
         inputGate.getNext();
         assertEquals(Collections.emptyList(), inputGate.getUnfinishedChannels());
+    }
+
+    @Test
+    public void testBufferInUseCount() throws Exception {
+        // Setup
+        final SingleInputGate inputGate = createInputGate();
+
+        final TestInputChannel[] inputChannels =
+                new TestInputChannel[] {
+                    new TestInputChannel(inputGate, 0), new TestInputChannel(inputGate, 1)
+                };
+
+        inputGate.setInputChannels(inputChannels);
+
+        // It should be no buffers when all channels are empty.
+        assertThat(inputGate.getBuffersInUseCount(), is(0));
+
+        // Add buffers into channels.
+        inputChannels[0].readBuffer();
+        assertThat(inputGate.getBuffersInUseCount(), is(1));
+
+        inputChannels[0].readBuffer();
+        assertThat(inputGate.getBuffersInUseCount(), is(2));
+
+        inputChannels[1].readBuffer();
+        assertThat(inputGate.getBuffersInUseCount(), is(3));
     }
 
     // ---------------------------------------------------------------------------------------------

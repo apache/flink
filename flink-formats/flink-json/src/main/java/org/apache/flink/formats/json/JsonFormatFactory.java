@@ -26,8 +26,10 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
@@ -68,10 +70,14 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
         final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
         TimestampFormat timestampOption = JsonFormatOptionsUtil.getTimestampFormat(formatOptions);
 
-        return new DecodingFormat<DeserializationSchema<RowData>>() {
+        return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
             @Override
             public DeserializationSchema<RowData> createRuntimeDecoder(
-                    DynamicTableSource.Context context, DataType producedDataType) {
+                    DynamicTableSource.Context context,
+                    DataType physicalDataType,
+                    int[][] projections) {
+                final DataType producedDataType =
+                        Projection.of(projections).project(physicalDataType);
                 final RowType rowType = (RowType) producedDataType.getLogicalType();
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);

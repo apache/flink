@@ -31,7 +31,7 @@ import org.apache.calcite.rel.RelNode
 class FlinkRelTimeIndicatorProgram[OC <: FlinkOptimizeContext] extends FlinkOptimizeProgram[OC] {
 
   override def optimize(input: RelNode, context: OC): RelNode = {
-    val rexBuilder = Preconditions.checkNotNull(context.getRexBuilder)
+    val rexBuilder = Preconditions.checkNotNull(context.getFlinkRelBuilder.getRexBuilder)
     RelTimeIndicatorConverter.convert(input, rexBuilder, context.needFinalTimeIndicatorConversion)
   }
 

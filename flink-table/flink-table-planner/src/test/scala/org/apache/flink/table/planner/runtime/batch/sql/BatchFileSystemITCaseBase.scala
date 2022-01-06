@@ -22,9 +22,9 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.planner.runtime.FileSystemITCaseBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.types.Row
+import org.junit.{Assert, Before}
 
-import org.junit.Before
-
+import java.lang.AssertionError
 import scala.collection.Seq
 
 /**
@@ -44,5 +44,20 @@ abstract class BatchFileSystemITCaseBase extends BatchTestBase with FileSystemIT
 
   override def check(sqlQuery: String, expectedResult: Seq[Row]): Unit = {
     checkResult(sqlQuery, expectedResult)
+  }
+
+  override def checkPredicate(sqlQuery: String, checkFunc: Row => Unit): Unit = {
+    val table = parseQuery(sqlQuery)
+    val result = executeQuery(table)
+
+    try {
+      result.foreach(checkFunc)
+    } catch {
+      case e: AssertionError => throw new AssertionError(
+        s"""
+           |Results do not match for query:
+           |  $sqlQuery
+     """.stripMargin, e)
+    }
   }
 }

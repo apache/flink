@@ -19,36 +19,32 @@
 package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.binary.BinaryArrayData
-import org.apache.flink.table.data.util.{DataFormatConverters, MapDataUtil}
+import org.apache.flink.table.data.util.MapDataUtil
+import org.apache.flink.table.data.utils.CastExecutor
 import org.apache.flink.table.data.writer.{BinaryArrayWriter, BinaryRowWriter}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{binaryRowFieldSetAccess, binaryRowSetNull, binaryWriterWriteField, binaryWriterWriteNull, _}
+import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
-import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGenUtils, CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.functions.casting.{CastRule, CastRuleProvider, CodeGeneratorCastRule, ExpressionCodeGeneratorCastRule}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
-import org.apache.flink.table.runtime.functions.{SqlDateTimeUtils, SqlFunctionUtils}
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
+import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.{isInteroperable, isPrimitive}
-import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils._
 import org.apache.flink.table.types.logical.LogicalTypeFamily.DATETIME
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
-import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsExplicitCast
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
+import org.apache.flink.table.utils.DateTimeUtils
+import org.apache.flink.table.utils.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.flink.util.Preconditions.checkArgument
 
-import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
-import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
-import org.apache.calcite.util.BuiltInMethod
-
-import java.lang.{StringBuilder => JStringBuilder}
-import java.nio.charset.StandardCharsets
+import java.time.ZoneId
 import java.util.Arrays.asList
-
 import scala.collection.JavaConversions._
 
 /**
@@ -81,19 +77,19 @@ object ScalarOperatorGens {
     val leftCasting = operator match {
       case "%" =>
         if (isInteroperable(left.resultType, right.resultType)) {
-          numericCasting(left.resultType, resultType)
+          numericCasting(ctx, left.resultType, resultType)
         } else {
           val castedType = if (isDecimal(left.resultType)) {
             new BigIntType()
           } else {
             left.resultType
           }
-          numericCasting(left.resultType, castedType)
+          numericCasting(ctx, left.resultType, castedType)
         }
-      case _ => numericCasting(left.resultType, resultType)
+      case _ => numericCasting(ctx, left.resultType, resultType)
     }
 
-    val rightCasting = numericCasting(right.resultType, resultType)
+    val rightCasting = numericCasting(ctx, right.resultType, resultType)
     val resultTypeTerm = primitiveTypeTermForType(resultType)
 
     generateOperatorIfNotNull(ctx, resultType, left, right) {
@@ -117,7 +113,7 @@ object ScalarOperatorGens {
     // use it as is during calculation.
     def castToDec(t: LogicalType): String => String = t match {
       case _: DecimalType => (operandTerm: String) => s"$operandTerm"
-      case _ => numericCasting(t, resultType)
+      case _ => numericCasting(ctx, t, resultType)
     }
     val methods = Map(
       "+" -> "add",
@@ -358,7 +354,7 @@ object ScalarOperatorGens {
       // we need to normalize the values for the hash set
       val castNumeric = widerType match {
         case Some(t) => (value: GeneratedExpression) =>
-          numericCasting(value.resultType, t)(value.resultTerm)
+          numericCasting(ctx, value.resultType, t)(value.resultTerm)
         case None => (value: GeneratedExpression) => value.resultTerm
       }
 
@@ -415,11 +411,32 @@ object ScalarOperatorGens {
     }
   }
 
+  /**
+   * check the validity of implicit type conversion
+   * See: https://cwiki.apache.org/confluence/display/FLINK/FLIP-154%3A+SQL+Implicit+Type+Coercion
+   */
+  private def checkImplicitConversionValidity(
+      left: GeneratedExpression,
+      right: GeneratedExpression): Unit = {
+    // TODO: in flip-154, we should support implicit type conversion between (var)char and numeric,
+    // but flink has not yet supported now
+    if ((isNumeric(left.resultType) && isCharacterString(right.resultType))
+      || (isNumeric(right.resultType) && isCharacterString(left.resultType))) {
+      throw new ValidationException(
+        "implicit type conversion between " +
+          s"${left.resultType.getTypeRoot}" +
+          s" and " +
+          s"${right.resultType.getTypeRoot}" +
+          s" is not supported now")
+    }
+  }
+
   def generateEquals(
       ctx: CodeGeneratorContext,
       left: GeneratedExpression,
       right: GeneratedExpression)
     : GeneratedExpression = {
+    checkImplicitConversionValidity(left,right)
     val canEqual = isInteroperable(left.resultType, right.resultType)
     if (isCharacterString(left.resultType) && isCharacterString(right.resultType)) {
       generateOperatorIfNotNull(ctx, new BooleanType(), left, right) {
@@ -472,7 +489,7 @@ object ScalarOperatorGens {
     // for performance, we cast literal string to literal time.
     else if (isTimePoint(left.resultType) && isCharacterString(right.resultType)) {
       if (right.literal) {
-        generateEquals(ctx, left, generateCastStringLiteralToDateTime(ctx, right, left.resultType))
+        generateEquals(ctx, left, generateCastLiteral(ctx, right, left.resultType))
       } else {
         generateEquals(ctx, left, generateCast(ctx, right, left.resultType))
       }
@@ -481,7 +498,7 @@ object ScalarOperatorGens {
       if (left.literal) {
         generateEquals(
           ctx,
-          generateCastStringLiteralToDateTime(ctx, left, right.resultType),
+          generateCastLiteral(ctx, left, right.resultType),
           right)
       } else {
         generateEquals(ctx, generateCast(ctx, left, right.resultType), right)
@@ -519,6 +536,7 @@ object ScalarOperatorGens {
       left: GeneratedExpression,
       right: GeneratedExpression)
     : GeneratedExpression = {
+    checkImplicitConversionValidity(left,right)
     if (isCharacterString(left.resultType) && isCharacterString(right.resultType)) {
       generateOperatorIfNotNull(ctx, new BooleanType(), left, right) {
         (leftTerm, rightTerm) => s"!$leftTerm.equals($rightTerm)"
@@ -916,430 +934,316 @@ object ScalarOperatorGens {
       ctx: CodeGeneratorContext,
       operand: GeneratedExpression,
       targetType: LogicalType)
-    : GeneratedExpression = (operand.resultType.getTypeRoot, targetType.getTypeRoot) match {
+    : GeneratedExpression = {
 
-    // special case: cast from TimeIndicatorTypeInfo to SqlTimeTypeInfo
-    case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE)
-      if operand.resultType.asInstanceOf[TimestampType].getKind == TimestampKind.PROCTIME ||
+    ctx.addReusableHeaderComment(
+      s"Using option '${ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR.key()}':" +
+        s"'${isLegacyCastBehaviourEnabled(ctx)}'")
+    ctx.addReusableHeaderComment("Timezone: " + ctx.tableConfig.getLocalTimeZone)
+
+    // Try to use the new cast rules
+    val rule = CastRuleProvider.resolve(operand.resultType, targetType)
+    rule match {
+      case codeGeneratorCastRule: CodeGeneratorCastRule[_, _] =>
+        // Make sure to force nullability checks in case ctx.nullCheck is enabled
+        val inputType = if (ctx.nullCheck) {
+          operand.resultType.copy(true)
+        } else {
+          operand.resultType
+        }
+
+        // Generate the code block
+        val castCodeBlock = codeGeneratorCastRule.generateCodeBlock(
+          toCodegenCastContext(ctx),
+          operand.resultTerm,
+          operand.nullTerm,
+          inputType,
+          targetType
+        )
+
+        if (codeGeneratorCastRule.canFail) {
+          val resultTerm = ctx.addReusableLocalVariable(
+            primitiveTypeTermForType(targetType),
+            "castRuleResult"
+          )
+          val nullTerm = ctx.addReusableLocalVariable(
+            "boolean",
+            "castRuleResultIsNull"
+          )
+
+          // TODO this code belongs to TRY_CAST, more than to CAST.
+          //  See https://issues.apache.org/jira/browse/FLINK-24385 for more details
+          val castCode =
+            s"""
+               | // --- Cast section generated by ${className(codeGeneratorCastRule.getClass)}
+               | try {
+               |   ${castCodeBlock.getCode}
+               |   $resultTerm = ${castCodeBlock.getReturnTerm};
+               |   $nullTerm = ${castCodeBlock.getIsNullTerm};
+               | } catch (${className[Throwable]} e) {
+               |   $resultTerm = ${primitiveDefaultValue(targetType)};
+               |   $nullTerm = true;
+               | }
+               | // --- End cast section
+               """.stripMargin
+
+          return GeneratedExpression(
+            resultTerm,
+            nullTerm,
+            operand.code + "\n" + castCode,
+            targetType
+          )
+        } else {
+          val castCode =
+            s"""
+               | // --- Cast section generated by ${className(codeGeneratorCastRule.getClass)}
+               | ${castCodeBlock.getCode}
+               | // --- End cast section
+               """.stripMargin
+
+          return GeneratedExpression(
+            castCodeBlock.getReturnTerm,
+            castCodeBlock.getIsNullTerm,
+            operand.code + castCode,
+            targetType
+          )
+        }
+      case _ =>
+    }
+
+    // Fallback to old cast rules
+    (operand.resultType.getTypeRoot, targetType.getTypeRoot) match {
+
+      // special case: cast from TimeIndicatorTypeInfo to SqlTimeTypeInfo
+      case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE)
+        if operand.resultType.asInstanceOf[TimestampType].getKind == TimestampKind.PROCTIME ||
           operand.resultType.asInstanceOf[TimestampType].getKind == TimestampKind.ROWTIME ||
           targetType.asInstanceOf[TimestampType].getKind == TimestampKind.PROCTIME ||
           targetType.asInstanceOf[TimestampType].getKind == TimestampKind.ROWTIME =>
         // just replace the DataType
         operand.copy(resultType = new TimestampType(operand.resultType.isNullable, 3))
 
-    case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
-      val fromType = operand.resultType.asInstanceOf[TimestampType]
-      val toType = targetType.asInstanceOf[TimestampType]
-      if (fromType.getPrecision <= toType.getPrecision) {
+      case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+        val fromType = operand.resultType.asInstanceOf[TimestampType]
+        val toType = targetType.asInstanceOf[TimestampType]
+        if (fromType.getPrecision <= toType.getPrecision) {
+          operand.copy(resultType = targetType)
+        } else {
+          val method = qualifyMethod(BuiltInMethods.TRUNCATE_SQL_TIMESTAMP)
+          generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+            operandTerm =>
+              s"$method($operandTerm, ${toType.getPrecision})"
+          }
+        }
+
+      case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
+        val fromType = operand.resultType.asInstanceOf[TimestampType]
+        val toType = targetType.asInstanceOf[LocalZonedTimestampType]
+        val method = qualifyMethod(BuiltInMethods.TIMESTAMP_TO_TIMESTAMP_WITH_LOCAL_ZONE)
+        if (fromType.getPrecision < toType.getPrecision) {
+          generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+            operandTerm =>
+              val timeZone = ctx.addReusableSessionTimeZone()
+              s"$method($operandTerm, $timeZone)"
+          }
+        } else {
+          val truncate_method = qualifyMethod(BuiltInMethods.TRUNCATE_SQL_TIMESTAMP)
+          generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+            operandTerm =>
+              val timeZone = ctx.addReusableSessionTimeZone()
+              s"$truncate_method($method($operandTerm, $timeZone), ${toType.getPrecision})"
+          }
+        }
+
+      case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+        val fromType = operand.resultType.asInstanceOf[LocalZonedTimestampType]
+        val toType = targetType.asInstanceOf[TimestampType]
+        val method = qualifyMethod(BuiltInMethods.TIMESTAMP_WITH_LOCAL_ZONE_TO_TIMESTAMP)
+        if (fromType.getPrecision < toType.getPrecision) {
+          generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+            operandTerm =>
+              val zone = ctx.addReusableSessionTimeZone()
+              s"$method($operandTerm, $zone)"
+          }
+        } else {
+          val truncate_method = qualifyMethod(BuiltInMethods.TRUNCATE_SQL_TIMESTAMP)
+          generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+            operandTerm =>
+              val zone = ctx.addReusableSessionTimeZone()
+              s"$truncate_method($method($operandTerm, $zone), ${toType.getPrecision})"
+          }
+        }
+
+      case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
+        val fromType = operand.resultType.asInstanceOf[LocalZonedTimestampType]
+        val toType = targetType.asInstanceOf[LocalZonedTimestampType]
+        if (fromType.getPrecision <= toType.getPrecision) {
+          operand.copy(resultType = targetType)
+        } else {
+          val method = qualifyMethod(BuiltInMethods.TRUNCATE_SQL_TIMESTAMP)
+          generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+            operandTerm =>
+              s"$method($operandTerm, ${toType.getPrecision})"
+          }
+        }
+
+      // TODO this identity casting is not really an identity casting,
+      //  because it doesn't perform precision/length trimming on types that requires it
+      //  E.g. it doesn't trim strings from one CHAR type to another with smaller size.
+      //  This should be addressed by FLINK-24403 subtasks
+      // identity casting
+      case (_, _) if isInteroperable(operand.resultType, targetType) =>
         operand.copy(resultType = targetType)
-      } else {
-        val method = qualifyMethod(BuiltInMethods.TRUNCATE_SQL_TIMESTAMP)
+
+      // Date -> Timestamp
+      case (DATE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
         generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
           operandTerm =>
-            s"$method($operandTerm, ${toType.getPrecision})"
-        }
-      }
-
-    case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
-      val fromType = operand.resultType.asInstanceOf[TimestampType]
-      val toType = targetType.asInstanceOf[LocalZonedTimestampType]
-      val method = qualifyMethod(BuiltInMethods.TIMESTAMP_TO_TIMESTAMP_WITH_LOCAL_ZONE)
-      if (fromType.getPrecision < toType.getPrecision) {
-        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-          operandTerm =>
-            val timeZone = ctx.addReusableSessionTimeZone()
-            s"$method($operandTerm, $timeZone)"
-        }
-      } else {
-        val truncate_method = qualifyMethod(BuiltInMethods.TRUNCATE_SQL_TIMESTAMP)
-        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-          operandTerm =>
-            val timeZone = ctx.addReusableSessionTimeZone()
-            s"$truncate_method($method($operandTerm, $timeZone), ${toType.getPrecision})"
-        }
-      }
-
-    case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
-      val fromType = operand.resultType.asInstanceOf[LocalZonedTimestampType]
-      val toType = targetType.asInstanceOf[TimestampType]
-      val method = qualifyMethod(BuiltInMethods.TIMESTAMP_WITH_LOCAL_ZONE_TO_TIMESTAMP)
-      if (fromType.getPrecision < toType.getPrecision) {
-        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-          operandTerm =>
-            val zone = ctx.addReusableSessionTimeZone()
-            s"$method($operandTerm, $zone)"
-        }
-      } else {
-        val truncate_method = qualifyMethod(BuiltInMethods.TRUNCATE_SQL_TIMESTAMP)
-        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-          operandTerm =>
-            val zone = ctx.addReusableSessionTimeZone()
-            s"$truncate_method($method($operandTerm, $zone), ${toType.getPrecision})"
-        }
-      }
-
-    case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
-      val fromType = operand.resultType.asInstanceOf[LocalZonedTimestampType]
-      val toType = targetType.asInstanceOf[LocalZonedTimestampType]
-      if (fromType.getPrecision <= toType.getPrecision) {
-        operand.copy(resultType = targetType)
-      } else {
-        val method = qualifyMethod(BuiltInMethods.TRUNCATE_SQL_TIMESTAMP)
-        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-          operandTerm =>
-            s"$method($operandTerm, ${toType.getPrecision})"
-        }
-      }
-
-    // identity casting
-    case (_, _) if isInteroperable(operand.resultType, targetType) =>
-      operand.copy(resultType = targetType)
-
-    // Date/Time/Timestamp -> String
-    case (_, VARCHAR | CHAR) if TypeCheckUtils.isTimePoint(operand.resultType) =>
-      generateStringResultCallIfArgsNotNull(ctx, Seq(operand), targetType) {
-        operandTerm =>
-          s"${localTimeToStringCode(ctx, operand.resultType, operandTerm.head)}"
-      }
-
-    // Interval Months -> String
-    case (INTERVAL_YEAR_MONTH, VARCHAR | CHAR) =>
-      val method = qualifyMethod(BuiltInMethod.INTERVAL_YEAR_MONTH_TO_STRING.method)
-      val timeUnitRange = qualifyEnum(TimeUnitRange.YEAR_TO_MONTH)
-      generateStringResultCallIfArgsNotNull(ctx, Seq(operand), targetType) {
-        terms => s"$method(${terms.head}, $timeUnitRange)"
-      }
-
-    // Interval Millis -> String
-    case (INTERVAL_DAY_TIME, VARCHAR | CHAR) =>
-      val method = qualifyMethod(BuiltInMethod.INTERVAL_DAY_TIME_TO_STRING.method)
-      val timeUnitRange = qualifyEnum(TimeUnitRange.DAY_TO_SECOND)
-      generateStringResultCallIfArgsNotNull(ctx, Seq(operand), targetType) {
-        terms => s"$method(${terms.head}, $timeUnitRange, 3)" // milli second precision
-      }
-
-    // Array -> String
-    case (ARRAY, VARCHAR | CHAR) =>
-      generateCastArrayToString(
-        ctx, operand, operand.resultType.asInstanceOf[ArrayType], targetType)
-
-    // Byte array -> String UTF-8
-    case (BINARY | VARBINARY, VARCHAR | CHAR) =>
-      val charset = classOf[StandardCharsets].getCanonicalName
-      generateStringResultCallIfArgsNotNull(ctx, Seq(operand), targetType) {
-        terms => s"(new String(${terms.head}, $charset.UTF_8))"
-      }
-
-
-    // Map -> String
-    case (MAP, VARCHAR | CHAR) =>
-      generateCastMapToString(
-        ctx, operand, operand.resultType.asInstanceOf[MapType], targetType)
-
-    // composite type -> String
-    case (ROW, VARCHAR | CHAR) =>
-      generateCastRowDataToString(
-        ctx, operand, operand.resultType.asInstanceOf[RowType], targetType)
-
-    case (RAW, VARCHAR | CHAR) =>
-      generateStringResultCallIfArgsNotNull(ctx, Seq(operand), targetType) {
-        terms =>
-          val converter = DataFormatConverters.getConverterForDataType(
-            fromLogicalTypeToDataType(operand.resultType))
-          val converterTerm = ctx.addReusableObject(converter, "converter")
-          s""" "" + $converterTerm.toExternal(${terms.head})"""
-      }
-
-    // * (not Date/Time/Timestamp) -> String
-    // TODO: GenericType with Date/Time/Timestamp -> String would call toString implicitly
-    case (_, VARCHAR | CHAR) =>
-      generateStringResultCallIfArgsNotNull(ctx, Seq(operand), targetType) {
-        terms => s""" "" + ${terms.head}"""
-      }
-
-    // String -> Boolean
-    case (VARCHAR | CHAR, BOOLEAN) =>
-      val castedExpression = generateUnaryOperatorIfNotNull(
-        ctx,
-        targetType,
-        operand,
-        resultNullable = true) {
-        operandTerm => s"$BINARY_STRING_UTIL.toBooleanSQL($operandTerm)"
-      }
-      val resultTerm = newName("primitiveCastResult")
-      castedExpression.copy(
-        resultTerm = resultTerm,
-        code =
-          s"""
-             |${castedExpression.code}
-             |boolean $resultTerm = Boolean.TRUE.equals(${castedExpression.resultTerm});
-             |""".stripMargin
-      )
-
-    // String -> NUMERIC TYPE (not Character)
-    case (VARCHAR | CHAR, _)
-      if TypeCheckUtils.isNumeric(targetType) =>
-      targetType match {
-        case dt: DecimalType =>
-          generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
-            s"$BINARY_STRING_UTIL.toDecimal($operandTerm, ${dt.getPrecision}, ${dt.getScale})"
-          }
-        case _ =>
-          val methodName = targetType.getTypeRoot match {
-            case TINYINT => "toByte"
-            case SMALLINT => "toShort"
-            case INTEGER => "toInt"
-            case BIGINT => "toLong"
-            case DOUBLE => "toDouble"
-            case FLOAT => "toFloat"
-            case _ => null
-          }
-          assert(methodName != null, "Unexpected data type.")
-          generateUnaryOperatorIfNotNull(
-            ctx,
-            targetType,
-            operand,
-            resultNullable = true) {
-            operandTerm => s"($BINARY_STRING_UTIL.$methodName($operandTerm.trim()))"
-          }
-      }
-
-    // String -> Date
-    case (VARCHAR | CHAR, DATE) =>
-      generateUnaryOperatorIfNotNull(
-        ctx,
-        targetType,
-        operand,
-        resultNullable = true) {
-        operandTerm =>
-          s"${qualifyMethod(BuiltInMethods.STRING_TO_DATE)}($operandTerm.toString())"
-      }
-
-    // String -> Time
-    case (VARCHAR | CHAR, TIME_WITHOUT_TIME_ZONE) =>
-      generateUnaryOperatorIfNotNull(
-        ctx,
-        targetType,
-        operand,
-        resultNullable = true) {
-        operandTerm =>
-          s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString())"
-      }
-
-    // String -> Timestamp
-    case (VARCHAR | CHAR, TIMESTAMP_WITHOUT_TIME_ZONE) =>
-      generateUnaryOperatorIfNotNull(
-        ctx,
-        targetType,
-        operand,
-        resultNullable = true) {
-        operandTerm =>
-          s"""
-             |${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString())
+            s"""
+               |$TIMESTAMP_DATA.fromEpochMillis(
+               |  $operandTerm * ${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)
            """.stripMargin
-      }
+        }
 
-    case (VARCHAR | CHAR, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
-      generateUnaryOperatorIfNotNull(
-        ctx, targetType, operand, resultNullable = true) { operandTerm =>
-        val zone = ctx.addReusableSessionTimeZone()
-        val method = qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP_TIME_ZONE)
-        s"$TIMESTAMP_DATA.fromEpochMillis($method($operandTerm.toString(), $zone))"
-      }
-
-    // String -> binary
-    case (VARCHAR | CHAR, VARBINARY | BINARY) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$operandTerm.toBytes()"
-      }
-
-    // Note: SQL2003 $6.12 - casting is not allowed between boolean and numeric types.
-    //       Calcite does not allow it either.
-
-    // Boolean -> DECIMAL
-    case (BOOLEAN, DECIMAL) =>
-      val dt = targetType.asInstanceOf[DecimalType]
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$DECIMAL_UTIL.castFrom($operandTerm, ${dt.getPrecision}, ${dt.getScale})"
-      }
-
-    // Boolean -> NUMERIC TYPE
-    case (BOOLEAN, _) if TypeCheckUtils.isNumeric(targetType) =>
-      val targetTypeTerm = primitiveTypeTermForType(targetType)
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"($targetTypeTerm) ($operandTerm ? 1 : 0)"
-      }
-
-    // DECIMAL -> Boolean
-    case (DECIMAL, BOOLEAN) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$DECIMAL_UTIL.castToBoolean($operandTerm)"
-      }
-
-    // NUMERIC TYPE -> Boolean
-    case (_, BOOLEAN) if isNumeric(operand.resultType) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$operandTerm != 0"
-      }
-
-    // between NUMERIC TYPE | Decimal
-    case  (_, _) if isNumeric(operand.resultType) && isNumeric(targetType) =>
-      val operandCasting = numericCasting(operand.resultType, targetType)
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"${operandCasting(operandTerm)}"
-      }
-
-    // Date -> Timestamp
-    case (DATE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm =>
-          s"""
-             |$TIMESTAMP_DATA.fromEpochMillis(
-             |  $operandTerm * ${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)
+      // Timestamp -> Date
+      case (TIMESTAMP_WITHOUT_TIME_ZONE, DATE) =>
+        val targetTypeTerm = primitiveTypeTermForType(targetType)
+        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+          operandTerm =>
+            s"""
+               |($targetTypeTerm) ($operandTerm.getMillisecond() /
+               |  ${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)
            """.stripMargin
+        }
+
+      // Time -> Timestamp
+      case (TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+          operandTerm => s"$TIMESTAMP_DATA.fromEpochMillis($operandTerm)"
+        }
+
+      // Timestamp -> Time
+      case (TIMESTAMP_WITHOUT_TIME_ZONE, TIME_WITHOUT_TIME_ZONE) =>
+        val targetTypeTerm = primitiveTypeTermForType(targetType)
+        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+          operandTerm =>
+            s"($targetTypeTerm) ($operandTerm.getMillisecond() % " +
+              s"${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)"
+        }
+
+      // Date -> Timestamp with local time zone
+      case (DATE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
+        generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
+          val zone = ctx.addReusableSessionTimeZone()
+          val method = qualifyMethod(BuiltInMethods.DATE_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+          s"$method($operandTerm, $zone)"
+        }
+
+      // Timestamp with local time zone -> Date
+      case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, DATE) =>
+        generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
+          val zone = ctx.addReusableSessionTimeZone()
+          val method = qualifyMethod(BuiltInMethods.TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_DATE)
+          s"$method($operandTerm, $zone)"
+        }
+
+      // Time -> Timestamp with local time zone
+      case (TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
+        generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
+          val zone = ctx.addReusableSessionTimeZone()
+          val method = qualifyMethod(BuiltInMethods.TIME_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+          s"$method($operandTerm, $zone)"
+        }
+
+      // Timestamp with local time zone -> Time
+      case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIME_WITHOUT_TIME_ZONE) =>
+        generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
+          val zone = ctx.addReusableSessionTimeZone()
+          val method = qualifyMethod(BuiltInMethods.TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_TIME)
+          s"$method($operandTerm, $zone)"
+        }
+
+      // Disable cast conversion between Numeric type and Timestamp type
+      case (TINYINT, TIMESTAMP_WITHOUT_TIME_ZONE) |
+           (SMALLINT, TIMESTAMP_WITHOUT_TIME_ZONE) |
+           (INTEGER, TIMESTAMP_WITHOUT_TIME_ZONE) |
+           (BIGINT, TIMESTAMP_WITHOUT_TIME_ZONE) |
+           (FLOAT, TIMESTAMP_WITHOUT_TIME_ZONE) |
+           (DOUBLE, TIMESTAMP_WITHOUT_TIME_ZONE) |
+           (DECIMAL, TIMESTAMP_WITHOUT_TIME_ZONE) |
+           (TIMESTAMP_WITHOUT_TIME_ZONE, TINYINT) |
+           (TIMESTAMP_WITHOUT_TIME_ZONE, SMALLINT) |
+           (TIMESTAMP_WITHOUT_TIME_ZONE, INTEGER) |
+           (TIMESTAMP_WITHOUT_TIME_ZONE, BIGINT) |
+           (TIMESTAMP_WITHOUT_TIME_ZONE, FLOAT) |
+           (TIMESTAMP_WITHOUT_TIME_ZONE, DOUBLE) |
+           (TIMESTAMP_WITHOUT_TIME_ZONE, DECIMAL) => {
+        if (TIMESTAMP_WITHOUT_TIME_ZONE.equals(targetType.getTypeRoot)) {
+          throw new ValidationException("The cast conversion from NUMERIC type to TIMESTAMP type" +
+            " is not allowed, it's recommended to use TO_TIMESTAMP(FROM_UNIXTIME(numeric_col))" +
+            " instead, note the numeric is in seconds.")
+        } else {
+          throw new ValidationException("The cast conversion from TIMESTAMP type to NUMERIC type" +
+            " is not allowed, it's recommended to use" +
+            " UNIX_TIMESTAMP(CAST(timestamp_col AS STRING)) instead.")
+        }
       }
 
-    // Timestamp -> Date
-    case (TIMESTAMP_WITHOUT_TIME_ZONE, DATE) =>
-      val targetTypeTerm = primitiveTypeTermForType(targetType)
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm =>
-          s"""
-             |($targetTypeTerm) ($operandTerm.getMillisecond() /
-             |  ${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)
-           """.stripMargin
+      // Disable cast conversion between Numeric type and TimestampLtz type
+      case (TINYINT, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
+           (SMALLINT, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
+           (INTEGER, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
+           (BIGINT, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
+           (FLOAT, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
+           (DOUBLE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
+           (DECIMAL, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
+           (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TINYINT) |
+           (TIMESTAMP_WITH_LOCAL_TIME_ZONE, SMALLINT) |
+           (TIMESTAMP_WITH_LOCAL_TIME_ZONE, INTEGER) |
+           (TIMESTAMP_WITH_LOCAL_TIME_ZONE, BIGINT) |
+           (TIMESTAMP_WITH_LOCAL_TIME_ZONE, FLOAT) |
+           (TIMESTAMP_WITH_LOCAL_TIME_ZONE, DOUBLE) |
+           (TIMESTAMP_WITH_LOCAL_TIME_ZONE, DECIMAL) => {
+        if (TIMESTAMP_WITH_LOCAL_TIME_ZONE.equals(targetType.getTypeRoot)) {
+          throw new ValidationException("The cast conversion from NUMERIC type" +
+            " to TIMESTAMP_LTZ type is not allowed, it's recommended to use" +
+            " TO_TIMESTAMP_LTZ(numeric_col, precision) instead.")
+        } else {
+          throw new ValidationException("The cast conversion from" +
+            " TIMESTAMP_LTZ type to NUMERIC type is not allowed.")
+        }
       }
 
-    // Time -> Timestamp
-    case (TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$TIMESTAMP_DATA.fromEpochMillis($operandTerm)"
-      }
+      // internal temporal casting
+      // Date -> Integer
+      // Time -> Integer
+      // Integer -> Date
+      // Integer -> Time
+      // Integer -> Interval Months
+      // Long -> Interval Millis
+      // Interval Months -> Integer
+      // Interval Millis -> Long
+      case (DATE, INTEGER) |
+           (TIME_WITHOUT_TIME_ZONE, INTEGER) |
+           (INTEGER, DATE) |
+           (INTEGER, TIME_WITHOUT_TIME_ZONE) |
+           (INTEGER, INTERVAL_YEAR_MONTH) |
+           (BIGINT, INTERVAL_DAY_TIME) |
+           (INTERVAL_YEAR_MONTH, INTEGER) |
+           (INTERVAL_DAY_TIME, BIGINT) =>
+        internalExprCasting(operand, targetType)
 
-    // Timestamp -> Time
-    case (TIMESTAMP_WITHOUT_TIME_ZONE, TIME_WITHOUT_TIME_ZONE) =>
-      val targetTypeTerm = primitiveTypeTermForType(targetType)
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm =>
-          s"($targetTypeTerm) ($operandTerm.getMillisecond() % " +
-            s"${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)"
-      }
+      // internal reinterpretation of temporal types
+      // Date, Time, Interval Months -> Long
+      case (DATE, BIGINT)
+           | (TIME_WITHOUT_TIME_ZONE, BIGINT)
+           | (INTERVAL_YEAR_MONTH, BIGINT) =>
+        internalExprCasting(operand, targetType)
 
-    // Date -> Timestamp with local time zone
-    case (DATE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
-        val zone = ctx.addReusableSessionTimeZone()
-        val method = qualifyMethod(BuiltInMethods.DATE_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-        s"$TIMESTAMP_DATA.fromEpochMillis($method($operandTerm, $zone))"
-      }
-
-    // Timestamp with local time zone -> Date
-    case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, DATE) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
-        val zone = ctx.addReusableSessionTimeZone()
-        val method = qualifyMethod(BuiltInMethods.TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_DATE)
-        s"$method($operandTerm.getMillisecond(), $zone)"
-      }
-
-    // Time -> Timestamp with local time zone
-    case (TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
-        val zone = ctx.addReusableSessionTimeZone()
-        val method = qualifyMethod(BuiltInMethods.TIME_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-        s"$TIMESTAMP_DATA.fromEpochMillis($method($operandTerm, $zone))"
-      }
-
-    // Timestamp with local time zone -> Time
-    case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIME_WITHOUT_TIME_ZONE) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
-        val zone = ctx.addReusableSessionTimeZone()
-        val method = qualifyMethod(BuiltInMethods.TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_TIME)
-        s"$method($operandTerm.getMillisecond(), $zone)"
-      }
-
-    // Disable cast conversion between Numeric type and Timestamp type
-    case (TINYINT, TIMESTAMP_WITHOUT_TIME_ZONE) |
-         (SMALLINT, TIMESTAMP_WITHOUT_TIME_ZONE) |
-         (INTEGER, TIMESTAMP_WITHOUT_TIME_ZONE) |
-         (BIGINT, TIMESTAMP_WITHOUT_TIME_ZONE) |
-         (FLOAT, TIMESTAMP_WITHOUT_TIME_ZONE) |
-         (DOUBLE, TIMESTAMP_WITHOUT_TIME_ZONE) |
-         (DECIMAL, TIMESTAMP_WITHOUT_TIME_ZONE) |
-         (TIMESTAMP_WITHOUT_TIME_ZONE, TINYINT) |
-         (TIMESTAMP_WITHOUT_TIME_ZONE, SMALLINT) |
-         (TIMESTAMP_WITHOUT_TIME_ZONE, INTEGER) |
-         (TIMESTAMP_WITHOUT_TIME_ZONE, BIGINT) |
-         (TIMESTAMP_WITHOUT_TIME_ZONE, FLOAT) |
-         (TIMESTAMP_WITHOUT_TIME_ZONE, DOUBLE) |
-         (TIMESTAMP_WITHOUT_TIME_ZONE, DECIMAL) => {
-      if (TIMESTAMP_WITHOUT_TIME_ZONE.equals(targetType.getTypeRoot)) {
-        throw new ValidationException("The cast conversion from NUMERIC type to TIMESTAMP type" +
-          " is not allowed, it's recommended to use TO_TIMESTAMP(FROM_UNIXTIME(numeric_col))" +
-          " instead, note the numeric is in seconds.")
-      } else {
-        throw new ValidationException("The cast conversion from TIMESTAMP type to NUMERIC type" +
-          " is not allowed, it's recommended to use" +
-          " UNIX_TIMESTAMP(CAST(timestamp_col AS STRING)) instead.")
-      }
+      case (_, _) =>
+        throw new CodeGenException(
+          s"Unsupported cast from '${operand.resultType}' to '$targetType'.")
     }
-
-    // Disable cast conversion between Numeric type and TimestampLtz type
-    case (TINYINT, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
-         (SMALLINT, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
-         (INTEGER, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
-         (BIGINT, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
-         (FLOAT, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
-         (DOUBLE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
-         (DECIMAL, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
-         (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TINYINT) |
-         (TIMESTAMP_WITH_LOCAL_TIME_ZONE, SMALLINT) |
-         (TIMESTAMP_WITH_LOCAL_TIME_ZONE, INTEGER) |
-         (TIMESTAMP_WITH_LOCAL_TIME_ZONE, BIGINT) |
-         (TIMESTAMP_WITH_LOCAL_TIME_ZONE, FLOAT) |
-         (TIMESTAMP_WITH_LOCAL_TIME_ZONE, DOUBLE) |
-         (TIMESTAMP_WITH_LOCAL_TIME_ZONE, DECIMAL) => {
-      if (TIMESTAMP_WITH_LOCAL_TIME_ZONE.equals(targetType.getTypeRoot)) {
-        throw new ValidationException("The cast conversion from NUMERIC type" +
-          " to TIMESTAMP_LTZ type is not allowed, it's recommended to use" +
-          " TO_TIMESTAMP_LTZ(numeric_col, precision) instead.")
-      } else {
-        throw new ValidationException("The cast conversion from" +
-          " TIMESTAMP_LTZ type to NUMERIC type is not allowed.")
-      }
-    }
-
-    // internal temporal casting
-    // Date -> Integer
-    // Time -> Integer
-    // Integer -> Date
-    // Integer -> Time
-    // Integer -> Interval Months
-    // Long -> Interval Millis
-    // Interval Months -> Integer
-    // Interval Millis -> Long
-    case (DATE, INTEGER) |
-         (TIME_WITHOUT_TIME_ZONE, INTEGER) |
-         (INTEGER, DATE) |
-         (INTEGER, TIME_WITHOUT_TIME_ZONE) |
-         (INTEGER, INTERVAL_YEAR_MONTH) |
-         (BIGINT, INTERVAL_DAY_TIME) |
-         (INTERVAL_YEAR_MONTH, INTEGER) |
-         (INTERVAL_DAY_TIME, BIGINT) =>
-      internalExprCasting(operand, targetType)
-
-    // internal reinterpretation of temporal types
-    // Date, Time, Interval Months -> Long
-    case  (DATE, BIGINT)
-          | (TIME_WITHOUT_TIME_ZONE, BIGINT)
-          | (INTERVAL_YEAR_MONTH, BIGINT) =>
-      internalExprCasting(operand, targetType)
-
-    case (ROW | STRUCTURED_TYPE, ROW | STRUCTURED_TYPE)
-        if supportsExplicitCast(operand.resultType, targetType) =>
-      generateCastRowToRow(ctx, operand, targetType)
-
-    case (_, _) =>
-      throw new CodeGenException(s"Unsupported cast from '${operand.resultType}' to '$targetType'.")
   }
 
   def generateIfElse(
@@ -1712,7 +1616,7 @@ object ScalarOperatorGens {
     val idxStr = s"${index.resultTerm} - 1"
     val arrayIsNull = s"${array.resultTerm}.isNullAt($idxStr)"
     val arrayGet =
-      rowFieldReadAccess(ctx, idxStr, array.resultTerm, componentInfo)
+      rowFieldReadAccess(idxStr, array.resultTerm, componentInfo)
 
     val arrayAccessCode =
     s"""
@@ -1735,7 +1639,7 @@ object ScalarOperatorGens {
 
     val arrayLengthCode = s"${array.nullTerm} ? 0 : ${array.resultTerm}.size()"
 
-    val arrayGet = rowFieldReadAccess(ctx, 0, array.resultTerm, resultType)
+    val arrayGet = rowFieldReadAccess(0, array.resultTerm, resultType)
     val arrayAccessCode =
       s"""
          |${array.code}
@@ -1772,6 +1676,7 @@ object ScalarOperatorGens {
    * returns NULL if any argument is NULL.
    */
   def generateGreatestLeast(
+      ctx: CodeGeneratorContext,
       resultType: LogicalType,
       elements: Seq[GeneratedExpression],
       greatest: Boolean = true)
@@ -1782,8 +1687,8 @@ object ScalarOperatorGens {
     val resultTypeTerm = boxedTypeTermForType(widerType.get)
 
     def castIfNumeric(t: GeneratedExpression): String = {
-      if (TypeCheckUtils.isNumeric(widerType.get)) {
-         s"${numericCasting(t.resultType, widerType.get).apply(t.resultTerm)}"
+      if (isNumeric(widerType.get)) {
+         s"${numericCasting(ctx, t.resultType, widerType.get).apply(t.resultTerm)}"
       } else {
          s"${t.resultTerm}"
       }
@@ -1929,7 +1834,7 @@ object ScalarOperatorGens {
          |    }
          |  } else {
          |    while ($index < $length && !$found) {
-         |      final $keyTypeTerm $tmpKey = ${rowFieldReadAccess(ctx, index, keys, keyType)};
+         |      final $keyTypeTerm $tmpKey = ${rowFieldReadAccess(index, keys, keyType)};
          |      ${equal.code}
          |      if (${equal.resultTerm}) {
          |        $found = true;
@@ -1942,7 +1847,7 @@ object ScalarOperatorGens {
          |  if (!$found || $values.isNullAt($index)) {
          |    $nullTerm = true;
          |  } else {
-         |    $resultTerm = ${rowFieldReadAccess(ctx, index, values, valueType)};
+         |    $resultTerm = ${rowFieldReadAccess(index, values, valueType)};
          |  }
          |} else {
          |  $GENERIC_MAP $genericMapTerm = ($GENERIC_MAP) $mapTerm;
@@ -1982,267 +1887,44 @@ object ScalarOperatorGens {
   // private generate utils
   // ----------------------------------------------------------------------------------------
 
-  private def generateCastRowToRow(
-      ctx: CodeGeneratorContext,
-      operand: GeneratedExpression,
-      targetRowType: LogicalType)
-    : GeneratedExpression = {
-    // assumes that the arity has been checked before
-    generateCallWithStmtIfArgsNotNull(ctx, targetRowType, Seq(operand)) { case Seq(rowTerm) =>
-      val fieldExprs = operand
-        .resultType
-        .getChildren
-        .zip(targetRowType.getChildren)
-        .zipWithIndex
-        .map { case ((sourceType, targetType), idx) =>
-          val sourceTypeTerm = primitiveTypeTermForType(sourceType)
-          val sourceTerm = newName("field")
-          val sourceAccessCode = rowFieldReadAccess(ctx, idx, rowTerm, sourceType)
-          val sourceExpr = GeneratedExpression(
-            sourceTerm,
-            s"$rowTerm.isNullAt($idx)",
-            s"$sourceTypeTerm $sourceTerm = ($sourceTypeTerm) $sourceAccessCode;",
-            sourceType)
-          generateCast(ctx, sourceExpr, targetType)
-        }
+  /**
+   * This method supports casting literals to non-composite types (primitives, strings, date time).
+   * Every cast result is declared as class member, in order to be able to reuse it.
+   */
+  private def generateCastLiteral(
+     ctx: CodeGeneratorContext,
+     literalExpr: GeneratedExpression,
+     resultType: LogicalType): GeneratedExpression = {
+    checkArgument(literalExpr.literal)
+    if (java.lang.Boolean.valueOf(literalExpr.nullTerm)) {
+      return generateNullLiteral(resultType, nullCheck = true)
+    }
 
-      val generateRowExpr = generateRow(ctx, targetRowType, fieldExprs)
-      (generateRowExpr.code, generateRowExpr.resultTerm)
+    val castExecutor = CastRuleProvider.create(
+      toCastContext(ctx),
+      literalExpr.resultType,
+      resultType
+    ).asInstanceOf[CastExecutor[Any, Any]]
+
+    if (castExecutor == null) {
+      throw new CodeGenException(
+        s"Unsupported casting from ${literalExpr.resultType} to $resultType")
+    }
+
+    try {
+      val result = castExecutor.cast(literalExpr.literalValue.get)
+      val resultTerm = newName("stringToTime")
+
+      val declStmt =
+        s"${primitiveTypeTermForType(resultType)} $resultTerm = ${primitiveLiteralForType(result)};"
+
+      ctx.addReusableMember(declStmt)
+      GeneratedExpression(resultTerm, "false", "", resultType, Some(result))
+    } catch {
+      case e: Throwable =>
+        throw new ValidationException("Error when casting literal. " + e.getMessage, e)
     }
   }
-
-  private def generateCastStringLiteralToDateTime(
-      ctx: CodeGeneratorContext,
-      stringLiteral: GeneratedExpression,
-      expectType: LogicalType): GeneratedExpression = {
-    checkArgument(stringLiteral.literal)
-    if (java.lang.Boolean.valueOf(stringLiteral.nullTerm)) {
-      return generateNullLiteral(expectType, nullCheck = true)
-    }
-
-    val stringValue = stringLiteral.literalValue.get.toString
-    val literalCode = expectType.getTypeRoot match {
-      case DATE =>
-        SqlDateTimeUtils.dateStringToUnixDate(stringValue) match {
-          case null => throw new ValidationException(s"String '$stringValue' is not a valid date")
-          case v => v
-        }
-      case TIME_WITHOUT_TIME_ZONE =>
-        SqlDateTimeUtils.timeStringToUnixDate(stringValue) match {
-          case null => throw new ValidationException(s"String '$stringValue' is not a valid time")
-          case v => v
-        }
-      case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        SqlDateTimeUtils.toTimestampData(stringValue) match {
-          case null =>
-            throw new ValidationException(s"String '$stringValue' is not a valid timestamp")
-          case v => s"${CodeGenUtils.TIMESTAMP_DATA}.fromEpochMillis(" +
-            s"${v.getMillisecond}L, ${v.getNanoOfMillisecond})"
-        }
-      case _ => throw new UnsupportedOperationException
-    }
-
-    val typeTerm = primitiveTypeTermForType(expectType)
-    val resultTerm = newName("stringToTime")
-    val stmt = s"$typeTerm $resultTerm = $literalCode;"
-    ctx.addReusableMember(stmt)
-    GeneratedExpression(resultTerm, "false", "", expectType)
-  }
-
-  private def generateCastArrayToString(
-      ctx: CodeGeneratorContext,
-      operand: GeneratedExpression,
-      at: ArrayType,
-      targetType: LogicalType): GeneratedExpression =
-    generateStringResultCallWithStmtIfArgsNotNull(ctx, Seq(operand), targetType) {
-      terms =>
-        val builderCls = classOf[JStringBuilder].getCanonicalName
-        val builderTerm = newName("builder")
-        ctx.addReusableMember(s"""$builderCls $builderTerm = new $builderCls();""")
-
-        val arrayTerm = terms.head
-
-        val indexTerm = newName("i")
-        val numTerm = newName("num")
-
-        val elementType = at.getElementType
-        val elementCls = primitiveTypeTermForType(elementType)
-        val elementTerm = newName("element")
-        val elementNullTerm = newName("isNull")
-        val elementCode =
-          s"""
-             |$elementCls $elementTerm = ${primitiveDefaultValue(elementType)};
-             |boolean $elementNullTerm = $arrayTerm.isNullAt($indexTerm);
-             |if (!$elementNullTerm) {
-             |  $elementTerm = ($elementCls) ${
-            rowFieldReadAccess(ctx, indexTerm, arrayTerm, elementType)};
-             |}
-             """.stripMargin
-        val elementExpr = GeneratedExpression(
-          elementTerm, elementNullTerm, elementCode, elementType)
-        val castExpr = generateCast(ctx, elementExpr, targetType)
-
-        val stmt =
-          s"""
-             |$builderTerm.setLength(0);
-             |$builderTerm.append("[");
-             |int $numTerm = $arrayTerm.size();
-             |for (int $indexTerm = 0; $indexTerm < $numTerm; $indexTerm++) {
-             |  if ($indexTerm != 0) {
-             |    $builderTerm.append(", ");
-             |  }
-             |
-             |  ${castExpr.code}
-             |  if (${castExpr.nullTerm}) {
-             |    $builderTerm.append("null");
-             |  } else {
-             |    $builderTerm.append(${castExpr.resultTerm});
-             |  }
-             |}
-             |$builderTerm.append("]");
-             """.stripMargin
-        (stmt, s"$builderTerm.toString()")
-    }
-
-  private def generateCastMapToString(
-      ctx: CodeGeneratorContext,
-      operand: GeneratedExpression,
-      mt: MapType,
-      targetType: LogicalType): GeneratedExpression =
-    generateStringResultCallWithStmtIfArgsNotNull(ctx, Seq(operand), targetType) {
-      terms =>
-        val resultTerm = newName("toStringResult")
-
-        val builderCls = classOf[JStringBuilder].getCanonicalName
-        val builderTerm = newName("builder")
-        ctx.addReusableMember(s"$builderCls $builderTerm = new $builderCls();")
-
-        val mapTerm = terms.head
-        val genericMapTerm = newName("genericMap")
-        val binaryMapTerm = newName("binaryMap")
-        val keyArrayTerm = newName("keyArray")
-        val valueArrayTerm = newName("valueArray")
-
-        val indexTerm = newName("i")
-        val numTerm = newName("num")
-
-        val keyType = mt.getKeyType
-        val keyCls = primitiveTypeTermForType(keyType)
-        val keyTerm = newName("key")
-        val keyNullTerm = newName("isNull")
-        val keyCode =
-          s"""
-             |$keyCls $keyTerm = ${primitiveDefaultValue(keyType)};
-             |boolean $keyNullTerm = $keyArrayTerm.isNullAt($indexTerm);
-             |if (!$keyNullTerm) {
-             |  $keyTerm = ($keyCls) ${
-            rowFieldReadAccess(ctx, indexTerm, keyArrayTerm, keyType)};
-             |}
-             """.stripMargin
-        val keyExpr = GeneratedExpression(keyTerm, keyNullTerm, keyCode, keyType)
-        val keyCastExpr = generateCast(ctx, keyExpr, targetType)
-
-        val valueType = mt.getValueType
-        val valueCls = primitiveTypeTermForType(valueType)
-        val valueTerm = newName("value")
-        val valueNullTerm = newName("isNull")
-        val valueCode =
-          s"""
-             |$valueCls $valueTerm = ${primitiveDefaultValue(valueType)};
-             |boolean $valueNullTerm = $valueArrayTerm.isNullAt($indexTerm);
-             |if (!$valueNullTerm) {
-             |  $valueTerm = ($valueCls) ${
-            rowFieldReadAccess(ctx, indexTerm, valueArrayTerm, valueType)};
-             |}
-             """.stripMargin
-        val valueExpr = GeneratedExpression(valueTerm, valueNullTerm, valueCode, valueType)
-        val valueCastExpr = generateCast(ctx, valueExpr, targetType)
-
-        val stmt =
-          s"""
-             |String $resultTerm;
-             |if ($mapTerm instanceof $BINARY_MAP) {
-             |  $BINARY_MAP $binaryMapTerm = ($BINARY_MAP) $mapTerm;
-             |  $ARRAY_DATA $keyArrayTerm = $binaryMapTerm.keyArray();
-             |  $ARRAY_DATA $valueArrayTerm = $binaryMapTerm.valueArray();
-             |
-             |  $builderTerm.setLength(0);
-             |  $builderTerm.append("{");
-             |
-             |  int $numTerm = $binaryMapTerm.size();
-             |  for (int $indexTerm = 0; $indexTerm < $numTerm; $indexTerm++) {
-             |    if ($indexTerm != 0) {
-             |      $builderTerm.append(", ");
-             |    }
-             |
-             |    ${keyCastExpr.code}
-             |    if (${keyCastExpr.nullTerm}) {
-             |      $builderTerm.append("null");
-             |    } else {
-             |      $builderTerm.append(${keyCastExpr.resultTerm});
-             |    }
-             |    $builderTerm.append("=");
-             |
-             |    ${valueCastExpr.code}
-             |    if (${valueCastExpr.nullTerm}) {
-             |      $builderTerm.append("null");
-             |    } else {
-             |      $builderTerm.append(${valueCastExpr.resultTerm});
-             |    }
-             |  }
-             |  $builderTerm.append("}");
-             |
-             |  $resultTerm = $builderTerm.toString();
-             |} else {
-             |  $GENERIC_MAP $genericMapTerm = ($GENERIC_MAP) $mapTerm;
-             |  $resultTerm = $genericMapTerm.toString();
-             |}
-             """.stripMargin
-        (stmt, resultTerm)
-    }
-
-  private def generateCastRowDataToString(
-      ctx: CodeGeneratorContext,
-      operand: GeneratedExpression,
-      brt: RowType,
-      targetType: LogicalType): GeneratedExpression =
-    generateStringResultCallWithStmtIfArgsNotNull(ctx, Seq(operand), targetType) {
-      terms =>
-        val builderCls = classOf[JStringBuilder].getCanonicalName
-        val builderTerm = newName("builder")
-        ctx.addReusableMember(s"""$builderCls $builderTerm = new $builderCls();""")
-
-        val rowTerm = terms.head
-
-        val appendCode = brt.getChildren.zipWithIndex.map {
-          case (elementType, idx) =>
-            val elementCls = primitiveTypeTermForType(elementType)
-            val elementTerm = newName("element")
-            val elementExpr = GeneratedExpression(
-              elementTerm, s"$rowTerm.isNullAt($idx)",
-              s"$elementCls $elementTerm = ($elementCls) ${rowFieldReadAccess(
-                ctx, idx, rowTerm, elementType)};", elementType)
-            val castExpr = generateCast(ctx, elementExpr, targetType)
-            s"""
-               |${if (idx != 0) s"""$builderTerm.append(",");""" else ""}
-               |${castExpr.code}
-               |if (${castExpr.nullTerm}) {
-               |  $builderTerm.append("null");
-               |} else {
-               |  $builderTerm.append(${castExpr.resultTerm});
-               |}
-               """.stripMargin
-        }.mkString("\n")
-
-        val stmt =
-          s"""
-             |$builderTerm.setLength(0);
-             |$builderTerm.append("(");
-             |$appendCode
-             |$builderTerm.append(")");
-             """.stripMargin
-        (stmt, s"$builderTerm.toString()")
-    }
 
   private def generateArrayComparison(
       ctx: CodeGeneratorContext,
@@ -2285,14 +1967,14 @@ object ScalarOperatorGens {
              |      boolean $leftElementNullTerm = $leftTerm.isNullAt($indexTerm);
              |      if (!$leftElementNullTerm) {
              |        $leftElementTerm =
-             |          ${rowFieldReadAccess(ctx, indexTerm, leftTerm, elementType)};
+             |          ${rowFieldReadAccess(indexTerm, leftTerm, elementType)};
              |      }
              |
              |      $elementCls $rightElementTerm = $elementDefault;
              |      boolean $rightElementNullTerm = $rightTerm.isNullAt($indexTerm);
              |      if (!$rightElementNullTerm) {
              |        $rightElementTerm =
-             |          ${rowFieldReadAccess(ctx, indexTerm, rightTerm, elementType)};
+             |          ${rowFieldReadAccess(indexTerm, rightTerm, elementType)};
              |      }
              |
              |      ${elementEqualsExpr.code}
@@ -2419,80 +2101,57 @@ object ScalarOperatorGens {
     expr.copy(resultType = targetType)
   }
 
+  /**
+   * @deprecated You should use [[generateCast()]]
+   */
+  @deprecated
   private def numericCasting(
+      ctx: CodeGeneratorContext,
       operandType: LogicalType,
       resultType: LogicalType): String => String = {
 
-    val resultTypeTerm = primitiveTypeTermForType(resultType)
-
-    def decToPrimMethod(targetType: LogicalType): String = targetType.getTypeRoot match {
-      case TINYINT => "castToByte"
-      case SMALLINT => "castToShort"
-      case INTEGER => "castToInt"
-      case BIGINT => "castToLong"
-      case FLOAT => "castToFloat"
-      case DOUBLE => "castToDouble"
-      case BOOLEAN => "castToBoolean"
-      case _ => throw new CodeGenException(s"Unsupported decimal casting type: '$targetType'")
-    }
-
-    // no casting necessary
-    if (isInteroperable(operandType, resultType)) {
-      operandTerm => s"$operandTerm"
-    }
-    // decimal to decimal, may have different precision/scale
-    else if (isDecimal(resultType) && isDecimal(operandType)) {
-      val dt = resultType.asInstanceOf[DecimalType]
-      operandTerm =>
-        s"$DECIMAL_UTIL.castToDecimal($operandTerm, ${dt.getPrecision}, ${dt.getScale})"
-    }
-    // non_decimal_numeric to decimal
-    else if (isDecimal(resultType) && isNumeric(operandType)) {
-      val dt = resultType.asInstanceOf[DecimalType]
-      operandTerm =>
-        s"$DECIMAL_UTIL.castFrom($operandTerm, ${dt.getPrecision}, ${dt.getScale})"
-    }
-    // decimal to non_decimal_numeric
-    else if (isNumeric(resultType) && isDecimal(operandType) ) {
-      operandTerm =>
-        s"$DECIMAL_UTIL.${decToPrimMethod(resultType)}($operandTerm)"
-    }
-    // numeric to numeric
-    // TODO: Create a wrapper layer that handles type conversion between numeric.
-    else if (isNumeric(operandType) && isNumeric(resultType)) {
-      val resultTypeValue = resultTypeTerm + "Value()"
-      val boxedTypeTerm = boxedTypeTermForType(operandType)
-      operandTerm =>
-        s"(new $boxedTypeTerm($operandTerm)).$resultTypeValue"
-    }
-    // result type is time interval and operand type is integer
-    else if (isTimeInterval(resultType) && isInteger(operandType)){
-      operandTerm => s"(($resultTypeTerm) $operandTerm)"
-    }
-    else {
-      throw new CodeGenException(s"Unsupported casting from $operandType to $resultType.")
+    // All numeric rules are assumed to be instance of AbstractExpressionCodeGeneratorCastRule
+    val rule = CastRuleProvider.resolve(operandType, resultType)
+    rule match {
+      case codeGeneratorCastRule: ExpressionCodeGeneratorCastRule[_, _] =>
+        operandTerm => codeGeneratorCastRule.generateExpression(
+          toCodegenCastContext(ctx),
+          operandTerm,
+          operandType,
+          resultType
+        )
+      case _ =>
+        throw new CodeGenException(s"Unsupported casting from $operandType to $resultType.")
     }
   }
 
-  private def localTimeToStringCode(
-      ctx: CodeGeneratorContext,
-      fromType: LogicalType,
-      operandTerm: String): String =
-    fromType.getTypeRoot match {
-      case DATE =>
-        s"${qualifyMethod(BuiltInMethod.UNIX_DATE_TO_STRING.method)}($operandTerm)"
-      case TIME_WITHOUT_TIME_ZONE =>
-        s"${qualifyMethod(BuiltInMethods.UNIX_TIME_TO_STRING)}($operandTerm)"
-      case TIMESTAMP_WITHOUT_TIME_ZONE => // including rowtime indicator
-        // The interpreted string conforms to the definition of timestamp literal
-        // SQL 2011 Part 2 Section 6.13 General Rules 11) d)
-        val precision = fromType.asInstanceOf[TimestampType].getPrecision
-        s"${qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING)}($operandTerm, $precision)"
-      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-        val method = qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING_TIME_ZONE)
-        val zone = ctx.addReusableSessionTimeZone()
-        val precision = fromType.asInstanceOf[LocalZonedTimestampType].getPrecision
-        s"$method($operandTerm, $zone, $precision)"
+  def toCodegenCastContext(ctx: CodeGeneratorContext): CodeGeneratorCastRule.Context = {
+    new CodeGeneratorCastRule.Context {
+      override def legacyBehaviour(): Boolean = isLegacyCastBehaviourEnabled(ctx)
+      override def getSessionTimeZoneTerm: String = ctx.addReusableSessionTimeZone()
+      override def declareVariable(ty: String, variablePrefix: String): String =
+        ctx.addReusableLocalVariable(ty, variablePrefix)
+      override def declareTypeSerializer(ty: LogicalType): String =
+        ctx.addReusableTypeSerializer(ty)
+      override def declareClassField(ty: String, field: String, init: String): String = {
+        ctx.addReusableMember(s"private $ty $field = $init;")
+        field
+      }
     }
+  }
 
+  def toCastContext(ctx: CodeGeneratorContext): CastRule.Context = {
+    new CastRule.Context {
+      override def legacyBehaviour(): Boolean = isLegacyCastBehaviourEnabled(ctx)
+
+      override def getSessionZoneId: ZoneId = ctx.tableConfig.getLocalTimeZone
+
+      override def getClassLoader: ClassLoader = Thread.currentThread().getContextClassLoader
+    }
+  }
+
+  private def isLegacyCastBehaviourEnabled(ctx: CodeGeneratorContext) = {
+    ctx.tableConfig
+      .getConfiguration.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR).isEnabled
+  }
 }

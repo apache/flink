@@ -19,18 +19,24 @@
 package org.apache.flink.table.planner.plan.optimize.program
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
 import org.apache.flink.table.connector.ChangelogMode
+import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.`trait`.UpdateKindTrait.{BEFORE_AND_AFTER, ONLY_UPDATE_AFTER, beforeAfterOrNone, onlyAfterOrNone}
 import org.apache.flink.table.planner.plan.`trait`._
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy.{AppendFastStrategy, RetractStrategy, UpdateFastStrategy}
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
-
+import org.apache.flink.types.RowKind
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.util.ImmutableBitSet
+import org.apache.flink.table.catalog.ManagedTableListener
 
 import scala.collection.JavaConversions._
 
@@ -39,16 +45,12 @@ import scala.collection.JavaConversions._
  */
 class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOptimizeContext] {
 
-  private val SATISFY_MODIFY_KIND_SET_TRAIT_VISITOR = new SatisfyModifyKindSetTraitVisitor
-  private val SATISFY_UPDATE_KIND_TRAIT_VISITOR = new SatisfyUpdateKindTraitVisitor
-
   override def optimize(
       root: RelNode,
       context: StreamOptimizeContext): RelNode = {
-
     // step1: satisfy ModifyKindSet trait
     val physicalRoot = root.asInstanceOf[StreamPhysicalRel]
-    val rootWithModifyKindSet = SATISFY_MODIFY_KIND_SET_TRAIT_VISITOR.visit(
+    val rootWithModifyKindSet = new SatisfyModifyKindSetTraitVisitor().visit(
       physicalRoot,
       // we do not propagate the ModifyKindSet requirement and requester among blocks
       // set default ModifyKindSet requirement and requester for root
@@ -71,8 +73,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       Seq(UpdateKindTrait.NONE)
     }
 
+    val updateKindTraitVisitor = new SatisfyUpdateKindTraitVisitor(context)
     val finalRoot = requiredUpdateKindTraits.flatMap { requiredUpdateKindTrait =>
-      SATISFY_UPDATE_KIND_TRAIT_VISITOR.visit(rootWithModifyKindSet, requiredUpdateKindTrait)
+      updateKindTraitVisitor.visit(rootWithModifyKindSet, requiredUpdateKindTrait)
     }
 
     // step3: sanity check and return non-empty root
@@ -210,8 +213,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val providedTrait = new ModifyKindSetTrait(builder.build())
         createNewNode(window, children, providedTrait, requiredTrait, requester)
 
-      case _: StreamPhysicalWindowAggregate | _: StreamPhysicalWindowRank =>
-        // WindowAggregate and WindowRank support insert-only in input
+      case _: StreamPhysicalWindowAggregate | _: StreamPhysicalWindowRank |
+           _: StreamPhysicalWindowDeduplicate =>
+        // WindowAggregate, WindowRank, WindowDeduplicate support insert-only in input
         val children = visitChildren(rel, ModifyKindSetTrait.INSERT_ONLY)
         val providedTrait = ModifyKindSetTrait.INSERT_ONLY
         createNewNode(rel, children, providedTrait, requiredTrait, requester)
@@ -401,8 +405,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
    * <p>After traversed by this visitor, every node should have a correct [[UpdateKindTrait]]
    * or returns None if the planner doesn't support to satisfy the required [[UpdateKindTrait]].
    */
-  private class SatisfyUpdateKindTraitVisitor {
-
+  private class SatisfyUpdateKindTraitVisitor(private val context: StreamOptimizeContext) {
     /**
      * Try to satisfy the required [[UpdateKindTrait]] from root.
      *
@@ -428,19 +431,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         rel: StreamPhysicalRel,
         requiredTrait: UpdateKindTrait): Option[StreamPhysicalRel] = rel match {
       case sink: StreamPhysicalSink =>
-        val childModifyKindSet = getModifyKindSet(sink.getInput)
-        val onlyAfter = onlyAfterOrNone(childModifyKindSet)
-        val beforeAndAfter = beforeAfterOrNone(childModifyKindSet)
-        val sinkTrait = UpdateKindTrait.fromChangelogMode(
-          sink.tableSink.getChangelogMode(childModifyKindSet.toChangelogMode))
-        val sinkRequiredTraits = if (sinkTrait.equals(ONLY_UPDATE_AFTER)) {
-          Seq(onlyAfter, beforeAndAfter)
-        } else if (sinkTrait.equals(BEFORE_AND_AFTER)){
-          Seq(beforeAndAfter)
-        } else {
-          Seq(UpdateKindTrait.NONE)
-        }
-        visitSink(sink, sinkRequiredTraits)
+        val sinkRequiredTraits = inferSinkRequiredTraits(sink)
+        val upsertMaterialize = analyzeUpsertMaterializeStrategy(sink)
+        visitSink(sink.copy(upsertMaterialize), sinkRequiredTraits)
 
       case sink: StreamPhysicalLegacySink[_] =>
         val childModifyKindSet = getModifyKindSet(sink.getInput)
@@ -480,11 +473,13 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(rel, children, requiredTrait)
 
       case _: StreamPhysicalWindowAggregate | _: StreamPhysicalWindowRank |
-           _: StreamPhysicalDeduplicate | _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
+           _: StreamPhysicalWindowDeduplicate | _: StreamPhysicalDeduplicate |
+           _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
            _: StreamPhysicalOverAggregate | _: StreamPhysicalIntervalJoin |
            _: StreamPhysicalPythonOverAggregate | _: StreamPhysicalWindowJoin =>
-        // WindowAggregate, WindowTableAggregate, Deduplicate, TemporalSort, CEP,
-        // OverAggregate, and IntervalJoin, WindowJoin require nothing about UpdateKind.
+        // WindowAggregate, WindowTableAggregate, WindowRank, WindowDeduplicate, Deduplicate,
+        // TemporalSort, CEP, OverAggregate, and IntervalJoin, WindowJoin require nothing about
+        // UpdateKind.
         val children = visitChildren(rel, UpdateKindTrait.NONE)
         createNewNode(rel, children, requiredTrait)
 
@@ -632,6 +627,24 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         }
 
       case normalize: StreamPhysicalChangelogNormalize =>
+        val tableIdentifier = normalize.tableIdentifier
+        if (tableIdentifier != null && requiredTrait == UpdateKindTrait.ONLY_UPDATE_AFTER) {
+          val catalogName = tableIdentifier.getCatalogName
+          val catalog = context.getCatalogManager.getCatalog(catalogName).orElse(null)
+          val catalogTable = normalize.table
+          if (ManagedTableListener.isManagedTable(catalog, catalogTable)) {
+            // if requiredTrait is ONLY_UPDATE_AFTER and table is ManagedTable,
+            // we can eliminate current normalize stage,
+            // cuz ManagedTable has preserved complete delete messages.
+            val input = if(normalize.getInput.isInstanceOf[StreamPhysicalExchange]) {
+              normalize.getInput.asInstanceOf[StreamPhysicalExchange].getInput
+            } else {
+              normalize.getInput
+            }
+            val inputPhysicalRel = input.asInstanceOf[StreamPhysicalRel]
+            return this.visit(inputPhysicalRel, UpdateKindTrait.ONLY_UPDATE_AFTER)
+          }
+        }
         // changelog normalize currently only supports input only sending UPDATE_AFTER
         val children = visitChildren(normalize, UpdateKindTrait.ONLY_UPDATE_AFTER)
         // use requiredTrait as providedTrait,
@@ -758,6 +771,90 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val sinkTrait = sink.getTraitSet.plus(UpdateKindTrait.NONE)
         Some(sink.copy(sinkTrait, children.head).asInstanceOf[StreamPhysicalRel])
       }
+    }
+
+    /**
+     * Infer sink required traits by the sink node and its input. Sink required traits is based on
+     * the sink node's changelog mode, the only exception is when sink's pk(s) not exactly the same
+     * as the changeLogUpsertKeys and sink' changelog mode is ONLY_UPDATE_AFTER.
+     */
+    private def inferSinkRequiredTraits(sink: StreamPhysicalSink): Seq[UpdateKindTrait] = {
+      val childModifyKindSet = getModifyKindSet(sink.getInput)
+      val onlyAfter = onlyAfterOrNone(childModifyKindSet)
+      val beforeAndAfter = beforeAfterOrNone(childModifyKindSet)
+      val sinkTrait = UpdateKindTrait.fromChangelogMode(
+        sink.tableSink.getChangelogMode(childModifyKindSet.toChangelogMode))
+
+      val sinkRequiredTraits = if (sinkTrait.equals(ONLY_UPDATE_AFTER)) {
+        // if sink's pk(s) are not exactly match input changeLogUpsertKeys then it will fallback
+        // to beforeAndAfter mode for the correctness
+        var requireBeforeAndAfter: Boolean = false
+        val sinkDefinedPks = sink.catalogTable.getResolvedSchema.getPrimaryKeyIndexes
+
+        if (sinkDefinedPks.nonEmpty) {
+          val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
+          val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
+          val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
+          // if input is UA only, primary key != upsert key (upsert key can be null) we should
+          // fallback to beforeAndAfter.
+          // Notice: even sink pk(s) contains input upsert key we cannot optimize to UA only,
+          // this differs from batch job's unique key inference
+          if (changeLogUpsertKeys == null || !changeLogUpsertKeys.exists {_.equals(sinkPks)}) {
+            requireBeforeAndAfter = true
+          }
+        }
+        if (requireBeforeAndAfter) {
+          Seq(beforeAndAfter)
+        } else {
+          Seq(onlyAfter, beforeAndAfter)
+        }
+      } else if (sinkTrait.equals(BEFORE_AND_AFTER)){
+        Seq(beforeAndAfter)
+      } else {
+        Seq(UpdateKindTrait.NONE)
+      }
+      sinkRequiredTraits
+    }
+
+    /**
+     *  Analyze whether to enable upsertMaterialize or not. In these case will return true:
+     *  1. when `TABLE_EXEC_SINK_UPSERT_MATERIALIZE` set to FORCE and sink's primary key nonempty.
+     *  2. when `TABLE_EXEC_SINK_UPSERT_MATERIALIZE` set to AUTO and sink's primary key doesn't
+     *  contain upsertKeys of the input update stream.
+     */
+    private def analyzeUpsertMaterializeStrategy(sink: StreamPhysicalSink): Boolean = {
+      val tableConfig = sink.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext])
+          .getTableConfig
+      val inputChangelogMode = ChangelogPlanUtils.getChangelogMode(
+        sink.getInput.asInstanceOf[StreamPhysicalRel]).get
+      val catalogTable = sink.catalogTable
+      val primaryKeys = catalogTable.getResolvedSchema.getPrimaryKeyIndexes
+      val upsertMaterialize = tableConfig.getConfiguration.get(
+        ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE) match {
+        case UpsertMaterialize.FORCE => primaryKeys.nonEmpty
+        case UpsertMaterialize.NONE => false
+        case UpsertMaterialize.AUTO =>
+          val sinkAcceptInsertOnly = sink.tableSink.getChangelogMode(inputChangelogMode)
+              .containsOnly(RowKind.INSERT)
+          val inputInsertOnly = inputChangelogMode.containsOnly(RowKind.INSERT)
+
+          if (!sinkAcceptInsertOnly && !inputInsertOnly && primaryKeys.nonEmpty) {
+            val pks = ImmutableBitSet.of(primaryKeys: _*)
+            val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
+            val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
+            // if input has update and primary key != upsert key (upsert key can be null) we should
+            // enable upsertMaterialize. An optimize is: do not enable upsertMaterialize when sink
+            // pk(s) contains input changeLogUpsertKeys
+            if (changeLogUpsertKeys == null || !changeLogUpsertKeys.exists(pks.contains)) {
+              true
+            } else {
+              false
+            }
+          } else {
+            false
+          }
+      }
+      upsertMaterialize
     }
   }
 

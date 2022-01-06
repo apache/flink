@@ -27,6 +27,11 @@ import java.util.List;
 public class CsvFilesystemStreamITCase extends StreamFileSystemITCaseBase {
 
     @Override
+    public boolean supportsReadingMetadata() {
+        return false;
+    }
+
+    @Override
     public String[] formatProperties() {
         List<String> ret = new ArrayList<>();
         ret.add("'format'='csv'");

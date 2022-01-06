@@ -19,7 +19,6 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDown;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
@@ -47,9 +46,6 @@ import java.util.stream.Collectors;
  *   <li>{@code approximate} indicates whether this is a approximate aggregate function.
  *   <li>{@code ignoreNulls} indicates whether this aggregate function ignore null value.
  * </ul>
- *
- * <p>Note: currently, the {@link AggregateExpression} is only used in {@link
- * SupportsAggregatePushDown}.
  */
 @PublicEvolving
 public class AggregateExpression implements ResolvedExpression {
@@ -107,7 +103,6 @@ public class AggregateExpression implements ResolvedExpression {
         return args;
     }
 
-    @Nullable
     public Optional<CallExpression> getFilterExpression() {
         return Optional.ofNullable(filterExpression);
     }

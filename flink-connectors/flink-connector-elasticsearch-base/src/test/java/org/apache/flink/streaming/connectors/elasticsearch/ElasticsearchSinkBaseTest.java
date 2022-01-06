@@ -48,6 +48,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -600,14 +601,14 @@ public class ElasticsearchSinkBaseTest {
                                                 if (mockItemFailure == null) {
                                                     // the mock response for the item is success
                                                     mockResponses[i] =
-                                                            new BulkItemResponse(
+                                                            BulkItemResponse.success(
                                                                     i,
                                                                     DocWriteRequest.OpType.INDEX,
                                                                     mock(DocWriteResponse.class));
                                                 } else {
                                                     // the mock response for the item is failure
                                                     mockResponses[i] =
-                                                            new BulkItemResponse(
+                                                            BulkItemResponse.failure(
                                                                     i,
                                                                     DocWriteRequest.OpType.INDEX,
                                                                     new BulkItemResponse.Failure(
@@ -666,6 +667,12 @@ public class ElasticsearchSinkBaseTest {
         }
 
         @Override
+        public void configureBulkProcessorFlushInterval(
+                BulkProcessor.Builder builder, long flushIntervalMillis) {
+            // no need for this in the test cases here
+        }
+
+        @Override
         public void configureBulkProcessorBackoff(
                 BulkProcessor.Builder builder,
                 @Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy) {
@@ -675,6 +682,14 @@ public class ElasticsearchSinkBaseTest {
         @Override
         public void verifyClientConnection(Client client) {
             // no need for this in the test cases here
+        }
+
+        @Override
+        public RequestIndexer createBulkProcessorIndexer(
+                BulkProcessor bulkProcessor,
+                boolean flushOnCheckpoint,
+                AtomicLong numPendingRequestsRef) {
+            return new TestRequestIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequestsRef);
         }
     }
 

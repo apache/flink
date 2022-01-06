@@ -25,6 +25,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -49,8 +51,12 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.executiongraph.JobStatusProvider;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
+import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
+import org.apache.flink.runtime.executiongraph.metrics.RestartTimeGauge;
+import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -156,6 +162,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             final Executor ioExecutor,
             final Configuration jobMasterConfiguration,
             final ClassLoader userCodeLoader,
+            final CheckpointsCleaner checkpointsCleaner,
             final CheckpointRecoveryFactory checkpointRecoveryFactory,
             final JobManagerJobMetricGroup jobManagerJobMetricGroup,
             final ExecutionVertexVersioner executionVertexVersioner,
@@ -173,13 +180,14 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
         this.mainThreadExecutor = mainThreadExecutor;
 
-        this.checkpointsCleaner = new CheckpointsCleaner();
+        this.checkpointsCleaner = checkpointsCleaner;
         this.completedCheckpointStore =
                 SchedulerUtils.createCompletedCheckpointStoreIfCheckpointingIsEnabled(
                         jobGraph,
                         jobMasterConfiguration,
                         userCodeLoader,
                         checkNotNull(checkpointRecoveryFactory),
+                        ioExecutor,
                         log);
         this.checkpointIdCounter =
                 SchedulerUtils.createCheckpointIDCounterIfCheckpointingIsEnabled(
@@ -579,14 +587,20 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     @Override
     public final void startScheduling() {
         mainThreadExecutor.assertRunningInMainThread();
-        registerJobMetrics();
+        registerJobMetrics(jobManagerJobMetricGroup, executionGraph, this::getNumberOfRestarts);
         operatorCoordinatorHandler.startAllOperatorCoordinators();
         startSchedulingInternal();
     }
 
-    private void registerJobMetrics() {
-        jobManagerJobMetricGroup.gauge(MetricNames.NUM_RESTARTS, this::getNumberOfRestarts);
-        jobManagerJobMetricGroup.gauge(MetricNames.FULL_RESTARTS, this::getNumberOfRestarts);
+    public static void registerJobMetrics(
+            MetricGroup metrics,
+            JobStatusProvider jobStatusProvider,
+            Gauge<Long> numberOfRestarts) {
+        metrics.gauge(RestartTimeGauge.METRIC_NAME, new RestartTimeGauge(jobStatusProvider));
+        metrics.gauge(DownTimeGauge.METRIC_NAME, new DownTimeGauge(jobStatusProvider));
+        metrics.gauge(UpTimeGauge.METRIC_NAME, new UpTimeGauge(jobStatusProvider));
+        metrics.gauge(MetricNames.NUM_RESTARTS, numberOfRestarts);
+        metrics.gauge(MetricNames.FULL_RESTARTS, numberOfRestarts);
     }
 
     protected abstract void startSchedulingInternal();
@@ -598,9 +612,13 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         final FlinkException cause = new FlinkException("Scheduler is being stopped.");
 
         final CompletableFuture<Void> checkpointServicesShutdownFuture =
-                executionGraph
-                        .getTerminationFuture()
-                        .thenAcceptAsync(this::shutDownCheckpointServices, getMainThreadExecutor());
+                FutureUtils.composeAfterwards(
+                        executionGraph
+                                .getTerminationFuture()
+                                .thenAcceptAsync(
+                                        this::shutDownCheckpointServices, getMainThreadExecutor()),
+                        checkpointsCleaner::closeAsync);
+
         FutureUtils.assertNoException(checkpointServicesShutdownFuture);
 
         incrementVersionsOfAllVertices();
@@ -852,6 +870,31 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                                         path,
                                         jobGraph.getJobID());
                                 cancel();
+                            }
+                            return path;
+                        },
+                        mainThreadExecutor);
+    }
+
+    @Override
+    public CompletableFuture<String> triggerCheckpoint() {
+        mainThreadExecutor.assertRunningInMainThread();
+
+        final CheckpointCoordinator checkpointCoordinator =
+                executionGraph.getCheckpointCoordinator();
+        final JobID jobID = jobGraph.getJobID();
+        if (checkpointCoordinator == null) {
+            throw new IllegalStateException(String.format("Job %s is not a streaming job.", jobID));
+        }
+        log.info("Triggering a manual checkpoint for job {}.", jobID);
+
+        return checkpointCoordinator
+                .triggerCheckpoint(false)
+                .thenApply(CompletedCheckpoint::getExternalPointer)
+                .handleAsync(
+                        (path, throwable) -> {
+                            if (throwable != null) {
+                                throw new CompletionException(throwable);
                             }
                             return path;
                         },

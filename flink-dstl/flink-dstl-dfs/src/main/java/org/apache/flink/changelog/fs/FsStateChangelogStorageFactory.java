@@ -19,6 +19,7 @@ package org.apache.flink.changelog.fs;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageFactory;
 
@@ -26,7 +27,7 @@ import java.io.File;
 import java.io.IOException;
 
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.BASE_PATH;
-import static org.apache.flink.configuration.CheckpointingOptions.STATE_CHANGE_LOG_STORAGE;
+import static org.apache.flink.configuration.StateChangelogOptions.STATE_CHANGE_LOG_STORAGE;
 
 /** {@link FsStateChangelogStorage} factory. */
 @Internal
@@ -40,8 +41,9 @@ public class FsStateChangelogStorageFactory implements StateChangelogStorageFact
     }
 
     @Override
-    public StateChangelogStorage<?> createStorage(Configuration configuration) throws IOException {
-        return new FsStateChangelogStorage(configuration);
+    public StateChangelogStorage<?> createStorage(
+            Configuration configuration, TaskManagerJobMetricGroup metricGroup) throws IOException {
+        return new FsStateChangelogStorage(configuration, metricGroup);
     }
 
     public static void configure(Configuration configuration, File newFolder) {

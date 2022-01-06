@@ -77,6 +77,17 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.DOUBLE;
+import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.MAP;
+import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.STRUCTURED;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.sourceWatermark;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -123,7 +134,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         // wraps the atomic type
         final TableResult result = tableEnv.fromDataStream(dataStream).execute();
 
-        testSchema(result, Column.physical("f0", DataTypes.INT().notNull()));
+        testSchema(result, Column.physical("f0", INT().notNull()));
 
         testResult(result, Row.of(1), Row.of(2), Row.of(3), Row.of(4), Row.of(5));
     }
@@ -160,13 +171,9 @@ public class DataStreamJavaITCase extends AbstractTestBase {
 
         testSchema(
                 result,
-                Column.physical("b", DataTypes.INT()),
-                Column.physical(
-                        "c",
-                        DataTypes.ROW(
-                                DataTypes.FIELD("f0", DataTypes.BOOLEAN()),
-                                DataTypes.FIELD("f1", DataTypes.STRING()))),
-                Column.physical("a", DataTypes.MAP(DataTypes.STRING(), DataTypes.DOUBLE())));
+                Column.physical("b", INT()),
+                Column.physical("c", ROW(FIELD("f0", BOOLEAN()), FIELD("f1", STRING()))),
+                Column.physical("a", MAP(STRING(), DOUBLE())));
 
         testResult(result, rows);
     }
@@ -202,21 +209,19 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 tableEnv.fromDataStream(
                         dataStream,
                         Schema.newBuilder()
-                                .column("c", DataTypes.INT())
-                                .column("a", DataTypes.STRING())
+                                .column("c", INT())
+                                .column("a", STRING())
                                 .column("p", DataTypes.of(ImmutablePojo.class))
                                 .build());
 
         testSchema(
                 table,
-                Column.physical("c", DataTypes.INT()),
-                Column.physical("a", DataTypes.STRING()),
+                Column.physical("c", INT()),
+                Column.physical("a", STRING()),
                 Column.physical(
                         "p",
-                        DataTypes.STRUCTURED(
-                                ImmutablePojo.class,
-                                DataTypes.FIELD("d", DataTypes.DOUBLE()),
-                                DataTypes.FIELD("b", DataTypes.BOOLEAN()))));
+                        STRUCTURED(
+                                ImmutablePojo.class, FIELD("d", DOUBLE()), FIELD("b", BOOLEAN()))));
 
         tableEnv.createTemporaryView("t", table);
 
@@ -283,17 +288,15 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 table,
                 new ResolvedSchema(
                         Arrays.asList(
-                                Column.physical("f0", DataTypes.BIGINT().notNull()),
-                                Column.physical("f1", DataTypes.INT().notNull()),
-                                Column.physical("f2", DataTypes.STRING()),
-                                Column.metadata(
-                                        "rowtime", DataTypes.TIMESTAMP_LTZ(3), null, false)),
+                                Column.physical("f0", BIGINT().notNull()),
+                                Column.physical("f1", INT().notNull()),
+                                Column.physical("f2", STRING()),
+                                Column.metadata("rowtime", TIMESTAMP_LTZ(3), null, false)),
                         Collections.singletonList(
                                 WatermarkSpec.of(
                                         "rowtime",
                                         ResolvedExpressionMock.of(
-                                                DataTypes.TIMESTAMP_LTZ(3),
-                                                "`SOURCE_WATERMARK`()"))),
+                                                TIMESTAMP_LTZ(3), "`SOURCE_WATERMARK`()"))),
                         null));
 
         tableEnv.createTemporaryView("t", table);
@@ -338,7 +341,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 tableEnv.fromChangelogStream(
                         changelogStream,
                         Schema.newBuilder()
-                                .columnByMetadata("rowtime", DataTypes.TIMESTAMP_LTZ(3))
+                                .columnByMetadata("rowtime", TIMESTAMP_LTZ(3))
                                 // uses Table API expressions
                                 .columnByExpression("computed", $("f1").upperCase())
                                 .watermark("rowtime", sourceWatermark())
@@ -353,11 +356,11 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 tableEnv.toChangelogStream(
                         reordered,
                         Schema.newBuilder()
-                                .column("f1", DataTypes.STRING())
-                                .columnByMetadata("rowtime", DataTypes.TIMESTAMP_LTZ(3))
+                                .column("f1", STRING())
+                                .columnByMetadata("rowtime", TIMESTAMP_LTZ(3))
                                 // uses Table API expressions
                                 .columnByExpression("ignored", $("f1").upperCase())
-                                .column("f0", DataTypes.INT())
+                                .column("f0", INT())
                                 .build());
 
         // test event time window and field access
@@ -536,13 +539,13 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 table,
                 new ResolvedSchema(
                         Arrays.asList(
-                                Column.physical("f0", DataTypes.TIMESTAMP(3)),
-                                Column.physical("f1", DataTypes.STRING())),
+                                Column.physical("f0", TIMESTAMP(3)),
+                                Column.physical("f1", STRING())),
                         Collections.singletonList(
                                 WatermarkSpec.of(
                                         "f0",
                                         ResolvedExpressionMock.of(
-                                                DataTypes.TIMESTAMP(3), "`SOURCE_WATERMARK`()"))),
+                                                TIMESTAMP(3), "`SOURCE_WATERMARK`()"))),
                         null));
 
         final DataStream<Long> rowtimeStream =
@@ -565,7 +568,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testComplexUnifiedPipelineBatch() throws Exception {
+    public void testComplexUnifiedPipelineBatch() {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         final Table resultTable = getComplexUnifiedPipeline(env);
@@ -574,7 +577,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testComplexUnifiedPipelineStreaming() throws Exception {
+    public void testComplexUnifiedPipelineStreaming() {
         final Table resultTable = getComplexUnifiedPipeline(env);
 
         // more rows than in batch mode due to incremental computations
@@ -599,8 +602,8 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                         .option("data-id", input1DataId)
                         .schema(
                                 Schema.newBuilder()
-                                        .column("i", DataTypes.INT())
-                                        .column("s", DataTypes.STRING())
+                                        .column("i", INT())
+                                        .column("s", STRING())
                                         .build())
                         .build());
 
@@ -609,8 +612,8 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 TableDescriptor.forConnector("values")
                         .schema(
                                 Schema.newBuilder()
-                                        .column("i", DataTypes.INT())
-                                        .column("s", DataTypes.STRING())
+                                        .column("i", INT())
+                                        .column("s", STRING())
                                         .build())
                         .build());
 
@@ -619,7 +622,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         tableEnv.createTemporaryTable(
                 "OutputTable2",
                 TableDescriptor.forConnector("values")
-                        .schema(Schema.newBuilder().column("i", DataTypes.INT()).build())
+                        .schema(Schema.newBuilder().column("i", INT()).build())
                         .build());
 
         tableEnv.createStatementSet()

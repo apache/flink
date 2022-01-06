@@ -18,28 +18,22 @@
 package org.apache.flink.connector.kafka.sink;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.KafkaException;
-import org.apache.kafka.common.PartitionInfo;
-import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.connector.kafka.sink.KafkaUtil.drainAllRecordsFromTopic;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.kafka.common.internals.Topic.TRANSACTION_STATE_TOPIC_NAME;
 
@@ -49,7 +43,6 @@ import static org.apache.kafka.common.internals.Topic.TRANSACTION_STATE_TOPIC_NA
  */
 class KafkaTransactionLog {
 
-    private static final Duration CONSUMER_POLL_DURATION = Duration.ofSeconds(1);
     private static final int SUPPORTED_KAFKA_SCHEMA_VERSION = 0;
     private final Properties consumerConfig;
 
@@ -74,52 +67,11 @@ class KafkaTransactionLog {
     /** Gets all {@link TransactionRecord} matching the given id filter. */
     public List<TransactionRecord> getTransactions(Predicate<String> transactionIdFilter)
             throws KafkaException {
-        try (KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(consumerConfig)) {
-            Set<TopicPartition> assignments = getAllPartitions(consumer);
-            Map<TopicPartition, Long> endOffsets = consumer.endOffsets(assignments);
-            final Map<Integer, Long> endOffsetByPartition =
-                    endOffsets.entrySet().stream()
-                            .collect(
-                                    Collectors.toMap(
-                                            e -> e.getKey().partition(), Map.Entry::getValue));
-            consumer.beginningOffsets(assignments)
-                    .forEach(
-                            (tp, offset) -> {
-                                if (endOffsets.get(tp) <= offset) {
-                                    assignments.remove(tp);
-                                }
-                            });
-            consumer.assign(assignments);
-            consumer.seekToBeginning(assignments);
-
-            final List<TransactionRecord> transactionRecords = new ArrayList<>();
-            while (!assignments.isEmpty()) {
-                ConsumerRecords<byte[], byte[]> records = consumer.poll(CONSUMER_POLL_DURATION);
-                boolean finishedPartition = false;
-                for (ConsumerRecord<byte[], byte[]> r : records) {
-                    long remainingRecords = endOffsetByPartition.get(r.partition()) - r.offset();
-                    if (remainingRecords >= 1) {
-                        parseTransaction(r, transactionIdFilter).ifPresent(transactionRecords::add);
-                    }
-                    if (remainingRecords <= 1) {
-                        assignments.remove(new TopicPartition(r.topic(), r.partition()));
-                        finishedPartition = true;
-                    }
-                }
-                if (finishedPartition) {
-                    consumer.assign(assignments);
-                }
-            }
-            return transactionRecords;
-        }
-    }
-
-    private Set<TopicPartition> getAllPartitions(KafkaConsumer<byte[], byte[]> consumer) {
-        final List<PartitionInfo> partitionInfos =
-                consumer.partitionsFor(TRANSACTION_STATE_TOPIC_NAME);
-        return partitionInfos.stream()
-                .map(info -> new TopicPartition(info.topic(), info.partition()))
-                .collect(Collectors.toCollection(HashSet::new));
+        return drainAllRecordsFromTopic(TRANSACTION_STATE_TOPIC_NAME, consumerConfig, true).stream()
+                .map(r -> parseTransaction(r, transactionIdFilter))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toList());
     }
 
     private Optional<TransactionRecord> parseTransaction(

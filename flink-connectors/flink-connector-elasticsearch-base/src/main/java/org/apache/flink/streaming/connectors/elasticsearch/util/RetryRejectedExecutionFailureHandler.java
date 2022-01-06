@@ -32,7 +32,10 @@ import org.slf4j.LoggerFactory;
  * An {@link ActionRequestFailureHandler} that re-adds requests that failed due to temporary {@link
  * EsRejectedExecutionException}s (which means that Elasticsearch node queues are currently full),
  * and fails for all other failures.
+ *
+ * @deprecated This hase been deprecated and will be removed in the future.
  */
+@Deprecated
 @PublicEvolving
 public class RetryRejectedExecutionFailureHandler implements ActionRequestFailureHandler {
 

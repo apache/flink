@@ -36,6 +36,9 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.MathUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -50,6 +53,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public final class StreamFormatAdapter<T> implements BulkFormat<T, FileSourceSplit> {
 
     private static final long serialVersionUID = 1L;
+
+    private static final Logger LOG = LoggerFactory.getLogger(StreamFormatAdapter.class);
 
     private final StreamFormat<T> streamFormat;
 
@@ -118,6 +123,11 @@ public final class StreamFormatAdapter<T> implements BulkFormat<T, FileSourceSpl
                                 long toSkip = checkpointedPosition.getRecordsAfterOffset();
                                 while (toSkip > 0 && streamReader.read() != null) {
                                     toSkip--;
+                                }
+                                if (LOG.isDebugEnabled()) {
+                                    LOG.debug(
+                                            "{} records have been skipped.",
+                                            checkpointedPosition.getRecordsAfterOffset());
                                 }
                             });
 

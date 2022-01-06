@@ -24,17 +24,20 @@ package org.apache.flink.util;
  * as well as to provide a central file to use as a key when caching testing Docker files.
  */
 public class DockerImageVersions {
+
     public static final String ELASTICSEARCH_7 =
-            "docker.elastic.co/elasticsearch/elasticsearch-oss:7.5.1";
+            "docker.elastic.co/elasticsearch/elasticsearch:7.15.2";
 
     public static final String ELASTICSEARCH_6 =
-            "docker.elastic.co/elasticsearch/elasticsearch-oss:6.3.1";
+            "docker.elastic.co/elasticsearch/elasticsearch:6.8.20";
 
-    public static final String KAFKA = "confluentinc/cp-kafka:5.5.2";
+    public static final String KAFKA = "confluentinc/cp-kafka:6.2.1";
 
-    public static final String RABBITMQ = "rabbitmq:3.7.25-management-alpine";
+    public static final String RABBITMQ = "rabbitmq:3.9.8-management-alpine";
 
     public static final String KINESALITE = "instructure/kinesalite:latest";
 
     public static final String PULSAR = "apachepulsar/pulsar:2.8.0";
+
+    public static final String CASSANDRA_3 = "cassandra:3.0";
 }

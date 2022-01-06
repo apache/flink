@@ -44,7 +44,7 @@ add the FlinkCEP dependency to the `pom.xml` of your project.
 
 {{< tabs "3b3e4675-dd86-4b2d-8487-9c8711f234b3" >}}
 {{< tab "Java" >}}
-{{< artifact flink-cep withScalaVersion >}}
+{{< artifact flink-cep >}}
 {{< /tab >}}
 {{< tab "Scala" >}}
 {{< artifact flink-cep-scala withScalaVersion >}}
@@ -1507,6 +1507,16 @@ Call to `TimeContext#currentProcessingTime` always gives you the value of curren
 
 In case of `TimeContext#timestamp()` the returned value is equal to assigned timestamp in case of `EventTime`. In `ProcessingTime` this will equal to the point of time when said event entered
 cep operator (or when the match was generated in case of `PatternProcessFunction`). This means that the value will be consistent across multiple calls to that method.
+
+## Optional Configuration
+
+Options to configure the cache capacity of Flink CEP `SharedBuffer`.
+It could accelerate the CEP operate process speed and limit the number of elements of cache in pure memory. 
+
+<span class="label label-info">Note</span> It's only effective to limit usage of memory when `state.backend` was set as `rocksdb`, which would transport the elements exceeded the number of the cache into the rocksdb state storage instead of memory state storage.
+The configuration items are helpful for memory limitation when the `state.backend` is set as rocksdb. By contrast，when the `state.backend` is set as not `rocksdb`, the cache would cause performance decreased. Compared with old cache implemented with `Map`, the state part will contain more elements swapped out from new guava-cache, which would make it heavier to `copy on write` for state.
+
+{{< generated/cep_cache_configuration >}}
 
 ## Examples
 

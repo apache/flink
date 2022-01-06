@@ -242,12 +242,11 @@ public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy 
 
         for (SchedulingExecutionVertex vertex : regionToRestart.getVertices()) {
             for (SchedulingResultPartition producedPartition : vertex.getProducedResults()) {
-                for (ConsumerVertexGroup consumerVertexGroup :
-                        producedPartition.getConsumerVertexGroups()) {
-                    if (!visitedConsumerVertexGroups.contains(consumerVertexGroup)) {
-                        visitedConsumerVertexGroups.add(consumerVertexGroup);
-                        consumerVertexGroupsToVisit.add(consumerVertexGroup);
-                    }
+                final ConsumerVertexGroup consumerVertexGroup =
+                        producedPartition.getConsumerVertexGroup();
+                if (!visitedConsumerVertexGroups.contains(consumerVertexGroup)) {
+                    visitedConsumerVertexGroups.add(consumerVertexGroup);
+                    consumerVertexGroupsToVisit.add(consumerVertexGroup);
                 }
             }
         }

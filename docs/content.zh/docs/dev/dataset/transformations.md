@@ -140,7 +140,7 @@ DataSet<Long> counts = textLines.mapPartition(new PartitionCounter());
 val textLines: DataSet[String] = // [...]
 // Some is required because the return value must be a Collection.
 // There is an implicit conversion from Option to a Collection.
-val counts = texLines.mapPartition { in => Some(in.size) }
+val counts = textLines.mapPartition { in => Some(in.size) }
 ```
 
 {{< /tab >}}

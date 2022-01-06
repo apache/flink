@@ -26,7 +26,10 @@ import java.io.Serializable;
 /**
  * A factory that is used to configure the {@link org.elasticsearch.client.RestHighLevelClient}
  * internally used in the {@link ElasticsearchSink}.
+ *
+ * @deprecated This has been deprecated and will be removed in the future.
  */
+@Deprecated
 @PublicEvolving
 public interface RestClientFactory extends Serializable {
 

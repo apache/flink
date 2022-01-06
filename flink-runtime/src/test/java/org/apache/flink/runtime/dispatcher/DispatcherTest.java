@@ -24,6 +24,7 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
@@ -61,6 +62,8 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
+import org.apache.flink.runtime.messages.FlinkJobTerminatedWithoutCancellationException;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -97,10 +100,14 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -327,7 +334,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         // this call is supposed to fail
         try {
             dispatcherGateway
-                    .triggerSavepoint(jobId, "file:///tmp/savepoint", false, TIMEOUT)
+                    .triggerSavepointAndGetLocation(
+                            jobId, "file:///tmp/savepoint", TriggerSavepointMode.SAVEPOINT, TIMEOUT)
                     .get();
             fail("Previous statement should have failed");
         } catch (ExecutionException t) {
@@ -369,6 +377,118 @@ public class DispatcherTest extends AbstractDispatcherTest {
         assertThat(
                 dispatcherGateway.requestJobResult(jobID, TIMEOUT).get().getApplicationStatus(),
                 is(ApplicationStatus.CANCELED));
+    }
+
+    @Test
+    public void testCancellationOfCanceledTerminalDoesNotThrowException() throws Exception {
+        final CompletableFuture<JobManagerRunnerResult> jobTerminationFuture =
+                new CompletableFuture<>();
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices,
+                        haServices,
+                        new FinishingJobManagerRunnerFactory(jobTerminationFuture, () -> {}));
+        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        JobID jobId = jobGraph.getJobID();
+
+        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+        jobTerminationFuture.complete(
+                JobManagerRunnerResult.forSuccess(
+                        new ExecutionGraphInfo(
+                                new ArchivedExecutionGraphBuilder()
+                                        .setJobID(jobId)
+                                        .setState(JobStatus.CANCELED)
+                                        .build())));
+
+        // wait for job to finish
+        dispatcherGateway.requestJobResult(jobId, TIMEOUT).get();
+        // sanity check
+        assertThat(
+                dispatcherGateway.requestJobStatus(jobId, TIMEOUT).get(), is(JobStatus.CANCELED));
+
+        dispatcherGateway.cancelJob(jobId, TIMEOUT).get();
+    }
+
+    @Test
+    public void testCancellationOfNonCanceledTerminalJobFailsWithAppropriateException()
+            throws Exception {
+
+        final CompletableFuture<JobManagerRunnerResult> jobTerminationFuture =
+                new CompletableFuture<>();
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices,
+                        haServices,
+                        new FinishingJobManagerRunnerFactory(jobTerminationFuture, () -> {}));
+        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        JobID jobId = jobGraph.getJobID();
+
+        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+        jobTerminationFuture.complete(
+                JobManagerRunnerResult.forSuccess(
+                        new ExecutionGraphInfo(
+                                new ArchivedExecutionGraphBuilder()
+                                        .setJobID(jobId)
+                                        .setState(JobStatus.FINISHED)
+                                        .build())));
+
+        // wait for job to finish
+        dispatcherGateway.requestJobResult(jobId, TIMEOUT).get();
+        // sanity check
+        assertThat(
+                dispatcherGateway.requestJobStatus(jobId, TIMEOUT).get(), is(JobStatus.FINISHED));
+
+        final CompletableFuture<Acknowledge> cancelFuture =
+                dispatcherGateway.cancelJob(jobId, TIMEOUT);
+
+        assertThat(
+                cancelFuture,
+                FlinkMatchers.futureWillCompleteExceptionally(
+                        FlinkJobTerminatedWithoutCancellationException.class, Duration.ofHours(8)));
+    }
+
+    @Test
+    public void testNoHistoryServerArchiveCreatedForSuspendedJob() throws Exception {
+        final CompletableFuture<Void> archiveAttemptFuture = new CompletableFuture<>();
+        final CompletableFuture<JobManagerRunnerResult> jobTerminationFuture =
+                new CompletableFuture<>();
+        dispatcher =
+                new TestingDispatcherBuilder()
+                        .setJobManagerRunnerFactory(
+                                new FinishingJobManagerRunnerFactory(
+                                        jobTerminationFuture, () -> {}))
+                        .setHistoryServerArchivist(
+                                executionGraphInfo -> {
+                                    archiveAttemptFuture.complete(null);
+                                    return CompletableFuture.completedFuture(null);
+                                })
+                        .build();
+        dispatcher.start();
+        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        JobID jobId = jobGraph.getJobID();
+
+        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+        jobTerminationFuture.complete(
+                JobManagerRunnerResult.forSuccess(
+                        new ExecutionGraphInfo(
+                                new ArchivedExecutionGraphBuilder()
+                                        .setJobID(jobId)
+                                        .setState(JobStatus.SUSPENDED)
+                                        .build())));
+
+        // wait for job to finish
+        dispatcherGateway.requestJobResult(jobId, TIMEOUT).get();
+        // sanity check
+        assertThat(
+                dispatcherGateway.requestJobStatus(jobId, TIMEOUT).get(), is(JobStatus.SUSPENDED));
+
+        assertThat(archiveAttemptFuture.isDone(), is(false));
     }
 
     @Test
@@ -815,6 +935,107 @@ public class DispatcherTest extends AbstractDispatcherTest {
     }
 
     @Test
+    public void testRequestMultipleJobDetails_returnsSuspendedJobs() throws Exception {
+        final JobManagerRunnerFactory blockingJobMaster =
+                new QueuedJobManagerRunnerFactory(
+                        completedJobManagerRunnerWithJobStatus(JobStatus.SUSPENDED));
+
+        dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
+        DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+
+        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+        dispatcherGateway.requestJobResult(jobId, TIMEOUT).get();
+
+        assertOnlyContainsSingleJobWithState(
+                JobStatus.SUSPENDED, dispatcherGateway.requestMultipleJobDetails(TIMEOUT).get());
+    }
+
+    @Test
+    public void testRequestMultipleJobDetails_returnsRunningOverSuspendedJob() throws Exception {
+        final JobManagerRunnerFactory blockingJobMaster =
+                new QueuedJobManagerRunnerFactory(
+                        completedJobManagerRunnerWithJobStatus(JobStatus.SUSPENDED),
+                        runningJobManagerRunnerWithJobStatus(JobStatus.RUNNING));
+
+        dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
+        DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+
+        // run first job, which completes with SUSPENDED
+        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+        dispatcherGateway.requestJobResult(jobId, TIMEOUT).get();
+
+        // run second job, which stays in RUNNING
+        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+
+        assertOnlyContainsSingleJobWithState(
+                JobStatus.RUNNING, dispatcherGateway.requestMultipleJobDetails(TIMEOUT).get());
+    }
+
+    @Test
+    public void testRequestMultipleJobDetails_returnsFinishedOverSuspendedJob() throws Exception {
+        final JobManagerRunnerFactory blockingJobMaster =
+                new QueuedJobManagerRunnerFactory(
+                        completedJobManagerRunnerWithJobStatus(JobStatus.SUSPENDED),
+                        completedJobManagerRunnerWithJobStatus(JobStatus.FINISHED));
+
+        dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
+        DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+
+        // run first job, which completes with SUSPENDED
+        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+        dispatcherGateway.requestJobResult(jobId, TIMEOUT).get();
+
+        // run second job, which completes with FINISHED
+        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+
+        assertOnlyContainsSingleJobWithState(
+                JobStatus.FINISHED, dispatcherGateway.requestMultipleJobDetails(TIMEOUT).get());
+    }
+
+    private JobManagerRunner runningJobManagerRunnerWithJobStatus(
+            final JobStatus currentJobStatus) {
+        Preconditions.checkArgument(!currentJobStatus.isTerminalState());
+
+        return TestingJobManagerRunner.newBuilder()
+                .setJobId(jobId)
+                .setJobDetailsFunction(
+                        () ->
+                                JobDetails.createDetailsForJob(
+                                        new ArchivedExecutionGraphBuilder()
+                                                .setJobID(jobId)
+                                                .setState(currentJobStatus)
+                                                .build()))
+                .build();
+    }
+
+    private JobManagerRunner completedJobManagerRunnerWithJobStatus(
+            final JobStatus finalJobStatus) {
+        Preconditions.checkArgument(finalJobStatus.isTerminalState());
+
+        return TestingJobManagerRunner.newBuilder()
+                .setJobId(jobId)
+                .setResultFuture(
+                        CompletableFuture.completedFuture(
+                                JobManagerRunnerResult.forSuccess(
+                                        new ExecutionGraphInfo(
+                                                new ArchivedExecutionGraphBuilder()
+                                                        .setJobID(jobId)
+                                                        .setState(finalJobStatus)
+                                                        .build()))))
+                .build();
+    }
+
+    private static void assertOnlyContainsSingleJobWithState(
+            final JobStatus expectedJobStatus, final MultipleJobsDetails multipleJobsDetails) {
+        final Collection<JobDetails> finishedJobDetails = multipleJobsDetails.getJobs();
+        assertEquals(1, finishedJobDetails.size());
+        assertEquals(expectedJobStatus, finishedJobDetails.iterator().next().getStatus());
+    }
+
+    @Test
     public void testJobDataAreCleanedUpInCorrectOrderOnFinishedJob() throws Exception {
         testJobDataAreCleanedUpInCorrectOrder(JobStatus.FINISHED);
     }
@@ -978,7 +1199,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 FatalErrorHandler fatalErrorHandler,
                 long initializationTimestamp)
                 throws Exception {
-            return new BlockingTerminationJobMangerService(
+            return new BlockingTerminationJobManagerService(
                     jobIdToBlock,
                     future,
                     new DefaultJobMasterServiceProcessFactory(
@@ -1001,13 +1222,13 @@ public class DispatcherTest extends AbstractDispatcherTest {
         }
     }
 
-    private static final class BlockingTerminationJobMangerService
+    private static final class BlockingTerminationJobManagerService
             extends JobMasterServiceLeadershipRunner {
 
         private final JobID jobIdToBlock;
         private final CompletableFuture<Void> future;
 
-        public BlockingTerminationJobMangerService(
+        public BlockingTerminationJobManagerService(
                 JobID jobIdToBlock,
                 CompletableFuture<Void> future,
                 JobMasterServiceProcessFactory jobMasterServiceProcessFactory,
@@ -1176,6 +1397,30 @@ public class DispatcherTest extends AbstractDispatcherTest {
                     jobManagerJobMetricGroupFactory,
                     fatalErrorHandler,
                     initializationTimestamp);
+        }
+    }
+
+    private static class QueuedJobManagerRunnerFactory implements JobManagerRunnerFactory {
+
+        private final Queue<JobManagerRunner> resultFutureQueue;
+
+        private QueuedJobManagerRunnerFactory(JobManagerRunner... resultFutureQueue) {
+            this.resultFutureQueue = new ArrayDeque<>(Arrays.asList(resultFutureQueue));
+        }
+
+        @Override
+        public JobManagerRunner createJobManagerRunner(
+                JobGraph jobGraph,
+                Configuration configuration,
+                RpcService rpcService,
+                HighAvailabilityServices highAvailabilityServices,
+                HeartbeatServices heartbeatServices,
+                JobManagerSharedServices jobManagerServices,
+                JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+                FatalErrorHandler fatalErrorHandler,
+                long initializationTimestamp)
+                throws Exception {
+            return resultFutureQueue.remove();
         }
     }
 

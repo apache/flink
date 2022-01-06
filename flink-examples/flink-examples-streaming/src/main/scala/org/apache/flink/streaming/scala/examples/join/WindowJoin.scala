@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.scala.examples.join
 
 import org.apache.flink.api.java.utils.ParameterTool
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
@@ -49,7 +48,7 @@ object WindowJoin {
   //  Program
   // *************************************************************************
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
     // parse the parameters
     val params = ParameterTool.fromArgs(args)
     val windowSize = params.getLong("windowSize", 2000)
@@ -61,7 +60,6 @@ object WindowJoin {
 
     // obtain execution environment, run this example in "ingestion time"
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     // make parameters available in the web interface
     env.getConfig.setGlobalJobParameters(params)

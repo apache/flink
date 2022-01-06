@@ -49,8 +49,7 @@ public class JobManagerLogFileHandler
     }
 
     @Override
-    protected File getFile(
-            HandlerRequest<EmptyRequestBody, EmptyMessageParameters> handlerRequest) {
+    protected File getFile(HandlerRequest<EmptyRequestBody> handlerRequest) {
         return file;
     }
 }

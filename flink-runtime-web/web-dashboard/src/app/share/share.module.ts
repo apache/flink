@@ -29,7 +29,6 @@ import { NzTabsModule } from 'ng-zorro-antd/tabs';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { DagreModule } from 'share/common/dagre/dagre.module';
 import { FileReadDirective } from 'share/common/file-read/file-read.directive';
-import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
 import { NavigationComponent } from 'share/common/navigation/navigation.component';
 import { ResizeComponent } from 'share/common/resize/resize.component';
 import { CheckpointBadgeComponent } from 'share/customize/checkpoint-badge/checkpoint-badge.component';
@@ -40,6 +39,7 @@ import { RefreshDownloadComponent } from 'share/customize/refresh-download/refre
 import { TaskBadgeComponent } from 'share/customize/task-badge/task-badge.component';
 import { PipeModule } from 'share/pipes/pipe.module';
 
+import { AutoResizeDirective } from './common/editor/auto-resize.directive';
 import { BackpressureBadgeComponent } from './customize/backpressure-badge/backpressure-badge.component';
 import { FlameGraphComponent } from './customize/flame-graph/flame-graph.component';
 
@@ -62,21 +62,20 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     TaskBadgeComponent,
     JobListComponent,
     FileReadDirective,
-    MonacoEditorComponent,
     NavigationComponent,
     RefreshDownloadComponent,
     ResizeComponent,
     JobChartComponent,
     CheckpointBadgeComponent,
     BackpressureBadgeComponent,
-    FlameGraphComponent
+    FlameGraphComponent,
+    AutoResizeDirective
   ],
   exports: [
     JobListComponent,
     PipeModule,
     DagreModule,
     FileReadDirective,
-    MonacoEditorComponent,
     NavigationComponent,
     RefreshDownloadComponent,
     JobBadgeComponent,
@@ -85,7 +84,8 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     JobChartComponent,
     CheckpointBadgeComponent,
     BackpressureBadgeComponent,
-    FlameGraphComponent
+    FlameGraphComponent,
+    AutoResizeDirective
   ]
 })
 export class ShareModule {}

@@ -42,11 +42,11 @@ LogicalAggregate(group=[{0}], frequency=[COUNT($0)])
 GroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(cnt) AS frequency], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[cnt]], changelogMode=[I,UB,UA])
    +- Union(all=[true], union=[cnt], changelogMode=[I,UB,UA])
-      :- Calc(select=[CAST(cnt) AS cnt], changelogMode=[I,UB,UA])
+      :- Calc(select=[CAST(cnt AS BIGINT) AS cnt], changelogMode=[I,UB,UA])
       :  +- GroupAggregate(groupBy=[word], select=[word, COUNT(number) AS cnt], changelogMode=[I,UB,UA])
       :     +- Exchange(distribution=[hash[word]], changelogMode=[I])
       :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
-      +- Calc(select=[CAST(cnt) AS cnt], changelogMode=[I])
+      +- Calc(select=[CAST(cnt AS BIGINT) AS cnt], changelogMode=[I])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [CollectionTableSource(word, cnt)]]], fields=[word, cnt], changelogMode=[I])
 ]]>
     </Resource>
@@ -137,7 +137,7 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0], changelogMode=[I])
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0 AS TIMESTAMP(3)) AS rowtime0], changelogMode=[I])
 +- TemporalJoin(joinType=[InnerJoin], where=[AND(=(currency, currency0), __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0], changelogMode=[I])
    :- Exchange(distribution=[hash[currency]], changelogMode=[I])
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
@@ -206,7 +206,7 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0], changelogMode=[I])
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0 AS TIMESTAMP(3)) AS rowtime0], changelogMode=[I])
 +- TemporalJoin(joinType=[InnerJoin], where=[AND(=(currency, currency0), __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0], changelogMode=[I])
    :- Exchange(distribution=[hash[currency]], changelogMode=[I])
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
@@ -254,7 +254,7 @@ LogicalSink(table=[default_catalog.default_database.sink2], fields=[number, word
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink1], fields=[number, word], changelogMode=[NONE])
-+- Calc(select=[number, word], where=[>(word, _UTF-16LE'a')], changelogMode=[I,UB,UA])
++- Calc(select=[number, word], where=[>(word, 'a')], changelogMode=[I,UB,UA])
    +- Union(all=[true], union=[number, word], changelogMode=[I,UB,UA])
       :- Calc(select=[+(number, 1) AS number, word], changelogMode=[I,UB,UA])
       :  +- GroupAggregate(groupBy=[word], select=[word, SUM(number) AS number], changelogMode=[I,UB,UA])
@@ -266,7 +266,7 @@ Sink(table=[default_catalog.default_database.sink1], fields=[number, word], chan
                +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
 
 Sink(table=[default_catalog.default_database.sink1], fields=[number, word], changelogMode=[NONE])
-+- Calc(select=[number, word], where=[<(word, _UTF-16LE'a')], changelogMode=[I,UB,UA])
++- Calc(select=[number, word], where=[<(word, 'a')], changelogMode=[I,UB,UA])
    +- Union(all=[true], union=[number, word], changelogMode=[I,UB,UA])
       :- Calc(select=[+(number, 1) AS number, word], changelogMode=[I,UB,UA])
       :  +- GroupAggregate(groupBy=[word], select=[word, SUM(number) AS number], changelogMode=[I,UB,UA])
@@ -284,5 +284,87 @@ Sink(table=[default_catalog.default_database.sink2], fields=[number, word], chan
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
 ]]>
     </Resource>
+  </TestCase>
+  <TestCase name="testEliminateChangelogNormalizedOnUpsertSink">
+	<Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, upsert_managed_table]])
+]]>
+	</Resource>
+	<Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- TableSourceScan(table=[[default_catalog, default_database, upsert_managed_table]], fields=[id, col1, col2], changelogMode=[I,UA,D])
+]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testKeepChangelogNormalizedOnNonUpsertSink">
+		<Resource name="ast">
+			<![CDATA[
+LogicalSink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, upsert_managed_table]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Sink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_managed_table]], fields=[id, col1, col2], changelogMode=[I,UA,D])
+]]>
+		</Resource>
+  </TestCase>
+  <TestCase name="testEliminateChangelogNormalizedOnUpsertJoin">
+	  <Resource name="ast">
+		<![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, upsert_managed_table]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_managed_table]])
+]]>
+	  </Resource>
+      <Resource name="optimized rel plan">
+		<![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- Calc(select=[id, col1, col2], changelogMode=[I,UA,D])
+   +- Join(joinType=[InnerJoin], where=[=(id, id0)], select=[id, col1, col2, id0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
+      :- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, upsert_managed_table]], fields=[id, col1, col2], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+         +- Calc(select=[id], changelogMode=[I,UA,D])
+            +- TableSourceScan(table=[[default_catalog, default_database, upsert_managed_table]], fields=[id, col1, col2], changelogMode=[I,UA,D])
+]]>
+	  </Resource>
+  </TestCase>
+  <TestCase name="testKeepChangelogNormalizedOnNonUpsertJoin">
+		<Resource name="ast">
+<![CDATA[
+LogicalSink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, upsert_managed_table]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_managed_table]])
+]]>
+		</Resource>
+	    <Resource name="optimized rel plan">
+<![CDATA[
+Sink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- Calc(select=[id, col1, col2], changelogMode=[I,UB,UA,D])
+   +- Join(joinType=[InnerJoin], where=[=(id, id0)], select=[id, col1, col2, id0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UB,UA,D])
+      :- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
+      :  +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+      :     +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, upsert_managed_table]], fields=[id, col1, col2], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
+         +- Calc(select=[id], changelogMode=[I,UB,UA,D])
+            +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+               +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+                  +- TableSourceScan(table=[[default_catalog, default_database, upsert_managed_table]], fields=[id, col1, col2], changelogMode=[I,UA,D])
+]]>
+		</Resource>
   </TestCase>
 </Root>

@@ -528,7 +528,7 @@ public final class LogicalTypeParser {
                 case VARCHAR:
                     return parseVarCharType();
                 case STRING:
-                    return new VarCharType(VarCharType.MAX_LENGTH);
+                    return VarCharType.STRING_TYPE;
                 case BOOLEAN:
                     return new BooleanType();
                 case BINARY:

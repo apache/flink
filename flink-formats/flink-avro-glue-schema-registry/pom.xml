@@ -28,14 +28,52 @@ under the License.
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
+	<!-- There is a transitive scala dependency from mbknor-jackson-jsonschema -->
 	<artifactId>flink-avro-glue-schema-registry_${scala.binary.version}</artifactId>
 	<name>Flink : Formats : Avro AWS Glue Schema Registry</name>
 	<packaging>jar</packaging>
 
 	<properties>
-		<glue.schema.registry.version>1.1.2</glue.schema.registry.version>
-		<aws.sdkv2.version>2.16.92</aws.sdkv2.version>
+		<glue.schema.registry.version>1.1.5</glue.schema.registry.version>
+		<aws.sdkv2.version>2.17.52</aws.sdkv2.version>
+		<netty.version>4.1.68.Final</netty.version>
+		<kotlin.version>1.3.50</kotlin.version>
 	</properties>
+
+	<!-- ============================= -->
+	<!-- DEPENDENCY MANAGEMENT -->
+	<!-- ============================= -->
+	<dependencyManagement>
+		<dependencies>
+			<!-- dependencies to solve enforcer check issue -->
+			<!-- can be removed once new version of Glue Schema Registry releases -->
+
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-handler</artifactId>
+				<version>${netty.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-codec-http</artifactId>
+				<version>${netty.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib-common</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 		<!-- core dependencies -->
@@ -54,9 +92,17 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<!-- This has a transitive dependency on mbknor-jackson-jsonschema which needs scala -->
 			<groupId>software.amazon.glue</groupId>
 			<artifactId>schema-registry-serde</artifactId>
 			<version>${glue.schema.registry.version}</version>
+			<exclusions>
+				<!-- Testcontainers dependency includes a newer version -->
+				<exclusion>
+					<groupId>org.jetbrains</groupId>
+					<artifactId>annotations</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>

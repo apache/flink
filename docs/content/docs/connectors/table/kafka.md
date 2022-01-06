@@ -386,7 +386,7 @@ value format but without a key format. The `'format'` option is a synonym for `'
 options are prefixed with the format identifier.
 
 ```sql
-CREATE TABLE KafkaTable (,
+CREATE TABLE KafkaTable (
   `ts` TIMESTAMP(3) METADATA FROM 'timestamp',
   `user_id` BIGINT,
   `item_id` BIGINT,

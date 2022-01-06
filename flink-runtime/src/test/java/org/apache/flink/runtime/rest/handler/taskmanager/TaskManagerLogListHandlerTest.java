@@ -30,7 +30,7 @@ import org.apache.flink.runtime.rest.messages.LogListInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogsHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessageParameters;
-import org.apache.flink.runtime.testutils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -60,7 +60,7 @@ public class TaskManagerLogListHandlerTest extends TestLogger {
     private static final ResourceID EXPECTED_TASK_MANAGER_ID = ResourceID.generate();
     private TestingResourceManagerGateway resourceManagerGateway;
     private TaskManagerLogListHandler taskManagerLogListHandler;
-    private HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> handlerRequest;
+    private HandlerRequest<EmptyRequestBody> handlerRequest;
 
     @Before
     public void setUp() throws HandlerRequestException {
@@ -79,9 +79,9 @@ public class TaskManagerLogListHandlerTest extends TestLogger {
     public void testGetTaskManagerLogsList() throws Exception {
         List<LogInfo> logsList =
                 Arrays.asList(
-                        new LogInfo("taskmanager.log", 1024L),
-                        new LogInfo("taskmanager.out", 1024L),
-                        new LogInfo("taskmanager-2.out", 1024L));
+                        new LogInfo("taskmanager.log", 1024L, 1632844800000L),
+                        new LogInfo("taskmanager.out", 1024L, 1632844800000L),
+                        new LogInfo("taskmanager-2.out", 1024L, 1632844800000L));
         resourceManagerGateway.setRequestTaskManagerLogListFunction(
                 EXPECTED_TASK_MANAGER_ID -> CompletableFuture.completedFuture(logsList));
         LogListInfo logListInfo =
@@ -113,16 +113,17 @@ public class TaskManagerLogListHandlerTest extends TestLogger {
         }
     }
 
-    private static HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> createRequest(
-            ResourceID taskManagerId) throws HandlerRequestException {
+    private static HandlerRequest<EmptyRequestBody> createRequest(ResourceID taskManagerId)
+            throws HandlerRequestException {
         Map<String, String> pathParameters = new HashMap<>();
         pathParameters.put(TaskManagerIdPathParameter.KEY, taskManagerId.toString());
         Map<String, List<String>> queryParameters = Collections.emptyMap();
 
-        return new HandlerRequest<>(
+        return HandlerRequest.resolveParametersAndCreate(
                 EmptyRequestBody.getInstance(),
                 new TaskManagerMessageParameters(),
                 pathParameters,
-                queryParameters);
+                queryParameters,
+                Collections.emptyList());
     }
 }

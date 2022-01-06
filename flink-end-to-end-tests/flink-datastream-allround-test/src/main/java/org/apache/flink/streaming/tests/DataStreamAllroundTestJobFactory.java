@@ -295,7 +295,7 @@ public class DataStreamAllroundTestJobFactory {
                             "Unknown clean up mode for externalized checkpoints: "
                                     + cleanupModeConfig);
             }
-            env.getCheckpointConfig().enableExternalizedCheckpoints(cleanupMode);
+            env.getCheckpointConfig().setExternalizedCheckpointCleanup(cleanupMode);
 
             final int tolerableDeclinedCheckpointNumber =
                     pt.getInt(

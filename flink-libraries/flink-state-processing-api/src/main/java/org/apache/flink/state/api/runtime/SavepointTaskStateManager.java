@@ -63,7 +63,7 @@ final class SavepointTaskStateManager implements TaskStateManager {
             CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics) {}
 
     @Override
-    public boolean isFinishedOnRestore() {
+    public boolean isTaskDeployedAsFinished() {
         return false;
     }
 
@@ -103,7 +103,7 @@ final class SavepointTaskStateManager implements TaskStateManager {
     @Nullable
     @Override
     public StateChangelogStorage<?> getStateChangelogStorage() {
-        throw new UnsupportedOperationException(MSG);
+        return null;
     }
 
     @Override

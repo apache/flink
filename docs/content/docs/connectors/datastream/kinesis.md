@@ -31,14 +31,14 @@ The Kinesis connector provides access to [Amazon AWS Kinesis Streams](http://aws
 
 To use the connector, add the following Maven dependency to your project:
 
-{{< artifact flink-connector-kinesis withScalaVersion >}}
+{{< artifact flink-connector-kinesis >}}
 
 {{< hint warning >}}
-**Attention** Prior to Flink version 1.10.0 the `flink-connector-kinesis{{< scala_version >}}` has a dependency on code licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
+**Attention** Prior to Flink version 1.10.0 the `flink-connector-kinesis` has a dependency on code licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
 Linking to the prior versions of flink-connector-kinesis will include this code into your application.
 {{< /hint >}}
 
-Due to the licensing issue, the `flink-connector-kinesis{{< scala_version >}}` artifact is not deployed to Maven central for the prior versions. Please see the version specific documentation for further information.
+Due to the licensing issue, the `flink-connector-kinesis` artifact is not deployed to Maven central for the prior versions. Please see the version specific documentation for further information.
 
 ## Using the Amazon Kinesis Streams Service
 Follow the instructions from the [Amazon Kinesis Streams Developer Guide](https://docs.aws.amazon.com/streams/latest/dev/learning-kinesis-module-one-create-stream.html)
@@ -121,10 +121,13 @@ then some consumer subtasks will simply be idle and wait until it gets assigned
 new shards (i.e., when the streams are resharded to increase the
 number of shards for higher provisioned Kinesis service throughput).
 
-Also note that the assignment of shards to subtasks may not be optimal when
-shard IDs are not consecutive (as result of dynamic re-sharding in Kinesis).
-For cases where skew in the assignment leads to significant imbalanced consumption,
-a custom implementation of `KinesisShardAssigner` can be set on the consumer.
+Also note that the default assignment of shards to subtasks is based on the hashes of the shard and stream names,
+which will more-or-less balance the shards across the subtasks.
+However, assuming the default Kinesis shard management is used on the stream (UpdateShardCount with `UNIFORM_SCALING`),
+setting `UniformShardAssigner` as the shard assigner on the consumer will much more evenly distribute shards to subtasks.
+Assuming the incoming Kinesis records are assigned random Kinesis `PartitionKey` or `ExplicitHashKey` values,
+the result is consistent subtask loading.
+If neither the default assigner nor the `UniformShardAssigner` suffice, a custom implementation of `KinesisShardAssigner` can be set.
 
 ### The `DeserializationSchema`
 
@@ -552,8 +555,7 @@ Retry and backoff parameters can be configured using the
 this is called during stream consumer registration and deregistration. For each stream this service will be invoked 
 periodically until the stream consumer is reported `ACTIVE`/`not found` for registration/deregistration. By default,
 the `LAZY` registration strategy will scale the number of calls by the job parallelism. `EAGER` will call the service 
-once per stream for registration, and scale the number of calls by the job parallelism for deregistration. 
-`NONE` will not invoke this service. Retry and backoff parameters can be configured using the 
+once per stream for registration only. `NONE` will not invoke this service. Retry and backoff parameters can be configured using the 
 `ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_*` keys.  
 
 - *[RegisterStreamConsumer](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_RegisterStreamConsumer.html)*: 
@@ -561,7 +563,7 @@ this is called once per stream during stream consumer registration, unless the `
 Retry and backoff parameters can be configured using the `ConsumerConfigConstants.REGISTER_STREAM_*` keys.
 
 - *[DeregisterStreamConsumer](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_DeregisterStreamConsumer.html)*: 
-this is called once per stream during stream consumer deregistration, unless the `NONE` registration strategy is configured.
+this is called once per stream during stream consumer deregistration, unless the `NONE` or `EAGER` registration strategy is configured.
 Retry and backoff parameters can be configured using the `ConsumerConfigConstants.DEREGISTER_STREAM_*` keys.  
 
 ## Kinesis Producer

@@ -21,6 +21,8 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandleStreamImpl;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
@@ -54,22 +56,29 @@ public class FsStateChangelogStorage
      */
     private final AtomicInteger logIdGenerator = new AtomicInteger(0);
 
-    public FsStateChangelogStorage(Configuration config) throws IOException {
+    public FsStateChangelogStorage(Configuration config, TaskManagerJobMetricGroup metricGroup)
+            throws IOException {
         this(
-                StateChangeUploader.fromConfig(config),
+                StateChangeUploader.fromConfig(
+                        config, new ChangelogStorageMetricGroup(metricGroup)),
                 config.get(PREEMPTIVE_PERSIST_THRESHOLD).getBytes());
     }
 
     @VisibleForTesting
-    public FsStateChangelogStorage(Path basePath, boolean compression, int bufferSize)
+    public FsStateChangelogStorage(
+            Path basePath,
+            boolean compression,
+            int bufferSize,
+            ChangelogStorageMetricGroup metricGroup)
             throws IOException {
         this(
                 new StateChangeFsUploader(
-                        basePath, basePath.getFileSystem(), compression, bufferSize),
+                        basePath, basePath.getFileSystem(), compression, bufferSize, metricGroup),
                 PREEMPTIVE_PERSIST_THRESHOLD.defaultValue().getBytes());
     }
 
-    private FsStateChangelogStorage(
+    @VisibleForTesting
+    public FsStateChangelogStorage(
             StateChangeUploader uploader, long preEmptivePersistThresholdInBytes) {
         this.uploader = uploader;
         this.preEmptivePersistThresholdInBytes = preEmptivePersistThresholdInBytes;
@@ -91,5 +100,10 @@ public class FsStateChangelogStorage
     @Override
     public void close() throws Exception {
         uploader.close();
+    }
+
+    @Override
+    public AvailabilityProvider getAvailabilityProvider() {
+        return uploader.getAvailabilityProvider();
     }
 }

@@ -19,6 +19,9 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
+import org.apache.flink.connector.file.table.PartitionFetcher;
+import org.apache.flink.connector.file.table.PartitionReader;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
@@ -30,11 +33,8 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.filesystem.FileSystemConnectorOptions;
-import org.apache.flink.table.filesystem.FileSystemLookupFunction;
-import org.apache.flink.table.filesystem.PartitionFetcher;
-import org.apache.flink.table.filesystem.PartitionReader;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.types.Row;
@@ -50,12 +50,12 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
-import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_KIND;
-import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
-import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_ENABLE;
-import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
-import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
-import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_ORDER;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_KIND;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.STREAMING_SOURCE_ENABLE;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_ORDER;
 import static org.junit.Assert.assertEquals;
 
 /** Test lookup join of hive tables. */
@@ -360,8 +360,11 @@ public class HiveLookupJoinITCase {
                 (CatalogTable) hiveCatalog.getTable(tableIdentifier.toObjectPath());
         HiveLookupTableSource hiveTableSource =
                 (HiveLookupTableSource)
-                        FactoryUtil.createTableSource(
-                                hiveCatalog,
+                        FactoryUtil.createDynamicTableSource(
+                                (DynamicTableSourceFactory)
+                                        hiveCatalog
+                                                .getFactory()
+                                                .orElseThrow(IllegalStateException::new),
                                 tableIdentifier,
                                 tableEnvInternal
                                         .getCatalogManager()

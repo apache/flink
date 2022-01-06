@@ -145,6 +145,8 @@ public class AbstractDispatcherTest extends TestLogger {
         private FatalErrorHandler fatalErrorHandler =
                 testingFatalErrorHandlerResource.getFatalErrorHandler();
 
+        private HistoryServerArchivist historyServerArchivist = VoidHistoryServerArchivist.INSTANCE;
+
         TestingDispatcherBuilder setHeartbeatServices(HeartbeatServices heartbeatServices) {
             this.heartbeatServices = heartbeatServices;
             return this;
@@ -176,6 +178,12 @@ public class AbstractDispatcherTest extends TestLogger {
             return this;
         }
 
+        public TestingDispatcherBuilder setHistoryServerArchivist(
+                HistoryServerArchivist historyServerArchivist) {
+            this.historyServerArchivist = historyServerArchivist;
+            return this;
+        }
+
         TestingDispatcher build() throws Exception {
             TestingResourceManagerGateway resourceManagerGateway =
                     new TestingResourceManagerGateway();
@@ -196,8 +204,9 @@ public class AbstractDispatcherTest extends TestLogger {
                             heartbeatServices,
                             executionGraphInfoStore,
                             fatalErrorHandler,
-                            VoidHistoryServerArchivist.INSTANCE,
+                            historyServerArchivist,
                             null,
+                            new DispatcherOperationCaches(),
                             UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
                             jobGraphWriter,
                             jobManagerRunnerFactory,

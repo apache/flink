@@ -110,7 +110,12 @@ public class StaticFileSplitEnumeratorTest {
 
     private static FileSourceSplit createRandomSplit() {
         return new FileSourceSplit(
-                String.valueOf(splitId++), Path.fromLocalFile(new File(TMP_DIR, "foo")), 0L, 0L);
+                String.valueOf(splitId++),
+                Path.fromLocalFile(new File(TMP_DIR, "foo")),
+                0L,
+                0L,
+                0L,
+                0L);
     }
 
     private static StaticFileSplitEnumerator createEnumerator(

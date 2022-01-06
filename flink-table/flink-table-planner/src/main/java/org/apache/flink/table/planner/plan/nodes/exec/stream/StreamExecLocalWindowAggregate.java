@@ -156,7 +156,8 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getDescription(),
+                getOperatorName(planner.getTableConfig()),
+                getOperatorDescription(planner.getTableConfig()),
                 SimpleOperatorFactory.of(localAggOperator),
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism(),

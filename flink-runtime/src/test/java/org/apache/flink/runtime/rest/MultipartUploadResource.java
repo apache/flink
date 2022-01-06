@@ -29,7 +29,6 @@ import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
@@ -89,7 +88,7 @@ public class MultipartUploadResource extends ExternalResource {
 
     private Path configuredUploadDir;
 
-    private BiConsumerWithException<HandlerRequest<?, ?>, RestfulGateway, RestHandlerException>
+    private BiConsumerWithException<HandlerRequest<?>, RestfulGateway, RestHandlerException>
             fileUploadVerifier;
 
     @Override
@@ -167,9 +166,7 @@ public class MultipartUploadResource extends ExternalResource {
 
     public void setFileUploadVerifier(
             BiConsumerWithException<
-                            HandlerRequest<? extends RequestBody, ? extends MessageParameters>,
-                            RestfulGateway,
-                            Exception>
+                            HandlerRequest<? extends RequestBody>, RestfulGateway, Exception>
                     verifier) {
         this.fileUploadVerifier =
                 (request, restfulGateway) -> {
@@ -266,8 +263,7 @@ public class MultipartUploadResource extends ExternalResource {
 
         @Override
         protected CompletableFuture<EmptyResponseBody> handleRequest(
-                @Nonnull HandlerRequest<TestRequestBody, EmptyMessageParameters> request,
-                @Nonnull RestfulGateway gateway)
+                @Nonnull HandlerRequest<TestRequestBody> request, @Nonnull RestfulGateway gateway)
                 throws RestHandlerException {
             MultipartUploadResource.this.fileUploadVerifier.accept(request, gateway);
             this.lastReceivedRequest = request.getRequestBody();
@@ -338,8 +334,7 @@ public class MultipartUploadResource extends ExternalResource {
 
         @Override
         protected CompletableFuture<EmptyResponseBody> handleRequest(
-                @Nonnull HandlerRequest<TestRequestBody, EmptyMessageParameters> request,
-                @Nonnull RestfulGateway gateway)
+                @Nonnull HandlerRequest<TestRequestBody> request, @Nonnull RestfulGateway gateway)
                 throws RestHandlerException {
             Collection<Path> uploadedFiles =
                     request.getUploadedFiles().stream()
@@ -394,8 +389,7 @@ public class MultipartUploadResource extends ExternalResource {
 
         @Override
         protected CompletableFuture<EmptyResponseBody> handleRequest(
-                @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
-                @Nonnull RestfulGateway gateway)
+                @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
                 throws RestHandlerException {
             MultipartUploadResource.this.fileUploadVerifier.accept(request, gateway);
             return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());

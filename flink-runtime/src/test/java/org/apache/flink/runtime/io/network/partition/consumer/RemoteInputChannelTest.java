@@ -23,6 +23,7 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -117,9 +118,10 @@ import static org.mockito.Mockito.when;
 public class RemoteInputChannelTest {
 
     private static final long CHECKPOINT_ID = 1L;
-    private static final CheckpointOptions UNALIGNED = CheckpointOptions.unaligned(getDefault());
+    private static final CheckpointOptions UNALIGNED =
+            CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
     private static final CheckpointOptions ALIGNED_WITH_TIMEOUT =
-            alignedWithTimeout(getDefault(), 10);
+            alignedWithTimeout(CheckpointType.CHECKPOINT, getDefault(), 10);
 
     @Test
     public void testGateNotifiedOnBarrierConversion() throws IOException, InterruptedException {
@@ -142,7 +144,12 @@ public class RemoteInputChannelTest {
             channel.onBuffer(
                     toBuffer(
                             new CheckpointBarrier(
-                                    1L, 123L, alignedWithTimeout(getDefault(), Integer.MAX_VALUE)),
+                                    1L,
+                                    123L,
+                                    alignedWithTimeout(
+                                            CheckpointType.CHECKPOINT,
+                                            getDefault(),
+                                            Integer.MAX_VALUE)),
                             false),
                     sequenceNumber,
                     0);
@@ -207,7 +214,9 @@ public class RemoteInputChannelTest {
 
         inputChannel.checkpointStarted(
                 new CheckpointBarrier(
-                        42, System.currentTimeMillis(), CheckpointOptions.unaligned(getDefault())));
+                        42,
+                        System.currentTimeMillis(),
+                        CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault())));
 
         final Buffer buffer = createBuffer(TestBufferFactory.BUFFER_SIZE);
 
@@ -1408,6 +1417,15 @@ public class RemoteInputChannelTest {
         remoteChannel.resumeConsumption();
     }
 
+    @Test(expected = IllegalStateException.class)
+    public void testReleasedChannelAnnounceBufferSize() throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RemoteInputChannel remoteChannel = createRemoteInputChannel(inputGate);
+
+        remoteChannel.releaseAllResources();
+        remoteChannel.announceBufferSize(10);
+    }
+
     @Test
     public void testOnUpstreamBlockedAndResumed() throws Exception {
         BufferPool bufferPool = new TestBufferPool();
@@ -1428,7 +1446,12 @@ public class RemoteInputChannelTest {
         Buffer barrier =
                 EventSerializer.toBuffer(
                         new CheckpointBarrier(
-                                1L, 123L, alignedWithTimeout(getDefault(), Integer.MAX_VALUE)),
+                                1L,
+                                123L,
+                                alignedWithTimeout(
+                                        CheckpointType.CHECKPOINT,
+                                        getDefault(),
+                                        Integer.MAX_VALUE)),
                         false);
         remoteChannel1.onBuffer(barrier, 0, 0);
         remoteChannel2.onBuffer(barrier, 0, 0);
@@ -1622,6 +1645,38 @@ public class RemoteInputChannelTest {
         sendBuffer(channel, sequenceNumber++, bufferSize++);
         assertGetNextBufferSequenceNumbers(channel, 2, 0);
         assertInflightBufferSizes(channel, 2);
+    }
+
+    @Test
+    public void testSizeOfQueuedBuffers() throws Exception {
+        int sequenceNumber = 0;
+        int bufferSize = 1;
+        int queueSize = 0;
+        final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
+        assertEquals(0, channel.unsynchronizedGetSizeOfQueuedBuffers());
+
+        // Receive a couple of buffers.
+        for (int i = 0; i < 2; i++) {
+            queueSize += bufferSize;
+            sendBuffer(channel, sequenceNumber++, bufferSize++);
+            assertEquals(queueSize, channel.unsynchronizedGetSizeOfQueuedBuffers());
+        }
+
+        // Receive the event.
+        queueSize +=
+                EventSerializer.toSerializedEvent(new CheckpointBarrier(1L, 123L, UNALIGNED))
+                        .remaining();
+        sendBarrier(channel, sequenceNumber++, UNALIGNED);
+        assertEquals(queueSize, channel.unsynchronizedGetSizeOfQueuedBuffers());
+
+        // Poll all received buffers.
+        for (int i = 0; i < 3; i++) {
+            Optional<BufferAndAvailability> nextBuffer = channel.getNextBuffer();
+            queueSize -= nextBuffer.get().buffer().getSize();
+            assertEquals(queueSize, channel.unsynchronizedGetSizeOfQueuedBuffers());
+        }
+
+        assertEquals(0, channel.unsynchronizedGetSizeOfQueuedBuffers());
     }
 
     private void sendBarrier(

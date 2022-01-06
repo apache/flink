@@ -67,20 +67,25 @@ public class StateBackendBenchmarkUtils {
     private static final String dbDirName = "dbPath";
     private static File rootDir;
 
-    public static KeyedStateBackend<Long> createKeyedStateBackend(StateBackendType backendType)
-            throws IOException {
+    public static KeyedStateBackend<Long> createKeyedStateBackend(
+            StateBackendType backendType, File baseDir) throws IOException {
         switch (backendType) {
             case HEAP:
-                rootDir = prepareDirectory(rootDirName, null);
+                rootDir = prepareDirectory(rootDirName, baseDir);
                 return createHeapKeyedStateBackend(rootDir);
             case ROCKSDB:
-                rootDir = prepareDirectory(rootDirName, null);
+                rootDir = prepareDirectory(rootDirName, baseDir);
                 return createRocksDBKeyedStateBackend(rootDir);
             case BATCH_EXECUTION:
                 return createBatchExecutionStateBackend();
             default:
                 throw new IllegalArgumentException("Unknown backend type: " + backendType);
         }
+    }
+
+    public static KeyedStateBackend<Long> createKeyedStateBackend(StateBackendType backendType)
+            throws IOException {
+        return createKeyedStateBackend(backendType, null);
     }
 
     private static CheckpointableKeyedStateBackend<Long> createBatchExecutionStateBackend() {

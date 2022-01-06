@@ -30,7 +30,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -195,10 +194,7 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
 
     protected JdbcSerializationConverter wrapIntoNullableExternalConverter(
             JdbcSerializationConverter jdbcSerializationConverter, LogicalType type) {
-        final int sqlType =
-                JdbcTypeUtil.typeInformationToSqlType(
-                        TypeConversions.fromDataTypeToLegacyInfo(
-                                TypeConversions.fromLogicalToDataType(type)));
+        final int sqlType = JdbcTypeUtil.logicalTypeToSqlType(type.getTypeRoot());
         return (val, index, statement) -> {
             if (val == null
                     || val.isNullAt(index)

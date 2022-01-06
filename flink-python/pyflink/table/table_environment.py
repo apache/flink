@@ -1589,9 +1589,9 @@ class TableEnvironment(object):
             gateway = get_gateway()
             j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, True)
             PythonTableUtils = gateway.jvm \
-                .org.apache.flink.table.planner.utils.python.PythonTableUtils
+                .org.apache.flink.table.utils.python.PythonTableUtils
             PythonInputFormatTableSource = gateway.jvm \
-                .org.apache.flink.table.planner.utils.python.PythonInputFormatTableSource
+                .org.apache.flink.table.utils.python.PythonInputFormatTableSource
             j_input_format = PythonTableUtils.getInputFormat(
                 j_objs, row_type_info, execution_config)
             j_table_source = PythonInputFormatTableSource(
@@ -1694,13 +1694,15 @@ class TableEnvironment(object):
         jvm = get_gateway().jvm
         jar_urls = self.get_config().get_configuration().get_string(config_key, None)
         if jar_urls is not None:
-            # normalize and remove duplicates
-            jar_urls_set = set([jvm.java.net.URL(url).toString() for url in jar_urls.split(";")])
+            # normalize
+            jar_urls_list = [jvm.java.net.URL(url).toString() for url in jar_urls.split(";")]
             j_configuration = get_j_env_configuration(self._get_j_env())
             if j_configuration.containsKey(config_key):
                 for url in j_configuration.getString(config_key, "").split(";"):
-                    jar_urls_set.add(url)
-            j_configuration.setString(config_key, ";".join(jar_urls_set))
+                    url = url.strip()
+                    if url != "" and url not in jar_urls_list:
+                        jar_urls_list.append(url)
+            j_configuration.setString(config_key, ";".join(jar_urls_list))
 
     def _get_j_env(self):
         return self._j_tenv.getPlanner().getExecEnv()

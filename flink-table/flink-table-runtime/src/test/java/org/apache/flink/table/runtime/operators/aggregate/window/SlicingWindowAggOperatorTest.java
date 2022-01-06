@@ -110,8 +110,7 @@ public class SlicingWindowAggOperatorTest {
 
     private static final RowDataHarnessAssertor ASSERTER =
             new RowDataHarnessAssertor(
-                    OUTPUT_TYPES,
-                    new GenericRowRecordSortComparator(0, new VarCharType(VarCharType.MAX_LENGTH)));
+                    OUTPUT_TYPES, new GenericRowRecordSortComparator(0, VarCharType.STRING_TYPE));
 
     @Test
     public void testEventTimeHoppingWindows() throws Exception {
@@ -391,13 +390,6 @@ public class SlicingWindowAggOperatorTest {
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(2999));
-        expectedOutput.add(insertRecord("key1", 3L, 3L, localMills(0L), localMills(3000L)));
-        expectedOutput.add(insertRecord("key2", 4L, 4L, localMills(0L), localMills(3000L)));
-        expectedOutput.add(new Watermark(2999));
-        ASSERTER.assertOutputEqualsSorted(
-                "Output was not correct.", expectedOutput, testHarness.getOutput());
-
         // do a snapshot, close and restore again
         testHarness.prepareSnapshotPreBarrier(0L);
         OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
@@ -410,6 +402,20 @@ public class SlicingWindowAggOperatorTest {
         testHarness.setup();
         testHarness.initializeState(snapshot);
         testHarness.open();
+        // the late event would not trigger window [0, 2000L) again even if the job restore from
+        // savepoint
+        testHarness.processElement(insertRecord("key2", 1, 1000L));
+        testHarness.processWatermark(new Watermark(1999));
+
+        expectedOutput.add(new Watermark(1999));
+        ASSERTER.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+        testHarness.processWatermark(new Watermark(2999));
+        expectedOutput.add(insertRecord("key1", 3L, 3L, localMills(0L), localMills(3000L)));
+        expectedOutput.add(insertRecord("key2", 5L, 5L, localMills(0L), localMills(3000L)));
+        expectedOutput.add(new Watermark(2999));
+        ASSERTER.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         testHarness.processWatermark(new Watermark(3999));
         expectedOutput.add(insertRecord("key2", 1L, 1L, localMills(3000L), localMills(4000L)));

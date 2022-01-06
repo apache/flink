@@ -19,10 +19,9 @@
 package org.apache.flink.table.planner.plan.rules
 
 import org.apache.flink.table.planner.plan.nodes.logical._
-import org.apache.flink.table.planner.plan.rules.logical._
+import org.apache.flink.table.planner.plan.rules.logical.{RemoveUnreachableCoalesceArgumentsRule, _}
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.planner.plan.rules.physical.batch._
-
 import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.logical.{LogicalIntersect, LogicalMinus, LogicalUnion}
 import org.apache.calcite.rel.rules._
@@ -78,14 +77,13 @@ object FlinkBatchRuleSets {
   )
 
   /**
-    * RuleSet to rewrite coalesce to case when
-    */
-  private val REWRITE_COALESCE_RULES: RuleSet = RuleSets.ofList(
-    // rewrite coalesce to case when
-    RewriteCoalesceRule.FILTER_INSTANCE,
-    RewriteCoalesceRule.PROJECT_INSTANCE,
-    RewriteCoalesceRule.JOIN_INSTANCE,
-    RewriteCoalesceRule.CALC_INSTANCE
+   * RuleSet to simplify coalesce invocations
+   */
+  private val SIMPLIFY_COALESCE_RULES: RuleSet = RuleSets.ofList(
+    RemoveUnreachableCoalesceArgumentsRule.PROJECT_INSTANCE,
+    RemoveUnreachableCoalesceArgumentsRule.FILTER_INSTANCE,
+    RemoveUnreachableCoalesceArgumentsRule.JOIN_INSTANCE,
+    RemoveUnreachableCoalesceArgumentsRule.CALC_INSTANCE
   )
 
   private val LIMIT_RULES: RuleSet = RuleSets.ofList(
@@ -108,7 +106,7 @@ object FlinkBatchRuleSets {
     */
   val DEFAULT_REWRITE_RULES: RuleSet = RuleSets.ofList((
     PREDICATE_SIMPLIFY_EXPRESSION_RULES.asScala ++
-      REWRITE_COALESCE_RULES.asScala ++
+      SIMPLIFY_COALESCE_RULES.asScala ++
       REDUCE_EXPRESSION_RULES.asScala ++
       List(
         // Transform window to LogicalWindowAggregate
@@ -132,7 +130,9 @@ object FlinkBatchRuleSets {
         // optimize limit 0
         FlinkLimit0RemoveRule.INSTANCE,
         // unnest rule
-        LogicalUnnestRule.INSTANCE
+        LogicalUnnestRule.INSTANCE,
+        // Wrap arguments for JSON aggregate functions
+        WrapJsonAggFunctionArgumentsRule.INSTANCE
       )).asJava)
 
   /**
@@ -173,16 +173,22 @@ object FlinkBatchRuleSets {
   )
 
   /**
-    * RuleSet to do push predicate/partition into table scan
-    */
-  val FILTER_TABLESCAN_PUSHDOWN_RULES: RuleSet = RuleSets.ofList(
-    // push a filter down into the table scan
-    PushFilterIntoTableSourceScanRule.INSTANCE,
-    PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
+   * RuleSet to push down partitions into table source
+   */
+  val PUSH_PARTITION_DOWN_RULES: RuleSet = RuleSets.ofList(
     // push partition into the table scan
     PushPartitionIntoLegacyTableSourceScanRule.INSTANCE,
     // push partition into the dynamic table scan
     PushPartitionIntoTableSourceScanRule.INSTANCE
+  )
+
+  /**
+   * RuleSet to push down filters into table source
+   */
+  val PUSH_FILTER_DOWN_RULES: RuleSet = RuleSets.ofList(
+    // push a filter down into the table scan
+    PushFilterIntoTableSourceScanRule.INSTANCE,
+    PushFilterIntoLegacyTableSourceScanRule.INSTANCE
   )
 
   /**
@@ -217,7 +223,9 @@ object FlinkBatchRuleSets {
     //removes constant keys from an Agg
     CoreRules.AGGREGATE_PROJECT_PULL_UP_CONSTANTS,
     // push project through a Union
-    CoreRules.PROJECT_SET_OP_TRANSPOSE
+    CoreRules.PROJECT_SET_OP_TRANSPOSE,
+    // push a projection to the child of a WindowTableFunctionScan
+    ProjectWindowTableFunctionTransposeRule.INSTANCE
   )
 
   val JOIN_COND_EQUAL_TRANSFER_RULES: RuleSet = RuleSets.ofList((
@@ -425,6 +433,8 @@ object FlinkBatchRuleSets {
     // window agg
     BatchPhysicalWindowAggregateRule.INSTANCE,
     BatchPhysicalPythonWindowAggregateRule.INSTANCE,
+    // window tvf
+    BatchPhysicalWindowTableFunctionRule.INSTANCE,
     // join
     BatchPhysicalHashJoinRule.INSTANCE,
     BatchPhysicalSortMergeJoinRule.INSTANCE,
@@ -448,6 +458,12 @@ object FlinkBatchRuleSets {
     */
   val PHYSICAL_REWRITE: RuleSet = RuleSets.ofList(
     EnforceLocalHashAggRule.INSTANCE,
-    EnforceLocalSortAggRule.INSTANCE
+    EnforceLocalSortAggRule.INSTANCE,
+    PushLocalHashAggIntoScanRule.INSTANCE,
+    PushLocalHashAggWithCalcIntoScanRule.INSTANCE,
+    PushLocalSortAggIntoScanRule.INSTANCE,
+    PushLocalSortAggWithSortIntoScanRule.INSTANCE,
+    PushLocalSortAggWithCalcIntoScanRule.INSTANCE,
+    PushLocalSortAggWithSortAndCalcIntoScanRule.INSTANCE
   )
 }

@@ -550,7 +550,6 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
     }
 
     /** Creates the upload dir if needed. */
-    @VisibleForTesting
     static void createUploadDir(
             final Path uploadDir, final Logger log, final boolean initialCreation)
             throws IOException {

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.security.FlinkSecurityManager;
@@ -38,8 +39,10 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.MultipleRecordWriters;
 import org.apache.flink.runtime.io.network.api.writer.NonRecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -51,23 +54,24 @@ import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointableTask;
 import org.apache.flink.runtime.jobgraph.tasks.CoordinatedTask;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
-import org.apache.flink.runtime.metrics.MetricNames;
-import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
+import org.apache.flink.runtime.taskmanager.AsynchronousException;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -84,7 +88,6 @@ import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHand
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.bufferdebloat.BufferDebloater;
 import org.apache.flink.streaming.runtime.tasks.mailbox.GaugePeriodTimer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction.Suspension;
@@ -101,13 +104,9 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
-import org.apache.flink.util.WrappingRuntimeException;
-import org.apache.flink.util.clock.Clock;
-import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.RunnableWithException;
-import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -241,6 +240,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     /** The currently active background materialization threads. */
     private final CloseableRegistry cancelables = new CloseableRegistry();
 
+    private final AutoCloseableRegistry resourceCloser;
+
     private final StreamTaskAsyncExceptionHandler asyncExceptionHandler;
 
     /**
@@ -278,8 +279,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     // ========================================================
     //  Final  checkpoint / savepoint
     // ========================================================
-    private Long syncSavepointWithoutDrain = null;
-    private Long syncSavepointWithDrain = null;
+    private Long syncSavepoint = null;
     private Long finalCheckpointMinId = null;
     private final CompletableFuture<Void> finalCheckpointCompleted = new CompletableFuture<>();
 
@@ -287,12 +287,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     private long latestAsyncCheckpointStartDelayNanos;
 
-    private final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
     private volatile boolean endOfDataReceived = false;
-
-    private final ThroughputCalculator throughputCalculator;
-
-    private final @Nullable BufferDebloater bufferDebloater;
 
     private final long bufferDebloatPeriod;
 
@@ -302,6 +297,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     @GuardedBy("shouldInterruptOnCancelLock")
     private boolean shouldInterruptOnCancel = true;
+
+    @Nullable private final AvailabilityProvider changelogWriterAvailabilityProvider;
 
     // ------------------------------------------------------------------------
 
@@ -371,76 +368,99 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             StreamTaskActionExecutor actionExecutor,
             TaskMailbox mailbox)
             throws Exception {
-        this.environment = environment;
-        this.configuration = new StreamConfig(environment.getTaskConfiguration());
-        this.recordWriter = createRecordWriterDelegate(configuration, environment);
-        this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
-        this.mailboxProcessor = new MailboxProcessor(this::processInput, mailbox, actionExecutor);
-        this.mainMailboxExecutor = mailboxProcessor.getMainMailboxExecutor();
-        this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
-        this.asyncOperationsThreadPool =
-                Executors.newCachedThreadPool(
-                        new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
+        // The registration of all closeable resources. The order of registration is important.
+        resourceCloser = new AutoCloseableRegistry();
+        try {
+            this.environment = environment;
+            this.configuration = new StreamConfig(environment.getTaskConfiguration());
+            this.mailboxProcessor =
+                    new MailboxProcessor(this::processInput, mailbox, actionExecutor);
+            // Should be closed last.
+            resourceCloser.registerCloseable(mailboxProcessor);
 
-        environment.setMainMailboxExecutor(mainMailboxExecutor);
-        environment.setAsyncOperationsThreadPool(asyncOperationsThreadPool);
+            this.channelIOExecutor =
+                    Executors.newSingleThreadExecutor(
+                            new ExecutorThreadFactory("channel-state-unspilling"));
+            resourceCloser.registerCloseable(channelIOExecutor::shutdown);
 
-        this.stateBackend = createStateBackend();
-        this.checkpointStorage = createCheckpointStorage(stateBackend);
+            this.recordWriter = createRecordWriterDelegate(configuration, environment);
+            // Release the output resources. this method should never fail.
+            resourceCloser.registerCloseable(this::releaseOutputResources);
+            // If the operators won't be closed explicitly, register it to a hard close.
+            resourceCloser.registerCloseable(this::closeAllOperators);
+            resourceCloser.registerCloseable(this::cleanUpInternal);
 
-        this.subtaskCheckpointCoordinator =
-                new SubtaskCheckpointCoordinatorImpl(
-                        checkpointStorage.createCheckpointStorage(environment.getJobID()),
-                        getName(),
-                        actionExecutor,
-                        getCancelables(),
-                        getAsyncOperationsThreadPool(),
-                        environment,
-                        this,
-                        configuration.isUnalignedCheckpointsEnabled(),
-                        configuration
-                                .getConfiguration()
-                                .get(
-                                        ExecutionCheckpointingOptions
-                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH),
-                        this::prepareInputSnapshot);
+            this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
+            this.mainMailboxExecutor = mailboxProcessor.getMainMailboxExecutor();
+            this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
 
-        // if the clock is not already set, then assign a default TimeServiceProvider
-        if (timerService == null) {
-            this.timerService = createTimerService("Time Trigger for " + getName());
-        } else {
-            this.timerService = timerService;
-        }
+            this.asyncOperationsThreadPool =
+                    Executors.newCachedThreadPool(
+                            new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
 
-        this.systemTimerService = createTimerService("System Time Trigger for " + getName());
-        this.channelIOExecutor =
-                Executors.newSingleThreadExecutor(
-                        new ExecutorThreadFactory("channel-state-unspilling"));
+            // Register all asynchronous checkpoint threads.
+            resourceCloser.registerCloseable(this::shutdownAsyncThreads);
+            resourceCloser.registerCloseable(cancelables);
 
-        injectChannelStateWriterIntoChannels();
+            environment.setMainMailboxExecutor(mainMailboxExecutor);
+            environment.setAsyncOperationsThreadPool(asyncOperationsThreadPool);
 
-        environment.getMetricGroup().getIOMetricGroup().setEnableBusyTime(true);
-        this.throughputCalculator = environment.getThroughputCalculator();
-        Configuration taskManagerConf = environment.getTaskManagerInfo().getConfiguration();
+            this.stateBackend = createStateBackend();
+            this.checkpointStorage = createCheckpointStorage(stateBackend);
+            this.changelogWriterAvailabilityProvider =
+                    environment.getTaskStateManager().getStateChangelogStorage() == null
+                            ? null
+                            : environment
+                                    .getTaskStateManager()
+                                    .getStateChangelogStorage()
+                                    .getAvailabilityProvider();
 
-        this.bufferDebloatPeriod = taskManagerConf.get(BUFFER_DEBLOAT_PERIOD).toMillis();
+            CheckpointStorageAccess checkpointStorageAccess =
+                    checkpointStorage.createCheckpointStorage(getEnvironment().getJobID());
 
-        if (taskManagerConf.get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
-            this.bufferDebloater =
-                    new BufferDebloater(taskManagerConf, environment.getAllInputGates());
-            environment
-                    .getMetricGroup()
-                    .gauge(
-                            MetricNames.ESTIMATED_TIME_TO_CONSUME_BUFFERS,
-                            () ->
-                                    bufferDebloater
-                                            .getLastEstimatedTimeToConsumeBuffers()
-                                            .toMillis());
-            environment
-                    .getMetricGroup()
-                    .gauge(MetricNames.DEBLOATED_BUFFER_SIZE, bufferDebloater::getLastBufferSize);
-        } else {
-            this.bufferDebloater = null;
+            environment.setCheckpointStorageAccess(checkpointStorageAccess);
+
+            this.subtaskCheckpointCoordinator =
+                    new SubtaskCheckpointCoordinatorImpl(
+                            checkpointStorageAccess,
+                            getName(),
+                            actionExecutor,
+                            getCancelables(),
+                            getAsyncOperationsThreadPool(),
+                            environment,
+                            this,
+                            configuration.isUnalignedCheckpointsEnabled(),
+                            configuration
+                                    .getConfiguration()
+                                    .get(
+                                            ExecutionCheckpointingOptions
+                                                    .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH),
+                            this::prepareInputSnapshot);
+
+            // if the clock is not already set, then assign a default TimeServiceProvider
+            if (timerService == null) {
+                this.timerService = createTimerService("Time Trigger for " + getName());
+            } else {
+                this.timerService = timerService;
+            }
+
+            this.systemTimerService = createTimerService("System Time Trigger for " + getName());
+            // Register to stop all timers and threads. Should be closed first.
+            resourceCloser.registerCloseable(this::tryShutdownTimerService);
+
+            injectChannelStateWriterIntoChannels();
+
+            environment.getMetricGroup().getIOMetricGroup().setEnableBusyTime(true);
+            Configuration taskManagerConf = environment.getTaskManagerInfo().getConfiguration();
+
+            this.bufferDebloatPeriod = taskManagerConf.get(BUFFER_DEBLOAT_PERIOD).toMillis();
+        } catch (Exception ex) {
+            try {
+                resourceCloser.close();
+            } catch (Throwable throwable) {
+                ex.addSuppressed(throwable);
+            }
+            throw ex;
         }
     }
 
@@ -496,7 +516,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         DataInputStatus status = inputProcessor.processInput();
         switch (status) {
             case MORE_AVAILABLE:
-                if (recordWriter.isAvailable()) {
+                if (recordWriter.isAvailable()
+                        && (changelogWriterAvailabilityProvider == null
+                                || changelogWriterAvailabilityProvider.isAvailable())) {
                     return;
                 }
                 break;
@@ -504,8 +526,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 break;
             case END_OF_RECOVERY:
                 throw new IllegalStateException("We should not receive this event here.");
+            case STOPPED:
+                endData(StopMode.NO_DRAIN);
+                return;
             case END_OF_DATA:
-                endData();
+                endData(StopMode.DRAIN);
                 return;
             case END_OF_INPUT:
                 // Suspend the mailbox processor, it would be resumed in afterInvoke and finished
@@ -521,84 +546,56 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         PeriodTimer timer;
         CompletableFuture<?> resumeFuture;
         if (!recordWriter.isAvailable()) {
-            timer = new GaugePeriodTimer(ioMetrics.getBackPressuredTimePerSecond());
+            timer = new GaugePeriodTimer(ioMetrics.getSoftBackPressuredTimePerSecond());
             resumeFuture = recordWriter.getAvailableFuture();
-        } else {
-            timer =
-                    new ThroughputPeriodTimer(
-                            ioMetrics.getIdleTimeMsPerSecond(), throughputCalculator);
+        } else if (!inputProcessor.isAvailable()) {
+            timer = new GaugePeriodTimer(ioMetrics.getIdleTimeMsPerSecond());
             resumeFuture = inputProcessor.getAvailableFuture();
+        } else {
+            // currently, waiting for changelog availability is reported as busy
+            // todo: add new metric (FLINK-24402)
+            timer = null;
+            resumeFuture = changelogWriterAvailabilityProvider.getAvailableFuture();
         }
         assertNoException(
                 resumeFuture.thenRun(
                         new ResumeWrapper(controller.suspendDefaultAction(timer), timer)));
     }
 
-    protected void endData() throws Exception {
+    protected void endData(StopMode mode) throws Exception {
 
-        if (syncSavepointWithoutDrain != null && areCheckpointsWithFinishedTasksEnabled()) {
-            throw new FlinkRuntimeException(
-                    "We run out of data to process while waiting for a synchronous savepoint"
-                            + " to be finished. This can lead to a deadlock waiting for a final"
-                            + " checkpoint after a synchronous savepoint, which will never be"
-                            + " triggered.");
+        if (mode == StopMode.DRAIN) {
+            advanceToEndOfEventTime();
         }
-
-        advanceToEndOfEventTime();
         // finish all operators in a chain effect way
-        operatorChain.finishOperators(actionExecutor);
+        operatorChain.finishOperators(actionExecutor, mode);
         this.finishedOperators = true;
 
         for (ResultPartitionWriter partitionWriter : getEnvironment().getAllWriters()) {
-            partitionWriter.notifyEndOfData();
+            partitionWriter.notifyEndOfData(mode);
         }
 
         this.endOfDataReceived = true;
     }
 
-    protected void setSynchronousSavepoint(long checkpointId, boolean isDrain) {
+    protected void setSynchronousSavepoint(long checkpointId) {
         checkState(
-                syncSavepointWithoutDrain == null
-                        && (syncSavepointWithDrain == null
-                                || (isDrain && syncSavepointWithDrain == checkpointId)),
+                syncSavepoint == null || syncSavepoint == checkpointId,
                 "at most one stop-with-savepoint checkpoint at a time is allowed");
-        if (isDrain) {
-            if (syncSavepointWithDrain == null) {
-                syncSavepointWithDrain = checkpointId;
-            }
-        } else {
-            syncSavepointWithoutDrain = checkpointId;
-        }
+        syncSavepoint = checkpointId;
     }
 
     @VisibleForTesting
     OptionalLong getSynchronousSavepointId() {
-        if (syncSavepointWithoutDrain != null) {
-            return OptionalLong.of(syncSavepointWithoutDrain);
-        } else if (syncSavepointWithDrain != null) {
-            return OptionalLong.of(syncSavepointWithDrain);
+        if (syncSavepoint != null) {
+            return OptionalLong.of(syncSavepoint);
         } else {
             return OptionalLong.empty();
         }
     }
 
-    private boolean isCurrentSavepointWithDrain(long checkpointId) {
-        return syncSavepointWithDrain != null && syncSavepointWithDrain == checkpointId;
-    }
-
-    private boolean isCurrentSavepointWithoutDrain(long checkpointId) {
-        return syncSavepointWithoutDrain != null && syncSavepointWithoutDrain == checkpointId;
-    }
-
-    private void runSynchronousSavepointMailboxLoop() throws Exception {
-        assert syncSavepointWithoutDrain != null;
-
-        MailboxExecutor mailboxExecutor =
-                mailboxProcessor.getMailboxExecutor(TaskMailbox.MAX_PRIORITY);
-
-        while (!canceled && syncSavepointWithoutDrain != null) {
-            mailboxExecutor.yield();
-        }
+    private boolean isCurrentSyncSavepoint(long checkpointId) {
+        return syncSavepoint != null && syncSavepoint == checkpointId;
     }
 
     /**
@@ -612,17 +609,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
      * <p>For tasks other than the source task, this method does nothing.
      */
     protected void advanceToEndOfEventTime() throws Exception {}
-
-    /**
-     * Instructs the task to go through its normal termination routine, i.e. exit the run-loop and
-     * call {@link StreamOperator#finish()} and {@link StreamOperator#close()} on its operators.
-     *
-     * <p>This is used by the source task to get out of the run-loop when the job is stopped with a
-     * savepoint.
-     *
-     * <p>For tasks other than the source task, this method does nothing.
-     */
-    protected void finishTask() throws Exception {}
 
     // ------------------------------------------------------------------------
     //  Core work methods of the Stream Task
@@ -663,7 +649,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         LOG.debug("Initializing {}.", getName());
 
         operatorChain =
-                getEnvironment().getTaskStateManager().isFinishedOnRestore()
+                getEnvironment().getTaskStateManager().isTaskDeployedAsFinished()
                         ? new FinishedOperatorChain<>(this, recordWriter)
                         : new RegularOperatorChain<>(this, recordWriter);
         mainOperator = operatorChain.getMainOperator();
@@ -721,6 +707,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                     }
                 });
 
+        // We wait for all input channel state to recover before we go into RUNNING state, and thus
+        // start checkpointing. If we implement incremental checkpointing of input channel state
+        // we must make sure it supports CheckpointType#FULL_CHECKPOINT
         List<CompletableFuture<?>> recoveredFutures = new ArrayList<>(inputGates.length);
         for (InputGate inputGate : inputGates) {
             recoveredFutures.add(inputGate.getStateConsumedFuture());
@@ -773,13 +762,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         // the debloater. At the same time, for SourceStreamTask using legacy sources and checkpoint
         // lock, enqueuing even a single mailbox action can cause performance regression. This is
         // especially visible in batch, with disabled checkpointing and no processing time timers.
-        if (getEnvironment().getAllInputGates().length == 0) {
+        if (getEnvironment().getAllInputGates().length == 0
+                || !environment
+                        .getTaskManagerInfo()
+                        .getConfiguration()
+                        .getBoolean(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
             return;
         }
         systemTimerService.registerTimer(
                 systemTimerService.getCurrentProcessingTime() + bufferDebloatPeriod,
                 timestamp ->
-                        mainMailboxExecutor.submit(
+                        mainMailboxExecutor.execute(
                                 () -> {
                                     debloat();
                                     scheduleBufferDebloater();
@@ -789,9 +782,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     @VisibleForTesting
     void debloat() {
-        long throughput = throughputCalculator.calculateThroughput();
-        if (bufferDebloater != null) {
-            bufferDebloater.recalculateBufferSize(throughput);
+        for (IndexedInputGate inputGate : environment.getAllInputGates()) {
+            inputGate.triggerDebloating();
         }
     }
 
@@ -827,7 +819,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             terminationConditions.add(finalCheckpointCompleted);
         }
 
-        if (syncSavepointWithDrain != null) {
+        if (syncSavepoint != null) {
             terminationConditions.add(finalCheckpointCompleted);
         }
 
@@ -874,6 +866,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             LOG.debug("All pending checkpoints are finished");
         }
 
+        disableInterruptOnCancel();
+
         // make an attempt to dispose the operators such that failures in the dispose call
         // still let the computation fail
         closeAllOperators();
@@ -895,52 +889,31 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         failing = !canceled && throwable != null;
 
-        Exception suppressedException =
-                throwable == null ? null : runAndSuppressThrowable(this::cancelTask, null);
+        Exception cancelException = null;
+        if (throwable != null) {
+            try {
+                cancelTask();
+            } catch (Throwable t) {
+                cancelException = t instanceof Exception ? (Exception) t : new Exception(t);
+            }
+        }
 
+        disableInterruptOnCancel();
+
+        // note: This `.join()` is already uninterruptible, so it doesn't matter if we have already
+        // disabled the interruptions or not.
         getCompletionFuture().exceptionally(unused -> null).join();
         // clean up everything we initialized
         isRunning = false;
 
-        // Now that we are outside the user code, we do not want to be interrupted further
-        // upon cancellation. The shutdown logic below needs to make sure it does not issue calls
-        // that block and stall shutdown.
-        // Additionally, the cancellation watch dog will issue a hard-cancel (kill the TaskManager
-        // process) as a backup in case some shutdown procedure blocks outside our control.
-        disableInterruptOnCancel();
-
         // clear any previously issued interrupt for a more graceful shutdown
         Thread.interrupted();
 
-        // stop all timers and threads
-        suppressedException =
-                runAndSuppressThrowable(this::tryShutdownTimerService, suppressedException);
-
-        // stop all asynchronous checkpoint threads
-        suppressedException = runAndSuppressThrowable(cancelables::close, suppressedException);
-        suppressedException =
-                runAndSuppressThrowable(this::shutdownAsyncThreads, suppressedException);
-
-        // we must! perform this cleanup
-        suppressedException = runAndSuppressThrowable(this::cleanUpInternal, suppressedException);
-
-        // if the operators were not closed before, do a hard close
-        suppressedException = runAndSuppressThrowable(this::closeAllOperators, suppressedException);
-
-        // release the output resources. this method should never fail.
-        suppressedException =
-                runAndSuppressThrowable(this::releaseOutputResources, suppressedException);
-
-        suppressedException =
-                runAndSuppressThrowable(channelIOExecutor::shutdown, suppressedException);
-
-        suppressedException = runAndSuppressThrowable(mailboxProcessor::close, suppressedException);
-
-        if (suppressedException == null) {
-            terminationFuture.complete(null);
-        } else {
-            terminationFuture.completeExceptionally(suppressedException);
-            throw suppressedException;
+        try {
+            resourceCloser.close();
+        } catch (Throwable t) {
+            Exception e = t instanceof Exception ? (Exception) t : new Exception(t);
+            throw firstOrSuppressed(e, cancelException);
         }
     }
 
@@ -955,7 +928,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     }
 
     @Override
-    public final Future<Void> cancel() throws Exception {
+    public final void cancel() throws Exception {
         isRunning = false;
         canceled = true;
 
@@ -979,7 +952,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                                 }
                             });
         }
-        return terminationFuture;
     }
 
     public MailboxExecutorFactory getMailboxExecutorFactory() {
@@ -1013,19 +985,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             // failed to allocate operatorChain, clean up record writers
             recordWriter.close();
         }
-    }
-
-    private Exception runAndSuppressThrowable(
-            ThrowingRunnable<?> runnable, @Nullable Exception originalException) {
-        try {
-            runnable.run();
-        } catch (Throwable t) {
-            // TODO: investigate why Throwable instead of Exception is used here.
-            Exception e = t instanceof Exception ? (Exception) t : new Exception(t);
-            return firstOrSuppressed(e, originalException);
-        }
-
-        return originalException;
     }
 
     /** Closes all the operators if not closed before. */
@@ -1108,6 +1067,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     @Override
     public CompletableFuture<Boolean> triggerCheckpointAsync(
             CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
+        checkForcedFullSnapshotSupport(checkpointOptions);
 
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         mainMailboxExecutor.execute(
@@ -1214,29 +1174,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         return true;
     }
 
-    protected final CompletableFuture<Boolean> assertTriggeringCheckpointExceptions(
-            CompletableFuture<Boolean> triggerFuture, long checkpointId) {
-        CompletableFuture<Boolean> checkpointTriggered =
-                triggerFuture.exceptionally(
-                        error -> {
-                            if (ExceptionUtils.findThrowable(
-                                            error, RejectedExecutionException.class)
-                                    .isPresent()) {
-                                // This may happen if the mailbox is closed. It means that
-                                // the task is shutting down, so we just ignore it.
-                                LOG.debug(
-                                        "Triggering checkpoint {} for {} was rejected by the mailbox",
-                                        checkpointId,
-                                        getTaskNameWithSubtaskAndId());
-                                return false;
-                            } else {
-                                throw new WrappingRuntimeException(error);
-                            }
-                        });
-        FutureUtils.assertNoException(checkpointTriggered);
-        return checkpointTriggered;
-    }
-
     /**
      * Acquires the optional {@link CheckpointBarrierHandler} associated with this stream task. The
      * {@code CheckpointBarrierHandler} should exist if the task has data inputs and requires to
@@ -1255,11 +1192,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
         try {
-            if (performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics)) {
-                if (isCurrentSavepointWithoutDrain(checkpointMetaData.getCheckpointId())) {
-                    runSynchronousSavepointMailboxLoop();
-                }
-            }
+            performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics);
         } catch (CancelTaskException e) {
             LOG.info(
                     "Operator {} was cancelled while performing checkpoint {}.",
@@ -1282,10 +1215,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     @Override
     public void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause)
             throws IOException {
-        if (isCurrentSavepointWithoutDrain(checkpointId)) {
-            syncSavepointWithoutDrain = null;
-        } else if (isCurrentSavepointWithDrain(checkpointId)) {
-            throw new FlinkRuntimeException("Stop-with-savepoint --drain failed.");
+        if (isCurrentSyncSavepoint(checkpointId)) {
+            throw new FlinkRuntimeException("Stop-with-savepoint failed.");
         }
         subtaskCheckpointCoordinator.abortCheckpointOnBarrier(checkpointId, cause, operatorChain);
     }
@@ -1303,21 +1234,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 checkpointType,
                 getName());
 
-        if (checkpointType.isSynchronous()
-                && !checkpointType.shouldDrain()
-                && endOfDataReceived
-                && areCheckpointsWithFinishedTasksEnabled()) {
-            LOG.debug("Can not trigger a stop-with-savepoint w/o drain if a task is finishing.");
-            return false;
-        }
-
         if (isRunning) {
             actionExecutor.runThrowing(
                     () -> {
                         if (checkpointType.isSynchronous()) {
-                            setSynchronousSavepoint(
-                                    checkpointMetaData.getCheckpointId(),
-                                    checkpointType.shouldDrain());
+                            setSynchronousSavepoint(checkpointMetaData.getCheckpointId());
                         }
 
                         if (areCheckpointsWithFinishedTasksEnabled()
@@ -1355,6 +1276,21 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         }
     }
 
+    private void checkForcedFullSnapshotSupport(CheckpointOptions checkpointOptions) {
+        if (checkpointOptions.getCheckpointType() == CheckpointType.FULL_CHECKPOINT
+                && !stateBackend.supportsNoClaimRestoreMode()) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Configured state backend (%s) does not support enforcing a full"
+                                    + " snapshot. If you are restoring in %s mode, please"
+                                    + " consider choosing either %s or %s restore mode.",
+                            stateBackend,
+                            RestoreMode.NO_CLAIM,
+                            RestoreMode.CLAIM,
+                            RestoreMode.LEGACY));
+        }
+    }
+
     protected void declineCheckpoint(long checkpointId) {
         getEnvironment()
                 .declineCheckpoint(
@@ -1384,15 +1320,22 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                         notifyCheckpointComplete(latestCompletedCheckpointId);
                     }
 
-                    if (isCurrentSavepointWithoutDrain(checkpointId)) {
-                        syncSavepointWithoutDrain = null;
-                    } else if (isCurrentSavepointWithDrain(checkpointId)) {
-                        throw new FlinkRuntimeException("Stop-with-savepoint --drain failed.");
+                    if (isCurrentSyncSavepoint(checkpointId)) {
+                        throw new FlinkRuntimeException("Stop-with-savepoint failed.");
                     }
                     subtaskCheckpointCoordinator.notifyCheckpointAborted(
                             checkpointId, operatorChain, this::isRunning);
                 },
                 String.format("checkpoint %d aborted", checkpointId));
+    }
+
+    @Override
+    public Future<Void> notifyCheckpointSubsumedAsync(long checkpointId) {
+        return notifyCheckpointOperation(
+                () ->
+                        subtaskCheckpointCoordinator.notifyCheckpointSubsumed(
+                                checkpointId, operatorChain, this::isRunning),
+                String.format("checkpoint %d subsumed", checkpointId));
     }
 
     private Future<Void> notifyCheckpointOperation(
@@ -1426,13 +1369,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         subtaskCheckpointCoordinator.notifyCheckpointComplete(
                 checkpointId, operatorChain, this::isRunning);
         if (isRunning) {
-            if (isCurrentSavepointWithoutDrain(checkpointId)) {
-                finishTask();
-                // Reset to "notify" the internal synchronous savepoint mailbox loop.
-                syncSavepointWithoutDrain = null;
-            } else if (isCurrentSavepointWithDrain(checkpointId)) {
+            if (isCurrentSyncSavepoint(checkpointId)) {
                 finalCheckpointCompleted.complete(null);
-            } else if (syncSavepointWithDrain == null
+            } else if (syncSavepoint == null
                     && finalCheckpointMinId != null
                     && checkpointId >= finalCheckpointMinId) {
                 finalCheckpointCompleted.complete(null);
@@ -1569,14 +1508,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     // ------------------------------------------------------------------------
 
     /** Utility class to encapsulate the handling of asynchronous exceptions. */
-    static class StreamTaskAsyncExceptionHandler {
+    static class StreamTaskAsyncExceptionHandler implements AsyncExceptionHandler {
         private final Environment environment;
 
         StreamTaskAsyncExceptionHandler(Environment environment) {
             this.environment = environment;
         }
 
-        void handleAsyncException(String message, Throwable exception) {
+        @Override
+        public void handleAsyncException(String message, Throwable exception) {
             environment.failExternally(new AsynchronousException(message, exception));
         }
     }
@@ -1619,7 +1559,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             edge,
                             i,
                             environment,
-                            environment.getTaskInfo().getTaskName(),
+                            environment.getTaskInfo().getTaskNameWithSubtasks(),
                             edge.getBufferTimeout()));
         }
         return recordWriters;
@@ -1630,7 +1570,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             StreamEdge edge,
             int outputIndex,
             Environment environment,
-            String taskName,
+            String taskNameWithSubtask,
             long bufferTimeout) {
 
         StreamPartitioner<OUT> outputPartitioner = null;
@@ -1650,7 +1590,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 "Using partitioner {} for output {} of task {}",
                 outputPartitioner,
                 outputIndex,
-                taskName);
+                taskNameWithSubtask);
 
         ResultPartitionWriter bufferWriter = environment.getWriter(outputIndex);
 
@@ -1666,7 +1606,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 new RecordWriterBuilder<SerializationDelegate<StreamRecord<OUT>>>()
                         .setChannelSelector(outputPartitioner)
                         .setTimeout(bufferTimeout)
-                        .setTaskName(taskName)
+                        .setTaskName(taskNameWithSubtask)
                         .build(bufferWriter);
         output.setMetricGroup(environment.getMetricGroup().getIOMetricGroup());
         return output;
@@ -1702,48 +1642,22 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     private static class ResumeWrapper implements Runnable {
         private final Suspension suspendedDefaultAction;
-        private final PeriodTimer timer;
+        @Nullable private final PeriodTimer timer;
 
-        public ResumeWrapper(Suspension suspendedDefaultAction, PeriodTimer timer) {
+        public ResumeWrapper(Suspension suspendedDefaultAction, @Nullable PeriodTimer timer) {
             this.suspendedDefaultAction = suspendedDefaultAction;
-            timer.markStart();
+            if (timer != null) {
+                timer.markStart();
+            }
             this.timer = timer;
         }
 
         @Override
         public void run() {
-            timer.markEnd();
+            if (timer != null) {
+                timer.markEnd();
+            }
             suspendedDefaultAction.resume();
-        }
-    }
-
-    /**
-     * Implementation of {@link org.apache.flink.streaming.runtime.tasks.mailbox.PeriodTimer} which
-     * combine signal for metric and the throughput.
-     */
-    private static class ThroughputPeriodTimer implements PeriodTimer {
-        private final Clock clock = SystemClock.getInstance();
-        private final TimerGauge idleTimerGauge;
-        private final ThroughputCalculator throughputCalculator;
-
-        private ThroughputPeriodTimer(
-                TimerGauge idleTimerGauge, ThroughputCalculator throughputCalculator) {
-            this.idleTimerGauge = idleTimerGauge;
-            this.throughputCalculator = throughputCalculator;
-        }
-
-        @Override
-        public void markStart() {
-            long absoluteTimeMillis = clock.absoluteTimeMillis();
-            idleTimerGauge.markStart(absoluteTimeMillis);
-            throughputCalculator.pauseMeasurement(absoluteTimeMillis);
-        }
-
-        @Override
-        public void markEnd() {
-            long absoluteTimeMillis = clock.absoluteTimeMillis();
-            idleTimerGauge.markEnd(absoluteTimeMillis);
-            throughputCalculator.resumeMeasurement(absoluteTimeMillis);
         }
     }
 
@@ -1752,6 +1666,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         return true;
     }
 
+    /**
+     * While we are outside the user code, we do not want to be interrupted further upon
+     * cancellation. The shutdown logic below needs to make sure it does not issue calls that block
+     * and stall shutdown. Additionally, the cancellation watch dog will issue a hard-cancel (kill
+     * the TaskManager process) as a backup in case some shutdown procedure blocks outside our
+     * control.
+     */
     private void disableInterruptOnCancel() {
         synchronized (shouldInterruptOnCancelLock) {
             shouldInterruptOnCancel = false;

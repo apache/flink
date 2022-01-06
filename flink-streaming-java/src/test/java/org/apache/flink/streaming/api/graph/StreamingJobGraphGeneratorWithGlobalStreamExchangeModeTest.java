@@ -52,8 +52,8 @@ public class StreamingJobGraphGeneratorWithGlobalStreamExchangeModeTest extends 
 
     @Test
     public void testAllEdgesBlockingMode() {
-        final StreamGraph streamGraph = createStreamGraph();
-        streamGraph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING);
+        final StreamGraph streamGraph =
+                createStreamGraph(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING);
         final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 
         final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
@@ -96,8 +96,8 @@ public class StreamingJobGraphGeneratorWithGlobalStreamExchangeModeTest extends 
 
     @Test
     public void testForwardEdgesPipelinedMode() {
-        final StreamGraph streamGraph = createStreamGraph();
-        streamGraph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.FORWARD_EDGES_PIPELINED);
+        final StreamGraph streamGraph =
+                createStreamGraph(GlobalStreamExchangeMode.FORWARD_EDGES_PIPELINED);
         final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 
         final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
@@ -118,8 +118,8 @@ public class StreamingJobGraphGeneratorWithGlobalStreamExchangeModeTest extends 
 
     @Test
     public void testPointwiseEdgesPipelinedMode() {
-        final StreamGraph streamGraph = createStreamGraph();
-        streamGraph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.POINTWISE_EDGES_PIPELINED);
+        final StreamGraph streamGraph =
+                createStreamGraph(GlobalStreamExchangeMode.POINTWISE_EDGES_PIPELINED);
         final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 
         final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
@@ -168,7 +168,19 @@ public class StreamingJobGraphGeneratorWithGlobalStreamExchangeModeTest extends 
      * map2(parallelism=2) --(rebalance)--> sink(parallelism=2).
      */
     private static StreamGraph createStreamGraph() {
+        return createStreamGraph(GlobalStreamExchangeMode.ALL_EDGES_PIPELINED);
+    }
+
+    /**
+     * Topology: source(parallelism=1) --(forward)--> map1(parallelism=1) --(rescale)-->
+     * map2(parallelism=2) --(rebalance)--> sink(parallelism=2).
+     */
+    private static StreamGraph createStreamGraph(
+            GlobalStreamExchangeMode globalStreamExchangeMode) {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        if (globalStreamExchangeMode != GlobalStreamExchangeMode.ALL_EDGES_PIPELINED) {
+            env.setBufferTimeout(-1);
+        }
 
         final DataStream<Integer> source = env.fromElements(1, 2, 3).setParallelism(1);
 
@@ -192,6 +204,8 @@ public class StreamingJobGraphGeneratorWithGlobalStreamExchangeModeTest extends 
 
         map2.rebalance().print().setParallelism(2);
 
-        return env.getStreamGraph();
+        final StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setGlobalStreamExchangeMode(globalStreamExchangeMode);
+        return streamGraph;
     }
 }

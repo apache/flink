@@ -47,8 +47,8 @@ import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.EvictingBoundedList;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
@@ -96,7 +96,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final ExecutionGraphInfo executionGraphInfo =
                 new ExecutionGraphInfo(new ArchivedExecutionGraphBuilder().build());
 
-        final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> request =
+        final HandlerRequest<EmptyRequestBody> request =
                 createRequest(executionGraphInfo.getJobId(), 10);
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
@@ -115,7 +115,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
 
         final ExecutionGraphInfo executionGraphInfo =
                 createExecutionGraphInfo(fromGlobalFailure(rootCause, rootCauseTimestamp));
-        final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> request =
+        final HandlerRequest<EmptyRequestBody> request =
                 createRequest(executionGraphInfo.getJobId(), 10);
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
@@ -144,7 +144,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
 
         final ExecutionGraphInfo executionGraphInfo =
                 createExecutionGraphInfo(rootCause, otherFailure);
-        final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> request =
+        final HandlerRequest<EmptyRequestBody> request =
                 createRequest(executionGraphInfo.getJobId(), 10);
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
@@ -175,7 +175,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
                         Collections.emptySet());
 
         final ExecutionGraphInfo executionGraphInfo = createExecutionGraphInfo(failure);
-        final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> request =
+        final HandlerRequest<EmptyRequestBody> request =
                 createRequest(executionGraphInfo.getJobId(), 10);
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
@@ -205,7 +205,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
 
         final ExecutionGraphInfo executionGraphInfo =
                 createExecutionGraphInfo(rootCause, otherFailure);
-        final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> request =
+        final HandlerRequest<EmptyRequestBody> request =
                 createRequest(executionGraphInfo.getJobId(), 1);
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
@@ -271,7 +271,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
             int maxNumExceptions,
             int numExpectedException)
             throws HandlerRequestException {
-        final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> handlerRequest =
+        final HandlerRequest<EmptyRequestBody> handlerRequest =
                 createRequest(graph.getJobId(), numExpectedException);
         final JobExceptionsInfo jobExceptionsInfo =
                 jobExceptionsHandler.handleRequest(handlerRequest, graph);
@@ -370,18 +370,19 @@ public class JobExceptionsHandlerTest extends TestLogger {
         return new ExecutionGraphInfo(executionGraphBuilder.build(), historyEntryCollection);
     }
 
-    private static HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> createRequest(
-            JobID jobId, int size) throws HandlerRequestException {
+    private static HandlerRequest<EmptyRequestBody> createRequest(JobID jobId, int size)
+            throws HandlerRequestException {
         final Map<String, String> pathParameters = new HashMap<>();
         pathParameters.put(JobIDPathParameter.KEY, jobId.toString());
         final Map<String, List<String>> queryParameters = new HashMap<>();
         queryParameters.put(UpperLimitExceptionParameter.KEY, Collections.singletonList("" + size));
 
-        return new HandlerRequest<>(
+        return HandlerRequest.resolveParametersAndCreate(
                 EmptyRequestBody.getInstance(),
                 new JobExceptionsMessageParameters(),
                 pathParameters,
-                queryParameters);
+                queryParameters,
+                Collections.emptyList());
     }
 
     private static RootExceptionHistoryEntry fromGlobalFailure(Throwable cause, long timestamp) {

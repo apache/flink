@@ -18,11 +18,6 @@
 
 package org.apache.flink.table.planner.plan.stream.sql.join
 
-import _root_.java.lang.{Boolean => JBoolean}
-import _root_.java.sql.Timestamp
-import _root_.java.util
-import _root_.java.util.{ArrayList => JArrayList, Collection => JCollection, HashMap => JHashMap, List => JList, Map => JMap}
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
@@ -40,10 +35,16 @@ import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.sources._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
+
 import org.junit.Assert.{assertThat, assertTrue, fail}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Assume, Before, Test}
+
+import _root_.java.lang.{Boolean => JBoolean}
+import _root_.java.sql.Timestamp
+import _root_.java.util
+import _root_.java.util.{ArrayList => JArrayList, Collection => JCollection, HashMap => JHashMap, List => JList, Map => JMap}
 
 import _root_.scala.collection.JavaConversions._
 
@@ -257,7 +258,9 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
   def testJoinOnDifferentKeyTypes(): Unit = {
     // Will do implicit type coercion.
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("VARCHAR(2147483647) and INTEGER does not have common type now")
+    thrown.expectMessage(
+      "implicit type conversion between VARCHAR(2147483647) and INTEGER " +
+        "is not supported on join's condition now")
     util.verifyExecPlan("SELECT * FROM MyTable AS T JOIN LookupTable "
       + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id")
   }
@@ -522,7 +525,21 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     verifyTranslationSuccess(sql)
   }
 
-  // ==========================================================================================
+  @Test
+  def testJoinTemporalTableWithCTE(): Unit = {
+    val sql =
+      """
+        |WITH MyLookupTable AS (SELECT * FROM MyTable),
+        |OtherLookupTable AS (SELECT * FROM LookupTable)
+        |SELECT MyLookupTable.b FROM MyLookupTable
+        |JOIN OtherLookupTable FOR SYSTEM_TIME AS OF MyLookupTable.proctime AS D
+        |ON MyLookupTable.a = D.id AND D.age = 10
+      """.stripMargin
+
+    util.verifyExecPlan(sql)
+  }
+
+    // ==========================================================================================
 
   private def createLookupTable(tableName: String, lookupFunction: UserDefinedFunction): Unit = {
     if (legacyTableSource) {

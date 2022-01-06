@@ -54,8 +54,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 
 /**
  * DataSourceTask which is executed by a task manager. The task reads data and uses an {@link
@@ -86,8 +84,6 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 
     // cancel flag
     private volatile boolean taskCanceled = false;
-
-    private final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
 
     /**
      * Create an Invokable task and set its environment.
@@ -255,7 +251,6 @@ public class DataSourceTask<OT> extends AbstractInvokable {
                 ((RichInputFormat) this.format).closeInputFormat();
                 LOG.debug(getLogString("Rich Source detected. Closing the InputFormat."));
             }
-            terminationFuture.complete(null);
         }
 
         if (!this.taskCanceled) {
@@ -266,10 +261,9 @@ public class DataSourceTask<OT> extends AbstractInvokable {
     }
 
     @Override
-    public Future<Void> cancel() throws Exception {
+    public void cancel() throws Exception {
         this.taskCanceled = true;
         LOG.debug(getLogString("Cancelling data source operator"));
-        return terminationFuture;
     }
 
     /**

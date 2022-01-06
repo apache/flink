@@ -22,26 +22,27 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
-import org.apache.flink.table.api.{TableDescriptor, _}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.api.{TableDescriptor, _}
 import org.apache.flink.table.data.{GenericRowData, MapData, RowData}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.runtime.typeutils.MapDataSerializerTest.CustomMapData
-import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
+import org.apache.flink.table.types.logical.{BigIntType, BooleanType, IntType, VarCharType}
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
 
-import java.util
 import org.junit.Assert._
 import org.junit._
 
 import java.time.Instant
+import java.util
+
 import scala.collection.JavaConversions._
 import scala.collection.Seq
 
@@ -49,6 +50,51 @@ class CalcITCase extends StreamingTestBase {
 
   @Rule
   def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+
+  @Test
+  def testCastNumericToBooleanInCondition(): Unit ={
+    val sqlQuery =
+      s"""
+         | SELECT * FROM MyTableRow WHERE b = CAST(1 AS BOOLEAN)
+         | UNION ALL
+         | SELECT * FROM MyTableRow WHERE b = CAST(0 AS BOOLEAN)
+         |""".stripMargin
+
+    val rowData1: GenericRowData = new GenericRowData(2)
+    rowData1.setField(0, 1)
+    rowData1.setField(1, true)
+
+    val rowData2: GenericRowData = new GenericRowData(2)
+    rowData2.setField(0, 2)
+    rowData2.setField(1, false)
+
+    val data = List(rowData1,rowData2)
+
+    implicit val dataType: TypeInformation[GenericRowData] =
+      InternalTypeInfo.ofFields(
+        new IntType(),
+        new BooleanType()).asInstanceOf[TypeInformation[GenericRowData]]
+
+    val ds = env.fromCollection(data)
+
+    val t = ds.toTable(tEnv, 'a, 'b)
+    tEnv.registerTable("MyTableRow", t)
+
+    val outputType = InternalTypeInfo.ofFields(
+      new IntType(),
+      new BooleanType())
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
+    val sink = new TestingAppendRowDataSink(outputType)
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "+I(1,true)",
+      "+I(2,false)"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
 
   @Test
   def testGenericRowAndRowData(): Unit = {
@@ -106,8 +152,8 @@ class CalcITCase extends StreamingTestBase {
     tEnv.registerTable("MyTableRow", t)
 
     val outputType = InternalTypeInfo.ofFields(
-      new VarCharType(VarCharType.MAX_LENGTH),
-      new VarCharType(VarCharType.MAX_LENGTH),
+      VarCharType.STRING_TYPE,
+      VarCharType.STRING_TYPE,
       new IntType())
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
@@ -546,5 +592,33 @@ class CalcITCase extends StreamingTestBase {
 
     val result = tEnv.sqlQuery("SELECT * FROM T").execute().collect().toList
     TestBaseUtils.compareResultAsText(result, "42")
+  }
+
+  @Test
+  def testSearch(): Unit = {
+    val stream = env.fromElements("HC809", "H389N     ")
+    tEnv.createTemporaryView(
+      "SimpleTable", stream, Schema.newBuilder().column("f0", DataTypes.STRING()).build())
+
+    val sql =
+      """
+        |SELECT upper(f0) from SimpleTable where upper(f0) in (
+        |'CTNBSmokeSensor',
+        |'H388N',
+        |'H389N     ',
+        |'GHL-IRD',
+        |'JY-BF-20YN',
+        |'HC809',
+        |'DH-9908N-AEP',
+        |'DH-9908N'
+        |)
+        |""".stripMargin
+    val result = tEnv.sqlQuery(sql).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+    val expected =
+      List("HC809", "H389N     ")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 }

@@ -191,8 +191,8 @@ public class TaskStateManagerImplTest extends TestLogger {
     }
 
     /**
-     * This tests if the {@link TaskStateManager} properly returns the the subtask local state dir
-     * from the corresponding {@link TaskLocalStateStoreImpl}.
+     * This tests if the {@link TaskStateManager} properly returns the subtask local state dir from
+     * the corresponding {@link TaskLocalStateStoreImpl}.
      */
     @Test
     public void testForwardingSubtaskLocalStateBaseDirFromLocalStateStore() throws IOException {
@@ -281,7 +281,7 @@ public class TaskStateManagerImplTest extends TestLogger {
                         null,
                         jobManagerTaskRestore,
                         new TestCheckpointResponder());
-        Assert.assertTrue(stateManager.isFinishedOnRestore());
+        Assert.assertTrue(stateManager.isTaskDeployedAsFinished());
     }
 
     public void testAcquringRestoreCheckpointId() {

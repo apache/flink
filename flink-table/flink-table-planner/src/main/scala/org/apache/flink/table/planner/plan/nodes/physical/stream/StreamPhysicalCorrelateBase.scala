@@ -65,7 +65,10 @@ abstract class StreamPhysicalCorrelateBase(
     super.explainTerms(pw)
       .item("invocation", scan.getCall)
       .item("correlate", RelExplainUtil.correlateToString(
-        inputRel.getRowType, rexCall, getExpressionString))
+        inputRel.getRowType,
+        rexCall,
+        getExpressionString,
+        convertToExpressionDetail(pw.getDetailLevel)))
       .item("select", outputRowType.getFieldNames.mkString(","))
       .item("rowType", outputRowType)
       .item("joinType", joinType)

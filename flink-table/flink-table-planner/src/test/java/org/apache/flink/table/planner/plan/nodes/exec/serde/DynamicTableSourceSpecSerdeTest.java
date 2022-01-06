@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -91,6 +92,7 @@ public class DynamicTableSourceSpecSerdeTest {
                         new FlinkContextImpl(
                                 false,
                                 TableConfig.getDefault(),
+                                new ModuleManager(),
                                 null,
                                 CatalogManagerMocks.createEmptyCatalogManager(),
                                 null),
@@ -119,7 +121,8 @@ public class DynamicTableSourceSpecSerdeTest {
         TableEnvironmentImpl tableEnv =
                 (TableEnvironmentImpl)
                         TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-        assertNotNull(actual.getScanTableSource((PlannerBase) tableEnv.getPlanner()));
+        assertNotNull(
+                actual.getScanTableSource(((PlannerBase) tableEnv.getPlanner()).getFlinkContext()));
     }
 
     @Parameterized.Parameters(name = "{0}")

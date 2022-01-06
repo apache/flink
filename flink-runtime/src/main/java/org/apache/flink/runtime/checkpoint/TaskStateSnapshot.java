@@ -63,16 +63,16 @@ public class TaskStateSnapshot implements CompositeStateHandle {
     /** Mapping from an operator id to the state of one subtask of this operator. */
     private final Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID;
 
-    private final boolean isFinishedOnRestore;
+    private final boolean isTaskDeployedAsFinished;
 
-    private final boolean isOperatorsFinished;
+    private final boolean isTaskFinished;
 
     public TaskStateSnapshot() {
         this(10, false);
     }
 
-    public TaskStateSnapshot(int size, boolean isOperatorsFinished) {
-        this(new HashMap<>(size), false, isOperatorsFinished);
+    public TaskStateSnapshot(int size, boolean isTaskFinished) {
+        this(new HashMap<>(size), false, isTaskFinished);
     }
 
     public TaskStateSnapshot(Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID) {
@@ -81,21 +81,21 @@ public class TaskStateSnapshot implements CompositeStateHandle {
 
     private TaskStateSnapshot(
             Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID,
-            boolean isFinishedOnRestore,
-            boolean isOperatorsFinished) {
+            boolean isTaskDeployedAsFinished,
+            boolean isTaskFinished) {
         this.subtaskStatesByOperatorID = Preconditions.checkNotNull(subtaskStatesByOperatorID);
-        this.isFinishedOnRestore = isFinishedOnRestore;
-        this.isOperatorsFinished = isOperatorsFinished;
+        this.isTaskDeployedAsFinished = isTaskDeployedAsFinished;
+        this.isTaskFinished = isTaskFinished;
     }
 
     /** Returns whether all the operators of the task are already finished on restoring. */
-    public boolean isFinishedOnRestore() {
-        return isFinishedOnRestore;
+    public boolean isTaskDeployedAsFinished() {
+        return isTaskDeployedAsFinished;
     }
 
     /** Returns whether all the operators of the task have called finished methods. */
-    public boolean isOperatorsFinished() {
-        return isOperatorsFinished;
+    public boolean isTaskFinished() {
+        return isTaskFinished;
     }
 
     /** Returns the subtask state for the given operator id (or null if not contained). */
@@ -129,7 +129,7 @@ public class TaskStateSnapshot implements CompositeStateHandle {
                 return true;
             }
         }
-        return isFinishedOnRestore;
+        return isTaskDeployedAsFinished;
     }
 
     /**
@@ -167,10 +167,10 @@ public class TaskStateSnapshot implements CompositeStateHandle {
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry stateRegistry) {
+    public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
         for (OperatorSubtaskState operatorSubtaskState : subtaskStatesByOperatorID.values()) {
             if (operatorSubtaskState != null) {
-                operatorSubtaskState.registerSharedStates(stateRegistry);
+                operatorSubtaskState.registerSharedStates(stateRegistry, checkpointID);
             }
         }
     }
@@ -187,13 +187,13 @@ public class TaskStateSnapshot implements CompositeStateHandle {
         TaskStateSnapshot that = (TaskStateSnapshot) o;
 
         return subtaskStatesByOperatorID.equals(that.subtaskStatesByOperatorID)
-                && isFinishedOnRestore == that.isFinishedOnRestore
-                && isOperatorsFinished == that.isOperatorsFinished;
+                && isTaskDeployedAsFinished == that.isTaskDeployedAsFinished
+                && isTaskFinished == that.isTaskFinished;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(subtaskStatesByOperatorID, isFinishedOnRestore, isOperatorsFinished);
+        return Objects.hash(subtaskStatesByOperatorID, isTaskDeployedAsFinished, isTaskFinished);
     }
 
     @Override
@@ -201,10 +201,10 @@ public class TaskStateSnapshot implements CompositeStateHandle {
         return "TaskOperatorSubtaskStates{"
                 + "subtaskStatesByOperatorID="
                 + subtaskStatesByOperatorID
-                + ", isFinished="
-                + isFinishedOnRestore
-                + ", isOperatorsFinished="
-                + isOperatorsFinished
+                + ", isTaskDeployedAsFinished="
+                + isTaskDeployedAsFinished
+                + ", isTaskFinished="
+                + isTaskFinished
                 + '}';
     }
 

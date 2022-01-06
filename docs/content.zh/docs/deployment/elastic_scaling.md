@@ -127,7 +127,7 @@ Adaptive 调度器可以基于现有的 Slot 调整 Job 的并行度。它会在
 你也可以不使用 Reactive 模式而仅使用 Adaptive 调度器，但这种情况会有如下的局限性：
 - 如果你在 Session 集群上使用 Adaptive 调度器，在这个集群中运行的多个 Job，他们间 Slot 的分布是无法保证的。
 
-相比默认的调度器，Adaptive 调度器其中一个优势在于，它能够优雅地处理 TaskManger 丢失所造成的问题，因为对它来说就仅仅是缩容。
+相比默认的调度器，Adaptive 调度器其中一个优势在于，它能够优雅地处理 TaskManager 丢失所造成的问题，因为对它来说就仅仅是缩容。
 
 ### 用法
 
@@ -146,7 +146,6 @@ Adaptive 调度器可以通过[所有在名字包含 `adaptive-scheduler` 的配
 - **不支持[本地恢复]({{< ref "docs/ops/state/large_state_tuning">}}#task-local-recovery)**：本地恢复是将 Task 调度到状态尽可能的被重用的机器上的功能。不支持这个功能意味着 Adaptive 调度器需要每次从 Checkpoint 的存储中下载整个 State。
 - **不支持部分故障恢复**: 部分故障恢复意味着调度器可以只重启失败 Job 其中某一部分（在 Flink 的内部结构中被称之为 Region）而不是重启整个 Job。这个限制只会影响那些独立并行（Embarrassingly Parallel）Job的恢复时长，默认的调度器可以重启失败的部分，然而 Adaptive 将需要重启整个 Job。
 - **与 Flink Web UI 的集成受限**: Adaptive 调度器会在 Job 的生命周期中改变它的并行度。Web UI 上只显示 Job 当前的并行度。
-- **Job 的指标受限**: 除了 `numRestarts` 外，`Job` 作用域下所有的 [可用性]({{< ref "docs/ops/metrics" >}}#availability) 和 [Checkpoint]({{< ref "docs/ops/metrics" >}}#checkpointing) 指标都不准确。
 - **空闲 Slot**: 如果 Slot 共享组的最大并行度不相等，提供给 Adaptive 调度器所使用的的 Slot 可能不会被使用。
 - 扩缩容事件会触发 Job 和 Task 重启，Task 重试的次数也会增加。
 

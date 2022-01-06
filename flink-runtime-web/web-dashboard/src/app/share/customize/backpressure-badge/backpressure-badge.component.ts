@@ -16,9 +16,14 @@
  * limitations under the License.
  */
 
-import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 
-import { SafeAny } from 'interfaces';
+const colorMap: Record<string, string> = {
+  'in-progress': '#f5222d',
+  ok: '#52c41a',
+  low: '#faad14',
+  high: '#f5222d'
+};
 
 @Component({
   selector: 'flink-backpressure-badge',
@@ -27,11 +32,9 @@ import { SafeAny } from 'interfaces';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BackpressureBadgeComponent {
-  @Input() state: SafeAny;
-  colorMap: SafeAny = {
-    'in-progress': '#f5222d',
-    ok: '#52c41a',
-    low: '#faad14',
-    high: '#f5222d'
-  };
+  @Input() public state: string;
+
+  public get backgroundColor(): string {
+    return colorMap[this.state?.toLowerCase()];
+  }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.concurrent.Executors;
 
@@ -47,12 +48,12 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
     /** Tests that shutdown discards all checkpoints. */
     @Test
     public void testShutdownDiscardsCheckpoints() throws Exception {
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CompletedCheckpointStore store = createRecoveredCompletedCheckpointStore(1);
         TestCompletedCheckpoint checkpoint = createCheckpoint(0, sharedStateRegistry);
         Collection<OperatorState> operatorStates = checkpoint.getOperatorStates().values();
 
-        store.addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {});
+        store.addCheckpointAndSubsumeOldestOne(checkpoint, new CheckpointsCleaner(), () -> {});
         assertEquals(1, store.getNumberOfRetainedCheckpoints());
         verifyCheckpointRegistered(operatorStates, sharedStateRegistry);
 
@@ -68,12 +69,12 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
      */
     @Test
     public void testSuspendDiscardsCheckpoints() throws Exception {
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CompletedCheckpointStore store = createRecoveredCompletedCheckpointStore(1);
         TestCompletedCheckpoint checkpoint = createCheckpoint(0, sharedStateRegistry);
         Collection<OperatorState> taskStates = checkpoint.getOperatorStates().values();
 
-        store.addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {});
+        store.addCheckpointAndSubsumeOldestOne(checkpoint, new CheckpointsCleaner(), () -> {});
         assertEquals(1, store.getNumberOfRetainedCheckpoints());
         verifyCheckpointRegistered(taskStates, sharedStateRegistry);
 
@@ -114,7 +115,8 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
                         }
                     };
             // should fail despite the exception
-            store.addCheckpoint(checkpointToAdd, new CheckpointsCleaner(), () -> {});
+            store.addCheckpointAndSubsumeOldestOne(
+                    checkpointToAdd, new CheckpointsCleaner(), () -> {});
         }
         discardAttempted.await();
     }

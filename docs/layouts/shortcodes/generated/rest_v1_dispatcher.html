@@ -869,6 +869,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "string"
       }
     },
+    "restoreMode" : {
+      "type" : "string",
+      "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
+    },
     "savepointPath" : {
       "type" : "string"
     }
@@ -1028,6 +1032,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:LogInfo",
         "properties" : {
+          "mtime" : {
+            "type" : "integer"
+          },
           "name" : {
             "type" : "string"
           },
@@ -2202,6 +2209,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "checkpoint_storage" : {
       "type" : "string"
     },
+    "checkpoints_after_tasks_finish" : {
+      "type" : "boolean"
+    },
     "externalization" : {
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointConfigInfo:ExternalizedCheckpointInfo",
@@ -3257,6 +3267,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "target-directory" : {
       "type" : "string"
+    },
+    "triggerId" : {
+      "type" : "any"
     }
   }
 }            </code>
@@ -3429,6 +3442,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "targetDirectory" : {
       "type" : "string"
+    },
+    "triggerId" : {
+      "type" : "any"
     }
   }
 }            </code>
@@ -5720,6 +5736,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:LogInfo",
         "properties" : {
+          "mtime" : {
+            "type" : "integer"
+          },
           "name" : {
             "type" : "string"
           },

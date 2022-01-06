@@ -289,7 +289,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 
         Preconditions.checkArgument(requestedIndex < numberSlots);
 
-        // The negative requestIndex indicate that the SlotManger allocate a dynamic slot, we
+        // The negative requestIndex indicate that the SlotManager allocate a dynamic slot, we
         // transfer the index to an increasing number not less than the numberSlots.
         int index = requestedIndex < 0 ? nextDynamicSlotIndex() : requestedIndex;
         ResourceProfile effectiveResourceProfile =

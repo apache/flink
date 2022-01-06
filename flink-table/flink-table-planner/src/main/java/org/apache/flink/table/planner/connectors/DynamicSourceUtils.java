@@ -262,7 +262,7 @@ public final class DynamicSourceUtils {
         relBuilder.watermark(rowtimeColumnIdx, watermarkRexNode);
     }
 
-    /** Creates a projection that adds computed columns and finalizes the the table schema. */
+    /** Creates a projection that adds computed columns and finalizes the table schema. */
     private static void pushGeneratedProjection(FlinkRelBuilder relBuilder, ResolvedSchema schema) {
         final ExpressionConverter converter = new ExpressionConverter(relBuilder);
         final List<RexNode> projection =

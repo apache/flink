@@ -32,7 +32,7 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let watermark of listOfWaterMark; trackBy: trackWatermarkBy">
+    <tr *ngFor="let watermark of listOfWaterMark; trackBy: trackBySubtaskIndex">
       <td>{{ watermark.subTaskIndex }}</td>
       <td>{{ watermark.watermark | humanizeWatermark }}</td>
     </tr>

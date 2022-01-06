@@ -1075,8 +1075,9 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.executeSql(createViewDDL)
     expectedEx.expect(classOf[TableException])
     expectedEx.expectMessage(
-      "SHOW CREATE TABLE does not support showing CREATE VIEW statement with " +
-        "identifier `default_catalog`.`default_database`.`tmp`.")
+      "SHOW CREATE TABLE is only supported for tables, " +
+        "but `default_catalog`.`default_database`.`tmp` is a view. " +
+        "Please use SHOW CREATE VIEW instead.")
     tableEnv.executeSql("SHOW CREATE TABLE `tmp`")
   }
 

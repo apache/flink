@@ -219,7 +219,7 @@ This feature is not yet supported in Python
 ### WindowAll
 #### DataStream &rarr; AllWindowedStream
 
-Windows can be defined on regular DataStreams. Windows group all the stream events according to some characteristic (e.g., the data that arrived within the last 5 seconds). See [windows](windows.html) for a complete description of windows.
+Windows can be defined on regular DataStreams. Windows group all the stream events according to some characteristic (e.g., the data that arrived within the last 5 seconds). See [windows]({{< ref "docs/dev/datastream/operators/windows" >}}) for a complete description of windows.
 
 {{< hint warning >}}
 This is in many cases a non-parallel transformation. All records will be gathered in one task for the windowAll operator.

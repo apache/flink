@@ -30,7 +30,6 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.expressions.SqlAggFunctionVisitor;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.calcite.rel.RelFieldCollation;
@@ -112,10 +111,8 @@ public class OverConvertRule implements CallExpressionConvertRule {
             // assemble bounds
             Expression preceding = children.get(2);
             boolean isPhysical =
-                    LogicalTypeChecks.hasRoot(
-                            fromDataTypeToLogicalType(
-                                    ((ResolvedExpression) preceding).getOutputDataType()),
-                            LogicalTypeRoot.BIGINT);
+                    fromDataTypeToLogicalType(((ResolvedExpression) preceding).getOutputDataType())
+                            .is(LogicalTypeRoot.BIGINT);
             Expression following = children.get(3);
             RexWindowBound lowerBound = createBound(context, preceding, SqlKind.PRECEDING);
             RexWindowBound upperBound = createBound(context, following, SqlKind.FOLLOWING);

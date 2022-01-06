@@ -33,9 +33,53 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<glue.schema.registry.version>1.1.2</glue.schema.registry.version>
-		<aws.sdkv2.version>2.16.92</aws.sdkv2.version>
+		<glue.schema.registry.version>1.1.5</glue.schema.registry.version>
+		<aws.sdkv2.version>2.17.52</aws.sdkv2.version>
+		<netty.version>4.1.68.Final</netty.version>
+		<kotlin.version>1.3.50</kotlin.version>
+		<classgraph.version>4.8.120</classgraph.version>
 	</properties>
+
+	<!-- ============================= -->
+	<!-- DEPENDENCY MANAGEMENT -->
+	<!-- ============================= -->
+	<dependencyManagement>
+		<dependencies>
+			<!-- dependencies to solve enforcer check issue -->
+			<!-- can be removed once new version of Glue Schema Registry releases -->
+
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-handler</artifactId>
+				<version>${netty.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-codec-http</artifactId>
+				<version>${netty.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib-common</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>io.github.classgraph</groupId>
+				<artifactId>classgraph</artifactId>
+				<version>${classgraph.version}</version>
+			</dependency>
+
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 		<!-- core dependencies -->
@@ -49,7 +93,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -76,6 +120,13 @@ under the License.
 			<groupId>com.kjetland</groupId>
 			<artifactId>mbknor-jackson-jsonschema_${scala.binary.version}</artifactId>
 			<version>1.0.39</version>
+			<exclusions>
+				<!-- Testcontainers dependency includes a newer version -->
+				<exclusion>
+					<groupId>org.jetbrains</groupId>
+					<artifactId>annotations</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>

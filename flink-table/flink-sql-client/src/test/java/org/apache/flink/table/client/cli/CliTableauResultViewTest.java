@@ -29,6 +29,11 @@ import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.data.conversion.DataStructureConverters;
+import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
+import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
@@ -41,12 +46,13 @@ import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Duration;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
@@ -59,8 +65,9 @@ public class CliTableauResultViewTest {
     private ByteArrayOutputStream terminalOutput;
     private Terminal terminal;
     private ResolvedSchema schema;
-    private List<Row> data;
-    private List<Row> streamingData;
+    private List<RowData> data;
+    private List<RowData> streamingData;
+    private RowDataToStringConverter rowDataToStringConverter;
 
     @Before
     public void setUp() {
@@ -74,89 +81,88 @@ public class CliTableauResultViewTest {
                         Column.physical("bigint", DataTypes.BIGINT()),
                         Column.physical("varchar", DataTypes.STRING()),
                         Column.physical("decimal(10, 5)", DataTypes.DECIMAL(10, 5)),
-                        Column.physical("timestamp", DataTypes.TIMESTAMP(6)));
+                        Column.physical(
+                                "timestamp", DataTypes.TIMESTAMP(6).bridgedTo(Timestamp.class)));
+        rowDataToStringConverter = new RowDataToStringConverterImpl(schema.toPhysicalRowDataType());
 
-        data = new ArrayList<>();
-        data.add(
-                Row.ofKind(
-                        RowKind.INSERT,
-                        null,
-                        1,
-                        2,
-                        "abc",
-                        BigDecimal.valueOf(1.23),
-                        Timestamp.valueOf("2020-03-01 18:39:14")));
-        data.add(
-                Row.ofKind(
-                        RowKind.UPDATE_BEFORE,
-                        false,
-                        null,
-                        0,
-                        "",
-                        BigDecimal.valueOf(1),
-                        Timestamp.valueOf("2020-03-01 18:39:14.1")));
-        data.add(
-                Row.ofKind(
-                        RowKind.UPDATE_AFTER,
-                        true,
-                        Integer.MAX_VALUE,
-                        null,
-                        "abcdefg",
-                        BigDecimal.valueOf(1234567890),
-                        Timestamp.valueOf("2020-03-01 18:39:14.12")));
-        data.add(
-                Row.ofKind(
-                        RowKind.DELETE,
-                        false,
-                        Integer.MIN_VALUE,
-                        Long.MAX_VALUE,
-                        null,
-                        BigDecimal.valueOf(12345.06789),
-                        Timestamp.valueOf("2020-03-01 18:39:14.123")));
-        data.add(
-                Row.ofKind(
-                        RowKind.INSERT,
-                        true,
-                        100,
-                        Long.MIN_VALUE,
-                        "abcdefg111",
-                        null,
-                        Timestamp.valueOf("2020-03-01 18:39:14.123456")));
-        data.add(
-                Row.ofKind(
-                        RowKind.DELETE,
-                        null,
-                        -1,
-                        -1,
-                        "abcdefghijklmnopqrstuvwxyz",
-                        BigDecimal.valueOf(-12345.06789),
-                        null));
+        List<Row> rows =
+                Arrays.asList(
+                        Row.ofKind(
+                                RowKind.INSERT,
+                                null,
+                                1,
+                                2L,
+                                "abc",
+                                BigDecimal.valueOf(1.23),
+                                Timestamp.valueOf("2020-03-01 18:39:14")),
+                        Row.ofKind(
+                                RowKind.UPDATE_BEFORE,
+                                false,
+                                null,
+                                0L,
+                                "",
+                                BigDecimal.valueOf(1),
+                                Timestamp.valueOf("2020-03-01 18:39:14.1")),
+                        Row.ofKind(
+                                RowKind.UPDATE_AFTER,
+                                true,
+                                Integer.MAX_VALUE,
+                                null,
+                                "abcdefg",
+                                BigDecimal.valueOf(12345),
+                                Timestamp.valueOf("2020-03-01 18:39:14.12")),
+                        Row.ofKind(
+                                RowKind.DELETE,
+                                false,
+                                Integer.MIN_VALUE,
+                                Long.MAX_VALUE,
+                                null,
+                                BigDecimal.valueOf(12345.06789),
+                                Timestamp.valueOf("2020-03-01 18:39:14.123")),
+                        Row.ofKind(
+                                RowKind.INSERT,
+                                true,
+                                100,
+                                Long.MIN_VALUE,
+                                "abcdefg111",
+                                null,
+                                Timestamp.valueOf("2020-03-01 18:39:14.123456")),
+                        Row.ofKind(
+                                RowKind.DELETE,
+                                null,
+                                -1,
+                                -1L,
+                                "abcdefghijklmnopqrstuvwxyz",
+                                BigDecimal.valueOf(-12345.06789),
+                                null),
+                        Row.ofKind(
+                                RowKind.INSERT,
+                                null,
+                                -1,
+                                -1L,
+                                "这是一段中文",
+                                BigDecimal.valueOf(-12345.06789),
+                                Timestamp.valueOf("2020-03-04 18:39:14")),
+                        Row.ofKind(
+                                RowKind.DELETE,
+                                null,
+                                -1,
+                                -1L,
+                                "これは日本語をテストするための文です",
+                                BigDecimal.valueOf(-12345.06789),
+                                Timestamp.valueOf("2020-03-04 18:39:14")));
 
-        data.add(
-                Row.ofKind(
-                        RowKind.INSERT,
-                        null,
-                        -1,
-                        -1,
-                        "这是一段中文",
-                        BigDecimal.valueOf(-12345.06789),
-                        Timestamp.valueOf("2020-03-04 18:39:14")));
+        final DataStructureConverter<Object, Object> dataStructureConverter =
+                DataStructureConverters.getConverter(schema.toPhysicalRowDataType());
 
-        data.add(
-                Row.ofKind(
-                        RowKind.DELETE,
-                        null,
-                        -1,
-                        -1,
-                        "これは日本語をテストするための文です",
-                        BigDecimal.valueOf(-12345.06789),
-                        Timestamp.valueOf("2020-03-04 18:39:14")));
-
-        streamingData = new ArrayList<>();
-        for (Row datum : data) {
-            Row row = Row.copy(datum);
-            streamingData.add(row);
-        }
+        data =
+                rows.stream()
+                        .map(r -> (RowData) (dataStructureConverter.toInternal(r)))
+                        .collect(Collectors.toList());
+        streamingData =
+                rows.stream()
+                        .map(r -> (RowData) (dataStructureConverter.toInternal(r)))
+                        .collect(Collectors.toList());
     }
 
     @Test
@@ -164,7 +170,8 @@ public class CliTableauResultViewTest {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, testConfig);
+        ResultDescriptor resultDescriptor =
+                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -188,21 +195,21 @@ public class CliTableauResultViewTest {
                         + System.lineSeparator()
                         + "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
-                        + "|  (NULL) |           1 |                    2 |                            abc |           1.23 | 2020-03-01 18:39:14.000000 |"
+                        + "|  <NULL> |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "|   false |      (NULL) |                    0 |                                |              1 | 2020-03-01 18:39:14.100000 |"
+                        + "|   FALSE |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "|    true |  2147483647 |               (NULL) |                        abcdefg |     1234567890 | 2020-03-01 18:39:14.120000 |"
+                        + "|    TRUE |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
-                        + "|   false | -2147483648 |  9223372036854775807 |                         (NULL) |    12345.06789 | 2020-03-01 18:39:14.123000 |"
+                        + "|   FALSE | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |"
                         + System.lineSeparator()
-                        + "|    true |         100 | -9223372036854775808 |                     abcdefg111 |         (NULL) | 2020-03-01 18:39:14.123456 |"
+                        + "|    TRUE |         100 | -9223372036854775808 |                     abcdefg111 |         <NULL> | 2020-03-01 18:39:14.123456 |"
                         + System.lineSeparator()
-                        + "|  (NULL) |          -1 |                   -1 |     abcdefghijklmnopqrstuvwxyz |   -12345.06789 |                     (NULL) |"
+                        + "|  <NULL> |          -1 |                   -1 |     abcdefghijklmnopqrstuvwxyz |   -12345.06789 |                     <NULL> |"
                         + System.lineSeparator()
-                        + "|  (NULL) |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
+                        + "|  <NULL> |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "|  (NULL) |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
+                        + "|  <NULL> |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
                         + System.lineSeparator()
                         + "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
@@ -217,7 +224,8 @@ public class CliTableauResultViewTest {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, testConfig);
+        ResultDescriptor resultDescriptor =
+                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -260,7 +268,8 @@ public class CliTableauResultViewTest {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, testConfig);
+        ResultDescriptor resultDescriptor =
+                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -286,7 +295,8 @@ public class CliTableauResultViewTest {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, testConfig);
+        ResultDescriptor resultDescriptor =
+                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -316,7 +326,8 @@ public class CliTableauResultViewTest {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, testConfig);
+        ResultDescriptor resultDescriptor =
+                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -349,21 +360,21 @@ public class CliTableauResultViewTest {
                         + System.lineSeparator()
                         + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
-                        + "| +I |  (NULL) |           1 |                    2 |                            abc |           1.23 | 2020-03-01 18:39:14.000000 |"
+                        + "| +I |  <NULL> |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "| -U |   false |      (NULL) |                    0 |                                |              1 | 2020-03-01 18:39:14.100000 |"
+                        + "| -U |   FALSE |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "| +U |    true |  2147483647 |               (NULL) |                        abcdefg |     1234567890 | 2020-03-01 18:39:14.120000 |"
+                        + "| +U |    TRUE |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
-                        + "| -D |   false | -2147483648 |  9223372036854775807 |                         (NULL) |    12345.06789 | 2020-03-01 18:39:14.123000 |"
+                        + "| -D |   FALSE | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |"
                         + System.lineSeparator()
-                        + "| +I |    true |         100 | -9223372036854775808 |                     abcdefg111 |         (NULL) | 2020-03-01 18:39:14.123456 |"
+                        + "| +I |    TRUE |         100 | -9223372036854775808 |                     abcdefg111 |         <NULL> | 2020-03-01 18:39:14.123456 |"
                         + System.lineSeparator()
-                        + "| -D |  (NULL) |          -1 |                   -1 |     abcdefghijklmnopqrstuvwxyz |   -12345.06789 |                     (NULL) |"
+                        + "| -D |  <NULL> |          -1 |                   -1 |     abcdefghijklmnopqrstuvwxyz |   -12345.06789 |                     <NULL> |"
                         + System.lineSeparator()
-                        + "| +I |  (NULL) |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
+                        + "| +I |  <NULL> |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "| -D |  (NULL) |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
+                        + "| -D |  <NULL> |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
                         + System.lineSeparator()
                         + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
@@ -378,7 +389,8 @@ public class CliTableauResultViewTest {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, testConfig);
+        ResultDescriptor resultDescriptor =
+                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -409,7 +421,8 @@ public class CliTableauResultViewTest {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, testConfig);
+        ResultDescriptor resultDescriptor =
+                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -445,13 +458,13 @@ public class CliTableauResultViewTest {
                         + System.lineSeparator()
                         + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
-                        + "| +I |  (NULL) |           1 |                    2 |                            abc |           1.23 | 2020-03-01 18:39:14.000000 |"
+                        + "| +I |  <NULL> |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "| -U |   false |      (NULL) |                    0 |                                |              1 | 2020-03-01 18:39:14.100000 |"
+                        + "| -U |   FALSE |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "| +U |    true |  2147483647 |               (NULL) |                        abcdefg |     1234567890 | 2020-03-01 18:39:14.120000 |"
+                        + "| +U |    TRUE |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
-                        + "| -D |   false | -2147483648 |  9223372036854775807 |                         (NULL) |    12345.06789 | 2020-03-01 18:39:14.123000 |"
+                        + "| -D |   FALSE | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |"
                         + System.lineSeparator()
                         + "Query terminated, received a total of 4 rows"
                         + System.lineSeparator(),
@@ -465,7 +478,8 @@ public class CliTableauResultViewTest {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, testConfig);
+        ResultDescriptor resultDescriptor =
+                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -496,13 +510,13 @@ public class CliTableauResultViewTest {
                         + System.lineSeparator()
                         + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
-                        + "| +I |  (NULL) |           1 |                    2 |                            abc |           1.23 | 2020-03-01 18:39:14.000000 |"
+                        + "| +I |  <NULL> |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "| -U |   false |      (NULL) |                    0 |                                |              1 | 2020-03-01 18:39:14.100000 |"
+                        + "| -U |   FALSE |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "| +U |    true |  2147483647 |               (NULL) |                        abcdefg |     1234567890 | 2020-03-01 18:39:14.120000 |"
+                        + "| +U |    TRUE |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
-                        + "| -D |   false | -2147483648 |  9223372036854775807 |                         (NULL) |    12345.06789 | 2020-03-01 18:39:14.123000 |"
+                        + "| -D |   FALSE | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |"
                         + System.lineSeparator(),
                 terminalOutput.toString());
         assertThat(mockExecutor.getNumCancelCalls(), is(1));

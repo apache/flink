@@ -23,12 +23,11 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalDeduplicate, StreamPhysicalRank}
-import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
+import org.apache.flink.table.planner.plan.utils.RankUtil
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.{RelCollation, RelNode}
+import org.apache.calcite.rel.RelNode
 
 /**
   * Rule that matches [[FlinkLogicalRank]] which is sorted by time attribute and
@@ -64,7 +63,7 @@ class StreamPhysicalDeduplicateRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val rank: FlinkLogicalRank = call.rel(0)
-    StreamPhysicalDeduplicateRule.canConvertToDeduplicate(rank)
+    RankUtil.canConvertToDeduplicate(rank)
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -99,46 +98,5 @@ class StreamPhysicalDeduplicateRule
 }
 
 object StreamPhysicalDeduplicateRule {
-
-  val RANK_INSTANCE = new StreamPhysicalDeduplicateRule
-
-  /**
-    * Whether the given rank could be converted to [[StreamPhysicalDeduplicate]].
-    *
-    * Returns true if the given rank is sorted by time attribute and limits 1
-    * and its RankFunction is ROW_NUMBER, else false.
-    *
-    * @param rank The [[FlinkLogicalRank]] node
-    * @return True if the input rank could be converted to [[StreamPhysicalDeduplicate]]
-    */
-  def canConvertToDeduplicate(rank: FlinkLogicalRank): Boolean = {
-    val sortCollation = rank.orderKey
-    val rankRange = rank.rankRange
-
-    val isRowNumberType = rank.rankType == RankType.ROW_NUMBER
-
-    val isLimit1 = rankRange match {
-      case rankRange: ConstantRankRange =>
-        rankRange.getRankStart == 1 && rankRange.getRankEnd == 1
-      case _ => false
-    }
-
-    val inputRowType = rank.getInput.getRowType
-    val isSortOnTimeAttribute = sortOnTimeAttribute(sortCollation, inputRowType)
-
-    !rank.outputRankNumber && isLimit1 && isSortOnTimeAttribute && isRowNumberType
-  }
-
-  private def sortOnTimeAttribute(
-      sortCollation: RelCollation,
-      inputRowType: RelDataType): Boolean = {
-    if (sortCollation.getFieldCollations.size() != 1) {
-      false
-    } else {
-      val firstSortField = sortCollation.getFieldCollations.get(0)
-      val fieldType = inputRowType.getFieldList.get(firstSortField.getFieldIndex).getType
-      FlinkTypeFactory.isProctimeIndicatorType(fieldType) ||
-        FlinkTypeFactory.isRowtimeIndicatorType(fieldType)
-    }
-  }
+  val INSTANCE = new StreamPhysicalDeduplicateRule
 }

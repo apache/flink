@@ -17,6 +17,7 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.metrics.Histogram;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.slf4j.Logger;
@@ -39,13 +40,17 @@ class RetryingExecutor implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(RetryingExecutor.class);
 
     private final ScheduledExecutorService scheduler;
+    private final Histogram attemptsPerTaskHistogram;
 
-    RetryingExecutor(int nThreads) {
-        this(SchedulerFactory.create(nThreads, "ChangelogRetryScheduler", LOG));
+    RetryingExecutor(int nThreads, Histogram attemptsPerTaskHistogram) {
+        this(
+                SchedulerFactory.create(nThreads, "ChangelogRetryScheduler", LOG),
+                attemptsPerTaskHistogram);
     }
 
-    RetryingExecutor(ScheduledExecutorService scheduler) {
+    RetryingExecutor(ScheduledExecutorService scheduler, Histogram attemptsPerTaskHistogram) {
         this.scheduler = scheduler;
+        this.attemptsPerTaskHistogram = attemptsPerTaskHistogram;
     }
 
     /**
@@ -56,7 +61,8 @@ class RetryingExecutor implements AutoCloseable {
      */
     void execute(RetryPolicy retryPolicy, RetriableAction action) {
         LOG.debug("execute with retryPolicy: {}", retryPolicy);
-        RetriableTask task = new RetriableTask(action, retryPolicy, scheduler);
+        RetriableTask task =
+                new RetriableTask(action, retryPolicy, scheduler, attemptsPerTaskHistogram);
         scheduler.submit(task);
     }
 
@@ -96,11 +102,20 @@ class RetryingExecutor implements AutoCloseable {
          */
         private final AtomicBoolean attemptCompleted = new AtomicBoolean(false);
 
+        private final Histogram attemptsPerTaskHistogram;
+
         RetriableTask(
                 RetriableAction runnable,
                 RetryPolicy retryPolicy,
-                ScheduledExecutorService executorService) {
-            this(1, new AtomicBoolean(false), runnable, retryPolicy, executorService);
+                ScheduledExecutorService executorService,
+                Histogram attemptsPerTaskHistogram) {
+            this(
+                    1,
+                    new AtomicBoolean(false),
+                    runnable,
+                    retryPolicy,
+                    executorService,
+                    attemptsPerTaskHistogram);
         }
 
         private RetriableTask(
@@ -108,12 +123,14 @@ class RetryingExecutor implements AutoCloseable {
                 AtomicBoolean actionCompleted,
                 RetriableAction runnable,
                 RetryPolicy retryPolicy,
-                ScheduledExecutorService executorService) {
+                ScheduledExecutorService executorService,
+                Histogram attemptsPerTaskHistogram) {
             this.current = current;
             this.runnable = runnable;
             this.retryPolicy = retryPolicy;
             this.executorService = executorService;
             this.actionCompleted = actionCompleted;
+            this.attemptsPerTaskHistogram = attemptsPerTaskHistogram;
         }
 
         @Override
@@ -123,6 +140,7 @@ class RetryingExecutor implements AutoCloseable {
                 try {
                     runnable.run();
                     actionCompleted.set(true);
+                    attemptsPerTaskHistogram.update(current);
                     attemptCompleted.set(true);
                 } catch (Exception e) {
                     handleError(e);
@@ -150,7 +168,12 @@ class RetryingExecutor implements AutoCloseable {
 
         private RetriableTask next() {
             return new RetriableTask(
-                    current + 1, actionCompleted, runnable, retryPolicy, executorService);
+                    current + 1,
+                    actionCompleted,
+                    runnable,
+                    retryPolicy,
+                    executorService,
+                    attemptsPerTaskHistogram);
         }
 
         private Optional<ScheduledFuture<?>> scheduleTimeout() {

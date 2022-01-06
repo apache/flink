@@ -95,12 +95,12 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.DEBEZIUM_AVRO_CONFLUENT;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /** Abstract test base for {@link KafkaDynamicTableFactory}. */
 public class KafkaDynamicTableFactoryTest extends TestLogger {
@@ -840,16 +840,21 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         // pk can be defined on cdc table, should pass
         createTableSink(pkSchema, sinkOptions);
 
-        try {
-            createTableSink(pkSchema, getBasicSinkOptions());
-            fail();
-        } catch (Throwable t) {
-            String error =
-                    "The Kafka table 'default.default.t1' with 'test-format' format"
-                            + " doesn't support defining PRIMARY KEY constraint on the table, because it can't"
-                            + " guarantee the semantic of primary key.";
-            assertEquals(error, t.getCause().getMessage());
-        }
+        assertThatExceptionOfType(ValidationException.class)
+                .isThrownBy(() -> createTableSink(pkSchema, getBasicSinkOptions()))
+                .havingRootCause()
+                .withMessage(
+                        "The Kafka table 'default.default.t1' with 'test-format' format"
+                                + " doesn't support defining PRIMARY KEY constraint on the table, because it can't"
+                                + " guarantee the semantic of primary key.");
+
+        assertThatExceptionOfType(ValidationException.class)
+                .isThrownBy(() -> createTableSink(pkSchema, getKeyValueOptions()))
+                .havingRootCause()
+                .withMessage(
+                        "The Kafka table 'default.default.t1' with 'test-format' format"
+                                + " doesn't support defining PRIMARY KEY constraint on the table, because it can't"
+                                + " guarantee the semantic of primary key.");
 
         Map<String, String> sourceOptions =
                 getModifiedOptions(
@@ -864,16 +869,13 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         // pk can be defined on cdc table, should pass
         createTableSource(pkSchema, sourceOptions);
 
-        try {
-            createTableSource(pkSchema, getBasicSourceOptions());
-            fail();
-        } catch (Throwable t) {
-            String error =
-                    "The Kafka table 'default.default.t1' with 'test-format' format"
-                            + " doesn't support defining PRIMARY KEY constraint on the table, because it can't"
-                            + " guarantee the semantic of primary key.";
-            assertEquals(error, t.getCause().getMessage());
-        }
+        assertThatExceptionOfType(ValidationException.class)
+                .isThrownBy(() -> createTableSource(pkSchema, getBasicSourceOptions()))
+                .havingRootCause()
+                .withMessage(
+                        "The Kafka table 'default.default.t1' with 'test-format' format"
+                                + " doesn't support defining PRIMARY KEY constraint on the table, because it can't"
+                                + " guarantee the semantic of primary key.");
     }
 
     // --------------------------------------------------------------------------------------------

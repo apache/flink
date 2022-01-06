@@ -58,7 +58,10 @@ import java.util.Objects;
  * of {@link ElasticsearchSinkFunction} for an example.
  *
  * @param <T> Type of the elements handled by this sink
+ * @deprecated This sink has been deprecated in favor of {@link
+ *     org.apache.flink.connector.elasticsearch.sink.ElasticsearchSink}
  */
+@Deprecated
 @PublicEvolving
 public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevelClient> {
 
@@ -82,7 +85,10 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
      * A builder for creating an {@link ElasticsearchSink}.
      *
      * @param <T> Type of the elements handled by the sink this builder creates.
+     * @deprecated This has been deprecated, please use {@link
+     *     org.apache.flink.connector.elasticsearch.sink.Elasticsearch6SinkBuilder}.
      */
+    @Deprecated
     @PublicEvolving
     public static class Builder<T> {
 

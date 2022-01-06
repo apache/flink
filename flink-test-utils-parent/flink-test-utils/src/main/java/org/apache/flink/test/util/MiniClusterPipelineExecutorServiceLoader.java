@@ -20,6 +20,7 @@ package org.apache.flink.test.util;
 
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.deployment.executors.PipelineExecutorUtils;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -36,6 +37,9 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterJobClient;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -48,6 +52,10 @@ import java.util.stream.Stream;
  * PipelineExecutors} that use a given {@link MiniCluster}.
  */
 public class MiniClusterPipelineExecutorServiceLoader implements PipelineExecutorServiceLoader {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(MiniClusterPipelineExecutorServiceLoader.class);
+
     public static final String NAME = "minicluster";
 
     private final MiniCluster miniCluster;
@@ -60,9 +68,14 @@ public class MiniClusterPipelineExecutorServiceLoader implements PipelineExecuto
      * Populates a {@link Configuration} that is compatible with this {@link
      * MiniClusterPipelineExecutorServiceLoader}.
      */
-    public static Configuration createConfiguration(
-            Collection<Path> jarFiles, Collection<URL> classPaths) {
-        Configuration config = new Configuration();
+    public static Configuration updateConfigurationForMiniCluster(
+            Configuration config, Collection<Path> jarFiles, Collection<URL> classPaths) {
+
+        checkOverridesOption(config, PipelineOptions.JARS);
+        checkOverridesOption(config, PipelineOptions.CLASSPATHS);
+        checkOverridesOption(config, DeploymentOptions.TARGET);
+        checkOverridesOption(config, DeploymentOptions.ATTACHED);
+
         ConfigUtils.encodeCollectionToConfig(
                 config,
                 PipelineOptions.JARS,
@@ -73,6 +86,12 @@ public class MiniClusterPipelineExecutorServiceLoader implements PipelineExecuto
         config.set(DeploymentOptions.TARGET, MiniClusterPipelineExecutorServiceLoader.NAME);
         config.set(DeploymentOptions.ATTACHED, true);
         return config;
+    }
+
+    private static void checkOverridesOption(Configuration config, ConfigOption<?> option) {
+        if (config.contains(option)) {
+            LOG.warn("Overriding config setting '{}' for MiniCluster.", option.key());
+        }
     }
 
     private static String getAbsoluteURL(Path path) {

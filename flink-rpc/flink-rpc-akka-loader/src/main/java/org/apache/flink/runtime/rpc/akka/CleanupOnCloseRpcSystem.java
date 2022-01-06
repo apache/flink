@@ -21,6 +21,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.classloading.SubmoduleClassLoader;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcSystem;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -30,7 +31,6 @@ import javax.annotation.Nullable;
 
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** An {@link RpcSystem} wrapper that cleans up resources after the RPC system has been closed. */
@@ -39,13 +39,13 @@ class CleanupOnCloseRpcSystem implements RpcSystem {
 
     private final RpcSystem rpcSystem;
     private final SubmoduleClassLoader pluginLoader;
-    private final Path tempFile;
+    @Nullable private final Path tempDirectory;
 
     public CleanupOnCloseRpcSystem(
-            RpcSystem rpcSystem, SubmoduleClassLoader pluginLoader, Path tempFile) {
+            RpcSystem rpcSystem, SubmoduleClassLoader pluginLoader, @Nullable Path tempDirectory) {
         this.rpcSystem = Preconditions.checkNotNull(rpcSystem);
         this.pluginLoader = Preconditions.checkNotNull(pluginLoader);
-        this.tempFile = Preconditions.checkNotNull(tempFile);
+        this.tempDirectory = tempDirectory;
     }
 
     @Override
@@ -57,10 +57,12 @@ class CleanupOnCloseRpcSystem implements RpcSystem {
         } catch (Exception e) {
             LOG.warn("Could not close RpcSystem classloader.", e);
         }
-        try {
-            Files.delete(tempFile);
-        } catch (Exception e) {
-            LOG.warn("Could not delete temporary rpc system file {}.", tempFile, e);
+        if (tempDirectory != null) {
+            try {
+                FileUtils.deleteFileOrDirectory(tempDirectory.toFile());
+            } catch (Exception e) {
+                LOG.warn("Could not delete temporary rpc system file {}.", tempDirectory, e);
+            }
         }
     }
 

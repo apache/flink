@@ -24,7 +24,8 @@ from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors import FlinkKafkaConsumer, FlinkKafkaProducer, JdbcSink, \
     JdbcConnectionOptions, JdbcExecutionOptions, StreamingFileSink, \
     OutputFileConfig, FileSource, StreamFormat, FileEnumeratorProvider, FileSplitAssignerProvider, \
-    NumberSequenceSource, RollingPolicy, FileSink, BucketAssigner
+    NumberSequenceSource, RollingPolicy, FileSink, BucketAssigner, RMQSink, RMQSource, \
+    RMQConnectionConfig
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase, _load_specific_flink_module_jars, \
@@ -146,6 +147,40 @@ class FlinkJdbcSinkTest(PyFlinkTestCase):
     def tearDown(self):
         if self._cxt_clz_loader is not None:
             get_gateway().jvm.Thread.currentThread().setContextClassLoader(self._cxt_clz_loader)
+
+
+class RMQTest(PyFlinkTestCase):
+    def setUp(self):
+        self._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
+        _load_specific_flink_module_jars('/flink-connectors/flink-sql-connector-rabbitmq')
+
+    def tearDown(self):
+        if self._cxt_clz_loader is not None:
+            get_gateway().jvm.Thread.currentThread().setContextClassLoader(self._cxt_clz_loader)
+
+    def test_rabbitmq_connectors(self):
+        connection_config = RMQConnectionConfig.Builder() \
+            .set_host('localhost') \
+            .set_port(5672) \
+            .set_virtual_host('/') \
+            .set_user_name('guest') \
+            .set_password('guest') \
+            .build()
+        type_info = Types.ROW([Types.INT(), Types.STRING()])
+        deserialization_schema = JsonRowDeserializationSchema.builder() \
+            .type_info(type_info=type_info).build()
+
+        rmq_source = RMQSource(
+            connection_config, 'source_queue', True, deserialization_schema)
+        self.assertEqual(
+            get_field_value(rmq_source.get_java_function(), 'queueName'), 'source_queue')
+        self.assertTrue(get_field_value(rmq_source.get_java_function(), 'usesCorrelationId'))
+
+        serialization_schema = JsonRowSerializationSchema.builder().with_type_info(type_info) \
+            .build()
+        rmq_sink = RMQSink(connection_config, 'sink_queue', serialization_schema)
+        self.assertEqual(
+            get_field_value(rmq_sink.get_java_function(), 'queueName'), 'sink_queue')
 
 
 class ConnectorTests(PyFlinkTestCase):

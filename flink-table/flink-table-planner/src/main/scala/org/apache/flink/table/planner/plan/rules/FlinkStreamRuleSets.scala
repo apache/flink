@@ -88,14 +88,13 @@ object FlinkStreamRuleSets {
   )
 
   /**
-    * RuleSet to rewrite coalesce to case when
-    */
-  private val REWRITE_COALESCE_RULES: RuleSet = RuleSets.ofList(
-    // rewrite coalesce to case when
-    RewriteCoalesceRule.FILTER_INSTANCE,
-    RewriteCoalesceRule.PROJECT_INSTANCE,
-    RewriteCoalesceRule.JOIN_INSTANCE,
-    RewriteCoalesceRule.CALC_INSTANCE
+   * RuleSet to simplify coalesce invocations
+   */
+  private val SIMPLIFY_COALESCE_RULES: RuleSet = RuleSets.ofList(
+    RemoveUnreachableCoalesceArgumentsRule.PROJECT_INSTANCE,
+    RemoveUnreachableCoalesceArgumentsRule.FILTER_INSTANCE,
+    RemoveUnreachableCoalesceArgumentsRule.JOIN_INSTANCE,
+    RemoveUnreachableCoalesceArgumentsRule.CALC_INSTANCE
   )
 
   /**
@@ -113,7 +112,7 @@ object FlinkStreamRuleSets {
     */
   val DEFAULT_REWRITE_RULES: RuleSet = RuleSets.ofList((
     PREDICATE_SIMPLIFY_EXPRESSION_RULES.asScala ++
-      REWRITE_COALESCE_RULES.asScala ++
+      SIMPLIFY_COALESCE_RULES.asScala ++
       REDUCE_EXPRESSION_RULES.asScala ++
       List(
         //removes constant keys from an Agg
@@ -138,7 +137,11 @@ object FlinkStreamRuleSets {
         // optimize limit 0
         FlinkLimit0RemoveRule.INSTANCE,
         // unnest rule
-        LogicalUnnestRule.INSTANCE
+        LogicalUnnestRule.INSTANCE,
+        // rewrite constant table function scan to correlate
+        JoinTableFunctionScanToCorrelateRule.INSTANCE,
+        // Wrap arguments for JSON aggregate functions
+        WrapJsonAggFunctionArgumentsRule.INSTANCE
       )
     ).asJava)
 
@@ -177,16 +180,22 @@ object FlinkStreamRuleSets {
     ).asJava)
 
   /**
-    * RuleSet to do push predicate/partition into table scan
-    */
-  val FILTER_TABLESCAN_PUSHDOWN_RULES: RuleSet = RuleSets.ofList(
-    // push a filter down into the table scan
-    PushFilterIntoTableSourceScanRule.INSTANCE,
-    PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
+   * RuleSet to push down partitions into table source
+   */
+  val PUSH_PARTITION_DOWN_RULES: RuleSet = RuleSets.ofList(
     // push partition into the table scan
     PushPartitionIntoLegacyTableSourceScanRule.INSTANCE,
     // push partition into the dynamic table scan
     PushPartitionIntoTableSourceScanRule.INSTANCE
+  )
+
+  /**
+   * RuleSet to push down filters into table source
+   */
+  val PUSH_FILTER_DOWN_RULES: RuleSet = RuleSets.ofList(
+    // push a filter down into the table scan
+    PushFilterIntoTableSourceScanRule.INSTANCE,
+    PushFilterIntoLegacyTableSourceScanRule.INSTANCE
   )
 
   /**
@@ -430,7 +439,7 @@ object FlinkStreamRuleSets {
     StreamPhysicalTemporalSortRule.INSTANCE,
     // rank
     StreamPhysicalRankRule.INSTANCE,
-    StreamPhysicalDeduplicateRule.RANK_INSTANCE,
+    StreamPhysicalDeduplicateRule.INSTANCE,
     // expand
     StreamPhysicalExpandRule.INSTANCE,
     // group agg
@@ -451,6 +460,7 @@ object FlinkStreamRuleSets {
     PullUpWindowTableFunctionIntoWindowAggregateRule.INSTANCE,
     ExpandWindowTableFunctionTransposeRule.INSTANCE,
     StreamPhysicalWindowRankRule.INSTANCE,
+    StreamPhysicalWindowDeduplicateRule.INSTANCE,
     // join
     StreamPhysicalJoinRule.INSTANCE,
     StreamPhysicalIntervalJoinRule.INSTANCE,
@@ -495,13 +505,6 @@ object FlinkStreamRuleSets {
     IncrementalAggregateRule.INSTANCE,
     // optimize window agg rule
     TwoStageOptimizedWindowAggregateRule.INSTANCE,
-    // simplify window tvf
-    SimplifyWindowTableFunctionRules.WITH_CALC_WINDOW_RANK,
-    SimplifyWindowTableFunctionRules.WITH_WINDOW_RANK,
-    SimplifyWindowTableFunctionRules.WITH_LEFT_RIGHT_CALC_WINDOW_JOIN,
-    SimplifyWindowTableFunctionRules.WITH_LEFT_CALC_WINDOW_JOIN,
-    SimplifyWindowTableFunctionRules.WITH_RIGHT_CALC_WINDOW_JOIN,
-    SimplifyWindowTableFunctionRules.WITH_WINDOW_JOIN,
     // optimize ChangelogNormalize
     PushFilterPastChangelogNormalizeRule.INSTANCE
   )

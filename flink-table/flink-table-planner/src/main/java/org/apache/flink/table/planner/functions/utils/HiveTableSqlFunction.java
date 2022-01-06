@@ -22,9 +22,9 @@ import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.schema.FlinkTableFunction;
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
@@ -168,7 +168,7 @@ public class HiveTableSqlFunction extends TableSqlFunction {
             case TIME:
                 return LocalTime.ofNanoOfDay(((TimeString) value).getMillisOfDay() * 1000_000);
             case TIMESTAMP:
-                return SqlDateTimeUtils.unixTimestampToLocalDateTime(
+                return DateTimeUtils.toLocalDateTime(
                         ((TimestampString) value).getMillisSinceEpoch());
             default:
                 throw new RuntimeException("Not support type: " + type);

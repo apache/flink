@@ -34,8 +34,8 @@ import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -128,7 +128,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 
         try {
             handler.handleRequest(
-                    new HandlerRequest<>(request, EmptyMessageParameters.getInstance()),
+                    HandlerRequest.create(request, EmptyMessageParameters.getInstance()),
                     mockGateway);
             Assert.fail();
         } catch (RestHandlerException rhe) {
@@ -165,11 +165,9 @@ public class JobSubmitHandlerTest extends TestLogger {
                         Collections.emptyList());
 
         handler.handleRequest(
-                        new HandlerRequest<>(
+                        HandlerRequest.create(
                                 request,
                                 EmptyMessageParameters.getInstance(),
-                                Collections.emptyMap(),
-                                Collections.emptyMap(),
                                 Collections.singleton(jobGraphFile.toFile())),
                         mockGateway)
                 .get();
@@ -206,11 +204,9 @@ public class JobSubmitHandlerTest extends TestLogger {
 
         try {
             handler.handleRequest(
-                            new HandlerRequest<>(
+                            HandlerRequest.create(
                                     request,
                                     EmptyMessageParameters.getInstance(),
-                                    Collections.emptyMap(),
-                                    Collections.emptyMap(),
                                     Arrays.asList(
                                             jobGraphFile.toFile(), countExceedingFile.toFile())),
                             mockGateway)
@@ -269,11 +265,9 @@ public class JobSubmitHandlerTest extends TestLogger {
                                         dcEntryName, artifactFile.getFileName().toString())));
 
         handler.handleRequest(
-                        new HandlerRequest<>(
+                        HandlerRequest.create(
                                 request,
                                 EmptyMessageParameters.getInstance(),
-                                Collections.emptyMap(),
-                                Collections.emptyMap(),
                                 Arrays.asList(
                                         jobGraphFile.toFile(),
                                         jarFile.toFile(),
@@ -322,11 +316,9 @@ public class JobSubmitHandlerTest extends TestLogger {
 
         try {
             handler.handleRequest(
-                            new HandlerRequest<>(
+                            HandlerRequest.create(
                                     request,
                                     EmptyMessageParameters.getInstance(),
-                                    Collections.emptyMap(),
-                                    Collections.emptyMap(),
                                     Collections.singletonList(jobGraphFile.toFile())),
                             mockGateway)
                     .get();

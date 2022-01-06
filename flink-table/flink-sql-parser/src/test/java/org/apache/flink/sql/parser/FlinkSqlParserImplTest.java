@@ -198,6 +198,13 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testShowCreateView() {
+        sql("show create view v1").ok("SHOW CREATE VIEW `V1`");
+        sql("show create view db1.v1").ok("SHOW CREATE VIEW `DB1`.`V1`");
+        sql("show create view catalog1.db1.v1").ok("SHOW CREATE VIEW `CATALOG1`.`DB1`.`V1`");
+    }
+
+    @Test
     public void testDescribeTable() {
         sql("describe tbl").ok("DESCRIBE `TBL`");
         sql("describe catalog1.db1.tbl").ok("DESCRIBE `CATALOG1`.`DB1`.`TBL`");
@@ -278,6 +285,21 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
                 .ok("ALTER TABLE `T1` RESET (\n  'key1',\n  'key2'\n)");
 
         sql("alter table t1 reset()").ok("ALTER TABLE `T1` RESET (\n)");
+    }
+
+    @Test
+    public void testAlterTableCompact() {
+        sql("alter table t1 compact").ok("ALTER TABLE `T1` COMPACT");
+
+        sql("alter table db1.t1 compact").ok("ALTER TABLE `DB1`.`T1` COMPACT");
+
+        sql("alter table cat1.db1.t1 compact").ok("ALTER TABLE `CAT1`.`DB1`.`T1` COMPACT");
+
+        sql("alter table t1 partition(x='y',m='n') compact")
+                .ok("ALTER TABLE `T1` PARTITION (`X` = 'y', `M` = 'n') COMPACT");
+
+        sql("alter table t1 partition(^)^ compact")
+                .fails("(?s).*Encountered \"\\)\" at line 1, column 26.\n.*");
     }
 
     @Test

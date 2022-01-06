@@ -37,9 +37,9 @@ import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerFileMessageParameters;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessageParameters;
-import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -105,7 +105,7 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
 
     private static BlobServer blobServer;
 
-    private static HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> handlerRequest;
+    private static HandlerRequest<EmptyRequestBody> handlerRequest;
 
     private String fileContent1;
 
@@ -124,13 +124,14 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
         blobServer = new BlobServer(configuration, new VoidBlobStore());
 
         handlerRequest =
-                new HandlerRequest<>(
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         new TaskManagerFileMessageParameters(),
                         Collections.singletonMap(
                                 TaskManagerIdPathParameter.KEY,
                                 EXPECTED_TASK_MANAGER_ID.getResourceIdString()),
-                        Collections.emptyMap());
+                        Collections.emptyMap(),
+                        Collections.emptyList());
     }
 
     @Before

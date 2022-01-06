@@ -20,8 +20,6 @@ package org.apache.flink.runtime.operators.lifecycle.graph;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommand;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher;
-import org.apache.flink.runtime.operators.lifecycle.event.OperatorFinishedEvent;
-import org.apache.flink.runtime.operators.lifecycle.event.OperatorFinishedEvent.LastReceivedVertexDataInfo;
 import org.apache.flink.runtime.operators.lifecycle.event.OperatorStartedEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.TestCommandAckEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.TestEvent;
@@ -33,7 +31,6 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static java.util.Collections.emptyMap;
 import static org.apache.flink.runtime.operators.lifecycle.command.TestCommand.FAIL;
 import static org.apache.flink.runtime.operators.lifecycle.command.TestCommand.FINISH_SOURCES;
 
@@ -73,7 +70,8 @@ class TestEventSource extends RichSourceFunction<TestDataElement>
     public void run(SourceContext<TestDataElement> ctx) {
         long lastSent = 0;
         while (isRunning) {
-            TestCommand cmd = scheduledCommands.poll();
+            // Don't finish the source if it has not sent at least one value.
+            TestCommand cmd = lastSent == 0 ? null : scheduledCommands.poll();
             if (cmd == FINISH_SOURCES) {
                 ack(cmd);
                 isRunning = false;
@@ -91,16 +89,6 @@ class TestEventSource extends RichSourceFunction<TestDataElement>
             } else {
                 throw new RuntimeException("unknown command " + cmd);
             }
-        }
-        // note: this only gets collected with FLIP-147 changes
-        synchronized (ctx.getCheckpointLock()) {
-            eventQueue.add(
-                    new OperatorFinishedEvent(
-                            operatorID,
-                            getRuntimeContext().getIndexOfThisSubtask(),
-                            getRuntimeContext().getAttemptNumber(),
-                            lastSent,
-                            new LastReceivedVertexDataInfo(emptyMap())));
         }
     }
 

@@ -118,7 +118,7 @@ public class PythonEnvironmentManagerUtils {
                     Arrays.asList("--install-option", "--prefix=" + requirementsInstallDir));
         }
         if (requirementsCacheDir != null) {
-            commands.addAll(Arrays.asList("--find-links", requirementsCacheDir));
+            commands.addAll(Arrays.asList("--no-index", "--find-links", requirementsCacheDir));
         }
 
         int retries = 0;

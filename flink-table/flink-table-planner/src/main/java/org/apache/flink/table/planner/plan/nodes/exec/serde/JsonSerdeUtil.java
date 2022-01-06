@@ -53,6 +53,8 @@ public class JsonSerdeUtil {
                         null, // JsonFactory
                         null, // DefaultSerializerProvider
                         ctx);
+        mapper.setTypeFactory(
+                mapper.getTypeFactory().withClassLoader(JsonSerdeUtil.class.getClassLoader()));
         mapper.configure(MapperFeature.USE_GETTERS_AS_SETTERS, false);
         ctx.setObjectMapper(mapper);
         return mapper;

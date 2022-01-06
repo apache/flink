@@ -229,9 +229,7 @@
         </tr>
       </thead>
       <tbody>
-        <ng-container
-          *ngFor="let checkpoint of checkPointStats['history']; trackBy: trackHistoryBy"
-        >
+        <ng-container *ngFor="let checkpoint of checkPointStats['history']; trackBy: trackById">
           <tr>
             <td nzShowExpand [(nzExpand)]="checkpoint.expand"></td>
             <td>{{ checkpoint['id'] }}</td>
@@ -397,18 +395,6 @@
                 </td>
               </tr>
               <tr>
-                <td><strong>99% percentile</strong></td>
-                <td>
-                  {{ checkPointStats['summary']['end_to_end_duration']['p99'] | humanizeDuration }}
-                </td>
-                <td>{{ checkPointStats['summary']['state_size']['p99'] | humanizeBytes }}</td>
-                <td>
-                  {{ checkPointStats['summary']['processed_data']['p99'] | humanizeBytes }} ({{
-                    checkPointStats['summary']['persisted_data']['p99'] | humanizeBytes
-                  }})
-                </td>
-              </tr>
-              <tr>
                 <td><strong>99.9% percentile</strong></td>
                 <td>
                   {{ checkPointStats['summary']['end_to_end_duration']['p999'] | humanizeDuration }}
@@ -500,6 +486,12 @@
           <tr>
             <td>Tolerable Failed Checkpoints</td>
             <td>{{ checkPointConfig['tolerable_failed_checkpoints'] }}</td>
+          </tr>
+          <tr>
+            <td>Checkpoints With Finished Tasks</td>
+            <td>
+              {{ checkPointConfig['checkpoints_after_tasks_finish'] ? 'Enabled' : 'Disabled' }}
+            </td>
           </tr>
         </ng-container>
       </tbody>

@@ -20,14 +20,38 @@ package org.apache.flink.client.testjar;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.client.cli.CliFrontendTestUtils;
+import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.util.FlinkException;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.net.MalformedURLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
  * A testing job with configurable number of calls to {@link ExecutionEnvironment#executeAsync()}.
  */
 public class MultiExecuteJob {
+
+    public static PackagedProgram getProgram(int noOfJobs, boolean attached) throws FlinkException {
+        try {
+            return PackagedProgram.newBuilder()
+                    .setUserClassPaths(
+                            Collections.singletonList(
+                                    new File(CliFrontendTestUtils.getTestJarPath())
+                                            .toURI()
+                                            .toURL()))
+                    .setEntryPointClassName(MultiExecuteJob.class.getName())
+                    .setArguments(String.valueOf(noOfJobs), Boolean.toString(attached))
+                    .build();
+        } catch (ProgramInvocationException | FileNotFoundException | MalformedURLException e) {
+            throw new FlinkException("Could not load the provided entrypoint class.", e);
+        }
+    }
 
     public static void main(String[] args) throws Exception {
         int noOfExecutes = Integer.parseInt(args[0]);

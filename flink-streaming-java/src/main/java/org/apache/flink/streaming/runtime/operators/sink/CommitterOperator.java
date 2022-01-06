@@ -99,10 +99,9 @@ class CommitterOperator<InputT, OutputT> extends AbstractStreamOperator<byte[]>
     @Override
     public void processElement(StreamRecord<byte[]> element) throws Exception {
         committerHandler.processCommittables(
-                () ->
-                        Collections.singletonList(
-                                SimpleVersionedSerialization.readVersionAndDeSerialize(
-                                        inputSerializer, element.getValue())));
+                Collections.singletonList(
+                        SimpleVersionedSerialization.readVersionAndDeSerialize(
+                                inputSerializer, element.getValue())));
     }
 
     @Override

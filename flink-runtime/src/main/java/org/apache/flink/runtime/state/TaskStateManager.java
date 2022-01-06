@@ -74,7 +74,7 @@ public interface TaskStateManager extends CheckpointListener, AutoCloseable {
             CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics);
 
     /** Whether all the operators of the task are finished on restore. */
-    boolean isFinishedOnRestore();
+    boolean isTaskDeployedAsFinished();
 
     /** Acquires the checkpoint id to restore from. */
     Optional<Long> getRestoreCheckpointId();

@@ -58,6 +58,7 @@ public interface ModuleFactory extends TableFactory, Factory {
     }
 
     /** Context provided when a module is created. */
+    @PublicEvolving
     interface Context {
         /**
          * Returns the options with which the module is created.

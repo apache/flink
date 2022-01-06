@@ -1426,6 +1426,9 @@ public abstract class BaseExpressions<InType, OutType> {
      * // STRING: "true"
      * lit("{\"a\": true}").jsonValue("$.a")
      *
+     * // DOUBLE: 0.998
+     * lit("{\"a.b\": [0.998,0.996]}").jsonValue("$.['a.b'][0]", DataTypes.DOUBLE())
+     *
      * // BOOLEAN: true
      * lit("{\"a\": true}").jsonValue("$.a", DataTypes.BOOLEAN())
      *

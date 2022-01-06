@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.sink.writer;
 
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
 import org.apache.flink.connector.file.sink.committer.FileCommitter;
 import org.apache.flink.core.fs.FileSystem;
@@ -257,7 +258,7 @@ public class FileWriterBucketStateSerializerMigrationTest {
             throws IOException {
         return FileWriterBucket.restore(
                 createBucketWriter(),
-                DefaultRollingPolicy.builder().withMaxPartSize(10).build(),
+                DefaultRollingPolicy.builder().withMaxPartSize(new MemorySize(10)).build(),
                 bucketState,
                 OutputFileConfig.builder().build());
     }

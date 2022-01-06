@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
+import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
@@ -774,6 +775,198 @@ class RankTest extends TableTestBase {
         |  )
         |""".stripMargin
     util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testUpdatableRankWithDeduplicate(): Unit = {
+    util.tableEnv.executeSql(
+      """
+        |CREATE VIEW v0 AS
+        |SELECT *
+        |FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY `c`
+        |        ORDER BY `PROCTIME`()) AS `rowNum`
+        |        FROM MyTable)
+        |WHERE `rowNum` = 1
+        |""".stripMargin)
+    util.tableEnv.executeSql(
+      """
+        |CREATE VIEW v1 AS
+        |SELECT c, b, SUM(a) FILTER (WHERE a > 0) AS d FROM v0 GROUP BY c, b
+        |""".stripMargin)
+    util.verifyRelPlan(
+      """
+        |SELECT c, b, d
+        |FROM (
+        |    SELECT
+        |       c, b, d,
+        |       ROW_NUMBER() OVER (PARTITION BY c, b ORDER BY d DESC) AS rn FROM v1
+        |) WHERE rn < 10
+        |""".stripMargin)
+  }
+  @Test
+  def testUpdatableRankAfterLookupJoin(): Unit = {
+    util.addTable(
+      s"""
+         |CREATE TABLE LookupTable (
+         |  `id` INT,
+         |  `name` STRING,
+         |  `age` INT
+         |) WITH (
+         |  'connector' = 'values'
+         |)
+         |""".stripMargin)
+    util.tableEnv.executeSql(
+      """
+        |CREATE VIEW V1 AS
+        |SELECT *
+        |FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.a = D.id
+        |""".stripMargin)
+    val sql =
+      s"""
+         |SELECT *
+         |FROM (
+         |  SELECT name, ids,
+         |      ROW_NUMBER() OVER (PARTITION BY name ORDER BY ids DESC) as rank_num
+         |  FROM (
+         |     SELECT name, SUM(id) FILTER (WHERE id > 0) as ids
+         |     FROM V1
+         |     GROUP BY name
+         |  ))
+         |WHERE rank_num <= 3
+         |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testUpdatableRankAfterIntermediateScan(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED, true)
+    util.tableEnv.executeSql(
+      """
+        |CREATE VIEW v1 AS
+        |SELECT a, MAX(b) AS b, MIN(c) AS c
+        |FROM MyTable GROUP BY a
+        |""".stripMargin)
+
+    util.addTable(
+      s"""
+         |CREATE TABLE sink(
+         |  `id` INT,
+         |  `name` STRING,
+         |  `age` BIGINT,
+         |   primary key (id) not enforced
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'false'
+         |)
+         |""".stripMargin)
+
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      """
+        |INSERT INTO sink
+        |SELECT * FROM v1
+        |""".stripMargin)
+    stmtSet.addInsertSql(
+      """
+        |INSERT INTO sink
+        |SELECT a, b, c FROM (
+        |  SELECT *, ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) AS rn
+        |  FROM v1
+        |) WHERE rn < 3
+        |""".stripMargin)
+    util.verifyExecPlan(stmtSet)
+  }
+
+  @Test
+  def testRankOutputUpsertKeyNotMatchSinkPk(): Unit = {
+    // test for FLINK-20370
+    util.tableEnv.executeSql(
+      """
+        |CREATE TABLE sink (
+        | a INT,
+        | b VARCHAR,
+        | c BIGINT,
+        | PRIMARY KEY (a) NOT ENFORCED
+        |) WITH (
+        | 'connector' = 'values'
+        | ,'sink-insert-only' = 'false'
+        |)
+        |""".stripMargin)
+
+    val sql =
+      """
+        |INSERT INTO sink
+        |SELECT a, b, c FROM (
+        |  SELECT *, ROW_NUMBER() OVER (PARTITION BY b ORDER BY c DESC) AS rn
+        |  FROM MyTable
+        |  )
+        |WHERE rn <= 100
+        |""".stripMargin
+    // verify UB should reserve and add upsertMaterialize if rank outputs' upsert keys differs from
+    // sink's pks
+    util.verifyExplainInsert(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testRankOutputUpsertKeyInSinkPk(): Unit = {
+    // test for FLINK-20370
+    util.tableEnv.executeSql(
+      """
+        |CREATE TABLE sink (
+        | a INT,
+        | b VARCHAR,
+        | c BIGINT,
+        | PRIMARY KEY (a, b) NOT ENFORCED
+        |) WITH (
+        | 'connector' = 'values'
+        | ,'sink-insert-only' = 'false'
+        |)
+        |""".stripMargin)
+
+    val sql =
+      """
+        |INSERT INTO sink
+        |SELECT a, b, c FROM (
+        |  SELECT *, ROW_NUMBER() OVER (PARTITION BY a ORDER BY c DESC) AS rn
+        |  FROM MyTable
+        |  )
+        |WHERE rn <= 100
+        |""".stripMargin
+
+    // verify UB should reserve and no upsertMaterialize if rank outputs' upsert keys are subset of
+    // sink's pks
+    util.verifyExplainInsert(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testRankOutputLostUpsertKeyWithSinkPk(): Unit = {
+    // test for FLINK-20370
+    util.tableEnv.executeSql(
+      """
+        |CREATE TABLE sink (
+        | a INT,
+        | c BIGINT,
+        | rn BIGINT,
+        | PRIMARY KEY (a) NOT ENFORCED
+        |) WITH (
+        | 'connector' = 'values'
+        | ,'sink-insert-only' = 'false'
+        |)
+        |""".stripMargin)
+
+    val sql =
+      """
+        |INSERT INTO sink
+        |SELECT a, c, rn FROM (
+        |  SELECT *, ROW_NUMBER() OVER (PARTITION BY b ORDER BY c DESC) AS rn
+        |  FROM MyTable
+        |  )
+        |WHERE rn <= 100
+        |""".stripMargin
+    // verify UB should reserve and add upsertMaterialize if rank outputs' lost upsert keys
+    util.verifyExplainInsert(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   // TODO add tests about multi-sinks and udf

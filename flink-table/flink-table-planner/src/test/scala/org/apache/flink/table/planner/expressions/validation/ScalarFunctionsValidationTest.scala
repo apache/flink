@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.expressions.validation
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.TimePointUnit
-import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
 
 import org.apache.calcite.avatica.util.TimeUnit
@@ -31,22 +30,6 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   // ----------------------------------------------------------------------------------------------
   // Math functions
   // ----------------------------------------------------------------------------------------------
-
-  @Test
-  def testInvalidLog1(): Unit = {
-    testSqlApi(
-      "LOG(1, 100)",
-      "Infinity"
-    )
-  }
-
-  @Test
-  def testInvalidLog2(): Unit ={
-    testSqlApi(
-      "LOG(-1)",
-      "NaN"
-    )
-  }
 
   @Test(expected = classOf[ValidationException])
   def testInvalidBin1(): Unit = {
@@ -145,12 +128,12 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testTableApi(
       'f2.in('f3, 'f8),
       "f2.in(f3, f8)",
-      "true"
+      "TRUE"
     )
     testTableApi(
       'f2.in('f3, 'f4, 4),
       "f2.in(f3, f4, 4)",
-      "false"  // OK if all numeric
+      "FALSE"  // OK if all numeric
     )
   }
 
@@ -159,7 +142,7 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testTableApi(
       'f1.in("Hi", "Hello world", "Comment#1"),
       "true",
-      "true"
+      "TRUE"
     )
   }
 
@@ -168,7 +151,7 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testTableApi(
       true,
       "f1.in('Hi','Hello world','Comment#1')",
-      "true"
+      "TRUE"
     )
   }
 
@@ -196,6 +179,18 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testSqlApi("EXTRACT(DOY FROM TIME '12:42:25')", "0")
   }
 
+  @Test
+  def testISODOWWithTimeWhichIsUnsupported(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    testSqlApi("EXTRACT(ISODOW FROM TIME '12:42:25')", "0")
+  }
+
+  @Test
+  def testISOYEARWithTimeWhichIsUnsupported(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    testSqlApi("EXTRACT(ISOYEAR FROM TIME '12:42:25')", "0")
+  }
+
   private def testExtractFromTimeZeroResult(unit: TimeUnit): Unit = {
     thrown.expect(classOf[ValidationException])
     testSqlApi("EXTRACT(" + unit + " FROM TIME '00:00:00')", "0")
@@ -211,6 +206,12 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   def testCenturyWithTime(): Unit = {
     thrown.expect(classOf[ValidationException])
     testExtractFromTimeZeroResult(TimeUnit.CENTURY)
+  }
+
+  @Test
+  def testDecadeWithTime(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    testExtractFromTimeZeroResult(TimeUnit.DECADE)
   }
 
   @Test

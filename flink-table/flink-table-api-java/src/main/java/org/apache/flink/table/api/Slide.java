@@ -19,8 +19,8 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.delegation.ExpressionParser;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ExpressionParser;
 
 /**
  * Helper class for creating a sliding window. Sliding windows have a fixed size and slide by a
@@ -61,7 +61,7 @@ public final class Slide {
      */
     @Deprecated
     public static SlideWithSize over(String size) {
-        return over(ExpressionParser.parseExpression(size));
+        return over(ExpressionParser.INSTANCE.parseExpression(size));
     }
 
     /**

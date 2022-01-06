@@ -104,9 +104,13 @@ public class FlinkReturnTypes {
                 }
             };
 
-    /** Type-inference strategy that always returns "VARCHAR(2000)" with nulls always allowed. */
-    public static final SqlReturnTypeInference VARCHAR_2000_NULLABLE =
-            ReturnTypes.cascade(ReturnTypes.VARCHAR_2000, SqlTypeTransforms.FORCE_NULLABLE);
+    public static final SqlReturnTypeInference VARCHAR_FORCE_NULLABLE =
+            ReturnTypes.cascade(
+                    ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.FORCE_NULLABLE);
+
+    public static final SqlReturnTypeInference VARCHAR_NOT_NULL =
+            ReturnTypes.cascade(
+                    ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NOT_NULLABLE);
 
     public static final SqlReturnTypeInference ROUND_FUNCTION_NULLABLE =
             ReturnTypes.cascade(ROUND_FUNCTION, SqlTypeTransforms.TO_NULLABLE);
@@ -123,6 +127,6 @@ public class FlinkReturnTypes {
                             ((FlinkTypeFactory) factory)
                                     .createFieldTypeFromLogicalType(
                                             new MapType(
-                                                    new VarCharType(VarCharType.MAX_LENGTH),
-                                                    new VarCharType(VarCharType.MAX_LENGTH))));
+                                                    VarCharType.STRING_TYPE,
+                                                    VarCharType.STRING_TYPE)));
 }

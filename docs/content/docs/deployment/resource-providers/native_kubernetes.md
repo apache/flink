@@ -70,7 +70,7 @@ $ kubectl delete deployment/my-first-flink-cluster
 ```
 
 {{< hint info >}}
-When using [Minikube](https://minikube.sigs.k8s.io/docs/), you need to call `minikube tunnel` in order to [expose Flink's LoadBalancer service on Minikube](https://minikube.sigs.k8s.io/docs/handbook/accessing/#using-minikube-tunnel).
+In default, Flink’s Web UI and REST endpoint are exposed as `ClusterIP` service. To access the service, please refer to [Accessing Flink’s Web UI](#accessing-flinks-web-ui) for instructions.
 {{< /hint >}}
 
 Congratulations! You have successfully run a Flink application by deploying Flink on Kubernetes.
@@ -82,6 +82,10 @@ Congratulations! You have successfully run a Flink application by deploying Flin
 For production use, we recommend deploying Flink Applications in the [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode), as these modes provide a better isolation for the Applications.
 
 ### Application Mode
+
+{{< hint info >}}
+For high-level intuition behind the application mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#application-mode" >}}).
+{{< /hint >}}
 
 The [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode) requires that the user code is bundled together with the Flink image because it runs the user code's `main()` method on the cluster.
 The Application Mode makes sure that all Flink components are properly cleaned up after the termination of the application.
@@ -122,11 +126,19 @@ $ ./bin/flink cancel --target kubernetes-application -Dkubernetes.cluster-id=my-
 
 You can override configurations set in `conf/flink-conf.yaml` by passing key-value pairs `-Dkey=value` to `bin/flink`.
 
-### Per-Job Cluster Mode
+### Per-Job Mode
+
+{{< hint info >}}
+For high-level intuition behind the per-job mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#per-job-mode" >}}).
+{{< /hint >}}
 
 Flink on Kubernetes does not support Per-Job Cluster Mode.
 
 ### Session Mode
+
+{{< hint info >}}
+For high-level intuition behind the session mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#session-mode" >}}).
+{{< /hint >}}
 
 You have seen the deployment of a Session cluster in the [Getting Started](#getting-started) guide at the top of this page.
 

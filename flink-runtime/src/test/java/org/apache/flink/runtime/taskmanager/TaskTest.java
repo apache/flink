@@ -69,7 +69,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -1268,9 +1267,8 @@ public class TaskTest extends TestLogger {
         public void invoke() {}
 
         @Override
-        public Future<Void> cancel() {
+        public void cancel() {
             fail("This should not be called");
-            return null;
         }
 
         @Override
@@ -1334,9 +1332,7 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public Future<Void> cancel() {
-            return CompletableFuture.completedFuture(null);
-        }
+        public void cancel() {}
     }
 
     private static class InvokableBlockingWithTrigger extends AbstractInvokable {
@@ -1434,20 +1430,24 @@ public class TaskTest extends TestLogger {
 
         @Override
         public void invoke() {
-            awaitLatch.trigger();
-
-            // make sure that the interrupt call does not
-            // grab us out of the lock early
-            while (true) {
-                try {
-                    triggerLatch.await();
-                    break;
-                } catch (InterruptedException e) {
-                    // fall through the loop
-                }
-            }
+            awaitTriggerLatch();
 
             throw new RuntimeException("test");
+        }
+    }
+
+    private static void awaitTriggerLatch() {
+        awaitLatch.trigger();
+
+        // make sure that the interrupt call does not
+        // grab us out of the lock early
+        while (true) {
+            try {
+                triggerLatch.await();
+                break;
+            } catch (InterruptedException e) {
+                // fall through the loop
+            }
         }
     }
 
@@ -1459,12 +1459,7 @@ public class TaskTest extends TestLogger {
 
         @Override
         public void invoke() {
-            awaitLatch.trigger();
-
-            try {
-                triggerLatch.await();
-            } catch (Throwable ignored) {
-            }
+            awaitTriggerLatch();
 
             throw new CancelTaskException();
         }
@@ -1493,12 +1488,11 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public Future<Void> cancel() throws Exception {
+        public void cancel() throws Exception {
             synchronized (this) {
                 triggerLatch.trigger();
                 wait();
             }
-            return CompletableFuture.completedFuture(null);
         }
     }
 
@@ -1520,12 +1514,11 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public Future<Void> cancel() {
+        public void cancel() {
             synchronized (lock) {
                 // do nothing but a placeholder
                 triggerLatch.trigger();
             }
-            return CompletableFuture.completedFuture(null);
         }
     }
 
@@ -1549,9 +1542,7 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public Future<Void> cancel() {
-            return CompletableFuture.completedFuture(null);
-        }
+        public void cancel() {}
     }
 
     // ------------------------------------------------------------------------

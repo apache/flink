@@ -45,8 +45,6 @@ import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.Executor;
@@ -147,9 +145,9 @@ public class HighAvailabilityServicesUtils {
                                 configuration, AddressResolution.TRY_ADDRESS_RESOLUTION);
                 return new StandaloneClientHAServices(webMonitorAddress);
             case ZOOKEEPER:
-                final CuratorFramework client =
-                        ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler);
-                return new ZooKeeperClientHAServices(client, configuration);
+                return new ZooKeeperClientHAServices(
+                        ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler),
+                        configuration);
             case FACTORY_CLASS:
                 return createCustomClientHAServices(configuration);
             default:

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
+import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
@@ -130,8 +130,10 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
                     validationLogic,
             Problem problem)
             throws Exception {
-        CuratorFramework client =
-                ZooKeeperUtils.startCuratorFramework(configuration, NoOpFatalErrorHandler.INSTANCE);
+        CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
+                ZooKeeperUtils.startCuratorFramework(
+                        configuration, fatalErrorHandlerResource.getFatalErrorHandler());
+        CuratorFramework client = curatorFrameworkWrapper.asCuratorFramework();
         LeaderElectionDriverFactory leaderElectionDriverFactory =
                 new ZooKeeperLeaderElectionDriverFactory(client, PATH);
         DefaultLeaderElectionService leaderElectionService =
@@ -162,7 +164,12 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
             validationLogic.accept(connectionStateListener, contender);
         } finally {
             leaderElectionService.stop();
-            client.close();
+            curatorFrameworkWrapper.close();
+
+            if (problem == Problem.LOST_CONNECTION) {
+                // in case of lost connections we accept that some unhandled error can occur
+                fatalErrorHandlerResource.getFatalErrorHandler().clearError();
+            }
         }
     }
 

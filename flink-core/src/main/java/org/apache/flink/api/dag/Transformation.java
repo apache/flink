@@ -119,6 +119,8 @@ public abstract class Transformation<T> {
 
     protected String name;
 
+    protected String description;
+
     protected TypeInformation<T> outputType;
     // This is used to handle MissingTypeInfo. As long as the outputType has not been queried
     // it can still be changed using setOutputType(). Afterwards an exception is thrown when
@@ -201,6 +203,16 @@ public abstract class Transformation<T> {
     /** Returns the name of this {@code Transformation}. */
     public String getName() {
         return name;
+    }
+
+    /** Changes the description of this {@code Transformation}. */
+    public void setDescription(String description) {
+        this.description = Preconditions.checkNotNull(description);
+    }
+
+    /** Returns the description of this {@code Transformation}. */
+    public String getDescription() {
+        return description;
     }
 
     /** Returns the parallelism of this {@code Transformation}. */

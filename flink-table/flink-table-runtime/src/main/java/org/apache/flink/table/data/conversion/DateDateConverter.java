@@ -19,8 +19,8 @@
 package org.apache.flink.table.data.conversion;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.utils.DateTimeUtils;
 
 /** Converter for {@link DateType} of {@link java.sql.Date} external type. */
 @Internal
@@ -30,11 +30,11 @@ public class DateDateConverter implements DataStructureConverter<Integer, java.s
 
     @Override
     public Integer toInternal(java.sql.Date external) {
-        return SqlDateTimeUtils.dateToInternal(external);
+        return DateTimeUtils.toInternal(external);
     }
 
     @Override
     public java.sql.Date toExternal(Integer internal) {
-        return SqlDateTimeUtils.internalToDate(internal);
+        return DateTimeUtils.toSQLDate(internal);
     }
 }

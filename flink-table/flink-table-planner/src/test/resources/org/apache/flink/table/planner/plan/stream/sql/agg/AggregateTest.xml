@@ -76,7 +76,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3
       <![CDATA[
 GroupAggregate(groupBy=[a], select=[a, SUM($f1) AS EXPR$1, SUM($f2) AS EXPR$2, SUM($f3) AS EXPR$3, SUM($f4) AS EXPR$4, SUM($f5) AS EXPR$5, SUM($f6) AS EXPR$6, SUM($f7) AS EXPR$7]), rowType=[RecordType(INTEGER a, INTEGER EXPR$1, BIGINT EXPR$2, TINYINT EXPR$3, SMALLINT EXPR$4, FLOAT EXPR$5, DECIMAL(38, 0) EXPR$6, DOUBLE EXPR$7)]
 +- Exchange(distribution=[hash[a]]), rowType=[RecordType(INTEGER a, INTEGER $f1, BIGINT $f2, TINYINT $f3, SMALLINT $f4, FLOAT $f5, DECIMAL(10, 0) $f6, DOUBLE $f7)]
-   +- Calc(select=[a, 1 AS $f1, 2:BIGINT AS $f2, 3:TINYINT AS $f3, 4:SMALLINT AS $f4, 5:FLOAT AS $f5, 6:DECIMAL(10, 0) AS $f6, 7:DOUBLE AS $f7]), rowType=[RecordType(INTEGER a, INTEGER $f1, BIGINT $f2, TINYINT $f3, SMALLINT $f4, FLOAT $f5, DECIMAL(10, 0) $f6, DOUBLE $f7)]
+   +- Calc(select=[a, 1 AS $f1, 2 AS $f2, 3 AS $f3, 4 AS $f4, 5 AS $f5, 6 AS $f6, 7 AS $f7]), rowType=[RecordType(INTEGER a, INTEGER $f1, BIGINT $f2, TINYINT $f3, SMALLINT $f4, FLOAT $f5, DECIMAL(10, 0) $f6, DOUBLE $f7)]
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, BOOLEAN d)]
 ]]>
     </Resource>
@@ -103,7 +103,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM($1) FILTER $2], EXPR$2=[COUNT(DISTINCT
       <![CDATA[
 GroupAggregate(groupBy=[a], select=[a, SUM(b) FILTER $f2 AS EXPR$1, COUNT(DISTINCT c) FILTER $f4 AS EXPR$2, MAX(b) AS EXPR$3])
 +- Exchange(distribution=[hash[a]])
-   +- Calc(select=[a, b, (c = _UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") IS TRUE AS $f2, c, d IS TRUE AS $f4])
+   +- Calc(select=[a, b, (c = 'A') IS TRUE AS $f2, c, d IS TRUE AS $f4])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
@@ -132,7 +132,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM($1) FILTER $2], EXPR$2=[COUNT(DISTINCT
 GlobalGroupAggregate(groupBy=[a], select=[a, SUM(sum$0) AS EXPR$1, COUNT(distinct$0 count$1) AS EXPR$2, COUNT(distinct$0 count$2) AS EXPR$3, MAX(max$3) AS EXPR$4])
 +- Exchange(distribution=[hash[a]])
    +- LocalGroupAggregate(groupBy=[a], select=[a, SUM(b) FILTER $f2 AS sum$0, COUNT(distinct$0 c) FILTER $f4 AS count$1, COUNT(distinct$0 c) FILTER $f5 AS count$2, MAX(b) AS max$3, DISTINCT(c) AS distinct$0])
-      +- Calc(select=[a, b, (c = _UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") IS TRUE AS $f2, c, d IS TRUE AS $f4, (b = 1:BIGINT) IS TRUE AS $f5])
+      +- Calc(select=[a, b, (c = 'A') IS TRUE AS $f2, c, d IS TRUE AS $f4, (b = 1) IS TRUE AS $f5])
          +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
             +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
@@ -231,7 +231,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
       <![CDATA[
 GroupAggregate(groupBy=[b], select=[b, SUM(a) AS EXPR$1])
 +- Exchange(distribution=[hash[b]])
-   +- Calc(select=[a, b], where=[SEARCH(a, Sarg[(0.1:DECIMAL(11, 1)..10:DECIMAL(11, 1))]:DECIMAL(11, 1))])
+   +- Calc(select=[a, b], where=[SEARCH(a, Sarg[(0.1..10)])])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime, rowtime)]]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -262,7 +262,7 @@ LogicalAggregate(group=[{}], all_uv=[SUM($0) FILTER $1])
       <![CDATA[
 GroupAggregate(select=[SUM_RETRACT(uv) FILTER $f1 AS all_uv])
 +- Exchange(distribution=[single])
-   +- Calc(select=[uv, (c = _UTF-16LE'all':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") IS TRUE AS $f1])
+   +- Calc(select=[uv, (c = 'all') IS TRUE AS $f1])
       +- GroupAggregate(groupBy=[c], select=[c, COUNT(*) AS uv])
          +- Exchange(distribution=[hash[c]])
             +- Calc(select=[c])
@@ -286,7 +286,7 @@ LogicalProject(a=[$0], EXPR$1=[$2], c=[$1])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, EXPR$1, _UTF-16LE'test' AS c])
+Calc(select=[a, EXPR$1, 'test' AS c])
 +- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS EXPR$1])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b])
@@ -313,6 +313,81 @@ Calc(select=[EXPR$0])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[b, a])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime, rowtime)]]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupKeyInSinkPk">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, cnt])
++- LogicalAggregate(group=[{0}], b=[MAX($1)], cnt=[COUNT()])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, cnt], changelogMode=[NONE])
++- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b, COUNT(*) AS cnt], changelogMode=[I,UB,UA])
+   +- Exchange(distribution=[hash[a]], changelogMode=[I])
+      +- Calc(select=[a, b], changelogMode=[I])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d], changelogMode=[I])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, cnt])
++- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b, COUNT(*) AS cnt])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupKeyNotMatchSinkPk">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[c, cnt])
++- LogicalAggregate(group=[{0}], cnt=[COUNT()])
+   +- LogicalProject(c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[c, cnt], changelogMode=[NONE])
++- GroupAggregate(groupBy=[c], select=[c, COUNT(*) AS cnt], changelogMode=[I,UB,UA])
+   +- Exchange(distribution=[hash[c]], changelogMode=[I])
+      +- Calc(select=[c], changelogMode=[I])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d], changelogMode=[I])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[c, cnt], upsertMaterialize=[true])
++- GroupAggregate(groupBy=[c], select=[c, COUNT(*) AS cnt])
+   +- Exchange(distribution=[hash[c]])
+      +- Calc(select=[c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupResultLostUpsertKeyWithSinkPk">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[c, cnt])
++- LogicalProject(c=[$1], cnt=[$2])
+   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
+      +- LogicalProject(a=[$0], c=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[c, cnt], changelogMode=[NONE])
++- Calc(select=[c, cnt], changelogMode=[I,UB,UA])
+   +- GroupAggregate(groupBy=[a, c], select=[a, c, COUNT(*) AS cnt], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[a, c]], changelogMode=[I])
+         +- Calc(select=[a, c], changelogMode=[I])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d], changelogMode=[I])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[c, cnt], upsertMaterialize=[true])
++- Calc(select=[c, cnt])
+   +- GroupAggregate(groupBy=[a, c], select=[a, c, COUNT(*) AS cnt])
+      +- Exchange(distribution=[hash[a, c]])
+         +- Calc(select=[a, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>

@@ -42,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class LegacySinkTransformationTranslator<IN>
-        extends SimpleTransformationTranslator<Object, LegacySinkTransformation<IN>> {
+        extends SimpleTransformationTranslator<IN, LegacySinkTransformation<IN>> {
 
     @Override
     protected Collection<Integer> translateForBatchInternal(

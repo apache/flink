@@ -235,6 +235,14 @@ public interface JobMasterGateway
             @RpcTimeout final Time timeout);
 
     /**
+     * Triggers taking a checkpoint of the executed job.
+     *
+     * @param timeout for the rpc call
+     * @return Future which is completed with the checkpoint path once completed
+     */
+    CompletableFuture<String> triggerCheckpoint(@RpcTimeout final Time timeout);
+
+    /**
      * Stops the job with a savepoint.
      *
      * @param targetDirectory to which to write the savepoint data or null if the default savepoint

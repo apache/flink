@@ -17,25 +17,30 @@
 
 package org.apache.flink.connector.kafka.sink;
 
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Tests for {@link KafkaCommitter}. */
-public class KafkaCommitterTest extends TestLogger {
+@ExtendWith({TestLoggerExtension.class})
+public class KafkaCommitterTest {
 
     private static final int PRODUCER_ID = 0;
     private static final short EPOCH = 0;
@@ -61,19 +66,23 @@ public class KafkaCommitterTest extends TestLogger {
     }
 
     @Test
-    public void testRetryCommittableOnFatalError() throws IOException {
+    public void testFailJobOnUnknownFatalError() {
         Properties properties = getProperties();
         try (final KafkaCommitter committer = new KafkaCommitter(properties);
                 FlinkKafkaInternalProducer<Object, Object> producer =
-                        new FlinkKafkaInternalProducer(properties, TRANSACTIONAL_ID);
+                        new FlinkKafkaInternalProducer<>(properties, TRANSACTIONAL_ID);
                 Recyclable<FlinkKafkaInternalProducer<Object, Object>> recyclable =
                         new Recyclable<>(producer, p -> {})) {
             final List<KafkaCommittable> committables =
                     Collections.singletonList(
                             new KafkaCommittable(PRODUCER_ID, EPOCH, TRANSACTIONAL_ID, recyclable));
             // will fail because transaction not started
-            List<KafkaCommittable> recovered = committer.commit(committables);
-            assertThat(recovered, empty());
+            final FlinkRuntimeException exception =
+                    assertThrows(FlinkRuntimeException.class, () -> committer.commit(committables));
+            assertThat(exception.getCause(), instanceOf(IllegalStateException.class));
+            assertThat(
+                    exception.getCause().getMessage(),
+                    containsString("Transaction was not started"));
             assertThat(recyclable.isRecycled(), equalTo(true));
         }
     }

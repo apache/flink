@@ -147,6 +147,16 @@ function add_optional_plugin() {
     cp "$FLINK_DIR/opt/flink-$plugin"*".jar" "$plugin_dir"
 }
 
+function swap_planner_loader_with_planner_scala() {
+  mv "$FLINK_DIR/lib/flink-table-planner-loader"*".jar" "$FLINK_DIR/opt"
+  mv "$FLINK_DIR/opt/flink-table-planner_"*".jar" "$FLINK_DIR/lib"
+}
+
+function swap_planner_scala_with_planner_loader() {
+  mv "$FLINK_DIR/opt/flink-table-planner-loader"*".jar" "$FLINK_DIR/lib"
+  mv "$FLINK_DIR/lib/flink-table-planner_"*".jar" "$FLINK_DIR/opt"
+}
+
 function delete_config_key() {
     local config_key=$1
     sed -i -e "/^${config_key}: /d" ${FLINK_DIR}/conf/flink-conf.yaml
@@ -369,6 +379,7 @@ function check_logs_for_errors {
       | grep -v "error_prone_annotations" \
       | grep -v "Error sending fetch request" \
       | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
+      | grep -v "Options.*error_*" \
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
     echo "Found error in log files; printing first 500 lines; see full logs for details:"
@@ -382,6 +393,7 @@ function check_logs_for_errors {
 function check_logs_for_exceptions {
   echo "Checking for exceptions..."
   exception_count=$(grep -rv "GroupCoordinatorNotAvailableException" $FLINK_LOG_DIR \
+   | grep -v "due to CancelTaskException" \
    | grep -v "RetriableCommitFailedException" \
    | grep -v "NoAvailableBrokersException" \
    | grep -v "Async Kafka commit failed" \
@@ -818,6 +830,27 @@ function retry_times_with_backoff_and_cleanup() {
     echo "Command: ${command} failed ${retriesNumber} times."
     ${cleanup_command}
     return 1
+}
+
+function retry_times_with_exponential_backoff {
+  local retries=$1
+  shift
+
+  local count=0
+  echo "Executing command:" "$@"
+  until "$@"; do
+    exit=$?
+    wait=$((2 ** $count))
+    count=$(($count + 1))
+    if [ $count -lt $retries ]; then
+      echo "Retry $count/$retries exited $exit, retrying in $wait seconds..."
+      sleep $wait
+    else
+      echo "Retry $count/$retries exited $exit, no more retries left."
+      return $exit
+    fi
+  done
+  return 0
 }
 
 JOB_ID_REGEX_EXTRACTOR=".*JobID ([0-9,a-f]*)"

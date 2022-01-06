@@ -48,10 +48,10 @@ import org.apache.flink.runtime.rest.util.TestRestHandler;
 import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -744,8 +744,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
         @Override
         protected CompletableFuture<TestResponse> handleRequest(
-                @Nonnull HandlerRequest<TestRequest, TestParameters> request,
-                RestfulGateway gateway) {
+                @Nonnull HandlerRequest<TestRequest> request, RestfulGateway gateway) {
             assertEquals(request.getPathParameter(JobIDPathParameter.class), PATH_JOB_ID);
             assertEquals(request.getQueryParameter(JobIDQueryParameter.class).get(0), QUERY_JOB_ID);
 
@@ -967,7 +966,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
         @Override
         protected CompletableFuture<EmptyResponseBody> handleRequest(
-                @Nonnull final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+                @Nonnull final HandlerRequest<EmptyRequestBody> request,
                 @Nonnull final RestfulGateway gateway)
                 throws RestHandlerException {
             Collection<Path> uploadedFiles =
@@ -1013,8 +1012,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
         @Override
         protected CompletableFuture<EmptyResponseBody> handleRequest(
-                @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
-                @Nonnull RestfulGateway gateway)
+                @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
                 throws RestHandlerException {
             return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
         }

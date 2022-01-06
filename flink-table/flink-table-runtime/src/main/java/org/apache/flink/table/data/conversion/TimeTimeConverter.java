@@ -19,8 +19,8 @@
 package org.apache.flink.table.data.conversion;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.utils.DateTimeUtils;
 
 /** Converter for {@link TimeType} of {@link java.sql.Time} external type. */
 @Internal
@@ -30,11 +30,11 @@ public class TimeTimeConverter implements DataStructureConverter<Integer, java.s
 
     @Override
     public Integer toInternal(java.sql.Time external) {
-        return SqlDateTimeUtils.timeToInternal(external);
+        return DateTimeUtils.toInternal(external);
     }
 
     @Override
     public java.sql.Time toExternal(Integer internal) {
-        return SqlDateTimeUtils.internalToTime(internal);
+        return DateTimeUtils.toSQLTime(internal);
     }
 }

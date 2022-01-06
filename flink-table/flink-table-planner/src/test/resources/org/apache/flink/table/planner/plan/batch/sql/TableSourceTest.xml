@@ -91,7 +91,7 @@ LogicalProject(EXPR$0=[ITEM($2.data_arr, $0).value], EXPR$1=[ITEM($2.data_map, _
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[ITEM(result_data_arr, id).value AS EXPR$0, ITEM(result_data_map, _UTF-16LE'item').value AS EXPR$1])
+Calc(select=[ITEM(result_data_arr, id).value AS EXPR$0, ITEM(result_data_map, 'item').value AS EXPR$1])
 +- TableSourceScan(table=[[default_catalog, default_database, NestedItemTable, project=[result_data_arr, result_data_map, id], metadata=[]]], fields=[result_data_arr, result_data_map, id])
 ]]>
     </Resource>
@@ -114,7 +114,7 @@ LogicalProject(id=[$0], nested1=[$1.nested1], results=[+(+($1.nested1.value, $1.
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[id, deepNested_nested1 AS nested1, ((deepNested_nested1.value + deepNested_nested2_num) + metadata_1) AS results])
-+- TableSourceScan(table=[[default_catalog, default_database, T, project=[id, deepNested_nested1, deepNested_nested2_num, metadata_1], metadata=[metadata_1]]], fields=[id, deepNested_nested1, deepNested_nested2_num, metadata_1])
++- TableSourceScan(table=[[default_catalog, default_database, T, project=[id, deepNested_nested1, deepNested_nested2_num], metadata=[metadata_1]]], fields=[id, deepNested_nested1, deepNested_nested2_num, metadata_1])
 ]]>
     </Resource>
   </TestCase>
@@ -133,8 +133,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
-      +- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[], metadata=[]]], fields=[])
+   +- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[], metadata=[], aggregates=[grouping=[], aggFunctions=[Count1AggFunction()]]]], fields=[count1$0])
 ]]>
     </Resource>
   </TestCase>

@@ -16,7 +16,12 @@
   ~ limitations under the License.
   -->
 
-<flink-monaco-editor [value]="stdout"></flink-monaco-editor>
+<nz-code-editor
+  flinkAutoResize
+  [nzLoading]="loading"
+  [ngModel]="stdout"
+  [nzEditorOption]="editorOptions"
+></nz-code-editor>
 <flink-refresh-download
   [compactMode]="true"
   [downloadHref]="'jobmanager/stdout'"

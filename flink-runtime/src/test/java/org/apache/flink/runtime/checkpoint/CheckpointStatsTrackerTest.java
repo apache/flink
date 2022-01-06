@@ -24,8 +24,6 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 
 import org.junit.Test;
 
@@ -42,37 +40,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 public class CheckpointStatsTrackerTest {
-
-    /** Tests access to the snapshotting settings. */
-    @Test
-    public void testGetSnapshottingSettings() throws Exception {
-        JobCheckpointingSettings snapshottingSettings =
-                new JobCheckpointingSettings(
-                        new CheckpointCoordinatorConfiguration(
-                                181238123L,
-                                19191992L,
-                                191929L,
-                                123,
-                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-                                false,
-                                false,
-                                0,
-                                0),
-                        null);
-
-        CheckpointStatsTracker tracker =
-                new CheckpointStatsTracker(
-                        0,
-                        snapshottingSettings.getCheckpointCoordinatorConfiguration(),
-                        new UnregisteredMetricsGroup());
-
-        assertEquals(
-                snapshottingSettings.getCheckpointCoordinatorConfiguration(),
-                tracker.getJobCheckpointingConfiguration());
-    }
 
     /** Tests that the number of remembered checkpoints configuration is respected. */
     @Test
@@ -85,10 +54,7 @@ public class CheckpointStatsTrackerTest {
         ExecutionJobVertex jobVertex = graph.getJobVertex(jobVertexID);
 
         CheckpointStatsTracker tracker =
-                new CheckpointStatsTracker(
-                        0,
-                        mock(CheckpointCoordinatorConfiguration.class),
-                        new UnregisteredMetricsGroup());
+                new CheckpointStatsTracker(0, new UnregisteredMetricsGroup());
 
         PendingCheckpointStats pending =
                 tracker.reportPendingCheckpoint(
@@ -136,10 +102,7 @@ public class CheckpointStatsTrackerTest {
                 singletonMap(jobVertexID, jobVertex.getParallelism());
 
         CheckpointStatsTracker tracker =
-                new CheckpointStatsTracker(
-                        10,
-                        mock(CheckpointCoordinatorConfiguration.class),
-                        new UnregisteredMetricsGroup());
+                new CheckpointStatsTracker(10, new UnregisteredMetricsGroup());
 
         // Completed checkpoint
         PendingCheckpointStats completed1 =
@@ -254,10 +217,7 @@ public class CheckpointStatsTrackerTest {
     public void testCreateSnapshot() throws Exception {
         JobVertexID jobVertexID = new JobVertexID();
         CheckpointStatsTracker tracker =
-                new CheckpointStatsTracker(
-                        10,
-                        mock(CheckpointCoordinatorConfiguration.class),
-                        new UnregisteredMetricsGroup());
+                new CheckpointStatsTracker(10, new UnregisteredMetricsGroup());
 
         CheckpointStatsSnapshot snapshot1 = tracker.createSnapshot();
 
@@ -313,7 +273,7 @@ public class CheckpointStatsTrackerTest {
                     }
                 };
 
-        new CheckpointStatsTracker(0, mock(CheckpointCoordinatorConfiguration.class), metricGroup);
+        new CheckpointStatsTracker(0, metricGroup);
 
         // Make sure this test is adjusted when further metrics are added
         assertTrue(
@@ -360,9 +320,7 @@ public class CheckpointStatsTrackerTest {
                         .build();
         ExecutionJobVertex jobVertex = graph.getJobVertex(jobVertexID);
 
-        CheckpointStatsTracker stats =
-                new CheckpointStatsTracker(
-                        0, mock(CheckpointCoordinatorConfiguration.class), metricGroup);
+        CheckpointStatsTracker stats = new CheckpointStatsTracker(0, metricGroup);
 
         // Make sure to adjust this test if metrics are added/removed
         assertEquals(10, registeredGauges.size());

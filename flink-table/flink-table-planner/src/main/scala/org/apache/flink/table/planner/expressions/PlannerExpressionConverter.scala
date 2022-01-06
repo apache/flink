@@ -26,7 +26,7 @@ import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.functions.InternalFunctionDefinitions.THROW_EXCEPTION
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot.{CHAR, DECIMAL, SYMBOL}
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks._
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasLength, hasPrecision, hasScale}
 
 import _root_.scala.collection.JavaConverters._
 
@@ -255,7 +255,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
   }
 
   override def visit(literal: ValueLiteralExpression): PlannerExpression = {
-    if (hasRoot(literal.getOutputDataType.getLogicalType, SYMBOL)) {
+    if (literal.getOutputDataType.getLogicalType.is(SYMBOL)) {
       val plannerSymbol = getSymbol(literal.getValueAs(classOf[TableSymbol]).get())
       return SymbolPlannerExpression(plannerSymbol)
     }
@@ -276,7 +276,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
   private def getLiteralTypeInfo(literal: ValueLiteralExpression): TypeInformation[_] = {
     val logicalType = literal.getOutputDataType.getLogicalType
 
-    if (hasRoot(logicalType, DECIMAL)) {
+    if (logicalType.is(DECIMAL)) {
       if (literal.isNull) {
         return Types.BIG_DEC
       }
@@ -286,7 +286,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       }
     }
 
-    else if (hasRoot(logicalType, CHAR)) {
+    else if (logicalType.is(CHAR)) {
       if (literal.isNull) {
         return Types.STRING
       }

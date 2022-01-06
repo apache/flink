@@ -36,7 +36,7 @@ under the License.
 
 ## Getting Started
 
-This *Getting Started* section guides you through the local setup (on one machine, but in separate processes) of a Flink cluster. This can easily be expanded to set up a distributed standalone cluster, which we describe in the [reference section](#example-2-start-a-distributed-cluster-jobmangers).
+This *Getting Started* section guides you through the local setup (on one machine, but in separate processes) of a Flink cluster. This can easily be expanded to set up a distributed standalone cluster, which we describe in the [reference section](#example-2-start-a-distributed-cluster-jobmanagers).
 
 ### Introduction
 
@@ -77,6 +77,10 @@ In step `(3)`, we are starting a Flink Client (a short-lived JVM process) that s
 
 ### Application Mode
 
+{{< hint info >}}
+For high-level intuition behind the application mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#application-mode" >}}).
+{{< /hint >}}
+
 To start a Flink JobManager with an embedded application, we use the `bin/standalone-job.sh` script. 
 We demonstrate this mode by locally starting the `TopSpeedWindowing.jar` example, running on a single TaskManager.
 
@@ -110,9 +114,17 @@ $ ./bin/standalone-job.sh stop
 
 ### Per-Job Mode
 
+{{< hint info >}}
+For high-level intuition behind the per-job mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#per-job-mode" >}}).
+{{< /hint >}}
+
 Per-Job Mode is not supported by the Standalone Cluster.
 
 ### Session Mode
+
+{{< hint info >}}
+For high-level intuition behind the session mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#session-mode" >}}).
+{{< /hint >}}
 
 Local deployment in Session Mode has already been described in the [introduction](#starting-a-standalone-cluster-session-mode) above.
 
@@ -156,7 +168,7 @@ localhost
 localhost
 ```
 
-##### Example 2: Start a distributed cluster JobMangers
+##### Example 2: Start a distributed cluster JobManagers
 
 This assumes a cluster with 4 machines (`master1, worker1, worker2, worker3`), which all can reach each other over the network.
 

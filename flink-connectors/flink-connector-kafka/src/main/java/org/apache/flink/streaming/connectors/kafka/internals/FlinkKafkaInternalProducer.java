@@ -24,6 +24,7 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Joiner;
 
+import org.apache.kafka.clients.consumer.ConsumerGroupMetadata;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -54,7 +55,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 /** Internal flink kafka producer. */
 @PublicEvolving
@@ -126,6 +126,13 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
     }
 
     @Override
+    public void sendOffsetsToTransaction(
+            Map<TopicPartition, OffsetAndMetadata> map, ConsumerGroupMetadata consumerGroupMetadata)
+            throws ProducerFencedException {
+        kafkaProducer.sendOffsetsToTransaction(map, consumerGroupMetadata);
+    }
+
+    @Override
     public Future<RecordMetadata> send(ProducerRecord<K, V> record) {
         return kafkaProducer.send(record);
     }
@@ -152,20 +159,6 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
     public void close() {
         throw new UnsupportedOperationException(
                 "Close without timeout is now allowed because it can leave lingering Kafka threads.");
-    }
-
-    @Override
-    public void close(long timeout, TimeUnit unit) {
-        synchronized (producerClosingLock) {
-            kafkaProducer.close(timeout, unit);
-            if (LOG.isDebugEnabled()) {
-                LOG.debug(
-                        "Closed internal KafkaProducer {}. Stacktrace: {}",
-                        System.identityHashCode(this),
-                        Joiner.on("\n").join(Thread.currentThread().getStackTrace()));
-            }
-            closed = true;
-        }
     }
 
     @Override

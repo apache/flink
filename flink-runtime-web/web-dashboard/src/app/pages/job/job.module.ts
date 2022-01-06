@@ -23,6 +23,7 @@ import { FormsModule } from '@angular/forms';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
 import { NzCollapseModule } from 'ng-zorro-antd/collapse';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
@@ -63,7 +64,8 @@ import { JobTimelineComponent } from './timeline/job-timeline.component';
     NzPopconfirmModule,
     NzIconModule,
     NzSelectModule,
-    NzToolTipModule
+    NzToolTipModule,
+    NzCodeEditorModule
   ],
   declarations: [
     JobComponent,

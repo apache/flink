@@ -18,6 +18,7 @@
 package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.errors.InvalidTxnStateException;
@@ -35,6 +36,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+
+import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 
 /**
  * Committer implementation for {@link KafkaSink}
@@ -59,6 +62,7 @@ class KafkaCommitter implements Committer<KafkaCommittable>, Closeable {
     @Override
     public List<KafkaCommittable> commit(List<KafkaCommittable> committables) throws IOException {
         List<KafkaCommittable> retryableCommittables = new ArrayList<>();
+        Exception collected = null;
         for (KafkaCommittable committable : committables) {
             final String transactionalId = committable.getTransactionalId();
             LOG.debug("Committing Kafka transaction {}", transactionalId);
@@ -109,8 +113,14 @@ class KafkaCommitter implements Committer<KafkaCommittable>, Closeable {
                         "Transaction ({}) encountered error and data has been potentially lost.",
                         committable,
                         e);
+                collected = firstOrSuppressed(e, collected);
             }
             recyclable.ifPresent(Recyclable::close);
+            if (collected != null) {
+                throw new FlinkRuntimeException(
+                        "Some committables were not committed and committing failed with:",
+                        collected);
+            }
         }
         return retryableCommittables;
     }

@@ -124,7 +124,7 @@ LogicalProject(c=[$2], s=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, s])
-+- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$774a5145e3fba9ca5b92e3e71a308c36($2, _UTF-16LE'$')], correlate=[table(TableFunc1(c,_UTF-16LE'$'))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
++- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$774a5145e3fba9ca5b92e3e71a308c36($2, _UTF-16LE'$')], correlate=[table(TableFunc1(c,'$'))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -164,21 +164,6 @@ Calc(select=[c, name, len])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testHierarchyType">
-    <Resource name="ast">
-      <![CDATA[
-LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
-:- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-+- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$HierarchyTableFunction$80e30c6adff4b29f031c16f3b03bfa7b($2)], rowType=[RecordType(VARCHAR(2147483647) name, BOOLEAN adult, INTEGER len)], elementType=[class [Ljava.lang.Object;])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Correlate(invocation=[org$apache$flink$table$planner$utils$HierarchyTableFunction$80e30c6adff4b29f031c16f3b03bfa7b($2)], correlate=[table(HierarchyTableFunction(c))], select=[a,b,c,name,adult,len], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name, BOOLEAN adult, INTEGER len)], joinType=[INNER])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testFlatMap">
     <Resource name="ast">
       <![CDATA[
@@ -194,6 +179,109 @@ LogicalProject(f0=[AS($3, _UTF-16LE'f0')], f1=[AS($4, _UTF-16LE'f1')])
 Calc(select=[f0, f10 AS f1])
 +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc2$e9d8fd0c1a1f8cddfbbd46c86e136247($2)], correlate=[table(org$apache$flink$table$planner$utils$TableFunc2$e9d8fd0c1a1f8cddfbbd46c86e136247(f3))], select=[f1,f2,f3,f0,f10], rowType=[RecordType(INTEGER f1, BIGINT f2, VARCHAR(2147483647) f3, VARCHAR(2147483647) f0, INTEGER f10)], joinType=[INNER])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(f1, f2, f3)]]], fields=[f1, f2, f3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinConstantNonDeterministicFunction">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM MyTable, LATERAL TABLE(str_split('Jack,John')) AS T
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$0=[$3])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableFunctionScan(invocation=[str_split(_UTF-16LE'Jack,John')], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Correlate(invocation=[str_split(_UTF-16LE'Jack,John')], correlate=[table(str_split('Jack,John'))], select=[a,b,c,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testHierarchyType">
+    <Resource name="ast">
+      <![CDATA[
+LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
+:- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
++- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$HierarchyTableFunction$80e30c6adff4b29f031c16f3b03bfa7b($2)], rowType=[RecordType(VARCHAR(2147483647) name, BOOLEAN adult, INTEGER len)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Correlate(invocation=[org$apache$flink$table$planner$utils$HierarchyTableFunction$80e30c6adff4b29f031c16f3b03bfa7b($2)], correlate=[table(HierarchyTableFunction(c))], select=[a,b,c,name,adult,len], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name, BOOLEAN adult, INTEGER len)], joinType=[INNER])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinConstantFunction">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM MyTable, LATERAL TABLE(str_split('Jack,John', ',')) AS T
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$0=[$3])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableFunctionScan(invocation=[str_split(_UTF-16LE'Jack,John', _UTF-16LE',')], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Correlate(invocation=[str_split(_UTF-16LE'Jack,John', _UTF-16LE',')], correlate=[table(str_split('Jack,John',','))], select=[a,b,c,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftJoinConstantNonDeterministicFunction">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM MyTable Left JOIN LATERAL TABLE(str_split('Jack,John')) AS T ON TRUE
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$0=[$3])
++- LogicalJoin(condition=[true], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableFunctionScan(invocation=[str_split(_UTF-16LE'Jack,John')], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Correlate(invocation=[str_split(_UTF-16LE'Jack,John')], correlate=[table(str_split('Jack,John'))], select=[a,b,c,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) EXPR$0)], joinType=[LEFT])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftJoinConstantFunction">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM MyTable Left JOIN LATERAL TABLE(str_split('Jack,John', ',')) AS T ON TRUE
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$0=[$3])
++- LogicalJoin(condition=[true], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableFunctionScan(invocation=[str_split(_UTF-16LE'Jack,John', _UTF-16LE',')], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Correlate(invocation=[str_split(_UTF-16LE'Jack,John', _UTF-16LE',')], correlate=[table(str_split('Jack,John',','))], select=[a,b,c,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) EXPR$0)], joinType=[LEFT])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
