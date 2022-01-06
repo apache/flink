@@ -163,7 +163,7 @@ public class FileSystemConnectorOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "It can combine with 'partition.time-extractor.timestamp-patter', "
+                                            "The formatter to format timestamp from string, it can be used with 'partition.time-extractor.timestamp-pattern', "
                                                     + "creates a formatter using the specified value. "
                                                     + "Supports multiple partition fields like '$year-$month-$day $hour:00:00'.")
                                     .list(
