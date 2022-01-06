@@ -116,6 +116,11 @@ public class AvroFileFormatFactory implements BulkReaderFormatFactory, BulkWrite
         return options;
     }
 
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        return optionalOptions();
+    }
+
     private static class AvroGenericRecordBulkFormat
             extends AbstractAvroBulkFormat<GenericRecord, RowData, FileSourceSplit> {
 

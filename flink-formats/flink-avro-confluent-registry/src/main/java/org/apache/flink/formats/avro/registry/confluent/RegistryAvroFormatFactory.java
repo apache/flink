@@ -52,6 +52,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_CREDENTIALS_SOURCE;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_USER_INFO;
@@ -173,6 +175,23 @@ public class RegistryAvroFormatFactory
         options.add(BEARER_AUTH_CREDENTIALS_SOURCE);
         options.add(BEARER_AUTH_TOKEN);
         return options;
+    }
+
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        return Stream.of(
+                        URL,
+                        SUBJECT,
+                        PROPERTIES,
+                        SSL_KEYSTORE_LOCATION,
+                        SSL_KEYSTORE_PASSWORD,
+                        SSL_TRUSTSTORE_LOCATION,
+                        SSL_TRUSTSTORE_PASSWORD,
+                        BASIC_AUTH_CREDENTIALS_SOURCE,
+                        BASIC_AUTH_USER_INFO,
+                        BEARER_AUTH_CREDENTIALS_SOURCE,
+                        BEARER_AUTH_TOKEN)
+                .collect(Collectors.toSet());
     }
 
     public static @Nullable Map<String, String> buildOptionalPropertiesMap(
