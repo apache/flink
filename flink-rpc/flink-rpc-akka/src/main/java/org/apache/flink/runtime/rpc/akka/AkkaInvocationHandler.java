@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
@@ -298,25 +299,8 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
             rpcInvocation =
                     new LocalRpcInvocation(declaringClassName, methodName, parameterTypes, args);
         } else {
-            try {
-                RemoteRpcInvocation remoteRpcInvocation =
-                        new RemoteRpcInvocation(
-                                declaringClassName, methodName, parameterTypes, args);
-
-                if (remoteRpcInvocation.getSize() > maximumFramesize) {
-                    throw new IOException(
-                            String.format(
-                                    "The rpc invocation size %d exceeds the maximum akka framesize.",
-                                    remoteRpcInvocation.getSize()));
-                } else {
-                    rpcInvocation = remoteRpcInvocation;
-                }
-            } catch (IOException e) {
-                LOG.warn(
-                        "Could not create remote rpc invocation message. Failing rpc invocation because...",
-                        e);
-                throw e;
-            }
+            rpcInvocation =
+                    new RemoteRpcInvocation(declaringClassName, methodName, parameterTypes, args);
         }
 
         return rpcInvocation;
@@ -452,8 +436,13 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
             newException =
                     new TimeoutException(
                             String.format(
-                                    "Invocation of [%s] at recipient [%s] timed out.",
-                                    rpcInvocation, recipient));
+                                    "Invocation of [%s] at recipient [%s] timed out. This is usually caused by: 1) Akka failed sending "
+                                            + "the message silently, due to problems like oversized payload or serialization failures. "
+                                            + "In that case, you should find detailed error information in the logs. 2) The recipient needs "
+                                            + "more time for responding, due to problems like slow machines or network jitters. In that case, you can try to increase %s.",
+                                    rpcInvocation,
+                                    recipient,
+                                    AkkaOptions.ASK_TIMEOUT_DURATION.key()));
         }
 
         newException.initCause(exception);
