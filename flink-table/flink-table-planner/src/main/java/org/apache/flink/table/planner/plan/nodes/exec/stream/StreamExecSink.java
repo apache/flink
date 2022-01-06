@@ -133,7 +133,10 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                             rowtimeFieldIndices.stream()
                                     .map(i -> inputRowType.getFieldNames().get(i))
                                     .collect(Collectors.joining(", ")),
-                            tableSinkSpec.getObjectIdentifier().asSummaryString()));
+                            tableSinkSpec
+                                    .getContextResolvedTable()
+                                    .getIdentifier()
+                                    .asSummaryString()));
         } else if (rowtimeFieldIndices.size() == 1) {
             rowtimeFieldIndex = rowtimeFieldIndices.get(0);
         } else {

@@ -81,12 +81,9 @@ class StreamPhysicalSink(
     val inputChangelogMode = ChangelogPlanUtils.getChangelogMode(
       getInput.asInstanceOf[StreamPhysicalRel]).get
     val tableSinkSpec = new DynamicTableSinkSpec(
-      contextResolvedTable.getIdentifier,
-      contextResolvedTable.getResolvedTable[ResolvedCatalogTable],
+      contextResolvedTable,
       util.Arrays.asList(abilitySpecs: _*))
     tableSinkSpec.setTableSink(tableSink)
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
-    tableSinkSpec.setReadableConfig(tableConfig.getConfiguration)
     new StreamExecSink(
       tableSinkSpec,
       inputChangelogMode,

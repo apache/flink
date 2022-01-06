@@ -29,7 +29,6 @@ import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -102,7 +101,7 @@ public final class RexNodeExpression implements ResolvedExpression {
 
     @Override
     public List<ResolvedExpression> getResolvedChildren() {
-        return new ArrayList<>();
+        return Collections.emptyList();
     }
 
     @Override

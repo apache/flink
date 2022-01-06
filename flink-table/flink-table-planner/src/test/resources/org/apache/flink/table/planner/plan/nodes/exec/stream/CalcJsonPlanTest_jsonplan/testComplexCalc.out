@@ -3,20 +3,33 @@
   "nodes" : [ {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
     "scanTableSource" : {
-      "identifier" : "`default_catalog`.`default_database`.`MyTable`",
-      "catalogTable" : {
-        "schema.3.data-type" : "TIMESTAMP(3)",
-        "schema.2.data-type" : "VARCHAR(2147483647)",
-        "schema.3.name" : "d",
-        "connector" : "values",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "c",
-        "schema.1.name" : "b",
-        "bounded" : "false",
-        "schema.0.name" : "a",
-        "schema.1.data-type" : "INT NOT NULL"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MyTable`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "c",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "d",
+              "dataType" : "TIMESTAMP(3)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "bounded" : "false"
+          }
+        }
       },
-      "sourceAbilitySpecs" : [ {
+      "abilities" : [ {
         "type" : "FilterPushDown",
         "predicates" : [ ]
       } ]
@@ -254,24 +267,40 @@
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {
-      "identifier" : "`default_catalog`.`default_database`.`MySink`",
-      "catalogTable" : {
-        "schema.5.name" : "c2",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "b",
-        "schema.1.name" : "a1",
-        "schema.6.data-type" : "TIMESTAMP(3)",
-        "schema.4.name" : "c1",
-        "schema.1.data-type" : "VARCHAR(2147483647)",
-        "schema.3.data-type" : "VARCHAR(2147483647)",
-        "table-sink-class" : "DEFAULT",
-        "schema.2.data-type" : "INT",
-        "schema.3.name" : "b1",
-        "connector" : "values",
-        "schema.6.name" : "d1",
-        "schema.5.data-type" : "VARCHAR(2147483647)",
-        "schema.4.data-type" : "VARCHAR(2147483647)",
-        "schema.0.name" : "a"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "a1",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "b",
+              "dataType" : "INT"
+            }, {
+              "name" : "b1",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "c1",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "c2",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "d1",
+              "dataType" : "TIMESTAMP(3)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "table-sink-class" : "DEFAULT"
+          }
+        }
       }
     },
     "inputChangelogMode" : [ "INSERT" ],

@@ -3,21 +3,62 @@
   "nodes" : [ {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
     "scanTableSource" : {
-      "identifier" : "`default_catalog`.`default_database`.`Orders`",
-      "catalogTable" : {
-        "schema.watermark.0.strategy.expr" : "`rowtime`",
-        "schema.0.data-type" : "INT",
-        "schema.2.name" : "rowtime",
-        "schema.1.name" : "currency",
-        "schema.1.data-type" : "VARCHAR(2147483647)",
-        "schema.3.data-type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL",
-        "schema.2.data-type" : "TIMESTAMP(3)",
-        "schema.3.name" : "proctime",
-        "connector" : "values",
-        "schema.watermark.0.rowtime" : "rowtime",
-        "schema.watermark.0.strategy.data-type" : "TIMESTAMP(3)",
-        "schema.3.expr" : "PROCTIME()",
-        "schema.0.name" : "amount"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`Orders`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "amount",
+              "dataType" : "INT"
+            }, {
+              "name" : "currency",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "rowtime",
+              "dataType" : {
+                "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+                "precision" : 3,
+                "kind" : "ROWTIME"
+              }
+            }, {
+              "name" : "proctime",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "REX_CALL",
+                  "operator" : {
+                    "name" : "PROCTIME",
+                    "kind" : "OTHER_FUNCTION",
+                    "syntax" : "FUNCTION"
+                  },
+                  "operands" : [ ],
+                  "type" : {
+                    "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                    "nullable" : false,
+                    "precision" : 3,
+                    "kind" : "PROCTIME"
+                  }
+                },
+                "serializableString" : "PROCTIME()"
+              }
+            } ],
+            "watermarkSpecs" : [ {
+              "rowtimeAttribute" : "rowtime",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "INPUT_REF",
+                  "inputIndex" : 2,
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "`rowtime`"
+              }
+            } ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values"
+          }
+        }
       }
     },
     "id" : 1,
@@ -90,20 +131,46 @@
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
     "scanTableSource" : {
-      "identifier" : "`default_catalog`.`default_database`.`RatesHistory`",
-      "catalogTable" : {
-        "schema.watermark.0.strategy.expr" : "`rowtime`",
-        "schema.2.data-type" : "TIMESTAMP(3)",
-        "connector" : "values",
-        "schema.0.data-type" : "VARCHAR(2147483647) NOT NULL",
-        "schema.watermark.0.rowtime" : "rowtime",
-        "schema.watermark.0.strategy.data-type" : "TIMESTAMP(3)",
-        "schema.2.name" : "rowtime",
-        "schema.primary-key.name" : "PK_575402032",
-        "schema.primary-key.columns" : "currency",
-        "schema.1.name" : "rate",
-        "schema.0.name" : "currency",
-        "schema.1.data-type" : "INT"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`RatesHistory`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "currency",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "rate",
+              "dataType" : "INT"
+            }, {
+              "name" : "rowtime",
+              "dataType" : {
+                "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+                "precision" : 3,
+                "kind" : "ROWTIME"
+              }
+            } ],
+            "watermarkSpecs" : [ {
+              "rowtimeAttribute" : "rowtime",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "INPUT_REF",
+                  "inputIndex" : 2,
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "`rowtime`"
+              }
+            } ],
+            "primaryKey" : {
+              "name" : "PK_575402032",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "currency" ]
+            }
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values"
+          }
+        }
       }
     },
     "id" : 4,
@@ -264,12 +331,22 @@
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {
-      "identifier" : "`default_catalog`.`default_database`.`MySink`",
-      "catalogTable" : {
-        "table-sink-class" : "DEFAULT",
-        "connector" : "values",
-        "schema.0.data-type" : "INT",
-        "schema.0.name" : "a"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "INT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "table-sink-class" : "DEFAULT"
+          }
+        }
       }
     },
     "inputChangelogMode" : [ "INSERT" ],

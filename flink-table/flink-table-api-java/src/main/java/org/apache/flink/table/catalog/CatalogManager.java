@@ -918,6 +918,7 @@ public final class CatalogManager {
 
         final ResolvedSchema resolvedSchema = table.getUnresolvedSchema().resolve(schemaResolver);
 
+        // Validate partition keys are included in physical columns
         final List<String> physicalColumns =
                 resolvedSchema.getColumns().stream()
                         .filter(Column::isPhysical)

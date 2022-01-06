@@ -18,41 +18,42 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 import java.io.IOException;
-import java.util.Map;
 
-/** JSON serializer for {@link ResolvedCatalogTable}. */
-public class CatalogTableJsonSerializer extends StdSerializer<ResolvedCatalogTable> {
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.serializeOptionalField;
+
+class ResolvedSchemaJsonSerializer extends StdSerializer<ResolvedSchema> {
     private static final long serialVersionUID = 1L;
 
-    public CatalogTableJsonSerializer() {
-        super(ResolvedCatalogTable.class);
+    public static final String COLUMNS = "columns";
+    public static final String WATERMARK_SPECS = "watermarkSpecs";
+    public static final String PRIMARY_KEY = "primaryKey";
+
+    public ResolvedSchemaJsonSerializer() {
+        super(ResolvedSchema.class);
     }
 
     @Override
     public void serialize(
-            ResolvedCatalogTable catalogTable,
+            ResolvedSchema resolvedSchema,
             JsonGenerator jsonGenerator,
             SerializerProvider serializerProvider)
             throws IOException {
-        final Map<String, String> properties;
-        try {
-            properties = catalogTable.toProperties();
-        } catch (Exception e) {
-            throw new TableException("Unable to serialize catalog table: " + catalogTable, e);
-        }
-
         jsonGenerator.writeStartObject();
-        for (Map.Entry<String, String> entry : properties.entrySet()) {
-            jsonGenerator.writeStringField(entry.getKey(), entry.getValue());
-        }
+
+        serializerProvider.defaultSerializeField(
+                COLUMNS, resolvedSchema.getColumns(), jsonGenerator);
+        serializerProvider.defaultSerializeField(
+                WATERMARK_SPECS, resolvedSchema.getWatermarkSpecs(), jsonGenerator);
+        serializeOptionalField(
+                jsonGenerator, PRIMARY_KEY, resolvedSchema.getPrimaryKey(), serializerProvider);
+
         jsonGenerator.writeEndObject();
     }
 }

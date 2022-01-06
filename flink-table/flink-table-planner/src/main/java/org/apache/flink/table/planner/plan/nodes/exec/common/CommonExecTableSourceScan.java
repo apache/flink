@@ -71,7 +71,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
 
     @Override
     public String getSimplifiedName() {
-        return tableSourceSpec.getObjectIdentifier().getObjectName();
+        return tableSourceSpec.getContextResolvedTable().getIdentifier().getObjectName();
     }
 
     public DynamicTableSourceSpec getTableSourceSpec() {

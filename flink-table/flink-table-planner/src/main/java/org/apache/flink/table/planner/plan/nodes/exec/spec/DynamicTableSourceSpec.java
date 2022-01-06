@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -33,6 +32,7 @@ import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonGetter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
@@ -41,8 +41,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import javax.annotation.Nullable;
 
 import java.util.List;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import java.util.Objects;
 
 /**
  * {@link DynamicTableSourceSpec} describes how to serialize/deserialize dynamic table source table
@@ -50,28 +49,26 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
-public class DynamicTableSourceSpec extends CatalogTableSpecBase {
+public class DynamicTableSourceSpec extends DynamicTableSpecBase {
 
-    public static final String FIELD_NAME_SOURCE_ABILITY_SPECS = "sourceAbilitySpecs";
+    public static final String FIELD_NAME_CATALOG_TABLE = "table";
+    public static final String FIELD_NAME_SOURCE_ABILITIES = "abilities";
+
+    private final ContextResolvedTable contextResolvedTable;
+    private final @Nullable List<SourceAbilitySpec> sourceAbilities;
 
     @JsonIgnore private DynamicTableSource tableSource;
 
-    @JsonProperty(FIELD_NAME_SOURCE_ABILITY_SPECS)
-    private final @Nullable List<SourceAbilitySpec> sourceAbilitySpecs;
-
     @JsonCreator
     public DynamicTableSourceSpec(
-            @JsonProperty(FIELD_NAME_IDENTIFIER) ObjectIdentifier objectIdentifier,
-            @JsonProperty(FIELD_NAME_CATALOG_TABLE) ResolvedCatalogTable catalogTable,
-            @Nullable @JsonProperty(FIELD_NAME_SOURCE_ABILITY_SPECS)
-                    List<SourceAbilitySpec> sourceAbilitySpecs) {
-        super(objectIdentifier, catalogTable);
-        this.sourceAbilitySpecs = sourceAbilitySpecs;
+            @JsonProperty(FIELD_NAME_CATALOG_TABLE) ContextResolvedTable contextResolvedTable,
+            @Nullable @JsonProperty(FIELD_NAME_SOURCE_ABILITIES)
+                    List<SourceAbilitySpec> sourceAbilities) {
+        this.contextResolvedTable = contextResolvedTable;
+        this.sourceAbilities = sourceAbilities;
     }
 
-    @JsonIgnore
     private DynamicTableSource getTableSource(FlinkContext flinkContext) {
-        checkNotNull(configuration);
         if (tableSource == null) {
             final DynamicTableSourceFactory factory =
                     flinkContext
@@ -81,23 +78,22 @@ public class DynamicTableSourceSpec extends CatalogTableSpecBase {
 
             tableSource =
                     FactoryUtil.createDynamicTableSource(
-                            // TODO Support creating from a catalog
                             factory,
-                            objectIdentifier,
-                            catalogTable,
-                            configuration,
-                            classLoader,
-                            // isTemporary, it's always true since the catalog is always null now.
-                            true);
+                            contextResolvedTable.getIdentifier(),
+                            contextResolvedTable.getResolvedTable(),
+                            loadOptionsFromCatalogTable(contextResolvedTable, flinkContext),
+                            flinkContext.getTableConfig().getConfiguration(),
+                            flinkContext.getClassLoader(),
+                            contextResolvedTable.isTemporary());
 
-            if (sourceAbilitySpecs != null) {
+            if (sourceAbilities != null) {
                 RowType newProducedType =
                         (RowType)
-                                catalogTable
+                                contextResolvedTable
                                         .getResolvedSchema()
                                         .toSourceRowDataType()
                                         .getLogicalType();
-                for (SourceAbilitySpec spec : sourceAbilitySpecs) {
+                for (SourceAbilitySpec spec : sourceAbilities) {
                     SourceAbilityContext context =
                             new SourceAbilityContext(flinkContext, newProducedType);
                     spec.apply(tableSource, context);
@@ -110,7 +106,6 @@ public class DynamicTableSourceSpec extends CatalogTableSpecBase {
         return tableSource;
     }
 
-    @JsonIgnore
     public ScanTableSource getScanTableSource(FlinkContext flinkContext) {
         DynamicTableSource tableSource = getTableSource(flinkContext);
         if (tableSource instanceof ScanTableSource) {
@@ -118,12 +113,11 @@ public class DynamicTableSourceSpec extends CatalogTableSpecBase {
         } else {
             throw new TableException(
                     String.format(
-                            "%s is not a ScanTableSource.\nplease check it.",
+                            "%s is not a ScanTableSource.\nPlease check it.",
                             tableSource.getClass().getName()));
         }
     }
 
-    @JsonIgnore
     public LookupTableSource getLookupTableSource(FlinkContext flinkContext) {
         DynamicTableSource tableSource = getTableSource(flinkContext);
         if (tableSource instanceof LookupTableSource) {
@@ -131,18 +125,54 @@ public class DynamicTableSourceSpec extends CatalogTableSpecBase {
         } else {
             throw new TableException(
                     String.format(
-                            "%s is not a LookupTableSource.\nplease check it.",
+                            "%s is not a LookupTableSource.\nPlease check it.",
                             tableSource.getClass().getName()));
         }
+    }
+
+    @JsonGetter(FIELD_NAME_CATALOG_TABLE)
+    public ContextResolvedTable getContextResolvedTable() {
+        return contextResolvedTable;
+    }
+
+    @JsonGetter(FIELD_NAME_SOURCE_ABILITIES)
+    @Nullable
+    public List<SourceAbilitySpec> getSourceAbilities() {
+        return sourceAbilities;
     }
 
     public void setTableSource(DynamicTableSource tableSource) {
         this.tableSource = tableSource;
     }
 
-    @JsonIgnore
-    @Nullable
-    public List<SourceAbilitySpec> getSourceAbilitySpecs() {
-        return sourceAbilitySpecs;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        DynamicTableSourceSpec that = (DynamicTableSourceSpec) o;
+        return Objects.equals(contextResolvedTable, that.contextResolvedTable)
+                && Objects.equals(sourceAbilities, that.sourceAbilities)
+                && Objects.equals(tableSource, that.tableSource);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(contextResolvedTable, sourceAbilities, tableSource);
+    }
+
+    @Override
+    public String toString() {
+        return "DynamicTableSourceSpec{"
+                + "contextResolvedTable="
+                + contextResolvedTable
+                + ", sourceAbilities="
+                + sourceAbilities
+                + ", tableSource="
+                + tableSource
+                + '}';
     }
 }

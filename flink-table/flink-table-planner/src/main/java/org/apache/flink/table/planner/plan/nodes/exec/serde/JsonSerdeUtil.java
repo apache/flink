@@ -18,8 +18,15 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UniqueConstraint;
+import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.utils.ReflectionsUtil;
@@ -28,14 +35,22 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.ObjectCodec;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.TreeNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JavaType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.MapperFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.Module;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.jsontype.NamedType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
@@ -43,9 +58,11 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexWindowBound;
 
+import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.time.Duration;
+import java.util.Optional;
 
 /** An utility class that provide abilities for JSON serialization and deserialization. */
 public class JsonSerdeUtil {
@@ -104,6 +121,7 @@ public class JsonSerdeUtil {
                 .forEach(c -> module.registerSubtypes(new NamedType(c, c.getName())));
         registerSerializers(module);
         registerDeserializers(module);
+        registerMixins(module);
 
         return module;
     }
@@ -125,6 +143,11 @@ public class JsonSerdeUtil {
         module.addSerializer(new LogicalWindowJsonSerializer());
         module.addSerializer(new RexWindowBoundJsonSerializer());
         module.addSerializer(new WindowReferenceJsonSerializer());
+        module.addSerializer(new ContextResolvedTableJsonSerializer());
+        module.addSerializer(new ColumnJsonSerializer());
+        module.addSerializer(new ResolvedCatalogTableJsonSerializer());
+        module.addSerializer(new ResolvedExpressionJsonSerializer());
+        module.addSerializer(new ResolvedSchemaJsonSerializer());
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -148,6 +171,70 @@ public class JsonSerdeUtil {
         module.addDeserializer(LogicalWindow.class, new LogicalWindowJsonDeserializer());
         module.addDeserializer(RexWindowBound.class, new RexWindowBoundJsonDeserializer());
         module.addDeserializer(WindowReference.class, new WindowReferenceJsonDeserializer());
+        module.addDeserializer(
+                ContextResolvedTable.class, new ContextResolvedTableJsonDeserializer());
+        module.addDeserializer(Column.class, new ColumnJsonDeserializer());
+        module.addDeserializer(
+                ResolvedCatalogTable.class, new ResolvedCatalogTableJsonDeserializer());
+        module.addDeserializer(ResolvedExpression.class, new ResolvedExpressionJsonDeserializer());
+        module.addDeserializer(ResolvedSchema.class, new ResolvedSchemaJsonDeserializer());
+    }
+
+    private static void registerMixins(SimpleModule module) {
+        module.setMixInAnnotation(WatermarkSpec.class, WatermarkSpecMixin.class);
+        module.setMixInAnnotation(UniqueConstraint.class, UniqueConstraintMixin.class);
+    }
+
+    // Utilities for SerDes implementations
+
+    static JsonParser traverse(TreeNode node, ObjectCodec objectCodec) throws IOException {
+        JsonParser jsonParser = node.traverse(objectCodec);
+        // https://stackoverflow.com/questions/55855414/custom-jackson-deserialization-getting-com-fasterxml-jackson-databind-exc-mism
+        if (!node.isMissingNode()) {
+            // Initialize first token
+            if (jsonParser.getCurrentToken() == null) {
+                jsonParser.nextToken();
+            }
+        }
+        return jsonParser;
+    }
+
+    static void serializeOptionalField(
+            JsonGenerator jsonGenerator,
+            String fieldName,
+            Optional<?> value,
+            SerializerProvider serializerProvider)
+            throws IOException {
+        if (value.isPresent()) {
+            serializerProvider.defaultSerializeField(fieldName, value.get(), jsonGenerator);
+        }
+    }
+
+    static <T> Optional<T> deserializeOptionalField(
+            ObjectNode objectNode,
+            String fieldName,
+            Class<T> clazz,
+            ObjectCodec codec,
+            DeserializationContext ctx)
+            throws IOException {
+        if (objectNode.hasNonNull(fieldName)) {
+            return Optional.ofNullable(
+                    ctx.readValue(traverse(objectNode.get(fieldName), codec), clazz));
+        }
+        return Optional.empty();
+    }
+
+    static <T> Optional<T> deserializeOptionalField(
+            ObjectNode objectNode,
+            String fieldName,
+            JavaType type,
+            ObjectCodec codec,
+            DeserializationContext ctx)
+            throws IOException {
+        if (objectNode.hasNonNull(fieldName)) {
+            return Optional.of(ctx.readValue(traverse(objectNode.get(fieldName), codec), type));
+        }
+        return Optional.empty();
     }
 
     private JsonSerdeUtil() {}

@@ -207,6 +207,7 @@ public class FactoryUtilTest {
         final DynamicTableSource expectedSource =
                 new DynamicTableSourceMock(
                         "MyTarget",
+                        null,
                         new DecodingFormatMock(",", false),
                         new DecodingFormatMock("|", true));
         assertThat(actualSource).isEqualTo(expectedSource);
@@ -231,6 +232,7 @@ public class FactoryUtilTest {
         final DynamicTableSource expectedSource =
                 new DynamicTableSourceMock(
                         "MyTarget",
+                        null,
                         new DecodingFormatMock(",", false),
                         new DecodingFormatMock("|", true));
         assertThat(actualSource).isEqualTo(expectedSource);
@@ -252,7 +254,8 @@ public class FactoryUtilTest {
         options.remove("key.test-format.delimiter");
         final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
         final DynamicTableSource expectedSource =
-                new DynamicTableSourceMock("MyTarget", null, new DecodingFormatMock("|", true));
+                new DynamicTableSourceMock(
+                        "MyTarget", null, null, new DecodingFormatMock("|", true));
         assertThat(actualSource).isEqualTo(expectedSource);
         final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
         final DynamicTableSink expectedSink =
@@ -273,6 +276,7 @@ public class FactoryUtilTest {
         final DynamicTableSource expectedSource =
                 new DynamicTableSourceMock(
                         "MyTarget",
+                        null,
                         new DecodingFormatMock(",", false),
                         new DecodingFormatMock(";", true));
         assertThat(actualSource).isEqualTo(expectedSource);
