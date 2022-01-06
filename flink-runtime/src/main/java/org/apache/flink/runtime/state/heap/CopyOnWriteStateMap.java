@@ -108,7 +108,7 @@ import static org.apache.flink.util.CollectionUtil.MAX_ARRAY_SIZE;
 public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
 
     /** The logger. */
-    private static final Logger LOG = LoggerFactory.getLogger(HeapKeyedStateBackend.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CopyOnWriteStateMap.class);
 
     /**
      * Min capacity (other than zero) for a {@link CopyOnWriteStateMap}. Must be a power of two
