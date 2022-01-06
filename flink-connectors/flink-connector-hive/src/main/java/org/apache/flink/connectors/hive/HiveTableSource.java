@@ -143,7 +143,10 @@ public class HiveTableSource
                                                     hivePartitionsToRead, jobConf),
                                     () ->
                                             HiveSourceFileEnumerator.createInputSplits(
-                                                            0, hivePartitionsToRead, jobConf)
+                                                            0,
+                                                            hivePartitionsToRead,
+                                                            flinkConf,
+                                                            jobConf)
                                                     .size())
                             .limit(limit);
             return toDataStreamSource(

@@ -232,10 +232,12 @@ public class HiveSourceBuilder {
                 new Path[1],
                 new HiveSourceFileEnumerator.Provider(
                         partitions != null ? partitions : Collections.emptyList(),
+                        flinkConf,
                         new JobConfWrapper(jobConf)),
                 splitAssigner,
                 bulkFormat,
                 continuousSourceSettings,
+                flinkConf,
                 jobConf,
                 tablePath,
                 partitionKeys,

@@ -18,6 +18,7 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.enumerate.FileEnumerator;
 import org.apache.flink.connectors.hive.read.HiveSourceSplit;
@@ -27,18 +28,13 @@ import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.mapred.FileSplit;
-import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.util.ReflectionUtils;
-import org.apache.hadoop.util.StringUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
-import static org.apache.hadoop.mapreduce.lib.input.FileInputFormat.INPUT_DIR;
 
 /**
  * A {@link FileEnumerator} implementation for hive source, which generates splits based on {@link
@@ -49,62 +45,46 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
     // For non-partition hive table, partitions only contains one partition which partitionValues is
     // empty.
     private final List<HiveTablePartition> partitions;
+    private final ReadableConfig flinkConf;
     private final JobConf jobConf;
 
-    public HiveSourceFileEnumerator(List<HiveTablePartition> partitions, JobConf jobConf) {
+    public HiveSourceFileEnumerator(
+            List<HiveTablePartition> partitions, ReadableConfig flinkConf, JobConf jobConf) {
         this.partitions = partitions;
+        this.flinkConf = flinkConf;
         this.jobConf = jobConf;
     }
 
     @Override
     public Collection<FileSourceSplit> enumerateSplits(Path[] paths, int minDesiredSplits)
             throws IOException {
-        return new ArrayList<>(createInputSplits(minDesiredSplits, partitions, jobConf));
+        return new ArrayList<>(createInputSplits(minDesiredSplits, partitions, flinkConf, jobConf));
     }
 
     public static List<HiveSourceSplit> createInputSplits(
-            int minNumSplits, List<HiveTablePartition> partitions, JobConf jobConf)
+            int minNumSplits,
+            List<HiveTablePartition> partitions,
+            ReadableConfig flinkConf,
+            JobConf jobConf)
             throws IOException {
         List<HiveSourceSplit> hiveSplits = new ArrayList<>();
-        for (HiveTablePartition partition : partitions) {
-            for (InputSplit inputSplit :
-                    createMRSplits(minNumSplits, partition.getStorageDescriptor(), jobConf)) {
-                Preconditions.checkState(
-                        inputSplit instanceof FileSplit,
-                        "Unsupported InputSplit type: " + inputSplit.getClass().getName());
-                hiveSplits.add(new HiveSourceSplit((FileSplit) inputSplit, partition, null));
+        try (MRSplitsGetter splitsGetter =
+                new MRSplitsGetter(
+                        flinkConf.get(
+                                HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM))) {
+            for (HiveTablePartitionSplits partitionSplits :
+                    splitsGetter.getHiveTablePartitionMRSplits(minNumSplits, partitions, jobConf)) {
+                HiveTablePartition partition = partitionSplits.getHiveTablePartition();
+                for (InputSplit inputSplit : partitionSplits.getInputSplits()) {
+                    Preconditions.checkState(
+                            inputSplit instanceof FileSplit,
+                            "Unsupported InputSplit type: " + inputSplit.getClass().getName());
+                    hiveSplits.add(new HiveSourceSplit((FileSplit) inputSplit, partition, null));
+                }
             }
         }
 
         return hiveSplits;
-    }
-
-    public static InputSplit[] createMRSplits(
-            int minNumSplits, StorageDescriptor sd, JobConf jobConf) throws IOException {
-        org.apache.hadoop.fs.Path inputPath = new org.apache.hadoop.fs.Path(sd.getLocation());
-        FileSystem fs = inputPath.getFileSystem(jobConf);
-        // it's possible a partition exists in metastore but the data has been removed
-        if (!fs.exists(inputPath)) {
-            return new InputSplit[0];
-        }
-        InputFormat format;
-        try {
-            format =
-                    (InputFormat)
-                            Class.forName(
-                                            sd.getInputFormat(),
-                                            true,
-                                            Thread.currentThread().getContextClassLoader())
-                                    .newInstance();
-        } catch (Exception e) {
-            throw new FlinkHiveException("Unable to instantiate the hadoop input format", e);
-        }
-        ReflectionUtils.setConf(format, jobConf);
-        // need to escape comma in the location path
-        jobConf.set(INPUT_DIR, StringUtils.escapeString(sd.getLocation()));
-        // TODO: we should consider how to calculate the splits according to minNumSplits in the
-        // future.
-        return format.getSplits(jobConf, minNumSplits);
     }
 
     public static int getNumFiles(List<HiveTablePartition> partitions, JobConf jobConf)
@@ -129,16 +109,21 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
         private static final long serialVersionUID = 1L;
 
         private final List<HiveTablePartition> partitions;
+        private final ReadableConfig flinkConf;
         private final JobConfWrapper jobConfWrapper;
 
-        public Provider(List<HiveTablePartition> partitions, JobConfWrapper jobConfWrapper) {
+        public Provider(
+                List<HiveTablePartition> partitions,
+                ReadableConfig flinkConf,
+                JobConfWrapper jobConfWrapper) {
             this.partitions = partitions;
+            this.flinkConf = flinkConf;
             this.jobConfWrapper = jobConfWrapper;
         }
 
         @Override
         public FileEnumerator create() {
-            return new HiveSourceFileEnumerator(partitions, jobConfWrapper.conf());
+            return new HiveSourceFileEnumerator(partitions, flinkConf, jobConfWrapper.conf());
         }
     }
 }
