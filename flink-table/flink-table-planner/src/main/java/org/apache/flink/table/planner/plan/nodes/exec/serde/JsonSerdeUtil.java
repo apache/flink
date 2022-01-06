@@ -143,6 +143,7 @@ public class JsonSerdeUtil {
         module.addSerializer(new LogicalWindowJsonSerializer());
         module.addSerializer(new RexWindowBoundJsonSerializer());
         module.addSerializer(new WindowReferenceJsonSerializer());
+        module.addSerializer(new ContextResolvedTableJsonSerializer());
         module.addSerializer(new ColumnJsonSerializer());
         module.addSerializer(new ResolvedCatalogTableJsonSerializer());
         module.addSerializer(new ResolvedExpressionJsonSerializer());
@@ -170,6 +171,8 @@ public class JsonSerdeUtil {
         module.addDeserializer(LogicalWindow.class, new LogicalWindowJsonDeserializer());
         module.addDeserializer(RexWindowBound.class, new RexWindowBoundJsonDeserializer());
         module.addDeserializer(WindowReference.class, new WindowReferenceJsonDeserializer());
+        module.addDeserializer(
+                ContextResolvedTable.class, new ContextResolvedTableJsonDeserializer());
         module.addDeserializer(Column.class, new ColumnJsonDeserializer());
         module.addDeserializer(
                 ResolvedCatalogTable.class, new ResolvedCatalogTableJsonDeserializer());
