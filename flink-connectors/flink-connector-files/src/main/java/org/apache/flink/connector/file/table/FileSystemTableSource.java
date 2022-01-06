@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.java.io.CollectionInputFormat;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.FileSourceSplit;
@@ -35,6 +34,8 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -52,7 +53,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.PartitionPathUtils;
@@ -97,15 +97,17 @@ public class FileSystemTableSource extends AbstractFileSystemTable
     private DataType producedDataType;
 
     public FileSystemTableSource(
-            DynamicTableFactory.Context context,
+            ObjectIdentifier tableIdentifier,
+            ResolvedSchema schema,
+            List<String> partitionKeys,
+            ReadableConfig tableOptions,
             @Nullable DecodingFormat<BulkFormat<RowData, FileSourceSplit>> bulkReaderFormat,
             @Nullable DecodingFormat<DeserializationSchema<RowData>> deserializationFormat,
             @Nullable FileSystemFormatFactory formatFactory) {
-        super(context);
+        super(tableIdentifier, schema, partitionKeys, tableOptions);
         if (Stream.of(bulkReaderFormat, deserializationFormat, formatFactory)
                 .allMatch(Objects::isNull)) {
-            Configuration options = Configuration.fromMap(context.getCatalogTable().getOptions());
-            String identifier = options.get(FactoryUtil.FORMAT);
+            String identifier = tableOptions.get(FactoryUtil.FORMAT);
             throw new ValidationException(
                     String.format(
                             "Could not find any format factory for identifier '%s' in the classpath.",
@@ -114,8 +116,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
         this.bulkReaderFormat = bulkReaderFormat;
         this.deserializationFormat = deserializationFormat;
         this.formatFactory = formatFactory;
-
-        this.producedDataType = context.getPhysicalRowDataType();
+        this.producedDataType = schema.toPhysicalRowDataType();
     }
 
     @Override
@@ -410,7 +411,13 @@ public class FileSystemTableSource extends AbstractFileSystemTable
     public FileSystemTableSource copy() {
         FileSystemTableSource source =
                 new FileSystemTableSource(
-                        context, bulkReaderFormat, deserializationFormat, formatFactory);
+                        tableIdentifier,
+                        schema,
+                        partitionKeys,
+                        tableOptions,
+                        bulkReaderFormat,
+                        deserializationFormat,
+                        formatFactory);
         source.partitionKeys = partitionKeys;
         source.remainingPartitions = remainingPartitions;
         source.filters = filters;
