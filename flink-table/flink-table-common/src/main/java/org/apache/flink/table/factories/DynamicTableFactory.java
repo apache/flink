@@ -19,6 +19,7 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -26,7 +27,15 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
+import org.apache.flink.table.factories.FactoryUtil.TableFactoryHelper;
 import org.apache.flink.table.types.DataType;
+
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Base interface for configuring a dynamic table connector for an external storage system from
@@ -45,6 +54,28 @@ import org.apache.flink.table.types.DataType;
 @PublicEvolving
 public interface DynamicTableFactory extends Factory {
 
+    /**
+     * Returns a set of {@link ConfigOption} that are directly forwarded to the runtime
+     * implementation but don't affect the final execution topology.
+     *
+     * <p>Options declared here can override options of the persisted plan during an enrichment
+     * phase. Since a restored topology is static, an implementer has to ensure that the declared
+     * options don't affect fundamental abilities such as {@link SupportsProjectionPushDown} or
+     * {@link SupportsFilterPushDown}.
+     *
+     * <p>For example, given a database connector, if an option defines the connection timeout,
+     * changing this value does not affect the pipeline topology and can be allowed. However, an
+     * option that defines whether the connector supports {@link SupportsReadingMetadata} or not is
+     * not allowed. The planner might not react to changed abilities anymore.
+     *
+     * @see DynamicTableFactory.Context#getEnrichmentOptions()
+     * @see TableFactoryHelper#getOptions()
+     * @see FormatFactory#forwardOptions()
+     */
+    default Set<ConfigOption<?>> forwardOptions() {
+        return Collections.emptySet();
+    }
+
     /** Provides catalog and session information describing the dynamic table to be accessed. */
     @PublicEvolving
     interface Context {
@@ -53,13 +84,14 @@ public interface DynamicTableFactory extends Factory {
         ObjectIdentifier getObjectIdentifier();
 
         /**
-         * Returns the resolved table information received from the {@link Catalog}.
+         * Returns the resolved table information received from the {@link Catalog} or persisted
+         * plan.
          *
          * <p>The {@link ResolvedCatalogTable} forwards the metadata from the catalog but offers a
          * validated {@link ResolvedSchema}. The original metadata object is available via {@link
          * ResolvedCatalogTable#getOrigin()}.
          *
-         * <p>In most cases, a factory is interested in the following two characteristics:
+         * <p>In most cases, a factory is interested in the following characteristics:
          *
          * <pre>{@code
          * // get the physical data type to initialize the connector
@@ -67,13 +99,44 @@ public interface DynamicTableFactory extends Factory {
          *
          * // get primary key information if the connector supports upserts
          * context.getCatalogTable().getResolvedSchema().getPrimaryKey()
+         *
+         * // get configuration options
+         * context.getCatalogTable().getOptions()
          * }</pre>
          *
          * <p>Other characteristics such as metadata columns or watermarks will be pushed down into
          * the created {@link DynamicTableSource} or {@link DynamicTableSink} during planning
          * depending on the implemented ability interfaces.
+         *
+         * <p>During a plan restore, usually the table information persisted in the plan is used to
+         * reconstruct the catalog table. If and only if {@code table.plan.restore.catalog-objects}
+         * is set to {@code ALL}, there might be information from both the plan and a catalog lookup
+         * which requires considering {@link #getEnrichmentOptions()}. It enables to enrich the plan
+         * information with frequently changing options (e.g. connection information or timeouts).
          */
         ResolvedCatalogTable getCatalogTable();
+
+        /**
+         * Returns a map of options that can enrich the options of the original {@link
+         * #getCatalogTable()} during a plan restore.
+         *
+         * <p>If and only if {@code table.plan.restore.catalog-objects} is set to {@code ALL}, this
+         * method may return a non-empty {@link Map} of options retrieved from the {@link Catalog}.
+         *
+         * <p>Because only the {@link DynamicTableFactory} is able to decide which options are safe
+         * to be forwarded without affecting the original topology, enrichment options are exposed
+         * through this method. In general, it's highly recommended using the {@link
+         * FactoryUtil#createTableFactoryHelper(DynamicTableFactory, Context)} to merge the options
+         * and then get the result with {@link TableFactoryHelper#getOptions()}. The helper
+         * considers both {@link #forwardOptions()} and {@link FormatFactory#forwardOptions()}.
+         *
+         * <p>Since a restored topology is static, an implementer has to ensure that the declared
+         * options don't affect fundamental abilities. The planner might not react to changed
+         * abilities anymore.
+         *
+         * @see TableFactoryHelper
+         */
+        Map<String, String> getEnrichmentOptions();
 
         /** Gives read-only access to the configuration of the current session. */
         ReadableConfig getConfiguration();

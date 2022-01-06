@@ -55,6 +55,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -135,12 +136,18 @@ public final class FactoryUtil {
             @Nullable DynamicTableSourceFactory preferredFactory,
             ObjectIdentifier objectIdentifier,
             ResolvedCatalogTable catalogTable,
+            Map<String, String> enrichmentOptions,
             ReadableConfig configuration,
             ClassLoader classLoader,
             boolean isTemporary) {
         final DefaultDynamicTableContext context =
                 new DefaultDynamicTableContext(
-                        objectIdentifier, catalogTable, configuration, classLoader, isTemporary);
+                        objectIdentifier,
+                        catalogTable,
+                        enrichmentOptions,
+                        configuration,
+                        classLoader,
+                        isTemporary);
         try {
             final DynamicTableSourceFactory factory =
                     preferredFactory != null
@@ -163,12 +170,34 @@ public final class FactoryUtil {
     }
 
     /**
+     * @deprecated Use {@link #createDynamicTableSource(DynamicTableSourceFactory, ObjectIdentifier,
+     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)}
+     */
+    @Deprecated
+    public static DynamicTableSource createDynamicTableSource(
+            @Nullable DynamicTableSourceFactory preferredFactory,
+            ObjectIdentifier objectIdentifier,
+            ResolvedCatalogTable catalogTable,
+            ReadableConfig configuration,
+            ClassLoader classLoader,
+            boolean isTemporary) {
+        return createDynamicTableSource(
+                preferredFactory,
+                objectIdentifier,
+                catalogTable,
+                Collections.emptyMap(),
+                configuration,
+                classLoader,
+                isTemporary);
+    }
+
+    /**
      * Creates a {@link DynamicTableSource} from a {@link CatalogTable}.
      *
      * <p>It considers {@link Catalog#getFactory()} if provided.
      *
      * @deprecated Use {@link #createDynamicTableSource(DynamicTableSourceFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, ReadableConfig, ClassLoader, boolean)} instead.
+     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)} instead.
      */
     @Deprecated
     public static DynamicTableSource createTableSource(
@@ -180,12 +209,18 @@ public final class FactoryUtil {
             boolean isTemporary) {
         final DefaultDynamicTableContext context =
                 new DefaultDynamicTableContext(
-                        objectIdentifier, catalogTable, configuration, classLoader, isTemporary);
+                        objectIdentifier,
+                        catalogTable,
+                        Collections.emptyMap(),
+                        configuration,
+                        classLoader,
+                        isTemporary);
 
         return createDynamicTableSource(
                 getDynamicTableFactory(DynamicTableSourceFactory.class, catalog, context),
                 objectIdentifier,
                 catalogTable,
+                Collections.emptyMap(),
                 configuration,
                 classLoader,
                 isTemporary);
@@ -202,12 +237,18 @@ public final class FactoryUtil {
             @Nullable DynamicTableSinkFactory preferredFactory,
             ObjectIdentifier objectIdentifier,
             ResolvedCatalogTable catalogTable,
+            Map<String, String> enrichmentOptions,
             ReadableConfig configuration,
             ClassLoader classLoader,
             boolean isTemporary) {
         final DefaultDynamicTableContext context =
                 new DefaultDynamicTableContext(
-                        objectIdentifier, catalogTable, configuration, classLoader, isTemporary);
+                        objectIdentifier,
+                        catalogTable,
+                        enrichmentOptions,
+                        configuration,
+                        classLoader,
+                        isTemporary);
 
         try {
             final DynamicTableSinkFactory factory =
@@ -232,12 +273,34 @@ public final class FactoryUtil {
     }
 
     /**
+     * @deprecated Use {@link #createDynamicTableSink(DynamicTableSinkFactory, ObjectIdentifier,
+     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)}
+     */
+    @Deprecated
+    public static DynamicTableSink createDynamicTableSink(
+            @Nullable DynamicTableSinkFactory preferredFactory,
+            ObjectIdentifier objectIdentifier,
+            ResolvedCatalogTable catalogTable,
+            ReadableConfig configuration,
+            ClassLoader classLoader,
+            boolean isTemporary) {
+        return createDynamicTableSink(
+                preferredFactory,
+                objectIdentifier,
+                catalogTable,
+                Collections.emptyMap(),
+                configuration,
+                classLoader,
+                isTemporary);
+    }
+
+    /**
      * Creates a {@link DynamicTableSink} from a {@link CatalogTable}.
      *
      * <p>It considers {@link Catalog#getFactory()} if provided.
      *
      * @deprecated Use {@link #createDynamicTableSink(DynamicTableSinkFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, ReadableConfig, ClassLoader, boolean)} instead.
+     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)} instead.
      */
     @Deprecated
     public static DynamicTableSink createTableSink(
@@ -249,12 +312,18 @@ public final class FactoryUtil {
             boolean isTemporary) {
         final DefaultDynamicTableContext context =
                 new DefaultDynamicTableContext(
-                        objectIdentifier, catalogTable, configuration, classLoader, isTemporary);
+                        objectIdentifier,
+                        catalogTable,
+                        Collections.emptyMap(),
+                        configuration,
+                        classLoader,
+                        isTemporary);
 
         return createDynamicTableSink(
                 getDynamicTableFactory(DynamicTableSinkFactory.class, catalog, context),
                 objectIdentifier,
                 catalogTable,
+                Collections.emptyMap(),
                 configuration,
                 classLoader,
                 isTemporary);
@@ -281,7 +350,8 @@ public final class FactoryUtil {
     }
 
     /**
-     * Creates a utility that helps in discovering formats and validating all options for a {@link
+     * Creates a utility that helps in discovering formats, merging options with {@link
+     * DynamicTableFactory.Context#getEnrichmentOptions()} and validating them all for a {@link
      * DynamicTableFactory}.
      *
      * <p>The following example sketches the usage:
@@ -307,7 +377,10 @@ public final class FactoryUtil {
      * 'value.format', then the format prefix is 'value.json'. The format prefix is used to project
      * the options for the format factory.
      *
-     * <p>Note: This utility checks for left-over options in the final step.
+     * <p>Note: When created, this utility merges the options from {@link
+     * DynamicTableFactory.Context#getEnrichmentOptions()} using {@link
+     * DynamicTableFactory#forwardOptions()}. When invoking {@link TableFactoryHelper#validate()},
+     * this utility checks for left-over options in the final step.
      */
     public static TableFactoryHelper createTableFactoryHelper(
             DynamicTableFactory factory, DynamicTableFactory.Context context) {
@@ -600,7 +673,6 @@ public final class FactoryUtil {
     // Helper methods
     // --------------------------------------------------------------------------------------------
 
-    @SuppressWarnings("unchecked")
     private static <T extends DynamicTableFactory> T getDynamicTableFactory(
             Class<T> factoryClass, @Nullable Catalog catalog, DynamicTableFactory.Context context) {
         return getDynamicTableFactory(factoryClass, catalog)
@@ -908,6 +980,8 @@ public final class FactoryUtil {
 
         private final DynamicTableFactory.Context context;
 
+        private final Configuration enrichingOptions;
+
         private TableFactoryHelper(
                 DynamicTableFactory tableFactory, DynamicTableFactory.Context context) {
             super(
@@ -916,6 +990,18 @@ public final class FactoryUtil {
                     PROPERTY_VERSION,
                     CONNECTOR);
             this.context = context;
+            this.enrichingOptions = Configuration.fromMap(context.getEnrichmentOptions());
+            this.forwardOptions();
+        }
+
+        /**
+         * Returns all options currently being consumed by the factory. This method returns the
+         * options already merged with {@link DynamicTableFactory.Context#getEnrichmentOptions()},
+         * using {@link DynamicTableFactory#forwardOptions()} as reference of mergeable options.
+         */
+        @Override
+        public ReadableConfig getOptions() {
+            return super.getOptions();
         }
 
         /**
@@ -946,7 +1032,8 @@ public final class FactoryUtil {
                                 String formatPrefix = formatPrefix(formatFactory, formatOption);
                                 try {
                                     return formatFactory.createDecodingFormat(
-                                            context, projectOptions(formatPrefix));
+                                            context,
+                                            createFormatOptions(formatPrefix, formatFactory));
                                 } catch (Throwable t) {
                                     throw new ValidationException(
                                             String.format(
@@ -986,7 +1073,8 @@ public final class FactoryUtil {
                                 String formatPrefix = formatPrefix(formatFactory, formatOption);
                                 try {
                                     return formatFactory.createEncodingFormat(
-                                            context, projectOptions(formatPrefix));
+                                            context,
+                                            createFormatOptions(formatPrefix, formatFactory));
                                 } catch (Throwable t) {
                                     throw new ValidationException(
                                             String.format(
@@ -1000,9 +1088,24 @@ public final class FactoryUtil {
 
         // ----------------------------------------------------------------------------------------
 
+        /**
+         * Forwards the options declared in {@link DynamicTableFactory#forwardOptions()} and
+         * possibly {@link FormatFactory#forwardOptions()} from {@link
+         * DynamicTableFactory.Context#getEnrichmentOptions()} to the final options, if present.
+         */
+        @SuppressWarnings({"unchecked"})
+        private void forwardOptions() {
+            for (ConfigOption<?> option : factory.forwardOptions()) {
+                enrichingOptions
+                        .getOptional(option)
+                        .ifPresent(o -> allOptions.set((ConfigOption<? super Object>) option, o));
+            }
+        }
+
         private <F extends Factory> Optional<F> discoverOptionalFormatFactory(
                 Class<F> formatFactoryClass, ConfigOption<String> formatOption) {
             final String identifier = allOptions.get(formatOption);
+            checkFormatIdentifierMatchesWithEnrichingOptions(formatOption, identifier);
             if (identifier == null) {
                 return Optional.empty();
             }
@@ -1035,8 +1138,60 @@ public final class FactoryUtil {
             return getFormatPrefix(formatOption, identifier);
         }
 
-        private ReadableConfig projectOptions(String formatPrefix) {
-            return new DelegatingConfiguration(allOptions, formatPrefix);
+        @SuppressWarnings({"unchecked"})
+        private ReadableConfig createFormatOptions(
+                String formatPrefix, FormatFactory formatFactory) {
+            Set<ConfigOption<?>> forwardableConfigOptions = formatFactory.forwardOptions();
+            Configuration formatConf = new DelegatingConfiguration(allOptions, formatPrefix);
+            if (forwardableConfigOptions.isEmpty()) {
+                return formatConf;
+            }
+
+            Configuration formatConfFromEnrichingOptions =
+                    new DelegatingConfiguration(enrichingOptions, formatPrefix);
+
+            for (ConfigOption<?> option : forwardableConfigOptions) {
+                formatConfFromEnrichingOptions
+                        .getOptional(option)
+                        .ifPresent(o -> formatConf.set((ConfigOption<? super Object>) option, o));
+            }
+
+            return formatConf;
+        }
+
+        /**
+         * This function assumes that the format config is used only and only if the original
+         * configuration contains the format config option. It will fail if there is a mismatch of
+         * the identifier between the format in the plan table map and the one in enriching table
+         * map.
+         */
+        private void checkFormatIdentifierMatchesWithEnrichingOptions(
+                ConfigOption<String> formatOption, String identifierFromPlan) {
+            Optional<String> identifierFromEnrichingOptions =
+                    enrichingOptions.getOptional(formatOption);
+
+            if (!identifierFromEnrichingOptions.isPresent()) {
+                return;
+            }
+
+            if (identifierFromPlan == null) {
+                throw new ValidationException(
+                        String.format(
+                                "The persisted plan has no format option '%s' specified, while the catalog table has it with value '%s'. "
+                                        + "This is invalid, as either only the persisted plan table defines the format, "
+                                        + "or both the persisted plan table and the catalog table defines the same format.",
+                                formatOption, identifierFromEnrichingOptions.get()));
+            }
+
+            if (!Objects.equals(identifierFromPlan, identifierFromEnrichingOptions.get())) {
+                throw new ValidationException(
+                        String.format(
+                                "Both persisted plan table and catalog table define the format option '%s', "
+                                        + "but they mismatch: '%s' != '%s'.",
+                                formatOption,
+                                identifierFromPlan,
+                                identifierFromEnrichingOptions.get()));
+            }
         }
     }
 
@@ -1046,6 +1201,7 @@ public final class FactoryUtil {
 
         private final ObjectIdentifier objectIdentifier;
         private final ResolvedCatalogTable catalogTable;
+        private final Map<String, String> enrichmentOptions;
         private final ReadableConfig configuration;
         private final ClassLoader classLoader;
         private final boolean isTemporary;
@@ -1053,11 +1209,13 @@ public final class FactoryUtil {
         public DefaultDynamicTableContext(
                 ObjectIdentifier objectIdentifier,
                 ResolvedCatalogTable catalogTable,
+                Map<String, String> enrichmentOptions,
                 ReadableConfig configuration,
                 ClassLoader classLoader,
                 boolean isTemporary) {
             this.objectIdentifier = objectIdentifier;
             this.catalogTable = catalogTable;
+            this.enrichmentOptions = enrichmentOptions;
             this.configuration = configuration;
             this.classLoader = classLoader;
             this.isTemporary = isTemporary;
@@ -1071,6 +1229,11 @@ public final class FactoryUtil {
         @Override
         public ResolvedCatalogTable getCatalogTable() {
             return catalogTable;
+        }
+
+        @Override
+        public Map<String, String> getEnrichmentOptions() {
+            return enrichmentOptions;
         }
 
         @Override
