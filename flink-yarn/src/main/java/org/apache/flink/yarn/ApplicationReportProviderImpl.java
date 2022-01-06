@@ -19,16 +19,18 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.exceptions.YarnException;
 
 import java.io.IOException;
 
-/** The implementation of ApplicationReportProvider. */
+/** The implementation of {@link ApplicationReportProvider}. */
 @Internal
 public class ApplicationReportProviderImpl implements ApplicationReportProvider {
     private final YarnClient yarnClient;
@@ -40,21 +42,25 @@ public class ApplicationReportProviderImpl implements ApplicationReportProvider 
     }
 
     @Override
-    public ApplicationReport waitTillSubmissionFinish() throws Exception {
+    public ApplicationReport waitTillSubmissionFinish() throws FlinkException {
         // Make access to the YarnClient fail fast if the client has been closed by the
         // YarnClusterDescriptor
         if (yarnClient.isInState(Service.STATE.STOPPED)) {
-            throw new Exception(
+            throw new FlinkException(
                     "Errors on using YarnClient to retrieve application report. Maybe it has been closed by YarnClusterDescriptor.");
         }
 
         try {
             return YarnClusterDescriptor.waitTillTargetState(
                     yarnClient, appId, YarnApplicationState.RUNNING);
-        } catch (IOException e) {
-            throw new Exception(
+        } catch (YarnException | IOException e) {
+            throw new FlinkException(
                     "Errors on getting YARN application report. Maybe application has finished.",
                     e);
+        } catch (InterruptedException interruptedException) {
+            throw new FlinkException(
+                    "Errors on getting YARN application report. Maybe the thread is interrupted.",
+                    interruptedException);
         }
     }
 

@@ -20,26 +20,21 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
-import org.apache.hadoop.yarn.client.api.impl.YarnClientImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.exceptions.YarnException;
-import org.apache.hadoop.yarn.util.Records;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.IOException;
 import java.util.Collections;
-import java.util.Map;
+
+import static org.apache.flink.yarn.TestingYarnClient.createApplicationReport;
 
 /** Tests for the {@link YarnClusterDescriptor}. */
 public class AbstractYarnClusterTest extends TestLogger {
@@ -75,48 +70,6 @@ public class AbstractYarnClusterTest extends TestLogger {
             clusterDescriptor.retrieve(applicationId);
         } finally {
             clusterDescriptor.close();
-        }
-    }
-
-    protected ApplicationReport createApplicationReport(
-            ApplicationId applicationId,
-            YarnApplicationState yarnApplicationState,
-            FinalApplicationStatus finalApplicationStatus) {
-
-        ApplicationReport applicationReport = Records.newRecord(ApplicationReport.class);
-        applicationReport.setApplicationId(applicationId);
-        applicationReport.setCurrentApplicationAttemptId(
-                ApplicationAttemptId.newInstance(applicationId, 0));
-        applicationReport.setUser("user");
-        applicationReport.setQueue("queue");
-        applicationReport.setName("name");
-        applicationReport.setHost("localhost");
-        applicationReport.setRpcPort(42);
-        applicationReport.setYarnApplicationState(yarnApplicationState);
-        applicationReport.setStartTime(1L);
-        applicationReport.setFinishTime(2L);
-        applicationReport.setFinalApplicationStatus(finalApplicationStatus);
-        applicationReport.setProgress(1.0f);
-        return applicationReport;
-    }
-
-    protected static final class TestingYarnClient extends YarnClientImpl {
-        private final Map<ApplicationId, ApplicationReport> applicationReports;
-
-        protected TestingYarnClient(Map<ApplicationId, ApplicationReport> applicationReports) {
-            this.applicationReports = Preconditions.checkNotNull(applicationReports);
-        }
-
-        @Override
-        public ApplicationReport getApplicationReport(ApplicationId appId)
-                throws YarnException, IOException {
-            final ApplicationReport applicationReport = applicationReports.get(appId);
-
-            if (applicationReport != null) {
-                return applicationReport;
-            } else {
-                return super.getApplicationReport(appId);
-            }
         }
     }
 }

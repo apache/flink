@@ -50,7 +50,7 @@ public class YarnClusterClientProvider implements ClusterClientProvider {
             Configuration flinkConfiguration,
             ApplicationId applicationId) {
         this.appReportProvider = applicationReportProvider;
-        this.flinkConf = flinkConfiguration;
+        this.flinkConf = new Configuration(flinkConfiguration);
         this.applicationId = applicationId;
     }
 

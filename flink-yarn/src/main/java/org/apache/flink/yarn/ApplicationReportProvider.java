@@ -19,12 +19,17 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 
 /** Factory for getting {@link ApplicationReport}. */
 @Internal
 public interface ApplicationReportProvider {
-    /** Waiting for the job to be running and then return the latest {@link ApplicationReport}. */
-    ApplicationReport waitTillSubmissionFinish() throws Exception;
+    /**
+     * Waiting for the job to be running and then return the latest {@link ApplicationReport}. And
+     * when Yarn client is closed or encountering any connection error, it will throw {@link
+     * FlinkException}.
+     */
+    ApplicationReport waitTillSubmissionFinish() throws FlinkException;
 }

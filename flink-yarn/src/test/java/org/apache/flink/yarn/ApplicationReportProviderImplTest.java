@@ -18,6 +18,8 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.util.TestLoggerExtension;
+
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
@@ -25,16 +27,19 @@ import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.junit.Assert;
 import org.junit.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Collections;
 
+import static org.apache.flink.yarn.TestingYarnClient.createApplicationReport;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /** Tests for the {@link ApplicationReportProviderImpl}. */
-public class ApplicationReportProviderImplTest extends AbstractYarnClusterTest {
+@ExtendWith(TestLoggerExtension.class)
+public class ApplicationReportProviderImplTest {
 
     /**
      * When yarnClient has been stopped and then retrieving app report from Yarn, it should fail
@@ -45,17 +50,11 @@ public class ApplicationReportProviderImplTest extends AbstractYarnClusterTest {
         final YarnClient yarnClient = YarnClient.createYarnClient();
         initilizeYarnClient(yarnClient);
         yarnClient.stop();
-        assertTrue(yarnClient.isInState(Service.STATE.STOPPED));
+        Assert.assertTrue(yarnClient.isInState(Service.STATE.STOPPED));
 
-        try {
-            ApplicationReportProviderImpl.of(yarnClient, null).waitTillSubmissionFinish();
-            fail();
-        } catch (Exception e) {
-            assertEquals(
-                    "Errors on using YarnClient to retrieve application report. Maybe it has been closed by YarnClusterDescriptor.",
-                    e.getMessage());
-        }
-        return;
+        assertThatThrownBy(
+                () -> ApplicationReportProviderImpl.of(yarnClient, null).waitTillSubmissionFinish(),
+                "Errors on using YarnClient to retrieve application report. Maybe it has been closed by YarnClusterDescriptor.");
     }
 
     /**

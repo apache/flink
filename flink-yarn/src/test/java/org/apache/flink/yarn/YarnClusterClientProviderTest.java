@@ -18,9 +18,11 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.commons.beanutils.ConvertUtils;
@@ -32,7 +34,7 @@ import org.apache.hadoop.yarn.util.Records;
 import org.junit.Test;
 
 import static org.apache.hadoop.yarn.api.records.FinalApplicationStatus.UNDEFINED;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test for {@link YarnClusterClientProvider}. */
 public class YarnClusterClientProviderTest {
@@ -68,23 +70,26 @@ public class YarnClusterClientProviderTest {
         final ApplicationReportProvider mockAppReportProvider =
                 MockApplicationReportProvider.of(applicationId, host, rpcPort);
 
-        YarnClusterClientProvider.of(mockAppReportProvider, flinkConf, applicationId)
-                .getClusterClient();
+        YarnClusterClientProvider provider =
+                YarnClusterClientProvider.of(mockAppReportProvider, flinkConf, applicationId);
 
-        assertEquals(flinkConf.get(JobManagerOptions.ADDRESS), host);
-        assertEquals(flinkConf.getInteger(JobManagerOptions.PORT), rpcPort);
-        assertEquals(flinkConf.get(RestOptions.ADDRESS), host);
-        assertEquals(flinkConf.getInteger(RestOptions.PORT), rpcPort);
+        ClusterClient clusterClient = provider.getClusterClient();
+
+        final Configuration clusterClientConf = clusterClient.getFlinkConfiguration();
+        assertEquals(clusterClientConf.get(JobManagerOptions.ADDRESS), host);
+        assertEquals(clusterClientConf.getInteger(JobManagerOptions.PORT), rpcPort);
+        assertEquals(clusterClientConf.get(RestOptions.ADDRESS), host);
+        assertEquals(clusterClientConf.getInteger(RestOptions.PORT), rpcPort);
         assertEquals(
-                flinkConf.get(YarnConfigOptions.APPLICATION_ID),
+                clusterClientConf.get(YarnConfigOptions.APPLICATION_ID),
                 ConvertUtils.convert(applicationId));
     }
 
     private static class MockApplicationReportProvider implements ApplicationReportProvider {
-        int invokeNumber = 0;
-        ApplicationId applicationId;
-        String host;
-        int rpcHost;
+        private int invokeNumber = 0;
+        private ApplicationId applicationId;
+        private String host;
+        private int rpcHost;
 
         public MockApplicationReportProvider(
                 ApplicationId applicationId, String host, int rpcHost) {
@@ -94,7 +99,7 @@ public class YarnClusterClientProviderTest {
         }
 
         @Override
-        public ApplicationReport waitTillSubmissionFinish() throws Exception {
+        public ApplicationReport waitTillSubmissionFinish() throws FlinkException {
             invokeNumber++;
             return buildMockedAppReport(applicationId, YarnApplicationState.RUNNING, host, rpcHost);
         }
