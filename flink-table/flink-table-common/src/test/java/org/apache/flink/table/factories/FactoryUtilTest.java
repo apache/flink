@@ -390,6 +390,181 @@ public class FactoryUtilTest {
     }
 
     @Test
+    public void testFactoryHelperWithMergeableOptions() {
+        final Map<String, String> options = new HashMap<>();
+        options.put(TestDynamicTableFactory.TARGET.key(), "abc");
+        options.put(TestDynamicTableFactory.BUFFER_SIZE.key(), "1000");
+
+        final Map<String, String> mergeable = new HashMap<>();
+        mergeable.put(TestDynamicTableFactory.TARGET.key(), "xyz");
+        mergeable.put(TestDynamicTableFactory.BUFFER_SIZE.key(), "2000");
+
+        final FactoryUtil.TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(
+                        new TestDynamicTableFactory(),
+                        FactoryMocks.createTableContext(SCHEMA, options, mergeable));
+
+        helper.forwardOptions(
+                TestDynamicTableFactory.BUFFER_SIZE, TestDynamicTableFactory.PASSWORD);
+
+        helper.validate();
+
+        assertThat(helper.getOptions().get(TestDynamicTableFactory.TARGET)).isEqualTo("abc");
+        assertThat(helper.getOptions().get(TestDynamicTableFactory.BUFFER_SIZE)).isEqualTo(2000);
+    }
+
+    @Test
+    public void testFactoryHelperWithMergeableOptionsAndFormat() {
+        String keyFormatPrefix =
+                FactoryUtil.getFormatPrefix(
+                        TestDynamicTableFactory.KEY_FORMAT, TestFormatFactory.IDENTIFIER);
+        String valueFormatPrefix =
+                FactoryUtil.getFormatPrefix(
+                        TestDynamicTableFactory.VALUE_FORMAT, TestFormatFactory.IDENTIFIER);
+
+        final Map<String, String> options = new HashMap<>();
+        options.put(TestDynamicTableFactory.TARGET.key(), "abc");
+        options.put(TestDynamicTableFactory.BUFFER_SIZE.key(), "1000");
+        options.put(TestDynamicTableFactory.KEY_FORMAT.key(), TestFormatFactory.IDENTIFIER);
+        options.put(keyFormatPrefix + TestFormatFactory.DELIMITER.key(), "|");
+        options.put(keyFormatPrefix + TestFormatFactory.FAIL_ON_MISSING.key(), "true");
+        options.put(TestDynamicTableFactory.VALUE_FORMAT.key(), TestFormatFactory.IDENTIFIER);
+        options.put(valueFormatPrefix + TestFormatFactory.DELIMITER.key(), "|");
+        options.put(valueFormatPrefix + TestFormatFactory.FAIL_ON_MISSING.key(), "true");
+
+        final Map<String, String> mergeable = new HashMap<>();
+        mergeable.put(TestDynamicTableFactory.TARGET.key(), "xyz");
+        mergeable.put(TestDynamicTableFactory.BUFFER_SIZE.key(), "2000");
+        mergeable.put(TestDynamicTableFactory.KEY_FORMAT.key(), TestFormatFactory.IDENTIFIER);
+        mergeable.put(keyFormatPrefix + TestFormatFactory.DELIMITER.key(), ",");
+        mergeable.put(keyFormatPrefix + TestFormatFactory.FAIL_ON_MISSING.key(), "true");
+        mergeable.put(TestDynamicTableFactory.VALUE_FORMAT.key(), TestFormatFactory.IDENTIFIER);
+        mergeable.put(valueFormatPrefix + TestFormatFactory.DELIMITER.key(), "|");
+
+        final FactoryUtil.TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(
+                        new TestDynamicTableFactory(),
+                        FactoryMocks.createTableContext(SCHEMA, options, mergeable));
+
+        // Forward table options
+        helper.forwardOptions(
+                TestDynamicTableFactory.BUFFER_SIZE, TestDynamicTableFactory.PASSWORD);
+
+        // Get resulting format mocks from key and value
+        // Note: the only forwardable option for the test format is the delimiter
+        DecodingFormatMock keyDecodingFormatMock =
+                (DecodingFormatMock)
+                        helper.discoverDecodingFormat(
+                                DeserializationFormatFactory.class,
+                                TestDynamicTableFactory.KEY_FORMAT);
+        DecodingFormatMock valueDecodingFormatMock =
+                (DecodingFormatMock)
+                        helper.discoverDecodingFormat(
+                                DeserializationFormatFactory.class,
+                                TestDynamicTableFactory.VALUE_FORMAT);
+
+        helper.validate();
+
+        // Check table options
+        assertThat(helper.getOptions().get(TestDynamicTableFactory.TARGET)).isEqualTo("abc");
+        assertThat(helper.getOptions().get(TestDynamicTableFactory.BUFFER_SIZE)).isEqualTo(2000);
+
+        // Check format options
+        assertThat(keyDecodingFormatMock.delimiter).isEqualTo(",");
+        assertThat(keyDecodingFormatMock.failOnMissing).isTrue();
+        assertThat(valueDecodingFormatMock.delimiter).isEqualTo("|");
+        assertThat(valueDecodingFormatMock.failOnMissing).isTrue();
+    }
+
+    @Test
+    public void testFactoryHelperWithMergeableOptionsMissingFormatIdentifier() {
+        final Map<String, String> options = new HashMap<>();
+        options.put(TestDynamicTableFactory.TARGET.key(), "abc");
+
+        final Map<String, String> mergeable = new HashMap<>();
+        mergeable.put(TestDynamicTableFactory.TARGET.key(), "xyz");
+        mergeable.put(TestDynamicTableFactory.KEY_FORMAT.key(), TestFormatFactory.IDENTIFIER);
+        mergeable.put(
+                FactoryUtil.getFormatPrefix(
+                                TestDynamicTableFactory.KEY_FORMAT, TestFormatFactory.IDENTIFIER)
+                        + TestFormatFactory.DELIMITER.key(),
+                ",");
+
+        final FactoryUtil.TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(
+                        new TestDynamicTableFactory(),
+                        FactoryMocks.createTableContext(SCHEMA, options, mergeable));
+
+        assertThatThrownBy(
+                        () ->
+                                helper.discoverDecodingFormat(
+                                        DeserializationFormatFactory.class,
+                                        TestDynamicTableFactory.KEY_FORMAT))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        String.format(
+                                "The persisted plan has no format option '%s' specified, while the catalog table has it with value '%s'",
+                                TestDynamicTableFactory.KEY_FORMAT, TestFormatFactory.IDENTIFIER));
+    }
+
+    @Test
+    public void testFactoryHelperWithMergeableOptionsFormatMismatch() {
+        String keyFormatPrefix =
+                FactoryUtil.getFormatPrefix(
+                        TestDynamicTableFactory.KEY_FORMAT, TestFormatFactory.IDENTIFIER);
+
+        final Map<String, String> options = new HashMap<>();
+        options.put(TestDynamicTableFactory.TARGET.key(), "abc");
+        options.put(TestDynamicTableFactory.KEY_FORMAT.key(), TestFormatFactory.IDENTIFIER);
+        options.put(keyFormatPrefix + TestFormatFactory.DELIMITER.key(), "|");
+        options.put(keyFormatPrefix + TestFormatFactory.FAIL_ON_MISSING.key(), "true");
+
+        final Map<String, String> mergeable = new HashMap<>();
+        mergeable.put(TestDynamicTableFactory.TARGET.key(), "xyz");
+        mergeable.put(TestDynamicTableFactory.BUFFER_SIZE.key(), "2000");
+        mergeable.put(TestDynamicTableFactory.KEY_FORMAT.key(), "another-format");
+
+        final FactoryUtil.TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(
+                        new TestDynamicTableFactory(),
+                        FactoryMocks.createTableContext(SCHEMA, options, mergeable));
+
+        assertThatThrownBy(
+                        () ->
+                                helper.discoverDecodingFormat(
+                                        DeserializationFormatFactory.class,
+                                        TestDynamicTableFactory.KEY_FORMAT))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        String.format(
+                                "Both persisted plan table and catalog table define the format option '%s', "
+                                        + "but they mismatch: '%s' != '%s'",
+                                TestDynamicTableFactory.KEY_FORMAT,
+                                TestFormatFactory.IDENTIFIER,
+                                "another-format"));
+    }
+
+    @Test
+    public void testFactoryHelperWithEmptyMergeableOptions() {
+        final Map<String, String> options = new HashMap<>();
+        options.put(TestDynamicTableFactory.TARGET.key(), "abc");
+        options.put(TestDynamicTableFactory.BUFFER_SIZE.key(), "1000");
+
+        final FactoryUtil.TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(
+                        new TestDynamicTableFactory(),
+                        FactoryMocks.createTableContext(SCHEMA, options));
+
+        helper.forwardOptions(
+                TestDynamicTableFactory.BUFFER_SIZE, TestDynamicTableFactory.PASSWORD);
+
+        helper.validate();
+
+        assertThat(helper.getOptions().get(TestDynamicTableFactory.TARGET)).isEqualTo("abc");
+        assertThat(helper.getOptions().get(TestDynamicTableFactory.BUFFER_SIZE)).isEqualTo(1000);
+    }
+
+    @Test
     public void testFactoryHelperWithMapOption() {
         final Map<String, String> options = new HashMap<>();
         options.put("properties.prop-1", "value-1");

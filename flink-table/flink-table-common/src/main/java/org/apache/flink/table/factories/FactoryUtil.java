@@ -977,6 +977,8 @@ public final class FactoryUtil {
 
         private final DynamicTableFactory.Context context;
 
+        private final Configuration mergeableOptions;
+
         private TableFactoryHelper(
                 DynamicTableFactory tableFactory, DynamicTableFactory.Context context) {
             super(
@@ -985,6 +987,21 @@ public final class FactoryUtil {
                     PROPERTY_VERSION,
                     CONNECTOR);
             this.context = context;
+            this.mergeableOptions = Configuration.fromMap(context.mergeableOptions());
+        }
+
+        /**
+         * Forward the provided {@code configOptions} from the {@link
+         * DynamicTableFactory.Context#mergeableOptions()} to the final options, if present.
+         */
+        @SuppressWarnings({"unchecked"})
+        public TableFactoryHelper forwardOptions(ConfigOption<?>... configOptions) {
+            for (ConfigOption<?> option : configOptions) {
+                mergeableOptions
+                        .getOptional(option)
+                        .ifPresent(o -> allOptions.set((ConfigOption<? super Object>) option, o));
+            }
+            return this;
         }
 
         /**
@@ -1015,7 +1032,8 @@ public final class FactoryUtil {
                                 String formatPrefix = formatPrefix(formatFactory, formatOption);
                                 try {
                                     return formatFactory.createDecodingFormat(
-                                            context, projectOptions(formatPrefix));
+                                            context,
+                                            createFormatOptions(formatPrefix, formatFactory));
                                 } catch (Throwable t) {
                                     throw new ValidationException(
                                             String.format(
@@ -1055,7 +1073,8 @@ public final class FactoryUtil {
                                 String formatPrefix = formatPrefix(formatFactory, formatOption);
                                 try {
                                     return formatFactory.createEncodingFormat(
-                                            context, projectOptions(formatPrefix));
+                                            context,
+                                            createFormatOptions(formatPrefix, formatFactory));
                                 } catch (Throwable t) {
                                     throw new ValidationException(
                                             String.format(
@@ -1072,6 +1091,7 @@ public final class FactoryUtil {
         private <F extends Factory> Optional<F> discoverOptionalFormatFactory(
                 Class<F> formatFactoryClass, ConfigOption<String> formatOption) {
             final String identifier = allOptions.get(formatOption);
+            checkFormatIdentifierMatchesWithMergeableOptions(formatOption, identifier);
             if (identifier == null) {
                 return Optional.empty();
             }
@@ -1104,8 +1124,62 @@ public final class FactoryUtil {
             return getFormatPrefix(formatOption, identifier);
         }
 
-        private ReadableConfig projectOptions(String formatPrefix) {
-            return new DelegatingConfiguration(allOptions, formatPrefix);
+        @SuppressWarnings({"unchecked"})
+        private ReadableConfig createFormatOptions(
+                String formatPrefix, FormatFactory formatFactory) {
+            Set<ConfigOption<?>> mergeableConfigOptions = formatFactory.mergeableOptions();
+            Configuration formatConf = new DelegatingConfiguration(allOptions, formatPrefix);
+            if (mergeableConfigOptions.isEmpty()) {
+                return formatConf;
+            }
+
+            Configuration formatConfFromMergeableOptions =
+                    new DelegatingConfiguration(mergeableOptions, formatPrefix);
+
+            for (ConfigOption<?> option : mergeableConfigOptions) {
+                formatConfFromMergeableOptions
+                        .getOptional(option)
+                        .ifPresent(o -> formatConf.set((ConfigOption<? super Object>) option, o));
+            }
+
+            return formatConf;
+        }
+
+        /**
+         * This function assumes that the format config is used only and only if the original
+         * configuration contains the format config option. It will fail if there is a mismatch of
+         * the identifier between the format in originalMap and the one in catalog.
+         */
+        private void checkFormatIdentifierMatchesWithMergeableOptions(
+                ConfigOption<String> formatOption,
+                String resolvedIdentifierFromContextResolvedCatalogTable) {
+            Optional<String> identifierFromMergeableOptions =
+                    mergeableOptions.getOptional(formatOption);
+
+            if (!identifierFromMergeableOptions.isPresent()) {
+                return;
+            }
+
+            if (resolvedIdentifierFromContextResolvedCatalogTable == null) {
+                throw new ValidationException(
+                        String.format(
+                                "The persisted plan has no format option '%s' specified, while the catalog table has it with value '%s'. "
+                                        + "This is invalid, as either only the persisted plan table defines the format, "
+                                        + "or both the persisted plan table and the catalog table defines the same format",
+                                formatOption, identifierFromMergeableOptions.get()));
+            }
+
+            if (!Objects.equals(
+                    resolvedIdentifierFromContextResolvedCatalogTable,
+                    identifierFromMergeableOptions.get())) {
+                throw new ValidationException(
+                        String.format(
+                                "Both persisted plan table and catalog table define the format option '%s', "
+                                        + "but they mismatch: '%s' != '%s'",
+                                formatOption,
+                                resolvedIdentifierFromContextResolvedCatalogTable,
+                                identifierFromMergeableOptions.get()));
+            }
         }
     }
 
