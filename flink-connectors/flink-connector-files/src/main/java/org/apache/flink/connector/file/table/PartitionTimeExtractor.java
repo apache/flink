@@ -38,8 +38,8 @@ public interface PartitionTimeExtractor extends Serializable {
             ClassLoader userClassLoader,
             String extractorKind,
             String extractorClass,
-            String formatterPattern,
-            String extractorPattern) {
+            String extractorPattern,
+            String formatterPattern) {
         switch (extractorKind) {
             case DEFAULT:
                 return new DefaultPartTimeExtractor(extractorPattern, formatterPattern);

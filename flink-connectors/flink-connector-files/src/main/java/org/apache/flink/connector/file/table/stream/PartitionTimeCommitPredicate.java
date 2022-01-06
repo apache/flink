@@ -57,8 +57,8 @@ public class PartitionTimeCommitPredicate implements PartitionCommitPredicate {
                         cl,
                         conf.get(PARTITION_TIME_EXTRACTOR_KIND),
                         conf.get(PARTITION_TIME_EXTRACTOR_CLASS),
-                        conf.get(PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER),
-                        conf.get(PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN));
+                        conf.get(PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN),
+                        conf.get(PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER));
         this.watermarkTimeZone =
                 ZoneId.of(conf.getString(SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE));
     }

@@ -21,13 +21,13 @@ package org.apache.flink.table.planner.runtime.stream
 import org.apache.flink.api.common.state.CheckpointListener
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.connector.file.table.FileSystemConnectorOptions._
 import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.Expressions.$
-import org.apache.flink.connector.file.table.DefaultPartTimeExtractor.{toLocalDateTime, toMills}
-import org.apache.flink.connector.file.table.FileSystemConnectorOptions._
+import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil}
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil

@@ -116,8 +116,8 @@ public abstract class HivePartitionFetcherContextBase<P> implements HivePartitio
                         Thread.currentThread().getContextClassLoader(),
                         extractorKind,
                         extractorClass,
-                        formatterPattern,
-                        extractorPattern);
+                        extractorPattern,
+                        formatterPattern);
         tableLocation = new Path(table.getSd().getLocation());
         partValuesToCreateTime = new HashMap<>();
     }
