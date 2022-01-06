@@ -19,6 +19,7 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -27,6 +28,8 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.types.DataType;
+
+import java.util.Map;
 
 /**
  * Base interface for configuring a dynamic table connector for an external storage system from
@@ -74,6 +77,17 @@ public interface DynamicTableFactory extends Factory {
          * depending on the implemented ability interfaces.
          */
         ResolvedCatalogTable getCatalogTable();
+
+        /**
+         * This method returns a map of options that should be merged with the options in {@link
+         * #getCatalogTable()}. The returned map is empty if {@code PLAN_RESTORE_CATALOG_OBJECTS} is
+         * not set to {@code ALL}.
+         *
+         * <p>It's highly recommended using the {@link
+         * FactoryUtil.TableFactoryHelper#forwardOptions(ConfigOption[])} to merge the options and
+         * then get the result with {@link FactoryUtil.TableFactoryHelper#getOptions()}.
+         */
+        Map<String, String> mergeableOptions();
 
         /** Gives read-only access to the configuration of the current session. */
         ReadableConfig getConfiguration();
