@@ -162,16 +162,16 @@ public class YARNITCase extends YarnTestBase {
                         YarnClient yarnClient = getYarnClient();
                         ApplicationReport report = yarnClient.getApplicationReport(applicationId);
 
-                        assertEquals(ACCEPTED, report.getYarnApplicationState());
+                        // Only test when app master state is accepted in YarnClusterDescriptor.
+                        if (ACCEPTED == report.getYarnApplicationState()) {
+                            ClusterClient<ApplicationId> clusterClient =
+                                    clusterClientProvider.getClusterClient();
 
-                        ClusterClient<ApplicationId> clusterClient =
-                                clusterClientProvider.getClusterClient();
-
-                        report = yarnClient.getApplicationReport(applicationId);
-                        assertEquals(RUNNING, report.getYarnApplicationState());
-
-                        checkApplicationFinished(
-                                clusterClient, yarnClusterDescriptor, jobGraph, configuration);
+                            report = yarnClient.getApplicationReport(applicationId);
+                            assertEquals(RUNNING, report.getYarnApplicationState());
+                            checkApplicationFinished(
+                                    clusterClient, yarnClusterDescriptor, jobGraph, configuration);
+                        }
                     }
                 });
     }

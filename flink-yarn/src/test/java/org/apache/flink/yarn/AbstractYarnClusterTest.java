@@ -78,7 +78,7 @@ public class AbstractYarnClusterTest extends TestLogger {
         }
     }
 
-    private ApplicationReport createApplicationReport(
+    protected ApplicationReport createApplicationReport(
             ApplicationId applicationId,
             YarnApplicationState yarnApplicationState,
             FinalApplicationStatus finalApplicationStatus) {
@@ -100,10 +100,10 @@ public class AbstractYarnClusterTest extends TestLogger {
         return applicationReport;
     }
 
-    private static final class TestingYarnClient extends YarnClientImpl {
+    protected static final class TestingYarnClient extends YarnClientImpl {
         private final Map<ApplicationId, ApplicationReport> applicationReports;
 
-        private TestingYarnClient(Map<ApplicationId, ApplicationReport> applicationReports) {
+        protected TestingYarnClient(Map<ApplicationId, ApplicationReport> applicationReports) {
             this.applicationReports = Preconditions.checkNotNull(applicationReports);
         }
 
