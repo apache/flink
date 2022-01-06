@@ -1436,10 +1436,12 @@ class ConnectedStreams(object):
                     self._close_func()
 
                 def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                    yield self._map1_func(value)
+                    if self._map1_func(value):
+                        yield self._map1_func(value)
 
                 def process_element2(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                    yield self._map2_func(value)
+                    if self._map2_func(value):
+                        yield self._map2_func(value)
 
             return self.process(CoMapKeyedCoProcessFunctionAdapter(func), output_type) \
                 .name("Co-Map")
@@ -1458,10 +1460,12 @@ class ConnectedStreams(object):
                     self._close_func()
 
                 def process_element1(self, value, ctx: 'CoProcessFunction.Context'):
-                    yield self._map1_func(value)
+                    if self._map1_func(value):
+                        yield self._map1_func(value)
 
                 def process_element2(self, value, ctx: 'CoProcessFunction.Context'):
-                    yield self._map2_func(value)
+                    if self._map2_func(value):
+                        yield self._map2_func(value)
 
             return self.process(CoMapCoProcessFunctionAdapter(func), output_type) \
                 .name("Co-Map")
@@ -1498,10 +1502,12 @@ class ConnectedStreams(object):
                     self._close_func()
 
                 def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                    yield from self._flat_map1_func(value)
+                    if self._flat_map1_func(value):
+                        yield from self._flat_map1_func(value)
 
                 def process_element2(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                    yield from self._flat_map2_func(value)
+                    if self._flat_map2_func(value):
+                        yield from self._flat_map2_func(value)
 
             return self.process(FlatMapKeyedCoProcessFunctionAdapter(func), output_type) \
                 .name("Co-Flat Map")
@@ -1521,10 +1527,12 @@ class ConnectedStreams(object):
                     self._close_func()
 
                 def process_element1(self, value, ctx: 'CoProcessFunction.Context'):
-                    yield from self._flat_map1_func(value)
+                    if self._flat_map1_func(value):
+                        yield from self._flat_map1_func(value)
 
                 def process_element2(self, value, ctx: 'CoProcessFunction.Context'):
-                    yield from self._flat_map2_func(value)
+                    if self._flat_map2_func(value):
+                        yield from self._flat_map2_func(value)
 
             return self.process(FlatMapCoProcessFunctionAdapter(func), output_type) \
                 .name("Co-Flat Map")
