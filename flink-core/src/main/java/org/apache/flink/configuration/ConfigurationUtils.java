@@ -185,7 +185,7 @@ public class ConfigurationUtils {
      */
     public static String assembleDynamicConfigsStr(final Map<String, String> config) {
         return config.entrySet().stream()
-                .map(e -> String.format("-D %s=%s", e.getKey(), e.getValue()))
+                .map(e -> String.format("-D%s=%s", e.getKey(), e.getValue()))
                 .collect(Collectors.joining(" "));
     }
 
@@ -193,20 +193,12 @@ public class ConfigurationUtils {
     public static Map<String, String> parseTmResourceDynamicConfigs(String dynamicConfigsStr) {
         Map<String, String> configs = new HashMap<>();
         String[] configStrs = dynamicConfigsStr.split(" ");
-
-        checkArgument(
-                configStrs.length % 2 == 0,
-                "Dynamic option string contained odd number of arguments: #arguments=%s, (%s)",
-                configStrs.length,
-                dynamicConfigsStr);
         for (int i = 0; i < configStrs.length; ++i) {
             String configStr = configStrs[i];
-            if (i % 2 == 0) {
-                checkArgument(configStr.equals("-D"));
-            } else {
+            if (configStr.startsWith("-D") && configStr.length() > 2) {
                 String[] configKV = configStr.split("=");
                 checkArgument(configKV.length == 2);
-                configs.put(configKV[0], configKV[1]);
+                configs.put(configKV[0].substring(2), configKV[1]);
             }
         }
 

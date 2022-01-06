@@ -100,15 +100,12 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
         Map<String, String> config = new HashMap<>();
         String[] dynamicParameterTokens = dynamicParameterStr.split(" ");
 
-        assertThat(dynamicParameterTokens.length % 2, is(0));
         for (int i = 0; i < dynamicParameterTokens.length; ++i) {
             String configStr = dynamicParameterTokens[i];
-            if (i % 2 == 0) {
-                assertThat(configStr, is("-D"));
-            } else {
+            if (configStr.startsWith("-D") && configStr.length() > 2) {
                 String[] configEntry = configStr.split("=");
                 assertThat(configEntry, arrayWithSize(2));
-                config.put(configEntry[0], configEntry[1]);
+                config.put(configEntry[0].substring(2), configEntry[1]);
             }
         }
 
