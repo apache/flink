@@ -18,114 +18,58 @@
 
 package org.apache.flink.runtime.highavailability.nonha.embedded;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.highavailability.AbstractThreadsafeJobResultStore;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.util.Preconditions;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.annotation.concurrent.GuardedBy;
-
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /** A thread-safe in-memory implementation of the {@link JobResultStore}. */
-public class EmbeddedJobResultStore implements JobResultStore {
+public class EmbeddedJobResultStore extends AbstractThreadsafeJobResultStore {
 
-    private static final Logger LOG = LoggerFactory.getLogger(EmbeddedJobResultStore.class);
+    private final Map<JobID, JobResultEntry> dirtyJobResults = new HashMap<>();
 
-    private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
-
-    @GuardedBy("readWriteLock")
-    @VisibleForTesting
-    final Map<JobID, JobResultEntry> dirtyJobResults = new HashMap<>();
-
-    @GuardedBy("readWriteLock")
-    @VisibleForTesting
-    final Map<JobID, JobResultEntry> cleanJobResults = new HashMap<>();
+    private final Map<JobID, JobResultEntry> cleanJobResults = new HashMap<>();
 
     @Override
-    public void createDirtyResult(JobResultEntry jobResultEntry) {
-        Preconditions.checkState(
-                !hasJobResultEntry(jobResultEntry.getJobId()),
-                "There is already a job registered under the passed ID {}.",
-                jobResultEntry.getJobId());
-
-        withWriteLock(() -> dirtyJobResults.put(jobResultEntry.getJobId(), jobResultEntry));
+    public void createDirtyResultInternal(JobResultEntry jobResultEntry) {
+        dirtyJobResults.put(jobResultEntry.getJobId(), jobResultEntry);
     }
 
     @Override
-    public void markResultAsClean(JobID jobId) throws NoSuchElementException {
-        if (hasCleanJobResultEntry(jobId)) {
-            LOG.debug("The job {} is already marked as clean. No action required.", jobId);
-
-            return;
-        }
-
-        withWriteLock(
-                () -> {
-                    final JobResultEntry jobResultEntry = dirtyJobResults.remove(jobId);
-                    if (jobResultEntry != null) {
-                        cleanJobResults.put(jobId, jobResultEntry);
-                    } else {
-                        throw new NoSuchElementException(
-                                String.format(
-                                        "Could not mark job %s as clean as it is not present in the job result store.",
-                                        jobId));
-                    }
-                });
-    }
-
-    @Override
-    public boolean hasJobResultEntry(JobID jobId) {
-        return withReadLock(
-                () -> dirtyJobResults.containsKey(jobId) || cleanJobResults.containsKey(jobId));
-    }
-
-    @Override
-    public boolean hasDirtyJobResultEntry(JobID jobId) {
-        return withReadLock(() -> dirtyJobResults.containsKey(jobId));
-    }
-
-    @Override
-    public boolean hasCleanJobResultEntry(JobID jobId) {
-        return withReadLock(() -> cleanJobResults.containsKey(jobId));
-    }
-
-    @Override
-    public Set<JobResult> getDirtyResults() {
-        return withReadLock(
-                () ->
-                        dirtyJobResults.values().stream()
-                                .map(JobResultEntry::getJobResult)
-                                .collect(Collectors.toSet()));
-    }
-
-    private void withWriteLock(Runnable callback) {
-        readWriteLock.writeLock().lock();
-        try {
-            callback.run();
-        } finally {
-            readWriteLock.writeLock().unlock();
+    public void markResultAsCleanInternal(JobID jobId) throws IOException, NoSuchElementException {
+        final JobResultEntry jobResultEntry = dirtyJobResults.remove(jobId);
+        if (jobResultEntry != null) {
+            cleanJobResults.put(jobId, jobResultEntry);
+        } else {
+            throw new NoSuchElementException(
+                    String.format(
+                            "Could not mark job %s as clean as it is not present in the job result store.",
+                            jobId));
         }
     }
 
-    private <T> T withReadLock(Supplier<T> callback) {
-        readWriteLock.readLock().lock();
-        try {
-            return callback.get();
-        } finally {
-            readWriteLock.readLock().unlock();
-        }
+    @Override
+    public boolean hasDirtyJobResultEntryInternal(JobID jobId) throws IOException {
+        return dirtyJobResults.containsKey(jobId);
+    }
+
+    @Override
+    public boolean hasCleanJobResultEntryInternal(JobID jobId) throws IOException {
+        return cleanJobResults.containsKey(jobId);
+    }
+
+    @Override
+    public Set<JobResult> getDirtyResultsInternal() throws IOException {
+        return dirtyJobResults.values().stream()
+                .map(JobResultEntry::getJobResult)
+                .collect(Collectors.toSet());
     }
 }

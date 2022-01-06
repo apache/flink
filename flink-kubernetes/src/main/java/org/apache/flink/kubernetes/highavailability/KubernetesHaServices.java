@@ -28,7 +28,7 @@ import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
-import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
+import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
@@ -37,6 +37,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
+import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -95,8 +96,13 @@ public class KubernetesHaServices extends AbstractHaServices {
             FlinkKubeClient kubeClient,
             Executor executor,
             Configuration config,
-            BlobStoreService blobStoreService) {
-        super(config, executor, blobStoreService, new EmbeddedJobResultStore());
+            BlobStoreService blobStoreService)
+            throws IOException {
+        super(
+                config,
+                executor,
+                blobStoreService,
+                FileSystemJobResultStore.fromConfiguration(config));
 
         this.kubeClient = checkNotNull(kubeClient);
         this.clusterId = checkNotNull(config.get(KubernetesConfigOptions.CLUSTER_ID));
