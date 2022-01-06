@@ -58,7 +58,9 @@ import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
+import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.MONTH;
+import static org.apache.flink.table.api.DataTypes.MULTISET;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.SECOND;
 import static org.apache.flink.table.api.DataTypes.SMALLINT;
@@ -1142,14 +1144,26 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
     public static List<TestSpec> constructedTypes() {
         return Arrays.asList(
-                // https://issues.apache.org/jira/browse/FLINK-17321
-                // MULTISET
-                // MAP
+                CastTestSpecBuilder.testCastTo(MAP(STRING(), STRING()))
+                        .fromCase(MAP(FLOAT(), DOUBLE()), null, null)
+                        .fromCase(
+                                MAP(INT(), INT()),
+                                Collections.singletonMap(1, 2),
+                                Collections.singletonMap("1", "2"))
+                        .build(),
+                CastTestSpecBuilder.testCastTo(MULTISET(STRING()))
+                        .fromCase(MULTISET(TIMESTAMP()), null, null)
+                        .fromCase(
+                                MULTISET(INT()),
+                                Collections.singletonMap(1, 1),
+                                Collections.singletonMap("1", 1))
+                        .build(),
                 CastTestSpecBuilder.testCastTo(ARRAY(INT()))
                         .fromCase(ARRAY(INT()), null, null)
-                        // https://issues.apache.org/jira/browse/FLINK-17321
-                        // .fromCase(ARRAY(STRING()), new String[] {'1', '2', '3'}, new Integer[]
-                        // {1, 2, 3})
+                        .fromCase(
+                                ARRAY(STRING()),
+                                new String[] {"1", "2", "3"},
+                                new Integer[] {1, 2, 3})
                         // https://issues.apache.org/jira/browse/FLINK-24425 Cast from corresponding
                         // single type
                         // .fromCase(INT(), DEFAULT_POSITIVE_INT, new int[] {DEFAULT_POSITIVE_INT})
