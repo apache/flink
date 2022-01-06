@@ -78,68 +78,6 @@ public class FileSystemConnectorOptions {
                                     + " phase, this can greatly reduce the number of file for filesystem sink but may"
                                     + " lead data skew.");
 
-    public static final ConfigOption<Boolean> STREAMING_SOURCE_ENABLE =
-            key("streaming-source.enable")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            Description.builder()
-                                    .text("Enable streaming source or not.")
-                                    .linebreak()
-                                    .text(
-                                            " NOTES: Please make sure that each partition/file should be written"
-                                                    + " atomically, otherwise the reader may get incomplete data.")
-                                    .build());
-
-    public static final ConfigOption<String> STREAMING_SOURCE_PARTITION_INCLUDE =
-            key("streaming-source.partition.include")
-                    .stringType()
-                    .defaultValue("all")
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Option to set the partitions to read, supported values are")
-                                    .list(
-                                            text("all (read all partitions)"),
-                                            text(
-                                                    "latest (read latest partition in order of 'streaming-source.partition.order', this only works when a streaming Hive source table is used as a temporal table)"))
-                                    .build());
-
-    public static final ConfigOption<Duration> STREAMING_SOURCE_MONITOR_INTERVAL =
-            key("streaming-source.monitor-interval")
-                    .durationType()
-                    .noDefaultValue()
-                    .withDescription("Time interval for consecutively monitoring partition/file.");
-
-    public static final ConfigOption<PartitionOrder> STREAMING_SOURCE_PARTITION_ORDER =
-            key("streaming-source.partition-order")
-                    .enumType(PartitionOrder.class)
-                    .defaultValue(PartitionOrder.PARTITION_NAME)
-                    .withDeprecatedKeys("streaming-source.consume-order")
-                    .withDescription(
-                            Description.builder()
-                                    .text("The partition order of the streaming source.")
-                                    .text(
-                                            "This is a synonym for the deprecated 'streaming-source.consume-order' option.")
-                                    .build());
-
-    public static final ConfigOption<String> STREAMING_SOURCE_CONSUME_START_OFFSET =
-            key("streaming-source.consume-start-offset")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Start offset for streaming consuming. How to parse and compare offsets depends on 'streaming-source.partition-order'.")
-                                    .list(
-                                            text(
-                                                    "For 'create-time' and 'partition-time' it should be a timestamp string (yyyy-[m]m-[d]d [hh:mm:ss])."),
-                                            text(
-                                                    "For 'partition-time' it will use a partition time extractor to extract the time from the partition."),
-                                            text(
-                                                    "For 'partition-name' it is the name of the partition, e.g. 'pt_year=2020/pt_mon=10/pt_day=01'."))
-                                    .build());
-
     public static final ConfigOption<String> PARTITION_TIME_EXTRACTOR_KIND =
             key("partition.time-extractor.kind")
                     .stringType()
@@ -197,13 +135,6 @@ public class FileSystemConnectorOptions {
                                             text(
                                                     "If the timestamp in the partition is a single field called 'dt', you can use '$dt'."))
                                     .build());
-
-    public static final ConfigOption<Duration> LOOKUP_JOIN_CACHE_TTL =
-            key("lookup.join.cache.ttl")
-                    .durationType()
-                    .defaultValue(Duration.ofMinutes(60))
-                    .withDescription(
-                            "The cache TTL (e.g. 10min) for the build table in lookup join.");
 
     public static final ConfigOption<PartitionCommitTriggerType> SINK_PARTITION_COMMIT_TRIGGER =
             key("sink.partition-commit.trigger")
@@ -288,37 +219,6 @@ public class FileSystemConnectorOptions {
     // --------------------------------------------------------------------------------------------
     // Enums
     // --------------------------------------------------------------------------------------------
-
-    /** Partition order used for {@link #STREAMING_SOURCE_PARTITION_ORDER}. */
-    public enum PartitionOrder implements DescribedEnum {
-        CREATE_TIME(
-                "create-time",
-                text(
-                        "Compares partition / file creation time, which is not the partition creation time in the Hive metastore, "
-                                + "but the folder / file modification time in the filesystem; e.g., adding a new file into "
-                                + "the folder may affect how the data is consumed.")),
-        PARTITION_TIME(
-                "partition-time", text("Compares the time extracted from the partition name.")),
-        PARTITION_NAME("partition-name", text("Compares partition names lexicographically."));
-
-        private final String value;
-        private final InlineElement description;
-
-        PartitionOrder(String value, InlineElement description) {
-            this.value = value;
-            this.description = description;
-        }
-
-        @Override
-        public String toString() {
-            return value;
-        }
-
-        @Override
-        public InlineElement getDescription() {
-            return description;
-        }
-    }
 
     /** Trigger types for partition commit, see {@link #SINK_PARTITION_COMMIT_TRIGGER}. */
     public enum PartitionCommitTriggerType implements DescribedEnum {

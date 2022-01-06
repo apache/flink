@@ -182,6 +182,7 @@ public class PartitionMonitorTest {
                         0L,
                         seenPartitionsSinceOffset,
                         tablePath,
+                        configuration,
                         jobConf,
                         continuousPartitionFetcher,
                         fetcherContext);
