@@ -1303,10 +1303,14 @@ class ConnectedStreams(object):
                     self._underlying.open(runtime_context)
 
                 def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                    yield self._underlying.map1(value)
+                    result = self._underlying.map1(value)
+                    if result is not None:
+                        yield result
 
                 def process_element2(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                    yield self._underlying.map2(value)
+                    result = self._underlying.map2(value)
+                    if result is not None:
+                        yield result
 
                 def close(self):
                     self._underlying.close()
@@ -1350,10 +1354,14 @@ class ConnectedStreams(object):
                     self._underlying.open(runtime_context)
 
                 def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                    yield from self._underlying.flat_map1(value)
+                    result = self._underlying.flat_map1(value)
+                    if result:
+                        yield from result
 
                 def process_element2(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                    yield from self._underlying.flat_map2(value)
+                    result = self._underlying.flat_map2(value)
+                    if result:
+                        yield from result
 
                 def close(self):
                     self._underlying.close()
