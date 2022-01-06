@@ -68,6 +68,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -87,6 +88,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Tests for {@link YarnResourceManagerDriver}. */
 public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase<YarnWorkerNode> {
@@ -180,6 +182,149 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                                                     throwable, ERROR_MESSAGE_ON_SHUTDOWN_REQUEST)
                                             .isPresent(),
                                     is(true));
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testTerminationDoesNotBlock() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            try {
+                                runInMainThread(() -> getDriver().terminate());
+                            } catch (Exception ex) {
+                                log.error("cannot terminate driver", ex);
+                                fail("termination of driver failed");
+                            }
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testTerminationWaitsOnContainerStopSuccess() throws Exception {
+        new Context() {
+            {
+                CountDownLatch waiter = new CountDownLatch(1);
+                testingYarnNMClientAsyncBuilder.setStopContainerAsyncConsumer(
+                        (containerId, ignored, callbackHandler) -> {
+                            try {
+                                // simulate time needed by release process
+                                waiter.await();
+                            } catch (InterruptedException ex) {
+                                log.error("test was interrupted", ex);
+                                fail("test was interrupted");
+                            }
+                            callbackHandler.onContainerStopped(containerId);
+                            stopContainerAsyncFuture.complete(null);
+                        });
+                resetYarnNodeManagerClientFactory();
+
+                runTest(
+                        () -> {
+                            // acquire a resource so we have something to release
+                            runInMainThread(
+                                    () -> {
+                                        YarnWorkerNode worker =
+                                                getDriver()
+                                                        .requestResource(
+                                                                testingTaskExecutorProcessSpec)
+                                                        .get();
+
+                                        // release the resource -- it will be blocked
+                                        CompletableFuture.runAsync(
+                                                () -> getDriver().releaseResource(worker));
+                                    });
+
+                            // terminate driver this should wait on the callback
+                            CompletableFuture<Void> driverHasTerminatedFuture =
+                                    CompletableFuture.runAsync(
+                                            () -> {
+                                                try {
+                                                    runInMainThread(() -> getDriver().terminate());
+                                                } catch (Exception ex) {
+                                                    log.error("cannot terminate driver", ex);
+                                                    fail("termination of driver failed");
+                                                }
+                                            });
+
+                            assertFalse(driverHasTerminatedFuture.isDone());
+
+                            // continue release
+                            waiter.countDown();
+
+                            // wait for completion of release
+                            stopContainerAsyncFuture.get();
+
+                            // wait for completion of termination
+                            // ff this blocks forever, then our implementation is wrong
+                            driverHasTerminatedFuture.get();
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testTerminationWaitsOnContainerStopError() throws Exception {
+        new Context() {
+            {
+                CountDownLatch waiter = new CountDownLatch(1);
+                testingYarnNMClientAsyncBuilder.setStopContainerAsyncConsumer(
+                        (containerId, ignored, callbackHandler) -> {
+                            try {
+                                // simulate time needed by release process
+                                waiter.await();
+                            } catch (InterruptedException ex) {
+                                log.error("test was interrupted", ex);
+                                fail("test was interrupted");
+                            }
+                            callbackHandler.onStopContainerError(containerId, null);
+                            stopContainerAsyncFuture.complete(null);
+                        });
+                resetYarnNodeManagerClientFactory();
+
+                runTest(
+                        () -> {
+                            // acquire a resource so we have something to release
+                            runInMainThread(
+                                    () -> {
+                                        YarnWorkerNode worker =
+                                                getDriver()
+                                                        .requestResource(
+                                                                testingTaskExecutorProcessSpec)
+                                                        .get();
+
+                                        // release the resource -- it will be blocked
+                                        CompletableFuture.runAsync(
+                                                () -> getDriver().releaseResource(worker));
+                                    });
+
+                            // terminate driver this should wait on the callback
+                            CompletableFuture<Void> driverHasTerminatedFuture =
+                                    CompletableFuture.runAsync(
+                                            () -> {
+                                                try {
+                                                    runInMainThread(() -> getDriver().terminate());
+                                                } catch (Exception ex) {
+                                                    log.error("cannot terminate driver", ex);
+                                                    fail("termination of driver failed");
+                                                }
+                                            });
+
+                            assertFalse(driverHasTerminatedFuture.isDone());
+
+                            // continue release
+                            waiter.countDown();
+
+                            // wait for completion of release
+                            stopContainerAsyncFuture.get();
+
+                            // wait for completion of termination
+                            // ff this blocks forever, then our implementation is wrong
+                            driverHasTerminatedFuture.get();
                         });
             }
         };
@@ -473,7 +618,8 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                 new CompletableFuture<>();
         private final CompletableFuture<Resource> createTaskManagerContainerFuture =
                 new CompletableFuture<>();
-        private final CompletableFuture<Void> stopContainerAsyncFuture = new CompletableFuture<>();
+        protected final CompletableFuture<Void> stopContainerAsyncFuture =
+                new CompletableFuture<>();
         final List<CompletableFuture<AMRMClient.ContainerRequest>> addContainerRequestFutures =
                 new ArrayList<>();
         final AtomicInteger addContainerRequestFuturesNumCompleted = new AtomicInteger(0);
@@ -541,7 +687,8 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                                     testingYarnAMRMClientAsyncBuilder.build(handler);
                             return testingYarnAMRMClientAsync;
                         }));
-        final TestingYarnNodeManagerClientFactory testingYarnNodeManagerClientFactory =
+
+        private TestingYarnNodeManagerClientFactory testingYarnNodeManagerClientFactory =
                 new TestingYarnNodeManagerClientFactory(
                         (handler -> {
                             nodeManagerClientCallbackHandler = handler;
@@ -553,6 +700,17 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
         final Map<String, String> env = new HashMap<>();
 
         private int containerIdx = 0;
+
+        protected void resetYarnNodeManagerClientFactory() {
+            testingYarnNodeManagerClientFactory =
+                    new TestingYarnNodeManagerClientFactory(
+                            (handler -> {
+                                nodeManagerClientCallbackHandler = handler;
+                                testingYarnNMClientAsync =
+                                        testingYarnNMClientAsyncBuilder.build(handler);
+                                return testingYarnNMClientAsync;
+                            }));
+        }
 
         @Override
         protected void prepareRunTest() throws Exception {
