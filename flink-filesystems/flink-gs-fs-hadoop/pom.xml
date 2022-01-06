@@ -36,6 +36,7 @@ under the License.
 	<properties>
 		<fs.gs.sdk.version>2.2.2</fs.gs.sdk.version>
 		<fs.gs.connector.version>hadoop3-2.2.4</fs.gs.connector.version>
+		<grpc.version>1.41.1</grpc.version>
 	</properties>
 
 	<dependencies>
@@ -111,9 +112,48 @@ under the License.
 			<dependency>
 				<groupId>io.grpc</groupId>
 				<artifactId>grpc-core</artifactId>
-				<version>1.41.1</version>
+				<version>${grpc.version}</version>
 			</dependency>
-
+			<dependency>
+				<groupId>io.grpc</groupId>
+				<artifactId>grpc-api</artifactId>
+				<version>${grpc.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.grpc</groupId>
+				<artifactId>grpc-alts</artifactId>
+				<version>${grpc.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.grpc</groupId>
+				<artifactId>grpc-auth</artifactId>
+				<version>${grpc.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.grpc</groupId>
+				<artifactId>grpc-grpclib</artifactId>
+				<version>${grpc.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.grpc</groupId>
+				<artifactId>grpc-netty-shaded</artifactId>
+				<version>${grpc.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.grpc</groupId>
+				<artifactId>grpc-protobuf</artifactId>
+				<version>${grpc.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.grpc</groupId>
+				<artifactId>grpc-protobuf-lite</artifactId>
+				<version>${grpc.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.grpc</groupId>
+				<artifactId>grpc-stub</artifactId>
+				<version>${grpc.version}</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
