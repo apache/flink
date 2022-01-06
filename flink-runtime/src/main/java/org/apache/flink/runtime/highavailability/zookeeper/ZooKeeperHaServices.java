@@ -27,6 +27,7 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 
+import java.io.IOException;
 import java.util.concurrent.Executor;
 
 /**
@@ -94,7 +95,8 @@ public class ZooKeeperHaServices extends AbstractZooKeeperHaServices {
             CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper,
             Executor executor,
             Configuration configuration,
-            BlobStoreService blobStoreService) {
+            BlobStoreService blobStoreService)
+            throws IOException {
         super(curatorFrameworkWrapper, executor, configuration, blobStoreService);
     }
 
