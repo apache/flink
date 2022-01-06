@@ -19,6 +19,7 @@
 package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -54,6 +55,7 @@ import java.util.stream.IntStream;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ARRAY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.MAP;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.MULTISET;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.NULL;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsExplicitCast;
@@ -197,10 +199,18 @@ class ValuesOperationFactory {
                     && targetLogicalType.is(ARRAY)) {
                 return convertArrayToExpectedType(
                         sourceExpression, (CollectionDataType) targetDataType, postResolverFactory);
-            } else if (functionDefinition == BuiltInFunctionDefinitions.MAP
-                    && targetLogicalType.is(MAP)) {
-                return convertMapToExpectedType(
-                        sourceExpression, (KeyValueDataType) targetDataType, postResolverFactory);
+            } else if (functionDefinition == BuiltInFunctionDefinitions.MAP) {
+                if (targetLogicalType.is(MAP)) {
+                    return convertMapToExpectedType(
+                            sourceExpression,
+                            (KeyValueDataType) targetDataType,
+                            postResolverFactory);
+                } else if (targetLogicalType.is(MULTISET)) {
+                    return convertMultisetToExpectedType(
+                            sourceExpression,
+                            (CollectionDataType) targetDataType,
+                            postResolverFactory);
+                }
             }
         }
 
@@ -273,6 +283,30 @@ class ValuesOperationFactory {
             }
         }
         return Optional.of(postResolverFactory.array(targetDataType, castedChildren));
+    }
+
+    private Optional<ResolvedExpression> convertMultisetToExpectedType(
+            ResolvedExpression sourceExpression,
+            CollectionDataType targetDataType,
+            ExpressionResolver.PostResolverFactory postResolverFactory) {
+        DataType keyTargetDataType = targetDataType.getElementDataType();
+        DataType valueTargetDataType = DataTypes.INT();
+        List<ResolvedExpression> resolvedChildren = sourceExpression.getResolvedChildren();
+        ResolvedExpression[] castedChildren = new ResolvedExpression[resolvedChildren.size()];
+        for (int i = 0; i < resolvedChildren.size(); i++) {
+            Optional<ResolvedExpression> castedChild =
+                    convertToExpectedType(
+                            resolvedChildren.get(i),
+                            i % 2 == 0 ? keyTargetDataType : valueTargetDataType,
+                            postResolverFactory);
+            if (castedChild.isPresent()) {
+                castedChildren[i] = castedChild.get();
+            } else {
+                return Optional.empty();
+            }
+        }
+
+        return Optional.of(postResolverFactory.multiset(targetDataType, castedChildren));
     }
 
     private Optional<ResolvedExpression> convertMapToExpectedType(

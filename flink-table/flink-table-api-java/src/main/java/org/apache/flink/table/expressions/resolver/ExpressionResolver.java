@@ -418,6 +418,17 @@ public class ExpressionResolver {
                     dataType);
         }
 
+        public CallExpression multiset(DataType dataType, ResolvedExpression... expression) {
+            final FunctionLookup.Result lookupOfArray =
+                    functionLookup.lookupBuiltInFunction(BuiltInFunctionDefinitions.MULTISET);
+
+            return new CallExpression(
+                    lookupOfArray.getFunctionIdentifier(),
+                    lookupOfArray.getFunctionDefinition(),
+                    Arrays.asList(expression),
+                    dataType);
+        }
+
         public CallExpression wrappingCall(
                 BuiltInFunctionDefinition definition, ResolvedExpression expression) {
             final FunctionLookup.Result lookupOfDefinition =

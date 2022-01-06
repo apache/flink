@@ -40,10 +40,13 @@ import java.time.LocalTime;
 import java.time.Period;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -1155,8 +1158,16 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(MULTISET(TIMESTAMP()), null, null)
                         .fromCase(
                                 MULTISET(INT()),
-                                Collections.singletonMap(1, 1),
-                                Collections.singletonMap("1", 1))
+                                map(entry(1, 2), entry(3, 4)),
+                                map(entry("1", 2), entry("3", 4)))
+                        .fromCase(
+                                MULTISET(DOUBLE()),
+                                map(entry(12.3, 1), entry(0.1, 2)),
+                                map(entry("12.3", 1), entry("0.1", 2)))
+                        .fromCase(
+                                MULTISET(TIMESTAMP(4)),
+                                map(entry(LocalDateTime.parse("2021-09-24T12:34:56.123456"), 2)),
+                                map(entry("2021-09-24 12:34:56.1234", 2)))
                         .build(),
                 CastTestSpecBuilder.testCastTo(ARRAY(INT()))
                         .fromCase(ARRAY(INT()), null, null)
@@ -1327,5 +1338,21 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
     private static boolean isTimestampToNumeric(LogicalType srcType, LogicalType trgType) {
         return srcType.is(LogicalTypeFamily.TIMESTAMP) && trgType.is(LogicalTypeFamily.NUMERIC);
+    }
+
+    private static <K, V> Map.Entry<K, V> entry(K k, V v) {
+        return new AbstractMap.SimpleImmutableEntry<>(k, v);
+    }
+
+    @SafeVarargs
+    private static <K, V> Map<K, V> map(Map.Entry<K, V>... entries) {
+        if (entries == null) {
+            return Collections.emptyMap();
+        }
+        Map<K, V> map = new HashMap<>();
+        for (Map.Entry<K, V> entry : entries) {
+            map.put(entry.getKey(), entry.getValue());
+        }
+        return map;
     }
 }
