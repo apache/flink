@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.table.planner.expressions.utils.ScalarOperatorsTestBase
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.planner.expressions.utils.{ExpressionTestBase, ScalarOperatorsTestBase}
+import org.apache.flink.table.types.AbstractDataType
+import org.apache.flink.types.Row
 
 import org.junit.Test
 
@@ -273,4 +276,267 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "false")
     testSqlApi("uuid() = cast(f22 as timestamp_ltz)", "null")
   }
+}
+
+class ScalarEqualityOperatorsTest extends ExpressionTestBase {
+  // these tests are extracted into a specific test class because they need specific data
+
+  @Test
+  def testEqualityForNumericValues(): Unit = {
+    // direct equality
+    for (i <- 0 to 6) {
+      testSqlApi(s"f${i * 2} = f${i * 2 + 1}", "true")
+      testSqlApi(s"f${14 + i * 2} = f${14 + i * 2 + 1}", "true")
+      testSqlApi(s"f${i * 2} = f${14 + i * 2}", "false")
+
+      testSqlApi(s"f${i * 2} <> f${i * 2 + 1}", "false")
+      testSqlApi(s"f${14 + i * 2} <> f${14 + i * 2 + 1}", "false")
+      testSqlApi(s"f${i * 2} <> f${14 + i * 2}", "true")
+    }
+
+    // equality between primitive numeric types
+    for (i <- 0 to 6) {
+      for (j <- 0 to 6) {
+        testSqlApi(s"f${i * 2} = f${j * 2}", "true")
+        testSqlApi(s"f${i * 2} = f${14 + j * 2}", "false")
+
+        testSqlApi(s"f${i * 2} <> f${j * 2}", "false")
+        testSqlApi(s"f${i * 2} <> f${14 + j * 2}", "true")
+      }
+    }
+    // byte is excluded in this test because 777 overflows its range
+    for (i <- 1 to 6) {
+      for (j <- 1 to 6) {
+        testSqlApi(s"f${14 + i * 2} = f${14 + j * 2}", "true")
+        testSqlApi(s"f${14 + i * 2} = f${j * 2}", "false")
+
+        testSqlApi(s"f${14 + i * 2} <> f${14 + j * 2}", "false")
+        testSqlApi(s"f${14 + i * 2} <> f${j * 2}", "true")
+      }
+    }
+
+    // equality with boxed numeric types (LEAST will return boxed internal data type)
+    for (i <- 0 to 6) {
+      testSqlApi(s"LEAST(f${i * 2}) = LEAST(f${i * 2 + 1})", "true")
+      testSqlApi(s"LEAST(f${i * 2}) = f${i * 2 + 1}", "true")
+      testSqlApi(s"LEAST(f${i * 2}) = f${14 + i * 2}", "false")
+      testSqlApi(s"f${i * 2} = LEAST(f${i * 2 + 1})", "true")
+      testSqlApi(s"f${14 + i * 2} = LEAST(f${i * 2 + 1})", "false")
+
+      testSqlApi(s"LEAST(f${i * 2}) <> LEAST(f${i * 2 + 1})", "false")
+      testSqlApi(s"LEAST(f${i * 2}) <> f${i * 2 + 1}", "false")
+      testSqlApi(s"LEAST(f${i * 2}) <> f${14 + i * 2}", "true")
+      testSqlApi(s"f${i * 2} <> LEAST(f${i * 2 + 1})", "false")
+      testSqlApi(s"f${14 + i * 2} <> LEAST(f${i * 2 + 1})", "true")
+    }
+    // byte is excluded in this test because 777 overflows its range
+    for (i <- 1 to 6) {
+      testSqlApi(s"LEAST(f${14 + i * 2}) = LEAST(f${14 + i * 2 + 1})", "true")
+      testSqlApi(s"LEAST(f${i * 2}) = LEAST(f${14 + i * 2})", "false")
+      testSqlApi(s"LEAST(f${14 + i * 2}) = LEAST(f${i * 2})", "false")
+      testSqlApi(s"LEAST(f${14 + i * 2}) = f${14 + i * 2 + 1}", "true")
+      testSqlApi(s"LEAST(f${14 + i * 2}) = f${i * 2 + 1}", "false")
+      testSqlApi(s"f${14 + i * 2} = LEAST(f${14 + i * 2 + 1})", "true")
+      testSqlApi(s"f${i * 2} = LEAST(f${14 + i * 2 + 1})", "false")
+
+      testSqlApi(s"LEAST(f${14 + i * 2}) <> LEAST(f${14 + i * 2 + 1})", "false")
+      testSqlApi(s"LEAST(f${i * 2}) <> LEAST(f${14 + i * 2})", "true")
+      testSqlApi(s"LEAST(f${14 + i * 2}) <> LEAST(f${i * 2})", "true")
+      testSqlApi(s"LEAST(f${14 + i * 2}) <> f${14 + i * 2 + 1}", "false")
+      testSqlApi(s"LEAST(f${14 + i * 2}) <> f${i * 2 + 1}", "true")
+      testSqlApi(s"f${14 + i * 2} <> LEAST(f${14 + i * 2 + 1})", "false")
+      testSqlApi(s"f${i * 2} <> LEAST(f${14 + i * 2 + 1})", "true")
+    }
+  }
+
+  @Test
+  def testEqualityForTimeValues(): Unit = {
+    // direct equality
+    for (i <- 0 to 3) {
+      testSqlApi(s"f${28 + i * 2} = f${28 + i * 2 + 1}", "true")
+      testSqlApi(s"f${36 + i * 2} = f${36 + i * 2 + 1}", "true")
+      testSqlApi(s"f${28 + i * 2} = f${36 + i * 2}", "false")
+
+      testSqlApi(s"f${28 + i * 2} <> f${28 + i * 2 + 1}", "false")
+      testSqlApi(s"f${36 + i * 2} <> f${36 + i * 2 + 1}", "false")
+      testSqlApi(s"f${28 + i * 2} <> f${36 + i * 2}", "true")
+    }
+
+    // equality with boxed time types (LEAST will return boxed internal data type)
+    for (i <- 0 to 3) {
+      testSqlApi(s"LEAST(f${28 + i * 2}) = LEAST(f${28 + i * 2 + 1})", "true")
+      testSqlApi(s"LEAST(f${36 + i * 2}) = LEAST(f${36 + i * 2 + 1})", "true")
+      testSqlApi(s"LEAST(f${28 + i * 2}) = LEAST(f${36 + i * 2 + 1})", "false")
+
+      testSqlApi(s"LEAST(f${28 + i * 2}) = f${28 + i * 2 + 1}", "true")
+      testSqlApi(s"f${28 + i * 2} = LEAST(f${28 + i * 2 + 1})", "true")
+      testSqlApi(s"LEAST(f${36 + i * 2}) = f${36 + i * 2 + 1}", "true")
+      testSqlApi(s"f${36 + i * 2} = LEAST(f${36 + i * 2 + 1})", "true")
+      testSqlApi(s"LEAST(f${28 + i * 2}) = f${36 + i * 2 + 1}", "false")
+      testSqlApi(s"f${28 + i * 2} = LEAST(f${36 + i * 2 + 1})", "false")
+      testSqlApi(s"LEAST(f${28 + i * 2}) = f${36 + i * 2 + 1}", "false")
+      testSqlApi(s"f${28 + i * 2} = LEAST(f${36 + i * 2 + 1})", "false")
+
+      testSqlApi(s"LEAST(f${28 + i * 2}) <> LEAST(f${28 + i * 2 + 1})", "false")
+      testSqlApi(s"LEAST(f${36 + i * 2}) <> LEAST(f${36 + i * 2 + 1})", "false")
+      testSqlApi(s"LEAST(f${28 + i * 2}) <> LEAST(f${36 + i * 2 + 1})", "true")
+
+      testSqlApi(s"LEAST(f${28 + i * 2}) <> f${28 + i * 2 + 1}", "false")
+      testSqlApi(s"f${28 + i * 2} <> LEAST(f${28 + i * 2 + 1})", "false")
+      testSqlApi(s"LEAST(f${36 + i * 2}) <> f${36 + i * 2 + 1}", "false")
+      testSqlApi(s"f${36 + i * 2} <> LEAST(f${36 + i * 2 + 1})", "false")
+      testSqlApi(s"LEAST(f${28 + i * 2}) <> f${36 + i * 2 + 1}", "true")
+      testSqlApi(s"f${28 + i * 2} <> LEAST(f${36 + i * 2 + 1})", "true")
+      testSqlApi(s"LEAST(f${28 + i * 2}) <> f${36 + i * 2 + 1}", "true")
+      testSqlApi(s"f${28 + i * 2} <> LEAST(f${36 + i * 2 + 1})", "true")
+    }
+  }
+
+  @Test
+  def testEqualityForBooleanValues(): Unit = {
+    // direct equality
+    testSqlApi("f44 = f45", "true")
+    testSqlApi("f46 = f47", "true")
+    testSqlApi("f44 = f46", "false")
+    testSqlApi("f45 = f47", "false")
+
+    testSqlApi("f44 <> f45", "false")
+    testSqlApi("f46 <> f47", "false")
+    testSqlApi("f44 <> f46", "true")
+    testSqlApi("f45 <> f47", "true")
+
+    // equality with boxed boolean types (LEAST will return boxed internal data type)
+    testSqlApi("LEAST(f44) = LEAST(f45)", "true")
+    testSqlApi("LEAST(f46) = LEAST(f47)", "true")
+    testSqlApi("LEAST(f44) = LEAST(f47)", "false")
+    testSqlApi("LEAST(f46) = LEAST(f45)", "false")
+
+    testSqlApi("LEAST(f44) <> LEAST(f45)", "false")
+    testSqlApi("LEAST(f46) <> LEAST(f47)", "false")
+    testSqlApi("LEAST(f44) <> LEAST(f47)", "true")
+    testSqlApi("LEAST(f46) <> LEAST(f45)", "true")
+
+    testSqlApi("LEAST(f44) = f45", "true")
+    testSqlApi("f44 = LEAST(f45)", "true")
+    testSqlApi("LEAST(f46) = f47", "true")
+    testSqlApi("f46 = LEAST(f47)", "true")
+    testSqlApi("LEAST(f44) = f47", "false")
+    testSqlApi("f44 = LEAST(f47)", "false")
+    testSqlApi("LEAST(f46) = f45", "false")
+    testSqlApi("f46 = LEAST(f45)", "false")
+
+    testSqlApi("LEAST(f44) <> f45", "false")
+    testSqlApi("f44 <> LEAST(f45)", "false")
+    testSqlApi("LEAST(f46) <> f47", "false")
+    testSqlApi("f46 <> LEAST(f47)", "false")
+    testSqlApi("LEAST(f44) <> f47", "true")
+    testSqlApi("f44 <> LEAST(f47)", "true")
+    testSqlApi("LEAST(f46) <> f45", "true")
+    testSqlApi("f46 <> LEAST(f45)", "true")
+  }
+
+  override def testData: Row = {
+    Row.of(
+      // numeric values in range [-128, 127]
+      java.lang.Byte.valueOf("7"), java.lang.Byte.valueOf("7"),
+      java.lang.Short.valueOf("7"), java.lang.Short.valueOf("7"),
+      java.lang.Integer.valueOf(7), java.lang.Integer.valueOf(7),
+      java.lang.Long.valueOf(7), java.lang.Long.valueOf(7),
+      java.lang.Float.valueOf(7), java.lang.Float.valueOf(7),
+      java.lang.Double.valueOf(7), java.lang.Double.valueOf(7),
+      new java.math.BigDecimal("7"), new java.math.BigDecimal("7"),
+
+      // numeric values out of range [-128, 127], except for bytes
+      java.lang.Byte.valueOf("77"), java.lang.Byte.valueOf("77"),
+      java.lang.Short.valueOf("777"), java.lang.Short.valueOf("777"),
+      java.lang.Integer.valueOf(777), java.lang.Integer.valueOf(777),
+      java.lang.Long.valueOf(777), java.lang.Long.valueOf(777),
+      java.lang.Float.valueOf(777), java.lang.Float.valueOf(777),
+      java.lang.Double.valueOf(777), java.lang.Double.valueOf(777),
+      new java.math.BigDecimal("777"), new java.math.BigDecimal("777"),
+
+      // time values whose internal data representation in range [-128, 127]
+      java.time.LocalDate.ofEpochDay(7), java.time.LocalDate.ofEpochDay(7),
+      // currently Flink SQL does not support time with precision > 0,
+      // so the only integer second we can pick is 0
+      java.time.LocalTime.ofSecondOfDay(0), java.time.LocalTime.ofSecondOfDay(0),
+      java.time.LocalDateTime.ofEpochSecond(0, 7000000, java.time.ZoneOffset.UTC),
+      java.time.LocalDateTime.ofEpochSecond(0, 7000000, java.time.ZoneOffset.UTC),
+      java.time.Instant.ofEpochMilli(7), java.time.Instant.ofEpochMilli(7),
+
+      // time values whose internal data representation out of range [-128, 127]
+      java.time.LocalDate.ofEpochDay(7000), java.time.LocalDate.ofEpochDay(7000),
+      java.time.LocalTime.ofSecondOfDay(7), java.time.LocalTime.ofSecondOfDay(7),
+      java.time.LocalDateTime.ofEpochSecond(7, 0, java.time.ZoneOffset.UTC),
+      java.time.LocalDateTime.ofEpochSecond(7, 0, java.time.ZoneOffset.UTC),
+      java.time.Instant.ofEpochMilli(7000), java.time.Instant.ofEpochMilli(7000),
+
+      // boolean values
+      java.lang.Boolean.valueOf(true), java.lang.Boolean.valueOf(true),
+      java.lang.Boolean.valueOf(false), java.lang.Boolean.valueOf(false))
+  }
+
+  override def testDataType: AbstractDataType[_] = {
+    DataTypes.ROW(
+      // numeric values in range [-128, 127]
+      DataTypes.FIELD("f0", DataTypes.TINYINT()),
+      DataTypes.FIELD("f1", DataTypes.TINYINT()),
+      DataTypes.FIELD("f2", DataTypes.SMALLINT()),
+      DataTypes.FIELD("f3", DataTypes.SMALLINT()),
+      DataTypes.FIELD("f4", DataTypes.INT()),
+      DataTypes.FIELD("f5", DataTypes.INT()),
+      DataTypes.FIELD("f6", DataTypes.BIGINT()),
+      DataTypes.FIELD("f7", DataTypes.BIGINT()),
+      DataTypes.FIELD("f8", DataTypes.FLOAT()),
+      DataTypes.FIELD("f9", DataTypes.FLOAT()),
+      DataTypes.FIELD("f10", DataTypes.DOUBLE()),
+      DataTypes.FIELD("f11", DataTypes.DOUBLE()),
+      DataTypes.FIELD("f12", DataTypes.DECIMAL(10, 3)),
+      DataTypes.FIELD("f13", DataTypes.DECIMAL(10, 3)),
+
+      // numeric values out of range [-128, 127]
+      DataTypes.FIELD("f14", DataTypes.TINYINT()),
+      DataTypes.FIELD("f15", DataTypes.TINYINT()),
+      DataTypes.FIELD("f16", DataTypes.SMALLINT()),
+      DataTypes.FIELD("f17", DataTypes.SMALLINT()),
+      DataTypes.FIELD("f18", DataTypes.INT()),
+      DataTypes.FIELD("f19", DataTypes.INT()),
+      DataTypes.FIELD("f20", DataTypes.BIGINT()),
+      DataTypes.FIELD("f21", DataTypes.BIGINT()),
+      DataTypes.FIELD("f22", DataTypes.FLOAT()),
+      DataTypes.FIELD("f23", DataTypes.FLOAT()),
+      DataTypes.FIELD("f24", DataTypes.DOUBLE()),
+      DataTypes.FIELD("f25", DataTypes.DOUBLE()),
+      DataTypes.FIELD("f26", DataTypes.DECIMAL(10, 3)),
+      DataTypes.FIELD("f27", DataTypes.DECIMAL(10, 3)),
+
+      // time values whose internal data representation in range [-128, 127]
+      DataTypes.FIELD("f28", DataTypes.DATE()),
+      DataTypes.FIELD("f29", DataTypes.DATE()),
+      DataTypes.FIELD("f30", DataTypes.TIME(0)),
+      DataTypes.FIELD("f31", DataTypes.TIME(0)),
+      DataTypes.FIELD("f32", DataTypes.TIMESTAMP(3)),
+      DataTypes.FIELD("f33", DataTypes.TIMESTAMP(3)),
+      DataTypes.FIELD("f34", DataTypes.TIMESTAMP_LTZ(3)),
+      DataTypes.FIELD("f35", DataTypes.TIMESTAMP_LTZ(3)),
+
+      // time values whose internal data representation out of range [-128, 127]
+      DataTypes.FIELD("f36", DataTypes.DATE()),
+      DataTypes.FIELD("f37", DataTypes.DATE()),
+      DataTypes.FIELD("f38", DataTypes.TIME(0)),
+      DataTypes.FIELD("f39", DataTypes.TIME(0)),
+      DataTypes.FIELD("f40", DataTypes.TIMESTAMP(3)),
+      DataTypes.FIELD("f41", DataTypes.TIMESTAMP(3)),
+      DataTypes.FIELD("f42", DataTypes.TIMESTAMP_LTZ(3)),
+      DataTypes.FIELD("f43", DataTypes.TIMESTAMP_LTZ(3)),
+
+      // boolean values
+      DataTypes.FIELD("f44", DataTypes.BOOLEAN()),
+      DataTypes.FIELD("f45", DataTypes.BOOLEAN()),
+      DataTypes.FIELD("f46", DataTypes.BOOLEAN()),
+      DataTypes.FIELD("f47", DataTypes.BOOLEAN())
+    )
+  }
+
+  override def containsLegacyTypes: Boolean = false
 }
