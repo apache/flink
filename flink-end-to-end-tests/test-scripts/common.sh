@@ -276,19 +276,21 @@ function wait_rest_endpoint_up {
   for i in $(seq 1 ${TIMEOUT}); do
     local log_file=$(mktemp)
     # without the || true this would exit our script if the endpoint is not yet up
-    QUERY_RESULT=$(curl -v ${CURL_SSL_ARGS} "$query_url" 2>${log_file} || true)
+    QUERY_RESULT=$(curl -v ${CURL_SSL_ARGS} "$query_url" 2> ${log_file} || true)
 
     # ensure the response adapts with the successful regex
     if [[ ${QUERY_RESULT} =~ ${successful_response_regex} ]]; then
       echo "${endpoint_name} REST endpoint is up."
       return
-    elif [ -f $log_file ];then
+    else
       echo "***************** Curl detailed output *****************"
       echo "QUERY_RESULT is ${QUERY_RESULT}"
       cat ${log_file}
       echo "********************************************************"
-      rm ${log_file}
     fi
+
+    # Remove the temporary file
+    rm ${log_file}
 
     echo "Waiting for ${endpoint_name} REST endpoint to come up..."
     sleep 1
