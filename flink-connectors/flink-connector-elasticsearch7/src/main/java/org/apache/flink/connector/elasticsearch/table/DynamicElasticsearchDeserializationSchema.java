@@ -38,7 +38,7 @@ import org.elasticsearch.search.SearchHit;
 
 import java.io.IOException;
 
-/** TODO. */
+/** A {@link ElasticsearchSearchHitDeserializationSchema} that deserializes to {@link RowData}. */
 public class DynamicElasticsearchDeserializationSchema
         implements ElasticsearchSearchHitDeserializationSchema<RowData> {
 

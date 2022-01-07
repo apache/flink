@@ -35,6 +35,7 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.http.HttpHost;
 
@@ -117,11 +118,39 @@ public class ElasticsearchDynamicSource implements ScanTableSource {
         final ElasticsearchSourceBuilder<RowData> builder = ElasticsearchSource.builder();
 
         builder.setDeserializationSchema(elasticsearchDeserializer);
-        // TODO: add NetworkClientConfig options here
         builder.setHosts(sourceConfig.getHosts().toArray(new HttpHost[0]));
         builder.setIndexName(sourceConfig.getIndex());
         builder.setNumberOfSearchSlices(sourceConfig.getNumberOfSlices());
         builder.setPitKeepAlive(sourceConfig.getPitKeepAlive());
+
+        if (sourceConfig.getUsername().isPresent()
+                && !StringUtils.isNullOrWhitespaceOnly(sourceConfig.getUsername().get())) {
+            builder.setConnectionUsername(sourceConfig.getUsername().get());
+        }
+
+        if (sourceConfig.getPassword().isPresent()
+                && !StringUtils.isNullOrWhitespaceOnly(sourceConfig.getPassword().get())) {
+            builder.setConnectionPassword(sourceConfig.getPassword().get());
+        }
+
+        if (sourceConfig.getPathPrefix().isPresent()
+                && !StringUtils.isNullOrWhitespaceOnly(sourceConfig.getPathPrefix().get())) {
+            builder.setConnectionPathPrefix(sourceConfig.getPathPrefix().get());
+        }
+
+        if (sourceConfig.getConnectionRequestTimeout().isPresent()) {
+            builder.setConnectionRequestTimeout(
+                    (int) sourceConfig.getConnectionRequestTimeout().get().getSeconds());
+        }
+
+        if (sourceConfig.getConnectionTimeout().isPresent()) {
+            builder.setConnectionTimeout(
+                    (int) sourceConfig.getConnectionTimeout().get().getSeconds());
+        }
+
+        if (sourceConfig.getSocketTimeout().isPresent()) {
+            builder.setSocketTimeout((int) sourceConfig.getSocketTimeout().get().getSeconds());
+        }
 
         return builder.build();
     }

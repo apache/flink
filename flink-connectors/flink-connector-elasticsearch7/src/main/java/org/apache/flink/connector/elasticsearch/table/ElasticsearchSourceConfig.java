@@ -26,12 +26,19 @@ import org.apache.http.HttpHost;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.CONNECTION_PATH_PREFIX_OPTION;
+import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.CONNECTION_REQUEST_TIMEOUT;
+import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.CONNECTION_TIMEOUT;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.HOSTS_OPTION;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.INDEX_OPTION;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.NUMBER_OF_SLICES_OPTION;
+import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.PASSWORD_OPTION;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.PIT_KEEP_ALIVE_OPTION;
+import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.SOCKET_TIMEOUT;
+import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.USERNAME_OPTION;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @Internal
@@ -46,18 +53,42 @@ public class ElasticsearchSourceConfig {
         return config.get(INDEX_OPTION);
     }
 
-    public List<HttpHost> getHosts() {
-        return config.get(HOSTS_OPTION).stream()
-                .map(ElasticsearchSourceConfig::validateAndParseHostsString)
-                .collect(Collectors.toList());
-    }
-
     public Integer getNumberOfSlices() {
         return config.get(NUMBER_OF_SLICES_OPTION);
     }
 
     public Duration getPitKeepAlive() {
         return config.get(PIT_KEEP_ALIVE_OPTION);
+    }
+
+    public Optional<String> getUsername() {
+        return config.getOptional(USERNAME_OPTION);
+    }
+
+    public Optional<String> getPassword() {
+        return config.getOptional(PASSWORD_OPTION);
+    }
+
+    public Optional<String> getPathPrefix() {
+        return config.getOptional(CONNECTION_PATH_PREFIX_OPTION);
+    }
+
+    public Optional<Duration> getConnectionRequestTimeout() {
+        return config.getOptional(CONNECTION_REQUEST_TIMEOUT);
+    }
+
+    public Optional<Duration> getConnectionTimeout() {
+        return config.getOptional(CONNECTION_TIMEOUT);
+    }
+
+    public Optional<Duration> getSocketTimeout() {
+        return config.getOptional(SOCKET_TIMEOUT);
+    }
+
+    public List<HttpHost> getHosts() {
+        return config.get(HOSTS_OPTION).stream()
+                .map(ElasticsearchSourceConfig::validateAndParseHostsString)
+                .collect(Collectors.toList());
     }
 
     private static HttpHost validateAndParseHostsString(String host) {

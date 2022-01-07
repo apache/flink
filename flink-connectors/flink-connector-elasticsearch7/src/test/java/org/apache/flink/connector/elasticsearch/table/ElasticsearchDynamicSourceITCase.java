@@ -53,9 +53,9 @@ import java.util.Map;
 /** Tests for {@link org.apache.flink.connector.elasticsearch.table.ElasticsearchDynamicSource}. */
 @Testcontainers
 @ExtendWith(TestLoggerExtension.class)
-public class ElasticsearchDynamicTableSourceTest {
+public class ElasticsearchDynamicSourceITCase {
     private static final Logger LOG =
-            LoggerFactory.getLogger(ElasticsearchDynamicTableSourceTest.class);
+            LoggerFactory.getLogger(ElasticsearchDynamicSourceITCase.class);
     private static final int NUM_RECORDS = 10;
     private static final String INDEX = "my-index";
 

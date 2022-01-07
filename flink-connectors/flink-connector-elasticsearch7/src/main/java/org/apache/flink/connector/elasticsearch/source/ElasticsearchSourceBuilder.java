@@ -62,6 +62,9 @@ public class ElasticsearchSourceBuilder<OUT> {
     private String username;
     private String password;
     private String connectionPathPrefix;
+    private Integer connectionTimeout;
+    private Integer socketTimeout;
+    private Integer connectionRequestTimeout;
 
     ElasticsearchSourceBuilder() {}
 
@@ -176,6 +179,47 @@ public class ElasticsearchSourceBuilder<OUT> {
         return this;
     }
 
+    /**
+     * Sets the timeout for requesting the connection of the Elasticsearch cluster from the
+     * connection manager.
+     *
+     * @param connectionRequestTimeout tiemout for the connection request
+     * @return this builder
+     */
+    public ElasticsearchSourceBuilder<OUT> setConnectionRequestTimeout(
+            int connectionRequestTimeout) {
+        checkState(
+                connectionRequestTimeout >= 0,
+                "Connection request timeout must be larger than or equal to 0.");
+        this.connectionRequestTimeout = connectionRequestTimeout;
+        return this;
+    }
+
+    /**
+     * Sets the timeout for establishing a connection of the Elasticsearch cluster.
+     *
+     * @param connectionTimeout timeout for the connection
+     * @return this builder
+     */
+    public ElasticsearchSourceBuilder<OUT> setConnectionTimeout(int connectionTimeout) {
+        checkState(connectionTimeout >= 0, "Connection timeout must be larger than or equal to 0.");
+        this.connectionTimeout = connectionTimeout;
+        return this;
+    }
+
+    /**
+     * Sets the timeout for waiting for data or, put differently, a maximum period inactivity
+     * between two consecutive data packets.
+     *
+     * @param socketTimeout timeout for the socket
+     * @return this builder
+     */
+    public ElasticsearchSourceBuilder<OUT> setSocketTimeout(int socketTimeout) {
+        checkState(socketTimeout >= 0, "Socket timeout must be larger than or equal to 0.");
+        this.socketTimeout = socketTimeout;
+        return this;
+    }
+
     private void checkRequiredParameters() {
         checkNotNull(hosts);
         checkArgument(!hosts.isEmpty(), "Hosts cannot be empty.");
@@ -191,9 +235,14 @@ public class ElasticsearchSourceBuilder<OUT> {
     public ElasticsearchSource<OUT> build() {
         checkRequiredParameters();
 
-        // TODO: Integrate timeout settings
         NetworkClientConfig networkClientConfig =
-                new NetworkClientConfig(username, password, connectionPathPrefix, null, null, null);
+                new NetworkClientConfig(
+                        username,
+                        password,
+                        connectionPathPrefix,
+                        connectionRequestTimeout,
+                        connectionTimeout,
+                        socketTimeout);
 
         ElasticsearchSourceConfiguration sourceConfiguration =
                 new ElasticsearchSourceConfiguration(
