@@ -51,6 +51,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.connector.file.table.DefaultPartTimeExtractor.toMills;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_CLASS;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_KIND;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_PARTITION_ORDER;
 
@@ -107,6 +108,7 @@ public abstract class HivePartitionFetcherContextBase<P> implements HivePartitio
 
         String extractorKind = configuration.get(PARTITION_TIME_EXTRACTOR_KIND);
         String extractorClass = configuration.get(PARTITION_TIME_EXTRACTOR_CLASS);
+        String formatterPattern = configuration.get(PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER);
         String extractorPattern = configuration.get(PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN);
 
         extractor =
@@ -114,7 +116,8 @@ public abstract class HivePartitionFetcherContextBase<P> implements HivePartitio
                         Thread.currentThread().getContextClassLoader(),
                         extractorKind,
                         extractorClass,
-                        extractorPattern);
+                        extractorPattern,
+                        formatterPattern);
         tableLocation = new Path(table.getSd().getLocation());
         partValuesToCreateTime = new HashMap<>();
     }

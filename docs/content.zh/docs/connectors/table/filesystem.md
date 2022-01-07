@@ -277,6 +277,13 @@ file sink 支持文件合并，以允许应用程序可以使用较小的检查�
         <td>实现了接口 PartitionTimeExtractor 的提取器类.</td>
     </tr>
     <tr>
+        <td><h5>partition.time-extractor.timestamp-formatter</h5></td>
+        <td style="word-wrap: break-word;">yyyy-MM-dd&nbsp;HH:mm:ss</td>
+        <td>String</td>
+        <td>指定时间格式，可以与 'partition.time-extractor.timestamp-pattern' 结合使用，支持从多个字段提取时间戳。
+          <br>它与 Java's <a href="https://docs.oracle.com/javase/8/docs/api/java/time/format/DateTimeFormatter.html">DateTimeFormatter</a> 完全兼容。
+    </tr>
+    <tr>
         <td><h5>partition.time-extractor.timestamp-pattern</h5></td>
         <td style="word-wrap: break-word;">(none)</td>
         <td>String</td>
