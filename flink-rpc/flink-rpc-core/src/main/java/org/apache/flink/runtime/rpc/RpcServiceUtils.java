@@ -34,12 +34,8 @@ public class RpcServiceUtils {
     public static String createRandomName(String prefix) {
         Preconditions.checkNotNull(prefix, "Prefix must not be null.");
 
-        long nameOffset;
-
         // obtain the next name offset by incrementing it atomically
-        do {
-            nameOffset = nextNameOffset.get();
-        } while (!nextNameOffset.compareAndSet(nameOffset, nameOffset + 1L));
+        long nameOffset = nextNameOffset.getAndIncrement();
 
         return prefix + '_' + nameOffset;
     }
