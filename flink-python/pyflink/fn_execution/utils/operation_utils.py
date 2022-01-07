@@ -16,6 +16,8 @@
 # limitations under the License.
 ################################################################################
 import datetime
+import threading
+import time
 from collections.abc import Generator
 
 from functools import partial
@@ -271,3 +273,37 @@ def load_aggregate_function(payload):
         return cls()
     else:
         return pickle.loads(payload)
+
+
+class PeriodicThread(threading.Thread):
+    """Call a function periodically with the specified number of seconds"""
+
+    def __init__(self,
+                 interval,
+                 function,
+                 args=None,
+                 kwargs=None
+                 ):
+        # type: (...) -> None
+        threading.Thread.__init__(self)
+        self._interval = interval
+        self._function = function
+        self._args = args if args is not None else []
+        self._kwargs = kwargs if kwargs is not None else {}
+        self._finished = threading.Event()
+
+    def run(self):
+        # type: () -> None
+        next_call = time.time() + self._interval
+        now = time.time()
+        while (next_call <= now and not self._finished.is_set()) or \
+                (not self._finished.wait(next_call - now)):
+            next_call = next_call + self._interval
+            self._function(*self._args, **self._kwargs)
+            now = time.time()
+
+    def cancel(self):
+        # type: () -> None
+
+        """Stop the thread if it hasn't finished yet."""
+        self._finished.set()
