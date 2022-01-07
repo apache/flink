@@ -48,18 +48,33 @@ public class TestingMiniCluster extends MiniCluster {
 
     @Nullable private final Supplier<HighAvailabilityServices> highAvailabilityServicesSupplier;
 
+    @Nullable
+    private final Supplier<DispatcherResourceManagerComponentFactory>
+            dispatcherResourceManagerComponentFactorySupplier;
+
     public TestingMiniCluster(
             TestingMiniClusterConfiguration miniClusterConfiguration,
-            @Nullable Supplier<HighAvailabilityServices> highAvailabilityServicesSupplier) {
+            @Nullable Supplier<HighAvailabilityServices> highAvailabilityServicesSupplier,
+            @Nullable
+                    Supplier<DispatcherResourceManagerComponentFactory>
+                            dispatcherResourceManagerComponentFactorySupplier) {
         super(miniClusterConfiguration);
         this.numberDispatcherResourceManagerComponents =
                 miniClusterConfiguration.getNumberDispatcherResourceManagerComponents();
         this.highAvailabilityServicesSupplier = highAvailabilityServicesSupplier;
+        this.dispatcherResourceManagerComponentFactorySupplier =
+                dispatcherResourceManagerComponentFactorySupplier;
         this.localCommunication = miniClusterConfiguration.isLocalCommunication();
     }
 
+    public TestingMiniCluster(
+            TestingMiniClusterConfiguration miniClusterConfiguration,
+            @Nullable Supplier<HighAvailabilityServices> highAvailabilityServicesSupplier) {
+        this(miniClusterConfiguration, highAvailabilityServicesSupplier, null);
+    }
+
     public TestingMiniCluster(TestingMiniClusterConfiguration miniClusterConfiguration) {
-        this(miniClusterConfiguration, null);
+        this(miniClusterConfiguration, null, null);
     }
 
     @Override
@@ -74,6 +89,15 @@ public class TestingMiniCluster extends MiniCluster {
             return highAvailabilityServicesSupplier.get();
         } else {
             return super.createHighAvailabilityServices(configuration, executor);
+        }
+    }
+
+    @Override
+    DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory() {
+        if (dispatcherResourceManagerComponentFactorySupplier != null) {
+            return dispatcherResourceManagerComponentFactorySupplier.get();
+        } else {
+            return super.createDispatcherResourceManagerComponentFactory();
         }
     }
 
