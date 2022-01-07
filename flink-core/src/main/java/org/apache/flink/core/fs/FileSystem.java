@@ -255,7 +255,6 @@ public abstract class FileSystem {
                     .put("s3", "flink-s3-fs-presto")
                     .put("s3a", "flink-s3-fs-hadoop")
                     .put("s3p", "flink-s3-fs-presto")
-                    // mapr deliberately omitted for now (no dedicated plugin)
                     .build();
 
     /** Exceptions for DIRECTLY_SUPPORTED_FILESYSTEM. */
