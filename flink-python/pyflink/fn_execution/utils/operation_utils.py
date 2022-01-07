@@ -283,8 +283,7 @@ class PeriodicThread(threading.Thread):
                  function,
                  args=None,
                  kwargs=None
-                 ):
-        # type: (...) -> None
+                 ) -> None:
         threading.Thread.__init__(self)
         self._interval = interval
         self._function = function
@@ -292,18 +291,18 @@ class PeriodicThread(threading.Thread):
         self._kwargs = kwargs if kwargs is not None else {}
         self._finished = threading.Event()
 
-    def run(self):
-        # type: () -> None
-        next_call = time.time() + self._interval
+    def run(self) -> None:
         now = time.time()
+        next_call = now + self._interval
         while (next_call <= now and not self._finished.is_set()) or \
                 (not self._finished.wait(next_call - now)):
-            next_call = next_call + self._interval
+            if next_call <= now:
+                next_call = now + self._interval
+            else:
+                next_call = next_call + self._interval
             self._function(*self._args, **self._kwargs)
             now = time.time()
 
-    def cancel(self):
-        # type: () -> None
-
+    def cancel(self) -> None:
         """Stop the thread if it hasn't finished yet."""
         self._finished.set()
