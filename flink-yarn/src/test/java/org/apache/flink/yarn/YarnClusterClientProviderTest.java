@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.commons.beanutils.ConvertUtils;
@@ -31,12 +32,14 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.util.Records;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import static org.apache.hadoop.yarn.api.records.FinalApplicationStatus.UNDEFINED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test for {@link YarnClusterClientProvider}. */
+@ExtendWith(TestLoggerExtension.class)
 public class YarnClusterClientProviderTest {
 
     /** Once Yarn app master has been running, it should not retrieve app report again. */

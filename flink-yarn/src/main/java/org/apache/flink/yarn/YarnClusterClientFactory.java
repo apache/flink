@@ -87,6 +87,6 @@ public class YarnClusterClientFactory
                 yarnConfiguration,
                 yarnClient,
                 YarnClientYarnClusterInformationRetriever.create(yarnClient),
-                true);
+                false);
     }
 }

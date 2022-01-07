@@ -625,7 +625,9 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
         try {
             List<ApplicationReport> apps =
                     getApplicationReportWithRetryOnNPE(
-                            yc, EnumSet.of(YarnApplicationState.RUNNING));
+                            yc,
+                            EnumSet.of(
+                                    YarnApplicationState.RUNNING, YarnApplicationState.ACCEPTED));
 
             ApplicationId tmpAppId;
             if (apps.size() == 1) {
@@ -637,7 +639,10 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                 LOG.info("waiting for the job with appId {} to finish", tmpAppId);
                 // wait until the app has finished
                 while (getApplicationReportWithRetryOnNPE(
-                                        yc, EnumSet.of(YarnApplicationState.RUNNING))
+                                        yc,
+                                        EnumSet.of(
+                                                YarnApplicationState.RUNNING,
+                                                YarnApplicationState.ACCEPTED))
                                 .size()
                         > 0) {
                     sleep(500);
@@ -654,6 +659,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                             }
                         });
                 tmpAppId = apps.get(0).getApplicationId();
+
                 LOG.info(
                         "Selected {} as the last appId from {}",
                         tmpAppId,
@@ -668,14 +674,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
             Assert.assertNotNull("Taskmanager output not found", listOfOutputFiles);
             LOG.info("The job has finished. TaskManager output files found in {}", tmpOutFolder);
 
-            // read all output files in output folder to one output string
-            String content = "";
-            for (File f : listOfOutputFiles) {
-                if (f.isFile()) {
-                    content += FileUtils.readFileToString(f) + "\n";
-                }
-            }
-
             // check if the heap size for the TaskManager was set correctly
             File jobmanagerLog =
                     TestUtils.findFile(
@@ -688,7 +686,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                                 }
                             });
             Assert.assertNotNull("Unable to locate JobManager log", jobmanagerLog);
-            content = FileUtils.readFileToString(jobmanagerLog);
+            String content = FileUtils.readFileToString(jobmanagerLog);
             String expected = "Starting TaskManagers";
             Assert.assertTrue(
                     "Expected string '"
