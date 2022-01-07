@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.MultisetTypeInfo
-import org.apache.flink.table.api.{DataTypes, ValidationException}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.binary.BinaryArrayData
 import org.apache.flink.table.data.util.MapDataUtil
@@ -1725,29 +1723,24 @@ object ScalarOperatorGens {
     GeneratedExpression(result, nullTerm, code, resultType)
   }
 
-  def generateMapOrMultiset(
+  def generateMap(
       ctx: CodeGeneratorContext,
       resultType: LogicalType,
       elements: Seq[GeneratedExpression]): GeneratedExpression = {
 
-    checkArgument(resultType.isInstanceOf[MapType] || resultType.isInstanceOf[MultisetType])
+    checkArgument(resultType.isInstanceOf[MapType])
+    val mapType = resultType.asInstanceOf[MapType]
     val baseMap = newName("map")
 
     // prepare map key array
     val keyElements = elements.grouped(2).map { case Seq(key, _) => key }.toSeq
-    val keyType = resultType match {
-      case mapType1: MapType => mapType1.getKeyType
-      case _ => resultType.asInstanceOf[MultisetType].getElementType
-    }
+    val keyType = mapType.getKeyType
     val keyExpr = generateArray(ctx, new ArrayType(keyType), keyElements)
     val isKeyFixLength = isPrimitive(keyType)
 
     // prepare map value array
     val valueElements = elements.grouped(2).map { case Seq(_, value) => value }.toSeq
-    val valueType = resultType match {
-      case mapType1: MapType => mapType1.getValueType
-      case _ => DataTypes.INT().getLogicalType
-    }
+    val valueType = mapType.getValueType
     val valueExpr = generateArray(ctx, new ArrayType(valueType), valueElements)
     val isValueFixLength = isPrimitive(valueType)
 

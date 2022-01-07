@@ -63,7 +63,6 @@ import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
 import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.MONTH;
-import static org.apache.flink.table.api.DataTypes.MULTISET;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.SECOND;
 import static org.apache.flink.table.api.DataTypes.SMALLINT;
@@ -1154,21 +1153,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 Collections.singletonMap(1, 2),
                                 Collections.singletonMap("1", "2"))
                         .build(),
-                CastTestSpecBuilder.testCastTo(MULTISET(STRING()))
-                        .fromCase(MULTISET(TIMESTAMP()), null, null)
-                        .fromCase(
-                                MULTISET(INT()),
-                                map(entry(1, 2), entry(3, 4)),
-                                map(entry("1", 2), entry("3", 4)))
-                        .fromCase(
-                                MULTISET(DOUBLE()),
-                                map(entry(12.3, 1), entry(0.1, 2)),
-                                map(entry("12.3", 1), entry("0.1", 2)))
-                        .fromCase(
-                                MULTISET(TIMESTAMP(4)),
-                                map(entry(LocalDateTime.parse("2021-09-24T12:34:56.123456"), 2)),
-                                map(entry("2021-09-24 12:34:56.1234", 2)))
-                        .build(),
+                // https://issues.apache.org/jira/browse/FLINK-25567
+                // CastTestSpecBuilder.testCastTo(MULTISET(STRING()))
+                //        .fromCase(MULTISET(TIMESTAMP()), null, null)
+                //        .fromCase(
+                //                MULTISET(INT()),
+                //                map(entry(1, 2), entry(3, 4)),
+                //                map(entry("1", 2), entry("3", 4)))
+                //        .build(),
                 CastTestSpecBuilder.testCastTo(ARRAY(INT()))
                         .fromCase(ARRAY(INT()), null, null)
                         .fromCase(

@@ -49,7 +49,6 @@ public class CustomizedConverters {
         CONVERTERS.put(BuiltInFunctionDefinitions.TIMESTAMP_DIFF, new TimestampDiffConverter());
         CONVERTERS.put(BuiltInFunctionDefinitions.ARRAY, new ArrayConverter());
         CONVERTERS.put(BuiltInFunctionDefinitions.MAP, new MapConverter());
-        CONVERTERS.put(BuiltInFunctionDefinitions.MULTISET, new MultisetConverter());
         CONVERTERS.put(BuiltInFunctionDefinitions.ROW, new RowConverter());
         CONVERTERS.put(BuiltInFunctionDefinitions.ORDER_ASC, new OrderAscConverter());
         CONVERTERS.put(BuiltInFunctionDefinitions.SQRT, new SqrtConverter());
