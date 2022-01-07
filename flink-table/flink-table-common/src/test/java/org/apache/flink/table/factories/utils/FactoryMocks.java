@@ -101,7 +101,7 @@ public final class FactoryMocks {
     public static DynamicTableFactory.Context createTableContext(
             ResolvedSchema schema,
             Map<String, String> options,
-            Map<String, String> mergeableOptions) {
+            Map<String, String> enrichmentOptions) {
         return new FactoryUtil.DefaultDynamicTableContext(
                 IDENTIFIER,
                 new ResolvedCatalogTable(
@@ -111,7 +111,7 @@ public final class FactoryMocks {
                                 Collections.emptyList(),
                                 options),
                         schema),
-                mergeableOptions,
+                enrichmentOptions,
                 new Configuration(),
                 FactoryMocks.class.getClassLoader(),
                 false);

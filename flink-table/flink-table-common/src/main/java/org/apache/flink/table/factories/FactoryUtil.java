@@ -136,7 +136,7 @@ public final class FactoryUtil {
             @Nullable DynamicTableSourceFactory preferredFactory,
             ObjectIdentifier objectIdentifier,
             ResolvedCatalogTable catalogTable,
-            Map<String, String> mergeableOptions,
+            Map<String, String> enrichmentOptions,
             ReadableConfig configuration,
             ClassLoader classLoader,
             boolean isTemporary) {
@@ -144,7 +144,7 @@ public final class FactoryUtil {
                 new DefaultDynamicTableContext(
                         objectIdentifier,
                         catalogTable,
-                        mergeableOptions,
+                        enrichmentOptions,
                         configuration,
                         classLoader,
                         isTemporary);
@@ -237,7 +237,7 @@ public final class FactoryUtil {
             @Nullable DynamicTableSinkFactory preferredFactory,
             ObjectIdentifier objectIdentifier,
             ResolvedCatalogTable catalogTable,
-            Map<String, String> mergeableOptions,
+            Map<String, String> enrichmentOptions,
             ReadableConfig configuration,
             ClassLoader classLoader,
             boolean isTemporary) {
@@ -245,7 +245,7 @@ public final class FactoryUtil {
                 new DefaultDynamicTableContext(
                         objectIdentifier,
                         catalogTable,
-                        mergeableOptions,
+                        enrichmentOptions,
                         configuration,
                         classLoader,
                         isTemporary);
@@ -977,7 +977,7 @@ public final class FactoryUtil {
 
         private final DynamicTableFactory.Context context;
 
-        private final Configuration mergeableOptions;
+        private final Configuration enrichingOptions;
 
         private TableFactoryHelper(
                 DynamicTableFactory tableFactory, DynamicTableFactory.Context context) {
@@ -987,17 +987,17 @@ public final class FactoryUtil {
                     PROPERTY_VERSION,
                     CONNECTOR);
             this.context = context;
-            this.mergeableOptions = Configuration.fromMap(context.mergeableOptions());
+            this.enrichingOptions = Configuration.fromMap(context.getEnrichmentOptions());
         }
 
         /**
          * Forward the provided {@code configOptions} from the {@link
-         * DynamicTableFactory.Context#mergeableOptions()} to the final options, if present.
+         * DynamicTableFactory.Context#getEnrichmentOptions()} to the final options, if present.
          */
         @SuppressWarnings({"unchecked"})
         public TableFactoryHelper forwardOptions(ConfigOption<?>... configOptions) {
             for (ConfigOption<?> option : configOptions) {
-                mergeableOptions
+                enrichingOptions
                         .getOptional(option)
                         .ifPresent(o -> allOptions.set((ConfigOption<? super Object>) option, o));
             }
@@ -1091,7 +1091,7 @@ public final class FactoryUtil {
         private <F extends Factory> Optional<F> discoverOptionalFormatFactory(
                 Class<F> formatFactoryClass, ConfigOption<String> formatOption) {
             final String identifier = allOptions.get(formatOption);
-            checkFormatIdentifierMatchesWithMergeableOptions(formatOption, identifier);
+            checkFormatIdentifierMatchesWithEnrichingOptions(formatOption, identifier);
             if (identifier == null) {
                 return Optional.empty();
             }
@@ -1127,17 +1127,17 @@ public final class FactoryUtil {
         @SuppressWarnings({"unchecked"})
         private ReadableConfig createFormatOptions(
                 String formatPrefix, FormatFactory formatFactory) {
-            Set<ConfigOption<?>> mergeableConfigOptions = formatFactory.mergeableOptions();
+            Set<ConfigOption<?>> forwardableConfigOptions = formatFactory.forwardOptions();
             Configuration formatConf = new DelegatingConfiguration(allOptions, formatPrefix);
-            if (mergeableConfigOptions.isEmpty()) {
+            if (forwardableConfigOptions.isEmpty()) {
                 return formatConf;
             }
 
-            Configuration formatConfFromMergeableOptions =
-                    new DelegatingConfiguration(mergeableOptions, formatPrefix);
+            Configuration formatConfFromEnrichingOptions =
+                    new DelegatingConfiguration(enrichingOptions, formatPrefix);
 
-            for (ConfigOption<?> option : mergeableConfigOptions) {
-                formatConfFromMergeableOptions
+            for (ConfigOption<?> option : forwardableConfigOptions) {
+                formatConfFromEnrichingOptions
                         .getOptional(option)
                         .ifPresent(o -> formatConf.set((ConfigOption<? super Object>) option, o));
             }
@@ -1148,37 +1148,35 @@ public final class FactoryUtil {
         /**
          * This function assumes that the format config is used only and only if the original
          * configuration contains the format config option. It will fail if there is a mismatch of
-         * the identifier between the format in originalMap and the one in catalog.
+         * the identifier between the format in the plan table map and the one in enriching table
+         * map.
          */
-        private void checkFormatIdentifierMatchesWithMergeableOptions(
-                ConfigOption<String> formatOption,
-                String resolvedIdentifierFromContextResolvedCatalogTable) {
-            Optional<String> identifierFromMergeableOptions =
-                    mergeableOptions.getOptional(formatOption);
+        private void checkFormatIdentifierMatchesWithEnrichingOptions(
+                ConfigOption<String> formatOption, String identifierFromPlan) {
+            Optional<String> identifierFromEnrichingOptions =
+                    enrichingOptions.getOptional(formatOption);
 
-            if (!identifierFromMergeableOptions.isPresent()) {
+            if (!identifierFromEnrichingOptions.isPresent()) {
                 return;
             }
 
-            if (resolvedIdentifierFromContextResolvedCatalogTable == null) {
+            if (identifierFromPlan == null) {
                 throw new ValidationException(
                         String.format(
                                 "The persisted plan has no format option '%s' specified, while the catalog table has it with value '%s'. "
                                         + "This is invalid, as either only the persisted plan table defines the format, "
-                                        + "or both the persisted plan table and the catalog table defines the same format",
-                                formatOption, identifierFromMergeableOptions.get()));
+                                        + "or both the persisted plan table and the catalog table defines the same format.",
+                                formatOption, identifierFromEnrichingOptions.get()));
             }
 
-            if (!Objects.equals(
-                    resolvedIdentifierFromContextResolvedCatalogTable,
-                    identifierFromMergeableOptions.get())) {
+            if (!Objects.equals(identifierFromPlan, identifierFromEnrichingOptions.get())) {
                 throw new ValidationException(
                         String.format(
                                 "Both persisted plan table and catalog table define the format option '%s', "
-                                        + "but they mismatch: '%s' != '%s'",
+                                        + "but they mismatch: '%s' != '%s'.",
                                 formatOption,
-                                resolvedIdentifierFromContextResolvedCatalogTable,
-                                identifierFromMergeableOptions.get()));
+                                identifierFromPlan,
+                                identifierFromEnrichingOptions.get()));
             }
         }
     }
@@ -1189,7 +1187,7 @@ public final class FactoryUtil {
 
         private final ObjectIdentifier objectIdentifier;
         private final ResolvedCatalogTable catalogTable;
-        private final Map<String, String> mergeableOptions;
+        private final Map<String, String> enrichmentOptions;
         private final ReadableConfig configuration;
         private final ClassLoader classLoader;
         private final boolean isTemporary;
@@ -1197,13 +1195,13 @@ public final class FactoryUtil {
         public DefaultDynamicTableContext(
                 ObjectIdentifier objectIdentifier,
                 ResolvedCatalogTable catalogTable,
-                Map<String, String> mergeableOptions,
+                Map<String, String> enrichmentOptions,
                 ReadableConfig configuration,
                 ClassLoader classLoader,
                 boolean isTemporary) {
             this.objectIdentifier = objectIdentifier;
             this.catalogTable = catalogTable;
-            this.mergeableOptions = mergeableOptions;
+            this.enrichmentOptions = enrichmentOptions;
             this.configuration = configuration;
             this.classLoader = classLoader;
             this.isTemporary = isTemporary;
@@ -1220,8 +1218,8 @@ public final class FactoryUtil {
         }
 
         @Override
-        public Map<String, String> mergeableOptions() {
-            return mergeableOptions;
+        public Map<String, String> getEnrichmentOptions() {
+            return enrichmentOptions;
         }
 
         @Override

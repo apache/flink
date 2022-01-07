@@ -390,19 +390,19 @@ public class FactoryUtilTest {
     }
 
     @Test
-    public void testFactoryHelperWithMergeableOptions() {
+    public void testFactoryHelperWithEnrichmentOptions() {
         final Map<String, String> options = new HashMap<>();
         options.put(TestDynamicTableFactory.TARGET.key(), "abc");
         options.put(TestDynamicTableFactory.BUFFER_SIZE.key(), "1000");
 
-        final Map<String, String> mergeable = new HashMap<>();
-        mergeable.put(TestDynamicTableFactory.TARGET.key(), "xyz");
-        mergeable.put(TestDynamicTableFactory.BUFFER_SIZE.key(), "2000");
+        final Map<String, String> enrichment = new HashMap<>();
+        enrichment.put(TestDynamicTableFactory.TARGET.key(), "xyz");
+        enrichment.put(TestDynamicTableFactory.BUFFER_SIZE.key(), "2000");
 
         final FactoryUtil.TableFactoryHelper helper =
                 FactoryUtil.createTableFactoryHelper(
                         new TestDynamicTableFactory(),
-                        FactoryMocks.createTableContext(SCHEMA, options, mergeable));
+                        FactoryMocks.createTableContext(SCHEMA, options, enrichment));
 
         helper.forwardOptions(
                 TestDynamicTableFactory.BUFFER_SIZE, TestDynamicTableFactory.PASSWORD);
@@ -414,7 +414,7 @@ public class FactoryUtilTest {
     }
 
     @Test
-    public void testFactoryHelperWithMergeableOptionsAndFormat() {
+    public void testFactoryHelperWithEnrichmentOptionsAndFormat() {
         String keyFormatPrefix =
                 FactoryUtil.getFormatPrefix(
                         TestDynamicTableFactory.KEY_FORMAT, TestFormatFactory.IDENTIFIER);
@@ -432,19 +432,19 @@ public class FactoryUtilTest {
         options.put(valueFormatPrefix + TestFormatFactory.DELIMITER.key(), "|");
         options.put(valueFormatPrefix + TestFormatFactory.FAIL_ON_MISSING.key(), "true");
 
-        final Map<String, String> mergeable = new HashMap<>();
-        mergeable.put(TestDynamicTableFactory.TARGET.key(), "xyz");
-        mergeable.put(TestDynamicTableFactory.BUFFER_SIZE.key(), "2000");
-        mergeable.put(TestDynamicTableFactory.KEY_FORMAT.key(), TestFormatFactory.IDENTIFIER);
-        mergeable.put(keyFormatPrefix + TestFormatFactory.DELIMITER.key(), ",");
-        mergeable.put(keyFormatPrefix + TestFormatFactory.FAIL_ON_MISSING.key(), "true");
-        mergeable.put(TestDynamicTableFactory.VALUE_FORMAT.key(), TestFormatFactory.IDENTIFIER);
-        mergeable.put(valueFormatPrefix + TestFormatFactory.DELIMITER.key(), "|");
+        final Map<String, String> enrichment = new HashMap<>();
+        enrichment.put(TestDynamicTableFactory.TARGET.key(), "xyz");
+        enrichment.put(TestDynamicTableFactory.BUFFER_SIZE.key(), "2000");
+        enrichment.put(TestDynamicTableFactory.KEY_FORMAT.key(), TestFormatFactory.IDENTIFIER);
+        enrichment.put(keyFormatPrefix + TestFormatFactory.DELIMITER.key(), ",");
+        enrichment.put(keyFormatPrefix + TestFormatFactory.FAIL_ON_MISSING.key(), "true");
+        enrichment.put(TestDynamicTableFactory.VALUE_FORMAT.key(), TestFormatFactory.IDENTIFIER);
+        enrichment.put(valueFormatPrefix + TestFormatFactory.DELIMITER.key(), "|");
 
         final FactoryUtil.TableFactoryHelper helper =
                 FactoryUtil.createTableFactoryHelper(
                         new TestDynamicTableFactory(),
-                        FactoryMocks.createTableContext(SCHEMA, options, mergeable));
+                        FactoryMocks.createTableContext(SCHEMA, options, enrichment));
 
         // Forward table options
         helper.forwardOptions(
@@ -477,14 +477,14 @@ public class FactoryUtilTest {
     }
 
     @Test
-    public void testFactoryHelperWithMergeableOptionsMissingFormatIdentifier() {
+    public void testFactoryHelperWithEnrichmentOptionsMissingFormatIdentifier() {
         final Map<String, String> options = new HashMap<>();
         options.put(TestDynamicTableFactory.TARGET.key(), "abc");
 
-        final Map<String, String> mergeable = new HashMap<>();
-        mergeable.put(TestDynamicTableFactory.TARGET.key(), "xyz");
-        mergeable.put(TestDynamicTableFactory.KEY_FORMAT.key(), TestFormatFactory.IDENTIFIER);
-        mergeable.put(
+        final Map<String, String> enrichment = new HashMap<>();
+        enrichment.put(TestDynamicTableFactory.TARGET.key(), "xyz");
+        enrichment.put(TestDynamicTableFactory.KEY_FORMAT.key(), TestFormatFactory.IDENTIFIER);
+        enrichment.put(
                 FactoryUtil.getFormatPrefix(
                                 TestDynamicTableFactory.KEY_FORMAT, TestFormatFactory.IDENTIFIER)
                         + TestFormatFactory.DELIMITER.key(),
@@ -493,7 +493,7 @@ public class FactoryUtilTest {
         final FactoryUtil.TableFactoryHelper helper =
                 FactoryUtil.createTableFactoryHelper(
                         new TestDynamicTableFactory(),
-                        FactoryMocks.createTableContext(SCHEMA, options, mergeable));
+                        FactoryMocks.createTableContext(SCHEMA, options, enrichment));
 
         assertThatThrownBy(
                         () ->
@@ -508,7 +508,7 @@ public class FactoryUtilTest {
     }
 
     @Test
-    public void testFactoryHelperWithMergeableOptionsFormatMismatch() {
+    public void testFactoryHelperWithEnrichmentOptionsFormatMismatch() {
         String keyFormatPrefix =
                 FactoryUtil.getFormatPrefix(
                         TestDynamicTableFactory.KEY_FORMAT, TestFormatFactory.IDENTIFIER);
@@ -519,15 +519,15 @@ public class FactoryUtilTest {
         options.put(keyFormatPrefix + TestFormatFactory.DELIMITER.key(), "|");
         options.put(keyFormatPrefix + TestFormatFactory.FAIL_ON_MISSING.key(), "true");
 
-        final Map<String, String> mergeable = new HashMap<>();
-        mergeable.put(TestDynamicTableFactory.TARGET.key(), "xyz");
-        mergeable.put(TestDynamicTableFactory.BUFFER_SIZE.key(), "2000");
-        mergeable.put(TestDynamicTableFactory.KEY_FORMAT.key(), "another-format");
+        final Map<String, String> enrichment = new HashMap<>();
+        enrichment.put(TestDynamicTableFactory.TARGET.key(), "xyz");
+        enrichment.put(TestDynamicTableFactory.BUFFER_SIZE.key(), "2000");
+        enrichment.put(TestDynamicTableFactory.KEY_FORMAT.key(), "another-format");
 
         final FactoryUtil.TableFactoryHelper helper =
                 FactoryUtil.createTableFactoryHelper(
                         new TestDynamicTableFactory(),
-                        FactoryMocks.createTableContext(SCHEMA, options, mergeable));
+                        FactoryMocks.createTableContext(SCHEMA, options, enrichment));
 
         assertThatThrownBy(
                         () ->
@@ -545,7 +545,7 @@ public class FactoryUtilTest {
     }
 
     @Test
-    public void testFactoryHelperWithEmptyMergeableOptions() {
+    public void testFactoryHelperWithEmptyEnrichmentOptions() {
         final Map<String, String> options = new HashMap<>();
         options.put(TestDynamicTableFactory.TARGET.key(), "abc");
         options.put(TestDynamicTableFactory.BUFFER_SIZE.key(), "1000");

@@ -18,16 +18,18 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 
 import java.util.Collections;
 import java.util.Set;
 
 /** Base interface for {@link DecodingFormatFactory} and {@link EncodingFormatFactory}. */
+@PublicEvolving
 public interface FormatFactory extends Factory {
 
-    /** Returns the list of {@link ConfigOption} that can be merged from the catalog table. */
-    default Set<ConfigOption<?>> mergeableOptions() {
+    /** Returns the list of {@link ConfigOption} that can be merged from the enriching table. */
+    default Set<ConfigOption<?>> forwardOptions() {
         return Collections.emptySet();
     }
 }

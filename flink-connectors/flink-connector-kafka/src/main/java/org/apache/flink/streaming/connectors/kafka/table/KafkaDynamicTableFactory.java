@@ -148,15 +148,13 @@ public class KafkaDynamicTableFactory
     public DynamicTableSource createDynamicTableSource(Context context) {
         final TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
 
-        final ReadableConfig tableOptions =
-                helper.forwardOptions(
-                                TOPIC,
-                                TOPIC_PATTERN,
-                                SCAN_STARTUP_MODE,
-                                SCAN_STARTUP_SPECIFIC_OFFSETS,
-                                SCAN_TOPIC_PARTITION_DISCOVERY,
-                                SCAN_STARTUP_TIMESTAMP_MILLIS)
-                        .getOptions();
+        helper.forwardOptions(
+                TOPIC,
+                TOPIC_PATTERN,
+                SCAN_STARTUP_MODE,
+                SCAN_STARTUP_SPECIFIC_OFFSETS,
+                SCAN_TOPIC_PARTITION_DISCOVERY,
+                SCAN_STARTUP_TIMESTAMP_MILLIS);
 
         final Optional<DecodingFormat<DeserializationSchema<RowData>>> keyDecodingFormat =
                 getKeyDecodingFormat(helper);
@@ -165,6 +163,8 @@ public class KafkaDynamicTableFactory
                 getValueDecodingFormat(helper);
 
         helper.validateExcept(PROPERTIES_PREFIX);
+
+        final ReadableConfig tableOptions = helper.getOptions();
 
         validateTableSourceOptions(tableOptions);
 

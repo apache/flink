@@ -87,7 +87,7 @@ public interface DynamicTableFactory extends Factory {
          * FactoryUtil.TableFactoryHelper#forwardOptions(ConfigOption[])} to merge the options and
          * then get the result with {@link FactoryUtil.TableFactoryHelper#getOptions()}.
          */
-        Map<String, String> mergeableOptions();
+        Map<String, String> getEnrichmentOptions();
 
         /** Gives read-only access to the configuration of the current session. */
         ReadableConfig getConfiguration();

@@ -129,7 +129,7 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
     }
 
     @Override
-    public Set<ConfigOption<?>> mergeableOptions() {
+    public Set<ConfigOption<?>> forwardOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
         options.add(DELIMITER);
         return options;
