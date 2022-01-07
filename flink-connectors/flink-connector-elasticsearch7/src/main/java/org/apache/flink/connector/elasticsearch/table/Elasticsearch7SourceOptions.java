@@ -26,8 +26,8 @@ import java.time.Duration;
 import java.util.List;
 
 @PublicEvolving
-public class ElasticsearchSourceOptions {
-    ElasticsearchSourceOptions() {}
+public class Elasticsearch7SourceOptions {
+    Elasticsearch7SourceOptions() {}
 
     public static final ConfigOption<List<String>> HOSTS_OPTION =
             ConfigOptions.key("hosts")

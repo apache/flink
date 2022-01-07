@@ -23,19 +23,20 @@ import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
-import org.apache.flink.connector.elasticsearch.source.split.ElasticsearchSplit;
+import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7Split;
 
 import java.util.function.Supplier;
 
 /** The fetcher manager class for the ElasticsearchSource. */
 @Internal
-public class ElasticsearchSourceFetcherManager<T>
-        extends SingleThreadFetcherManager<ElasticsearchRecord<T>, ElasticsearchSplit> {
+public class Elasticsearch7SourceFetcherManager<T>
+        extends SingleThreadFetcherManager<Elasticsearch7Record<T>, Elasticsearch7Split> {
 
-    public ElasticsearchSourceFetcherManager(
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<ElasticsearchRecord<T>>>
+    public Elasticsearch7SourceFetcherManager(
+            FutureCompletingBlockingQueue<RecordsWithSplitIds<Elasticsearch7Record<T>>>
                     elementsQueue,
-            Supplier<SplitReader<ElasticsearchRecord<T>, ElasticsearchSplit>> splitReaderSupplier) {
+            Supplier<SplitReader<Elasticsearch7Record<T>, Elasticsearch7Split>>
+                    splitReaderSupplier) {
         super(elementsQueue, splitReaderSupplier);
     }
 }

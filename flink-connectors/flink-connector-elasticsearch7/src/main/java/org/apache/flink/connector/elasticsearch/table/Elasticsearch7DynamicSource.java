@@ -22,9 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.connector.elasticsearch.source.ElasticsearchSource;
-import org.apache.flink.connector.elasticsearch.source.ElasticsearchSourceBuilder;
-import org.apache.flink.connector.elasticsearch.source.reader.ElasticsearchSearchHitDeserializationSchema;
+import org.apache.flink.connector.elasticsearch.source.Elasticsearch7Source;
+import org.apache.flink.connector.elasticsearch.source.Elasticsearch7SourceBuilder;
+import org.apache.flink.connector.elasticsearch.source.reader.Elasticsearch7SearchHitDeserializationSchema;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -45,12 +45,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A Elasticsearch {@link ScanTableSource}. */
 @Internal
-public class ElasticsearchDynamicSource implements ScanTableSource {
+public class Elasticsearch7DynamicSource implements ScanTableSource {
 
     /** Data type that describes the final output of the source. */
     private final DataType producedDataType;
 
-    private final ElasticsearchSourceConfig sourceConfig;
+    private final Elasticsearch7DymamicSourceConfiguration sourceConfig;
 
     private final String tableIdentifier;
 
@@ -60,9 +60,9 @@ public class ElasticsearchDynamicSource implements ScanTableSource {
 
     private final TimestampFormat timestampFormat;
 
-    public ElasticsearchDynamicSource(
+    public Elasticsearch7DynamicSource(
             DataType producedDataType,
-            ElasticsearchSourceConfig sourceConfig,
+            Elasticsearch7DymamicSourceConfiguration sourceConfig,
             String tableIdentifier,
             boolean failOnMissingFields,
             boolean ignoreParseErrors,
@@ -85,15 +85,15 @@ public class ElasticsearchDynamicSource implements ScanTableSource {
         final TypeInformation<RowData> producedTypeInformation =
                 context.createTypeInformation(producedDataType);
 
-        final ElasticsearchSearchHitDeserializationSchema<RowData> elasticsearchDeserializer =
-                new DynamicElasticsearchDeserializationSchema(
+        final Elasticsearch7SearchHitDeserializationSchema<RowData> elasticsearchDeserializer =
+                new RowDataElasticsearch7SearchHitDeserializationSchema(
                         (RowType) producedDataType.getLogicalType(),
                         producedTypeInformation,
                         failOnMissingFields,
                         ignoreParseErrors,
                         timestampFormat);
 
-        final ElasticsearchSource<RowData> elasticsearchSource =
+        final Elasticsearch7Source<RowData> elasticsearchSource =
                 createElasticsearchSource(elasticsearchDeserializer);
 
         return new DataStreamScanProvider() {
@@ -112,10 +112,10 @@ public class ElasticsearchDynamicSource implements ScanTableSource {
         };
     }
 
-    ElasticsearchSource<RowData> createElasticsearchSource(
-            ElasticsearchSearchHitDeserializationSchema<RowData> elasticsearchDeserializer) {
+    Elasticsearch7Source<RowData> createElasticsearchSource(
+            Elasticsearch7SearchHitDeserializationSchema<RowData> elasticsearchDeserializer) {
 
-        final ElasticsearchSourceBuilder<RowData> builder = ElasticsearchSource.builder();
+        final Elasticsearch7SourceBuilder<RowData> builder = Elasticsearch7Source.builder();
 
         builder.setDeserializationSchema(elasticsearchDeserializer);
         builder.setHosts(sourceConfig.getHosts().toArray(new HttpHost[0]));
@@ -157,7 +157,7 @@ public class ElasticsearchDynamicSource implements ScanTableSource {
 
     @Override
     public DynamicTableSource copy() {
-        return new ElasticsearchDynamicSource(
+        return new Elasticsearch7DynamicSource(
                 producedDataType,
                 sourceConfig,
                 tableIdentifier,
@@ -179,7 +179,7 @@ public class ElasticsearchDynamicSource implements ScanTableSource {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        ElasticsearchDynamicSource that = (ElasticsearchDynamicSource) o;
+        Elasticsearch7DynamicSource that = (Elasticsearch7DynamicSource) o;
         return failOnMissingFields == that.failOnMissingFields
                 && ignoreParseErrors == that.ignoreParseErrors
                 && Objects.equals(producedDataType, that.producedDataType)

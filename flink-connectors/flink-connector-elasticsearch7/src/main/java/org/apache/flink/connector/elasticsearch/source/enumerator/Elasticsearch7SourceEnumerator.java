@@ -24,8 +24,8 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.connector.elasticsearch.common.ElasticsearchUtil;
 import org.apache.flink.connector.elasticsearch.common.NetworkClientConfig;
-import org.apache.flink.connector.elasticsearch.source.ElasticsearchSourceConfiguration;
-import org.apache.flink.connector.elasticsearch.source.split.ElasticsearchSplit;
+import org.apache.flink.connector.elasticsearch.source.Elasticsearch7SourceConfiguration;
+import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7Split;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.http.HttpHost;
@@ -51,32 +51,32 @@ import java.util.stream.IntStream;
 
 /** The enumerator class for ElasticsearchSource. */
 @Internal
-public class ElasticsearchEnumerator
-        implements SplitEnumerator<ElasticsearchSplit, ElasticsearchEnumState> {
-    private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchEnumerator.class);
+public class Elasticsearch7SourceEnumerator
+        implements SplitEnumerator<Elasticsearch7Split, Elasticsearch7SourceEnumState> {
+    private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch7SourceEnumerator.class);
 
-    private final ElasticsearchSourceConfiguration sourceConfiguration;
+    private final Elasticsearch7SourceConfiguration sourceConfiguration;
 
     private final NetworkClientConfig networkClientConfig;
 
-    private final SplitEnumeratorContext<ElasticsearchSplit> context;
+    private final SplitEnumeratorContext<Elasticsearch7Split> context;
 
-    private ArrayList<ElasticsearchSplit> splits;
+    private ArrayList<Elasticsearch7Split> splits;
 
     private RestHighLevelClient client;
 
-    public ElasticsearchEnumerator(
-            ElasticsearchSourceConfiguration sourceConfiguration,
+    public Elasticsearch7SourceEnumerator(
+            Elasticsearch7SourceConfiguration sourceConfiguration,
             NetworkClientConfig networkClientConfig,
-            SplitEnumeratorContext<ElasticsearchSplit> context) {
+            SplitEnumeratorContext<Elasticsearch7Split> context) {
         this(sourceConfiguration, networkClientConfig, context, Collections.emptySet());
     }
 
-    public ElasticsearchEnumerator(
-            ElasticsearchSourceConfiguration sourceConfiguration,
+    public Elasticsearch7SourceEnumerator(
+            Elasticsearch7SourceConfiguration sourceConfiguration,
             NetworkClientConfig networkClientConfig,
-            SplitEnumeratorContext<ElasticsearchSplit> context,
-            Collection<ElasticsearchSplit> restoredSplits) {
+            SplitEnumeratorContext<Elasticsearch7Split> context,
+            Collection<Elasticsearch7Split> restoredSplits) {
         this.sourceConfiguration = sourceConfiguration;
         this.networkClientConfig = networkClientConfig;
         this.context = context;
@@ -116,9 +116,9 @@ public class ElasticsearchEnumerator
                 hostname == null ? "(no host locality info)" : "(on host '" + hostname + "')";
         LOG.info("Subtask {} {} is requesting a file source split", subtaskId, hostInfo);
 
-        final Optional<ElasticsearchSplit> nextSplit = getNextSplit();
+        final Optional<Elasticsearch7Split> nextSplit = getNextSplit();
         if (nextSplit.isPresent()) {
-            final ElasticsearchSplit split = nextSplit.get();
+            final Elasticsearch7Split split = nextSplit.get();
             context.assignSplit(split, subtaskId);
             LOG.info("Assigned split to subtask {} : {}", subtaskId, split);
         } else {
@@ -133,14 +133,14 @@ public class ElasticsearchEnumerator
     }
 
     @Override
-    public void addSplitsBack(List<ElasticsearchSplit> splits, int subtaskId) {
+    public void addSplitsBack(List<Elasticsearch7Split> splits, int subtaskId) {
         LOG.debug("ElasticsearchEnumerator adds splits back: {}", splits);
         this.splits.addAll(splits);
     }
 
     @Override
-    public ElasticsearchEnumState snapshotState(long checkpointId) throws Exception {
-        return ElasticsearchEnumState.fromCollectionSnapshot(splits);
+    public Elasticsearch7SourceEnumState snapshotState(long checkpointId) throws Exception {
+        return Elasticsearch7SourceEnumState.fromCollectionSnapshot(splits);
     }
 
     // ----------------- private methods -------------------
@@ -172,11 +172,11 @@ public class ElasticsearchEnumerator
 
         splits =
                 IntStream.range(0, sourceConfiguration.getNumberOfSlices())
-                        .mapToObj(i -> new ElasticsearchSplit(pitId, i))
+                        .mapToObj(i -> new Elasticsearch7Split(pitId, i))
                         .collect(Collectors.toCollection(ArrayList::new));
     }
 
-    private Optional<ElasticsearchSplit> getNextSplit() {
+    private Optional<Elasticsearch7Split> getNextSplit() {
         int size = splits.size();
         return size == 0 ? Optional.empty() : Optional.of(splits.remove(size - 1));
     }

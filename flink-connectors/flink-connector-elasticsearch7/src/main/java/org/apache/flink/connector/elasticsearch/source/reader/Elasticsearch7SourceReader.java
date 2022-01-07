@@ -22,28 +22,28 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.SingleThreadMultiplexSourceReaderBase;
 import org.apache.flink.connector.elasticsearch.common.NetworkClientConfig;
-import org.apache.flink.connector.elasticsearch.source.ElasticsearchSourceConfiguration;
-import org.apache.flink.connector.elasticsearch.source.split.ElasticsearchSplit;
-import org.apache.flink.connector.elasticsearch.source.split.ElasticsearchSplitState;
+import org.apache.flink.connector.elasticsearch.source.Elasticsearch7SourceConfiguration;
+import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7Split;
+import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7SplitState;
 
 import java.util.Map;
 
 /** The source reader for Elasticsearch. */
-public class ElasticsearchSourceReader<OUT>
+public class Elasticsearch7SourceReader<OUT>
         extends SingleThreadMultiplexSourceReaderBase<
-                ElasticsearchRecord<OUT>, OUT, ElasticsearchSplit, ElasticsearchSplitState> {
+                Elasticsearch7Record<OUT>, OUT, Elasticsearch7Split, Elasticsearch7SplitState> {
 
-    public ElasticsearchSourceReader(
+    public Elasticsearch7SourceReader(
             Configuration configuration,
             SourceReaderContext readerContext,
-            ElasticsearchSourceConfiguration sourceConfiguration,
+            Elasticsearch7SourceConfiguration sourceConfiguration,
             NetworkClientConfig networkClientConfig,
-            ElasticsearchSearchHitDeserializationSchema<OUT> deserializationSchema) {
+            Elasticsearch7SearchHitDeserializationSchema<OUT> deserializationSchema) {
         super(
                 () ->
-                        new ElasticsearchSplitReader<>(
+                        new Elasticsearch7SplitReader<>(
                                 sourceConfiguration, networkClientConfig, deserializationSchema),
-                new ElasticsearchRecordEmitter<>(),
+                new Elasticsearch7RecordEmitter<>(),
                 configuration,
                 readerContext);
     }
@@ -57,17 +57,17 @@ public class ElasticsearchSourceReader<OUT>
     }
 
     @Override
-    protected void onSplitFinished(Map<String, ElasticsearchSplitState> finishedSplitIds) {
+    protected void onSplitFinished(Map<String, Elasticsearch7SplitState> finishedSplitIds) {
         context.sendSplitRequest();
     }
 
     @Override
-    protected ElasticsearchSplitState initializedState(ElasticsearchSplit split) {
-        return new ElasticsearchSplitState(split);
+    protected Elasticsearch7SplitState initializedState(Elasticsearch7Split split) {
+        return new Elasticsearch7SplitState(split);
     }
 
     @Override
-    protected ElasticsearchSplit toSplitType(String splitId, ElasticsearchSplitState splitState) {
+    protected Elasticsearch7Split toSplitType(String splitId, Elasticsearch7SplitState splitState) {
         return splitState.toElasticsearchSplit();
     }
 }

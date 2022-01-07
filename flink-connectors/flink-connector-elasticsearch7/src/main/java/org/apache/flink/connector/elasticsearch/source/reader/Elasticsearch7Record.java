@@ -16,25 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.elasticsearch.source;
+package org.apache.flink.connector.elasticsearch.source.reader;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.connector.elasticsearch.source.reader.ElasticsearchSearchHitDeserializationSchema;
-import org.apache.flink.util.Collector;
+import org.apache.flink.annotation.Internal;
 
-import org.elasticsearch.search.SearchHit;
+/** The record instance of the Elasticsearch source. */
+@Internal
+public class Elasticsearch7Record<T> {
 
-import java.io.IOException;
+    private final T value;
 
-class ElasticsearchStringDeserializationSchema
-        implements ElasticsearchSearchHitDeserializationSchema<String> {
-    @Override
-    public void deserialize(SearchHit record, Collector<String> out) throws IOException {
-        out.collect(record.getSourceAsString());
+    public Elasticsearch7Record(T value) {
+        this.value = value;
     }
 
-    @Override
-    public TypeInformation<String> getProducedType() {
-        return TypeInformation.of(String.class);
+    public T getValue() {
+        return value;
     }
 }

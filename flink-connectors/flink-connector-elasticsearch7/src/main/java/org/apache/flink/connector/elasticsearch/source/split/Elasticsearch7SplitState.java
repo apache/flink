@@ -16,23 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.elasticsearch.source.reader;
+package org.apache.flink.connector.elasticsearch.source.split;
 
-import org.apache.flink.api.connector.source.SourceOutput;
-import org.apache.flink.connector.base.source.reader.RecordEmitter;
-import org.apache.flink.connector.elasticsearch.source.split.ElasticsearchSplitState;
+/**
+ * This class extends {@link Elasticsearch7Split} for potential tracking of additional (meta-)data.
+ */
+public class Elasticsearch7SplitState extends Elasticsearch7Split {
+    public Elasticsearch7SplitState(Elasticsearch7Split elasticsearchSplit) {
+        super(elasticsearchSplit.getPitId(), elasticsearchSplit.getSliceId());
+    }
 
-/** The {@link RecordEmitter} implementation for both {@link ElasticsearchSourceReader}. */
-public class ElasticsearchRecordEmitter<T>
-        implements RecordEmitter<ElasticsearchRecord<T>, T, ElasticsearchSplitState> {
-
-    @Override
-    public void emitRecord(
-            ElasticsearchRecord<T> element,
-            SourceOutput<T> output,
-            ElasticsearchSplitState splitState)
-            throws Exception {
-        // Sink the record to source output.
-        output.collect(element.getValue());
+    public Elasticsearch7Split toElasticsearchSplit() {
+        return new Elasticsearch7Split(this.getPitId(), this.getSliceId());
     }
 }

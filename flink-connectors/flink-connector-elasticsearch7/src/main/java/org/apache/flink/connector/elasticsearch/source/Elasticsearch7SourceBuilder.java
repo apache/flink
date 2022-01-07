@@ -20,7 +20,7 @@ package org.apache.flink.connector.elasticsearch.source;
 
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.elasticsearch.common.NetworkClientConfig;
-import org.apache.flink.connector.elasticsearch.source.reader.ElasticsearchSearchHitDeserializationSchema;
+import org.apache.flink.connector.elasticsearch.source.reader.Elasticsearch7SearchHitDeserializationSchema;
 
 import org.apache.http.HttpHost;
 import org.slf4j.Logger;
@@ -35,7 +35,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * The @builder class for {@link ElasticsearchSource}.
+ * The @builder class for {@link Elasticsearch7Source}.
  *
  * <p>The following example shows the minimum setup to create a ElasticsearchSource that reads the
  * String values from an Elasticsearch index.
@@ -50,13 +50,13 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>Check the Java docs of each individual methods to learn more about the settings to build a
  * ElasticsearchSource.
  */
-public class ElasticsearchSourceBuilder<OUT> {
-    private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSourceBuilder.class);
+public class Elasticsearch7SourceBuilder<OUT> {
+    private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch7SourceBuilder.class);
 
     private Duration pitKeepAlive = Duration.ofMinutes(5);
     private int numberOfSearchSlices = 1;
     private String indexName;
-    private ElasticsearchSearchHitDeserializationSchema<OUT> deserializationSchema;
+    private Elasticsearch7SearchHitDeserializationSchema<OUT> deserializationSchema;
 
     private List<HttpHost> hosts;
     private String username;
@@ -66,7 +66,7 @@ public class ElasticsearchSourceBuilder<OUT> {
     private Integer socketTimeout;
     private Integer connectionRequestTimeout;
 
-    ElasticsearchSourceBuilder() {}
+    Elasticsearch7SourceBuilder() {}
 
     private boolean isGreaterOrEqual(Duration d1, Duration d2) {
         return ((d1.compareTo(d2) >= 0));
@@ -81,7 +81,7 @@ public class ElasticsearchSourceBuilder<OUT> {
      * @param pitKeepAlive duration of the PIT keep alive
      * @return this builder
      */
-    public ElasticsearchSourceBuilder<OUT> setPitKeepAlive(Duration pitKeepAlive) {
+    public Elasticsearch7SourceBuilder<OUT> setPitKeepAlive(Duration pitKeepAlive) {
         checkNotNull(pitKeepAlive);
         checkArgument(
                 isGreaterOrEqual(pitKeepAlive, Duration.ofMinutes(5)),
@@ -97,7 +97,7 @@ public class ElasticsearchSourceBuilder<OUT> {
      * @param numberOfSearchSlices the number of search slices
      * @return this builder
      */
-    public ElasticsearchSourceBuilder<OUT> setNumberOfSearchSlices(int numberOfSearchSlices) {
+    public Elasticsearch7SourceBuilder<OUT> setNumberOfSearchSlices(int numberOfSearchSlices) {
         checkArgument(numberOfSearchSlices > 0, "Number of search slices must be greater than 0.");
         this.numberOfSearchSlices = numberOfSearchSlices;
         return this;
@@ -109,22 +109,22 @@ public class ElasticsearchSourceBuilder<OUT> {
      * @param indexName name of the Elasticsearch index
      * @return this builder
      */
-    public ElasticsearchSourceBuilder<OUT> setIndexName(String indexName) {
+    public Elasticsearch7SourceBuilder<OUT> setIndexName(String indexName) {
         checkNotNull(indexName);
         this.indexName = indexName;
         return this;
     }
 
     /**
-     * Sets the {@link ElasticsearchSearchHitDeserializationSchema} for the Elasticsearch source.
+     * Sets the {@link Elasticsearch7SearchHitDeserializationSchema} for the Elasticsearch source.
      * The given schema will be used to deserialize {@link org.elasticsearch.search.SearchHit}s into
      * the output type.
      *
      * @param deserializationSchema the deserialization schema to use
      * @return this builder
      */
-    public ElasticsearchSourceBuilder<OUT> setDeserializationSchema(
-            ElasticsearchSearchHitDeserializationSchema<OUT> deserializationSchema) {
+    public Elasticsearch7SourceBuilder<OUT> setDeserializationSchema(
+            Elasticsearch7SearchHitDeserializationSchema<OUT> deserializationSchema) {
         checkNotNull(deserializationSchema);
         this.deserializationSchema = deserializationSchema;
         return this;
@@ -136,7 +136,7 @@ public class ElasticsearchSourceBuilder<OUT> {
      * @param hosts http addresses describing the node locations
      * @return this builder
      */
-    public ElasticsearchSourceBuilder<OUT> setHosts(HttpHost... hosts) {
+    public Elasticsearch7SourceBuilder<OUT> setHosts(HttpHost... hosts) {
         checkNotNull(hosts);
         checkState(hosts.length > 0, "Hosts cannot be empty.");
         this.hosts = Arrays.asList(hosts);
@@ -149,7 +149,7 @@ public class ElasticsearchSourceBuilder<OUT> {
      * @param username of the Elasticsearch cluster user
      * @return this builder
      */
-    public ElasticsearchSourceBuilder<OUT> setConnectionUsername(String username) {
+    public Elasticsearch7SourceBuilder<OUT> setConnectionUsername(String username) {
         checkNotNull(username);
         this.username = username;
         return this;
@@ -161,7 +161,7 @@ public class ElasticsearchSourceBuilder<OUT> {
      * @param password of the Elasticsearch cluster user
      * @return this builder
      */
-    public ElasticsearchSourceBuilder<OUT> setConnectionPassword(String password) {
+    public Elasticsearch7SourceBuilder<OUT> setConnectionPassword(String password) {
         checkNotNull(password);
         this.password = password;
         return this;
@@ -173,7 +173,7 @@ public class ElasticsearchSourceBuilder<OUT> {
      * @param prefix for the communication
      * @return this builder
      */
-    public ElasticsearchSourceBuilder<OUT> setConnectionPathPrefix(String prefix) {
+    public Elasticsearch7SourceBuilder<OUT> setConnectionPathPrefix(String prefix) {
         checkNotNull(prefix);
         this.connectionPathPrefix = prefix;
         return this;
@@ -186,7 +186,7 @@ public class ElasticsearchSourceBuilder<OUT> {
      * @param connectionRequestTimeout tiemout for the connection request
      * @return this builder
      */
-    public ElasticsearchSourceBuilder<OUT> setConnectionRequestTimeout(
+    public Elasticsearch7SourceBuilder<OUT> setConnectionRequestTimeout(
             int connectionRequestTimeout) {
         checkState(
                 connectionRequestTimeout >= 0,
@@ -201,7 +201,7 @@ public class ElasticsearchSourceBuilder<OUT> {
      * @param connectionTimeout timeout for the connection
      * @return this builder
      */
-    public ElasticsearchSourceBuilder<OUT> setConnectionTimeout(int connectionTimeout) {
+    public Elasticsearch7SourceBuilder<OUT> setConnectionTimeout(int connectionTimeout) {
         checkState(connectionTimeout >= 0, "Connection timeout must be larger than or equal to 0.");
         this.connectionTimeout = connectionTimeout;
         return this;
@@ -214,7 +214,7 @@ public class ElasticsearchSourceBuilder<OUT> {
      * @param socketTimeout timeout for the socket
      * @return this builder
      */
-    public ElasticsearchSourceBuilder<OUT> setSocketTimeout(int socketTimeout) {
+    public Elasticsearch7SourceBuilder<OUT> setSocketTimeout(int socketTimeout) {
         checkState(socketTimeout >= 0, "Socket timeout must be larger than or equal to 0.");
         this.socketTimeout = socketTimeout;
         return this;
@@ -231,8 +231,8 @@ public class ElasticsearchSourceBuilder<OUT> {
         checkNotNull(deserializationSchema, "Deserialization schema is required but not provided.");
     }
 
-    /** Builds the {@link ElasticsearchSource} using this preconfigured builder. */
-    public ElasticsearchSource<OUT> build() {
+    /** Builds the {@link Elasticsearch7Source} using this preconfigured builder. */
+    public Elasticsearch7Source<OUT> build() {
         checkRequiredParameters();
 
         NetworkClientConfig networkClientConfig =
@@ -244,11 +244,11 @@ public class ElasticsearchSourceBuilder<OUT> {
                         connectionTimeout,
                         socketTimeout);
 
-        ElasticsearchSourceConfiguration sourceConfiguration =
-                new ElasticsearchSourceConfiguration(
+        Elasticsearch7SourceConfiguration sourceConfiguration =
+                new Elasticsearch7SourceConfiguration(
                         hosts, indexName, numberOfSearchSlices, pitKeepAlive);
 
-        return new ElasticsearchSource<>(
+        return new Elasticsearch7Source<>(
                 deserializationSchema, sourceConfiguration, networkClientConfig);
     }
 }

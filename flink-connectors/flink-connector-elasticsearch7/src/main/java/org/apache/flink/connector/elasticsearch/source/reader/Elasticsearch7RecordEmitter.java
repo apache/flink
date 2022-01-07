@@ -18,19 +18,21 @@
 
 package org.apache.flink.connector.elasticsearch.source.reader;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.connector.source.SourceOutput;
+import org.apache.flink.connector.base.source.reader.RecordEmitter;
+import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7SplitState;
 
-/** The record instance of the Elasticsearch source. */
-@Internal
-public class ElasticsearchRecord<T> {
+/** The {@link RecordEmitter} implementation for both {@link Elasticsearch7SourceReader}. */
+public class Elasticsearch7RecordEmitter<T>
+        implements RecordEmitter<Elasticsearch7Record<T>, T, Elasticsearch7SplitState> {
 
-    private final T value;
-
-    public ElasticsearchRecord(T value) {
-        this.value = value;
-    }
-
-    public T getValue() {
-        return value;
+    @Override
+    public void emitRecord(
+            Elasticsearch7Record<T> element,
+            SourceOutput<T> output,
+            Elasticsearch7SplitState splitState)
+            throws Exception {
+        // Sink the record to source output.
+        output.collect(element.getValue());
     }
 }

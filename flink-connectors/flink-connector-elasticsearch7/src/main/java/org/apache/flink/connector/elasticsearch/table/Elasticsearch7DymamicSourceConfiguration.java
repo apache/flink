@@ -29,23 +29,23 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.CONNECTION_PATH_PREFIX_OPTION;
-import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.CONNECTION_REQUEST_TIMEOUT;
-import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.CONNECTION_TIMEOUT;
-import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.HOSTS_OPTION;
-import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.INDEX_OPTION;
-import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.NUMBER_OF_SLICES_OPTION;
-import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.PASSWORD_OPTION;
-import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.PIT_KEEP_ALIVE_OPTION;
-import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.SOCKET_TIMEOUT;
-import static org.apache.flink.connector.elasticsearch.table.ElasticsearchSourceOptions.USERNAME_OPTION;
+import static org.apache.flink.connector.elasticsearch.table.Elasticsearch7SourceOptions.CONNECTION_PATH_PREFIX_OPTION;
+import static org.apache.flink.connector.elasticsearch.table.Elasticsearch7SourceOptions.CONNECTION_REQUEST_TIMEOUT;
+import static org.apache.flink.connector.elasticsearch.table.Elasticsearch7SourceOptions.CONNECTION_TIMEOUT;
+import static org.apache.flink.connector.elasticsearch.table.Elasticsearch7SourceOptions.HOSTS_OPTION;
+import static org.apache.flink.connector.elasticsearch.table.Elasticsearch7SourceOptions.INDEX_OPTION;
+import static org.apache.flink.connector.elasticsearch.table.Elasticsearch7SourceOptions.NUMBER_OF_SLICES_OPTION;
+import static org.apache.flink.connector.elasticsearch.table.Elasticsearch7SourceOptions.PASSWORD_OPTION;
+import static org.apache.flink.connector.elasticsearch.table.Elasticsearch7SourceOptions.PIT_KEEP_ALIVE_OPTION;
+import static org.apache.flink.connector.elasticsearch.table.Elasticsearch7SourceOptions.SOCKET_TIMEOUT;
+import static org.apache.flink.connector.elasticsearch.table.Elasticsearch7SourceOptions.USERNAME_OPTION;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @Internal
-public class ElasticsearchSourceConfig {
+public class Elasticsearch7DymamicSourceConfiguration {
     protected final ReadableConfig config;
 
-    ElasticsearchSourceConfig(ReadableConfig config) {
+    Elasticsearch7DymamicSourceConfiguration(ReadableConfig config) {
         this.config = checkNotNull(config);
     }
 
@@ -87,7 +87,7 @@ public class ElasticsearchSourceConfig {
 
     public List<HttpHost> getHosts() {
         return config.get(HOSTS_OPTION).stream()
-                .map(ElasticsearchSourceConfig::validateAndParseHostsString)
+                .map(Elasticsearch7DymamicSourceConfiguration::validateAndParseHostsString)
                 .collect(Collectors.toList());
     }
 

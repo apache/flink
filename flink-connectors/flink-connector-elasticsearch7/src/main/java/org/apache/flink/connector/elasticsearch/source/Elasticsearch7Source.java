@@ -29,20 +29,20 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.connector.elasticsearch.common.NetworkClientConfig;
-import org.apache.flink.connector.elasticsearch.source.enumerator.ElasticsearchEnumState;
-import org.apache.flink.connector.elasticsearch.source.enumerator.ElasticsearchEnumStateSerializer;
-import org.apache.flink.connector.elasticsearch.source.enumerator.ElasticsearchEnumerator;
-import org.apache.flink.connector.elasticsearch.source.reader.ElasticsearchSearchHitDeserializationSchema;
-import org.apache.flink.connector.elasticsearch.source.reader.ElasticsearchSourceReader;
-import org.apache.flink.connector.elasticsearch.source.split.ElasticsearchSplit;
-import org.apache.flink.connector.elasticsearch.source.split.ElasticsearchSplitSerializer;
+import org.apache.flink.connector.elasticsearch.source.enumerator.Elasticsearch7SourceEnumState;
+import org.apache.flink.connector.elasticsearch.source.enumerator.Elasticsearch7SourceEnumStateSerializer;
+import org.apache.flink.connector.elasticsearch.source.enumerator.Elasticsearch7SourceEnumerator;
+import org.apache.flink.connector.elasticsearch.source.reader.Elasticsearch7SearchHitDeserializationSchema;
+import org.apache.flink.connector.elasticsearch.source.reader.Elasticsearch7SourceReader;
+import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7Split;
+import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7SplitSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
 
 /**
- * The Source implementation for Elasticsearch. Please use a {@link ElasticsearchSourceBuilder} to
- * construct a {@link ElasticsearchSource}. The following example shows how to create a
+ * The Source implementation for Elasticsearch. Please use a {@link Elasticsearch7SourceBuilder} to
+ * construct a {@link Elasticsearch7Source}. The following example shows how to create a
  * ElasticsearchSource emitting records of <code>
  * String</code> type.
  *
@@ -50,22 +50,22 @@ import org.apache.flink.util.UserCodeClassLoader;
  * TODO: add example
  * }</pre>
  *
- * <p>See {@link ElasticsearchSourceBuilder} for more details.
+ * <p>See {@link Elasticsearch7SourceBuilder} for more details.
  *
  * @param <OUT> the output type of the source.
  */
 @PublicEvolving
-public class ElasticsearchSource<OUT>
-        implements Source<OUT, ElasticsearchSplit, ElasticsearchEnumState>,
+public class Elasticsearch7Source<OUT>
+        implements Source<OUT, Elasticsearch7Split, Elasticsearch7SourceEnumState>,
                 ResultTypeQueryable<OUT> {
 
-    private final ElasticsearchSearchHitDeserializationSchema<OUT> deserializationSchema;
-    private final ElasticsearchSourceConfiguration sourceConfiguration;
+    private final Elasticsearch7SearchHitDeserializationSchema<OUT> deserializationSchema;
+    private final Elasticsearch7SourceConfiguration sourceConfiguration;
     private final NetworkClientConfig networkClientConfig;
 
-    ElasticsearchSource(
-            ElasticsearchSearchHitDeserializationSchema<OUT> deserializationSchema,
-            ElasticsearchSourceConfiguration sourceConfiguration,
+    Elasticsearch7Source(
+            Elasticsearch7SearchHitDeserializationSchema<OUT> deserializationSchema,
+            Elasticsearch7SourceConfiguration sourceConfiguration,
             NetworkClientConfig networkClientConfig) {
         this.deserializationSchema = deserializationSchema;
         this.sourceConfiguration = sourceConfiguration;
@@ -73,13 +73,14 @@ public class ElasticsearchSource<OUT>
     }
 
     /**
-     * Create an {@link ElasticsearchSourceBuilder} to construct a new {@link ElasticsearchSource}.
+     * Create an {@link Elasticsearch7SourceBuilder} to construct a new {@link
+     * Elasticsearch7Source}.
      *
      * @param <OUT> the produced output type
-     * @return {@link ElasticsearchSourceBuilder}
+     * @return {@link Elasticsearch7SourceBuilder}
      */
-    public static <OUT> ElasticsearchSourceBuilder<OUT> builder() {
-        return new ElasticsearchSourceBuilder<>();
+    public static <OUT> Elasticsearch7SourceBuilder<OUT> builder() {
+        return new Elasticsearch7SourceBuilder<>();
     }
 
     @Override
@@ -88,7 +89,7 @@ public class ElasticsearchSource<OUT>
     }
 
     @Override
-    public SourceReader<OUT, ElasticsearchSplit> createReader(SourceReaderContext readerContext)
+    public SourceReader<OUT, Elasticsearch7Split> createReader(SourceReaderContext readerContext)
             throws Exception {
 
         deserializationSchema.open(
@@ -104,7 +105,7 @@ public class ElasticsearchSource<OUT>
                     }
                 });
 
-        return new ElasticsearchSourceReader<>(
+        return new Elasticsearch7SourceReader<>(
                 readerContext.getConfiguration(),
                 readerContext,
                 sourceConfiguration,
@@ -113,17 +114,18 @@ public class ElasticsearchSource<OUT>
     }
 
     @Override
-    public SplitEnumerator<ElasticsearchSplit, ElasticsearchEnumState> createEnumerator(
-            SplitEnumeratorContext<ElasticsearchSplit> enumContext) throws Exception {
-        return new ElasticsearchEnumerator(sourceConfiguration, networkClientConfig, enumContext);
+    public SplitEnumerator<Elasticsearch7Split, Elasticsearch7SourceEnumState> createEnumerator(
+            SplitEnumeratorContext<Elasticsearch7Split> enumContext) throws Exception {
+        return new Elasticsearch7SourceEnumerator(
+                sourceConfiguration, networkClientConfig, enumContext);
     }
 
     @Override
-    public SplitEnumerator<ElasticsearchSplit, ElasticsearchEnumState> restoreEnumerator(
-            SplitEnumeratorContext<ElasticsearchSplit> enumContext,
-            ElasticsearchEnumState checkpoint)
+    public SplitEnumerator<Elasticsearch7Split, Elasticsearch7SourceEnumState> restoreEnumerator(
+            SplitEnumeratorContext<Elasticsearch7Split> enumContext,
+            Elasticsearch7SourceEnumState checkpoint)
             throws Exception {
-        return new ElasticsearchEnumerator(
+        return new Elasticsearch7SourceEnumerator(
                 sourceConfiguration,
                 networkClientConfig,
                 enumContext,
@@ -131,13 +133,14 @@ public class ElasticsearchSource<OUT>
     }
 
     @Override
-    public SimpleVersionedSerializer<ElasticsearchSplit> getSplitSerializer() {
-        return new ElasticsearchSplitSerializer();
+    public SimpleVersionedSerializer<Elasticsearch7Split> getSplitSerializer() {
+        return new Elasticsearch7SplitSerializer();
     }
 
     @Override
-    public SimpleVersionedSerializer<ElasticsearchEnumState> getEnumeratorCheckpointSerializer() {
-        return new ElasticsearchEnumStateSerializer();
+    public SimpleVersionedSerializer<Elasticsearch7SourceEnumState>
+            getEnumeratorCheckpointSerializer() {
+        return new Elasticsearch7SourceEnumStateSerializer();
     }
 
     @Override

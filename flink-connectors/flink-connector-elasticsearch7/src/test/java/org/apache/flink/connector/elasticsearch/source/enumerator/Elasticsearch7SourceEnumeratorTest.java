@@ -20,8 +20,8 @@ package org.apache.flink.connector.elasticsearch.source.enumerator;
 
 import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorContext;
 import org.apache.flink.connector.elasticsearch.common.NetworkClientConfig;
-import org.apache.flink.connector.elasticsearch.source.ElasticsearchSourceConfiguration;
-import org.apache.flink.connector.elasticsearch.source.split.ElasticsearchSplit;
+import org.apache.flink.connector.elasticsearch.source.Elasticsearch7SourceConfiguration;
+import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7Split;
 
 import org.apache.http.HttpHost;
 import org.assertj.core.api.Assertions;
@@ -30,15 +30,15 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.Collections;
 
-/** Tests for {@link ElasticsearchEnumerator}. */
-public class ElasticsearchEnumeratorTest {
+/** Tests for {@link Elasticsearch7SourceEnumerator}. */
+public class Elasticsearch7SourceEnumeratorTest {
     private static final int NUM_SUBTASKS = 3;
 
     @Test
     public void testStartWithDiscoverSplitsOnce() throws Exception {
-        try (MockSplitEnumeratorContext<ElasticsearchSplit> context =
+        try (MockSplitEnumeratorContext<Elasticsearch7Split> context =
                         new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
-                ElasticsearchEnumerator enumerator = createEnumerator(context)) {
+                Elasticsearch7SourceEnumerator enumerator = createEnumerator(context)) {
 
             // Start the enumerator and it should schedule a one time task to discover and assign
             // splits.
@@ -55,18 +55,19 @@ public class ElasticsearchEnumeratorTest {
 
     // ----------------------------------------
 
-    private ElasticsearchEnumerator createEnumerator(
-            MockSplitEnumeratorContext<ElasticsearchSplit> enumContext) {
+    private Elasticsearch7SourceEnumerator createEnumerator(
+            MockSplitEnumeratorContext<Elasticsearch7Split> enumContext) {
         NetworkClientConfig networkClientConfig =
                 new NetworkClientConfig(null, null, null, null, null, null);
 
-        ElasticsearchSourceConfiguration sourceConfiguration =
-                new ElasticsearchSourceConfiguration(
+        Elasticsearch7SourceConfiguration sourceConfiguration =
+                new Elasticsearch7SourceConfiguration(
                         Collections.singletonList(new HttpHost("127.0.0.1", 9200, "http")),
                         "my-index",
                         3,
                         Duration.ofMinutes(5));
 
-        return new ElasticsearchEnumerator(sourceConfiguration, networkClientConfig, enumContext);
+        return new Elasticsearch7SourceEnumerator(
+                sourceConfiguration, networkClientConfig, enumContext);
     }
 }

@@ -16,17 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.elasticsearch.source.split;
+package org.apache.flink.connector.elasticsearch.source;
 
-/**
- * This class extends {@link ElasticsearchSplit} for potential tracking of additional (meta-)data.
- */
-public class ElasticsearchSplitState extends ElasticsearchSplit {
-    public ElasticsearchSplitState(ElasticsearchSplit elasticsearchSplit) {
-        super(elasticsearchSplit.getPitId(), elasticsearchSplit.getSliceId());
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connector.elasticsearch.source.reader.Elasticsearch7SearchHitDeserializationSchema;
+import org.apache.flink.util.Collector;
+
+import org.elasticsearch.search.SearchHit;
+
+import java.io.IOException;
+
+class Elasticsearch7StringDeserializationSchema
+        implements Elasticsearch7SearchHitDeserializationSchema<String> {
+    @Override
+    public void deserialize(SearchHit record, Collector<String> out) throws IOException {
+        out.collect(record.getSourceAsString());
     }
 
-    public ElasticsearchSplit toElasticsearchSplit() {
-        return new ElasticsearchSplit(this.getPitId(), this.getSliceId());
+    @Override
+    public TypeInformation<String> getProducedType() {
+        return TypeInformation.of(String.class);
     }
 }

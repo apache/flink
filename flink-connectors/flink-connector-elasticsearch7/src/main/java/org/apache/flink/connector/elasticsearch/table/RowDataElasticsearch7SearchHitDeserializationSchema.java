@@ -20,7 +20,7 @@ package org.apache.flink.connector.elasticsearch.table;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.connector.elasticsearch.source.reader.ElasticsearchSearchHitDeserializationSchema;
+import org.apache.flink.connector.elasticsearch.source.reader.Elasticsearch7SearchHitDeserializationSchema;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonToRowDataConverters;
 import org.apache.flink.table.data.RowData;
@@ -38,9 +38,9 @@ import org.elasticsearch.search.SearchHit;
 
 import java.io.IOException;
 
-/** A {@link ElasticsearchSearchHitDeserializationSchema} that deserializes to {@link RowData}. */
-public class DynamicElasticsearchDeserializationSchema
-        implements ElasticsearchSearchHitDeserializationSchema<RowData> {
+/** A {@link Elasticsearch7SearchHitDeserializationSchema} that deserializes to {@link RowData}. */
+public class RowDataElasticsearch7SearchHitDeserializationSchema
+        implements Elasticsearch7SearchHitDeserializationSchema<RowData> {
 
     /** TypeInformation of the produced {@link RowData}. */
     private final TypeInformation<RowData> producedTypeInformation;
@@ -63,7 +63,7 @@ public class DynamicElasticsearchDeserializationSchema
     /** Object mapper for parsing the JSON. */
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    DynamicElasticsearchDeserializationSchema(
+    RowDataElasticsearch7SearchHitDeserializationSchema(
             RowType rowType,
             TypeInformation<RowData> producedTypeInformation,
             boolean failOnMissingField,

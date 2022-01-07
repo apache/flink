@@ -28,6 +28,7 @@ import org.apache.flink.util.DockerImageVersions;
 
 import org.apache.http.HttpHost;
 import org.assertj.core.api.Assertions;
+import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
@@ -50,12 +51,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Tests for {@link org.apache.flink.connector.elasticsearch.table.ElasticsearchDynamicSource}. */
+/** Tests for {@link Elasticsearch7DynamicSource}. */
 @Testcontainers
 @ExtendWith(TestLoggerExtension.class)
-public class ElasticsearchDynamicSourceITCase {
+public class Elasticsearch7DynamicSourceITCase {
     private static final Logger LOG =
-            LoggerFactory.getLogger(ElasticsearchDynamicSourceITCase.class);
+            LoggerFactory.getLogger(Elasticsearch7DynamicSourceITCase.class);
     private static final int NUM_RECORDS = 10;
     private static final String INDEX = "my-index";
 
@@ -100,9 +101,9 @@ public class ElasticsearchDynamicSourceITCase {
                                 + "'%s' = '%s'\n"
                                 + ")",
                         Elasticsearch7DynamicSourceFactory.FACTORY_IDENTIFIER,
-                        ElasticsearchSourceOptions.HOSTS_OPTION.key(),
+                        Elasticsearch7SourceOptions.HOSTS_OPTION.key(),
                         ES_CONTAINER.getHttpHostAddress(),
-                        ElasticsearchSourceOptions.INDEX_OPTION.key(),
+                        Elasticsearch7SourceOptions.INDEX_OPTION.key(),
                         INDEX);
         tEnv.executeSql(createTable);
 
@@ -119,14 +120,15 @@ public class ElasticsearchDynamicSourceITCase {
     }
 
     private void writeTestData(int numberOfRecords, String index) {
+        BulkRequest bulkRequest = new BulkRequest();
         for (int i = 0; i < numberOfRecords; i++) {
-            try {
-                client.index(
-                        createIndexRequest(i, index),
-                        RequestOptions.DEFAULT); // TODO: use bulkrequest
-            } catch (IOException e) {
-                throw new RuntimeException("Could not write test data to Elasticsearch.");
-            }
+            bulkRequest.add(createIndexRequest(i, index));
+        }
+
+        try {
+            client.bulk(bulkRequest, RequestOptions.DEFAULT);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not write test data to Elasticsearch.");
         }
     }
 

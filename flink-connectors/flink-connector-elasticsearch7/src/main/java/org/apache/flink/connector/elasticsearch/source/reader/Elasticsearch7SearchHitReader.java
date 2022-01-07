@@ -21,8 +21,8 @@ package org.apache.flink.connector.elasticsearch.source.reader;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.elasticsearch.common.ElasticsearchUtil;
 import org.apache.flink.connector.elasticsearch.common.NetworkClientConfig;
-import org.apache.flink.connector.elasticsearch.source.ElasticsearchSourceConfiguration;
-import org.apache.flink.connector.elasticsearch.source.split.ElasticsearchSplit;
+import org.apache.flink.connector.elasticsearch.source.Elasticsearch7SourceConfiguration;
+import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7Split;
 
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.search.SearchRequest;
@@ -45,29 +45,29 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 
-/** This class reads all available {@link SearchHit}s from a {@link ElasticsearchSplit}. */
+/** This class reads all available {@link SearchHit}s from a {@link Elasticsearch7Split}. */
 @Internal
-class ElasticsearchSearchReader implements Closeable {
+class Elasticsearch7SearchHitReader implements Closeable {
 
-    private final ElasticsearchSourceConfiguration sourceConfiguration;
+    private final Elasticsearch7SourceConfiguration sourceConfiguration;
     private final NetworkClientConfig networkClientConfig;
-    private final ElasticsearchSplit split;
+    private final Elasticsearch7Split split;
 
     private final RestHighLevelClient client;
 
     private Object[] searchAfterSortValues;
 
-    static ElasticsearchSearchReader createReader(
-            ElasticsearchSourceConfiguration config,
+    static Elasticsearch7SearchHitReader createReader(
+            Elasticsearch7SourceConfiguration config,
             NetworkClientConfig networkClientConfig,
-            ElasticsearchSplit split) {
-        return new ElasticsearchSearchReader(config, networkClientConfig, split);
+            Elasticsearch7Split split) {
+        return new Elasticsearch7SearchHitReader(config, networkClientConfig, split);
     }
 
-    ElasticsearchSearchReader(
-            ElasticsearchSourceConfiguration sourceConfiguration,
+    Elasticsearch7SearchHitReader(
+            Elasticsearch7SourceConfiguration sourceConfiguration,
             NetworkClientConfig networkClientConfig,
-            ElasticsearchSplit split) {
+            Elasticsearch7Split split) {
         this.sourceConfiguration = sourceConfiguration;
         this.networkClientConfig = networkClientConfig;
         this.split = split;

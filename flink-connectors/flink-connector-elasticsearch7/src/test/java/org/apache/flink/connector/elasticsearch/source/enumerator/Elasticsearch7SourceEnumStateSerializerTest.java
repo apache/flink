@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.elasticsearch.source.enumerator;
 
-import org.apache.flink.connector.elasticsearch.source.split.ElasticsearchSplit;
+import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7Split;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -27,30 +27,31 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
-/** Tests for {@link ElasticsearchEnumStateSerializer}. */
-public class ElasticsearchEnumStateSerializerTest {
+/** Tests for {@link Elasticsearch7SourceEnumStateSerializer}. */
+public class Elasticsearch7SourceEnumStateSerializerTest {
     private static final String PIT_ID = "27W0AwEIbXktaW5kZXgWbTRmVFpZUjVUSGlZ";
     private static final int NUM_SPLITS = 10;
 
     @Test
     public void testEnumStateSerde() throws IOException {
-        final ElasticsearchEnumState state =
-                new ElasticsearchEnumState(generateElasticsearchSplits());
-        final ElasticsearchEnumStateSerializer serializer = new ElasticsearchEnumStateSerializer();
+        final Elasticsearch7SourceEnumState state =
+                new Elasticsearch7SourceEnumState(generateElasticsearchSplits());
+        final Elasticsearch7SourceEnumStateSerializer serializer =
+                new Elasticsearch7SourceEnumStateSerializer();
 
         final byte[] bytes = serializer.serialize(state);
 
-        final ElasticsearchEnumState restoredState =
+        final Elasticsearch7SourceEnumState restoredState =
                 serializer.deserialize(serializer.getVersion(), bytes);
 
         Assertions.assertThat(restoredState.getAssignedSplits())
                 .containsExactlyInAnyOrderElementsOf(state.getAssignedSplits());
     }
 
-    private Set<ElasticsearchSplit> generateElasticsearchSplits() {
-        Set<ElasticsearchSplit> splits = new HashSet<>();
+    private Set<Elasticsearch7Split> generateElasticsearchSplits() {
+        Set<Elasticsearch7Split> splits = new HashSet<>();
         for (int i = 0; i < NUM_SPLITS; i++) {
-            splits.add(new ElasticsearchSplit(PIT_ID, i));
+            splits.add(new Elasticsearch7Split(PIT_ID, i));
         }
         return splits;
     }

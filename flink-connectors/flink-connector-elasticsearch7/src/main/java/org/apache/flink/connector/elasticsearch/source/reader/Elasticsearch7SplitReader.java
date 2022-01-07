@@ -23,8 +23,8 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.elasticsearch.common.NetworkClientConfig;
-import org.apache.flink.connector.elasticsearch.source.ElasticsearchSourceConfiguration;
-import org.apache.flink.connector.elasticsearch.source.split.ElasticsearchSplit;
+import org.apache.flink.connector.elasticsearch.source.Elasticsearch7SourceConfiguration;
+import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7Split;
 import org.apache.flink.util.Collector;
 
 import org.elasticsearch.search.SearchHit;
@@ -44,28 +44,28 @@ import java.util.Queue;
 import java.util.Set;
 
 /**
- * A {@link SplitReader} implementation that reads {@link ElasticsearchRecord}s from {@link
- * ElasticsearchSplit}s.
+ * A {@link SplitReader} implementation that reads {@link Elasticsearch7Record}s from {@link
+ * Elasticsearch7Split}s.
  *
  * @param <T> the type of the record to be emitted from the Source.
  */
-public class ElasticsearchSplitReader<T>
-        implements SplitReader<ElasticsearchRecord<T>, ElasticsearchSplit> {
-    private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSplitReader.class);
-    private final ElasticsearchSourceConfiguration sourceConfiguration;
+public class Elasticsearch7SplitReader<T>
+        implements SplitReader<Elasticsearch7Record<T>, Elasticsearch7Split> {
+    private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch7SplitReader.class);
+    private final Elasticsearch7SourceConfiguration sourceConfiguration;
     private final NetworkClientConfig networkClientConfig;
-    private final Queue<ElasticsearchSplit> splits;
+    private final Queue<Elasticsearch7Split> splits;
 
-    @Nullable private ElasticsearchSearchReader currentReader;
+    @Nullable private Elasticsearch7SearchHitReader currentReader;
     @Nullable private String currentSplitId;
 
-    private final ElasticsearchSearchHitDeserializationSchema<T> deserializationSchema;
+    private final Elasticsearch7SearchHitDeserializationSchema<T> deserializationSchema;
     private final SimpleCollector<T> collector;
 
-    public ElasticsearchSplitReader(
-            ElasticsearchSourceConfiguration sourceConfiguration,
+    public Elasticsearch7SplitReader(
+            Elasticsearch7SourceConfiguration sourceConfiguration,
             NetworkClientConfig networkClientConfig,
-            ElasticsearchSearchHitDeserializationSchema<T> deserializationSchema) {
+            Elasticsearch7SearchHitDeserializationSchema<T> deserializationSchema) {
         this.sourceConfiguration = sourceConfiguration;
         this.networkClientConfig = networkClientConfig;
         this.deserializationSchema = deserializationSchema;
@@ -73,15 +73,15 @@ public class ElasticsearchSplitReader<T>
         this.collector = new SimpleCollector<>();
     }
 
-    private RecordsWithSplitIds<ElasticsearchRecord<T>> createRecordsFromSearchResults(
+    private RecordsWithSplitIds<Elasticsearch7Record<T>> createRecordsFromSearchResults(
             Collection<SearchHit> searchHits) throws IOException {
-        Collection<ElasticsearchRecord<T>> recordsForSplit = new ArrayList<>();
+        Collection<Elasticsearch7Record<T>> recordsForSplit = new ArrayList<>();
         for (SearchHit hit : searchHits) {
             try {
                 deserializationSchema.deserialize(hit, collector);
                 collector
                         .getRecords()
-                        .forEach(r -> recordsForSplit.add(new ElasticsearchRecord<>(r)));
+                        .forEach(r -> recordsForSplit.add(new Elasticsearch7Record<>(r)));
             } catch (Exception e) {
                 throw new IOException("Failed to deserialize consumer record due to", e);
             } finally {
@@ -93,7 +93,7 @@ public class ElasticsearchSplitReader<T>
     }
 
     @Override
-    public RecordsWithSplitIds<ElasticsearchRecord<T>> fetch() throws IOException {
+    public RecordsWithSplitIds<Elasticsearch7Record<T>> fetch() throws IOException {
         checkSplitOrStartNext();
 
         final Collection<SearchHit> nextSearchHits = currentReader.readNextSearchHits();
@@ -103,7 +103,7 @@ public class ElasticsearchSplitReader<T>
     }
 
     @Override
-    public void handleSplitsChanges(SplitsChange<ElasticsearchSplit> splitsChanges) {
+    public void handleSplitsChanges(SplitsChange<Elasticsearch7Split> splitsChanges) {
         if (!(splitsChanges instanceof SplitsAddition)) {
             throw new UnsupportedOperationException(
                     String.format(
@@ -130,14 +130,14 @@ public class ElasticsearchSplitReader<T>
             return;
         }
 
-        final ElasticsearchSplit nextSplit = splits.poll();
+        final Elasticsearch7Split nextSplit = splits.poll();
         if (nextSplit == null) {
             throw new IOException("Cannot fetch another split - no splits remaining.");
         }
 
         currentSplitId = nextSplit.splitId();
         currentReader =
-                ElasticsearchSearchReader.createReader(
+                Elasticsearch7SearchHitReader.createReader(
                         sourceConfiguration, networkClientConfig, nextSplit);
     }
 
@@ -154,19 +154,19 @@ public class ElasticsearchSplitReader<T>
     }
 
     private static class ElasticsearchSplitRecords<T>
-            implements RecordsWithSplitIds<ElasticsearchRecord<T>> {
+            implements RecordsWithSplitIds<Elasticsearch7Record<T>> {
 
         @Nullable private String splitId;
 
-        @Nullable private Iterator<ElasticsearchRecord<T>> recordsForSplitCurrent;
+        @Nullable private Iterator<Elasticsearch7Record<T>> recordsForSplitCurrent;
 
-        @Nullable private final Iterator<ElasticsearchRecord<T>> recordsForSplit;
+        @Nullable private final Iterator<Elasticsearch7Record<T>> recordsForSplit;
 
         private final Set<String> finishedSplits;
 
         private ElasticsearchSplitRecords(
                 @Nullable String splitId,
-                Iterator<ElasticsearchRecord<T>> recordsForSplit,
+                Iterator<Elasticsearch7Record<T>> recordsForSplit,
                 Set<String> finishedSplits) {
             this.splitId = splitId;
             this.recordsForSplit = recordsForSplit;
@@ -188,7 +188,7 @@ public class ElasticsearchSplitReader<T>
 
         @Nullable
         @Override
-        public ElasticsearchRecord<T> nextRecordFromSplit() {
+        public Elasticsearch7Record<T> nextRecordFromSplit() {
             if (recordsForSplitCurrent != null) {
                 if (recordsForSplitCurrent.hasNext()) {
                     return recordsForSplitCurrent.next();
@@ -206,7 +206,7 @@ public class ElasticsearchSplitReader<T>
         }
 
         public static <T> ElasticsearchSplitRecords<T> forRecords(
-                String splitId, Collection<ElasticsearchRecord<T>> recordsForSplit) {
+                String splitId, Collection<Elasticsearch7Record<T>> recordsForSplit) {
             return new ElasticsearchSplitRecords<>(
                     splitId, recordsForSplit.iterator(), Collections.emptySet());
         }

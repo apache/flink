@@ -27,16 +27,16 @@ import java.io.Serializable;
 import java.time.Duration;
 import java.util.List;
 
-/** Configuration class for the {@link ElasticsearchSource}. */
+/** Configuration class for the {@link Elasticsearch7Source}. */
 @Internal
-public class ElasticsearchSourceConfiguration implements Serializable {
+public class Elasticsearch7SourceConfiguration implements Serializable {
     private final List<HttpHost> hosts;
     private final String index;
     private final int numberOfSlices;
     private final Duration pitKeepAlive;
 
     @VisibleForTesting
-    public ElasticsearchSourceConfiguration(
+    public Elasticsearch7SourceConfiguration(
             List<HttpHost> hosts, String index, int numberOfSlices, Duration pitKeepAlive) {
         this.hosts = hosts;
         this.index = index;

@@ -18,31 +18,31 @@
 
 package org.apache.flink.connector.elasticsearch.source.enumerator;
 
-import org.apache.flink.connector.elasticsearch.source.split.ElasticsearchSplit;
+import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7Split;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
-/** The state of {@link ElasticsearchEnumerator}. */
-public class ElasticsearchEnumState {
+/** The state of {@link Elasticsearch7SourceEnumerator}. */
+public class Elasticsearch7SourceEnumState {
 
-    private final Set<ElasticsearchSplit> assignedSplits;
+    private final Set<Elasticsearch7Split> assignedSplits;
 
-    ElasticsearchEnumState(Set<ElasticsearchSplit> assignedSplits) {
+    Elasticsearch7SourceEnumState(Set<Elasticsearch7Split> assignedSplits) {
         this.assignedSplits = assignedSplits;
     }
 
-    public Set<ElasticsearchSplit> getAssignedSplits() {
+    public Set<Elasticsearch7Split> getAssignedSplits() {
         return assignedSplits;
     }
 
-    public static ElasticsearchEnumState fromCollectionSnapshot(
-            final Collection<ElasticsearchSplit> splits) {
+    public static Elasticsearch7SourceEnumState fromCollectionSnapshot(
+            final Collection<Elasticsearch7Split> splits) {
 
         // create a copy to make sure the checkpoint is immutable
-        final Collection<ElasticsearchSplit> copy = new ArrayList<>(splits);
-        return new ElasticsearchEnumState(new HashSet<>(copy));
+        final Collection<Elasticsearch7Split> copy = new ArrayList<>(splits);
+        return new Elasticsearch7SourceEnumState(new HashSet<>(copy));
     }
 }

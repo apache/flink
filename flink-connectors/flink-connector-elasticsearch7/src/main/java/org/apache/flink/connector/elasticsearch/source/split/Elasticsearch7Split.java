@@ -23,11 +23,11 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import java.util.Objects;
 
 /** A {@link SourceSplit} for an Elasticsearch 'slice'. */
-public class ElasticsearchSplit implements SourceSplit {
+public class Elasticsearch7Split implements SourceSplit {
     private final String pitId;
     private final int sliceId;
 
-    public ElasticsearchSplit(String pitId, int sliceId) {
+    public Elasticsearch7Split(String pitId, int sliceId) {
         this.pitId = pitId;
         this.sliceId = sliceId;
     }
@@ -58,7 +58,7 @@ public class ElasticsearchSplit implements SourceSplit {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        ElasticsearchSplit that = (ElasticsearchSplit) o;
+        Elasticsearch7Split that = (Elasticsearch7Split) o;
         return sliceId == that.sliceId && Objects.equals(pitId, that.pitId);
     }
 

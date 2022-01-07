@@ -35,7 +35,7 @@ import java.io.Serializable;
  * @param <T> The output message type for sinking to downstream flink operator.
  */
 @PublicEvolving
-public interface ElasticsearchSearchHitDeserializationSchema<T>
+public interface Elasticsearch7SearchHitDeserializationSchema<T>
         extends Serializable, ResultTypeQueryable<T> {
 
     /**

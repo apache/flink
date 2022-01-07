@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.elasticsearch.source.split;
+package org.apache.flink.connector.elasticsearch.source.enumerator;
 
+import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7Split;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.ByteArrayInputStream;
@@ -25,12 +26,15 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
- * The {@link org.apache.flink.core.io.SimpleVersionedSerializer serializer} for {@link
- * ElasticsearchSplit}.
+ * The {@link org.apache.flink.core.io.SimpleVersionedSerializer Serializer} for the enumerator
+ * state of Elasticsearch source.
  */
-public class ElasticsearchSplitSerializer implements SimpleVersionedSerializer<ElasticsearchSplit> {
+public class Elasticsearch7SourceEnumStateSerializer
+        implements SimpleVersionedSerializer<Elasticsearch7SourceEnumState> {
     private static final int CURRENT_VERSION = 0;
 
     @Override
@@ -39,23 +43,40 @@ public class ElasticsearchSplitSerializer implements SimpleVersionedSerializer<E
     }
 
     @Override
-    public byte[] serialize(ElasticsearchSplit obj) throws IOException {
+    public byte[] serialize(Elasticsearch7SourceEnumState obj) throws IOException {
+        Set<Elasticsearch7Split> assignedSplits = obj.getAssignedSplits();
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 DataOutputStream out = new DataOutputStream(baos)) {
-            out.writeUTF(obj.getPitId());
-            out.writeInt(obj.getSliceId());
+
+            out.writeInt(assignedSplits.size());
+            for (Elasticsearch7Split split : assignedSplits) {
+                out.writeUTF(split.getPitId());
+                out.writeInt(split.getSliceId());
+            }
             out.flush();
+
             return baos.toByteArray();
         }
     }
 
     @Override
-    public ElasticsearchSplit deserialize(int version, byte[] serialized) throws IOException {
+    public Elasticsearch7SourceEnumState deserialize(int version, byte[] serialized)
+            throws IOException {
         try (ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
                 DataInputStream in = new DataInputStream(bais)) {
-            String pitId = in.readUTF();
-            int sliceId = in.readInt();
-            return new ElasticsearchSplit(pitId, sliceId);
+
+            final int numSplits = in.readInt();
+            Set<Elasticsearch7Split> splits = new HashSet<>(numSplits);
+            for (int i = 0; i < numSplits; i++) {
+                final String pitId = in.readUTF();
+                final int sliceId = in.readInt();
+                splits.add(new Elasticsearch7Split(pitId, sliceId));
+            }
+            if (in.available() > 0) {
+                throw new IOException("Unexpected trailing bytes in serialized topic partitions");
+            }
+
+            return new Elasticsearch7SourceEnumState(splits);
         }
     }
 }

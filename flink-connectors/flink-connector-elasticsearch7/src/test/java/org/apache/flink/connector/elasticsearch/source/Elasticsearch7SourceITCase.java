@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.util.DockerImageVersions;
 
 import org.apache.http.HttpHost;
+import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
@@ -56,11 +57,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Tests for {@link ElasticsearchSource}. */
+/** Tests for {@link Elasticsearch7Source}. */
 @Testcontainers
 @ExtendWith(TestLoggerExtension.class)
-public class ElasticsearchSourceITCase {
-    private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSourceITCase.class);
+public class Elasticsearch7SourceITCase {
+    private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch7SourceITCase.class);
     private static final int NUM_RECORDS = 100;
     private static final String INDEX = "my-index";
 
@@ -92,17 +93,17 @@ public class ElasticsearchSourceITCase {
         NetworkClientConfig networkClientConfig =
                 new NetworkClientConfig(null, null, null, null, null, null);
 
-        ElasticsearchSourceConfiguration sourceConfiguration =
-                new ElasticsearchSourceConfiguration(
+        Elasticsearch7SourceConfiguration sourceConfiguration =
+                new Elasticsearch7SourceConfiguration(
                         Collections.singletonList(
                                 HttpHost.create(ES_CONTAINER.getHttpHostAddress())),
                         INDEX,
                         3,
                         Duration.ofMinutes(5));
 
-        ElasticsearchSource<String> source =
-                new ElasticsearchSource<>(
-                        new ElasticsearchStringDeserializationSchema(),
+        Elasticsearch7Source<String> source =
+                new Elasticsearch7Source<>(
+                        new Elasticsearch7StringDeserializationSchema(),
                         sourceConfiguration,
                         networkClientConfig);
 
@@ -139,14 +140,15 @@ public class ElasticsearchSourceITCase {
     }
 
     private void writeTestData(int numberOfRecords, String index) {
+        BulkRequest bulkRequest = new BulkRequest();
         for (int i = 0; i < numberOfRecords; i++) {
-            try {
-                client.index(
-                        createIndexRequest(i, index),
-                        RequestOptions.DEFAULT); // TODO: use bulkrequest
-            } catch (IOException e) {
-                throw new RuntimeException("Could not write test data to Elasticsearch.");
-            }
+            bulkRequest.add(createIndexRequest(i, index));
+        }
+
+        try {
+            client.bulk(bulkRequest, RequestOptions.DEFAULT);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not write test data to Elasticsearch.");
         }
     }
 
