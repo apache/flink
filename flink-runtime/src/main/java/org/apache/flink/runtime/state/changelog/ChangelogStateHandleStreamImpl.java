@@ -31,9 +31,6 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-
-import static org.apache.flink.runtime.state.StateUtil.bestEffortDiscardAllStateObjects;
 
 /** {@link ChangelogStateHandle} implementation based on {@link StreamStateHandle}. */
 @Internal
@@ -45,7 +42,6 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     /** NOTE: order is important as it reflects the order of changes. */
     private final List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets;
 
-    private transient SharedStateRegistry stateRegistry;
     private final long size;
 
     public ChangelogStateHandleStreamImpl(
@@ -59,7 +55,6 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
 
     @Override
     public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
-        this.stateRegistry = stateRegistry;
         handlesAndOffsets.forEach(
                 handleAndOffset ->
                         stateRegistry.registerReference(
@@ -83,11 +78,13 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
 
     @Override
     public void discardState() throws Exception {
-        // discard only on TM; on JM, shared state is removed on subsumption
-        if (stateRegistry == null) {
-            bestEffortDiscardAllStateObjects(
-                    handlesAndOffsets.stream().map(t2 -> t2.f0).collect(Collectors.toList()));
-        }
+        // Do nothing: state will be discarded by SharedStateRegistry once JM receives it and a
+        // newer checkpoint completes without using it. JM might not receive the handle in the
+        // following cases:
+        // 1. hard TM failure
+        // 2. job termination
+        // 3. materialization of changes written pre-emptively
+        // The above cases will be addressed by FLINK-23139 and/or FLINK-24852
     }
 
     @Override

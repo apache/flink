@@ -38,7 +38,7 @@ import static org.apache.flink.runtime.operators.lifecycle.command.TestCommand.F
  * {@link SourceFunction} that emits {@link TestEvent}s and reacts to {@link TestCommand}s. It emits
  * {@link TestDataElement} to its output.
  */
-class TestEventSource extends RichSourceFunction<TestDataElement>
+public class TestEventSource extends RichSourceFunction<TestDataElement>
         implements ParallelSourceFunction<TestDataElement> {
     private final String operatorID;
     private final TestCommandDispatcher commandQueue;
@@ -46,7 +46,7 @@ class TestEventSource extends RichSourceFunction<TestDataElement>
     private transient volatile boolean isRunning = true;
     private final TestEventQueue eventQueue;
 
-    TestEventSource(
+    public TestEventSource(
             String operatorID, TestEventQueue eventQueue, TestCommandDispatcher commandQueue) {
         this.operatorID = operatorID;
         this.eventQueue = eventQueue;
