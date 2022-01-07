@@ -41,6 +41,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import static java.util.Arrays.asList;
@@ -115,7 +116,8 @@ public class PartiallyFinishedSourcesITCase extends TestLogger {
         TestJobWithDescription testJob = buildJob();
 
         // pick any source operator
-        String finishingOperatorID = testJob.sources.iterator().next();
+        Iterator<String> iterator = testJob.sources.iterator();
+        String finishingOperatorID = iterator.next();
         JobVertexID finishingVertexID = findJobVertexID(testJob, finishingOperatorID);
 
         TestJobExecutor executor =
@@ -128,7 +130,13 @@ public class PartiallyFinishedSourcesITCase extends TestLogger {
                         .waitForEvent(CheckpointCompletedEvent.class)
                         .waitForEvent(CheckpointCompletedEvent.class);
         if (failover) {
-            executor.triggerFailover();
+            // If requested, fail the source operator. Failing non-source operator might not work
+            // because it can be idle if all its sources were finished before.
+            // However, if all source subtasks were finished, we need another source to fail.
+            // Otherwise, (if finished single source subtask), rely on terminal property of
+            // FINISH_SOURCES command for choosing a different subtask to fail.
+            executor.triggerFailover(
+                    subtaskScope == ALL_SUBTASKS ? iterator.next() : finishingOperatorID);
         }
         executor.sendBroadcastCommand(FINISH_SOURCES, ALL_SUBTASKS)
                 .waitForTermination()

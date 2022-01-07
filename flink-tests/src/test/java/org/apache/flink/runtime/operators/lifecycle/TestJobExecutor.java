@@ -58,7 +58,7 @@ import static org.junit.Assert.fail;
  * A helper class to control {@link TestJobWithDescription} execution using {@link
  * TestCommandDispatcher} and {@link TestEventQueue}.
  */
-class TestJobExecutor {
+public class TestJobExecutor {
     private static final Logger LOG = LoggerFactory.getLogger(TestJobExecutor.class);
     private final MiniClusterWithClientResource miniClusterResource;
     private final TestJobWithDescription testJob;
@@ -110,12 +110,13 @@ class TestJobExecutor {
         return this;
     }
 
-    public void triggerFailover() throws Exception {
+    public void triggerFailover(String operatorID) throws Exception {
         LOG.debug("sendCommand: {}", FAIL);
         BlockingQueue<TestEvent> queue = new LinkedBlockingQueue<>();
         Consumer<TestEvent> listener = queue::add;
         testJob.eventQueue.addListener(listener);
-        testJob.commandQueue.broadcast(FAIL, SINGLE_SUBTASK);
+        // only fail a single subtask to avoid failing more subtasks after recovery
+        testJob.commandQueue.dispatch(FAIL, SINGLE_SUBTASK, operatorID);
         try {
             waitForFailover(queue);
         } catch (TimeoutException e) {

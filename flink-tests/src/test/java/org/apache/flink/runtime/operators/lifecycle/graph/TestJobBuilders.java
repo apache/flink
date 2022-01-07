@@ -92,7 +92,7 @@ public class TestJobBuilders {
                                             "transform-1-forward",
                                             TypeInformation.of(TestDataElement.class),
                                             new OneInputTestStreamOperatorFactory(
-                                                    mapForward, eventQueue))
+                                                    mapForward, eventQueue, commandQueue))
                                     .setUidHash(mapForward);
 
                     forwardTransform.addSink(new DiscardingSink<>());
@@ -190,7 +190,7 @@ public class TestJobBuilders {
                                             "transform-1-forward",
                                             TypeInformation.of(TestDataElement.class),
                                             new OneInputTestStreamOperatorFactory(
-                                                    mapForward, eventQueue))
+                                                    mapForward, eventQueue, commandQueue))
                                     .setUidHash(mapForward);
 
                     SingleOutputStreamOperator<TestDataElement> keyedTransform =
@@ -201,7 +201,7 @@ public class TestJobBuilders {
                                             "transform-2-keyed",
                                             TypeInformation.of(TestDataElement.class),
                                             new OneInputTestStreamOperatorFactory(
-                                                    mapKeyed, eventQueue))
+                                                    mapKeyed, eventQueue, commandQueue))
                                     .setUidHash(mapKeyed);
 
                     SingleOutputStreamOperator<TestDataElement> twoInputTransform =
