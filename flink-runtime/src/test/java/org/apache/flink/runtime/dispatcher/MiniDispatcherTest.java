@@ -58,11 +58,13 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /** Tests for the {@link MiniDispatcher}. */
 public class MiniDispatcherTest extends TestLogger {
@@ -196,6 +198,37 @@ public class MiniDispatcherTest extends TestLogger {
 
             // wait until we terminate
             miniDispatcher.getShutDownFuture().get();
+        } finally {
+            RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
+        }
+    }
+
+    /**
+     * Tests that in detached mode, the {@link MiniDispatcher} will not complete the future that
+     * signals job termination if the JobStatus is not globally terminal state.
+     */
+    @Test
+    public void testNotTerminationWithoutGloballyTerminalState() throws Exception {
+        final MiniDispatcher miniDispatcher =
+                createMiniDispatcher(ClusterEntrypoint.ExecutionMode.DETACHED);
+        miniDispatcher.start();
+
+        try {
+            // wait until we have submitted the job
+            final TestingJobManagerRunner testingJobManagerRunner =
+                    testingJobManagerRunnerFactory.takeCreatedJobManagerRunner();
+
+            testingJobManagerRunner.completeResultFuture(
+                    new ExecutionGraphInfo(
+                            new ArchivedExecutionGraphBuilder()
+                                    .setJobID(jobGraph.getJobID())
+                                    .setState(JobStatus.SUSPENDED)
+                                    .build()));
+
+            miniDispatcher.getShutDownFuture().get(3, TimeUnit.SECONDS);
+            fail("The shutDownFuture should not be done.");
+        } catch (TimeoutException ignored) {
+
         } finally {
             RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
         }
