@@ -135,4 +135,45 @@ class TableSinkTest extends TableTestBase {
 
     util.verifyExecPlan(stmtSet)
   }
+
+  @Test
+  def testManagedTableSinkWithDisableCheckpointing(): Unit = {
+    util.addTable(
+      s"""
+         |CREATE TABLE sink (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH(
+         |)
+         |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT * FROM MyTable")
+
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage(
+      s"You should enable the checkpointing for sinking to managed table " +
+        s"`default_catalog`.`default_database`.`sink`, " +
+        s"managed table relies on checkpoint to commit and " +
+        s"the data is visible only after commit.")
+    util.verifyAstPlan(stmtSet)
+  }
+
+  @Test
+  def testManagedTableSinkWithEnableCheckpointing(): Unit = {
+    util.getStreamEnv.enableCheckpointing(10)
+    util.addTable(
+      s"""
+         |CREATE TABLE sink (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH(
+         |)
+         |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT * FROM MyTable")
+
+    util.verifyAstPlan(stmtSet)
+  }
 }

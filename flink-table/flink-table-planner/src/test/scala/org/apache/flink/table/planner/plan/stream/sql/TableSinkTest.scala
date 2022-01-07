@@ -628,18 +628,15 @@ class TableSinkTest extends TableTestBase {
   def testManagedTableSinkWithDisableCheckpointing(): Unit = {
     util.addTable(
       s"""
-         |CREATE TABLE source (person String, votes BIGINT) WITH(
-         |  'connector' = 'values'
-         |)
-         |""".stripMargin)
-    util.addTable(
-      s"""
-         |CREATE TABLE sink (person String, votes BIGINT) WITH(
+         |CREATE TABLE sink (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH(
          |)
          |""".stripMargin)
     val stmtSet = util.tableEnv.createStatementSet()
-    stmtSet.addInsertSql(
-      "INSERT INTO sink SELECT * FROM source")
+    stmtSet.addInsertSql("INSERT INTO sink SELECT * FROM MyTable")
 
     expectedException.expect(classOf[TableException])
     expectedException.expectMessage(
@@ -647,7 +644,25 @@ class TableSinkTest extends TableTestBase {
         s"`default_catalog`.`default_database`.`sink`, " +
         s"managed table relies on checkpoint to commit and " +
         s"the data is visible only after commit.")
-    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyAstPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testManagedTableSinkWithEnableCheckpointing(): Unit = {
+    util.getStreamEnv.enableCheckpointing(10)
+    util.addTable(
+      s"""
+         |CREATE TABLE sink (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH(
+         |)
+         |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT * FROM MyTable")
+
+    util.verifyAstPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 }
 

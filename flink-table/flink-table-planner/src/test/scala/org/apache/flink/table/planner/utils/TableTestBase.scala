@@ -396,6 +396,30 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
+   * Verify the AST (abstract syntax tree).
+   */
+  def verifyAstPlan(stmtSet: StatementSet): Unit = {
+    doVerifyPlan(
+      stmtSet,
+      Array.empty[ExplainDetail],
+      withRowType = false,
+      Array(PlanKind.AST),
+      () => Unit)
+  }
+
+  /**
+   * Verify the AST (abstract syntax tree). The plans will contain the extra [[ExplainDetail]]s.
+   */
+  def verifyAstPlan(stmtSet: StatementSet, extraDetails: ExplainDetail*): Unit = {
+    doVerifyPlan(
+      stmtSet,
+      extraDetails.toArray,
+      withRowType = false,
+      Array(PlanKind.AST),
+      () => Unit)
+  }
+
+  /**
    * Verify the AST (abstract syntax tree) and the optimized rel plan for the given SELECT query.
    */
   def verifyRelPlan(query: String): Unit = {

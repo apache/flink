@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 
@@ -33,7 +34,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 /** A test {@link ManagedTableFactory}. */
-public class TestManagedTableFactory implements DynamicTableSourceFactory, ManagedTableFactory {
+public class TestManagedTableFactory
+        implements DynamicTableSourceFactory, DynamicTableSinkFactory, ManagedTableFactory {
 
     public static final String ENRICHED_KEY = "ENRICHED_KEY";
 
@@ -94,6 +96,11 @@ public class TestManagedTableFactory implements DynamicTableSourceFactory, Manag
         return new TestManagedTableSource();
     }
 
+    @Override
+    public DynamicTableSink createDynamicTableSink(Context context) {
+        return new TestManagedTableSink();
+    }
+
     /** Managed {@link DynamicTableSource} for testing. */
     public static class TestManagedTableSource implements ScanTableSource {
 
@@ -109,6 +116,40 @@ public class TestManagedTableFactory implements DynamicTableSourceFactory, Manag
 
         @Override
         public DynamicTableSource copy() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public String asSummaryString() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int hashCode() {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    /** Managed {@link DynamicTableSink} for testing. */
+    public static class TestManagedTableSink implements DynamicTableSink {
+
+        @Override
+        public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
+            return requestedMode;
+        }
+
+        @Override
+        public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public DynamicTableSink copy() {
             throw new UnsupportedOperationException();
         }
 
