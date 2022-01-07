@@ -20,6 +20,7 @@ package org.apache.flink.connector.hbase.sink;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.hbase.common.DeleteMode;
 import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -68,6 +69,7 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
     private final long bufferFlushMaxSizeInBytes;
     private final long bufferFlushMaxMutations;
     private final long bufferFlushIntervalMillis;
+    private final DeleteMode deleteMode;
     private final HBaseMutationConverter<T> mutationConverter;
 
     private transient Connection connection;
@@ -94,7 +96,8 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
             HBaseMutationConverter<T> mutationConverter,
             long bufferFlushMaxSizeInBytes,
             long bufferFlushMaxMutations,
-            long bufferFlushIntervalMillis) {
+            long bufferFlushIntervalMillis,
+            DeleteMode deleteMode) {
         this.hTableName = hTableName;
         // Configuration is not serializable
         this.serializedConfig = HBaseConfigurationUtil.serializeConfiguration(conf);
@@ -102,6 +105,7 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
         this.bufferFlushMaxSizeInBytes = bufferFlushMaxSizeInBytes;
         this.bufferFlushMaxMutations = bufferFlushMaxMutations;
         this.bufferFlushIntervalMillis = bufferFlushIntervalMillis;
+        this.deleteMode = deleteMode;
     }
 
     @Override
@@ -191,7 +195,7 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
     public void invoke(T value, Context context) throws Exception {
         checkErrorAndRethrow();
 
-        mutator.mutate(mutationConverter.convertToMutation(value));
+        mutator.mutate(mutationConverter.convertToMutation(value, deleteMode));
 
         // flush when the buffer number of mutations greater than the configured max size.
         if (bufferFlushMaxMutations > 0

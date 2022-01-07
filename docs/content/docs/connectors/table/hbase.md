@@ -160,6 +160,19 @@ Connector Options
       </td>
     </tr>
     <tr>
+      <td><h5>sink.delete.mode</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">lastest-version</td>
+      <td>String</td>
+      <td>Writing option, the mode to delete data in hbase. 
+      Valid modes are:
+      <ul>
+        <li><code>'latest-version'</code>: default mode, delete the latest version with the specified key and retain previous versions.</li>
+        <li><code>'all-versions'</code>: delete all versions with the specified key.</li>
+      </ul>
+      </td>
+    </tr>
+    <tr>
       <td><h5>sink.parallelism</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>

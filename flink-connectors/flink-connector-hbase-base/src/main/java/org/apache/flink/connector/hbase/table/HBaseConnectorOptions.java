@@ -22,9 +22,12 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.description.Description;
 import org.apache.flink.table.factories.FactoryUtil;
 
 import java.time.Duration;
+
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /** Options for the HBase connector. */
 @PublicEvolving
@@ -86,6 +89,17 @@ public class HBaseConnectorOptions {
                                     + "This can improve performance for writing data to HBase database, but may increase the latency. "
                                     + "Can be set to '0' to disable it. Note, both 'sink.buffer-flush.max-size' and 'sink.buffer-flush.max-rows' "
                                     + "can be set to '0' with the flush interval set allowing for complete async processing of buffered actions.");
+
+    public static final ConfigOption<String> SINK_DELETE_MODE =
+            ConfigOptions.key("sink.delete.mode")
+                    .stringType()
+                    .defaultValue("latest-version")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Writing option, the mode to delete data in hbase, valid enumerations are")
+                                    .list(text("'latest-version'"), text("'all-versions'"))
+                                    .build());
 
     public static final ConfigOption<Boolean> LOOKUP_ASYNC =
             ConfigOptions.key("lookup.async")

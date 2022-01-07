@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.hbase.sink;
 
+import org.apache.flink.connector.hbase.common.DeleteMode;
 import org.apache.flink.connector.hbase.util.HBaseSerde;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.table.data.RowData;
@@ -47,12 +48,12 @@ public class RowDataToMutationConverter implements HBaseMutationConverter<RowDat
     }
 
     @Override
-    public Mutation convertToMutation(RowData record) {
+    public Mutation convertToMutation(RowData record, DeleteMode deleteMode) {
         RowKind kind = record.getRowKind();
         if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
             return serde.createPutMutation(record);
         } else {
-            return serde.createDeleteMutation(record);
+            return serde.createDeleteMutation(record, deleteMode);
         }
     }
 }

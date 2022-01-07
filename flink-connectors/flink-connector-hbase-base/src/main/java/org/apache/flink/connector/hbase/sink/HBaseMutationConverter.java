@@ -19,6 +19,7 @@
 package org.apache.flink.connector.hbase.sink;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.hbase.common.DeleteMode;
 
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Mutation;
@@ -41,5 +42,5 @@ public interface HBaseMutationConverter<T> extends Serializable {
      * Converts the input record into HBase {@link Mutation}. A mutation can be a {@link Put} or
      * {@link Delete}.
      */
-    Mutation convertToMutation(T record);
+    Mutation convertToMutation(T record, DeleteMode deleteMode);
 }

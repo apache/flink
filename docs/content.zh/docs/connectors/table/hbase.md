@@ -153,6 +153,19 @@ ON myTopic.key = hTable.rowkey;
       </td>
     </tr>
     <tr>
+      <td><h5>sink.delete.mode</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">latest-version</td>
+      <td>String</td>
+      <td>写入参数选项, 删除数据的模式。
+      有效模式为:
+      <ul>
+        <li><code>'latest-version'</code>: 默认模式, 删除指定键的最近一次版本数据并且保留之前的版本。</li>
+        <li><code>'all-versions'</code>: 删除指定键的所有版本。</li>
+      </ul>
+      </td>
+    </tr>
+    <tr>
       <td><h5>sink.parallelism</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>

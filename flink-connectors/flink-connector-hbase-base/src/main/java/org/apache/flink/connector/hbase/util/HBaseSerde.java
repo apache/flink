@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.hbase.util;
 
+import org.apache.flink.connector.hbase.common.DeleteMode;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -157,7 +158,7 @@ public class HBaseSerde {
      *
      * @return The appropriate instance of Delete for this use case.
      */
-    public @Nullable Delete createDeleteMutation(RowData row) {
+    public @Nullable Delete createDeleteMutation(RowData row, DeleteMode deleteMode) {
         checkArgument(keyEncoder != null, "row key is not set.");
         byte[] rowkey = keyEncoder.encode(row, rowkeyIndex);
         if (rowkey.length == 0) {
@@ -174,7 +175,11 @@ public class HBaseSerde {
                 for (int q = 0; q < this.qualifiers[f].length; q++) {
                     // get quantifier key
                     byte[] qualifier = qualifiers[f][q];
-                    delete.addColumn(familyKey, qualifier);
+                    if (deleteMode.equals(DeleteMode.ALL_VERSIONS)) {
+                        delete.addColumns(familyKey, qualifier);
+                    } else {
+                        delete.addColumn(familyKey, qualifier);
+                    }
                 }
             }
         }

@@ -20,22 +20,28 @@ package org.apache.flink.connector.hbase.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.hbase.common.DeleteMode;
 import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
 import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.LOOKUP_CACHE_MAX_ROWS;
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_BUFFER_FLUSH_INTERVAL;
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_BUFFER_FLUSH_MAX_ROWS;
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_BUFFER_FLUSH_MAX_SIZE;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_DELETE_MODE;
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_PARALLELISM;
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.ZOOKEEPER_QUORUM;
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.ZOOKEEPER_ZNODE_PARENT;
@@ -46,6 +52,35 @@ public class HBaseConnectorOptionsUtil {
 
     /** Prefix for HBase specific properties. */
     public static final String PROPERTIES_PREFIX = "properties.";
+
+    // --------------------------------------------------------------------------------------------
+    // Option enumerations
+    // --------------------------------------------------------------------------------------------
+
+    public static final String LATEST_VERSION = "latest-version";
+    public static final String ALL_VERSIONS = "all-versions";
+
+    public static final Set<String> DELETE_MODE_ENUM =
+            new HashSet<>(Arrays.asList(LATEST_VERSION, ALL_VERSIONS));
+
+    // --------------------------------------------------------------------------------------------
+    // Utilities
+    // --------------------------------------------------------------------------------------------
+
+    public static DeleteMode getDeleteMode(ReadableConfig config) {
+        String deleteMode = config.get(SINK_DELETE_MODE);
+        switch (deleteMode) {
+            case LATEST_VERSION:
+                return DeleteMode.LATEST_VERSION;
+            case ALL_VERSIONS:
+                return DeleteMode.ALL_VERSIONS;
+            default:
+                throw new TableException(
+                        String.format(
+                                "Unsupported delete mode '%s'. Supported values are [latest-version, all-versions].",
+                                deleteMode));
+        }
+    }
 
     // --------------------------------------------------------------------------------------------
     // Validation
@@ -91,6 +126,7 @@ public class HBaseConnectorOptionsUtil {
         builder.setBufferFlushMaxRows(tableOptions.get(SINK_BUFFER_FLUSH_MAX_ROWS));
         builder.setBufferFlushMaxSizeInBytes(
                 tableOptions.get(SINK_BUFFER_FLUSH_MAX_SIZE).getBytes());
+        builder.setDeleteMode(getDeleteMode(tableOptions));
         builder.setParallelism(tableOptions.getOptional(SINK_PARALLELISM).orElse(null));
         return builder.build();
     }
