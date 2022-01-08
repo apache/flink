@@ -681,7 +681,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                             new FilenameFilter() {
                                 @Override
                                 public boolean accept(File dir, String name) {
-                                    return name.contains("jobmanager.log")
+                                    return name.endsWith("jobmanager.log")
                                             && dir.getAbsolutePath().contains(id.toString());
                                 }
                             });
