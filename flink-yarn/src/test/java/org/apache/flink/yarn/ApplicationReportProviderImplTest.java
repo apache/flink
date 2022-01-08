@@ -20,42 +20,23 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.util.TestLoggerExtension;
 
-import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Collections;
 
 import static org.apache.flink.yarn.TestingYarnClient.createApplicationReport;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for the {@link ApplicationReportProviderImpl}. */
 @ExtendWith(TestLoggerExtension.class)
 public class ApplicationReportProviderImplTest {
-
-    /**
-     * When yarnClient has been stopped and then retrieving app report from Yarn, it should fail
-     * fast and throw exception.
-     */
-    @Test
-    public void testWhenYarnClientStoppedShouldThrowException() {
-        final YarnClient yarnClient = YarnClient.createYarnClient();
-        initilizeYarnClient(yarnClient);
-        yarnClient.stop();
-        Assert.assertTrue(yarnClient.isInState(Service.STATE.STOPPED));
-
-        assertThatThrownBy(
-                () -> ApplicationReportProviderImpl.of(yarnClient, null).waitTillSubmissionFinish(),
-                "Errors on using YarnClient to retrieve application report. Maybe it has been closed by YarnClusterDescriptor.");
-    }
 
     /**
      * When Yarn app master has been accepted in {@link YarnClusterDescriptor} and then retrieving
@@ -72,17 +53,14 @@ public class ApplicationReportProviderImplTest {
 
         YarnClient yarnClient =
                 new TestingYarnClient(Collections.singletonMap(appId, applicationReport));
-        initilizeYarnClient(yarnClient);
-
-        ApplicationReportProvider provider = ApplicationReportProviderImpl.of(yarnClient, appId);
-        ApplicationReport report = provider.waitTillSubmissionFinish();
-
-        assertEquals(YarnApplicationState.RUNNING, report.getYarnApplicationState());
-    }
-
-    private void initilizeYarnClient(YarnClient yarnClient) {
         YarnConfiguration yarnConfiguration = new YarnConfiguration();
         yarnClient.init(yarnConfiguration);
         yarnClient.start();
+
+        ApplicationReportProvider provider =
+                ApplicationReportProviderImpl.of(YarnClientRetriever.from(yarnClient, null), appId);
+        ApplicationReport report = provider.waitTillSubmissionFinish();
+
+        assertEquals(YarnApplicationState.RUNNING, report.getYarnApplicationState());
     }
 }

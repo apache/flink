@@ -21,11 +21,9 @@ package org.apache.flink.yarn;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.FlinkException;
 
-import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
-import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 
 import java.io.IOException;
@@ -33,26 +31,22 @@ import java.io.IOException;
 /** The implementation of {@link ApplicationReportProvider}. */
 @Internal
 public class ApplicationReportProviderImpl implements ApplicationReportProvider {
-    private final YarnClient yarnClient;
+    private final YarnClientRetriever yarnClientRetriever;
     private final ApplicationId appId;
 
-    private ApplicationReportProviderImpl(YarnClient yarnClient, ApplicationId applicationId) {
-        this.yarnClient = yarnClient;
+    private ApplicationReportProviderImpl(
+            YarnClientRetriever yarnClientRetriever, ApplicationId applicationId) {
+        this.yarnClientRetriever = yarnClientRetriever;
         this.appId = applicationId;
     }
 
     @Override
     public ApplicationReport waitTillSubmissionFinish() throws FlinkException {
-        // Make access to the YarnClient fail fast if the client has been closed by the
+        // A new yarn client need to be created in order to avoid the yarn client has been closed by
         // YarnClusterDescriptor
-        if (yarnClient.isInState(Service.STATE.STOPPED)) {
-            throw new FlinkException(
-                    "Errors on using YarnClient to retrieve application report. Maybe it has been closed by YarnClusterDescriptor.");
-        }
-
-        try {
+        try (final YarnClientRetriever retriever = yarnClientRetriever) {
             return YarnClusterDescriptor.waitTillTargetState(
-                    yarnClient, appId, YarnApplicationState.RUNNING);
+                    retriever.getYarnClient(), appId, YarnApplicationState.RUNNING);
         } catch (YarnException | IOException e) {
             throw new FlinkException(
                     "Errors on getting YARN application report. Maybe application has finished.",
@@ -61,10 +55,13 @@ public class ApplicationReportProviderImpl implements ApplicationReportProvider 
             throw new FlinkException(
                     "Errors on getting YARN application report. Maybe the thread is interrupted.",
                     interruptedException);
+        } catch (Exception exception) {
+            throw new FlinkException("Errors on closing YarnClientRetriever.", exception);
         }
     }
 
-    static ApplicationReportProviderImpl of(YarnClient yarnClient, ApplicationId applicationId) {
-        return new ApplicationReportProviderImpl(yarnClient, applicationId);
+    static ApplicationReportProviderImpl of(
+            YarnClientRetriever retriever, ApplicationId applicationId) {
+        return new ApplicationReportProviderImpl(retriever, applicationId);
     }
 }

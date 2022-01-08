@@ -1200,7 +1200,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         // since deployment was successful, remove the hook
         ShutdownHookUtil.removeShutdownHook(deploymentFailureHook, getClass().getSimpleName(), LOG);
 
-        return ApplicationReportProviderImpl.of(yarnClient, applicationId);
+        return ApplicationReportProviderImpl.of(
+                YarnClientRetriever.from(yarnClient, yarnConfiguration), applicationId);
     }
 
     public static ApplicationReport waitTillTargetState(
