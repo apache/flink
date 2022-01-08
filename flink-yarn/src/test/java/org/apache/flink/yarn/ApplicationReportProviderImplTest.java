@@ -58,7 +58,8 @@ public class ApplicationReportProviderImplTest {
         yarnClient.start();
 
         ApplicationReportProvider provider =
-                ApplicationReportProviderImpl.of(YarnClientRetriever.from(yarnClient, null), appId);
+                ApplicationReportProviderImpl.of(
+                        YarnClientRetrieverImpl.from(yarnClient, null), appId);
         ApplicationReport report = provider.waitTillSubmissionFinish();
 
         assertEquals(YarnApplicationState.RUNNING, report.getYarnApplicationState());

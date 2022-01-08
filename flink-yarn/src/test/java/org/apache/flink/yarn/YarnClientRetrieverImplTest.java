@@ -30,16 +30,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Test for {@link YarnClientRetriever}. */
+/** Test for {@link YarnClientRetrieverImpl}. */
 @ExtendWith(TestLoggerExtension.class)
-public class YarnClientRetrieverTest {
+public class YarnClientRetrieverImplTest {
 
     @Test
     public void testYarnClientWillBeReusedWhenNotClose() {
         YarnConfiguration yarnConfiguration = new YarnConfiguration();
         YarnClient yarnClient = createYarnClient(yarnConfiguration);
 
-        YarnClientRetriever retriever = YarnClientRetriever.from(yarnClient, yarnConfiguration);
+        YarnClientRetrieverImpl retriever =
+                YarnClientRetrieverImpl.from(yarnClient, yarnConfiguration);
         assertEquals(yarnClient, retriever.getYarnClient());
     }
 
@@ -49,7 +50,8 @@ public class YarnClientRetrieverTest {
         YarnClient yarnClient = createYarnClient(yarnConfiguration);
         yarnClient.stop();
 
-        YarnClientRetriever retriever = YarnClientRetriever.from(yarnClient, yarnConfiguration);
+        YarnClientRetrieverImpl retriever =
+                YarnClientRetrieverImpl.from(yarnClient, yarnConfiguration);
         YarnClient newYarnClient = retriever.getYarnClient();
 
         assertNotEquals(yarnClient, newYarnClient);
