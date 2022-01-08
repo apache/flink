@@ -53,7 +53,7 @@ RUN set -x \
 
 RUN sed -i 's/^#crypto.policy=unlimited/crypto.policy=unlimited/' $JAVA_HOME/jre/lib/security/java.security
 
-ARG HADOOP_VERSION=2.8.4
+ARG HADOOP_VERSION=2.8.5
 
 COPY hadoop-${HADOOP_VERSION}.tar.gz /tmp/hadoop.tar.gz
 
