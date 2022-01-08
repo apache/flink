@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialectFactory;
 
-/** Factory for {@link MySQLDialect}. */
+/** Factory for {@link MySqlDialect}. */
 @Internal
 public class MySQLDialectFactory implements JdbcDialectFactory {
     @Override
@@ -32,6 +32,6 @@ public class MySQLDialectFactory implements JdbcDialectFactory {
 
     @Override
     public JdbcDialect create() {
-        return new MySQLDialect();
+        return new MySqlDialect();
     }
 }

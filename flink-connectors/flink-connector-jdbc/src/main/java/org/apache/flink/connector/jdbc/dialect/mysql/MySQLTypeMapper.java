@@ -116,6 +116,12 @@ public class MySQLTypeMapper implements JdbcDialectTypeMapper {
             case MYSQL_LONGBLOB:
             case MYSQL_VARBINARY:
             case MYSQL_BINARY:
+                // BINARY is not supported in MySqlDialect now.
+                // VARBINARY(n) is not supported in MySqlDialect when 'n' is not equals to
+                // Integer.MAX_VALUE. Please see
+                // org.apache.flink.connector.jdbc.dialect.mysql.MySqlDialect#supportedTypes and
+                // org.apache.flink.connector.jdbc.dialect.AbstractDialect#validate for more
+                // details.
                 return DataTypes.BYTES();
             case MYSQL_TINYINT:
                 return DataTypes.TINYINT();
@@ -150,10 +156,12 @@ public class MySQLTypeMapper implements JdbcDialectTypeMapper {
                 LOG.warn("{} will probably cause value overflow.", MYSQL_DOUBLE_UNSIGNED);
                 return DataTypes.DOUBLE();
             case MYSQL_CHAR:
+                return DataTypes.CHAR(precision);
             case MYSQL_VARCHAR:
             case MYSQL_TINYTEXT:
             case MYSQL_MEDIUMTEXT:
             case MYSQL_TEXT:
+                return DataTypes.VARCHAR(precision);
             case MYSQL_JSON:
                 return DataTypes.STRING();
             case MYSQL_LONGTEXT:

@@ -20,7 +20,7 @@ package org.apache.flink.connector.jdbc.catalog;
 
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialectLoader;
-import org.apache.flink.connector.jdbc.dialect.mysql.MySQLDialect;
+import org.apache.flink.connector.jdbc.dialect.mysql.MySqlDialect;
 import org.apache.flink.connector.jdbc.dialect.psql.PostgresDialect;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -48,7 +48,7 @@ public class JdbcCatalogUtils {
 
         if (dialect instanceof PostgresDialect) {
             return new PostgresCatalog(catalogName, defaultDatabase, username, pwd, baseUrl);
-        } else if (dialect instanceof MySQLDialect) {
+        } else if (dialect instanceof MySqlDialect) {
             return new MySQLCatalog(catalogName, defaultDatabase, username, pwd, baseUrl);
         } else {
             throw new UnsupportedOperationException(

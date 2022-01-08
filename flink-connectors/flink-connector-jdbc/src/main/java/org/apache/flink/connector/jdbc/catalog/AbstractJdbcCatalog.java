@@ -53,7 +53,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.compress.utils.Lists;
-import org.apache.commons.lang3.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -210,7 +209,7 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
             throws DatabaseNotExistException, CatalogException {
 
         Preconditions.checkState(
-                org.apache.commons.lang3.StringUtils.isNotBlank(databaseName),
+                !StringUtils.isNullOrWhitespaceOnly(databaseName),
                 "Database name must not be blank.");
         if (listDatabases().contains(databaseName)) {
             return new CatalogDatabaseImpl(Collections.emptyMap(), null);
@@ -503,22 +502,18 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
 
     protected DataType fromJDBCType(ObjectPath tablePath, ResultSetMetaData metadata, int colIndex)
             throws SQLException {
-
-        throw new NotImplementedException("This method has no available default implements.");
+        throw new UnsupportedOperationException();
     }
 
     protected String getTableName(ObjectPath tablePath) {
-
-        throw new NotImplementedException("This method has no available default implements.");
+        throw new UnsupportedOperationException();
     }
 
     protected String getSchemaName(ObjectPath tablePath) {
-
-        throw new NotImplementedException("This method has no available default implements.");
+        throw new UnsupportedOperationException();
     }
 
     protected String getSchemaTableName(ObjectPath tablePath) {
-
-        throw new NotImplementedException("This method has no available default implements.");
+        throw new UnsupportedOperationException();
     }
 }

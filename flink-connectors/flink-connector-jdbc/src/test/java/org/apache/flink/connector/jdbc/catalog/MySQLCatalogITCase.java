@@ -41,7 +41,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -167,10 +169,13 @@ public class MySQLCatalogITCase extends MySQLCatalogTestBase {
     @Test
     public void testGetDb_DatabaseNotExistException() throws Exception {
         String databaseNotExist = "nonexistent";
-        exception.expect(DatabaseNotExistException.class);
-        exception.expectMessage(
-                String.format("Database %s does not exist in Catalog", databaseNotExist));
-        catalog.getDatabase(databaseNotExist);
+        assertThatThrownBy(() -> catalog.getDatabase(databaseNotExist))
+                .satisfies(
+                        anyCauseMatches(
+                                DatabaseNotExistException.class,
+                                String.format(
+                                        "Database %s does not exist in Catalog",
+                                        databaseNotExist)));
     }
 
     @Test
@@ -202,10 +207,12 @@ public class MySQLCatalogITCase extends MySQLCatalogTestBase {
     @Test
     public void testListTables_DatabaseNotExistException() throws DatabaseNotExistException {
         String anyDatabase = "anyDatabase";
-        exception.expect(DatabaseNotExistException.class);
-        exception.expectMessage(
-                String.format("Database %s does not exist in Catalog", anyDatabase));
-        catalog.listTables(anyDatabase);
+        assertThatThrownBy(() -> catalog.listTables(anyDatabase))
+                .satisfies(
+                        anyCauseMatches(
+                                DatabaseNotExistException.class,
+                                String.format(
+                                        "Database %s does not exist in Catalog", anyDatabase)));
     }
 
     @Test
@@ -218,24 +225,26 @@ public class MySQLCatalogITCase extends MySQLCatalogTestBase {
     @Test
     public void testGetTables_TableNotExistException() throws TableNotExistException {
         String anyTableNotExist = "anyTable";
-        exception.expect(TableNotExistException.class);
-        exception.expectMessage(
-                String.format(
-                        "Table (or view) %s.%s does not exist in Catalog",
-                        TEST_DB, anyTableNotExist));
-        catalog.getTable(new ObjectPath(TEST_DB, anyTableNotExist));
+        assertThatThrownBy(() -> catalog.getTable(new ObjectPath(TEST_DB, anyTableNotExist)))
+                .satisfies(
+                        anyCauseMatches(
+                                TableNotExistException.class,
+                                String.format(
+                                        "Table (or view) %s.%s does not exist in Catalog",
+                                        TEST_DB, anyTableNotExist)));
     }
 
     @Test
     public void testGetTables_TableNotExistException_NoDb() throws TableNotExistException {
         String databaseNotExist = "nonexistdb";
         String tableNotExist = "anyTable";
-        exception.expect(TableNotExistException.class);
-        exception.expectMessage(
-                String.format(
-                        "Table (or view) %s.%s does not exist in Catalog",
-                        databaseNotExist, tableNotExist));
-        catalog.getTable(new ObjectPath(databaseNotExist, tableNotExist));
+        assertThatThrownBy(() -> catalog.getTable(new ObjectPath(databaseNotExist, tableNotExist)))
+                .satisfies(
+                        anyCauseMatches(
+                                TableNotExistException.class,
+                                String.format(
+                                        "Table (or view) %s.%s does not exist in Catalog",
+                                        databaseNotExist, tableNotExist)));
     }
 
     @Test

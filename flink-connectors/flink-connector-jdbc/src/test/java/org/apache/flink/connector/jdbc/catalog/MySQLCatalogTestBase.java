@@ -25,8 +25,6 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.MySQLContainer;
@@ -65,14 +63,14 @@ public class MySQLCatalogTestBase {
                     .column("col_binary", DataTypes.BYTES())
                     .column("col_bit", DataTypes.BOOLEAN())
                     .column("col_blob", DataTypes.BYTES())
-                    .column("col_char", DataTypes.STRING())
+                    .column("col_char", DataTypes.CHAR(10))
                     .column("col_date", DataTypes.DATE())
                     .column("col_datetime", DataTypes.TIMESTAMP(0))
                     .column("col_decimal", DataTypes.DECIMAL(10, 0))
                     .column("col_decimal_unsigned", DataTypes.DECIMAL(10, 0))
                     .column("col_double", DataTypes.DOUBLE())
                     .column("col_double_unsigned", DataTypes.DOUBLE())
-                    .column("col_enum", DataTypes.STRING())
+                    .column("col_enum", DataTypes.CHAR(6))
                     .column("col_float", DataTypes.FLOAT())
                     .column("col_float_unsigned", DataTypes.FLOAT())
                     .column("col_int", DataTypes.INT())
@@ -85,22 +83,22 @@ public class MySQLCatalogTestBase {
                     .column("col_mediumblob", DataTypes.BYTES())
                     .column("col_mediumint", DataTypes.INT())
                     .column("col_mediumint_unsigned", DataTypes.INT())
-                    .column("col_mediumtext", DataTypes.STRING())
+                    .column("col_mediumtext", DataTypes.VARCHAR(16777215))
                     .column("col_numeric", DataTypes.DECIMAL(10, 0))
                     .column("col_numeric_unsigned", DataTypes.DECIMAL(10, 0))
                     .column("col_real", DataTypes.DOUBLE())
                     .column("col_real_unsigned", DataTypes.DOUBLE())
-                    .column("col_set", DataTypes.STRING())
+                    .column("col_set", DataTypes.CHAR(18))
                     .column("col_smallint", DataTypes.SMALLINT())
                     .column("col_smallint_unsigned", DataTypes.INT())
-                    .column("col_text", DataTypes.STRING())
+                    .column("col_text", DataTypes.VARCHAR(65535))
                     .column("col_time", DataTypes.TIME(0))
                     .column("col_timestamp", DataTypes.TIMESTAMP(0))
-                    .column("col_tinytext", DataTypes.STRING())
+                    .column("col_tinytext", DataTypes.VARCHAR(255))
                     .column("col_tinyint", DataTypes.TINYINT())
                     .column("col_tinyint_unsinged", DataTypes.TINYINT())
                     .column("col_tinyblob", DataTypes.BYTES())
-                    .column("col_varchar", DataTypes.STRING())
+                    .column("col_varchar", DataTypes.VARCHAR(255))
                     .column("col_datetime_p3", DataTypes.TIMESTAMP(3).notNull())
                     .column("col_time_p3", DataTypes.TIME(3))
                     .column("col_timestamp_p3", DataTypes.TIMESTAMP(3))
@@ -118,7 +116,6 @@ public class MySQLCatalogTestBase {
 
     protected static String baseUrl;
 
-    @Rule public ExpectedException exception = ExpectedException.none();
     protected static MySQLCatalog catalog;
 
     @BeforeClass

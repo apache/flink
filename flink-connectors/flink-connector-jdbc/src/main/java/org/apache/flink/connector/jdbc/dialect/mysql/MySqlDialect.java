@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 
 /** JDBC dialect for MySQL. */
 @Internal
-public class MySQLDialect extends AbstractDialect {
+public class MySqlDialect extends AbstractDialect {
 
     private static final long serialVersionUID = 1L;
 

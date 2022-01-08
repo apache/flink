@@ -65,7 +65,6 @@ public class MySQLCatalog extends AbstractJdbcCatalog {
             String username,
             String pwd,
             String baseUrl) {
-
         super(catalogName, defaultDatabase, username, pwd, baseUrl);
 
         String driverVersion =
@@ -79,7 +78,6 @@ public class MySQLCatalog extends AbstractJdbcCatalog {
 
     @Override
     public List<String> listDatabases() throws CatalogException {
-
         return extractColumnValuesBySQL(
                 defaultUrl,
                 "SELECT `SCHEMA_NAME` FROM `INFORMATION_SCHEMA`.`SCHEMATA`;",
@@ -92,7 +90,6 @@ public class MySQLCatalog extends AbstractJdbcCatalog {
     @Override
     public List<String> listTables(String databaseName)
             throws DatabaseNotExistException, CatalogException {
-
         Preconditions.checkState(
                 StringUtils.isNotBlank(databaseName), "Database name must not be blank.");
         if (!databaseExists(databaseName)) {
@@ -109,7 +106,6 @@ public class MySQLCatalog extends AbstractJdbcCatalog {
 
     @Override
     public boolean tableExists(ObjectPath tablePath) throws CatalogException {
-
         return !extractColumnValuesBySQL(
                         baseUrl,
                         "SELECT TABLE_NAME FROM information_schema.`TABLES` "
@@ -122,7 +118,6 @@ public class MySQLCatalog extends AbstractJdbcCatalog {
     }
 
     private String getDatabaseVersion() {
-
         try (Connection conn = DriverManager.getConnection(defaultUrl, username, pwd)) {
             return conn.getMetaData().getDatabaseProductVersion();
         } catch (Exception e) {
@@ -132,7 +127,6 @@ public class MySQLCatalog extends AbstractJdbcCatalog {
     }
 
     private String getDriverVersion() {
-
         try (Connection conn = DriverManager.getConnection(defaultUrl, username, pwd)) {
             String driverVersion = conn.getMetaData().getDriverVersion();
             Pattern regexp = Pattern.compile("\\d+?\\.\\d+?\\.\\d+");
@@ -153,19 +147,16 @@ public class MySQLCatalog extends AbstractJdbcCatalog {
 
     @Override
     protected String getTableName(ObjectPath tablePath) {
-
         return tablePath.getObjectName();
     }
 
     @Override
     protected String getSchemaName(ObjectPath tablePath) {
-
         return null;
     }
 
     @Override
     protected String getSchemaTableName(ObjectPath tablePath) {
-
         return tablePath.getObjectName();
     }
 }
