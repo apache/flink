@@ -47,6 +47,8 @@ public class TimestampColumnReader extends AbstractColumnReader<WritableTimestam
     public static final long NANOS_PER_SECOND = TimeUnit.SECONDS.toNanos(1);
     public static final long MICROS_PER_MILLISECOND = TimeUnit.MILLISECONDS.toMicros(1);
     public static final long NANOS_PER_MICROSECONDS = TimeUnit.MICROSECONDS.toNanos(1);
+    public static final long MILLIS_PER_SECOND = TimeUnit.SECONDS.toMillis(1);
+    public static final long MICROS_PER_SECOND = TimeUnit.SECONDS.toMicros(1);
 
     private final boolean utcTimestamp;
     private final PrimitiveType.PrimitiveTypeName actualName;
@@ -161,30 +163,32 @@ public class TimestampColumnReader extends AbstractColumnReader<WritableTimestam
 
     public static TimestampData int64ToTimestamp(
             boolean utcTimestamp, long value, LogicalTypeAnnotation.TimeUnit timeUnit) {
-        long nanoseconds = 0L;
+        long nanosOfMillisecond = 0L;
         long milliseconds = 0L;
 
         switch (timeUnit) {
             case MILLIS:
                 milliseconds = value;
+                nanosOfMillisecond = value % MILLIS_PER_SECOND * NANOS_PER_MILLISECOND;
                 break;
             case MICROS:
                 milliseconds = value / MICROS_PER_MILLISECOND;
-                nanoseconds = (value % MICROS_PER_MILLISECOND) * NANOS_PER_MICROSECONDS;
+                nanosOfMillisecond = (value % MICROS_PER_SECOND) * NANOS_PER_MICROSECONDS;
                 break;
             case NANOS:
                 milliseconds = value / NANOS_PER_MILLISECOND;
-                nanoseconds = value % NANOS_PER_MILLISECOND;
+                nanosOfMillisecond = value % NANOS_PER_SECOND;
                 break;
             default:
                 break;
         }
 
         if (utcTimestamp) {
-            return TimestampData.fromEpochMillis(milliseconds, (int) nanoseconds);
+            return TimestampData.fromEpochMillis(
+                    milliseconds, (int) (nanosOfMillisecond % NANOS_PER_MILLISECOND));
         }
         Timestamp timestamp = new Timestamp(milliseconds);
-        timestamp.setNanos((int) nanoseconds);
+        timestamp.setNanos((int) nanosOfMillisecond);
         return TimestampData.fromTimestamp(timestamp);
     }
 

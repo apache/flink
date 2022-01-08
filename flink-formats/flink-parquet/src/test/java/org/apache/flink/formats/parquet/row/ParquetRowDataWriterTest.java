@@ -70,6 +70,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.formats.parquet.ParquetFileFormatFactory.*;
 import static org.junit.Assert.assertEquals;
 
 /** Test for {@link ParquetRowDataBuilder} and {@link ParquetRowDataWriter}. */
@@ -125,6 +126,17 @@ public class ParquetRowDataWriterTest {
     public void testCompression() throws Exception {
         Configuration conf = new Configuration();
         conf.set(ParquetOutputFormat.COMPRESSION, "GZIP");
+        innerTest(conf, true);
+        innerTest(conf, false);
+        complexTypeTest(conf, true);
+        complexTypeTest(conf, false);
+    }
+
+    @Test
+    public void testInt64Timestamp() throws Exception {
+        Configuration conf = new Configuration();
+        conf.set(IDENTIFIER + "." + WRITE_INT64_TIMESTAMP.key(), "true");
+        conf.set(IDENTIFIER + "." + TIMESTAMP_TIME_UNIT.key(), "nanos");
         innerTest(conf, true);
         innerTest(conf, false);
         complexTypeTest(conf, true);

@@ -57,6 +57,8 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
     Row.of(Integer.valueOf(4), "x", "y", "2020-05-03", "10"),
     Row.of(Integer.valueOf(5), "x", "y", "2020-05-03", "11"))
 
+  def getData(): Seq[Row] = data
+
   @Before
   override def before(): Unit = {
     super.before()
@@ -66,7 +68,7 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
     env.enableCheckpointing(100)
 
     val stream = new DataStream(env.getJavaEnv.addSource(
-      new FiniteTestSource(data),
+      new FiniteTestSource(getData),
       new RowTypeInfo(Types.INT, Types.STRING, Types.STRING, Types.STRING, Types.STRING)))
 
     tEnv.createTemporaryView("my_table", stream, $("a"), $("b"), $("c"), $("d"), $("e"))
@@ -92,6 +94,15 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
   }
 
   private def test(partition: Boolean, policy: String = "success-file"): Unit = {
+    val ddl: String = getDDL(partition, policy)
+    tEnv.executeSql(ddl)
+
+    tEnv.sqlQuery("select * from my_table").executeInsert("sink_table").await()
+
+    check("select * from sink_table", getData)
+  }
+
+  def getDDL(partition: Boolean, policy: String) = {
     val dollar = '$'
     val ddl = s"""
                  |create table sink_table (
@@ -113,11 +124,7 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
                  |  ${additionalProperties().mkString(",\n")}
                  |)
        """.stripMargin
-    tEnv.executeSql(ddl)
-
-    tEnv.sqlQuery("select * from my_table").executeInsert("sink_table").await()
-
-    check("select * from sink_table", data)
+    ddl
   }
 
   @Test

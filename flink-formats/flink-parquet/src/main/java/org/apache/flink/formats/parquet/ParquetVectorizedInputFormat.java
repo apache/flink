@@ -124,7 +124,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
         FilterCompat.Filter filter = getFilter(hadoopConfig.conf());
         List<BlockMetaData> blocks = filterRowGroups(filter, footer.getBlocks(), fileSchema);
 
-        MessageType requestedSchema = clipParquetSchema(fileSchema);
+        MessageType requestedSchema = clipParquetSchema(fileSchema, hadoopConfig.conf());
         ParquetFileReader reader =
                 new ParquetFileReader(
                         hadoopConfig.conf(),
@@ -171,7 +171,8 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
     }
 
     /** Clips `parquetSchema` according to `fieldNames`. */
-    private MessageType clipParquetSchema(GroupType parquetSchema) {
+    private MessageType clipParquetSchema(
+            GroupType parquetSchema, org.apache.hadoop.conf.Configuration config) {
         Type[] types = new Type[projectedFields.length];
         if (isCaseSensitive) {
             for (int i = 0; i < projectedFields.length; ++i) {
@@ -183,7 +184,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
                             parquetSchema);
                     types[i] =
                             ParquetSchemaConverter.convertToParquetType(
-                                    fieldName, projectedTypes[i]);
+                                    fieldName, projectedTypes[i], config);
                     unknownFieldsIndices.add(i);
                 } else {
                     types[i] = parquetSchema.getType(fieldName);
@@ -213,7 +214,9 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
                             parquetSchema);
                     type =
                             ParquetSchemaConverter.convertToParquetType(
-                                    projectedFields[i].toLowerCase(Locale.ROOT), projectedTypes[i]);
+                                    projectedFields[i].toLowerCase(Locale.ROOT),
+                                    projectedTypes[i],
+                                    config);
                     unknownFieldsIndices.add(i);
                 }
                 // TODO clip for array,map,row types.
