@@ -240,7 +240,9 @@ public class RocksIncrementalSnapshotStrategy<K>
         if (localRecoveryConfig.isLocalRecoveryEnabled()) {
             // create a "permanent" snapshot directory for local recovery.
             LocalRecoveryDirectoryProvider directoryProvider =
-                    localRecoveryConfig.getLocalStateDirectoryProvider();
+                    localRecoveryConfig
+                            .getLocalStateDirectoryProvider()
+                            .orElseThrow(LocalRecoveryConfig.localRecoveryNotEnabled());
             File directory = directoryProvider.subtaskSpecificCheckpointDirectory(checkpointId);
 
             if (!directory.exists() && !directory.mkdirs()) {
@@ -514,7 +516,10 @@ public class RocksIncrementalSnapshotStrategy<K>
                                     checkpointId,
                                     CheckpointedStateScope.EXCLUSIVE,
                                     checkpointStreamFactory,
-                                    localRecoveryConfig.getLocalStateDirectoryProvider())
+                                    localRecoveryConfig
+                                            .getLocalStateDirectoryProvider()
+                                            .orElseThrow(
+                                                    LocalRecoveryConfig.localRecoveryNotEnabled()))
                             : CheckpointStreamWithResultProvider.createSimpleStream(
                                     CheckpointedStateScope.EXCLUSIVE, checkpointStreamFactory);
 

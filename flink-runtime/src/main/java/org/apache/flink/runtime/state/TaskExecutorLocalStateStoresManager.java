@@ -138,15 +138,17 @@ public class TaskExecutorLocalStateStoresManager {
 
             if (taskLocalStateStore == null) {
 
-                // create the allocation base dirs, one inside each root dir.
-                File[] allocationBaseDirectories = allocationBaseDirectories(allocationID);
-
-                LocalRecoveryDirectoryProviderImpl directoryProvider =
-                        new LocalRecoveryDirectoryProviderImpl(
-                                allocationBaseDirectories, jobId, jobVertexID, subtaskIndex);
+                LocalRecoveryDirectoryProviderImpl directoryProvider = null;
+                if (localRecoveryEnabled) {
+                    // create the allocation base dirs, one inside each root dir.
+                    File[] allocationBaseDirectories = allocationBaseDirectories(allocationID);
+                    directoryProvider =
+                            new LocalRecoveryDirectoryProviderImpl(
+                                    allocationBaseDirectories, jobId, jobVertexID, subtaskIndex);
+                }
 
                 LocalRecoveryConfig localRecoveryConfig =
-                        new LocalRecoveryConfig(localRecoveryEnabled, directoryProvider);
+                        new LocalRecoveryConfig(directoryProvider);
 
                 taskLocalStateStore =
                         localRecoveryConfig.isLocalRecoveryEnabled()
