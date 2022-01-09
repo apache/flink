@@ -127,7 +127,10 @@ class HeapSnapshotStrategy<K>
                                                 CheckpointedStateScope.EXCLUSIVE,
                                                 streamFactory,
                                                 localRecoveryConfig
-                                                        .getLocalStateDirectoryProvider())
+                                                        .getLocalStateDirectoryProvider()
+                                                        .orElseThrow(
+                                                                LocalRecoveryConfig
+                                                                        .localRecoveryNotEnabled()))
                                 : () ->
                                         createSimpleStream(
                                                 CheckpointedStateScope.EXCLUSIVE, streamFactory);

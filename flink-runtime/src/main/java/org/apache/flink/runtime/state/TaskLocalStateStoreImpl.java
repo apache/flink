@@ -43,6 +43,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
@@ -274,7 +275,10 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
 
                     // delete the local state subdirectory that belong to this subtask.
                     LocalRecoveryDirectoryProvider directoryProvider =
-                            localRecoveryConfig.getLocalStateDirectoryProvider();
+                            localRecoveryConfig
+                                    .getLocalStateDirectoryProvider()
+                                    .orElseThrow(LocalRecoveryConfig.localRecoveryNotEnabled());
+
                     for (int i = 0; i < directoryProvider.allocationBaseDirsCount(); ++i) {
                         File subtaskBaseDirectory = directoryProvider.selectSubtaskBaseDirectory(i);
                         try {
@@ -341,28 +345,34 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
                     discardEx);
         }
 
-        LocalRecoveryDirectoryProvider directoryProvider =
+        Optional<LocalRecoveryDirectoryProvider> directoryProviderOptional =
                 localRecoveryConfig.getLocalStateDirectoryProvider();
-        File checkpointDir = directoryProvider.subtaskSpecificCheckpointDirectory(checkpointID);
 
-        LOG.debug(
-                "Deleting local state directory {} of checkpoint {} for subtask ({} - {} - {}).",
-                checkpointDir,
-                checkpointID,
-                jobID,
-                jobVertexID,
-                subtaskIndex);
+        if (directoryProviderOptional.isPresent()) {
+            File checkpointDir =
+                    directoryProviderOptional
+                            .get()
+                            .subtaskSpecificCheckpointDirectory(checkpointID);
 
-        try {
-            deleteDirectory(checkpointDir);
-        } catch (IOException ex) {
-            LOG.warn(
-                    "Exception while deleting local state directory of checkpoint {} in subtask ({} - {} - {}).",
+            LOG.debug(
+                    "Deleting local state directory {} of checkpoint {} for subtask ({} - {} - {}).",
+                    checkpointDir,
                     checkpointID,
                     jobID,
                     jobVertexID,
-                    subtaskIndex,
-                    ex);
+                    subtaskIndex);
+
+            try {
+                deleteDirectory(checkpointDir);
+            } catch (IOException ex) {
+                LOG.warn(
+                        "Exception while deleting local state directory of checkpoint {} in subtask ({} - {} - {}).",
+                        checkpointID,
+                        jobID,
+                        jobVertexID,
+                        subtaskIndex,
+                        ex);
+            }
         }
     }
 

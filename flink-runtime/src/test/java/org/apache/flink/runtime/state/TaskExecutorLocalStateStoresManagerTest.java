@@ -43,6 +43,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.net.InetAddress;
 
+/** Test for {@link TaskExecutorLocalStateStoresManager}. */
 public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -140,6 +141,38 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testLocalStateNoCreateDirWhenDisabledLocalRecovery() throws Exception {
+        JobID jobID = new JobID();
+        JobVertexID jobVertexID = new JobVertexID();
+        AllocationID allocationID = new AllocationID();
+        int subtaskIdx = 23;
+
+        File[] rootDirs = {
+            temporaryFolder.newFolder(), temporaryFolder.newFolder(), temporaryFolder.newFolder()
+        };
+
+        boolean localRecoveryEnabled = false;
+        TaskExecutorLocalStateStoresManager storesManager =
+                new TaskExecutorLocalStateStoresManager(
+                        localRecoveryEnabled, rootDirs, Executors.directExecutor());
+
+        TaskLocalStateStore taskLocalStateStore =
+                storesManager.localStateStoreForSubtask(
+                        jobID, allocationID, jobVertexID, subtaskIdx);
+
+        Assert.assertFalse(taskLocalStateStore.getLocalRecoveryConfig().isLocalRecoveryEnabled());
+        Assert.assertNull(
+                taskLocalStateStore
+                        .getLocalRecoveryConfig()
+                        .getLocalStateDirectoryProvider()
+                        .orElse(null));
+
+        for (File recoveryDir : rootDirs) {
+            Assert.assertEquals(0, recoveryDir.listFiles().length);
+        }
+    }
+
     /**
      * This tests that the {@link TaskExecutorLocalStateStoresManager} creates {@link
      * TaskLocalStateStoreImpl} that have a properly initialized local state base directory. It also
@@ -164,7 +197,10 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
                         jobID, allocationID, jobVertexID, subtaskIdx);
 
         LocalRecoveryDirectoryProvider directoryProvider =
-                taskLocalStateStore.getLocalRecoveryConfig().getLocalStateDirectoryProvider();
+                taskLocalStateStore
+                        .getLocalRecoveryConfig()
+                        .getLocalStateDirectoryProvider()
+                        .orElseThrow(LocalRecoveryConfig.localRecoveryNotEnabled());
 
         for (int i = 0; i < 10; ++i) {
             Assert.assertEquals(
@@ -217,7 +253,10 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
                         jobID, otherAllocationID, jobVertexID, subtaskIdx);
 
         directoryProvider =
-                taskLocalStateStore.getLocalRecoveryConfig().getLocalStateDirectoryProvider();
+                taskLocalStateStore
+                        .getLocalRecoveryConfig()
+                        .getLocalStateDirectoryProvider()
+                        .orElseThrow(LocalRecoveryConfig.localRecoveryNotEnabled());
 
         File chkDir = directoryProvider.subtaskSpecificCheckpointDirectory(23L);
         Assert.assertTrue(chkDir.mkdirs());
