@@ -42,91 +42,6 @@ under the License.
 		<hive.avro.version>1.8.2</hive.avro.version>
 	</properties>
 
-	<!-- Overwrite hadoop dependency management from flink-parent to use locally defined Hadoop version -->
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>org.apache.hadoop</groupId>
-				<artifactId>hadoop-common</artifactId>
-				<version>${hivemetastore.hadoop.version}</version>
-				<exclusions>
-					<exclusion>
-						<groupId>log4j</groupId>
-						<artifactId>log4j</artifactId>
-					</exclusion>
-					<exclusion>
-						<groupId>org.slf4j</groupId>
-						<artifactId>slf4j-log4j12</artifactId>
-					</exclusion>
-				</exclusions>
-			</dependency>
-
-			<dependency>
-				<groupId>org.apache.hadoop</groupId>
-				<artifactId>hadoop-hdfs</artifactId>
-				<version>${hivemetastore.hadoop.version}</version>
-				<exclusions>
-					<exclusion>
-						<groupId>log4j</groupId>
-						<artifactId>log4j</artifactId>
-					</exclusion>
-					<exclusion>
-						<groupId>org.slf4j</groupId>
-						<artifactId>slf4j-log4j12</artifactId>
-					</exclusion>
-				</exclusions>
-			</dependency>
-
-			<dependency>
-				<groupId>org.apache.hadoop</groupId>
-				<artifactId>hadoop-mapreduce-client-core</artifactId>
-				<version>${hivemetastore.hadoop.version}</version>
-				<exclusions>
-					<exclusion>
-						<groupId>log4j</groupId>
-						<artifactId>log4j</artifactId>
-					</exclusion>
-					<exclusion>
-						<groupId>org.slf4j</groupId>
-						<artifactId>slf4j-log4j12</artifactId>
-					</exclusion>
-				</exclusions>
-			</dependency>
-
-			<dependency>
-				<groupId>org.apache.hadoop</groupId>
-				<artifactId>hadoop-yarn-common</artifactId>
-				<version>${hivemetastore.hadoop.version}</version>
-				<exclusions>
-					<exclusion>
-						<groupId>log4j</groupId>
-						<artifactId>log4j</artifactId>
-					</exclusion>
-					<exclusion>
-						<groupId>org.slf4j</groupId>
-						<artifactId>slf4j-log4j12</artifactId>
-					</exclusion>
-				</exclusions>
-			</dependency>
-
-			<dependency>
-				<groupId>org.apache.hadoop</groupId>
-				<artifactId>hadoop-yarn-client</artifactId>
-				<version>${hivemetastore.hadoop.version}</version>
-				<exclusions>
-					<exclusion>
-						<groupId>log4j</groupId>
-						<artifactId>log4j</artifactId>
-					</exclusion>
-					<exclusion>
-						<groupId>org.slf4j</groupId>
-						<artifactId>slf4j-log4j12</artifactId>
-					</exclusion>
-				</exclusions>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
-
 	<dependencies>
 
 		<!-- Table ecosystem -->
@@ -999,7 +914,6 @@ under the License.
 			<id>hive-1.0.1</id>
 			<properties>
 				<hive.version>1.0.1</hive.version>
-				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
 				<hiverunner.version>3.1.1</hiverunner.version>
 				<derby.version>10.10.1.1</derby.version>
 			</properties>
@@ -1027,7 +941,6 @@ under the License.
 			<id>hive-1.1.0</id>
 			<properties>
 				<hive.version>1.1.0</hive.version>
-				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
 				<hiverunner.version>3.1.1</hiverunner.version>
 				<derby.version>10.11.1.1</derby.version>
 			</properties>
@@ -1054,7 +967,6 @@ under the License.
 			<id>hive-1.2.1</id>
 			<properties>
 				<hive.version>1.2.1</hive.version>
-				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
 				<hiverunner.version>3.2.1</hiverunner.version>
 			</properties>
 			<dependencies>
@@ -1112,8 +1024,6 @@ under the License.
 			<properties>
 				<hive.version>3.1.1</hive.version>
 				<derby.version>10.14.1.0</derby.version>
-				<!-- need a hadoop version that fixes HADOOP-14683 -->
-				<hivemetastore.hadoop.version>2.8.2</hivemetastore.hadoop.version>
 			</properties>
 
 			<dependencyManagement>
@@ -1160,7 +1070,6 @@ under the License.
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-hdfs</artifactId>
-					<version>${hivemetastore.hadoop.version}</version>
 					<scope>test</scope>
 				</dependency>
 			</dependencies>
