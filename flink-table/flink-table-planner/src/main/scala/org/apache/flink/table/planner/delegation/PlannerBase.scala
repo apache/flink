@@ -386,7 +386,7 @@ abstract class PlannerBase(
         val catalog = toScala(catalogManager.getCatalog(objectIdentifier.getCatalogName))
         val isTemporary = lookupResult.isTemporary
 
-        if (isManagedTable(catalog.get, resolvedTable) &&
+        if (isStreamingMode && isManagedTable(catalog.get, resolvedTable) &&
           !executor.isCheckpointingEnabled) {
           throw new TableException(
             s"You should enable the checkpointing for sinking to managed table " +
