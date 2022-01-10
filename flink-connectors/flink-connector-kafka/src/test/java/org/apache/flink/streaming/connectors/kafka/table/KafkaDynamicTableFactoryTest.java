@@ -134,6 +134,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
     private static final Properties KAFKA_FINAL_SOURCE_PROPERTIES = new Properties();
     private static final Properties KAFKA_SINK_PROPERTIES = new Properties();
     private static final Properties KAFKA_FINAL_SINK_PROPERTIES = new Properties();
+    private static final int SOURCE_PARALLELISM = 1;
 
     static {
         KAFKA_SOURCE_PROPERTIES.setProperty("group.id", "dummy");
@@ -215,6 +216,41 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         StartupMode.SPECIFIC_OFFSETS,
                         specificOffsets,
                         0);
+        assertEquals(actualKafkaSource, expectedKafkaSource);
+
+        ScanTableSource.ScanRuntimeProvider provider =
+                actualKafkaSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+        assertKafkaSource(provider);
+    }
+
+    @Test
+    public void testTableSourceWithParallelism() {
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, getBasicSourceOptions());
+        final KafkaDynamicSource actualKafkaSource = (KafkaDynamicSource) actualSource;
+
+        final Map<KafkaTopicPartition, Long> specificOffsets = new HashMap<>();
+        specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_0), OFFSET_0);
+        specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_1), OFFSET_1);
+
+        final DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
+                new DecodingFormatMock(",", true);
+
+        // Test scan source equals
+        final KafkaDynamicSource expectedKafkaSource =
+                createExpectedScanSource(
+                        SCHEMA_DATA_TYPE,
+                        null,
+                        valueDecodingFormat,
+                        new int[0],
+                        new int[] {0, 1, 2},
+                        null,
+                        Collections.singletonList(TOPIC),
+                        null,
+                        KAFKA_SOURCE_PROPERTIES,
+                        StartupMode.SPECIFIC_OFFSETS,
+                        specificOffsets,
+                        0,
+                        SOURCE_PARALLELISM);
         assertEquals(actualKafkaSource, expectedKafkaSource);
 
         ScanTableSource.ScanRuntimeProvider provider =
@@ -912,7 +948,39 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                 FactoryMocks.IDENTIFIER.asSummaryString());
     }
 
-    private static KafkaDynamicSink createExpectedSink(
+    private static KafkaDynamicSource createExpectedScanSource(
+            DataType physicalDataType,
+            @Nullable DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
+            DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat,
+            int[] keyProjection,
+            int[] valueProjection,
+            @Nullable String keyPrefix,
+            @Nullable List<String> topics,
+            @Nullable Pattern topicPattern,
+            Properties properties,
+            StartupMode startupMode,
+            Map<KafkaTopicPartition, Long> specificStartupOffsets,
+            long startupTimestampMillis,
+            Integer sourceParallelism) {
+        return new KafkaDynamicSource(
+                physicalDataType,
+                keyDecodingFormat,
+                valueDecodingFormat,
+                keyProjection,
+                valueProjection,
+                keyPrefix,
+                topics,
+                topicPattern,
+                properties,
+                startupMode,
+                specificStartupOffsets,
+                startupTimestampMillis,
+                false,
+                FactoryMocks.IDENTIFIER.asSummaryString(),
+                sourceParallelism);
+
+
+        private static KafkaDynamicSink createExpectedSink(
             DataType physicalDataType,
             @Nullable EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat,
             EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat,
