@@ -109,6 +109,15 @@ public final class FactoryUtil {
                                     + "By default, if this option is not defined, the planner will derive the parallelism "
                                     + "for each statement individually by also considering the global configuration.");
 
+    public static final ConfigOption<Integer> SOURCE_PARALLELISM =
+            ConfigOptions.key("source.parallelism")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Defines a custom parallelism for the source. "
+                                    + "By default, if this option is not defined, the planner will derive the parallelism "
+                                    + "for each statement individually by also considering the global configuration.");
+
     /**
      * Suffix for keys of {@link ConfigOption} in case a connector requires multiple formats (e.g.
      * for both key and value).
@@ -168,7 +177,7 @@ public final class FactoryUtil {
      * <p>It considers {@link Catalog#getFactory()} if provided.
      *
      * @deprecated Use {@link #createDynamicTableSource(DynamicTableSourceFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, ReadableConfig, ClassLoader, boolean)} instead.
+     *         ResolvedCatalogTable, ReadableConfig, ClassLoader, boolean)} instead.
      */
     @Deprecated
     public static DynamicTableSource createTableSource(
@@ -237,7 +246,7 @@ public final class FactoryUtil {
      * <p>It considers {@link Catalog#getFactory()} if provided.
      *
      * @deprecated Use {@link #createDynamicTableSink(DynamicTableSinkFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, ReadableConfig, ClassLoader, boolean)} instead.
+     *         ResolvedCatalogTable, ReadableConfig, ClassLoader, boolean)} instead.
      */
     @Deprecated
     public static DynamicTableSink createTableSink(
@@ -776,12 +785,12 @@ public final class FactoryUtil {
         }
         // include all prefix keys of a map option by considering the actually provided keys
         return Stream.concat(
-                        staticKeys.stream(),
-                        staticKeys.stream()
-                                .flatMap(
-                                        k ->
-                                                actualKeys.stream()
-                                                        .filter(c -> filterPrefixMapKey(k, c))))
+                staticKeys.stream(),
+                staticKeys.stream()
+                        .flatMap(
+                                k ->
+                                        actualKeys.stream()
+                                                .filter(c -> filterPrefixMapKey(k, c))))
                 .collect(Collectors.toSet());
     }
 
@@ -938,8 +947,8 @@ public final class FactoryUtil {
          * as factory identifier.
          */
         public <I, F extends DecodingFormatFactory<I>>
-                Optional<DecodingFormat<I>> discoverOptionalDecodingFormat(
-                        Class<F> formatFactoryClass, ConfigOption<String> formatOption) {
+        Optional<DecodingFormat<I>> discoverOptionalDecodingFormat(
+                Class<F> formatFactoryClass, ConfigOption<String> formatOption) {
             return discoverOptionalFormatFactory(formatFactoryClass, formatOption)
                     .map(
                             formatFactory -> {
@@ -978,8 +987,8 @@ public final class FactoryUtil {
          * as factory identifier.
          */
         public <I, F extends EncodingFormatFactory<I>>
-                Optional<EncodingFormat<I>> discoverOptionalEncodingFormat(
-                        Class<F> formatFactoryClass, ConfigOption<String> formatOption) {
+        Optional<EncodingFormat<I>> discoverOptionalEncodingFormat(
+                Class<F> formatFactoryClass, ConfigOption<String> formatOption) {
             return discoverOptionalFormatFactory(formatFactoryClass, formatOption)
                     .map(
                             formatFactory -> {

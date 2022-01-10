@@ -108,6 +108,9 @@ public class KafkaConnectorOptions {
 
     public static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
 
+    // kafka source parallelism
+    public static final ConfigOption<Integer> SOURCE_PARALLELISM = FactoryUtil.SOURCE_PARALLELISM;
+
     // --------------------------------------------------------------------------------------------
     // Kafka specific options
     // --------------------------------------------------------------------------------------------

@@ -99,12 +99,20 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
                         JavaScalaConversionUtil.toScala(Optional.ofNullable(this.condition)),
                         retainHeader,
                         getClass().getSimpleName());
+
+        // update calc operator parallelism to default parallelism
+        int parallelism = inputTransform.getParallelism();
+        int defaultParallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+        if (parallelism != defaultParallelism) {
+            parallelism = defaultParallelism;
+        }
+
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
                 getOperatorName(planner.getTableConfig()),
                 getOperatorDescription(planner.getTableConfig()),
                 substituteStreamOperator,
                 InternalTypeInfo.of(getOutputType()),
-                inputTransform.getParallelism());
+                parallelism);
     }
 }

@@ -145,6 +145,11 @@ public class KafkaDynamicSource
     /** Flag to determine source mode. In upsert mode, it will keep the tombstone message. * */
     protected final boolean upsertMode;
 
+    /**
+     * Defines a custom parallelism for kafka source.
+     */
+    protected @Nullable Integer sourceParallelism;
+
     protected final String tableIdentifier;
 
     public KafkaDynamicSource(
@@ -161,7 +166,8 @@ public class KafkaDynamicSource
             Map<KafkaTopicPartition, Long> specificStartupOffsets,
             long startupTimestampMillis,
             boolean upsertMode,
-            String tableIdentifier) {
+            String tableIdentifier,
+            Integer sourceParallelism) {
         // Format attributes
         this.physicalDataType =
                 Preconditions.checkNotNull(
@@ -195,6 +201,8 @@ public class KafkaDynamicSource
         this.startupTimestampMillis = startupTimestampMillis;
         this.upsertMode = upsertMode;
         this.tableIdentifier = tableIdentifier;
+        Preconditions.checkArgument(parallelism >= 1, "source.parallelism must be at least 1.");
+        this.sourceParallelism = sourceParallelism;
     }
 
     @Override
@@ -222,8 +230,17 @@ public class KafkaDynamicSource
                 if (watermarkStrategy == null) {
                     watermarkStrategy = WatermarkStrategy.noWatermarks();
                 }
-                return execEnv.fromSource(
+
+                DataStreamSource<RowData> dataDataStreamSource = execEnv.fromSource(
                         kafkaSource, watermarkStrategy, "KafkaSource-" + tableIdentifier);
+                int globalParallelism = execEnv.getParallelism();
+
+                // check source.parallelism is set
+                // check source.parallelism not equal global parallelism
+                if (sourceParallelism != null && sourceParallelism != globalParallelism) {
+                    dataDataStreamSource.setParallelism(sourceParallelism);
+                }
+                return dataDataStreamSource;
             }
 
             @Override
@@ -341,7 +358,8 @@ public class KafkaDynamicSource
                 && startupTimestampMillis == that.startupTimestampMillis
                 && Objects.equals(upsertMode, that.upsertMode)
                 && Objects.equals(tableIdentifier, that.tableIdentifier)
-                && Objects.equals(watermarkStrategy, that.watermarkStrategy);
+                && Objects.equals(watermarkStrategy, that.watermarkStrategy)
+                && Objects.equals(sourceParallelism, that.sourceParallelism);
     }
 
     @Override
@@ -363,7 +381,8 @@ public class KafkaDynamicSource
                 startupTimestampMillis,
                 upsertMode,
                 tableIdentifier,
-                watermarkStrategy);
+                watermarkStrategy,
+                sourceParallelism);
     }
 
     // --------------------------------------------------------------------------------------------
