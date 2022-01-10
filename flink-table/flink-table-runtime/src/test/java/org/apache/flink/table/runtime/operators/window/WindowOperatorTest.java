@@ -1012,7 +1012,7 @@ public class WindowOperatorTest {
                         .triggering(
                                 EventTimeTriggers.afterEndOfWindow()
                                         .withEarlyFirings(
-                                                ProcessingTimeTriggers.every(
+                                                ProcessingTimeTriggers.after(
                                                         Duration.ofSeconds(1))))
                         .produceUpdates()
                         .aggregate(
@@ -1161,7 +1161,7 @@ public class WindowOperatorTest {
                         .triggering(
                                 EventTimeTriggers.afterEndOfWindow()
                                         .withEarlyFirings(
-                                                ProcessingTimeTriggers.every(Duration.ofSeconds(1)))
+                                                ProcessingTimeTriggers.after(Duration.ofSeconds(1)))
                                         .withLateFirings(ElementTriggers.every()))
                         .withAllowedLateness(Duration.ofSeconds(3))
                         .produceUpdates()

@@ -38,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *       ProcessingTimeTriggers#afterEndOfWindow()}),
  *   <li>fire when the processing time advances by a certain interval after reception of the first
  *       element after the last firing for a given window ({@link
- *       ProcessingTimeTriggers#every(Duration)}).
+ *       ProcessingTimeTriggers#after(Duration)}).
  * </ul>
  *
  * <p>In the first case, the trigger can also specify an <tt>early</tt> trigger. The <tt>early
@@ -59,33 +59,33 @@ public class ProcessingTimeTriggers {
     }
 
     /**
-     * Creates a trigger that fires by a certain interval after reception of the first element.
+     * Creates a trigger that fires by a certain interval when first element comes after last
+     * trigger.
      *
      * @param time the certain interval
      */
-    public static <W extends Window> AfterFirstElementPeriodic<W> every(Duration time) {
-        return new AfterFirstElementPeriodic<>(time.toMillis());
+    public static <W extends Window> AfterFirstElement<W> after(Duration time) {
+        return new AfterFirstElement<>(time.toMillis());
     }
 
     /**
-     * Trigger every a given interval, the first trigger time is interval after the first element in
-     * the pane.
+     * Trigger fires by a certain interval when first element comes after last trigger.
      *
      * @param <W> type of window
      */
-    public static final class AfterFirstElementPeriodic<W extends Window> extends WindowTrigger<W> {
+    public static final class AfterFirstElement<W extends Window> extends WindowTrigger<W> {
 
         private static final long serialVersionUID = -4710472821577125673L;
 
         private final long interval;
         private final ReducingStateDescriptor<Long> nextFiringStateDesc;
 
-        AfterFirstElementPeriodic(long interval) {
+        AfterFirstElement(long interval) {
             checkArgument(interval > 0);
             this.interval = interval;
             this.nextFiringStateDesc =
                     new ReducingStateDescriptor<>(
-                            "processingTime-every-" + interval, new Min(), LongSerializer.INSTANCE);
+                            "processingTime-after-" + interval, new Min(), LongSerializer.INSTANCE);
         }
 
         @Override
@@ -109,10 +109,8 @@ public class ProcessingTimeTriggers {
             ReducingState<Long> nextFiring = ctx.getPartitionedState(nextFiringStateDesc);
             Long timer = nextFiring.get();
             if (timer != null && timer == time) {
-                long newTimer = time + interval;
-                ctx.registerProcessingTimeTimer(newTimer);
+                // trigger and clear the state
                 nextFiring.clear();
-                nextFiring.add(newTimer);
                 return true;
             } else {
                 return false;
@@ -152,7 +150,7 @@ public class ProcessingTimeTriggers {
 
         @Override
         public String toString() {
-            return "ProcessingTime.every(" + interval + ")";
+            return "ProcessingTime.after(" + interval + ")";
         }
 
         private static class Min implements ReduceFunction<Long> {

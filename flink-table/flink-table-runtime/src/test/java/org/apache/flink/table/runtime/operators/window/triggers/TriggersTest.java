@@ -18,6 +18,10 @@
 
 package org.apache.flink.table.runtime.operators.window.triggers;
 
+import org.apache.flink.table.runtime.operators.window.TimeWindow;
+import org.apache.flink.table.runtime.operators.window.Window;
+
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -35,27 +39,27 @@ public class TriggersTest {
         trigger =
                 EventTimeTriggers.afterEndOfWindow()
                         .withEarlyFirings(ElementTriggers.every())
-                        .withLateFirings(ProcessingTimeTriggers.every(Duration.ofSeconds(1)));
+                        .withLateFirings(ProcessingTimeTriggers.after(Duration.ofSeconds(1)));
         expected =
                 "EventTime.afterEndOfWindow()"
                         + ".withEarlyFirings(Element.every())"
-                        + ".withLateFirings(ProcessingTime.every(1000))";
+                        + ".withLateFirings(ProcessingTime.after(1000))";
         assertThat(trigger.toString()).isEqualTo(expected);
         assertThat(trigger).isInstanceOf(EventTimeTriggers.AfterEndOfWindowEarlyAndLate.class);
 
         trigger =
                 EventTimeTriggers.afterEndOfWindow()
-                        .withEarlyFirings(ProcessingTimeTriggers.every(Duration.ofSeconds(1)))
+                        .withEarlyFirings(ProcessingTimeTriggers.after(Duration.ofSeconds(1)))
                         .withLateFirings(ElementTriggers.every());
-        expected = "EventTime.afterEndOfWindow().withEarlyFirings(ProcessingTime.every(1000))";
+        expected = "EventTime.afterEndOfWindow().withEarlyFirings(ProcessingTime.after(1000))";
         assertThat(trigger.toString()).isEqualTo(expected);
         assertThat(trigger).isInstanceOf(EventTimeTriggers.AfterEndOfWindowNoLate.class);
 
         // only periodic early trigger
         trigger =
                 EventTimeTriggers.afterEndOfWindow()
-                        .withEarlyFirings(ProcessingTimeTriggers.every(Duration.ofSeconds(1)));
-        expected = "EventTime.afterEndOfWindow().withEarlyFirings(ProcessingTime.every(1000))";
+                        .withEarlyFirings(ProcessingTimeTriggers.after(Duration.ofSeconds(1)));
+        expected = "EventTime.afterEndOfWindow().withEarlyFirings(ProcessingTime.after(1000))";
         assertThat(trigger.toString()).isEqualTo(expected);
         //noinspection ConstantConditions
         assertThat(trigger).isInstanceOf(EventTimeTriggers.AfterEndOfWindowNoLate.class);
@@ -70,8 +74,8 @@ public class TriggersTest {
         // only periodic late trigger
         trigger =
                 EventTimeTriggers.afterEndOfWindow()
-                        .withLateFirings(ProcessingTimeTriggers.every(Duration.ofMillis(1)));
-        expected = "EventTime.afterEndOfWindow().withLateFirings(ProcessingTime.every(1))";
+                        .withLateFirings(ProcessingTimeTriggers.after(Duration.ofMillis(1)));
+        expected = "EventTime.afterEndOfWindow().withLateFirings(ProcessingTime.after(1))";
         assertThat(trigger.toString()).isEqualTo(expected);
         assertThat(trigger).isInstanceOf(EventTimeTriggers.AfterEndOfWindowEarlyAndLate.class);
 
@@ -102,10 +106,37 @@ public class TriggersTest {
 
         trigger =
                 ProcessingTimeTriggers.afterEndOfWindow()
-                        .withEarlyFirings(ProcessingTimeTriggers.every(Duration.ofSeconds(1)));
-        expected = "ProcessingTime.afterEndOfWindow().withEarlyFirings(ProcessingTime.every(1000))";
+                        .withEarlyFirings(ProcessingTimeTriggers.after(Duration.ofSeconds(1)));
+        expected = "ProcessingTime.afterEndOfWindow().withEarlyFirings(ProcessingTime.after(1000))";
         assertThat(trigger.toString()).isEqualTo(expected);
         //noinspection ConstantConditions
         assertThat(trigger).isInstanceOf(ProcessingTimeTriggers.AfterEndOfWindowNoLate.class);
+    }
+
+    @Test
+    public void testAfterElementNonPeriodicTrigger() throws Exception {
+        ProcessingTimeTriggers.AfterFirstElement<Window> trigger =
+                ProcessingTimeTriggers.after(Duration.ofMillis(10));
+        TriggerTestHarness<Window> harness = new TriggerTestHarness<>(trigger);
+        Trigger.TriggerContext context = harness.getTriggerContext();
+        harness.advanceProcessingTime(0);
+        trigger.open(context);
+
+        Window window = TimeWindow.of(1, 10);
+        harness.setWindow(window);
+        // register trigger at processing time 10.
+        trigger.onElement(new Object(), 1, window);
+        Assert.assertEquals(1, harness.numProcessingTimeTimers());
+
+        // not register new timer when there is timer have not been fired.
+        trigger.onElement(new Object(), 2, window);
+        Assert.assertEquals(1, harness.numProcessingTimeTimers());
+
+        // trigger the timer at 10
+        harness.advanceProcessingTime(10);
+        // no repeat timer registered
+        Assert.assertEquals(0, harness.numProcessingTimeTimers());
+        // the timer state cleaned
+        Assert.assertEquals(0, harness.numStateEntries());
     }
 }
