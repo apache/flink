@@ -23,7 +23,6 @@ import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -35,7 +34,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * JSON serializer for {@link LogicalType}.
+ * JSON serializer for {@link DataType}.
  *
  * @see DataTypeJsonDeserializer for the reverse operation
  */

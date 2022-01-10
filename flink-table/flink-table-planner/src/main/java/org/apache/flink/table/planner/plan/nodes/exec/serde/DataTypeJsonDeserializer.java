@@ -98,8 +98,8 @@ public class DataTypeJsonDeserializer extends StdDeserializer<DataType> {
     }
 
     private static DataType deserializeClass(
-            LogicalType logicalType, @Nullable JsonNode classNode, SerdeContext serdeContext) {
-        if (classNode == null) {
+            LogicalType logicalType, @Nullable JsonNode parentNode, SerdeContext serdeContext) {
+        if (parentNode == null) {
             return DataTypes.of(logicalType).toInternal();
         }
 
@@ -110,7 +110,7 @@ public class DataTypeJsonDeserializer extends StdDeserializer<DataType> {
                 final DataType elementDataType =
                         deserializeClass(
                                 logicalType.getChildren().get(0),
-                                classNode.get(FIELD_NAME_ELEMENT_CLASS),
+                                parentNode.get(FIELD_NAME_ELEMENT_CLASS),
                                 serdeContext);
                 dataType = new CollectionDataType(logicalType, elementDataType);
                 break;
@@ -120,12 +120,12 @@ public class DataTypeJsonDeserializer extends StdDeserializer<DataType> {
                 final DataType keyDataType =
                         deserializeClass(
                                 mapType.getKeyType(),
-                                classNode.get(FIELD_NAME_KEY_CLASS),
+                                parentNode.get(FIELD_NAME_KEY_CLASS),
                                 serdeContext);
                 final DataType valueDataType =
                         deserializeClass(
                                 mapType.getValueType(),
-                                classNode.get(FIELD_NAME_VALUE_CLASS),
+                                parentNode.get(FIELD_NAME_VALUE_CLASS),
                                 serdeContext);
                 dataType = new KeyValueDataType(mapType, keyDataType, valueDataType);
                 break;
@@ -135,7 +135,7 @@ public class DataTypeJsonDeserializer extends StdDeserializer<DataType> {
                 final List<String> fieldNames = LogicalTypeChecks.getFieldNames(logicalType);
                 final List<LogicalType> fieldTypes = LogicalTypeChecks.getFieldTypes(logicalType);
 
-                final ArrayNode fieldNodes = (ArrayNode) classNode.get(FIELD_NAME_FIELDS);
+                final ArrayNode fieldNodes = (ArrayNode) parentNode.get(FIELD_NAME_FIELDS);
                 final Map<String, JsonNode> fieldNodesByName = new HashMap<>();
                 if (fieldNodes != null) {
                     fieldNodes.forEach(
@@ -163,7 +163,7 @@ public class DataTypeJsonDeserializer extends StdDeserializer<DataType> {
 
             case DISTINCT_TYPE:
                 final DistinctType distinctType = (DistinctType) logicalType;
-                dataType = deserializeClass(distinctType.getSourceType(), classNode, serdeContext);
+                dataType = deserializeClass(distinctType.getSourceType(), parentNode, serdeContext);
                 break;
 
             default:
@@ -172,7 +172,7 @@ public class DataTypeJsonDeserializer extends StdDeserializer<DataType> {
 
         final Class<?> conversionClass =
                 loadClass(
-                        classNode.get(FIELD_NAME_CONVERSION_CLASS).asText(),
+                        parentNode.get(FIELD_NAME_CONVERSION_CLASS).asText(),
                         serdeContext,
                         String.format("conversion class of data type '%s'", dataType));
         return dataType.bridgedTo(conversionClass);
