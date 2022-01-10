@@ -108,11 +108,18 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
                         keyedStateHandles, new KeyGroupRange(3, 6)));
 
         // both keyedStateHandle2 & keyedStateHandle3's key-group range satisfies the overlap
-        // fraction, but keyedStateHandle3's overlap fraction is better.
+        // fraction, but keyedStateHandle3's key group range is better.
         Assert.assertEquals(
                 keyedStateHandle3,
                 RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
                         keyedStateHandles, new KeyGroupRange(5, 12)));
+
+        // The intersect key group number of keyedStateHandle2 & keyedStateHandle3's with [4, 11]
+        // are 4. But the over fraction of keyedStateHandle2 is better.
+        Assert.assertEquals(
+                keyedStateHandle2,
+                RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
+                        keyedStateHandles, new KeyGroupRange(4, 11)));
 
         // both keyedStateHandle2 & keyedStateHandle3's key-group range are covered by [3, 12],
         // but this should choose the keyedStateHandle3, because keyedStateHandle3's key-group is
