@@ -54,6 +54,28 @@ import java.util.Set;
 @PublicEvolving
 public interface DynamicTableFactory extends Factory {
 
+    /**
+     * Returns a set of {@link ConfigOption} that are directly forwarded to the runtime
+     * implementation but don't affect the final execution topology.
+     *
+     * <p>Options declared here can override options of the persisted plan during an enrichment
+     * phase. Since a restored topology is static, an implementer has to ensure that the declared
+     * options don't affect fundamental abilities such as {@link SupportsProjectionPushDown} or
+     * {@link SupportsFilterPushDown}.
+     *
+     * <p>For example, given a database connector, if an option defines the connection timeout,
+     * changing this value does not affect the pipeline topology and can be allowed. However, an
+     * option that defines whether the connector supports {@link SupportsReadingMetadata} or not is
+     * not allowed. The planner might not react to changed abilities anymore.
+     *
+     * @see DynamicTableFactory.Context#getEnrichmentOptions()
+     * @see TableFactoryHelper#getOptions()
+     * @see FormatFactory#forwardOptions()
+     */
+    default Set<ConfigOption<?>> forwardOptions() {
+        return Collections.emptySet();
+    }
+
     /** Provides catalog and session information describing the dynamic table to be accessed. */
     @PublicEvolving
     interface Context {
@@ -88,20 +110,20 @@ public interface DynamicTableFactory extends Factory {
          * Returns a map of options that can enrich the options of the original {@link
          * #getCatalogTable()} during a plan restore.
          *
-         * <p>By default, the options persisted in the plan are used to reconstruct the {@link
-         * #getCatalogTable()} if available. This method always the options retrieved from the
-         * {@link Catalog}. If and only if {@code table.plan.restore.catalog-objects} is set to
-         * {@code ALL}, there might be information from both the plan and a catalog lookup. Only the
-         * {@link DynamicTableFactory} is able to decide which options are safe to be forwarded
-         * without affecting the original topology.
+         * <p>If and only if {@code table.plan.restore.catalog-objects} is set to {@code ALL}, this
+         * method may return a non-empty {@link Map} of options retrieved from the {@link Catalog}.
+         *
+         * <p>Because only the {@link DynamicTableFactory} is able to decide which options are safe
+         * to be forwarded without affecting the original topology, these options are exposed
+         * through this method. In general, it's highly recommended using the {@link
+         * FactoryUtil#createTableFactoryHelper(DynamicTableFactory, Context)} to merge the options
+         * and then get the result with {@link TableFactoryHelper#getOptions()}. The helper
+         * considers both {@link #forwardOptions()} and formats {@link
+         * FormatFactory#forwardOptions()} as well.
          *
          * <p>Since a restored topology is static, an implementer has to ensure that the declared
          * options don't affect fundamental abilities. The planner might not react to changed
          * abilities anymore.
-         *
-         * <p>It's highly recommended using the {@link TableFactoryHelper#forwardOptions()} to merge
-         * the options and then get the result with {@link TableFactoryHelper#getOptions()}. The
-         * helper considers {@link #forwardOptions()} and formats.
          *
          * @see TableFactoryHelper
          */
@@ -163,27 +185,5 @@ public interface DynamicTableFactory extends Factory {
         default int[] getPrimaryKeyIndexes() {
             return getCatalogTable().getResolvedSchema().getPrimaryKeyIndexes();
         }
-    }
-
-    /**
-     * Returns a set of {@link ConfigOption} that are directly forwarded to the runtime
-     * implementation but don't affect the final execution topology.
-     *
-     * <p>Options declared here can override options of the persisted plan during an enrichment
-     * phase. Since a restored topology is static, an implementer has to ensure that the declared
-     * options don't affect fundamental abilities such as {@link SupportsProjectionPushDown} or
-     * {@link SupportsFilterPushDown}.
-     *
-     * <p>For example, given a database connector, if an option defines the connection timeout,
-     * changing this value does not affect the pipeline topology and can be allowed. However, an
-     * option that defines whether the connector supports {@link SupportsReadingMetadata} or not is
-     * not allowed. The planner might not react to changed abilities anymore.
-     *
-     * @see DynamicTableFactory.Context#getEnrichmentOptions()
-     * @see TableFactoryHelper#forwardOptions()
-     * @see FormatFactory#forwardOptions()
-     */
-    default Set<ConfigOption<?>> forwardOptions() {
-        return Collections.emptySet();
     }
 }

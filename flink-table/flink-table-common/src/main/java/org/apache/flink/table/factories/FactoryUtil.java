@@ -350,7 +350,8 @@ public final class FactoryUtil {
     }
 
     /**
-     * Creates a utility that helps in discovering formats and validating all options for a {@link
+     * Creates a utility that helps in discovering formats, merging options with {@link
+     * DynamicTableFactory.Context#getEnrichmentOptions()} and validating them all for a {@link
      * DynamicTableFactory}.
      *
      * <p>The following example sketches the usage:
@@ -376,7 +377,10 @@ public final class FactoryUtil {
      * 'value.format', then the format prefix is 'value.json'. The format prefix is used to project
      * the options for the format factory.
      *
-     * <p>Note: This utility checks for left-over options in the final step.
+     * <p>Note: When created, this utility merges the options from {@link
+     * DynamicTableFactory.Context#getEnrichmentOptions()} using {@link
+     * DynamicTableFactory#forwardOptions()}. When invoking {@link TableFactoryHelper#validate()},
+     * this utility checks for left-over options in the final step.
      */
     public static TableFactoryHelper createTableFactoryHelper(
             DynamicTableFactory factory, DynamicTableFactory.Context context) {
@@ -987,20 +991,17 @@ public final class FactoryUtil {
                     CONNECTOR);
             this.context = context;
             this.enrichingOptions = Configuration.fromMap(context.getEnrichmentOptions());
+            this.forwardOptions();
         }
 
         /**
-         * Forwards the options declared in {@link DynamicTableFactory#forwardOptions()} and
-         * possibly {@link FormatFactory#forwardOptions()} from {@link
-         * DynamicTableFactory.Context#getEnrichmentOptions()} to the final options, if present.
+         * Returns all options currently being consumed by the factory. This method returns the
+         * options already merged with {@link DynamicTableFactory.Context#getEnrichmentOptions()},
+         * using {@link DynamicTableFactory#forwardOptions()} as reference of mergeable options.
          */
-        @SuppressWarnings({"unchecked"})
-        public void forwardOptions() {
-            for (ConfigOption<?> option : factory.forwardOptions()) {
-                enrichingOptions
-                        .getOptional(option)
-                        .ifPresent(o -> allOptions.set((ConfigOption<? super Object>) option, o));
-            }
+        @Override
+        public ReadableConfig getOptions() {
+            return super.getOptions();
         }
 
         /**
@@ -1086,6 +1087,20 @@ public final class FactoryUtil {
         }
 
         // ----------------------------------------------------------------------------------------
+
+        /**
+         * Forwards the options declared in {@link DynamicTableFactory#forwardOptions()} and
+         * possibly {@link FormatFactory#forwardOptions()} from {@link
+         * DynamicTableFactory.Context#getEnrichmentOptions()} to the final options, if present.
+         */
+        @SuppressWarnings({"unchecked"})
+        private void forwardOptions() {
+            for (ConfigOption<?> option : factory.forwardOptions()) {
+                enrichingOptions
+                        .getOptional(option)
+                        .ifPresent(o -> allOptions.set((ConfigOption<? super Object>) option, o));
+            }
+        }
 
         private <F extends Factory> Optional<F> discoverOptionalFormatFactory(
                 Class<F> formatFactoryClass, ConfigOption<String> formatOption) {

@@ -404,8 +404,6 @@ public class FactoryUtilTest {
                         new TestDynamicTableFactory(),
                         FactoryMocks.createTableContext(SCHEMA, options, enrichment));
 
-        helper.forwardOptions();
-
         helper.validate();
 
         assertThat(helper.getOptions().get(TestDynamicTableFactory.TARGET)).isEqualTo("abc");
@@ -444,9 +442,6 @@ public class FactoryUtilTest {
                 FactoryUtil.createTableFactoryHelper(
                         new TestDynamicTableFactory(),
                         FactoryMocks.createTableContext(SCHEMA, options, enrichment));
-
-        // Forward table options
-        helper.forwardOptions();
 
         // Get resulting format mocks from key and value
         // Note: the only forwardable option for the test format is the delimiter
@@ -552,8 +547,6 @@ public class FactoryUtilTest {
                 FactoryUtil.createTableFactoryHelper(
                         new TestDynamicTableFactory(),
                         FactoryMocks.createTableContext(SCHEMA, options));
-
-        helper.forwardOptions();
 
         helper.validate();
 

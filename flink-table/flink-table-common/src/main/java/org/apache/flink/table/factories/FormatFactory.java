@@ -45,7 +45,6 @@ public interface FormatFactory extends Factory {
      * anymore.
      *
      * @see DynamicTableFactory.Context#getEnrichmentOptions()
-     * @see FactoryUtil.TableFactoryHelper#forwardOptions()
      */
     default Set<ConfigOption<?>> forwardOptions() {
         return Collections.emptySet();

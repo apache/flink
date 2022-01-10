@@ -160,8 +160,6 @@ public class KafkaDynamicTableFactory
     public DynamicTableSource createDynamicTableSource(Context context) {
         final TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
 
-        helper.forwardOptions();
-
         final Optional<DecodingFormat<DeserializationSchema<RowData>>> keyDecodingFormat =
                 getKeyDecodingFormat(helper);
 
@@ -220,8 +218,6 @@ public class KafkaDynamicTableFactory
         final TableFactoryHelper helper =
                 FactoryUtil.createTableFactoryHelper(
                         this, autoCompleteSchemaRegistrySubject(context));
-
-        helper.forwardOptions();
 
         final Optional<EncodingFormat<SerializationSchema<RowData>>> keyEncodingFormat =
                 getKeyEncodingFormat(helper);
