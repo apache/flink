@@ -68,13 +68,16 @@ public class RowDataToJsonConverters implements Serializable {
     /** The string literal when handling mode for map null key LITERAL. is */
     private final String mapNullKeyLiteral;
 
+    private final boolean encodeNonNull;
+
     public RowDataToJsonConverters(
             TimestampFormat timestampFormat,
             JsonFormatOptions.MapNullKeyMode mapNullKeyMode,
-            String mapNullKeyLiteral) {
+            String mapNullKeyLiteral, boolean encodeNonNull) {
         this.timestampFormat = timestampFormat;
         this.mapNullKeyMode = mapNullKeyMode;
         this.mapNullKeyLiteral = mapNullKeyLiteral;
+        this.encodeNonNull = encodeNonNull;
     }
 
     /**
@@ -331,9 +334,14 @@ public class RowDataToJsonConverters implements Serializable {
                 String fieldName = fieldNames[i];
                 try {
                     Object field = fieldGetters[i].getFieldOrNull(row);
-                    node.set(
-                            fieldName,
-                            fieldConverters[i].convert(mapper, node.get(fieldName), field));
+                    JsonNode fieldValue = fieldConverters[i].convert(
+                            mapper,
+                            node.get(fieldName),
+                            field);
+                    if (encodeNonNull && fieldValue.isNull()) {
+                        continue;
+                    }
+                    node.set(fieldName, fieldValue);
                 } catch (Throwable t) {
                     throw new RuntimeException(
                             String.format("Fail to serialize at field: %s.", fieldName), t);

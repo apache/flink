@@ -73,6 +73,14 @@ public class JsonFormatOptions {
                     .withDescription(
                             "Optional flag to specify whether to encode all decimals as plain numbers instead of possible scientific notations, false by default.");
 
+    public static final ConfigOption<Boolean> ENCODE_NON_NULL =
+            ConfigOptions.key("encode.non-null")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Optional flag to specify whether to ignore null field, false by default.");
+
+
     // --------------------------------------------------------------------------------------------
     // Enums
     // --------------------------------------------------------------------------------------------
