@@ -20,6 +20,8 @@ package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 
 import java.util.Collections;
 import java.util.Set;
@@ -28,7 +30,23 @@ import java.util.Set;
 @PublicEvolving
 public interface FormatFactory extends Factory {
 
-    /** Returns the list of {@link ConfigOption} that can be merged from the enriching table. */
+    /**
+     * Returns a set of {@link ConfigOption} that are directly forwarded to the runtime
+     * implementation but don't affect the final execution topology.
+     *
+     * <p>Options declared here can override options of the persisted plan during an enrichment
+     * phase. Since a restored topology is static, an implementer has to ensure that the declared
+     * options don't affect fundamental abilities such as {@link ChangelogMode}.
+     *
+     * <p>For example, given a JSON format, if an option defines how to parse timestamps, changing
+     * the parsing behavior does not affect the pipeline topology and can be allowed. However, an
+     * option that defines whether the format results in a {@link ProjectableDecodingFormat} or not
+     * is not allowed. The wrapping connector and planner might not react to the changed abilities
+     * anymore.
+     *
+     * @see DynamicTableFactory.Context#getEnrichmentOptions()
+     * @see FactoryUtil.TableFactoryHelper#forwardOptions()
+     */
     default Set<ConfigOption<?>> forwardOptions() {
         return Collections.emptySet();
     }

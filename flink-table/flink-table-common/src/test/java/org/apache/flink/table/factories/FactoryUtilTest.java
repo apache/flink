@@ -404,8 +404,7 @@ public class FactoryUtilTest {
                         new TestDynamicTableFactory(),
                         FactoryMocks.createTableContext(SCHEMA, options, enrichment));
 
-        helper.forwardOptions(
-                TestDynamicTableFactory.BUFFER_SIZE, TestDynamicTableFactory.PASSWORD);
+        helper.forwardOptions();
 
         helper.validate();
 
@@ -447,8 +446,7 @@ public class FactoryUtilTest {
                         FactoryMocks.createTableContext(SCHEMA, options, enrichment));
 
         // Forward table options
-        helper.forwardOptions(
-                TestDynamicTableFactory.BUFFER_SIZE, TestDynamicTableFactory.PASSWORD);
+        helper.forwardOptions();
 
         // Get resulting format mocks from key and value
         // Note: the only forwardable option for the test format is the delimiter
@@ -555,8 +553,7 @@ public class FactoryUtilTest {
                         new TestDynamicTableFactory(),
                         FactoryMocks.createTableContext(SCHEMA, options));
 
-        helper.forwardOptions(
-                TestDynamicTableFactory.BUFFER_SIZE, TestDynamicTableFactory.PASSWORD);
+        helper.forwardOptions();
 
         helper.validate();
 

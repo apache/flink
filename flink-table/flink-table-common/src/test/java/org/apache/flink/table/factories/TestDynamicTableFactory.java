@@ -133,6 +133,14 @@ public final class TestDynamicTableFactory
         return options;
     }
 
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(BUFFER_SIZE);
+        options.add(PASSWORD);
+        return options;
+    }
+
     // --------------------------------------------------------------------------------------------
     // Table source
     // --------------------------------------------------------------------------------------------

@@ -669,7 +669,6 @@ public final class FactoryUtil {
     // Helper methods
     // --------------------------------------------------------------------------------------------
 
-    @SuppressWarnings("unchecked")
     private static <T extends DynamicTableFactory> T getDynamicTableFactory(
             Class<T> factoryClass, @Nullable Catalog catalog, DynamicTableFactory.Context context) {
         return getDynamicTableFactory(factoryClass, catalog)
@@ -991,17 +990,17 @@ public final class FactoryUtil {
         }
 
         /**
-         * Forward the provided {@code configOptions} from the {@link
+         * Forwards the options declared in {@link DynamicTableFactory#forwardOptions()} and
+         * possibly {@link FormatFactory#forwardOptions()} from {@link
          * DynamicTableFactory.Context#getEnrichmentOptions()} to the final options, if present.
          */
         @SuppressWarnings({"unchecked"})
-        public TableFactoryHelper forwardOptions(ConfigOption<?>... configOptions) {
-            for (ConfigOption<?> option : configOptions) {
+        public void forwardOptions() {
+            for (ConfigOption<?> option : factory.forwardOptions()) {
                 enrichingOptions
                         .getOptional(option)
                         .ifPresent(o -> allOptions.set((ConfigOption<? super Object>) option, o));
             }
-            return this;
         }
 
         /**

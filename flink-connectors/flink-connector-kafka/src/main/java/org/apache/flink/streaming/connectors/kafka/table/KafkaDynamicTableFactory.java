@@ -145,16 +145,22 @@ public class KafkaDynamicTableFactory
     }
 
     @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(TOPIC);
+        options.add(TOPIC_PATTERN);
+        options.add(SCAN_STARTUP_MODE);
+        options.add(SCAN_STARTUP_SPECIFIC_OFFSETS);
+        options.add(SCAN_TOPIC_PARTITION_DISCOVERY);
+        options.add(SCAN_STARTUP_TIMESTAMP_MILLIS);
+        return options;
+    }
+
+    @Override
     public DynamicTableSource createDynamicTableSource(Context context) {
         final TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
 
-        helper.forwardOptions(
-                TOPIC,
-                TOPIC_PATTERN,
-                SCAN_STARTUP_MODE,
-                SCAN_STARTUP_SPECIFIC_OFFSETS,
-                SCAN_TOPIC_PARTITION_DISCOVERY,
-                SCAN_STARTUP_TIMESTAMP_MILLIS);
+        helper.forwardOptions();
 
         final Optional<DecodingFormat<DeserializationSchema<RowData>>> keyDecodingFormat =
                 getKeyDecodingFormat(helper);
@@ -215,15 +221,7 @@ public class KafkaDynamicTableFactory
                 FactoryUtil.createTableFactoryHelper(
                         this, autoCompleteSchemaRegistrySubject(context));
 
-        final ReadableConfig tableOptions =
-                helper.forwardOptions(
-                                TOPIC,
-                                TOPIC_PATTERN,
-                                SCAN_STARTUP_MODE,
-                                SCAN_STARTUP_SPECIFIC_OFFSETS,
-                                SCAN_TOPIC_PARTITION_DISCOVERY,
-                                SCAN_STARTUP_TIMESTAMP_MILLIS)
-                        .getOptions();
+        helper.forwardOptions();
 
         final Optional<EncodingFormat<SerializationSchema<RowData>>> keyEncodingFormat =
                 getKeyEncodingFormat(helper);
@@ -232,6 +230,8 @@ public class KafkaDynamicTableFactory
                 getValueEncodingFormat(helper);
 
         helper.validateExcept(PROPERTIES_PREFIX);
+
+        final ReadableConfig tableOptions = helper.getOptions();
 
         final DeliveryGuarantee deliveryGuarantee = validateDeprecatedSemantic(tableOptions);
         validateTableSinkOptions(tableOptions);
