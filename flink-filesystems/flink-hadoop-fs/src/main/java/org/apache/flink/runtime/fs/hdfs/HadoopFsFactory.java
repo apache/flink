@@ -75,6 +75,12 @@ public class HadoopFsFactory implements FileSystemFactory {
         // from here on, we need to handle errors due to missing optional
         // dependency classes
         try {
+            // -- (0) set hadoop caller context
+
+            if (getCurrent() != null && flinkConfig != null) {
+                HadoopUtils.setCallerContext(getCurrent(), flinkConfig);
+            }
+
             // -- (1) get the loaded Hadoop config (or fall back to one loaded from the classpath)
 
             final org.apache.hadoop.conf.Configuration hadoopConfig;
@@ -223,5 +229,22 @@ public class HadoopFsFactory implements FileSystemFactory {
                     limitSettings.streamOpenTimeout,
                     limitSettings.streamInactivityTimeout);
         }
+    }
+
+    /**
+     * The thread local current caller context.
+     *
+     * <p>Internal class for defered singleton idiom.
+     */
+    private static final class CurrentCallerContextHolder {
+        static final ThreadLocal<String> CALLER_CONTEXT = new InheritableThreadLocal<>();
+    }
+
+    public static String getCurrent() {
+        return HadoopFsFactory.CurrentCallerContextHolder.CALLER_CONTEXT.get();
+    }
+
+    public static void setCurrent(String callerContext) {
+        HadoopFsFactory.CurrentCallerContextHolder.CALLER_CONTEXT.set(callerContext);
     }
 }

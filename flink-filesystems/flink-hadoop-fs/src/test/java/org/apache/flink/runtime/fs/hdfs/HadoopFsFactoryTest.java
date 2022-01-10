@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.fs.hdfs;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.hadoop.ipc.CallerContext;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -57,5 +59,21 @@ public class HadoopFsFactoryTest extends TestLogger {
         } catch (IOException e) {
             assertTrue(e.getMessage().contains("authority"));
         }
+    }
+
+    @Test
+    public void testCreateHadoopFsWithCallerContext() throws Exception {
+        String callerContextContent = "test_caller_context";
+        HadoopFsFactory.setCurrent(callerContextContent);
+        final URI uri = URI.create("hdfs://localhost:12345/");
+
+        HadoopFsFactory factory = new HadoopFsFactory();
+        factory.configure(new Configuration());
+        FileSystem fs = factory.create(uri);
+
+        assertEquals(uri.getScheme(), fs.getUri().getScheme());
+        assertEquals(uri.getAuthority(), fs.getUri().getAuthority());
+        assertEquals(uri.getPort(), fs.getUri().getPort());
+        assertEquals(CallerContext.getCurrent().getContext(), callerContextContent);
     }
 }

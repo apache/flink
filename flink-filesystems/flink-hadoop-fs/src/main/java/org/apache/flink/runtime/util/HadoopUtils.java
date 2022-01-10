@@ -26,6 +26,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.ipc.CallerContext;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
@@ -246,5 +247,37 @@ public class HadoopUtils {
             }
         }
         return foundHadoopConfiguration;
+    }
+
+    /**
+     * Set up the caller context [[callerContext]] by invoking Hadoop CallerContext API of
+     * [[org.apache.hadoop.ipc.CallerContext]], which was added in hadoop 2.8.
+     */
+    public static void setCallerContext(
+            String callerContext, org.apache.flink.configuration.Configuration flinkConfig) {
+        try {
+            callerContext = truncateCallerContext(callerContext, flinkConfig);
+            CallerContext.setCurrent(new CallerContext.Builder(callerContext).build());
+        } catch (Exception e) {
+            LOG.warn("Not supported CallerContext with exception: ", e);
+        }
+    }
+
+    /** Truncate callerContext for demand. */
+    private static String truncateCallerContext(
+            String callerContext, org.apache.flink.configuration.Configuration conf) {
+        // The default max size of Hadoop caller context is 128
+        int len = getHadoopConfiguration(conf).getInt("hadoop.caller.context.max.size", 128);
+        if (callerContext == null || callerContext.length() <= len) {
+            return callerContext;
+        } else {
+            String finalCallerContext = callerContext.substring(0, len);
+            LOG.warn(
+                    "Truncated Flink caller context from "
+                            + callerContext
+                            + " to "
+                            + finalCallerContext);
+            return finalCallerContext;
+        }
     }
 }
