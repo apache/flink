@@ -395,9 +395,9 @@ under the License.
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
-					<excludes>
-						<exclude>**/*TestBase*.class</exclude>
-					</excludes>
+					<includes>
+						<include>**/SavepointITCase.*</include>
+					</includes>
 					<classpathDependencyExcludes>
 						<classpathDependencyExclude>org.apache.curator:curator-recipes</classpathDependencyExclude>
 						<classpathDependencyExclude>org.apache.curator:curator-client</classpathDependencyExclude>

@@ -183,7 +183,7 @@ public class CommonTestUtils {
             throws Exception {
         waitForAllTaskRunning(
                 executionGraphSupplier,
-                Deadline.fromNow(Duration.of(1, ChronoUnit.MINUTES)),
+                Deadline.fromNow(Duration.of(10, ChronoUnit.MINUTES)),
                 allowFinished);
     }
 
