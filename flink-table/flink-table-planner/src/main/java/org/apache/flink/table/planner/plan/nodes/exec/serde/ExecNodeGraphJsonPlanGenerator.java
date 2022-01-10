@@ -23,11 +23,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
-import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
-import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
-import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLookupJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
@@ -71,7 +66,7 @@ public class ExecNodeGraphJsonPlanGenerator {
             throws IOException {
         final JsonPlanGraph jsonPlanGraph =
                 JsonSerdeUtil.createObjectReader(serdeCtx).readValue(jsonPlan, JsonPlanGraph.class);
-        return jsonPlanGraph.convertToExecNodeGraph(serdeCtx);
+        return jsonPlanGraph.convertToExecNodeGraph();
     }
 
     /** Check whether the given {@link ExecNodeGraph} is completely legal. */
@@ -173,7 +168,7 @@ public class ExecNodeGraphJsonPlanGenerator {
             return new JsonPlanGraph(execGraph.getFlinkVersion(), allNodes, allEdges);
         }
 
-        public ExecNodeGraph convertToExecNodeGraph(SerdeContext serdeCtx) {
+        public ExecNodeGraph convertToExecNodeGraph() {
             Map<Integer, ExecNode<?>> idToExecNodes = new HashMap<>();
             for (ExecNode<?> execNode : nodes) {
                 int id = execNode.getId();
@@ -182,34 +177,6 @@ public class ExecNodeGraphJsonPlanGenerator {
                             String.format(
                                     "The id: %s is not unique for ExecNode: %s.\nplease check it.",
                                     id, execNode.getDescription()));
-                }
-                if (execNode instanceof CommonExecTableSourceScan) {
-                    DynamicTableSourceSpec tableSourceSpec =
-                            ((CommonExecTableSourceScan) execNode).getTableSourceSpec();
-                    tableSourceSpec.setReadableConfig(serdeCtx.getConfiguration());
-                    tableSourceSpec.setClassLoader(serdeCtx.getClassLoader());
-                } else if (execNode instanceof CommonExecSink) {
-                    DynamicTableSinkSpec tableSinkSpec =
-                            ((CommonExecSink) execNode).getTableSinkSpec();
-                    tableSinkSpec.setReadableConfig(serdeCtx.getConfiguration());
-                    tableSinkSpec.setClassLoader(serdeCtx.getClassLoader());
-                } else if (execNode instanceof StreamExecLookupJoin) {
-                    StreamExecLookupJoin streamExecLookupJoin = (StreamExecLookupJoin) execNode;
-                    TemporalTableSourceSpec temporalTableSourceSpec =
-                            streamExecLookupJoin.getTemporalTableSourceSpec();
-                    if (null == temporalTableSourceSpec) {
-                        throw new TableException(
-                                "temporalTable can't be null, please check corresponding node.");
-                    }
-                    DynamicTableSourceSpec tableSourceSpec =
-                            temporalTableSourceSpec.getTableSourceSpec();
-                    if (null == tableSourceSpec) {
-                        throw new TableException(
-                                "tableSourceSpec can't be null, please check corresponding node.");
-                    }
-
-                    tableSourceSpec.setReadableConfig(serdeCtx.getConfiguration());
-                    tableSourceSpec.setClassLoader(serdeCtx.getClassLoader());
                 }
                 idToExecNodes.put(id, execNode);
             }

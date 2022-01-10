@@ -86,7 +86,10 @@ public final class TestDynamicTableFactory
         helper.validate();
 
         return new DynamicTableSourceMock(
-                helper.getOptions().get(TARGET), keyFormat.orElse(null), valueFormat);
+                helper.getOptions().get(TARGET),
+                helper.getOptions().getOptional(PASSWORD).orElse(null),
+                keyFormat.orElse(null),
+                valueFormat);
     }
 
     @Override
@@ -149,14 +152,17 @@ public final class TestDynamicTableFactory
     public static class DynamicTableSourceMock implements ScanTableSource {
 
         public final String target;
+        public final @Nullable String password;
         public final @Nullable DecodingFormat<DeserializationSchema<RowData>> keyFormat;
         public final DecodingFormat<DeserializationSchema<RowData>> valueFormat;
 
         DynamicTableSourceMock(
                 String target,
+                @Nullable String password,
                 @Nullable DecodingFormat<DeserializationSchema<RowData>> keyFormat,
                 DecodingFormat<DeserializationSchema<RowData>> valueFormat) {
             this.target = target;
+            this.password = password;
             this.keyFormat = keyFormat;
             this.valueFormat = valueFormat;
         }

@@ -48,9 +48,11 @@ import java.util.Set;
 public class TestCsvFormatFactory
         implements DeserializationFormatFactory, SerializationFormatFactory {
 
+    public static final String IDENTIFIER = "testcsv";
+
     @Override
     public String factoryIdentifier() {
-        return "testcsv";
+        return IDENTIFIER;
     }
 
     @Override
