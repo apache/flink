@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -62,6 +63,8 @@ public class KafkaCommitterTest {
             List<KafkaCommittable> recovered = committer.commit(committables);
             assertThat(recovered, contains(committables.toArray()));
             assertThat(recyclable.isRecycled(), equalTo(false));
+            // FLINK-25531: force the producer to close immediately, else it would take 1 hour
+            producer.close(Duration.ZERO);
         }
     }
 
