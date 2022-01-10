@@ -68,7 +68,7 @@ public class PubSubSourceEnumerator implements SplitEnumerator<PubSubSplit, PubS
      * @throws Exception
      */
     @Override
-    public PubSubEnumeratorState snapshotState() throws Exception {
+    public PubSubEnumeratorState snapshotState(long checkpointId) throws Exception {
         return new PubSubEnumeratorState();
     }
 
