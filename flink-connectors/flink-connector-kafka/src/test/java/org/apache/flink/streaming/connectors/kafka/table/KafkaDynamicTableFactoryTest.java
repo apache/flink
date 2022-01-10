@@ -134,7 +134,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
     private static final Properties KAFKA_FINAL_SOURCE_PROPERTIES = new Properties();
     private static final Properties KAFKA_SINK_PROPERTIES = new Properties();
     private static final Properties KAFKA_FINAL_SINK_PROPERTIES = new Properties();
-    private static final int SOURCE_PARALLELISM = 1;
+    private static final int SOURCE_PARALLELISM = 2;
 
     static {
         KAFKA_SOURCE_PROPERTIES.setProperty("group.id", "dummy");
