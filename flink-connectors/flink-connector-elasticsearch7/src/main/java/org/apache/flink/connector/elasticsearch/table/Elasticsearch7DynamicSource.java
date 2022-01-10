@@ -43,7 +43,7 @@ import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** A Elasticsearch {@link ScanTableSource}. */
+/** An Elasticsearch {@link ScanTableSource}. */
 @Internal
 public class Elasticsearch7DynamicSource implements ScanTableSource {
 

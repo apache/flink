@@ -47,8 +47,25 @@ import org.apache.flink.util.UserCodeClassLoader;
  * String</code> type.
  *
  * <pre>{@code
- * TODO: add example
+ * Elasticsearch7Source<String> source = new Elasticsearch7Source.builder()
+ *     .setHosts(new HttpHost("localhost:9200")
+ *     .setIndexName("my-index")
+ *     .setDeserializationSchema(new Elasticsearch7SearchHitDeserializationSchema<String>() {
+ *          @Override
+ *          public void deserialize(SearchHit record, Collector<String> out) throws IOException {
+ *              out.collect(record.getSourceAsString());
+ *          }
+ *
+ *          @Override
+ *          public TypeInformation<String> getProducedType() {
+ *              return TypeInformation.of(String.class);
+ *          }
+ *      })
+ *     .build();
  * }</pre>
+ *
+ * <p>The ElasticsearchSource runs in a {@link Boundedness#BOUNDED} mode and stops when the entire *
+ * index has been read.
  *
  * <p>See {@link Elasticsearch7SourceBuilder} for more details.
  *
