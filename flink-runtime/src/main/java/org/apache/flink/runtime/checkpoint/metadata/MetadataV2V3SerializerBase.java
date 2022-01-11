@@ -330,6 +330,8 @@ public abstract class MetadataV2V3SerializerBase {
             dos.writeInt(handle.getKeyGroupRange().getStartKeyGroup());
             dos.writeInt(handle.getKeyGroupRange().getNumberOfKeyGroups());
 
+            dos.writeLong(handle.getCheckpointedSize());
+
             dos.writeInt(handle.getMaterializedStateHandles().size());
             for (KeyedStateHandle k : handle.getMaterializedStateHandles()) {
                 serializeKeyedStateHandle(k, dos);
@@ -408,6 +410,8 @@ public abstract class MetadataV2V3SerializerBase {
             int numKeyGroups = dis.readInt();
             KeyGroupRange keyGroupRange =
                     KeyGroupRange.of(startKeyGroup, startKeyGroup + numKeyGroups - 1);
+            long checkpointedSize = dis.readLong();
+
             int baseSize = dis.readInt();
             List<KeyedStateHandle> base = new ArrayList<>(baseSize);
             for (int i = 0; i < baseSize; i++) {
@@ -422,7 +426,7 @@ public abstract class MetadataV2V3SerializerBase {
             long materializationID = dis.readLong();
 
             return new ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl(
-                    base, delta, keyGroupRange, materializationID);
+                    base, delta, keyGroupRange, materializationID, checkpointedSize);
 
         } else if (CHANGELOG_BYTE_INCREMENT_HANDLE == type) {
             int start = dis.readInt();

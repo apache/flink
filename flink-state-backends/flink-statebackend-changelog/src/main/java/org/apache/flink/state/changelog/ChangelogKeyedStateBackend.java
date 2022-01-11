@@ -425,20 +425,26 @@ public class ChangelogKeyedStateBackend<K>
         // collections don't change once started and handles are immutable
         List<ChangelogStateHandle> prevDeltaCopy =
                 new ArrayList<>(changelogStateBackendStateCopy.getRestoredNonMaterialized());
+        long persistedSizeOfThisCheckpoint = 0L;
         if (delta != null && delta.getStateSize() > 0) {
             prevDeltaCopy.add(delta);
+            persistedSizeOfThisCheckpoint += delta.getCheckpointedSize();
         }
 
         if (prevDeltaCopy.isEmpty()
                 && changelogStateBackendStateCopy.getMaterializedSnapshot().isEmpty()) {
             return SnapshotResult.empty();
         } else {
+            List<KeyedStateHandle> materializedSnapshot =
+                    changelogStateBackendStateCopy.getMaterializedSnapshot();
+
             return SnapshotResult.of(
                     new ChangelogStateBackendHandleImpl(
-                            changelogStateBackendStateCopy.getMaterializedSnapshot(),
+                            materializedSnapshot,
                             prevDeltaCopy,
                             getKeyGroupRange(),
-                            changelogStateBackendStateCopy.materializationID));
+                            changelogStateBackendStateCopy.materializationID,
+                            persistedSizeOfThisCheckpoint));
         }
     }
 

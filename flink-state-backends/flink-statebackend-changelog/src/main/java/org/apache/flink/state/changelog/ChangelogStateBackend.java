@@ -274,7 +274,8 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
                                                 singletonList(keyedStateHandle),
                                                 emptyList(),
                                                 keyedStateHandle.getKeyGroupRange(),
-                                                getMaterializationID(keyedStateHandle)))
+                                                getMaterializationID(keyedStateHandle),
+                                                0L))
                 .collect(Collectors.toList());
     }
 
