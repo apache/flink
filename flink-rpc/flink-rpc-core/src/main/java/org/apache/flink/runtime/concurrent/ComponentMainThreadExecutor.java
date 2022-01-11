@@ -35,6 +35,9 @@ public interface ComponentMainThreadExecutor extends ScheduledExecutor {
     /** Returns true if the method was called in the thread of this executor. */
     void assertRunningInMainThread();
 
+    /** Returns the scheduled executor for scheduled tasks. */
+    ScheduledExecutor getMainScheduledExecutor();
+
     /** Dummy implementation of ComponentMainThreadExecutor. */
     final class DummyComponentMainThreadExecutor implements ComponentMainThreadExecutor {
 
@@ -47,6 +50,11 @@ public interface ComponentMainThreadExecutor extends ScheduledExecutor {
 
         @Override
         public void assertRunningInMainThread() {
+            throw createException();
+        }
+
+        @Override
+        public ScheduledExecutor getMainScheduledExecutor() {
             throw createException();
         }
 

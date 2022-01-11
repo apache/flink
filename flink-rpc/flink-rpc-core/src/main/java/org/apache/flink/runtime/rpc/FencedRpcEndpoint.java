@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.MainScheduledExecutor;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -42,6 +43,7 @@ public abstract class FencedRpcEndpoint<F extends Serializable> extends RpcEndpo
     private final UnfencedMainThreadExecutor unfencedMainThreadExecutor;
     private volatile F fencingToken;
     private volatile MainThreadExecutor fencedMainThreadExecutor;
+    private volatile MainScheduledExecutor mainScheduledExecutor;
 
     protected FencedRpcEndpoint(
             RpcService rpcService, String endpointId, @Nullable F fencingToken) {
@@ -56,10 +58,16 @@ public abstract class FencedRpcEndpoint<F extends Serializable> extends RpcEndpo
         this.fencingToken = fencingToken;
         this.unfencedMainThreadExecutor =
                 new UnfencedMainThreadExecutor((FencedMainThreadExecutable) rpcServer);
+
+        MainThreadExecutable mainThreadExecutable =
+                getRpcService().fenceRpcServer(rpcServer, fencingToken);
+        this.mainScheduledExecutor = new MainScheduledExecutor(mainThreadExecutable);
         this.fencedMainThreadExecutor =
                 new MainThreadExecutor(
-                        getRpcService().fenceRpcServer(rpcServer, fencingToken),
-                        this::validateRunsInMainThread);
+                        mainThreadExecutable,
+                        this::validateRunsInMainThread,
+                        mainScheduledExecutor);
+        registerResource(this.mainScheduledExecutor);
     }
 
     protected FencedRpcEndpoint(RpcService rpcService, @Nullable F fencingToken) {
@@ -81,8 +89,19 @@ public abstract class FencedRpcEndpoint<F extends Serializable> extends RpcEndpo
         MainThreadExecutable mainThreadExecutable =
                 getRpcService().fenceRpcServer(rpcServer, newFencingToken);
 
+        if (this.mainScheduledExecutor != null) {
+            if (!unregisterResource(this.mainScheduledExecutor)) {
+                throw new RuntimeException("Unregister resource failed");
+            }
+            this.mainScheduledExecutor.close();
+        }
+        this.mainScheduledExecutor = new MainScheduledExecutor(mainThreadExecutable);
         this.fencedMainThreadExecutor =
-                new MainThreadExecutor(mainThreadExecutable, this::validateRunsInMainThread);
+                new MainThreadExecutor(
+                        mainThreadExecutable,
+                        this::validateRunsInMainThread,
+                        mainScheduledExecutor);
+        registerResource(this.mainScheduledExecutor);
     }
 
     /**

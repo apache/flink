@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.concurrent;
 
+import org.apache.flink.util.concurrent.ScheduledExecutor;
+
 /** Testing ComponentMainThreadExecutor which can be manually triggered. */
 public class ManuallyTriggeredComponentMainThreadExecutor
         extends ManuallyTriggeredScheduledExecutorService implements ComponentMainThreadExecutor {
@@ -31,6 +33,11 @@ public class ManuallyTriggeredComponentMainThreadExecutor
     @Override
     public void assertRunningInMainThread() {
         assert Thread.currentThread() == executorThread;
+    }
+
+    @Override
+    public ScheduledExecutor getMainScheduledExecutor() {
+        throw new UnsupportedOperationException();
     }
 
     @Override

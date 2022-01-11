@@ -87,6 +87,11 @@ public class ComponentMainThreadExecutorServiceAdapter implements ComponentMainT
     }
 
     @Override
+    public ScheduledExecutor getMainScheduledExecutor() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public ScheduledFuture<?> schedule(
             final Runnable command, final long delay, final TimeUnit unit) {
         return scheduledExecutor.schedule(command, delay, unit);
