@@ -194,5 +194,10 @@ public class StateHandleDummyUtil {
         public long getStateSize() {
             return 0L;
         }
+
+        @Override
+        public long getCheckpointedSize() {
+            return getStateSize();
+        }
     }
 }

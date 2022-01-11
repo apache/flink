@@ -64,6 +64,11 @@ public class DirectoryKeyedStateHandle implements KeyedStateHandle {
     }
 
     @Override
+    public long getCheckpointedSize() {
+        return getStateSize();
+    }
+
+    @Override
     public KeyedStateHandle getIntersection(KeyGroupRange otherKeyGroupRange) {
         return this.keyGroupRange.getIntersection(otherKeyGroupRange).getNumberOfKeyGroups() > 0
                 ? this

@@ -42,6 +42,8 @@ public class SubtaskStateStats implements Serializable {
     /** Size of the checkpointed state at this subtask. */
     private final long stateSize;
 
+    private final long checkpointedSize;
+
     /** Checkpoint duration at the operator (sync part) in milliseconds. */
     private final long syncCheckpointDuration;
 
@@ -65,12 +67,13 @@ public class SubtaskStateStats implements Serializable {
     private final boolean completed;
 
     SubtaskStateStats(int subtaskIndex, long ackTimestamp) {
-        this(subtaskIndex, ackTimestamp, 0, 0, 0, 0, 0, 0, 0, false, true);
+        this(subtaskIndex, ackTimestamp, 0, 0, 0, 0, 0, 0, 0, 0, false, true);
     }
 
     SubtaskStateStats(
             int subtaskIndex,
             long ackTimestamp,
+            long checkpointedSize,
             long stateSize,
             long syncCheckpointDuration,
             long asyncCheckpointDuration,
@@ -83,6 +86,8 @@ public class SubtaskStateStats implements Serializable {
 
         checkArgument(subtaskIndex >= 0, "Negative subtask index");
         this.subtaskIndex = subtaskIndex;
+        checkArgument(checkpointedSize >= 0, "Negative incremental state size");
+        this.checkpointedSize = checkpointedSize;
         checkArgument(stateSize >= 0, "Negative state size");
         this.stateSize = stateSize;
         this.ackTimestamp = ackTimestamp;
@@ -107,6 +112,15 @@ public class SubtaskStateStats implements Serializable {
      */
     public long getStateSize() {
         return stateSize;
+    }
+
+    /**
+     * Returns the incremental state size.
+     *
+     * @return The incremental state size.
+     */
+    public long getCheckpointedSize() {
+        return checkpointedSize;
     }
 
     /**

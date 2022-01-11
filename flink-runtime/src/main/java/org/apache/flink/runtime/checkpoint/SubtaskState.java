@@ -34,7 +34,10 @@ import java.util.Arrays;
 /**
  * Container for the chained state of one parallel subtask of an operator/task. This is part of the
  * {@link TaskState}.
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
+@Deprecated
 public class SubtaskState implements CompositeStateHandle {
 
     private static final Logger LOG = LoggerFactory.getLogger(SubtaskState.class);
@@ -136,6 +139,12 @@ public class SubtaskState implements CompositeStateHandle {
 
     @Override
     public long getStateSize() {
+        return stateSize;
+    }
+
+    @Override
+    public long getCheckpointedSize() {
+        // This class is actually deprecated, just return state size.
         return stateSize;
     }
 

@@ -111,7 +111,7 @@ public class SchedulerUtilsTest extends TestLogger {
         SharedStateRegistry sharedStateRegistry = checkpointStore.getSharedStateRegistry();
 
         IncrementalRemoteKeyedStateHandle newHandle =
-                buildIncrementalHandle(key, new PlaceholderStreamStateHandle(), backendId);
+                buildIncrementalHandle(key, new PlaceholderStreamStateHandle(1L), backendId);
         newHandle.registerSharedStates(sharedStateRegistry, 1L);
 
         assertSame(handle, newHandle.getSharedState().get(key));

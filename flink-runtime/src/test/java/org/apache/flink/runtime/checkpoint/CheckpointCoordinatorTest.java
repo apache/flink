@@ -268,6 +268,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         CheckpointMetrics lateReportedMetrics =
                 new CheckpointMetricsBuilder()
                         .setTotalBytesPersisted(18)
+                        .setBytesPersistedOfThisCheckpoint(18)
                         .setBytesProcessedDuringAlignment(19)
                         .setAsyncDurationMillis(20)
                         .setAlignmentDurationNanos(123 * 1_000_000)
@@ -3763,7 +3764,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             if (cpSequenceNumber > 0) {
                 sharedState.put(
                         new StateHandleID("shared-" + (cpSequenceNumber - 1)),
-                        spy(new PlaceholderStreamStateHandle()));
+                        spy(new PlaceholderStreamStateHandle(1L)));
             }
 
             sharedState.put(

@@ -326,6 +326,11 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         }
 
         @Override
+        public long getCheckpointedSize() {
+            return getStateSize();
+        }
+
+        @Override
         public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {}
 
         @Override

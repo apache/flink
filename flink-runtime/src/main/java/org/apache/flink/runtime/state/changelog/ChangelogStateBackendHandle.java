@@ -120,6 +120,13 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
         }
 
         @Override
+        public long getCheckpointedSize() {
+            return  nonMaterialized.stream()
+                    .mapToLong(ChangelogStateHandle::getCheckpointedSize)
+                    .sum();
+        }
+
+        @Override
         public List<KeyedStateHandle> getMaterializedStateHandles() {
             return materialized;
         }

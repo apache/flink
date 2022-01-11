@@ -40,6 +40,7 @@ public class TaskCheckpointStatisticsWithSubtaskDetailsTest
                 new TaskCheckpointStatisticsWithSubtaskDetails.Summary(
                         new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0),
                         new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0),
                         new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointDuration(
                                 new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0),
                                 new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0)),
@@ -60,6 +61,7 @@ public class TaskCheckpointStatisticsWithSubtaskDetailsTest
                         4L,
                         13L,
                         1337L,
+                        1337L,
                         new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics
                                 .CheckpointDuration(1L, 2L),
                         new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics
@@ -72,6 +74,7 @@ public class TaskCheckpointStatisticsWithSubtaskDetailsTest
                 4L,
                 CheckpointStatsStatus.COMPLETED,
                 4L,
+                1337L,
                 1337L,
                 1L,
                 2L,

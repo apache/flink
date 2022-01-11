@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -58,6 +57,8 @@ import java.util.UUID;
  */
 public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateHandle {
 
+    public static final long UNKNOWN_CHECKPOINTED_SIZE = -1L;
+
     private static final Logger LOG =
             LoggerFactory.getLogger(IncrementalRemoteKeyedStateHandle.class);
 
@@ -84,6 +85,8 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
     /** Primary meta data state of the incremental checkpoint. */
     private final StreamStateHandle metaStateHandle;
 
+    private final long persistedSizeOfThisCheckpoint;
+
     /**
      * Once the shared states are registered, it is the {@link SharedStateRegistry}'s responsibility
      * to cleanup those shared states. But in the cases where the state handle is discarded before
@@ -100,6 +103,24 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
             Map<StateHandleID, StreamStateHandle> sharedState,
             Map<StateHandleID, StreamStateHandle> privateState,
             StreamStateHandle metaStateHandle) {
+        this(
+                backendIdentifier,
+                keyGroupRange,
+                checkpointId,
+                sharedState,
+                privateState,
+                metaStateHandle,
+                UNKNOWN_CHECKPOINTED_SIZE);
+    }
+
+    public IncrementalRemoteKeyedStateHandle(
+            UUID backendIdentifier,
+            KeyGroupRange keyGroupRange,
+            long checkpointId,
+            Map<StateHandleID, StreamStateHandle> sharedState,
+            Map<StateHandleID, StreamStateHandle> privateState,
+            StreamStateHandle metaStateHandle,
+            long persistedSizeOfThisCheckpoint) {
 
         this.backendIdentifier = Preconditions.checkNotNull(backendIdentifier);
         this.keyGroupRange = Preconditions.checkNotNull(keyGroupRange);
@@ -108,6 +129,10 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
         this.privateState = Preconditions.checkNotNull(privateState);
         this.metaStateHandle = Preconditions.checkNotNull(metaStateHandle);
         this.sharedStateRegistry = null;
+        this.persistedSizeOfThisCheckpoint =
+                persistedSizeOfThisCheckpoint == UNKNOWN_CHECKPOINTED_SIZE
+                        ? getStateSize()
+                        : persistedSizeOfThisCheckpoint;
     }
 
     @Override
@@ -139,8 +164,8 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
 
     @Nonnull
     @Override
-    public Set<StateHandleID> getSharedStateHandleIDs() {
-        return getSharedState().keySet();
+    public Map<StateHandleID, StreamStateHandle> getSharedStateHandles() {
+        return getSharedState();
     }
 
     public SharedStateRegistry getSharedStateRegistry() {
@@ -202,6 +227,11 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
         }
 
         return size;
+    }
+
+    @Override
+    public long getCheckpointedSize() {
+        return persistedSizeOfThisCheckpoint;
     }
 
     @Override
