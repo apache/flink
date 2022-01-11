@@ -1042,6 +1042,11 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
+      <td>numPendingTaskManagers</td>
+      <td>(only applicable to Native Kubernetes / YARN) The number of outstanding taskmanagers that Flink has requested.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
       <td>numRunningJobs</td>
       <td>The number of running jobs.</td>
       <td>Gauge</td>
