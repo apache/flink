@@ -146,15 +146,15 @@ public class IPv6HostnamesITCase extends TestLogger {
 
                             // test whether Akka's netty can bind to the address
                             log.info("Testing whether Akka can use " + addr);
-                            int port = NetUtils.getAvailablePort();
-
-                            final RpcService rpcService =
-                                    RpcSystem.load()
-                                            .localServiceBuilder(new Configuration())
-                                            .withBindAddress(addr.getHostAddress())
-                                            .withBindPort(port)
-                                            .createAndStart();
-                            rpcService.stopService().get();
+                            try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+                                final RpcService rpcService =
+                                        RpcSystem.load()
+                                                .localServiceBuilder(new Configuration())
+                                                .withBindAddress(addr.getHostAddress())
+                                                .withBindPort(port.getPort())
+                                                .createAndStart();
+                                rpcService.stopService().get();
+                            }
 
                             log.info("Using address " + addr);
                             return (Inet6Address) addr;

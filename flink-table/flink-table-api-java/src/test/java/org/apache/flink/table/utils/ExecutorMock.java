@@ -54,4 +54,9 @@ public class ExecutorMock implements Executor {
     public JobClient executeAsync(Pipeline pipeline) {
         return null;
     }
+
+    @Override
+    public boolean isCheckpointingEnabled() {
+        return false;
+    }
 }

@@ -28,6 +28,8 @@ import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.Iterator;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * A {@link URLClassLoader} that restricts which classes can be loaded to those contained within the
@@ -62,16 +64,21 @@ public class ComponentClassLoader extends URLClassLoader {
     private final String[] ownerFirstResourcePrefixes;
     private final String[] componentFirstResourcePrefixes;
 
+    private final Map<String, String> knownPackagePrefixesModuleAssociation;
+
     public ComponentClassLoader(
             URL[] classpath,
             ClassLoader ownerClassLoader,
             String[] ownerFirstPackages,
-            String[] componentFirstPackages) {
+            String[] componentFirstPackages,
+            Map<String, String> knownPackagePrefixesModuleAssociation) {
         super(classpath, PLATFORM_OR_BOOTSTRAP_LOADER);
         this.ownerClassLoader = ownerClassLoader;
 
         this.ownerFirstPackages = ownerFirstPackages;
         this.componentFirstPackages = componentFirstPackages;
+
+        this.knownPackagePrefixesModuleAssociation = knownPackagePrefixesModuleAssociation;
 
         ownerFirstResourcePrefixes = convertPackagePrefixesToPathPrefixes(ownerFirstPackages);
         componentFirstResourcePrefixes =
@@ -86,22 +93,39 @@ public class ComponentClassLoader extends URLClassLoader {
     protected Class<?> loadClass(final String name, final boolean resolve)
             throws ClassNotFoundException {
         synchronized (getClassLoadingLock(name)) {
-            final Class<?> loadedClass = findLoadedClass(name);
-            if (loadedClass != null) {
-                return resolveIfNeeded(resolve, loadedClass);
-            }
+            try {
+                final Class<?> loadedClass = findLoadedClass(name);
+                if (loadedClass != null) {
+                    return resolveIfNeeded(resolve, loadedClass);
+                }
 
-            if (isComponentFirstClass(name)) {
-                return loadClassFromComponentFirst(name, resolve);
-            }
-            if (isOwnerFirstClass(name)) {
-                return loadClassFromOwnerFirst(name, resolve);
-            }
+                if (isComponentFirstClass(name)) {
+                    return loadClassFromComponentFirst(name, resolve);
+                }
+                if (isOwnerFirstClass(name)) {
+                    return loadClassFromOwnerFirst(name, resolve);
+                }
 
-            // making this behavior configurable (component-only/component-first/owner-first) would
-            // allow this class to subsume the FlinkUserCodeClassLoader (with an added exception
-            // handler)
-            return loadClassFromComponentOnly(name, resolve);
+                // making this behavior configurable (component-only/component-first/owner-first)
+                // would allow this class to subsume the FlinkUserCodeClassLoader (with an added
+                // exception handler)
+                return loadClassFromComponentOnly(name, resolve);
+            } catch (ClassNotFoundException e) {
+                // If we know the package of this class
+                Optional<String> foundAssociatedModule =
+                        knownPackagePrefixesModuleAssociation.entrySet().stream()
+                                .filter(entry -> name.startsWith(entry.getKey()))
+                                .map(Map.Entry::getValue)
+                                .findFirst();
+                if (foundAssociatedModule.isPresent()) {
+                    throw new ClassNotFoundException(
+                            String.format(
+                                    "Class '%s' not found. Perhaps you forgot to add the module '%s' to the classpath?",
+                                    name, foundAssociatedModule.get()),
+                            e);
+                }
+                throw e;
+            }
         }
     }
 

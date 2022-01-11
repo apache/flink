@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -128,12 +129,7 @@ public class SsgNetworkMemoryCalculationUtils {
 
         for (int i = 0; i < producedDataSets.size(); i++) {
             IntermediateDataSet producedDataSet = producedDataSets.get(i);
-
-            checkState(
-                    producedDataSet.getConsumers().size() == 1,
-                    "Currently a result should have exactly one consumer job vertex.");
-
-            JobEdge outputEdge = producedDataSet.getConsumers().get(0);
+            JobEdge outputEdge = checkNotNull(producedDataSet.getConsumer());
             ExecutionJobVertex consumerJobVertex = ejvs.apply(outputEdge.getTarget().getID());
             int maxNum =
                     EdgeManagerBuildUtil.computeMaxEdgesToTargetExecutionVertex(

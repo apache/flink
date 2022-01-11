@@ -89,7 +89,8 @@ public class DefaultExecutionGraphBuilder {
             long initializationTimestamp,
             VertexAttemptNumberStore vertexAttemptNumberStore,
             VertexParallelismStore vertexParallelismStore,
-            Supplier<CheckpointStatsTracker> checkpointStatsTrackerFactory)
+            Supplier<CheckpointStatsTracker> checkpointStatsTrackerFactory,
+            boolean isDynamicGraph)
             throws JobExecutionException, JobException {
 
         checkNotNull(jobGraph, "job graph cannot be null");
@@ -133,7 +134,8 @@ public class DefaultExecutionGraphBuilder {
                             executionStateUpdateListener,
                             initializationTimestamp,
                             vertexAttemptNumberStore,
-                            vertexParallelismStore);
+                            vertexParallelismStore,
+                            isDynamicGraph);
         } catch (IOException e) {
             throw new JobException("Could not create the ExecutionGraph.", e);
         }
@@ -197,7 +199,10 @@ public class DefaultExecutionGraphBuilder {
         }
 
         // configure the state checkpointing
-        if (isCheckpointingEnabled(jobGraph)) {
+        if (isDynamicGraph) {
+            // dynamic graph does not support checkpointing so we skip it
+            log.warn("Skip setting up checkpointing for a job with dynamic graph.");
+        } else if (isCheckpointingEnabled(jobGraph)) {
             JobCheckpointingSettings snapshotSettings = jobGraph.getCheckpointingSettings();
 
             // load the state backend from the application settings

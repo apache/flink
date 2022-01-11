@@ -58,8 +58,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.DataTypes.INT;
-import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_CHAR_LENGTH_ENFORCER;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -218,13 +218,14 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         result.collect().forEachRemaining(results::add);
         assertThat(results, containsInAnyOrder(rows.toArray()));
 
-        // Change config option to "trim", to trim the strings based on their type length
+        // Change config option to "trim_pad", to trim or pad the strings
+        // accordingly, based on their type length
         try {
             tableEnv.getConfig()
                     .getConfiguration()
                     .setString(
-                            TABLE_EXEC_SINK_CHAR_LENGTH_ENFORCER.key(),
-                            ExecutionConfigOptions.CharLengthEnforcer.TRIM_PAD.name());
+                            TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
+                            ExecutionConfigOptions.TypeLengthEnforcer.TRIM_PAD.name());
 
             result = tableEnv.executeSql("SELECT * FROM T1");
             result.await();
@@ -243,8 +244,112 @@ public class CommonExecSinkITCase extends AbstractTestBase {
             tableEnv.getConfig()
                     .getConfiguration()
                     .setString(
-                            TABLE_EXEC_SINK_CHAR_LENGTH_ENFORCER.key(),
-                            ExecutionConfigOptions.CharLengthEnforcer.IGNORE.name());
+                            TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
+                            ExecutionConfigOptions.TypeLengthEnforcer.IGNORE.name());
+        }
+    }
+
+    @Test
+    public void testBinaryLengthEnforcer() throws ExecutionException, InterruptedException {
+        final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+        final List<Row> rows =
+                Arrays.asList(
+                        Row.of(
+                                1,
+                                new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
+                                new byte[] {1, 2, 3, 4, 5, 6, 7, 8},
+                                11,
+                                111,
+                                new byte[] {1, 2, 3}),
+                        Row.of(
+                                2,
+                                new byte[] {1, 2, 3, 4, 5},
+                                new byte[] {1, 2, 3},
+                                22,
+                                222,
+                                new byte[] {1, 2, 3, 4, 5, 6}),
+                        Row.of(
+                                3,
+                                new byte[] {1, 2, 3, 4, 5, 6},
+                                new byte[] {1, 2, 3, 4, 5},
+                                33,
+                                333,
+                                new byte[] {1, 2, 3, 4, 5, 6, 7, 8}),
+                        Row.of(
+                                4,
+                                new byte[] {1, 2, 3, 4, 5, 6, 7, 8},
+                                new byte[] {1, 2, 3, 4, 5, 6},
+                                44,
+                                444,
+                                new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
+
+        final TableDescriptor sourceDescriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(schemaForBinaryLengthEnforcer())
+                        .source(new TestSource(rows))
+                        .build();
+        tableEnv.createTable("T1", sourceDescriptor);
+
+        // Default config - ignore (no trim)
+        TableResult result = tableEnv.executeSql("SELECT * FROM T1");
+        result.await();
+
+        final List<Row> results = new ArrayList<>();
+        result.collect().forEachRemaining(results::add);
+        assertThat(results, containsInAnyOrder(rows.toArray()));
+
+        // Change config option to "trim_pad", to trim or pad the strings
+        // accordingly, based on their type length
+        try {
+            tableEnv.getConfig()
+                    .getConfiguration()
+                    .setString(
+                            TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
+                            ExecutionConfigOptions.TypeLengthEnforcer.TRIM_PAD.name());
+
+            result = tableEnv.executeSql("SELECT * FROM T1");
+            result.await();
+
+            final List<Row> expected =
+                    Arrays.asList(
+                            Row.of(
+                                    1,
+                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8},
+                                    new byte[] {1, 2, 3, 4, 5, 6},
+                                    11,
+                                    111,
+                                    new byte[] {1, 2, 3}),
+                            Row.of(
+                                    2,
+                                    new byte[] {1, 2, 3, 4, 5, 0, 0, 0},
+                                    new byte[] {1, 2, 3, 0, 0, 0},
+                                    22,
+                                    222,
+                                    new byte[] {1, 2, 3, 4, 5, 6}),
+                            Row.of(
+                                    3,
+                                    new byte[] {1, 2, 3, 4, 5, 6, 0, 0},
+                                    new byte[] {1, 2, 3, 4, 5, 0},
+                                    33,
+                                    333,
+                                    new byte[] {1, 2, 3, 4, 5, 6}),
+                            Row.of(
+                                    4,
+                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8},
+                                    new byte[] {1, 2, 3, 4, 5, 6},
+                                    44,
+                                    444,
+                                    new byte[] {1, 2, 3, 4, 5, 6}));
+            final List<Row> resultsTrimmed = new ArrayList<>();
+            result.collect().forEachRemaining(resultsTrimmed::add);
+            assertThat(resultsTrimmed, containsInAnyOrder(expected.toArray()));
+
+        } finally {
+            tableEnv.getConfig()
+                    .getConfiguration()
+                    .setString(
+                            TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
+                            ExecutionConfigOptions.TypeLengthEnforcer.IGNORE.name());
         }
     }
 
@@ -386,6 +491,17 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                 .column("d", "INT")
                 .column("e", "INT")
                 .column("f", "VARCHAR(6)")
+                .build();
+    }
+
+    private static Schema schemaForBinaryLengthEnforcer() {
+        return Schema.newBuilder()
+                .column("a", "INT")
+                .column("b", "BINARY(8)")
+                .column("c", "BINARY(6)")
+                .column("d", "INT")
+                .column("e", "INT")
+                .column("f", "VARBINARY(6)")
                 .build();
     }
 

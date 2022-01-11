@@ -28,7 +28,7 @@ import java.io.IOException;
  * Logs changes to a state created by {@link ChangelogKeyedStateBackend}. The changes are intended
  * to be stored durably, included into a checkpoint and replayed on recovery in case of failure.
  *
- * <p>Not that the order of updating the delegated state and logging it using this class usually
+ * <p>Note that the order of updating the delegated state and logging it using this class usually
  * doesn't matter. However in some cases an already updated state needs to be logged. Besides that,
  * delegated state update is usually local and would fail faster. Therefore, consider updating the
  * delegated state first and logging the change second.

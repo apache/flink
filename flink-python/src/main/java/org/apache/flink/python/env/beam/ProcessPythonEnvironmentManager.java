@@ -35,7 +35,6 @@ import org.apache.flink.util.function.FunctionWithException;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
 
-import org.codehaus.commons.nullanalysis.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,16 +95,16 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 
     private transient PythonEnvResources.PythonLeasedResource resource;
 
-    @NotNull private final PythonDependencyInfo dependencyInfo;
-    @NotNull private final Map<String, String> systemEnv;
-    @NotNull private final String[] tmpDirectories;
-    @NotNull private final JobID jobID;
+    private final PythonDependencyInfo dependencyInfo;
+    private final Map<String, String> systemEnv;
+    private final String[] tmpDirectories;
+    private final JobID jobID;
 
     public ProcessPythonEnvironmentManager(
-            @NotNull PythonDependencyInfo dependencyInfo,
-            @NotNull String[] tmpDirectories,
-            @NotNull Map<String, String> systemEnv,
-            @NotNull JobID jobID) {
+            PythonDependencyInfo dependencyInfo,
+            String[] tmpDirectories,
+            Map<String, String> systemEnv,
+            JobID jobID) {
         this.dependencyInfo = Objects.requireNonNull(dependencyInfo);
         this.tmpDirectories = Objects.requireNonNull(tmpDirectories);
         this.systemEnv = Objects.requireNonNull(systemEnv);

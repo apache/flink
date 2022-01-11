@@ -25,7 +25,7 @@ LogicalProject(b2=[AS(=($1, 1972-02-22 07:12:00.333), _UTF-16LE'b2')])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[(b = 1972-02-22 07:12:00.333:TIMESTAMP(3)) AS b2])
+Calc(select=[(b = 1972-02-22 07:12:00.333) AS b2])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -49,7 +49,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[(c = a1)], select=[a, b, c], build=[rig
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
 +- Exchange(distribution=[hash[a1]])
    +- LocalHashAggregate(groupBy=[a1], select=[a1])
-      +- Calc(select=[a AS a1], where=[(b = _UTF-16LE'two')])
+      +- Calc(select=[a AS a1], where=[(b = 'two')])
          +- Reused(reference_id=[1])
 ]]>
     </Resource>

@@ -85,6 +85,15 @@ public final class UnresolvedIdentifier {
         return of(path.toArray(new String[0]));
     }
 
+    /**
+     * Constructs an {@link UnresolvedIdentifier} from an {@link ObjectIdentifier}.
+     *
+     * @see UnresolvedIdentifier#of(String...)
+     */
+    public static UnresolvedIdentifier of(ObjectIdentifier objectIdentifier) {
+        return of(objectIdentifier.toList());
+    }
+
     private UnresolvedIdentifier(
             @Nullable String catalogName, @Nullable String databaseName, String objectName) {
         this.catalogName = catalogName;

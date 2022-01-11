@@ -39,7 +39,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[TUMBL
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST((($f0 - (($f1 * $f1) / $f2)) / $f2)) AS EXPR$0, CAST((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1)))) AS EXPR$1, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))), 0.5:DECIMAL(2, 1))) AS EXPR$3, w$start AS EXPR$4, w$end AS EXPR$5])
+Calc(select=[CAST((($f0 - (($f1 * $f1) / $f2)) / $f2) AS INTEGER) AS EXPR$0, CAST((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))) AS INTEGER) AS EXPR$1, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / $f2), 0.5) AS INTEGER) AS EXPR$2, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))), 0.5) AS INTEGER) AS EXPR$3, w$start AS EXPR$4, w$end AS EXPR$5])
 +- HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 900000)], properties=[w$start, w$end, w$rowtime], select=[Final_SUM(sum$0) AS $f0, Final_SUM(sum$1) AS $f1, Final_COUNT(count$2) AS $f2])
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM($f2) AS sum$0, Partial_SUM(b) AS sum$1, Partial_COUNT(b) AS count$2])
@@ -71,7 +71,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[TUMBL
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST((($f0 - (($f1 * $f1) / $f2)) / $f2)) AS EXPR$0, CAST((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1)))) AS EXPR$1, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))), 0.5:DECIMAL(2, 1))) AS EXPR$3, w$start AS EXPR$4, w$end AS EXPR$5])
+Calc(select=[CAST((($f0 - (($f1 * $f1) / $f2)) / $f2) AS INTEGER) AS EXPR$0, CAST((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))) AS INTEGER) AS EXPR$1, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / $f2), 0.5) AS INTEGER) AS EXPR$2, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))), 0.5) AS INTEGER) AS EXPR$3, w$start AS EXPR$4, w$end AS EXPR$5])
 +- HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 900000)], properties=[w$start, w$end, w$rowtime], select=[SUM($f2) AS $f0, SUM(b) AS $f1, COUNT(b) AS $f2])
    +- Exchange(distribution=[single])
       +- Calc(select=[ts, b, (b * b) AS $f2])
@@ -102,7 +102,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[TUMBL
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST((($f0 - (($f1 * $f1) / $f2)) / $f2)) AS EXPR$0, CAST((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1)))) AS EXPR$1, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))), 0.5:DECIMAL(2, 1))) AS EXPR$3, w$start AS EXPR$4, w$end AS EXPR$5])
+Calc(select=[CAST((($f0 - (($f1 * $f1) / $f2)) / $f2) AS INTEGER) AS EXPR$0, CAST((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))) AS INTEGER) AS EXPR$1, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / $f2), 0.5) AS INTEGER) AS EXPR$2, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))), 0.5) AS INTEGER) AS EXPR$3, w$start AS EXPR$4, w$end AS EXPR$5])
 +- HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 900000)], properties=[w$start, w$end, w$rowtime], select=[Final_SUM(sum$0) AS $f0, Final_SUM(sum$1) AS $f1, Final_COUNT(count$2) AS $f2])
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM($f2) AS sum$0, Partial_SUM(b) AS sum$1, Partial_COUNT(b) AS count$2])
@@ -134,7 +134,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[EXPR$0, w$start AS EXPR$1], where=[(($f1 > 0) AND (EXTRACT(FLAG(QUARTER), w$start) = 1:BIGINT))])
+Calc(select=[EXPR$0, w$start AS EXPR$1], where=[(($f1 > 0) AND (EXTRACT(QUARTER, w$start) = 1))])
 +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 60000, 900000)], properties=[w$start, w$end, w$rowtime], select=[Final_COUNT(count1$0) AS EXPR$0, Final_SUM(sum$1) AS $f1])
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 60000, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_COUNT(*) AS count1$0, Partial_SUM(a) AS sum$1])
@@ -166,7 +166,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[EXPR$0, w$start AS EXPR$1], where=[(($f1 > 0) AND (EXTRACT(FLAG(QUARTER), w$start) = 1:BIGINT))])
+Calc(select=[EXPR$0, w$start AS EXPR$1], where=[(($f1 > 0) AND (EXTRACT(QUARTER, w$start) = 1))])
 +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 60000, 900000)], properties=[w$start, w$end, w$rowtime], select=[COUNT(*) AS EXPR$0, SUM(a) AS $f1])
    +- Exchange(distribution=[single])
       +- Calc(select=[ts, a])
@@ -197,7 +197,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[EXPR$0, w$start AS EXPR$1], where=[(($f1 > 0) AND (EXTRACT(FLAG(QUARTER), w$start) = 1:BIGINT))])
+Calc(select=[EXPR$0, w$start AS EXPR$1], where=[(($f1 > 0) AND (EXTRACT(QUARTER, w$start) = 1))])
 +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 60000, 900000)], properties=[w$start, w$end, w$rowtime], select=[Final_COUNT(count1$0) AS EXPR$0, Final_SUM(sum$1) AS $f1])
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 60000, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_COUNT(*) AS count1$0, Partial_SUM(a) AS sum$1])
@@ -699,7 +699,7 @@ LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(s) AS s, CAST(a) AS a, w$start AS wStart])
+Calc(select=[CAST(s AS INTEGER) AS s, CAST(a AS INTEGER) AS a, w$start AS wStart])
 +- HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[Final_SUM(sum$0) AS s, Final_AVG(sum$1, count$2) AS a])
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM($f1) AS sum$0, Partial_AVG($f1) AS (sum$1, count$2)])
@@ -735,7 +735,7 @@ LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(s) AS s, CAST(a) AS a, w$start AS wStart])
+Calc(select=[CAST(s AS INTEGER) AS s, CAST(a AS INTEGER) AS a, w$start AS wStart])
 +- HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[SUM($f1) AS s, AVG($f1) AS a])
    +- Exchange(distribution=[single])
       +- Calc(select=[b, CASE((a = 1), 1, 99) AS $f1])
@@ -770,7 +770,7 @@ LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(s) AS s, CAST(a) AS a, w$start AS wStart])
+Calc(select=[CAST(s AS INTEGER) AS s, CAST(a AS INTEGER) AS a, w$start AS wStart])
 +- HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[Final_SUM(sum$0) AS s, Final_AVG(sum$1, count$2) AS a])
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM($f1) AS sum$0, Partial_AVG($f1) AS (sum$1, count$2)])

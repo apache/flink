@@ -204,6 +204,13 @@ CREATE TABLE myUserTable (
       <td>每次回退尝试之间的延迟。对于 <code>CONSTANT</code> 回退策略，该值是每次重试之间的延迟。对于 <code>EXPONENTIAL</code> 回退策略，该值是初始的延迟。</td>
     </tr>
     <tr>
+      <td><h5>sink.parallelism</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">（无）</td>
+      <td>Integer</td>
+      <td>定义 Elasticsearch sink 算子的并行度。默认情况下，并行度由框架定义为与上游串联的算子相同。</td>
+    </tr>
+    <tr>
       <td><h5>connection.max-retry-timeout</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>

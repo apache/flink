@@ -287,7 +287,7 @@ public abstract class BinaryOperatorTestBase<S extends Function, IN, OUT> extend
         this.running = false;
 
         // compensate for races, where cancel is called before the driver is set
-        // not that this is an artifact of a bad design of this test base, where the setup
+        // note that this is an artifact of a bad design of this test base, where the setup
         // of the basic properties is not separated from the invocation of the execution logic
         while (this.driver == null) {
             Thread.sleep(200);

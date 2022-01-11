@@ -20,12 +20,12 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogNormalize
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.flink.table.catalog.{ObjectIdentifier, ResolvedCatalogTable}
 
 import java.util
 
@@ -39,7 +39,9 @@ class StreamPhysicalChangelogNormalize(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
-    val uniqueKeys: Array[Int])
+    val uniqueKeys: Array[Int],
+    val tableIdentifier: ObjectIdentifier,
+    val table: ResolvedCatalogTable)
   extends SingleRel(cluster, traitSet, input)
   with StreamPhysicalRel {
 
@@ -52,7 +54,9 @@ class StreamPhysicalChangelogNormalize(
       cluster,
       traitSet,
       inputs.get(0),
-      uniqueKeys)
+      uniqueKeys,
+      tableIdentifier,
+      table)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {

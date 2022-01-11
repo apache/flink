@@ -45,11 +45,11 @@ LogicalUnion(all=[true])
       <![CDATA[
 Union(all=[true], union=[f0])
 :- Values(tuples=[[{ null }]])
-:- Calc(select=[CAST(1:FLOAT) AS f0])
+:- Calc(select=[CAST(1 AS FLOAT) AS f0])
 :  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
-:- Calc(select=[CAST(3.1E0:FLOAT) AS f0])
+:- Calc(select=[CAST(3.1E0 AS FLOAT) AS f0])
 :  +- Reused(reference_id=[1])
-+- Calc(select=[CAST(99:FLOAT) AS f0])
++- Calc(select=[CAST(99 AS FLOAT) AS f0])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -73,15 +73,15 @@ LogicalUnion(all=[true])
     <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[f0, f1, f2])
-:- Calc(select=[1:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, null:INTEGER AS f2])
+:- Calc(select=[1 AS f0, 'ABC' AS f1, null:INTEGER AS f2])
 :  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
-:- Calc(select=[3.141592653589793E0:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(1) AS f2])
+:- Calc(select=[3.141592653589793E0 AS f0, 'ABC' AS f1, CAST(1 AS INTEGER) AS f2])
 :  +- Reused(reference_id=[1])
-:- Calc(select=[3.1E0:DOUBLE AS f0, _UTF-16LE'DEF':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(2) AS f2])
+:- Calc(select=[3.1E0 AS f0, 'DEF' AS f1, CAST(2 AS INTEGER) AS f2])
 :  +- Reused(reference_id=[1])
-:- Calc(select=[99:DOUBLE AS f0, _UTF-16LE'DEFG':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, null:INTEGER AS f2])
+:- Calc(select=[99 AS f0, 'DEFG' AS f1, null:INTEGER AS f2])
 :  +- Reused(reference_id=[1])
-+- Calc(select=[0E-1:DOUBLE AS f0, _UTF-16LE'D':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(4) AS f2])
++- Calc(select=[0E-1 AS f0, 'D' AS f1, CAST(4 AS INTEGER) AS f2])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -99,9 +99,9 @@ LogicalUnion(all=[true])
     <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[f0, f1, f2])
-:- Calc(select=[1:DOUBLE AS f0, ROW(_UTF-16LE'A':VARCHAR(3) CHARACTER SET "UTF-16LE", 2:DOUBLE) AS f1, ARRAY(1:BIGINT) AS f2])
+:- Calc(select=[1 AS f0, ROW('A', 2) AS f1, ARRAY(1) AS f2])
 :  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
-+- Calc(select=[3.141592653589793E0:DOUBLE AS f0, ROW(_UTF-16LE'ABC':VARCHAR(3) CHARACTER SET "UTF-16LE", 3.0E0:DOUBLE) AS f1, ARRAY(3:BIGINT) AS f2])
++- Calc(select=[3.141592653589793E0 AS f0, ROW('ABC', 3.0E0) AS f1, ARRAY(3) AS f2])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -127,17 +127,17 @@ LogicalUnion(all=[true])
     <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[f0, f1, f2])
-:- Calc(select=[4E0:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, MAP(_UTF-16LE'a':VARCHAR(4) CHARACTER SET "UTF-16LE", 3.0E0:DOUBLE) AS f2])
+:- Calc(select=[4E0 AS f0, 'ABC' AS f1, MAP('a', 3.0E0) AS f2])
 :  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
-:- Calc(select=[3E0:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, MAP(_UTF-16LE'a':VARCHAR(4) CHARACTER SET "UTF-16LE", CAST((ABS(-5) + -5))) AS f2])
+:- Calc(select=[3E0 AS f0, 'ABC' AS f1, MAP('a', CAST((ABS(-5) + -5) AS DOUBLE)) AS f2])
 :  +- Reused(reference_id=[1])
-:- Calc(select=[3.1415926535897931159E0:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, MAP(_UTF-16LE'abc':VARCHAR(4) CHARACTER SET "UTF-16LE", 3.0E0:DOUBLE) AS f2])
+:- Calc(select=[3.1415926535897931159E0 AS f0, 'ABC' AS f1, MAP('abc', 3.0E0) AS f2])
 :  +- Reused(reference_id=[1])
-:- Calc(select=[3.1E0:DOUBLE AS f0, _UTF-16LE'DEF':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, MAP(_UTF-16LE'abcd':VARCHAR(4) CHARACTER SET "UTF-16LE", 3:DOUBLE) AS f2])
+:- Calc(select=[3.1E0 AS f0, 'DEF' AS f1, MAP('abcd', 3) AS f2])
 :  +- Reused(reference_id=[1])
-:- Calc(select=[99:DOUBLE AS f0, _UTF-16LE'DEFG':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, MAP(_UTF-16LE'a':VARCHAR(4) CHARACTER SET "UTF-16LE", 1:DOUBLE) AS f2])
+:- Calc(select=[99 AS f0, 'DEFG' AS f1, MAP('a', 1) AS f2])
 :  +- Reused(reference_id=[1])
-+- Calc(select=[0E-1:DOUBLE AS f0, _UTF-16LE'D':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, null:(VARCHAR(4) CHARACTER SET "UTF-16LE", DOUBLE) MAP AS f2])
++- Calc(select=[0E-1 AS f0, 'D' AS f1, null:(VARCHAR(4), DOUBLE) MAP AS f2])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -161,15 +161,15 @@ LogicalUnion(all=[true])
     <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[f0, f1, f2])
-:- Calc(select=[1:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, null:INTEGER AS f2])
+:- Calc(select=[1 AS f0, 'ABC' AS f1, null:INTEGER AS f2])
 :  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
-:- Calc(select=[3.141592653589793E0:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(1) AS f2])
+:- Calc(select=[3.141592653589793E0 AS f0, 'ABC' AS f1, CAST(1 AS INTEGER) AS f2])
 :  +- Reused(reference_id=[1])
-:- Calc(select=[3.1E0:DOUBLE AS f0, _UTF-16LE'DEF':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(2) AS f2])
+:- Calc(select=[3.1E0 AS f0, 'DEF' AS f1, CAST(2 AS INTEGER) AS f2])
 :  +- Reused(reference_id=[1])
-:- Calc(select=[99:DOUBLE AS f0, _UTF-16LE'DEFG':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(3) AS f2])
+:- Calc(select=[99 AS f0, 'DEFG' AS f1, CAST(3 AS INTEGER) AS f2])
 :  +- Reused(reference_id=[1])
-+- Calc(select=[0E-1:DOUBLE AS f0, _UTF-16LE'D':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(4) AS f2])
++- Calc(select=[0E-1 AS f0, 'D' AS f1, CAST(4 AS INTEGER) AS f2])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -187,9 +187,9 @@ LogicalUnion(all=[true])
     <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[a, b])
-:- Calc(select=[CAST(3:BIGINT) AS a, CAST(_UTF-16LE'ABC':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS b])
+:- Calc(select=[CAST(3 AS BIGINT) AS a, CAST('ABC' AS VARCHAR(2147483647)) AS b])
 :  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
-+- Calc(select=[CAST(2:BIGINT) AS a, CAST(_UTF-16LE'ABC':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS b])
++- Calc(select=[CAST(2 AS BIGINT) AS a, CAST('ABC' AS VARCHAR(2147483647)) AS b])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -213,15 +213,15 @@ LogicalUnion(all=[true])
     <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[a, b])
-:- Calc(select=[1:DECIMAL(10, 2) AS a, _UTF-16LE'ABC ' AS b])
+:- Calc(select=[1 AS a, 'ABC ' AS b])
 :  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
-:- Calc(select=[3.141592653589793E0:DECIMAL(10, 2) AS a, _UTF-16LE'ABC ' AS b])
+:- Calc(select=[3.141592653589793E0 AS a, 'ABC ' AS b])
 :  +- Reused(reference_id=[1])
-:- Calc(select=[3.1E0:DECIMAL(10, 2) AS a, _UTF-16LE'DEF ' AS b])
+:- Calc(select=[3.1E0 AS a, 'DEF ' AS b])
 :  +- Reused(reference_id=[1])
-:- Calc(select=[99:DECIMAL(10, 2) AS a, _UTF-16LE'DEFG' AS b])
+:- Calc(select=[99 AS a, 'DEFG' AS b])
 :  +- Reused(reference_id=[1])
-+- Calc(select=[0E-1:DECIMAL(10, 2) AS a, _UTF-16LE'D   ' AS b])
++- Calc(select=[0E-1 AS a, 'D   ' AS b])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -239,9 +239,9 @@ LogicalUnion(all=[true])
     <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[number, row, array])
-:- Calc(select=[CAST(1:DOUBLE) AS number, ROW(_UTF-16LE'A    ', 2:DECIMAL(10, 2), ROW(00:00:00)) AS row, ARRAY(1:BIGINT) AS array])
+:- Calc(select=[CAST(1 AS DOUBLE) AS number, ROW('A    ', 2, ROW(00:00:00)) AS row, ARRAY(1) AS array])
 :  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
-+- Calc(select=[CAST(3.141592653589793E0:DOUBLE) AS number, ROW(_UTF-16LE'ABC  ', 3.0E0:DECIMAL(10, 2), ROW(00:00:00)) AS row, ARRAY(3:BIGINT) AS array])
++- Calc(select=[CAST(3.141592653589793E0 AS DOUBLE) AS number, ROW('ABC  ', 3.0E0, ROW(00:00:00)) AS row, ARRAY(3) AS array])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -255,7 +255,7 @@ LogicalProject(a=[CAST(+(1, 2)):BIGINT NOT NULL], b=[_UTF-16LE'ABC':VARCHAR(4) C
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[3:BIGINT AS a, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS b, X'01020300':BINARY(4) AS c])
+Calc(select=[3 AS a, 'ABC' AS b, X'01020300' AS c])
 +- Values(tuples=[[{ 0 }]])
 ]]>
     </Resource>

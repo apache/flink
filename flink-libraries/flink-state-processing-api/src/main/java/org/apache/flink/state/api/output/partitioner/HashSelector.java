@@ -28,6 +28,7 @@ import org.apache.flink.util.Preconditions;
  *
  * @param <IN> Type of objects to extract the key from.
  */
+@Deprecated
 @Internal
 public class HashSelector<IN> implements KeySelector<IN, Integer> {
 

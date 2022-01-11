@@ -27,7 +27,10 @@ import java.util.Map;
  * Factory for creating configured instances of {@link DeserializationSchema}.
  *
  * @param <T> record type that the format produces or consumes.
+ * @deprecated This interface has been replaced by {@link DeserializationFormatFactory}, used in the
+ *     new sink/source stack. See FLIP-95 for more information.
  */
+@Deprecated
 @PublicEvolving
 public interface DeserializationSchemaFactory<T> extends TableFormatFactory<T> {
 

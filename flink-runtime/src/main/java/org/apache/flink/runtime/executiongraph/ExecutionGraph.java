@@ -210,4 +210,14 @@ public interface ExecutionGraph extends AccessExecutionGraph {
 
     @Nonnull
     ComponentMainThreadExecutor getJobMasterMainThreadExecutor();
+
+    /**
+     * Initialize the given execution job vertex, mainly includes creating execution vertices
+     * according to the parallelism, and connecting to the predecessors.
+     *
+     * @param ejv The execution job vertex that needs to be initialized.
+     * @param createTimestamp The timestamp for creating execution vertices, used to initialize the
+     *     first Execution with.
+     */
+    void initializeJobVertex(ExecutionJobVertex ejv, long createTimestamp) throws JobException;
 }

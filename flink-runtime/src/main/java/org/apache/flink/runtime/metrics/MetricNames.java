@@ -71,6 +71,12 @@ public class MetricNames {
     public static final String TASK_IDLE_TIME = "idleTimeMs" + SUFFIX_RATE;
     public static final String TASK_BUSY_TIME = "busyTimeMs" + SUFFIX_RATE;
     public static final String TASK_BACK_PRESSURED_TIME = "backPressuredTimeMs" + SUFFIX_RATE;
+    public static final String TASK_SOFT_BACK_PRESSURED_TIME =
+            "softBackPressuredTimeMs" + SUFFIX_RATE;
+    public static final String TASK_HARD_BACK_PRESSURED_TIME =
+            "hardBackPressuredTimeMs" + SUFFIX_RATE;
+    public static final String TASK_MAX_SOFT_BACK_PRESSURED_TIME = "maxSoftBackPressureTimeMs";
+    public static final String TASK_MAX_HARD_BACK_PRESSURED_TIME = "maxHardBackPressureTimeMs";
 
     public static final String ESTIMATED_TIME_TO_CONSUME_BUFFERS =
             "estimatedTimeToConsumeBuffersMs";

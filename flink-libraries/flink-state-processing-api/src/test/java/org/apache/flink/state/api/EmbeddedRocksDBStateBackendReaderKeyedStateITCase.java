@@ -20,10 +20,9 @@ package org.apache.flink.state.api;
 
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 
-/** IT Case for reading state from a RocksDB keyed state backend. */
+/** IT Case for reading keyed state from a memory state backend. */
 public class EmbeddedRocksDBStateBackendReaderKeyedStateITCase
         extends SavepointReaderKeyedStateITCase<EmbeddedRocksDBStateBackend> {
-
     @Override
     protected EmbeddedRocksDBStateBackend getStateBackend() {
         return new EmbeddedRocksDBStateBackend();

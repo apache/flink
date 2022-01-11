@@ -126,6 +126,8 @@ public final class CatalogManager {
 
         private @Nullable ExecutionConfig executionConfig;
 
+        private @Nullable DataTypeFactory dataTypeFactory;
+
         public Builder classLoader(ClassLoader classLoader) {
             this.classLoader = classLoader;
             return this;
@@ -147,13 +149,20 @@ public final class CatalogManager {
             return this;
         }
 
+        public Builder dataTypeFactory(DataTypeFactory dataTypeFactory) {
+            this.dataTypeFactory = dataTypeFactory;
+            return this;
+        }
+
         public CatalogManager build() {
             checkNotNull(classLoader, "Class loader cannot be null");
             checkNotNull(config, "Config cannot be null");
             return new CatalogManager(
                     defaultCatalogName,
                     defaultCatalog,
-                    new DataTypeFactoryImpl(classLoader, config, executionConfig),
+                    dataTypeFactory != null
+                            ? dataTypeFactory
+                            : new DataTypeFactoryImpl(classLoader, config, executionConfig),
                     new ManagedTableListener(classLoader, config));
         }
     }
@@ -473,21 +482,25 @@ public final class CatalogManager {
 
     /**
      * Returns an array of names of all tables (tables and views, both temporary and permanent)
-     * registered in the namespace of the current catalog and database.
+     * registered in the namespace of the given catalog and database.
      *
      * @return names of all registered tables
      */
     public Set<String> listTables(String catalogName, String databaseName) {
-        Catalog currentCatalog = catalogs.get(getCurrentCatalog());
+        Catalog catalog = catalogs.get(catalogName);
+        if (catalog == null) {
+            throw new ValidationException(String.format("Catalog %s does not exist", catalogName));
+        }
 
         try {
             return Stream.concat(
-                            currentCatalog.listTables(getCurrentDatabase()).stream(),
+                            catalog.listTables(databaseName).stream(),
                             listTemporaryTablesInternal(catalogName, databaseName)
                                     .map(e -> e.getKey().getObjectName()))
                     .collect(Collectors.toSet());
         } catch (DatabaseNotExistException e) {
-            throw new ValidationException("Current database does not exist", e);
+            throw new ValidationException(
+                    String.format("Database %s does not exist", databaseName), e);
         }
     }
 
@@ -538,21 +551,25 @@ public final class CatalogManager {
 
     /**
      * Returns an array of names of all views(both temporary and permanent) registered in the
-     * namespace of the current catalog and database.
+     * namespace of the given catalog and database.
      *
      * @return names of registered views
      */
     public Set<String> listViews(String catalogName, String databaseName) {
-        Catalog currentCatalog = catalogs.get(getCurrentCatalog());
+        Catalog catalog = catalogs.get(catalogName);
+        if (catalog == null) {
+            throw new ValidationException(String.format("Catalog %s does not exist", catalogName));
+        }
 
         try {
             return Stream.concat(
-                            currentCatalog.listViews(getCurrentDatabase()).stream(),
+                            catalog.listViews(databaseName).stream(),
                             listTemporaryViewsInternal(catalogName, databaseName)
                                     .map(e -> e.getKey().getObjectName()))
                     .collect(Collectors.toSet());
         } catch (DatabaseNotExistException e) {
-            throw new ValidationException("Current database does not exist", e);
+            throw new ValidationException(
+                    String.format("Database %s does not exist", databaseName), e);
         }
     }
 

@@ -26,12 +26,9 @@ import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RawValueData;
-import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
-import org.apache.flink.table.data.conversion.DataStructureConverter;
-import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.data.utils.CastExecutor;
 import org.apache.flink.table.planner.functions.CastFunctionITCase;
 import org.apache.flink.table.types.DataType;
@@ -90,6 +87,7 @@ import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.data.DecimalData.fromBigDecimal;
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
+import static org.apache.flink.table.test.TableAssertions.assertThatGenericDataOfType;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -632,7 +630,7 @@ class CastRulesTest {
                                 fromString("(null,abc)"))
                         .fromCase(ROW(), GenericRowData.of(), fromString("()"))
                         .fromCase(
-                                RAW(LocalDateTime.class, new LocalDateTimeSerializer()),
+                                RAW(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE),
                                 RawValueData.fromObject(
                                         LocalDateTime.parse("2020-11-11T18:08:01.123")),
                                 fromString("2020-11-11T18:08:01.123"))
@@ -749,19 +747,21 @@ class CastRulesTest {
                                 null,
                                 EMPTY_UTF8)
                         .fromCase(
-                                RAW(LocalDate.class, new LocalDateSerializer()),
+                                RAW(LocalDate.class, LocalDateSerializer.INSTANCE),
                                 RawValueData.fromObject(LocalDate.parse("2020-12-09")),
                                 fromString("2020-12-09  "))
                         .fromCaseLegacy(
-                                RAW(LocalDate.class, new LocalDateSerializer()),
+                                RAW(LocalDate.class, LocalDateSerializer.INSTANCE),
                                 RawValueData.fromObject(LocalDate.parse("2020-12-09")),
                                 fromString("2020-12-09"))
                         .fromCase(
-                                RAW(LocalDateTime.class, new LocalDateTimeSerializer()).nullable(),
+                                RAW(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE)
+                                        .nullable(),
                                 null,
                                 EMPTY_UTF8)
                         .fromCaseLegacy(
-                                RAW(LocalDateTime.class, new LocalDateTimeSerializer()).nullable(),
+                                RAW(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE)
+                                        .nullable(),
                                 null,
                                 EMPTY_UTF8),
                 CastTestSpecBuilder.testCastTo(VARCHAR(3))
@@ -771,6 +771,13 @@ class CastRulesTest {
                         .fromCaseLegacy(CHAR(6), fromString("Apache"), fromString("Apache"))
                         .fromCase(VARCHAR(5), fromString("Flink"), fromString("Fli"))
                         .fromCaseLegacy(VARCHAR(5), fromString("Flink"), fromString("Flink"))
+                        // We assume that the input length is respected, therefore, no trimming is
+                        // applied
+                        .fromCase(CHAR(2), fromString("Apache"), fromString("Apache"))
+                        .fromCaseLegacy(CHAR(2), fromString("Apache"), fromString("Apache"))
+                        .fromCase(VARCHAR(2), fromString("Apache"), fromString("Apache"))
+                        .fromCaseLegacy(VARCHAR(2), fromString("Apache"), fromString("Apache"))
+                        //
                         .fromCase(STRING(), fromString("Apache Flink"), fromString("Apa"))
                         .fromCaseLegacy(
                                 STRING(), fromString("Apache Flink"), fromString("Apache Flink"))
@@ -899,21 +906,23 @@ class CastRulesTest {
                                 null,
                                 EMPTY_UTF8)
                         .fromCase(
-                                RAW(LocalDateTime.class, new LocalDateTimeSerializer()),
+                                RAW(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE),
                                 RawValueData.fromObject(
                                         LocalDateTime.parse("2020-11-11T18:08:01.123")),
                                 fromString("202"))
                         .fromCaseLegacy(
-                                RAW(LocalDateTime.class, new LocalDateTimeSerializer()),
+                                RAW(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE),
                                 RawValueData.fromObject(
                                         LocalDateTime.parse("2020-11-11T18:08:01.123")),
                                 fromString("2020-11-11T18:08:01.123"))
                         .fromCase(
-                                RAW(LocalDateTime.class, new LocalDateTimeSerializer()).nullable(),
+                                RAW(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE)
+                                        .nullable(),
                                 null,
                                 EMPTY_UTF8)
                         .fromCaseLegacy(
-                                RAW(LocalDateTime.class, new LocalDateTimeSerializer()).nullable(),
+                                RAW(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE)
+                                        .nullable(),
                                 null,
                                 EMPTY_UTF8),
                 CastTestSpecBuilder.testCastTo(BOOLEAN())
@@ -948,21 +957,31 @@ class CastRulesTest {
                         .fromCase(FLOAT(), 1.1234f, true)
                         .fromCase(DOUBLE(), 0.0d, false)
                         .fromCase(DOUBLE(), -0.12345678d, true),
-                CastTestSpecBuilder.testCastTo(BINARY(2))
+                CastTestSpecBuilder.testCastTo(BINARY(4))
+                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111, 0})
                         .fromCaseLegacy(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
-                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111})
-                        .fromCase(CHAR(1), fromString("f"), new byte[] {102})
-                        .fromCase(CHAR(3), fromString("f"), new byte[] {102})
-                        .fromCase(VARCHAR(5), fromString("Flink"), new byte[] {70, 108})
+                        .fromCase(CHAR(1), fromString("f"), new byte[] {102, 0, 0, 0})
+                        .fromCaseLegacy(CHAR(1), fromString("f"), new byte[] {102})
+                        .fromCase(CHAR(3), fromString("f"), new byte[] {102, 0, 0, 0})
+                        .fromCaseLegacy(CHAR(3), fromString("f"), new byte[] {102})
+                        .fromCase(VARCHAR(5), fromString("Flink"), new byte[] {70, 108, 105, 110})
                         .fromCaseLegacy(
                                 VARCHAR(5),
                                 fromString("Flink"),
                                 new byte[] {70, 108, 105, 110, 107})
-                        .fromCase(STRING(), fromString("Apache"), new byte[] {65, 112})
+                        .fromCase(STRING(), fromString("Apache"), new byte[] {65, 112, 97, 99})
                         .fromCaseLegacy(
                                 STRING(),
                                 fromString("Apache"),
-                                new byte[] {65, 112, 97, 99, 104, 101}),
+                                new byte[] {65, 112, 97, 99, 104, 101})
+                        .fromCase(STRING(), fromString("bar"), new byte[] {98, 97, 114, 0})
+                        .fromCaseLegacy(STRING(), fromString("bar"), new byte[] {98, 97, 114})
+                        .fromCase(BINARY(2), new byte[] {1, 2}, new byte[] {1, 2, 0, 0})
+                        .fromCaseLegacy(BINARY(2), new byte[] {1, 2}, new byte[] {1, 2})
+                        .fromCase(VARBINARY(3), new byte[] {1, 2, 3}, new byte[] {1, 2, 3, 0})
+                        .fromCaseLegacy(VARBINARY(3), new byte[] {1, 2, 3}, new byte[] {1, 2, 3})
+                        .fromCase(BYTES(), new byte[] {1, 2, 3}, new byte[] {1, 2, 3, 0})
+                        .fromCaseLegacy(BYTES(), new byte[] {1, 2, 3}, new byte[] {1, 2, 3}),
                 CastTestSpecBuilder.testCastTo(VARBINARY(4))
                         .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
                         .fromCaseLegacy(
@@ -974,7 +993,20 @@ class CastRulesTest {
                         .fromCaseLegacy(
                                 STRING(),
                                 fromString("Apache"),
-                                new byte[] {65, 112, 97, 99, 104, 101}),
+                                new byte[] {65, 112, 97, 99, 104, 101})
+                        // We assume that the input length is respected, therefore, no trimming is
+                        // applied
+                        .fromCase(BINARY(2), new byte[] {1, 2, 3, 4, 5}, new byte[] {1, 2, 3, 4, 5})
+                        .fromCaseLegacy(
+                                BINARY(2), new byte[] {1, 2, 3, 4, 5}, new byte[] {1, 2, 3, 4, 5})
+                        .fromCase(
+                                VARBINARY(2),
+                                new byte[] {1, 2, 3, 4, 5},
+                                new byte[] {1, 2, 3, 4, 5})
+                        .fromCaseLegacy(
+                                VARBINARY(2),
+                                new byte[] {1, 2, 3, 4, 5},
+                                new byte[] {1, 2, 3, 4, 5}),
                 CastTestSpecBuilder.testCastTo(BYTES())
                         .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
                         .fromCase(
@@ -1233,14 +1265,12 @@ class CastRulesTest {
             this.inputTypes.add(srcDataType);
             this.assertionExecutors.add(
                     executor -> {
-                        Object expected = sanitizeTestData(targetType, target);
-
-                        assertThat(sanitizeTestData(targetType, executor.cast(src)))
-                                .isEqualTo(expected);
-                        assertThat(sanitizeTestData(targetType, executor.cast(src)))
+                        assertThatGenericDataOfType(executor.cast(src), targetType)
+                                .isEqualTo(target);
+                        assertThatGenericDataOfType(executor.cast(src), targetType)
                                 .as(
                                         "Error when reusing the rule. Perhaps there is some state that needs to be reset")
-                                .isEqualTo(expected);
+                                .isEqualTo(target);
                     });
             this.descriptions.add("{" + src + " => " + target + "}");
             this.castContexts.add(castContext);
@@ -1284,18 +1314,6 @@ class CastRulesTest {
                                 castContexts.get(i));
             }
             return Arrays.stream(testSpecs);
-        }
-
-        // This method makes sure that we can correctly compare rows
-        private Object sanitizeTestData(DataType dataType, Object value) {
-            if (value instanceof RowData) {
-                // Convert to GenericRowData using the DataStructureConverter
-                DataStructureConverter<Object, Object> converter =
-                        DataStructureConverters.getConverter(dataType);
-                converter.open(Thread.currentThread().getContextClassLoader());
-                return converter.toInternalOrNull(converter.toExternalOrNull(value));
-            }
-            return value;
         }
     }
 }

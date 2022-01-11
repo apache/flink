@@ -33,6 +33,6 @@ public class UseCatalogOperation implements UseOperation {
 
     @Override
     public String asSummaryString() {
-        return String.format("USE CATALOGS %s", catalogName);
+        return String.format("USE CATALOG %s", catalogName);
     }
 }

@@ -48,6 +48,7 @@ import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnec
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.PASSWORD_OPTION;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.SOCKET_TIMEOUT;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.USERNAME_OPTION;
+import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Elasticsearch base configuration. */
@@ -123,6 +124,10 @@ class ElasticsearchConfiguration {
         return config.get(HOSTS_OPTION).stream()
                 .map(ElasticsearchConfiguration::validateAndParseHostsString)
                 .collect(Collectors.toList());
+    }
+
+    public Optional<Integer> getParallelism() {
+        return config.getOptional(SINK_PARALLELISM);
     }
 
     private static HttpHost validateAndParseHostsString(String host) {

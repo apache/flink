@@ -737,7 +737,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     )
 
     testSqlApi(
-      "TO_TIMESTAMP(f14, 'yyyy-mm-dd')",
+      "TO_TIMESTAMP(f14, 'yyyy-MM-dd')",
       "NULL"
     )
   }
@@ -876,9 +876,44 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(s"EXTRACT(HOUR FROM $extractT1)", "7")
     testSqlApi(s"EXTRACT(MONTH FROM $extractT1)", "3")
     testSqlApi(s"EXTRACT(YEAR FROM $extractT1)", "2018")
+    testSqlApi(s"EXTRACT(ISODOW FROM $extractT1)", "2")
+    testSqlApi(s"EXTRACT(ISOYEAR FROM $extractT1)", "2018")
+    testSqlApi(s"EXTRACT(DECADE FROM $extractT1)", "201")
+    testSqlApi(s"EXTRACT(CENTURY FROM $extractT1)", "21")
+    testSqlApi(s"EXTRACT(MILLENNIUM FROM $extractT1)", "3")
     testSqlApi("EXTRACT(DAY FROM INTERVAL '19 12:10:10.123' DAY TO SECOND(3))", "19")
     testSqlApi("EXTRACT(HOUR FROM TIME '01:02:03')", "1")
     testSqlApi("EXTRACT(DAY FROM INTERVAL '19 12:10:10.123' DAY TO SECOND(3))", "19")
+
+    // Each ISO 8601 week-numbering year begins with the Monday of the week containing
+    // the 4th of January, so in early January or late December the ISO year may be different
+    // ISOYEAR, ISODOW
+    testSqlApi(s"EXTRACT(ISOYEAR FROM ${timestampLtz("1900-01-01 00:00:00")})", "1900")
+    testSqlApi(s"EXTRACT(ISODOW FROM ${timestampLtz("1900-01-01 00:00:00")})", "1")
+    testSqlApi(s"EXTRACT(ISOYEAR FROM ${timestampLtz("1950-01-01 00:00:00")})", "1949")
+    testSqlApi(s"EXTRACT(ISODOW FROM ${timestampLtz("1950-01-01 00:00:00")})", "7")
+    testSqlApi(s"EXTRACT(ISOYEAR FROM ${timestampLtz("1950-01-02 00:00:00")})", "1950")
+    testSqlApi(s"EXTRACT(ISODOW FROM ${timestampLtz("1950-01-02 00:00:00")})", "1")
+    testSqlApi(s"EXTRACT(ISOYEAR FROM ${timestampLtz("1970-01-01 00:00:00")})", "1970")
+    testSqlApi(s"EXTRACT(ISODOW FROM ${timestampLtz("1970-01-01 00:00:00")})", "4")
+    testSqlApi(s"EXTRACT(ISOYEAR FROM ${timestampLtz("1969-12-31 00:00:00")})", "1970")
+    testSqlApi(s"EXTRACT(ISODOW FROM ${timestampLtz("1969-12-31 00:00:00")})", "3")
+    testSqlApi(s"EXTRACT(ISOYEAR FROM ${timestampLtz("1969-12-30 00:00:00")})", "1970")
+    testSqlApi(s"EXTRACT(ISODOW FROM ${timestampLtz("1969-12-30 00:00:00")})", "2")
+    testSqlApi(s"EXTRACT(ISOYEAR FROM ${timestampLtz("1969-12-29 00:00:00")})", "1970")
+    testSqlApi(s"EXTRACT(ISODOW FROM ${timestampLtz("1969-12-29 00:00:00")})", "1")
+    testSqlApi(s"EXTRACT(ISOYEAR FROM ${timestampLtz("1969-12-28 00:00:00")})", "1969")
+    testSqlApi(s"EXTRACT(ISODOW FROM ${timestampLtz("1969-12-28 00:00:00")})", "7")
+    testSqlApi(s"EXTRACT(ISOYEAR FROM ${timestampLtz("2006-01-01 00:00:00")})", "2005")
+    testSqlApi(s"EXTRACT(ISODOW FROM ${timestampLtz("2006-01-01 00:00:00")})", "7")
+    testSqlApi(s"EXTRACT(ISOYEAR FROM ${timestampLtz("2006-01-02 00:00:00")})", "2006")
+    testSqlApi(s"EXTRACT(ISODOW FROM ${timestampLtz("2006-01-02 00:00:00")})", "1")
+    testSqlApi(s"EXTRACT(ISOYEAR FROM ${timestampLtz("2005-01-01 00:00:00")})", "2004")
+    testSqlApi(s"EXTRACT(ISODOW FROM ${timestampLtz("2005-01-01 00:00:00")})", "6")
+    testSqlApi(s"EXTRACT(ISOYEAR FROM ${timestampLtz("2005-01-02 00:00:00")})", "2004")
+    testSqlApi(s"EXTRACT(ISODOW FROM ${timestampLtz("2005-01-02 00:00:00")})", "7")
+    testSqlApi(s"EXTRACT(ISOYEAR FROM ${timestampLtz("2005-01-03 00:00:00")})", "2005")
+    testSqlApi(s"EXTRACT(ISODOW FROM ${timestampLtz("2005-01-03 00:00:00")})", "1")
 
     // FLOOR & CEIL
     testSqlApi("FLOOR(TIME '12:44:31' TO MINUTE)", "12:44:00")
@@ -1030,7 +1065,7 @@ class TemporalTypesTest extends ExpressionTestBase {
   def testInvalidInputCase(): Unit = {
     val invalidStr = "invalid value"
     testSqlApi(s"DATE_FORMAT('$invalidStr', 'yyyy/MM/dd HH:mm:ss')", nullable)
-    testSqlApi(s"TO_TIMESTAMP('$invalidStr', 'yyyy-mm-dd')", nullable)
+    testSqlApi(s"TO_TIMESTAMP('$invalidStr', 'yyyy-MM-dd')", nullable)
     testSqlApi(s"TO_DATE('$invalidStr')", nullable)
     testSqlApi(
       s"CONVERT_TZ('$invalidStr', 'UTC', 'Asia/Shanghai')",
@@ -1042,7 +1077,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     val invalidStr = "invalid value"
     val cases = Seq(
       s"DATE_FORMAT('$invalidStr', 'yyyy/MM/dd HH:mm:ss')",
-      s"TO_TIMESTAMP('$invalidStr', 'yyyy-mm-dd')",
+      s"TO_TIMESTAMP('$invalidStr', 'yyyy-MM-dd')",
       s"TO_DATE('$invalidStr')",
       s"CONVERT_TZ('$invalidStr', 'UTC', 'Asia/Shanghai')")
 

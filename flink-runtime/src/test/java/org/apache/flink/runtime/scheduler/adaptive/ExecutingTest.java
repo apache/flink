@@ -755,10 +755,12 @@ public class ExecutingTest extends TestLogger {
             super(
                     new MockInternalExecutionGraphAccessor(),
                     new JobVertex("test"),
+                    new DefaultVertexParallelismInfo(1, 1, max -> Optional.empty()));
+
+            initialize(
                     1,
                     Time.milliseconds(1L),
                     1L,
-                    new DefaultVertexParallelismInfo(1, 1, max -> Optional.empty()),
                     new DefaultSubtaskAttemptNumberStore(Collections.emptyList()));
             mockExecutionVertex = executionVertexSupplier.apply(this);
         }

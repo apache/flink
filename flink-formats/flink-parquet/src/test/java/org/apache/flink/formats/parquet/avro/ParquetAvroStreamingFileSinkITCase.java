@@ -224,37 +224,4 @@ public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
 
     // ------------------------------------------------------------------------
 
-    /** Test datum. */
-    public static class Datum implements Serializable {
-
-        public String a;
-        public int b;
-
-        public Datum() {}
-
-        public Datum(String a, int b) {
-            this.a = a;
-            this.b = b;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-
-            Datum datum = (Datum) o;
-            return b == datum.b && (a != null ? a.equals(datum.a) : datum.a == null);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = a != null ? a.hashCode() : 0;
-            result = 31 * result + b;
-            return result;
-        }
-    }
 }

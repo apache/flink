@@ -57,7 +57,8 @@ public class JobExecutionITCase extends TestLogger {
                         .setLocalCommunication(true)
                         .build();
 
-        try (TestingMiniCluster miniCluster = new TestingMiniCluster(miniClusterConfiguration)) {
+        try (TestingMiniCluster miniCluster =
+                TestingMiniCluster.newBuilder(miniClusterConfiguration).build()) {
             miniCluster.start();
 
             miniCluster.submitJob(jobGraph).get();

@@ -18,17 +18,23 @@
 
 package org.apache.flink.tests.util.flink.container;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.rest.RestClusterClient;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
 import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.tests.util.flink.JobSubmission;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.util.function.RunnableWithException;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -49,8 +55,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -113,7 +124,6 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
     private final List<GenericContainer<?>> taskManagers;
     private final GenericContainer<?> haService;
     private final Configuration conf;
-    private final Runnable cleanupHook;
 
     @Nullable private RestClusterClient<StandaloneClusterId> restClusterClient;
     private boolean isStarted = false;
@@ -127,13 +137,11 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
             GenericContainer<?> jobManager,
             List<GenericContainer<?>> taskManagers,
             @Nullable GenericContainer<?> haService,
-            Configuration conf,
-            Runnable cleanupHook) {
+            Configuration conf) {
         this.jobManager = jobManager;
         this.taskManagers = taskManagers;
         this.haService = haService;
         this.conf = conf;
-        this.cleanupHook = cleanupHook;
     }
 
     /** Starts all containers. */
@@ -160,11 +168,11 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
             restClusterClient.close();
         }
         this.taskManagers.forEach(GenericContainer::stop);
+        deleteJobManagerTemporaryFiles();
         this.jobManager.stop();
         if (this.haService != null) {
             this.haService.stop();
         }
-        cleanupHook.run();
     }
 
     /** Gets the running state of the cluster. */
@@ -254,6 +262,55 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
         }
     }
 
+    /**
+     * Submits the given job to the cluster.
+     *
+     * @param job job to submit
+     */
+    public JobID submitJob(JobSubmission job) throws IOException, InterruptedException {
+        final List<String> commands = new ArrayList<>();
+        commands.add("flink/bin/flink");
+        commands.add("run");
+
+        if (job.isDetached()) {
+            commands.add("-d");
+        }
+        if (job.getParallelism() > 0) {
+            commands.add("-p");
+            commands.add(String.valueOf(job.getParallelism()));
+        }
+        job.getMainClass()
+                .ifPresent(
+                        mainClass -> {
+                            commands.add("--class");
+                            commands.add(mainClass);
+                        });
+        final Path jobJar = job.getJar();
+        final String containerPath = "/tmp/" + jobJar.getFileName();
+        commands.add(containerPath);
+        jobManager.copyFileToContainer(
+                MountableFile.forHostPath(jobJar.toAbsolutePath()), containerPath);
+        commands.addAll(job.getArguments());
+
+        LOG.info("Running {}.", commands.stream().collect(Collectors.joining(" ")));
+
+        // Execute command in JobManager
+        Container.ExecResult execResult =
+                jobManager.execInContainer("bash", "-c", String.join(" ", commands));
+
+        final Pattern pattern =
+                job.isDetached()
+                        ? Pattern.compile("Job has been submitted with JobID (.*)")
+                        : Pattern.compile("Job with JobID (.*) has finished.");
+
+        final String stdout = execResult.getStdout();
+        LOG.info(stdout);
+        LOG.error(execResult.getStderr());
+        final Matcher matcher = pattern.matcher(stdout);
+        checkState(matcher.find(), "Cannot extract JobID from stdout.");
+        return JobID.fromHexString(matcher.group(1));
+    }
+
     // ------------------------ JUnit 5 lifecycle management ------------------------
     @Override
     public void beforeAll(ExtensionContext context) throws Exception {
@@ -316,5 +373,44 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
                 },
                 DEFAULT_TIMEOUT,
                 "TaskManagers are not ready within 30 seconds");
+    }
+
+    private void deleteJobManagerTemporaryFiles() {
+        final String checkpointDir = conf.get(CheckpointingOptions.CHECKPOINTS_DIRECTORY);
+        final String haDir = conf.get(HighAvailabilityOptions.HA_STORAGE_PATH);
+        final Collection<String> usedPaths =
+                Lists.newArrayList(checkpointDir, haDir).stream()
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+        if (usedPaths.isEmpty()) {
+            return;
+        }
+        final StringBuilder deletionBaseCommand = new StringBuilder("rm -rf");
+        usedPaths.forEach(p -> deletionBaseCommand.append(formatFilePathForDeletion(p)));
+        final String[] command = {"bash", "-c", deletionBaseCommand.toString()};
+        final Container.ExecResult result;
+        try {
+            result = jobManager.execInContainer(command);
+            if (result.getExitCode() != 0) {
+                throw new IllegalStateException(
+                        String.format(
+                                "Command \"%s\" returned non-zero exit code %d. \nSTDOUT: %s\nSTDERR: %s",
+                                String.join(" ", command),
+                                result.getExitCode(),
+                                result.getStdout(),
+                                result.getStderr()));
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    "Failed to delete temporary files generated by the flink cluster.", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(
+                    "Failed to delete temporary files generated by the flink cluster.", e);
+        }
+    }
+
+    private String formatFilePathForDeletion(String path) {
+        return " " + Paths.get(path).toString().split("file:")[1] + "/*";
     }
 }

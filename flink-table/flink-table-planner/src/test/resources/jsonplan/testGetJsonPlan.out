@@ -21,21 +21,7 @@
             }
          },
          "id":1,
-         "outputType":{
-            "type":"ROW",
-            "nullable":true,
-            "fields":[
-               {
-                  "a":"BIGINT"
-               },
-               {
-                  "b":"INT"
-               },
-               {
-                  "c":"VARCHAR(2147483647)"
-               }
-            ]
-         },
+         "outputType":"ROW<`a` BIGINT, `b` INT, `c` VARCHAR(2147483647)>",
          "description":"TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
          "inputProperties":[
 
@@ -73,21 +59,7 @@
                "priority":0
             }
          ],
-         "outputType":{
-            "type":"ROW",
-            "nullable":true,
-            "fields":[
-               {
-                  "a":"BIGINT"
-               },
-               {
-                  "b":"INT"
-               },
-               {
-                  "c":"VARCHAR(2147483647)"
-               }
-            ]
-         },
+         "outputType":"ROW<`a` BIGINT, `b` INT, `c` VARCHAR(2147483647)>",
          "description":"Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])"
       }
    ],

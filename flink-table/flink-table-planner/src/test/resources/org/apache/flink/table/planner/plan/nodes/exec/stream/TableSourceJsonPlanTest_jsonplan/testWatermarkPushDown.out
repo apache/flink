@@ -61,13 +61,15 @@
           "type" : "ROW",
           "nullable" : false,
           "fields" : [ {
-            "a" : "BIGINT"
+            "name" : "a",
+            "fieldType" : "BIGINT"
           }, {
-            "b" : "INT"
+            "name" : "b",
+            "fieldType" : "INT"
           }, {
-            "c" : {
+            "name" : "c",
+            "fieldType" : {
               "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-              "nullable" : true,
               "precision" : 3,
               "kind" : "ROWTIME"
             }
@@ -78,15 +80,16 @@
     "id" : 1,
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "a" : "BIGINT"
+        "name" : "a",
+        "fieldType" : "BIGINT"
       }, {
-        "b" : "INT"
+        "name" : "b",
+        "fieldType" : "INT"
       }, {
-        "c" : {
+        "name" : "c",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
@@ -124,15 +127,16 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "a" : "BIGINT"
+        "name" : "a",
+        "fieldType" : "BIGINT"
       }, {
-        "b" : "INT"
+        "name" : "b",
+        "fieldType" : "INT"
       }, {
-        "c" : {
+        "name" : "c",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }

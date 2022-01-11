@@ -974,6 +974,33 @@ public final class ExtractionUtils {
         return wrapperPrimitiveMap.get(cls);
     }
 
+    /** Helper map for {@link #classForName(String, boolean, ClassLoader)}. */
+    private static final Map<String, Class<?>> primitiveNameMap = new HashMap<>();
+
+    static {
+        primitiveNameMap.put("int", Integer.TYPE);
+        primitiveNameMap.put("boolean", Boolean.TYPE);
+        primitiveNameMap.put("float", Float.TYPE);
+        primitiveNameMap.put("long", Long.TYPE);
+        primitiveNameMap.put("short", Short.TYPE);
+        primitiveNameMap.put("byte", Byte.TYPE);
+        primitiveNameMap.put("double", Double.TYPE);
+        primitiveNameMap.put("char", Character.TYPE);
+        primitiveNameMap.put("void", Void.TYPE);
+    }
+
+    /**
+     * Similar to {@link Class#forName(String, boolean, ClassLoader)} but resolves primitive names
+     * as well.
+     */
+    public static Class<?> classForName(String name, boolean initialize, ClassLoader classLoader)
+            throws ClassNotFoundException {
+        if (primitiveNameMap.containsKey(name)) {
+            return primitiveNameMap.get(name);
+        }
+        return Class.forName(name, initialize, classLoader);
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private ExtractionUtils() {

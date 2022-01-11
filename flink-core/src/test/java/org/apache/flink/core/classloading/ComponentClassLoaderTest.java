@@ -67,7 +67,8 @@ public class ComponentClassLoaderTest extends TestLogger {
                 new TestUrlClassLoader(NON_EXISTENT_CLASS_NAME, CLASS_RETURNED_BY_OWNER);
 
         final ComponentClassLoader componentClassLoader =
-                new ComponentClassLoader(new URL[0], owner, new String[0], new String[0]);
+                new ComponentClassLoader(
+                        new URL[0], owner, new String[0], new String[0], Collections.emptyMap());
 
         componentClassLoader.loadClass(NON_EXISTENT_CLASS_NAME);
     }
@@ -79,7 +80,11 @@ public class ComponentClassLoaderTest extends TestLogger {
 
         final ComponentClassLoader componentClassLoader =
                 new ComponentClassLoader(
-                        new URL[0], owner, new String[] {CLASS_TO_LOAD.getName()}, new String[0]);
+                        new URL[0],
+                        owner,
+                        new String[] {CLASS_TO_LOAD.getName()},
+                        new String[0],
+                        Collections.emptyMap());
 
         final Class<?> loadedClass = componentClassLoader.loadClass(CLASS_TO_LOAD.getName());
         assertThat(loadedClass, sameInstance(CLASS_RETURNED_BY_OWNER));
@@ -91,7 +96,11 @@ public class ComponentClassLoaderTest extends TestLogger {
 
         final ComponentClassLoader componentClassLoader =
                 new ComponentClassLoader(
-                        new URL[0], owner, new String[] {CLASS_TO_LOAD.getName()}, new String[0]);
+                        new URL[0],
+                        owner,
+                        new String[] {CLASS_TO_LOAD.getName()},
+                        new String[0],
+                        Collections.emptyMap());
 
         final Class<?> loadedClass = componentClassLoader.loadClass(CLASS_TO_LOAD.getName());
         assertThat(loadedClass, sameInstance(CLASS_TO_LOAD));
@@ -104,7 +113,11 @@ public class ComponentClassLoaderTest extends TestLogger {
 
         final ComponentClassLoader componentClassLoader =
                 new ComponentClassLoader(
-                        new URL[0], owner, new String[0], new String[] {CLASS_TO_LOAD.getName()});
+                        new URL[0],
+                        owner,
+                        new String[0],
+                        new String[] {CLASS_TO_LOAD.getName()},
+                        Collections.emptyMap());
 
         final Class<?> loadedClass = componentClassLoader.loadClass(CLASS_TO_LOAD.getName());
         assertThat(loadedClass, sameInstance(CLASS_TO_LOAD));
@@ -117,7 +130,11 @@ public class ComponentClassLoaderTest extends TestLogger {
 
         final ComponentClassLoader componentClassLoader =
                 new ComponentClassLoader(
-                        new URL[0], owner, new String[0], new String[] {NON_EXISTENT_CLASS_NAME});
+                        new URL[0],
+                        owner,
+                        new String[0],
+                        new String[] {NON_EXISTENT_CLASS_NAME},
+                        Collections.emptyMap());
 
         final Class<?> loadedClass = componentClassLoader.loadClass(NON_EXISTENT_CLASS_NAME);
         assertThat(loadedClass, sameInstance(CLASS_RETURNED_BY_OWNER));
@@ -132,7 +149,8 @@ public class ComponentClassLoaderTest extends TestLogger {
         TestUrlClassLoader owner = new TestUrlClassLoader();
 
         final ComponentClassLoader componentClassLoader =
-                new ComponentClassLoader(new URL[0], owner, new String[0], new String[0]);
+                new ComponentClassLoader(
+                        new URL[0], owner, new String[0], new String[0], Collections.emptyMap());
 
         assertThat(componentClassLoader.getResource(NON_EXISTENT_RESOURCE_NAME), nullValue());
         assertThat(
@@ -147,7 +165,11 @@ public class ComponentClassLoaderTest extends TestLogger {
 
         final ComponentClassLoader componentClassLoader =
                 new ComponentClassLoader(
-                        new URL[] {}, owner, new String[] {resourceToLoad}, new String[0]);
+                        new URL[] {},
+                        owner,
+                        new String[] {resourceToLoad},
+                        new String[0],
+                        Collections.emptyMap());
 
         final URL loadedResource = componentClassLoader.getResource(resourceToLoad);
         assertThat(loadedResource, sameInstance(RESOURCE_RETURNED_BY_OWNER));
@@ -162,7 +184,8 @@ public class ComponentClassLoaderTest extends TestLogger {
                         new URL[] {TMP.getRoot().toURI().toURL()},
                         owner,
                         new String[] {resourceToLoad},
-                        new String[0]);
+                        new String[0],
+                        Collections.emptyMap());
 
         final URL loadedResource = componentClassLoader.getResource(resourceToLoad);
         assertThat(loadedResource.toString(), containsString(resourceToLoad));
@@ -178,7 +201,8 @@ public class ComponentClassLoaderTest extends TestLogger {
                         new URL[] {TMP.getRoot().toURI().toURL()},
                         owner,
                         new String[0],
-                        new String[] {resourceToLoad});
+                        new String[] {resourceToLoad},
+                        Collections.emptyMap());
 
         final URL loadedResource = componentClassLoader.getResource(resourceToLoad);
         assertThat(loadedResource.toString(), containsString(resourceToLoad));
@@ -194,7 +218,8 @@ public class ComponentClassLoaderTest extends TestLogger {
                         new URL[0],
                         owner,
                         new String[0],
-                        new String[] {NON_EXISTENT_RESOURCE_NAME});
+                        new String[] {NON_EXISTENT_RESOURCE_NAME},
+                        Collections.emptyMap());
 
         final URL loadedResource = componentClassLoader.getResource(NON_EXISTENT_RESOURCE_NAME);
         assertThat(loadedResource, sameInstance(RESOURCE_RETURNED_BY_OWNER));

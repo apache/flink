@@ -457,7 +457,27 @@ public class SingleInputGate extends IndexedInputGate {
                 }
 
                 return totalBuffers;
-            } catch (Exception ignored) {
+            } catch (Exception ex) {
+                LOG.debug("Fail to get number of queued buffers :", ex);
+            }
+        }
+
+        return 0;
+    }
+
+    public long getSizeOfQueuedBuffers() {
+        // re-try 3 times, if fails, return 0 for "unknown"
+        for (int retry = 0; retry < 3; retry++) {
+            try {
+                long totalSize = 0;
+
+                for (InputChannel channel : inputChannels.values()) {
+                    totalSize += channel.unsynchronizedGetSizeOfQueuedBuffers();
+                }
+
+                return totalSize;
+            } catch (Exception ex) {
+                LOG.debug("Fail to get size of queued buffers :", ex);
             }
         }
 
@@ -716,14 +736,11 @@ public class SingleInputGate extends IndexedInputGate {
         Optional<InputWithData<InputChannel, BufferAndAvailability>> next =
                 waitAndGetNextData(blocking);
         if (!next.isPresent()) {
-            throughputCalculator.pauseMeasurement(System.currentTimeMillis());
-            getAvailableFuture()
-                    .whenComplete(
-                            (future, ex) -> {
-                                throughputCalculator.resumeMeasurement(System.currentTimeMillis());
-                            });
+            throughputCalculator.pauseMeasurement();
             return Optional.empty();
         }
+
+        throughputCalculator.resumeMeasurement();
 
         InputWithData<InputChannel, BufferAndAvailability> inputWithData = next.get();
         final BufferOrEvent bufferOrEvent =

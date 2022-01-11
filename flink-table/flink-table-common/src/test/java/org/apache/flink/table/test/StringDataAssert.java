@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.test;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.table.data.StringData;
 
 import org.assertj.core.api.AbstractAssert;
@@ -25,6 +26,7 @@ import org.assertj.core.api.ByteArrayAssert;
 import org.assertj.core.api.StringAssert;
 
 /** Assertions for {@link StringData}. */
+@Experimental
 public class StringDataAssert extends AbstractAssert<StringDataAssert, StringData> {
 
     public StringDataAssert(StringData stringData) {

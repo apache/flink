@@ -97,6 +97,19 @@ public class RocksDBStateBackendConfigTest {
         assertEquals(defaultIncremental, backend.isIncrementalCheckpointsEnabled());
     }
 
+    @Test
+    public void testDefaultDbLogDir() throws Exception {
+        final EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend();
+        final File logFile = File.createTempFile(getClass().getSimpleName() + "-", ".log");
+        // set the environment variable 'log.file' with the Flink log file location
+        System.setProperty("log.file", logFile.getPath());
+        try (RocksDBResourceContainer container = backend.createOptionsAndResourceContainer()) {
+            assertEquals(logFile.getParent(), container.getDbOptions().dbLogDir());
+        } finally {
+            logFile.delete();
+        }
+    }
+
     // ------------------------------------------------------------------------
     //  RocksDB local file directory
     // ------------------------------------------------------------------------
