@@ -101,22 +101,12 @@ public class RocksIncrementalSnapshotStrategy<K>
     /**
      * Stores the {@link StateHandleID IDs} of uploaded SST files that build the incremental
      * history. Once the checkpoint is confirmed by JM, only the ID paired with {@link
-     * PlaceholderStreamStateHandle} can be sent. Until that, original {@link StreamStateHandle}
-     * must be used (held in {@link #lastUploadedSstFiles}).
+     * PlaceholderStreamStateHandle} can be sent.
      */
     @Nonnull private final SortedMap<Long, Set<StateHandleID>> uploadedStateIDs;
 
-    /**
-     * Last uploaded but potentially not confirmed SST files. Used if {@link #uploadedStateIDs}
-     * doesn't contain the corresponding {@link StateHandleID}.
-     */
-    @Nonnull private final Map<StateHandleID, StreamStateHandle> lastUploadedSstFiles;
-
     /** The identifier of the last completed checkpoint. */
     private long lastCompletedCheckpointId;
-
-    /** The identifier of the checkpoint for which SST files were uploaded (grows monotonically). */
-    private long lastCheckpointIdUploadedSst = -1;
 
     /** The help class used to upload state files. */
     private final RocksDBStateUploader stateUploader;
@@ -155,7 +145,6 @@ public class RocksIncrementalSnapshotStrategy<K>
         this.stateUploader = rocksDBStateUploader;
         this.lastCompletedCheckpointId = lastCompletedCheckpointId;
         this.localDirectoryName = backendUID.toString().replaceAll("[\\-]", "");
-        this.lastUploadedSstFiles = new HashMap<>();
     }
 
     @Override
@@ -295,32 +284,29 @@ public class RocksIncrementalSnapshotStrategy<K>
 
         final long lastCompletedCheckpoint;
         final Set<StateHandleID> confirmedSstFiles;
-        final Map<StateHandleID, StreamStateHandle> uploadedSstFiles;
 
         // use the last completed checkpoint as the comparison base.
         synchronized (uploadedStateIDs) {
             lastCompletedCheckpoint = lastCompletedCheckpointId;
             confirmedSstFiles = uploadedStateIDs.get(lastCompletedCheckpoint);
-            uploadedSstFiles = new HashMap<>(lastUploadedSstFiles);
             LOG.trace(
-                    "Use lastUploadedSstFiles for checkpoint {}: {}",
+                    "Use confirmed SST files for checkpoint {}: {}",
                     checkpointId,
-                    uploadedSstFiles);
+                    confirmedSstFiles);
         }
         LOG.trace(
                 "Taking incremental snapshot for checkpoint {}. Snapshot is based on last completed checkpoint {} "
-                        + "assuming the following (shared) confirmed files as base: {}, uploaded: {}.",
+                        + "assuming the following (shared) confirmed files as base: {}.",
                 checkpointId,
                 lastCompletedCheckpoint,
-                confirmedSstFiles,
-                uploadedSstFiles);
+                confirmedSstFiles);
 
         // snapshot meta data to save
         for (Map.Entry<String, RocksDbKvStateInfo> stateMetaInfoEntry :
                 kvStateInformation.entrySet()) {
             stateMetaInfoSnapshots.add(stateMetaInfoEntry.getValue().metaInfo.snapshot());
         }
-        return new PreviousSnapshot(confirmedSstFiles, uploadedSstFiles);
+        return new PreviousSnapshot(confirmedSstFiles);
     }
 
     private void takeDBNativeCheckpoint(@Nonnull SnapshotDirectory outputDirectory)
@@ -490,16 +476,6 @@ public class RocksIncrementalSnapshotStrategy<K>
                                 miscFilePaths, checkpointStreamFactory, snapshotCloseableRegistry));
 
                 synchronized (uploadedStateIDs) {
-                    // ignore an older upload if it completed after a newer one has completed
-                    if (checkpointId > lastCheckpointIdUploadedSst) {
-                        lastCheckpointIdUploadedSst = checkpointId;
-                        lastUploadedSstFiles.clear();
-                        LOG.trace(
-                                "Update lastUploadedSstFiles for checkpoint {}: {}",
-                                checkpointId,
-                                sstFiles);
-                        lastUploadedSstFiles.putAll(sstFiles);
-                    }
                     uploadedStateIDs.put(checkpointId, sstFiles.keySet());
                 }
             }
@@ -608,18 +584,14 @@ public class RocksIncrementalSnapshotStrategy<K>
     }
 
     private static final PreviousSnapshot EMPTY_PREVIOUS_SNAPSHOT =
-            new PreviousSnapshot(Collections.emptySet(), Collections.emptyMap());
+            new PreviousSnapshot(Collections.emptySet());
 
     private static class PreviousSnapshot {
 
         @Nullable private final Set<StateHandleID> confirmedSstFiles;
-        private final Map<StateHandleID, StreamStateHandle> uploadedSstFiles;
 
-        private PreviousSnapshot(
-                @Nullable Set<StateHandleID> confirmedSstFiles,
-                @Nonnull Map<StateHandleID, StreamStateHandle> uploadedSstFiles) {
+        private PreviousSnapshot(@Nullable Set<StateHandleID> confirmedSstFiles) {
             this.confirmedSstFiles = confirmedSstFiles;
-            this.uploadedSstFiles = Preconditions.checkNotNull(uploadedSstFiles);
         }
 
         private Optional<StreamStateHandle> getUploaded(StateHandleID stateHandleID) {
@@ -628,13 +600,9 @@ public class RocksIncrementalSnapshotStrategy<K>
                 // original from the shared state registry (created from a previous checkpoint)
                 return Optional.of(new PlaceholderStreamStateHandle());
             } else {
-                // If the file was uploaded but not confirmed by JM the handle has to be resent
-                // because JM might lose it during changing the leadership
-                StreamStateHandle value = uploadedSstFiles.get(stateHandleID);
-                if (value != null) {
-                    LOG.trace("Using uploaded non-confirmed file: {}", value);
-                }
-                return Optional.ofNullable(value);
+                // Don't use any uploaded but not confirmed handles because they might be deleted
+                // (by TM) if the previous checkpoint failed. See FLINK-25395
+                return Optional.empty();
             }
         }
 
