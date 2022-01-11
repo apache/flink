@@ -133,7 +133,8 @@ public class NettyShuffleServiceFactory
                                 resultPartitionManager,
                                 taskEventPublisher,
                                 nettyConfig,
-                                config.getMaxNumberOfConnections())
+                                config.getMaxNumberOfConnections(),
+                                config.isConnectionReuseEnabled())
                         : new LocalConnectionManager();
 
         NetworkBufferPool networkBufferPool =

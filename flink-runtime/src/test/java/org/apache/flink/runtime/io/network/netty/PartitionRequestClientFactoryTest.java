@@ -28,6 +28,8 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -47,7 +49,14 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 /** {@link PartitionRequestClientFactory} test. */
+@RunWith(Parameterized.class)
 public class PartitionRequestClientFactoryTest extends TestLogger {
+    @Parameterized.Parameter public boolean connectionReuseEnabled;
+
+    @Parameterized.Parameters(name = "connection reuse enabled = {0}")
+    public static Object[] parameters() {
+        return new Object[][] {new Object[] {true}, new Object[] {false}};
+    }
 
     @Test
     public void testInterruptsNotCached() throws Exception {
@@ -56,7 +65,7 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
             AwaitingNettyClient nettyClient =
                     new AwaitingNettyClient(nettyServerAndClient.client());
             PartitionRequestClientFactory factory =
-                    new PartitionRequestClientFactory(nettyClient, 0);
+                    new PartitionRequestClientFactory(nettyClient, connectionReuseEnabled);
 
             nettyClient.awaitForInterrupts = true;
             connectAndInterrupt(factory, nettyServerAndClient.getConnectionID(0));
@@ -98,7 +107,8 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
         try {
             final PartitionRequestClientFactory factory =
                     new PartitionRequestClientFactory(
-                            new UnstableNettyClient(nettyServerAndClient.client(), 1), 0);
+                            new UnstableNettyClient(nettyServerAndClient.client(), 1),
+                            connectionReuseEnabled);
 
             final ConnectionID connectionID = nettyServerAndClient.getConnectionID(0);
             try {
@@ -136,7 +146,10 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
 
         final PartitionRequestClientFactory factory =
                 new PartitionRequestClientFactory(
-                        nettyServerAndClient.client(), 0, maxNumberOfConnections);
+                        nettyServerAndClient.client(),
+                        0,
+                        maxNumberOfConnections,
+                        connectionReuseEnabled);
         for (int i = 0; i < Math.max(100, maxNumberOfConnections); i++) {
             final ConnectionID connectionID =
                     nettyServerAndClient.getConnectionID((int) (Math.random() * Integer.MAX_VALUE));
@@ -152,7 +165,8 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                 new UnstableNettyClient(serverAndClient.client(), 2);
 
         PartitionRequestClientFactory factory =
-                new PartitionRequestClientFactory(unstableNettyClient, 2);
+                new PartitionRequestClientFactory(
+                        unstableNettyClient, 2, 1, connectionReuseEnabled);
 
         factory.createPartitionRequestClient(serverAndClient.getConnectionID(0));
 
@@ -164,7 +178,8 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
     @Test(expected = IOException.class)
     public void testFailureReportedToSubsequentRequests() throws Exception {
         PartitionRequestClientFactory factory =
-                new PartitionRequestClientFactory(new FailingNettyClient(), 2);
+                new PartitionRequestClientFactory(
+                        new FailingNettyClient(), 2, 1, connectionReuseEnabled);
         try {
             factory.createPartitionRequestClient(
                     new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), 8080), 0));
@@ -183,7 +198,8 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
 
         try {
             PartitionRequestClientFactory factory =
-                    new PartitionRequestClientFactory(unstableNettyClient, 2);
+                    new PartitionRequestClientFactory(
+                            unstableNettyClient, 2, 1, connectionReuseEnabled);
 
             factory.createPartitionRequestClient(serverAndClient.getConnectionID(0));
 
@@ -200,7 +216,8 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                 new UnstableNettyClient(serverAndClient.client(), 2);
 
         PartitionRequestClientFactory factory =
-                new PartitionRequestClientFactory(unstableNettyClient, 2);
+                new PartitionRequestClientFactory(
+                        unstableNettyClient, 2, 1, connectionReuseEnabled);
 
         ExecutorService threadPoolExecutor = Executors.newFixedThreadPool(10);
         List<Future<NettyPartitionRequestClient>> futures = new ArrayList<>();
