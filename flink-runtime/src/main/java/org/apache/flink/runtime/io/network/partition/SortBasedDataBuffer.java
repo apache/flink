@@ -38,19 +38,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A {@link SortBuffer} implementation which sorts all appended records only by subpartition index.
+ * A {@link DataBuffer} implementation which sorts all appended records only by subpartition index.
  * Records of the same subpartition keep the appended order.
  *
  * <p>It maintains a list of {@link MemorySegment}s as a joint buffer. Data will be appended to the
  * joint buffer sequentially. When writing a record, an index entry will be appended first. An index
  * entry consists of 4 fields: 4 bytes for record length, 4 bytes for {@link DataType} and 8 bytes
  * for address pointing to the next index entry of the same channel which will be used to index the
- * next record to read when coping data from this {@link SortBuffer}. For simplicity, no index entry
+ * next record to read when coping data from this {@link DataBuffer}. For simplicity, no index entry
  * can span multiple segments. The corresponding record data is seated right after its index entry
  * and different from the index entry, records have variable length thus may span multiple segments.
  */
 @NotThreadSafe
-public class PartitionSortedBuffer implements SortBuffer {
+public class SortBasedDataBuffer implements DataBuffer {
 
     /**
      * Size of an index entry: 4 bytes for record length, 4 bytes for data type and 8 bytes for
@@ -89,6 +89,9 @@ public class PartitionSortedBuffer implements SortBuffer {
     /** Total number of bytes already read from this sort buffer. */
     private long numTotalBytesRead;
 
+    /** Whether this sort buffer is full and ready to read data from. */
+    private boolean isFull;
+
     /** Whether this sort buffer is finished. One can only read a finished sort buffer. */
     private boolean isFinished;
 
@@ -121,7 +124,7 @@ public class PartitionSortedBuffer implements SortBuffer {
     /** Used to index the current available channel to read data from. */
     private int readOrderIndex = -1;
 
-    public PartitionSortedBuffer(
+    public SortBasedDataBuffer(
             BufferPool bufferPool,
             int numSubpartitions,
             int bufferSize,
@@ -151,18 +154,28 @@ public class PartitionSortedBuffer implements SortBuffer {
         }
     }
 
+    /**
+     * No partial record will be written to this {@link SortBasedDataBuffer}, which means that
+     * either all data of target record will be written or nothing will be written.
+     */
     @Override
     public boolean append(ByteBuffer source, int targetChannel, DataType dataType)
             throws IOException {
         checkArgument(source.hasRemaining(), "Cannot append empty data.");
+        checkState(!isFull, "Sort buffer is already full.");
         checkState(!isFinished, "Sort buffer is already finished.");
         checkState(!isReleased, "Sort buffer is already released.");
 
         int totalBytes = source.remaining();
 
-        // return false directly if it can not allocate enough buffers for the given record
+        // return true directly if it can not allocate enough buffers for the given record
         if (!allocateBuffersForRecord(totalBytes)) {
-            return false;
+            isFull = true;
+            if (hasRemaining()) {
+                // prepare for reading
+                updateReadChannelAndIndexEntryAddress();
+            }
+            return true;
         }
 
         // write the index entry and record or event data
@@ -172,7 +185,7 @@ public class PartitionSortedBuffer implements SortBuffer {
         ++numTotalRecords;
         numTotalBytes += totalBytes;
 
-        return true;
+        return false;
     }
 
     private void writeIndex(int channelIndex, int numRecordBytes, Buffer.DataType dataType) {
@@ -280,10 +293,13 @@ public class PartitionSortedBuffer implements SortBuffer {
     }
 
     @Override
-    public BufferWithChannel copyIntoSegment(MemorySegment target) {
-        checkState(hasRemaining(), "No data remaining.");
-        checkState(isFinished, "Should finish the sort buffer first before coping any data.");
+    public BufferWithChannel getNextBuffer(MemorySegment transitBuffer) {
+        checkState(isFull, "Sort buffer is not ready to be read.");
         checkState(!isReleased, "Sort buffer is already released.");
+
+        if (!hasRemaining()) {
+            return null;
+        }
 
         int numBytesCopied = 0;
         DataType bufferDataType = DataType.DATA_BUFFER;
@@ -309,13 +325,13 @@ public class PartitionSortedBuffer implements SortBuffer {
             sourceSegmentOffset += INDEX_ENTRY_SIZE;
 
             // allocate a temp buffer for the event if the target buffer is not big enough
-            if (bufferDataType.isEvent() && target.size() < length) {
-                target = MemorySegmentFactory.allocateUnpooledSegment(length);
+            if (bufferDataType.isEvent() && transitBuffer.size() < length) {
+                transitBuffer = MemorySegmentFactory.allocateUnpooledSegment(length);
             }
 
             numBytesCopied +=
                     copyRecordOrEvent(
-                            target,
+                            transitBuffer,
                             numBytesCopied,
                             sourceSegmentIndex,
                             sourceSegmentOffset,
@@ -329,10 +345,11 @@ public class PartitionSortedBuffer implements SortBuffer {
                 }
                 readIndexEntryAddress = nextReadIndexEntryAddress;
             }
-        } while (numBytesCopied < target.size() && bufferDataType.isBuffer());
+        } while (numBytesCopied < transitBuffer.size() && bufferDataType.isBuffer());
 
         numTotalBytesRead += numBytesCopied;
-        Buffer buffer = new NetworkBuffer(target, (buf) -> {}, bufferDataType, numBytesCopied);
+        Buffer buffer =
+                new NetworkBuffer(transitBuffer, (buf) -> {}, bufferDataType, numBytesCopied);
         return new BufferWithChannel(buffer, channelIndex);
     }
 
@@ -395,12 +412,12 @@ public class PartitionSortedBuffer implements SortBuffer {
     }
 
     @Override
-    public long numRecords() {
+    public long numTotalRecords() {
         return numTotalRecords;
     }
 
     @Override
-    public long numBytes() {
+    public long numTotalBytes() {
         return numTotalBytes;
     }
 
@@ -410,12 +427,37 @@ public class PartitionSortedBuffer implements SortBuffer {
     }
 
     @Override
+    public void reset() {
+        checkState(!isFinished, "Sort buffer has been finished.");
+        checkState(!isReleased, "Sort buffer has been released.");
+        checkState(!hasRemaining(), "Still has remaining data.");
+
+        for (MemorySegment segment : segments) {
+            bufferPool.recycle(segment);
+        }
+        segments.clear();
+
+        // initialized with -1 means the corresponding channel has no data
+        Arrays.fill(firstIndexEntryAddresses, -1L);
+        Arrays.fill(lastIndexEntryAddresses, -1L);
+
+        isFull = false;
+        writeSegmentIndex = 0;
+        writeSegmentOffset = 0;
+        readIndexEntryAddress = 0;
+        recordRemainingBytes = 0;
+        readOrderIndex = -1;
+    }
+
+    @Override
     public void finish() {
-        checkState(!isFinished, "SortBuffer is already finished.");
+        checkState(!isFull, "DataBuffer must not be full.");
+        checkState(!isFinished, "DataBuffer is already finished.");
 
         isFinished = true;
 
         // prepare for reading
+        isFull = true;
         updateReadChannelAndIndexEntryAddress();
     }
 
@@ -426,20 +468,15 @@ public class PartitionSortedBuffer implements SortBuffer {
 
     @Override
     public void release() {
-        // the sort buffer can be released by other threads
         if (isReleased) {
             return;
         }
-
         isReleased = true;
 
         for (MemorySegment segment : segments) {
             bufferPool.recycle(segment);
         }
         segments.clear();
-
-        numTotalBytes = 0;
-        numTotalRecords = 0;
     }
 
     @Override
