@@ -43,8 +43,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.kafka.common.TopicPartition;
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -599,7 +597,6 @@ class KafkaConnectorOptionsUtil {
         public StartupMode startupMode;
         public Map<KafkaTopicPartition, Long> specificOffsets;
         public long startupTimestampMillis;
-        public Map<TopicPartition, Long> setBounded;
     }
 
     private KafkaConnectorOptionsUtil() {}

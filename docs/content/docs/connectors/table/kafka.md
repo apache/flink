@@ -319,6 +319,13 @@ Connector Options
       <td>Start from the specified epoch timestamp (milliseconds) used in case of <code>'timestamp'</code> startup mode.</td>
     </tr>
     <tr>
+      <td><h5>scan.bounded.stop-offsets</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Specify stop offsets for each partition in case of <code>'stop-offsets'</code>, e.g. <code>'partition:0,offset:42;partition:1,offset:300'</code>.
+    </td>
+    <tr>
       <td><h5>scan.topic-partition-discovery.interval</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
@@ -367,6 +374,7 @@ Connector Options
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
       <td>Defines the parallelism of the Kafka sink operator. By default, the parallelism is determined by the framework using the same parallelism of the upstream chained operator.</td>
+    </tr>
     </tr>
     </tbody>
 </table>

@@ -189,7 +189,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 + "  'properties.bootstrap.servers' = '%s',\n"
                                 + "  'properties.group.id' = '%s',\n"
                                 + "  'scan.startup.mode' = 'earliest-offset',\n"
-                                + "  'scan.bounded.specific-offsets' = 'partition:0,offset:2',\n"
+                                + "  'scan.bounded.stop-offsets' = 'partition:0,offset:2',\n"
                                 + "  %s\n"
                                 + ")\n",
                         KafkaDynamicTableFactory.IDENTIFIER,

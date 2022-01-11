@@ -159,11 +159,11 @@ public class KafkaConnectorOptions {
                             "Optional offsets used in case of \"specific-offsets\" startup mode");
 
     public static final ConfigOption<String> SCAN_BOUNDED_SPECIFIC_OFFSETS =
-            ConfigOptions.key("scan.bounded.specific-offsets")
+            ConfigOptions.key("scan.bounded.stop-offsets")
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "When all partitions have reached their stop offsets, the source will exit");
+                            "Optional stop-offsets for consumers to end at the specified offsets");
 
     public static final ConfigOption<Long> SCAN_STARTUP_TIMESTAMP_MILLIS =
             ConfigOptions.key("scan.startup.timestamp-millis")

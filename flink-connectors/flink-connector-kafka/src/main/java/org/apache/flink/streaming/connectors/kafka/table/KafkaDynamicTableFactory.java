@@ -365,7 +365,7 @@ public class KafkaDynamicTableFactory
             StartupMode startupMode,
             Map<KafkaTopicPartition, Long> specificStartupOffsets,
             long startupTimestampMillis,
-            @Nullable Map<KafkaTopicPartition, Long> boundedEndOffsets,
+            Map<KafkaTopicPartition, Long> stopOffsets,
             String tableIdentifier) {
         return new KafkaDynamicSource(
                 physicalDataType,
@@ -381,7 +381,7 @@ public class KafkaDynamicTableFactory
                 specificStartupOffsets,
                 startupTimestampMillis,
                 false,
-                boundedEndOffsets,
+                stopOffsets,
                 tableIdentifier);
     }
 
