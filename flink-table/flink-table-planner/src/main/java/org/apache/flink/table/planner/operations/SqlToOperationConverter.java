@@ -106,8 +106,8 @@ import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
-import org.apache.flink.table.operations.GroupOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
 import org.apache.flink.table.operations.ShowColumnsOperation;
@@ -122,6 +122,7 @@ import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
+import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
@@ -226,6 +227,12 @@ public class SqlToOperationConverter {
             FlinkPlannerImpl flinkPlanner, CatalogManager catalogManager, SqlNode sqlNode) {
         // validate the query
         final SqlNode validated = flinkPlanner.validate(sqlNode);
+        return convertValidatedSqlNode(flinkPlanner, catalogManager, validated);
+    }
+
+    /** Convert a validated sql node to Operation. */
+    private static Optional<Operation> convertValidatedSqlNode(
+            FlinkPlannerImpl flinkPlanner, CatalogManager catalogManager, SqlNode validated) {
         SqlToOperationConverter converter =
                 new SqlToOperationConverter(flinkPlanner, catalogManager);
         if (validated instanceof SqlCreateCatalog) {
@@ -317,7 +324,8 @@ public class SqlToOperationConverter {
         } else if (validated instanceof SqlStatementSet) {
             return Optional.of(converter.convertSqlStatementSet((SqlStatementSet) validated));
         } else if (validated instanceof SqlExecute) {
-            return convert(flinkPlanner, catalogManager, ((SqlExecute) validated).getStatement());
+            return convertValidatedSqlNode(
+                    flinkPlanner, catalogManager, ((SqlExecute) validated).getStatement());
         } else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
             return Optional.of(converter.convertSqlQuery(validated));
         } else {
@@ -688,10 +696,11 @@ public class SqlToOperationConverter {
     }
 
     /** Convert statement set into statement. */
-    private GroupOperation convertSqlStatementSet(SqlStatementSet statementSet) {
-        return new GroupOperation(
+    private StatementSetOperation convertSqlStatementSet(SqlStatementSet statementSet) {
+        return new StatementSetOperation(
                 statementSet.getInserts().stream()
                         .map(this::convertSqlInsert)
+                        .map(op -> (ModifyOperation) op)
                         .collect(Collectors.toList()));
     }
 
@@ -710,8 +719,7 @@ public class SqlToOperationConverter {
 
         PlannerQueryOperation query =
                 (PlannerQueryOperation)
-                        SqlToOperationConverter.convert(
-                                        flinkPlanner, catalogManager, insert.getSource())
+                        convertValidatedSqlNode(flinkPlanner, catalogManager, insert.getSource())
                                 .orElseThrow(
                                         () ->
                                                 new TableException(
@@ -1039,18 +1047,18 @@ public class SqlToOperationConverter {
     /** Convert RICH EXPLAIN statement. */
     private Operation convertRichExplain(SqlRichExplain sqlExplain) {
         SqlNode sqlNode = sqlExplain.getStatement();
-        List<Operation> operations;
+        Operation operation;
         if (sqlNode instanceof RichSqlInsert) {
-            operations = Collections.singletonList(convertSqlInsert((RichSqlInsert) sqlNode));
+            operation = convertSqlInsert((RichSqlInsert) sqlNode);
         } else if (sqlNode instanceof SqlStatementSet) {
-            operations = convertSqlStatementSet((SqlStatementSet) sqlNode).getOperations();
+            operation = convertSqlStatementSet((SqlStatementSet) sqlNode);
         } else if (sqlNode.getKind().belongsTo(SqlKind.QUERY)) {
-            operations = Collections.singletonList(convertSqlQuery(sqlExplain.getStatement()));
+            operation = convertSqlQuery(sqlExplain.getStatement());
         } else {
             throw new ValidationException(
                     String.format("EXPLAIN statement doesn't support %s", sqlNode.getKind()));
         }
-        return new ExplainOperation(operations, sqlExplain.getExplainDetails());
+        return new ExplainOperation(operation, sqlExplain.getExplainDetails());
     }
 
     /** Convert DESCRIBE [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier. */

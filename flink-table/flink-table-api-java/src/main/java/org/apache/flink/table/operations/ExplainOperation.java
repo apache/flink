@@ -18,17 +18,17 @@
 
 package org.apache.flink.table.operations;
 
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.annotation.Internal;
 
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 /** Operation to describe an EXPLAIN statement. */
-public class ExplainOperation implements Operation {
-    private final List<Operation> children;
+@Internal
+public final class ExplainOperation implements Operation {
+    private final Operation child;
     private final Set<String> explainDetails;
 
     public ExplainOperation(Operation child) {
@@ -36,17 +36,12 @@ public class ExplainOperation implements Operation {
     }
 
     public ExplainOperation(Operation child, Set<String> explainDetails) {
-        this(Collections.singletonList(child), explainDetails);
-    }
-
-    public ExplainOperation(List<Operation> children, Set<String> explainDetails) {
-        Preconditions.checkArgument(!children.isEmpty());
-        this.children = children;
+        this.child = child;
         this.explainDetails = explainDetails;
     }
 
-    public List<Operation> getChildren() {
-        return children;
+    public Operation getChild() {
+        return child;
     }
 
     @Override
@@ -61,7 +56,10 @@ public class ExplainOperation implements Operation {
                                     .collect(Collectors.joining(", ")));
         }
         return OperationUtils.formatWithChildren(
-                operationName, Collections.emptyMap(), children, Operation::asSummaryString);
+                operationName,
+                Collections.emptyMap(),
+                Collections.singletonList(child),
+                Operation::asSummaryString);
     }
 
     public Set<String> getExplainDetails() {

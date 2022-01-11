@@ -210,8 +210,8 @@ class TableEnvironmentTest {
       TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
   }
 
-    @Test
-  def testAlterTableResetEmtpyOptionKey(): Unit = {
+  @Test
+  def testAlterTableResetEmptyOptionKey(): Unit = {
     val statement =
       """
         |CREATE TABLE MyTable (
