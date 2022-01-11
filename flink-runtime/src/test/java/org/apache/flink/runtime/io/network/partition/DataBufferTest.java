@@ -22,9 +22,12 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -38,16 +41,29 @@ import java.util.Random;
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-/** Tests for {@link PartitionSortedBuffer}. */
-public class PartitionSortedBufferTest {
+/** Tests for {@link SortBasedDataBuffer} and {@link HashBasedDataBuffer}. */
+@RunWith(Parameterized.class)
+public class DataBufferTest {
+
+    private final boolean useHashBuffer;
+
+    @Parameterized.Parameters(name = "UseHashBuffer = {0}")
+    public static Object[] parameters() {
+        return new Object[] {true, false};
+    }
+
+    public DataBufferTest(boolean useHashBuffer) {
+        this.useHashBuffer = useHashBuffer;
+    }
 
     @Test
-    public void testWriteAndReadSortBuffer() throws Exception {
+    public void testWriteAndReadDataBuffer() throws Exception {
         int numSubpartitions = 10;
         int bufferSize = 1024;
-        int bufferPoolSize = 1000;
+        int bufferPoolSize = 512;
         Random random = new Random(1111);
 
         // used to store data written to and read from sort buffer for correctness check
@@ -65,13 +81,14 @@ public class PartitionSortedBufferTest {
 
         // fill the sort buffer with randomly generated data
         int totalBytesWritten = 0;
-        SortBuffer sortBuffer =
-                createSortBuffer(
+        DataBuffer dataBuffer =
+                createDataBuffer(
                         bufferPoolSize,
                         bufferSize,
                         numSubpartitions,
                         getRandomSubpartitionOrder(numSubpartitions));
-        while (true) {
+        int numDataBuffers = 5;
+        while (numDataBuffers > 0) {
             // record size may be larger than buffer size so a record may span multiple segments
             int recordSize = random.nextInt(bufferSize * 4 - 1) + 1;
             byte[] bytes = new byte[recordSize];
@@ -86,28 +103,69 @@ public class PartitionSortedBufferTest {
             // select a random data type
             boolean isBuffer = random.nextBoolean();
             DataType dataType = isBuffer ? DataType.DATA_BUFFER : DataType.EVENT_BUFFER;
-            if (!sortBuffer.append(record, subpartition, dataType)) {
-                sortBuffer.finish();
-                break;
+            boolean isFull = dataBuffer.append(record, subpartition, dataType);
+
+            record.flip();
+            if (record.hasRemaining()) {
+                dataWritten[subpartition].add(new DataAndType(record, dataType));
+                numBytesWritten[subpartition] += record.remaining();
+                totalBytesWritten += record.remaining();
             }
-            record.rewind();
-            dataWritten[subpartition].add(new DataAndType(record, dataType));
-            numBytesWritten[subpartition] += recordSize;
-            totalBytesWritten += recordSize;
+
+            while (isFull && dataBuffer.hasRemaining()) {
+                BufferWithChannel buffer = copyIntoSegment(bufferSize, dataBuffer);
+                if (buffer == null) {
+                    break;
+                }
+                addBufferRead(buffer, buffersRead, numBytesRead);
+            }
+
+            if (isFull) {
+                --numDataBuffers;
+                dataBuffer.reset();
+            }
         }
 
         // read all data from the sort buffer
-        while (sortBuffer.hasRemaining()) {
-            MemorySegment readBuffer = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
-            BufferWithChannel bufferAndChannel = sortBuffer.copyIntoSegment(readBuffer);
-            int subpartition = bufferAndChannel.getChannelIndex();
-            buffersRead[subpartition].add(bufferAndChannel.getBuffer());
-            numBytesRead[subpartition] += bufferAndChannel.getBuffer().readableBytes();
+        if (dataBuffer.hasRemaining()) {
+            assertTrue(dataBuffer instanceof HashBasedDataBuffer);
+            dataBuffer.reset();
+            dataBuffer.finish();
+            while (dataBuffer.hasRemaining()) {
+                addBufferRead(copyIntoSegment(bufferSize, dataBuffer), buffersRead, numBytesRead);
+            }
         }
 
-        assertEquals(totalBytesWritten, sortBuffer.numBytes());
+        assertEquals(totalBytesWritten, dataBuffer.numTotalBytes());
         checkWriteReadResult(
                 numSubpartitions, numBytesWritten, numBytesRead, dataWritten, buffersRead);
+    }
+
+    private BufferWithChannel copyIntoSegment(int bufferSize, DataBuffer dataBuffer) {
+        if (useHashBuffer) {
+            BufferWithChannel buffer = dataBuffer.getNextBuffer(null);
+            if (buffer == null || !buffer.getBuffer().isBuffer()) {
+                return buffer;
+            }
+
+            MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
+            int numBytes = buffer.getBuffer().readableBytes();
+            segment.put(0, buffer.getBuffer().getNioBufferReadable(), numBytes);
+            buffer.getBuffer().recycleBuffer();
+            return new BufferWithChannel(
+                    new NetworkBuffer(segment, MemorySegment::free, DataType.DATA_BUFFER, numBytes),
+                    buffer.getChannelIndex());
+        } else {
+            MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
+            return dataBuffer.getNextBuffer(segment);
+        }
+    }
+
+    private void addBufferRead(
+            BufferWithChannel buffer, Queue<Buffer>[] buffersRead, int[] numBytesRead) {
+        int channel = buffer.getChannelIndex();
+        buffersRead[channel].add(buffer.getBuffer());
+        numBytesRead[channel] += buffer.getBuffer().readableBytes();
     }
 
     public static void checkWriteReadResult(
@@ -166,33 +224,33 @@ public class PartitionSortedBufferTest {
             ByteBuffer.allocate(1024)
         };
 
-        SortBuffer sortBuffer = createSortBuffer(bufferPoolSize, bufferSize, numSubpartitions);
+        DataBuffer dataBuffer = createDataBuffer(bufferPoolSize, bufferSize, numSubpartitions);
         for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
             ByteBuffer record = subpartitionRecords[subpartition];
             if (record != null) {
-                sortBuffer.append(record, subpartition, Buffer.DataType.DATA_BUFFER);
+                dataBuffer.append(record, subpartition, Buffer.DataType.DATA_BUFFER);
                 record.rewind();
             }
         }
-        sortBuffer.finish();
+        dataBuffer.finish();
 
-        checkReadResult(sortBuffer, subpartitionRecords[0], 0, bufferSize);
+        checkReadResult(dataBuffer, subpartitionRecords[0], 0, bufferSize);
 
         ByteBuffer expected1 = subpartitionRecords[2].duplicate();
         expected1.limit(bufferSize);
-        checkReadResult(sortBuffer, expected1.slice(), 2, bufferSize);
+        checkReadResult(dataBuffer, expected1.slice(), 2, bufferSize);
 
         ByteBuffer expected2 = subpartitionRecords[2].duplicate();
         expected2.position(bufferSize);
-        checkReadResult(sortBuffer, expected2.slice(), 2, bufferSize);
+        checkReadResult(dataBuffer, expected2.slice(), 2, bufferSize);
 
-        checkReadResult(sortBuffer, subpartitionRecords[4], 4, bufferSize);
+        checkReadResult(dataBuffer, subpartitionRecords[4], 4, bufferSize);
     }
 
     private void checkReadResult(
-            SortBuffer sortBuffer, ByteBuffer expectedBuffer, int expectedChannel, int bufferSize) {
+            DataBuffer dataBuffer, ByteBuffer expectedBuffer, int expectedChannel, int bufferSize) {
         MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
-        BufferWithChannel bufferWithChannel = sortBuffer.copyIntoSegment(segment);
+        BufferWithChannel bufferWithChannel = dataBuffer.getNextBuffer(segment);
         assertEquals(expectedChannel, bufferWithChannel.getChannelIndex());
         assertEquals(expectedBuffer, bufferWithChannel.getBuffer().getNioBufferReadable());
     }
@@ -201,32 +259,32 @@ public class PartitionSortedBufferTest {
     public void testWriteEmptyData() throws Exception {
         int bufferSize = 1024;
 
-        SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
+        DataBuffer dataBuffer = createDataBuffer(1, bufferSize, 1);
 
         ByteBuffer record = ByteBuffer.allocate(1);
         record.position(1);
 
-        sortBuffer.append(record, 0, Buffer.DataType.DATA_BUFFER);
+        dataBuffer.append(record, 0, Buffer.DataType.DATA_BUFFER);
     }
 
     @Test(expected = IllegalStateException.class)
-    public void testWriteFinishedSortBuffer() throws Exception {
+    public void testWriteFinishedDataBuffer() throws Exception {
         int bufferSize = 1024;
 
-        SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
-        sortBuffer.finish();
+        DataBuffer dataBuffer = createDataBuffer(1, bufferSize, 1);
+        dataBuffer.finish();
 
-        sortBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
+        dataBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
     }
 
     @Test(expected = IllegalStateException.class)
-    public void testWriteReleasedSortBuffer() throws Exception {
+    public void testWriteReleasedDataBuffer() throws Exception {
         int bufferSize = 1024;
 
-        SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
-        sortBuffer.release();
+        DataBuffer dataBuffer = createDataBuffer(1, bufferSize, 1);
+        dataBuffer.release();
 
-        sortBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
+        dataBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
     }
 
     @Test
@@ -234,16 +292,16 @@ public class PartitionSortedBufferTest {
         int bufferPoolSize = 10;
         int bufferSize = 1024;
 
-        SortBuffer sortBuffer = createSortBuffer(bufferPoolSize, bufferSize, 1);
+        DataBuffer dataBuffer = createDataBuffer(bufferPoolSize, bufferSize, 1);
 
         for (int i = 1; i < bufferPoolSize; ++i) {
-            appendAndCheckResult(sortBuffer, bufferSize, true, bufferSize * i, i, true);
+            appendAndCheckResult(dataBuffer, bufferSize, false, bufferSize * i, i, true);
         }
 
         // append should fail for insufficient capacity
         int numRecords = bufferPoolSize - 1;
-        appendAndCheckResult(
-                sortBuffer, bufferSize, false, bufferSize * numRecords, numRecords, true);
+        long numBytes = useHashBuffer ? bufferSize * bufferPoolSize : bufferSize * numRecords;
+        appendAndCheckResult(dataBuffer, bufferSize + 1, true, numBytes, numRecords, true);
     }
 
     @Test
@@ -251,66 +309,68 @@ public class PartitionSortedBufferTest {
         int bufferPoolSize = 10;
         int bufferSize = 1024;
 
-        SortBuffer sortBuffer = createSortBuffer(bufferPoolSize, bufferSize, 1);
-        // append should fail for insufficient capacity
-        appendAndCheckResult(sortBuffer, bufferPoolSize * bufferSize, false, 0, 0, false);
+        DataBuffer dataBuffer = createDataBuffer(bufferPoolSize, bufferSize, 1);
+        long numBytes = useHashBuffer ? bufferPoolSize * bufferSize : 0;
+        appendAndCheckResult(
+                dataBuffer, bufferPoolSize * bufferSize + 1, true, numBytes, 0, useHashBuffer);
     }
 
     private void appendAndCheckResult(
-            SortBuffer sortBuffer,
+            DataBuffer dataBuffer,
             int recordSize,
-            boolean isSuccessful,
+            boolean isFull,
             long numBytes,
             long numRecords,
             boolean hasRemaining)
             throws IOException {
         ByteBuffer largeRecord = ByteBuffer.allocate(recordSize);
 
-        assertEquals(isSuccessful, sortBuffer.append(largeRecord, 0, Buffer.DataType.DATA_BUFFER));
-        assertEquals(numBytes, sortBuffer.numBytes());
-        assertEquals(numRecords, sortBuffer.numRecords());
-        assertEquals(hasRemaining, sortBuffer.hasRemaining());
+        assertEquals(isFull, dataBuffer.append(largeRecord, 0, Buffer.DataType.DATA_BUFFER));
+        assertEquals(numBytes, dataBuffer.numTotalBytes());
+        assertEquals(numRecords, dataBuffer.numTotalRecords());
+        assertEquals(hasRemaining, dataBuffer.hasRemaining());
     }
 
     @Test(expected = IllegalStateException.class)
-    public void testReadUnfinishedSortBuffer() throws Exception {
+    public void testReadUnfinishedDataBuffer() throws Exception {
         int bufferSize = 1024;
 
-        SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
-        sortBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
+        DataBuffer dataBuffer = createDataBuffer(1, bufferSize, 1);
+        dataBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
 
-        assertTrue(sortBuffer.hasRemaining());
-        sortBuffer.copyIntoSegment(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
+        assertTrue(dataBuffer.hasRemaining());
+        dataBuffer.getNextBuffer(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
     }
 
     @Test(expected = IllegalStateException.class)
-    public void testReadReleasedSortBuffer() throws Exception {
+    public void testReadReleasedDataBuffer() throws Exception {
         int bufferSize = 1024;
 
-        SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
-        sortBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
-        sortBuffer.finish();
-        assertTrue(sortBuffer.hasRemaining());
+        DataBuffer dataBuffer = createDataBuffer(1, bufferSize, 1);
+        dataBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
+        dataBuffer.finish();
+        assertTrue(dataBuffer.hasRemaining());
 
-        sortBuffer.release();
-        assertFalse(sortBuffer.hasRemaining());
+        dataBuffer.release();
+        assertTrue(dataBuffer.hasRemaining());
 
-        sortBuffer.copyIntoSegment(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
-    }
-
-    @Test(expected = IllegalStateException.class)
-    public void testReadEmptySortBuffer() throws Exception {
-        int bufferSize = 1024;
-
-        SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
-        sortBuffer.finish();
-
-        assertFalse(sortBuffer.hasRemaining());
-        sortBuffer.copyIntoSegment(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
+        dataBuffer.getNextBuffer(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
     }
 
     @Test
-    public void testReleaseSortBuffer() throws Exception {
+    public void testReadEmptyDataBuffer() throws Exception {
+        int bufferSize = 1024;
+
+        DataBuffer dataBuffer = createDataBuffer(1, bufferSize, 1);
+        dataBuffer.finish();
+
+        assertFalse(dataBuffer.hasRemaining());
+        assertNull(
+                dataBuffer.getNextBuffer(MemorySegmentFactory.allocateUnpooledSegment(bufferSize)));
+    }
+
+    @Test
+    public void testReleaseDataBuffer() throws Exception {
         int bufferPoolSize = 10;
         int bufferSize = 1024;
         int recordSize = (bufferPoolSize - 1) * bufferSize;
@@ -318,36 +378,41 @@ public class PartitionSortedBufferTest {
         NetworkBufferPool globalPool = new NetworkBufferPool(bufferPoolSize, bufferSize);
         BufferPool bufferPool = globalPool.createBufferPool(bufferPoolSize, bufferPoolSize);
 
-        SortBuffer sortBuffer =
-                new PartitionSortedBuffer(bufferPool, 1, bufferSize, bufferPoolSize, null);
-        sortBuffer.append(ByteBuffer.allocate(recordSize), 0, Buffer.DataType.DATA_BUFFER);
+        DataBuffer dataBuffer =
+                new SortBasedDataBuffer(bufferPool, 1, bufferSize, bufferPoolSize, null);
+        dataBuffer.append(ByteBuffer.allocate(recordSize), 0, Buffer.DataType.DATA_BUFFER);
 
         assertEquals(bufferPoolSize, bufferPool.bestEffortGetNumOfUsedBuffers());
-        assertTrue(sortBuffer.hasRemaining());
-        assertEquals(1, sortBuffer.numRecords());
-        assertEquals(recordSize, sortBuffer.numBytes());
+        assertTrue(dataBuffer.hasRemaining());
+        assertEquals(1, dataBuffer.numTotalRecords());
+        assertEquals(recordSize, dataBuffer.numTotalBytes());
 
         // should release all data and resources
-        sortBuffer.release();
+        dataBuffer.release();
         assertEquals(0, bufferPool.bestEffortGetNumOfUsedBuffers());
-        assertFalse(sortBuffer.hasRemaining());
-        assertEquals(0, sortBuffer.numRecords());
-        assertEquals(0, sortBuffer.numBytes());
+        assertTrue(dataBuffer.hasRemaining());
+        assertEquals(1, dataBuffer.numTotalRecords());
+        assertEquals(recordSize, dataBuffer.numTotalBytes());
     }
 
-    private SortBuffer createSortBuffer(int bufferPoolSize, int bufferSize, int numSubpartitions)
+    private DataBuffer createDataBuffer(int bufferPoolSize, int bufferSize, int numSubpartitions)
             throws IOException {
-        return createSortBuffer(bufferPoolSize, bufferSize, numSubpartitions, null);
+        return createDataBuffer(bufferPoolSize, bufferSize, numSubpartitions, null);
     }
 
-    private SortBuffer createSortBuffer(
+    private DataBuffer createDataBuffer(
             int bufferPoolSize, int bufferSize, int numSubpartitions, int[] customReadOrder)
             throws IOException {
         NetworkBufferPool globalPool = new NetworkBufferPool(bufferPoolSize, bufferSize);
         BufferPool bufferPool = globalPool.createBufferPool(bufferPoolSize, bufferPoolSize);
 
-        return new PartitionSortedBuffer(
-                bufferPool, numSubpartitions, bufferSize, bufferPoolSize, customReadOrder);
+        if (useHashBuffer) {
+            return new HashBasedDataBuffer(
+                    bufferPool, numSubpartitions, bufferPoolSize, customReadOrder);
+        } else {
+            return new SortBasedDataBuffer(
+                    bufferPool, numSubpartitions, bufferSize, bufferPoolSize, customReadOrder);
+        }
     }
 
     public static int[] getRandomSubpartitionOrder(int numSubpartitions) {

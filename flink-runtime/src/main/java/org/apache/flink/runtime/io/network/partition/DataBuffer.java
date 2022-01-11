@@ -21,48 +21,55 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
- * Data of different channels can be appended to a {@link SortBuffer} and after the {@link
- * SortBuffer} is finished, the appended data can be copied from it in channel index order.
+ * Data of different channels can be appended to a {@link DataBuffer} and after the {@link
+ * DataBuffer} is full or finished, the appended data can be copied from it in channel index order.
+ *
+ * <p>The lifecycle of a {@link DataBuffer} can be: new, write, [read, reset, write], finish, read,
+ * release. There can be multiple [read, reset, write] operations before finish.
  */
-public interface SortBuffer {
+public interface DataBuffer {
 
     /**
-     * Appends data of the specified channel to this {@link SortBuffer} and returns true if all
-     * bytes of the source buffer is copied to this {@link SortBuffer} successfully, otherwise if
-     * returns false, nothing will be copied.
+     * Appends data of the specified channel to this {@link DataBuffer} and returns true if this
+     * {@link DataBuffer} is full.
      */
     boolean append(ByteBuffer source, int targetChannel, Buffer.DataType dataType)
             throws IOException;
 
     /**
-     * Copies data in this {@link SortBuffer} to the target {@link MemorySegment} in channel index
+     * Copies data in this {@link DataBuffer} to the target {@link MemorySegment} in channel index
      * order and returns {@link BufferWithChannel} which contains the copied data and the
      * corresponding channel index.
      */
-    BufferWithChannel copyIntoSegment(MemorySegment target);
+    BufferWithChannel getNextBuffer(@Nullable MemorySegment transitBuffer);
 
-    /** Returns the number of records written to this {@link SortBuffer}. */
-    long numRecords();
+    /** Returns the total number of records written to this {@link DataBuffer}. */
+    long numTotalRecords();
 
-    /** Returns the number of bytes written to this {@link SortBuffer}. */
-    long numBytes();
+    /** Returns the total number of bytes written to this {@link DataBuffer}. */
+    long numTotalBytes();
 
-    /** Returns true if there is still data can be consumed in this {@link SortBuffer}. */
+    /** Returns true if not all data appended to this {@link DataBuffer} is consumed. */
     boolean hasRemaining();
 
-    /** Finishes this {@link SortBuffer} which means no record can be appended any more. */
+    /** Resets this {@link DataBuffer} to be reused for data appending. */
+    void reset();
+
+    /** Finishes this {@link DataBuffer} which means no record can be appended any more. */
     void finish();
 
-    /** Whether this {@link SortBuffer} is finished or not. */
+    /** Whether this {@link DataBuffer} is finished or not. */
     boolean isFinished();
 
-    /** Releases this {@link SortBuffer} which releases all resources. */
+    /** Releases this {@link DataBuffer} which releases all resources. */
     void release();
 
-    /** Whether this {@link SortBuffer} is released or not. */
+    /** Whether this {@link DataBuffer} is released or not. */
     boolean isReleased();
 }
