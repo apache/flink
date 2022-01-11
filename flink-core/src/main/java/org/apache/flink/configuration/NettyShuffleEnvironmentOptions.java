@@ -298,6 +298,32 @@ public class NettyShuffleEnvironmentOptions {
                                     + " by configured memory limits, but some resource frameworks like yarn would track this memory usage and kill the container once"
                                     + " memory exceeding some threshold. Also note that this option is experimental and might be changed future.");
 
+    /**
+     * Whether to reuse tcp connections across multi jobs. If set to true, tcp connections will not
+     * be released after job finishes. The subsequent jobs will be free from the overhead of the
+     * connection re-establish. However, this may lead to an increase in the total number of
+     * connections on your machine. When it reaches the upper limit, you can set it to false to
+     * release idle connections.
+     *
+     * <p>Note: To avoid connection leak, you must set {@link #MAX_NUM_TCP_CONNECTIONS} to a smaller
+     * value before you enable tcp connection reuse.
+     */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Boolean> TCP_CONNECTION_REUSE_ACROSS_JOBS_ENABLED =
+            key("taskmanager.network.tcp-connection.enable-reuse-across-jobs")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Whether to reuse tcp connections across multi jobs. If set to true, tcp "
+                                    + "connections will not be released after job finishes. The subsequent "
+                                    + "jobs will be free from the overhead of the connection re-establish. "
+                                    + "However, this may lead to an increase in the total number of connections "
+                                    + "on your machine. When it reaches the upper limit, you can set it to false "
+                                    + "to release idle connections. Note that to avoid connection leak, you must set "
+                                    + MAX_NUM_TCP_CONNECTIONS.key()
+                                    + " to a smaller value before you "
+                                    + "enable tcp connection reuse.");
+
     // ------------------------------------------------------------------------
     //  Netty Options
     // ------------------------------------------------------------------------

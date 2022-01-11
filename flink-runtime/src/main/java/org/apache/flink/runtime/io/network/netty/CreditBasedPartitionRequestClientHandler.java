@@ -200,9 +200,16 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             if (triggerWrite) {
                 writeAndFlushNextMessageIfPossible(ctx.channel());
             }
+        } else if (msg instanceof ConnectionErrorMessage) {
+            notifyAllChannelsOfErrorAndClose(((ConnectionErrorMessage) msg).getCause());
         } else {
             ctx.fireUserEventTriggered(msg);
         }
+    }
+
+    @Override
+    public boolean hasChannelError() {
+        return channelError.get() != null;
     }
 
     @Override
@@ -210,7 +217,8 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
         writeAndFlushNextMessageIfPossible(ctx.channel());
     }
 
-    private void notifyAllChannelsOfErrorAndClose(Throwable cause) {
+    @VisibleForTesting
+    void notifyAllChannelsOfErrorAndClose(Throwable cause) {
         if (channelError.compareAndSet(null, cause)) {
             try {
                 for (RemoteInputChannel inputChannel : inputChannels.values()) {
