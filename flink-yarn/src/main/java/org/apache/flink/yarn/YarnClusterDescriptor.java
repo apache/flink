@@ -45,6 +45,7 @@ import org.apache.flink.core.plugin.PluginConfig;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
@@ -277,12 +278,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
      */
     public void addShipFiles(List<File> shipFiles) {
         checkArgument(
-                userJarInclusion != YarnConfigOptions.UserJarInclusion.DISABLED
-                        || isUsrLibDirIncludedInShipFiles(shipFiles),
-                "This is an illegal ship directory : %s. When setting the %s to %s the name of ship directory can not be %s.",
-                ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR,
-                YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key(),
-                YarnConfigOptions.UserJarInclusion.DISABLED,
+                !isUsrLibDirIncludedInShipFiles(shipFiles),
+                "User-shipped directories configured via : %s should not include %s.",
+                YarnConfigOptions.SHIP_FILES.key(),
                 ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR);
         this.shipFiles.addAll(shipFiles);
     }
@@ -917,6 +915,20 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                                 ? ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR
                                 : Path.CUR_DIR,
                         LocalResourceType.FILE);
+
+        // usrlib will be automatically shipped if it exists.
+        if (ClusterEntrypointUtils.tryFindUserLibDirectory().isPresent()) {
+            final Set<File> usrLibShipFiles = new HashSet<>();
+            addUsrLibFolderToShipFiles(usrLibShipFiles);
+            final List<String> usrLibClassPaths =
+                    fileUploader.registerMultipleLocalResources(
+                            usrLibShipFiles.stream()
+                                    .map(e -> new Path(e.toURI()))
+                                    .collect(Collectors.toSet()),
+                            Path.CUR_DIR,
+                            LocalResourceType.FILE);
+            userClassPaths.addAll(usrLibClassPaths);
+        }
 
         if (userJarInclusion == YarnConfigOptions.UserJarInclusion.ORDER) {
             systemClassPaths.addAll(userClassPaths);
@@ -1686,6 +1698,21 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     }
 
     @VisibleForTesting
+    void addUsrLibFolderToShipFiles(Collection<File> effectiveShipFiles) {
+        // Add usrlib folder to the ship files if it exists
+        // Classes in the folder will be loaded by UserClassLoader if CLASSPATH_INCLUDE_USER_JAR is
+        // DISABLED.
+        ClusterEntrypointUtils.tryFindUserLibDirectory()
+                .ifPresent(
+                        usrLibDirFile -> {
+                            effectiveShipFiles.add(usrLibDirFile);
+                            LOG.info(
+                                    "usrlib: {} will be shipped automatically.",
+                                    usrLibDirFile.getAbsolutePath());
+                        });
+    }
+
+    @VisibleForTesting
     void addPluginsFoldersToShipFiles(Collection<File> effectiveShipFiles) {
         final Optional<File> pluginsDir = PluginConfig.getPluginsDir();
         pluginsDir.ifPresent(effectiveShipFiles::add);
@@ -1756,7 +1783,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         return shipFiles.stream()
                 .filter(File::isDirectory)
                 .map(File::getName)
-                .noneMatch(name -> name.equals(DEFAULT_FLINK_USR_LIB_DIR));
+                .anyMatch(name -> name.equals(DEFAULT_FLINK_USR_LIB_DIR));
     }
 
     private void setClusterEntrypointInfoToConfig(final ApplicationReport report) {
