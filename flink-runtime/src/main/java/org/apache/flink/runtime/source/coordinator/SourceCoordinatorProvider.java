@@ -96,8 +96,6 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 
         @Nullable private Thread t;
 
-        @Nullable private volatile Throwable previousFailureReason;
-
         CoordinatorExecutorThreadFactory(
                 final String coordinatorThreadName, final ClassLoader contextClassLoader) {
             this(coordinatorThreadName, contextClassLoader, FatalExitExceptionHandler.INSTANCE);
@@ -115,18 +113,6 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 
         @Override
         public synchronized Thread newThread(Runnable r) {
-            if (t != null && t.isAlive()) {
-                throw new Error(
-                        "Source Coordinator Thread already exists. There should never be more than one "
-                                + "thread driving the actions of a Source Coordinator. Existing Thread: "
-                                + t);
-            }
-            if (t != null && previousFailureReason != null) {
-                throw new Error(
-                        "The following fatal error has happened in a previously spawned "
-                                + "Source Coordinator thread. No new thread can be spawned.",
-                        previousFailureReason);
-            }
             t = new Thread(r, coordinatorThreadName);
             t.setContextClassLoader(cl);
             t.setUncaughtExceptionHandler(this);
@@ -135,9 +121,6 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 
         @Override
         public synchronized void uncaughtException(Thread t, Throwable e) {
-            if (previousFailureReason == null) {
-                previousFailureReason = e;
-            }
             errorHandler.uncaughtException(t, e);
         }
 
