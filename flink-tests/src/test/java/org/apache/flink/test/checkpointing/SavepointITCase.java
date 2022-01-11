@@ -109,6 +109,9 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.FileVisitOption;
@@ -460,8 +463,19 @@ public class SavepointITCase extends TestLogger {
             cluster.getClusterClient().submitJob(jobGraph).get();
             CommonTestUtils.waitForAllTaskRunning(cluster.getMiniCluster(), jobID3, false);
         } finally {
+            LOG.warn("THREAD DUMP +++++++ :\n" + threadDump(true, true));
             cluster.after();
         }
+    }
+
+    private static String threadDump(boolean lockedMonitors, boolean lockedSynchronizers) {
+        StringBuffer threadDump = new StringBuffer(System.lineSeparator());
+        ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+        for (ThreadInfo threadInfo :
+                threadMXBean.dumpAllThreads(lockedMonitors, lockedSynchronizers)) {
+            threadDump.append(threadInfo.toString());
+        }
+        return threadDump.toString();
     }
 
     @Test
