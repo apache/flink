@@ -120,10 +120,10 @@ parallelism.default: 1
 # execution.checkpointing.tolerable-failed-checkpoints: 0
 # execution.checkpointing.unaligned: false
 #
-# Supported backends are 'jobmanager', 'filesystem', 'rocksdb', or the
+# Supported backends are 'hashmap', 'rocksdb', or the
 # <class-name-of-factory>.
 #
-# state.backend: filesystem
+# state.backend: hashmap
 
 # Directory for checkpoints filesystem, when using any of the default bundled
 # state backends.
