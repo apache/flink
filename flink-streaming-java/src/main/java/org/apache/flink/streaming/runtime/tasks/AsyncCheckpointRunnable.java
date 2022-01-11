@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -236,6 +237,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                 .reportTaskStateSnapshots(
                         checkpointMetaData,
                         checkpointMetrics
+                                .setBytesPersistedOfThisCheckpoint(
+                                        acknowledgedTaskStateSnapshot.getCheckpointedSize())
                                 .setTotalBytesPersisted(
                                         acknowledgedTaskStateSnapshot.getStateSize())
                                 .build(),
@@ -255,9 +258,12 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                 acknowledgedTaskStateSnapshot);
     }
 
-    private void reportAbortedSnapshotStats(long stateSize) {
+    private void reportAbortedSnapshotStats(long stateSize, long checkpointedSize) {
         CheckpointMetrics metrics =
-                checkpointMetrics.setTotalBytesPersisted(stateSize).buildIncomplete();
+                checkpointMetrics
+                        .setTotalBytesPersisted(stateSize)
+                        .setBytesPersistedOfThisCheckpoint(checkpointedSize)
+                        .buildIncomplete();
         LOG.trace(
                 "{} - report failed checkpoint stats: {} {}",
                 taskName,
@@ -347,8 +353,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                 AsyncCheckpointState.RUNNING, AsyncCheckpointState.DISCARDED)) {
 
             try {
-                final long stateSize = cleanup();
-                reportAbortedSnapshotStats(stateSize);
+                final Tuple2<Long, Long> tuple = cleanup();
+                reportAbortedSnapshotStats(tuple.f0, tuple.f1);
             } catch (Exception cleanupException) {
                 LOG.warn(
                         "Could not properly clean up the async checkpoint runnable.",
@@ -367,8 +373,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         return finishedFuture;
     }
 
-    /** @return discarded state size (if available). */
-    private long cleanup() throws Exception {
+    /** @return discarded full/incremental size (if available). */
+    private Tuple2<Long, Long> cleanup() throws Exception {
         LOG.debug(
                 "Cleanup AsyncCheckpointRunnable for checkpoint {} of {}.",
                 checkpointMetaData.getCheckpointId(),
@@ -377,12 +383,14 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         Exception exception = null;
 
         // clean up ongoing operator snapshot results and non partitioned state handles
-        long stateSize = 0;
+        long stateSize = 0, checkpointedSize = 0;
         for (OperatorSnapshotFutures operatorSnapshotResult :
                 operatorSnapshotsInProgress.values()) {
             if (operatorSnapshotResult != null) {
                 try {
-                    stateSize += operatorSnapshotResult.cancel();
+                    Tuple2<Long, Long> tuple2 = operatorSnapshotResult.cancel();
+                    stateSize += tuple2.f0;
+                    checkpointedSize += tuple2.f1;
                 } catch (Exception cancelException) {
                     exception = ExceptionUtils.firstOrSuppressed(cancelException, exception);
                 }
@@ -392,7 +400,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         if (null != exception) {
             throw exception;
         }
-        return stateSize;
+        return Tuple2.of(stateSize, checkpointedSize);
     }
 
     private void logFailedCleanupAttempt() {

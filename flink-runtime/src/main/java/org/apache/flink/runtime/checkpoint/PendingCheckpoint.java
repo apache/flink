@@ -425,6 +425,7 @@ public class PendingCheckpoint implements Checkpoint {
                         new SubtaskStateStats(
                                 vertex.getParallelSubtaskIndex(),
                                 ackTimestamp,
+                                metrics.getBytesPersistedOfThisCheckpoint(),
                                 metrics.getTotalBytesPersisted(),
                                 metrics.getSyncDurationMillis(),
                                 metrics.getAsyncDurationMillis(),

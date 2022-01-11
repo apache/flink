@@ -20,11 +20,13 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointTestUtils;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.never;
@@ -217,6 +219,17 @@ public class IncrementalRemoteKeyedStateHandleTest {
         sharedStateRegistryB.close();
     }
 
+    @Test
+    public void testCheckpointedSize() {
+        IncrementalRemoteKeyedStateHandle stateHandle1 = create(ThreadLocalRandom.current());
+        Assert.assertEquals(stateHandle1.getStateSize(), stateHandle1.getCheckpointedSize());
+
+        long checkpointedSize = 123L;
+        IncrementalRemoteKeyedStateHandle stateHandle2 =
+                create(ThreadLocalRandom.current(), checkpointedSize);
+        Assert.assertEquals(checkpointedSize, stateHandle2.getCheckpointedSize());
+    }
+
     private static IncrementalRemoteKeyedStateHandle create(Random rnd) {
         return new IncrementalRemoteKeyedStateHandle(
                 UUID.nameUUIDFromBytes("test".getBytes()),
@@ -225,6 +238,17 @@ public class IncrementalRemoteKeyedStateHandleTest {
                 placeSpies(CheckpointTestUtils.createRandomStateHandleMap(rnd)),
                 placeSpies(CheckpointTestUtils.createRandomStateHandleMap(rnd)),
                 spy(CheckpointTestUtils.createDummyStreamStateHandle(rnd, null)));
+    }
+
+    private static IncrementalRemoteKeyedStateHandle create(Random rnd, long checkpointedSize) {
+        return new IncrementalRemoteKeyedStateHandle(
+                UUID.nameUUIDFromBytes("test".getBytes()),
+                KeyGroupRange.of(0, 0),
+                1L,
+                placeSpies(CheckpointTestUtils.createRandomStateHandleMap(rnd)),
+                placeSpies(CheckpointTestUtils.createRandomStateHandleMap(rnd)),
+                spy(CheckpointTestUtils.createDummyStreamStateHandle(rnd, null)),
+                checkpointedSize);
     }
 
     private static Map<StateHandleID, StreamStateHandle> placeSpies(

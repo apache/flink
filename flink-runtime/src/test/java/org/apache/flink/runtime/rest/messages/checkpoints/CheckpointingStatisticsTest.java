@@ -45,6 +45,7 @@ public class CheckpointingStatisticsTest
         final CheckpointingStatistics.Summary summary =
                 new CheckpointingStatistics.Summary(
                         new StatsSummaryDto(1L, 1L, 1L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(1L, 1L, 1L, 0, 0, 0, 0, 0),
                         new StatsSummaryDto(2L, 2L, 2L, 0, 0, 0, 0, 0),
                         new StatsSummaryDto(3L, 3L, 3L, 0, 0, 0, 0, 0),
                         new StatsSummaryDto(4L, 4L, 4L, 0, 0, 0, 0, 0),
@@ -56,12 +57,12 @@ public class CheckpointingStatisticsTest
         checkpointStatisticsPerTask.put(
                 new JobVertexID(),
                 new TaskCheckpointStatistics(
-                        1L, CheckpointStatsStatus.COMPLETED, 1L, 2L, 3L, 4L, 7, 8, 5, 6));
+                        1L, CheckpointStatsStatus.COMPLETED, 1L, 2L, 2L, 3L, 4L, 7, 8, 5, 6));
 
         checkpointStatisticsPerTask.put(
                 new JobVertexID(),
                 new TaskCheckpointStatistics(
-                        1L, CheckpointStatsStatus.COMPLETED, 2L, 3L, 4L, 5L, 8, 9, 6, 7));
+                        1L, CheckpointStatsStatus.COMPLETED, 2L, 3L, 3L, 4L, 5L, 8, 9, 6, 7));
 
         final CheckpointStatistics.CompletedCheckpointStatistics completed =
                 new CheckpointStatistics.CompletedCheckpointStatistics(
@@ -70,6 +71,7 @@ public class CheckpointingStatisticsTest
                         false,
                         42L,
                         41L,
+                        1337L,
                         1337L,
                         1L,
                         0L,
@@ -90,6 +92,7 @@ public class CheckpointingStatisticsTest
                         11L,
                         10L,
                         43L,
+                        43L,
                         1L,
                         0L,
                         31337L,
@@ -108,6 +111,7 @@ public class CheckpointingStatisticsTest
                         false,
                         5L,
                         10L,
+                        4L,
                         4L,
                         2L,
                         0L,
@@ -130,6 +134,7 @@ public class CheckpointingStatisticsTest
                         false,
                         42L,
                         41L,
+                        1337L,
                         1337L,
                         1L,
                         0L,

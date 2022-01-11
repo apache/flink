@@ -167,6 +167,19 @@ public class TaskStateSnapshot implements CompositeStateHandle {
     }
 
     @Override
+    public long getCheckpointedSize() {
+        long size = 0L;
+
+        for (OperatorSubtaskState subtaskState : subtaskStatesByOperatorID.values()) {
+            if (subtaskState != null) {
+                size += subtaskState.getCheckpointedSize();
+            }
+        }
+
+        return size;
+    }
+
+    @Override
     public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
         for (OperatorSubtaskState operatorSubtaskState : subtaskStatesByOperatorID.values()) {
             if (operatorSubtaskState != null) {

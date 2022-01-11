@@ -968,7 +968,7 @@
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:Summary",
           "properties" : {
-            "state_size" : {
+            "checkpointed_size" : {
               "type" : "object",
               "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto",
               "properties" : {
@@ -997,6 +997,10 @@
                   "type" : "number"
                 }
               }
+            },
+            "state_size" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto"
             },
             "end_to_end_duration" : {
               "type" : "object",
@@ -1040,6 +1044,9 @@
                 "latest_ack_timestamp" : {
                   "type" : "integer"
                 },
+                "checkpointed_size" : {
+                  "type" : "integer"
+                },
                 "state_size" : {
                   "type" : "integer"
                 },
@@ -1079,6 +1086,9 @@
                         "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
                       },
                       "latest_ack_timestamp" : {
+                        "type" : "integer"
+                      },
+                      "checkpointed_size" : {
                         "type" : "integer"
                       },
                       "state_size" : {
@@ -1135,6 +1145,9 @@
                   "type" : "integer"
                 },
                 "latest_ack_timestamp" : {
+                  "type" : "integer"
+                },
+                "checkpointed_size" : {
                   "type" : "integer"
                 },
                 "state_size" : {
@@ -1217,6 +1230,9 @@
                 "type" : "integer"
               },
               "latest_ack_timestamp" : {
+                "type" : "integer"
+              },
+              "checkpointed_size" : {
                 "type" : "integer"
               },
               "state_size" : {
@@ -1361,6 +1377,9 @@
         "latest_ack_timestamp" : {
           "type" : "integer"
         },
+        "checkpointed_size" : {
+          "type" : "integer"
+        },
         "state_size" : {
           "type" : "integer"
         },
@@ -1400,6 +1419,9 @@
                 "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
               },
               "latest_ack_timestamp" : {
+                "type" : "integer"
+              },
+              "checkpointed_size" : {
                 "type" : "integer"
               },
               "state_size" : {
@@ -1462,6 +1484,9 @@
         "latest_ack_timestamp" : {
           "type" : "integer"
         },
+        "checkpointed_size" : {
+          "type" : "integer"
+        },
         "state_size" : {
           "type" : "integer"
         },
@@ -1487,7 +1512,7 @@
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails:Summary",
           "properties" : {
-            "state_size" : {
+            "checkpointed_size" : {
               "type" : "object",
               "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto",
               "properties" : {
@@ -1516,6 +1541,10 @@
                   "type" : "number"
                 }
               }
+            },
+            "state_size" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto"
             },
             "end_to_end_duration" : {
               "type" : "object",

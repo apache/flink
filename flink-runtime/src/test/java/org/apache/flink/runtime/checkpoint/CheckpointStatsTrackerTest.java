@@ -406,6 +406,7 @@ public class CheckpointStatsTrackerTest {
                         0,
                         ackTimestamp,
                         stateSize,
+                        stateSize,
                         ignored,
                         ignored,
                         processedData,
@@ -486,6 +487,6 @@ public class CheckpointStatsTrackerTest {
     // ------------------------------------------------------------------------
 
     private SubtaskStateStats createSubtaskStats(int index) {
-        return new SubtaskStateStats(index, 0, 0, 0, 0, 0, 0, 0, 0, false, true);
+        return new SubtaskStateStats(index, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, true);
     }
 }

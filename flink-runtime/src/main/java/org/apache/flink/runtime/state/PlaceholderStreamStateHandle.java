@@ -33,7 +33,11 @@ public class PlaceholderStreamStateHandle implements StreamStateHandle {
 
     private static final long serialVersionUID = 1L;
 
-    public PlaceholderStreamStateHandle() {}
+    private final long stateSize;
+
+    public PlaceholderStreamStateHandle(long stateSize) {
+        this.stateSize = stateSize;
+    }
 
     @Override
     public FSDataInputStream openInputStream() {
@@ -54,6 +58,6 @@ public class PlaceholderStreamStateHandle implements StreamStateHandle {
 
     @Override
     public long getStateSize() {
-        return 0L;
+        return stateSize;
     }
 }

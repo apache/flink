@@ -67,6 +67,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle.UNKNOWN_CHECKPOINTED_SIZE;
+
 /**
  * Base (De)serializer for checkpoint metadata format version 2 and 3.
  *
@@ -103,6 +105,7 @@ public abstract class MetadataV2V3SerializerBase {
     private static final byte CHANGELOG_HANDLE = 8;
     private static final byte CHANGELOG_BYTE_INCREMENT_HANDLE = 9;
     private static final byte CHANGELOG_FILE_INCREMENT_HANDLE = 10;
+    private static final byte INCREMENTAL_STATE_HANDLE = 11;
 
     // ------------------------------------------------------------------------
     //  (De)serialization entry points
@@ -307,12 +310,13 @@ public abstract class MetadataV2V3SerializerBase {
             IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =
                     (IncrementalRemoteKeyedStateHandle) stateHandle;
 
-            dos.writeByte(INCREMENTAL_KEY_GROUPS_HANDLE);
+            dos.writeByte(INCREMENTAL_STATE_HANDLE);
 
             dos.writeLong(incrementalKeyedStateHandle.getCheckpointId());
             dos.writeUTF(String.valueOf(incrementalKeyedStateHandle.getBackendIdentifier()));
             dos.writeInt(incrementalKeyedStateHandle.getKeyGroupRange().getStartKeyGroup());
             dos.writeInt(incrementalKeyedStateHandle.getKeyGroupRange().getNumberOfKeyGroups());
+            dos.writeLong(incrementalKeyedStateHandle.getCheckpointedSize());
 
             serializeStreamStateHandle(incrementalKeyedStateHandle.getMetaStateHandle(), dos);
 
@@ -396,37 +400,8 @@ public abstract class MetadataV2V3SerializerBase {
             } else {
                 return new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle);
             }
-        } else if (INCREMENTAL_KEY_GROUPS_HANDLE == type) {
-
-            long checkpointId = dis.readLong();
-            String backendId = dis.readUTF();
-            int startKeyGroup = dis.readInt();
-            int numKeyGroups = dis.readInt();
-            KeyGroupRange keyGroupRange =
-                    KeyGroupRange.of(startKeyGroup, startKeyGroup + numKeyGroups - 1);
-
-            StreamStateHandle metaDataStateHandle = deserializeStreamStateHandle(dis, context);
-            Map<StateHandleID, StreamStateHandle> sharedStates =
-                    deserializeStreamStateHandleMap(dis, context);
-            Map<StateHandleID, StreamStateHandle> privateStates =
-                    deserializeStreamStateHandleMap(dis, context);
-
-            UUID uuid;
-
-            try {
-                uuid = UUID.fromString(backendId);
-            } catch (Exception ex) {
-                // compatibility with old format pre FLINK-6964:
-                uuid = UUID.nameUUIDFromBytes(backendId.getBytes(StandardCharsets.UTF_8));
-            }
-
-            return new IncrementalRemoteKeyedStateHandle(
-                    uuid,
-                    keyGroupRange,
-                    checkpointId,
-                    sharedStates,
-                    privateStates,
-                    metaDataStateHandle);
+        } else if (INCREMENTAL_KEY_GROUPS_HANDLE == type || INCREMENTAL_STATE_HANDLE == type) {
+            return deserializeIncrementalStateHandle(dis, context, type);
         } else if (CHANGELOG_HANDLE == type) {
 
             int startKeyGroup = dis.readInt();
@@ -484,6 +459,46 @@ public abstract class MetadataV2V3SerializerBase {
         } else {
             throw new IllegalStateException("Reading invalid KeyedStateHandle, type: " + type);
         }
+    }
+
+    private IncrementalRemoteKeyedStateHandle deserializeIncrementalStateHandle(
+            DataInputStream dis, @Nullable DeserializationContext context, int stateHandleType)
+            throws IOException {
+        long checkpointId = dis.readLong();
+        String backendId = dis.readUTF();
+        int startKeyGroup = dis.readInt();
+        int numKeyGroups = dis.readInt();
+        long checkpointedSize =
+                INCREMENTAL_STATE_HANDLE == stateHandleType
+                        ? dis.readLong()
+                        : UNKNOWN_CHECKPOINTED_SIZE;
+
+        KeyGroupRange keyGroupRange =
+                KeyGroupRange.of(startKeyGroup, startKeyGroup + numKeyGroups - 1);
+
+        StreamStateHandle metaDataStateHandle = deserializeStreamStateHandle(dis, context);
+        Map<StateHandleID, StreamStateHandle> sharedStates =
+                deserializeStreamStateHandleMap(dis, context);
+        Map<StateHandleID, StreamStateHandle> privateStates =
+                deserializeStreamStateHandleMap(dis, context);
+
+        UUID uuid;
+
+        try {
+            uuid = UUID.fromString(backendId);
+        } catch (Exception ex) {
+            // compatibility with old format pre FLINK-6964:
+            uuid = UUID.nameUUIDFromBytes(backendId.getBytes(StandardCharsets.UTF_8));
+        }
+
+        return new IncrementalRemoteKeyedStateHandle(
+                uuid,
+                keyGroupRange,
+                checkpointId,
+                sharedStates,
+                privateStates,
+                metaDataStateHandle,
+                checkpointedSize);
     }
 
     void serializeOperatorStateHandle(OperatorStateHandle stateHandle, DataOutputStream dos)

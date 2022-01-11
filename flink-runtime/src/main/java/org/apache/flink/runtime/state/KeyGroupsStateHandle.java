@@ -107,6 +107,11 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
     }
 
     @Override
+    public long getCheckpointedSize() {
+        return getStateSize();
+    }
+
+    @Override
     public FSDataInputStream openInputStream() throws IOException {
         return stateHandle.openInputStream();
     }

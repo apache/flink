@@ -36,6 +36,8 @@ public class TaskCheckpointStatistics implements ResponseBody {
 
     public static final String FIELD_NAME_LATEST_ACK_TIMESTAMP = "latest_ack_timestamp";
 
+    public static final String FIELD_NAME_CHECKPOINTED_SIZE = "checkpointed_size";
+
     /**
      * The accurate name of this field should be 'checkpointed_data_size', keep it as before to not
      * break backwards compatibility for old web UI.
@@ -65,6 +67,9 @@ public class TaskCheckpointStatistics implements ResponseBody {
     @JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP)
     private final long latestAckTimestamp;
 
+    @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE)
+    private final long checkpointedSize;
+
     @JsonProperty(FIELD_NAME_STATE_SIZE)
     private final long stateSize;
 
@@ -91,6 +96,7 @@ public class TaskCheckpointStatistics implements ResponseBody {
             @JsonProperty(FIELD_NAME_ID) long checkpointId,
             @JsonProperty(FIELD_NAME_CHECKPOINT_STATUS) CheckpointStatsStatus checkpointStatus,
             @JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
+            @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE) long checkpointedSize,
             @JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
             @JsonProperty(FIELD_NAME_DURATION) long duration,
             @JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
@@ -102,6 +108,7 @@ public class TaskCheckpointStatistics implements ResponseBody {
         this.checkpointId = checkpointId;
         this.checkpointStatus = Preconditions.checkNotNull(checkpointStatus);
         this.latestAckTimestamp = latestAckTimestamp;
+        this.checkpointedSize = checkpointedSize;
         this.stateSize = stateSize;
         this.duration = duration;
         this.processedData = processedData;
@@ -113,6 +120,10 @@ public class TaskCheckpointStatistics implements ResponseBody {
 
     public long getLatestAckTimestamp() {
         return latestAckTimestamp;
+    }
+
+    public long getCheckpointedSize() {
+        return checkpointedSize;
     }
 
     public long getStateSize() {
@@ -151,6 +162,7 @@ public class TaskCheckpointStatistics implements ResponseBody {
         return checkpointId == that.checkpointId
                 && latestAckTimestamp == that.latestAckTimestamp
                 && stateSize == that.stateSize
+                && checkpointedSize == that.checkpointedSize
                 && duration == that.duration
                 && alignmentBuffered == that.alignmentBuffered
                 && processedData == that.processedData
@@ -167,6 +179,7 @@ public class TaskCheckpointStatistics implements ResponseBody {
                 checkpointStatus,
                 latestAckTimestamp,
                 stateSize,
+                checkpointedSize,
                 duration,
                 alignmentBuffered,
                 processedData,

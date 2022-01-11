@@ -259,6 +259,7 @@ public class CheckpointStatsTracker {
                                 new SubtaskStateStats(
                                         vertex.getParallelSubtaskIndex(),
                                         System.currentTimeMillis(),
+                                        metrics.getBytesPersistedOfThisCheckpoint(),
                                         metrics.getTotalBytesPersisted(),
                                         metrics.getSyncDurationMillis(),
                                         metrics.getAsyncDurationMillis(),

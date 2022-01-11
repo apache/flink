@@ -92,6 +92,11 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
         return size;
     }
 
+    @Override
+    public long getCheckpointedSize() {
+        return getStateSize();
+    }
+
     private static SharedStateRegistryKey getKey(StreamStateHandle stateHandle) {
         // StateHandle key used in SharedStateRegistry should only be based on the file name
         // and not on backend UUID or keygroup (multiple handles can refer to the same file and
