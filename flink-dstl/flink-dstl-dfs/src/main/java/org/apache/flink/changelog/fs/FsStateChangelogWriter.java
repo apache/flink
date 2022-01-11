@@ -205,7 +205,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
             SequenceNumberRange range = SequenceNumberRange.generic(from, activeSequenceNumber);
             if (range.size() == readyToReturn.size()) {
                 checkState(toUpload.isEmpty());
-                return completedFuture(buildHandle(keyGroupRange, readyToReturn));
+                return completedFuture(buildHandle(keyGroupRange, readyToReturn, 0L));
             } else {
                 CompletableFuture<ChangelogStateHandleStreamImpl> future =
                         new CompletableFuture<>();
@@ -302,14 +302,16 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     }
 
     private static ChangelogStateHandleStreamImpl buildHandle(
-            KeyGroupRange keyGroupRange, NavigableMap<SequenceNumber, UploadResult> results) {
+            KeyGroupRange keyGroupRange,
+            NavigableMap<SequenceNumber, UploadResult> results,
+            long incrementalSize) {
         List<Tuple2<StreamStateHandle, Long>> tuples = new ArrayList<>();
         long size = 0;
         for (UploadResult uploadResult : results.values()) {
             tuples.add(Tuple2.of(uploadResult.getStreamStateHandle(), uploadResult.getOffset()));
             size += uploadResult.getSize();
         }
-        return new ChangelogStateHandleStreamImpl(tuples, keyGroupRange, size);
+        return new ChangelogStateHandleStreamImpl(tuples, keyGroupRange, size, incrementalSize);
     }
 
     @VisibleForTesting
@@ -361,11 +363,14 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         }
 
         public boolean onSuccess(List<UploadResult> uploadResults) {
+            long incrementalSize = 0L;
             for (UploadResult uploadResult : uploadResults) {
                 if (changeRange.contains(uploadResult.sequenceNumber)) {
                     uploaded.put(uploadResult.sequenceNumber, uploadResult);
+                    incrementalSize += uploadResult.getSize();
                     if (uploaded.size() == changeRange.size()) {
-                        completionFuture.complete(buildHandle(keyGroupRange, uploaded));
+                        completionFuture.complete(
+                                buildHandle(keyGroupRange, uploaded, incrementalSize));
                         return true;
                     }
                 }
