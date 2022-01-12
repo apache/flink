@@ -18,7 +18,6 @@ limitations under the License.
 
 package org.apache.flink.runtime.source.coordinator;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceSplit;
@@ -26,7 +25,9 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCoordinator;
-import org.apache.flink.util.FatalExitExceptionHandler;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -71,8 +72,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
     public OperatorCoordinator getCoordinator(OperatorCoordinator.Context context) {
         final String coordinatorThreadName = "SourceCoordinator-" + operatorName;
         CoordinatorExecutorThreadFactory coordinatorThreadFactory =
-                new CoordinatorExecutorThreadFactory(
-                        coordinatorThreadName, context.getUserCodeClassloader());
+                new CoordinatorExecutorThreadFactory(coordinatorThreadName, context);
 
         SimpleVersionedSerializer<SplitT> splitSerializer = source.getSplitSerializer();
         SourceCoordinatorContext<SplitT> sourceCoordinatorContext =
@@ -90,6 +90,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
     public static class CoordinatorExecutorThreadFactory
             implements ThreadFactory, Thread.UncaughtExceptionHandler {
 
+        private static final Logger LOG = LoggerFactory.getLogger(SourceCoordinatorProvider.class);
         private final String coordinatorThreadName;
         private final ClassLoader cl;
         private final Thread.UncaughtExceptionHandler errorHandler;
@@ -97,11 +98,19 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
         @Nullable private Thread t;
 
         CoordinatorExecutorThreadFactory(
-                final String coordinatorThreadName, final ClassLoader contextClassLoader) {
-            this(coordinatorThreadName, contextClassLoader, FatalExitExceptionHandler.INSTANCE);
+                final String coordinatorThreadName, final OperatorCoordinator.Context context) {
+            this(
+                    coordinatorThreadName,
+                    context.getUserCodeClassloader(),
+                    (t, e) -> {
+                        LOG.error(
+                                "Thread '{}' produced an uncaught exception. Failing the job.",
+                                t.getName(),
+                                e);
+                        context.failJob(e);
+                    });
         }
 
-        @VisibleForTesting
         CoordinatorExecutorThreadFactory(
                 final String coordinatorThreadName,
                 final ClassLoader contextClassLoader,
