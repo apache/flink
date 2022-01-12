@@ -76,7 +76,7 @@ public abstract class SourceCoordinatorTestBase {
         String coordinatorThreadName = TEST_OPERATOR_ID.toHexString();
         coordinatorThreadFactory =
                 new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
-                        coordinatorThreadName, getClass().getClassLoader());
+                        coordinatorThreadName, operatorCoordinatorContext);
 
         coordinatorExecutor = Executors.newSingleThreadScheduledExecutor(coordinatorThreadFactory);
         sourceCoordinator = getNewSourceCoordinator();
