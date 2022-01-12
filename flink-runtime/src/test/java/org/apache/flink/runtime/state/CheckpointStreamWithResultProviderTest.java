@@ -183,7 +183,7 @@ public class CheckpointStreamWithResultProviderTest extends TestLogger {
     private SnapshotResult<StreamStateHandle> writeCheckpointTestData(
             CheckpointStreamWithResultProvider resultProvider) throws IOException {
 
-        CheckpointStreamFactory.CheckpointStateOutputStream checkpointOutputStream =
+        CheckpointStateOutputStream checkpointOutputStream =
                 resultProvider.getCheckpointOutputStream();
         checkpointOutputStream.write(0x42);
         return resultProvider.closeAndFinalizeCheckpointStreamResult();

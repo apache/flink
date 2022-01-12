@@ -19,6 +19,7 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.StateHandleID;
@@ -115,7 +116,7 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
             throws IOException {
 
         InputStream inputStream = null;
-        CheckpointStreamFactory.CheckpointStateOutputStream outputStream = null;
+        CheckpointStateOutputStream outputStream = null;
 
         try {
             final byte[] buffer = new byte[READ_BUFFER_SIZE];

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.testutils;
 
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 

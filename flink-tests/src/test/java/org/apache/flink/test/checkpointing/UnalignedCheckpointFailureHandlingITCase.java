@@ -23,6 +23,7 @@ import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
@@ -227,8 +228,7 @@ public class UnalignedCheckpointFailureHandlingITCase {
         }
 
         @Override
-        public CheckpointStreamFactory.CheckpointStateOutputStream createTaskOwnedStateStream()
-                throws IOException {
+        public CheckpointStateOutputStream createTaskOwnedStateStream() throws IOException {
             return delegate.createTaskOwnedStateStream();
         }
 

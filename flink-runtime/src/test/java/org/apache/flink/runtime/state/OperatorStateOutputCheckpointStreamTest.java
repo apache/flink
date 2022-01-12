@@ -35,7 +35,7 @@ public class OperatorStateOutputCheckpointStreamTest {
     private static final int STREAM_CAPACITY = 128;
 
     private static OperatorStateCheckpointOutputStream createStream() throws IOException {
-        CheckpointStreamFactory.CheckpointStateOutputStream checkStream =
+        CheckpointStateOutputStream checkStream =
                 new TestMemoryCheckpointOutputStream(STREAM_CAPACITY);
         return new OperatorStateCheckpointOutputStream(checkStream);
     }

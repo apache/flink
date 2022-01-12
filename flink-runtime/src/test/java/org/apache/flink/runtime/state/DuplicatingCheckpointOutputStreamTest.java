@@ -285,8 +285,7 @@ public class DuplicatingCheckpointOutputStreamTest extends TestLogger {
     }
 
     /** Stream that throws {@link IOException} on all relevant methods under test. */
-    private static class FailingCheckpointOutStream
-            extends CheckpointStreamFactory.CheckpointStateOutputStream {
+    private static class FailingCheckpointOutStream extends CheckpointStateOutputStream {
 
         private boolean closed = false;
 

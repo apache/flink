@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -140,7 +141,7 @@ class HeapSnapshotStrategy<K>
 
             snapshotCloseableRegistry.registerCloseable(streamWithResultProvider);
 
-            final CheckpointStreamFactory.CheckpointStateOutputStream localStream =
+            final CheckpointStateOutputStream localStream =
                     streamWithResultProvider.getCheckpointOutputStream();
 
             final DataOutputViewStreamWrapper outView =

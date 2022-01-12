@@ -63,6 +63,5 @@ public interface CheckpointStorageWorkerView {
      * @return A checkpoint state stream to the location for state owned by tasks.
      * @throws IOException Thrown, if the stream cannot be opened.
      */
-    CheckpointStreamFactory.CheckpointStateOutputStream createTaskOwnedStateStream()
-            throws IOException;
+    CheckpointStateOutputStream createTaskOwnedStateStream() throws IOException;
 }
