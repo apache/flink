@@ -136,7 +136,9 @@ public interface DynamicTableFactory extends Factory {
          *
          * @see TableFactoryHelper
          */
-        Map<String, String> getEnrichmentOptions();
+        default Map<String, String> getEnrichmentOptions() {
+            return Collections.emptyMap();
+        }
 
         /** Gives read-only access to the configuration of the current session. */
         ReadableConfig getConfiguration();
