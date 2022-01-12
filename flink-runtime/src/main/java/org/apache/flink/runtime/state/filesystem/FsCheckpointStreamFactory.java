@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.OutputStreamAndPath;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -161,11 +162,10 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
     // ------------------------------------------------------------------------
 
     /**
-     * A {@link CheckpointStreamFactory.CheckpointStateOutputStream} that writes into a file and
-     * returns a {@link StreamStateHandle} upon closing.
+     * A {@link CheckpointStateOutputStream} that writes into a file and returns a {@link
+     * StreamStateHandle} upon closing.
      */
-    public static class FsCheckpointStateOutputStream
-            extends CheckpointStreamFactory.CheckpointStateOutputStream {
+    public static class FsCheckpointStateOutputStream extends CheckpointStateOutputStream {
 
         private final byte[] writeBuffer;
 

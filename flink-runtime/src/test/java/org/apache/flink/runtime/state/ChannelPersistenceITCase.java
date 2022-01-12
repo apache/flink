@@ -268,8 +268,7 @@ public class ChannelPersistenceITCase {
             }
 
             @Override
-            public CheckpointStreamFactory.CheckpointStateOutputStream
-                    createTaskOwnedStateStream() {
+            public CheckpointStateOutputStream createTaskOwnedStateStream() {
                 throw new UnsupportedOperationException();
             }
         };

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.ttl.mock;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
@@ -95,8 +96,7 @@ public class MockCheckpointStorage implements CheckpointStorage {
             }
 
             @Override
-            public CheckpointStreamFactory.CheckpointStateOutputStream
-                    createTaskOwnedStateStream() {
+            public CheckpointStateOutputStream createTaskOwnedStateStream() {
                 return null;
             }
         };

@@ -136,7 +136,7 @@ public class FullSnapshotAsyncWriter<K>
         byte[] previousValue = null;
         DataOutputView kgOutView = null;
         OutputStream kgOutStream = null;
-        CheckpointStreamFactory.CheckpointStateOutputStream checkpointOutputStream =
+        CheckpointStateOutputStream checkpointOutputStream =
                 checkpointStreamWithResultProvider.getCheckpointOutputStream();
 
         try {
