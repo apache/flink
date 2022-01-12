@@ -24,16 +24,16 @@ import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.adaptive.AdaptiveSchedulerFactory;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DefaultSlotPoolServiceSchedulerFactory}. */
-public class DefaultSlotPoolServiceSchedulerFactoryTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class DefaultSlotPoolServiceSchedulerFactoryTest {
 
     @Test
     public void testFallsBackToDefaultSchedulerIfBatchJob() {
@@ -44,12 +44,10 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest extends TestLogger {
                 DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
                         configuration, JobType.BATCH);
 
-        assertThat(
-                defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory(),
-                is(instanceOf(DefaultSchedulerFactory.class)));
-        assertThat(
-                defaultSlotPoolServiceSchedulerFactory.getSchedulerType(),
-                is(JobManagerOptions.SchedulerType.Ng));
+        assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory())
+                .isInstanceOf(DefaultSchedulerFactory.class);
+        assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerType())
+                .isEqualTo(JobManagerOptions.SchedulerType.Ng);
     }
 
     @Test
@@ -61,11 +59,9 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest extends TestLogger {
                 DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
                         configuration, JobType.STREAMING);
 
-        assertThat(
-                defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory(),
-                is(instanceOf(AdaptiveSchedulerFactory.class)));
-        assertThat(
-                defaultSlotPoolServiceSchedulerFactory.getSchedulerType(),
-                is(JobManagerOptions.SchedulerType.Adaptive));
+        assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory())
+                .isInstanceOf(AdaptiveSchedulerFactory.class);
+        assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerType())
+                .isEqualTo(JobManagerOptions.SchedulerType.Adaptive);
     }
 }
