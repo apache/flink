@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.hadoop.service.Service;
@@ -26,6 +27,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -35,7 +37,42 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class YarnClientRetrieverImplTest {
 
     @Test
-    public void testYarnClientWillBeReusedWhenNotClose() {
+    public void testThrowExceptionWhenNewlyCreatedYarnClientClosed() throws FlinkException {
+        YarnConfiguration yarnConfiguration = new YarnConfiguration();
+
+        YarnClientRetrieverImpl retriever = YarnClientRetrieverImpl.from(yarnConfiguration);
+        retriever.getYarnClient().stop();
+
+        assertThatThrownBy(
+                        () -> {
+                            retriever.getYarnClient();
+                        })
+                .isInstanceOf(FlinkException.class)
+                .hasMessage(
+                        "The newly created yarn client in YarnClientRetrieverImpl has been stopped. This should not happen.");
+    }
+
+    @Test
+    public void testThrowExceptionWhenInstanceClosed() throws Exception {
+        YarnConfiguration yarnConfiguration = new YarnConfiguration();
+        YarnClient yarnClient = createYarnClient(yarnConfiguration);
+
+        YarnClientRetrieverImpl retriever =
+                YarnClientRetrieverImpl.from(yarnClient, yarnConfiguration);
+
+        retriever.close();
+
+        assertThatThrownBy(
+                        () -> {
+                            retriever.getYarnClient();
+                        })
+                .isInstanceOf(FlinkException.class)
+                .hasMessage(
+                        "This instance of YarnClientRetrieverImpl has released its resources, it can't be invoked again.");
+    }
+
+    @Test
+    public void testYarnClientWillBeReusedWhenNotClose() throws FlinkException {
         YarnConfiguration yarnConfiguration = new YarnConfiguration();
         YarnClient yarnClient = createYarnClient(yarnConfiguration);
 
@@ -45,7 +82,7 @@ public class YarnClientRetrieverImplTest {
     }
 
     @Test
-    public void testYarnClientCloseWillNewCreate() throws Exception {
+    public void testExternalYarnClientCloseWillNewCreate() throws Exception {
         YarnConfiguration yarnConfiguration = new YarnConfiguration();
         YarnClient yarnClient = createYarnClient(yarnConfiguration);
         yarnClient.stop();

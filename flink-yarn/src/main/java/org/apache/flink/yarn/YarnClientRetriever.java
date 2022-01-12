@@ -19,11 +19,12 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.hadoop.yarn.client.api.YarnClient;
 
 /** Factory for getting {@link org.apache.hadoop.yarn.client.api.YarnClient}. */
 @Internal
 public interface YarnClientRetriever extends AutoCloseable {
-    YarnClient getYarnClient();
+    YarnClient getYarnClient() throws FlinkException;
 }

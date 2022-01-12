@@ -42,8 +42,6 @@ public class ApplicationReportProviderImpl implements ApplicationReportProvider 
 
     @Override
     public ApplicationReport waitTillSubmissionFinish() throws FlinkException {
-        // A new yarn client need to be created in order to avoid the yarn client has been closed by
-        // YarnClusterDescriptor
         try (final YarnClientRetriever retriever = yarnClientRetriever) {
             return YarnClusterDescriptor.waitTillTargetState(
                     retriever.getYarnClient(), appId, YarnApplicationState.RUNNING);

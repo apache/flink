@@ -19,12 +19,15 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import static org.apache.hadoop.yarn.client.api.YarnClient.createYarnClient;
 
@@ -37,29 +40,41 @@ import static org.apache.hadoop.yarn.client.api.YarnClient.createYarnClient;
 public final class YarnClientRetrieverImpl implements YarnClientRetriever {
     private static final Logger LOG = LoggerFactory.getLogger(YarnClientRetrieverImpl.class);
 
-    private final YarnClient externalYarnClient;
+    @Nullable private final YarnClient externalYarnClient;
     private final YarnConfiguration yarnConfiguration;
-    private YarnClient createdYarnClient;
+    @Nullable private YarnClient createdYarnClient;
+    private boolean closed = false;
 
-    private YarnClientRetrieverImpl(YarnClient yarnClient, YarnConfiguration yarnConfiguration) {
+    private YarnClientRetrieverImpl(
+            @Nullable YarnClient yarnClient, YarnConfiguration yarnConfiguration) {
         this.externalYarnClient = yarnClient;
         this.yarnConfiguration = yarnConfiguration;
     }
 
     @Override
-    public YarnClient getYarnClient() {
+    public YarnClient getYarnClient() throws FlinkException {
+        if (closed) {
+            throw new FlinkException(
+                    "This instance of YarnClientRetrieverImpl has released its resources, it can't be invoked again.");
+        }
+
         if (externalYarnClient != null && !externalYarnClient.isInState(Service.STATE.STOPPED)) {
             return externalYarnClient;
         }
 
         if (createdYarnClient != null) {
+            if (createdYarnClient.isInState(Service.STATE.STOPPED)) {
+                throw new FlinkException(
+                        "The newly created yarn client in YarnClientRetrieverImpl has been stopped. This should not happen.");
+            }
             return createdYarnClient;
         }
 
-        LOG.info("The external yarn client is closed, new yarn client will be created.");
-        this.createdYarnClient = createYarnClient();
-        createdYarnClient.init(yarnConfiguration);
-        createdYarnClient.start();
+        final YarnClient newlyCreatedYarnClient = createYarnClient();
+        newlyCreatedYarnClient.init(yarnConfiguration);
+        newlyCreatedYarnClient.start();
+        this.createdYarnClient = newlyCreatedYarnClient;
+
         return createdYarnClient;
     }
 
@@ -68,10 +83,15 @@ public final class YarnClientRetrieverImpl implements YarnClientRetriever {
         if (createdYarnClient != null) {
             createdYarnClient.stop();
         }
+        closed = true;
     }
 
     public static YarnClientRetrieverImpl from(
             YarnClient yarnClient, YarnConfiguration yarnConfiguration) {
         return new YarnClientRetrieverImpl(yarnClient, yarnConfiguration);
+    }
+
+    public static YarnClientRetrieverImpl from(YarnConfiguration yarnConfiguration) {
+        return new YarnClientRetrieverImpl(null, yarnConfiguration);
     }
 }
