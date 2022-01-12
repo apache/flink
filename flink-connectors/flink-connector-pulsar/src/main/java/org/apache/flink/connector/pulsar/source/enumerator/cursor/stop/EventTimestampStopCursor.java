@@ -16,23 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.source.enumerator.cursor.start;
+package org.apache.flink.connector.pulsar.source.enumerator.cursor.stop;
 
-import org.apache.flink.connector.pulsar.source.enumerator.cursor.CursorPosition;
-import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
+import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 
-/** This cursor would left pulsar start consuming from a specific publish timestamp. */
-public class TimestampStartCursor implements StartCursor {
-    private static final long serialVersionUID = 5170578885838095320L;
+import org.apache.pulsar.client.api.Message;
+
+/** Stop consuming message at the given event time. */
+public class EventTimestampStopCursor implements StopCursor {
+    private static final long serialVersionUID = 2391576769339369027L;
 
     private final long timestamp;
 
-    public TimestampStartCursor(long timestamp) {
+    public EventTimestampStopCursor(long timestamp) {
         this.timestamp = timestamp;
     }
 
     @Override
-    public CursorPosition position(String topic, int partitionId) {
-        return new CursorPosition(timestamp);
+    public boolean shouldStop(Message<?> message) {
+        return message.getEventTime() >= timestamp;
     }
 }
