@@ -1190,9 +1190,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         LOG.info("Waiting for the cluster to be allocated");
 
+        YarnClientWrapper yarnClientWrapper = YarnClientWrapper.of(yarnClient, false);
+
         try {
             waitTillTargetState(
-                    yarnClient, appId, YarnApplicationState.ACCEPTED, YarnApplicationState.RUNNING);
+                    yarnClientWrapper,
+                    appId,
+                    YarnApplicationState.ACCEPTED,
+                    YarnApplicationState.RUNNING);
         } catch (IOException e) {
             throw new YarnDeploymentException("Failed to deploy the cluster.", e);
         }
@@ -1201,11 +1206,11 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         ShutdownHookUtil.removeShutdownHook(deploymentFailureHook, getClass().getSimpleName(), LOG);
 
         return ApplicationReportProviderImpl.of(
-                YarnClientRetrieverImpl.from(yarnClient, yarnConfiguration), applicationId);
+                YarnClientRetrieverImpl.from(yarnClientWrapper, yarnConfiguration), applicationId);
     }
 
     public static ApplicationReport waitTillTargetState(
-            YarnClient yarnClient, ApplicationId appId, YarnApplicationState... targetStates)
+            YarnClientWrapper yarnClient, ApplicationId appId, YarnApplicationState... targetStates)
             throws InterruptedException, YarnException, IOException {
         final long startTime = System.currentTimeMillis();
         ApplicationReport report;

@@ -27,8 +27,8 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -37,69 +37,60 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class YarnClientRetrieverImplTest {
 
     @Test
-    public void testThrowExceptionWhenNewlyCreatedYarnClientClosed() throws FlinkException {
+    public void testDedicatedYarnClientClosedWillCreateNewOne() throws Exception {
         YarnConfiguration yarnConfiguration = new YarnConfiguration();
-
         YarnClientRetrieverImpl retriever = YarnClientRetrieverImpl.from(yarnConfiguration);
-        retriever.getYarnClient().stop();
+        YarnClientWrapper yarnClient1 = retriever.getYarnClient();
+        yarnClient1.close();
 
-        assertThatThrownBy(
-                        () -> {
-                            retriever.getYarnClient();
-                        })
-                .isInstanceOf(FlinkException.class)
-                .hasMessage(
-                        "The newly created yarn client in YarnClientRetrieverImpl has been stopped. This should not happen.");
+        assertTrue(yarnClient1.isClosed());
+
+        YarnClientWrapper yarnClient2 = retriever.getYarnClient();
+        assertNotEquals(yarnClient1, yarnClient2);
     }
 
     @Test
-    public void testThrowExceptionWhenInstanceClosed() throws Exception {
+    public void testExternalYarnClientAllowNotStop() throws Exception {
         YarnConfiguration yarnConfiguration = new YarnConfiguration();
-        YarnClient yarnClient = createYarnClient(yarnConfiguration);
+        YarnClient externalYarnClient = createYarnClient(yarnConfiguration);
 
         YarnClientRetrieverImpl retriever =
-                YarnClientRetrieverImpl.from(yarnClient, yarnConfiguration);
+                YarnClientRetrieverImpl.from(
+                        YarnClientWrapper.of(externalYarnClient, false), yarnConfiguration);
+        retriever.getYarnClient().close();
 
-        retriever.close();
-
-        assertThatThrownBy(
-                        () -> {
-                            retriever.getYarnClient();
-                        })
-                .isInstanceOf(FlinkException.class)
-                .hasMessage(
-                        "This instance of YarnClientRetrieverImpl has released its resources, it can't be invoked again.");
+        assertFalse(externalYarnClient.isInState(Service.STATE.STOPPED));
     }
 
     @Test
-    public void testYarnClientWillBeReusedWhenNotClose() throws FlinkException {
-        YarnConfiguration yarnConfiguration = new YarnConfiguration();
-        YarnClient yarnClient = createYarnClient(yarnConfiguration);
+    public void testExternalYarnClientWillBeReusedWhenNotClose() throws FlinkException {
+        final YarnConfiguration yarnConfiguration = new YarnConfiguration();
+        final YarnClient yarnClient = createYarnClient(yarnConfiguration);
+
+        final YarnClientWrapper wrapper = YarnClientWrapper.of(yarnClient, false);
 
         YarnClientRetrieverImpl retriever =
-                YarnClientRetrieverImpl.from(yarnClient, yarnConfiguration);
-        assertEquals(yarnClient, retriever.getYarnClient());
+                YarnClientRetrieverImpl.from(wrapper, yarnConfiguration);
+
+        assertEquals(wrapper, retriever.getYarnClient());
     }
 
     @Test
-    public void testExternalYarnClientCloseWillNewCreate() throws Exception {
+    public void testExternalYarnClientClosedWillCreateDedicatedYarnClient() throws Exception {
         YarnConfiguration yarnConfiguration = new YarnConfiguration();
         YarnClient yarnClient = createYarnClient(yarnConfiguration);
         yarnClient.stop();
 
+        final YarnClientWrapper wrapper = YarnClientWrapper.of(yarnClient, false);
+
         YarnClientRetrieverImpl retriever =
-                YarnClientRetrieverImpl.from(yarnClient, yarnConfiguration);
-        YarnClient newYarnClient = retriever.getYarnClient();
+                YarnClientRetrieverImpl.from(wrapper, yarnConfiguration);
 
-        assertNotEquals(yarnClient, newYarnClient);
-        assertEquals(newYarnClient, retriever.getYarnClient());
-
-        retriever.close();
-        assertTrue(newYarnClient.isInState(Service.STATE.STOPPED));
+        assertNotEquals(wrapper, retriever.getYarnClient());
     }
 
     private YarnClient createYarnClient(YarnConfiguration yarnConfiguration) {
-        YarnClient yarnClient = YarnClient.createYarnClient();
+        final YarnClient yarnClient = YarnClient.createYarnClient();
         yarnClient.init(yarnConfiguration);
         yarnClient.start();
         return yarnClient;

@@ -42,9 +42,9 @@ public class ApplicationReportProviderImpl implements ApplicationReportProvider 
 
     @Override
     public ApplicationReport waitTillSubmissionFinish() throws FlinkException {
-        try (final YarnClientRetriever retriever = yarnClientRetriever) {
+        try (final YarnClientWrapper yarnClient = yarnClientRetriever.getYarnClient()) {
             return YarnClusterDescriptor.waitTillTargetState(
-                    retriever.getYarnClient(), appId, YarnApplicationState.RUNNING);
+                    yarnClient, appId, YarnApplicationState.RUNNING);
         } catch (YarnException | IOException e) {
             throw new FlinkException(
                     "Errors on getting YARN application report. Maybe application has finished.",
@@ -54,7 +54,7 @@ public class ApplicationReportProviderImpl implements ApplicationReportProvider 
                     "Errors on getting YARN application report. Maybe the thread is interrupted.",
                     interruptedException);
         } catch (Exception exception) {
-            throw new FlinkException("Errors on closing YarnClientRetriever.", exception);
+            throw new FlinkException("Errors on closing YarnClient.", exception);
         }
     }
 
