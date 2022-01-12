@@ -38,7 +38,6 @@ import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
@@ -47,7 +46,6 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -81,13 +79,9 @@ public class TemporalTableSourceSpecSerdeTest {
         ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
         ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
 
-        StringWriter writer = new StringWriter(100);
         List<TemporalTableSourceSpec> specs = testData();
         for (TemporalTableSourceSpec spec : specs) {
-            try (JsonGenerator gen = objectWriter.getFactory().createGenerator(writer)) {
-                gen.writeObject(spec);
-            }
-            String json = writer.toString();
+            String json = objectWriter.writeValueAsString(spec);
             TemporalTableSourceSpec actual =
                     objectReader.readValue(json, TemporalTableSourceSpec.class);
             assertEquals(spec.getTableSourceSpec(), actual.getTableSourceSpec());
