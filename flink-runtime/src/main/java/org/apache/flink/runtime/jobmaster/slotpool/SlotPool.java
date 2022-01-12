@@ -32,7 +32,6 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
@@ -123,7 +122,6 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
      * @return a list of {@link SlotInfoWithUtilization} objects about all slots that are currently
      *     available in the slot pool.
      */
-    @Nonnull
     Collection<SlotInfoWithUtilization> getAvailableSlotsInformation();
 
     /**
@@ -147,9 +145,9 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
      *     allocation id exists
      */
     Optional<PhysicalSlot> allocateAvailableSlot(
-            @Nonnull SlotRequestId slotRequestId,
-            @Nonnull AllocationID allocationID,
-            @Nonnull ResourceProfile requirementProfile);
+            SlotRequestId slotRequestId,
+            AllocationID allocationID,
+            ResourceProfile requirementProfile);
 
     /**
      * Request the allocation of a new slot from the resource manager. This method will not return a
@@ -162,11 +160,8 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
      * @param timeout timeout for the allocation procedure
      * @return a newly allocated slot that was previously not available.
      */
-    @Nonnull
     default CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
-            @Nonnull SlotRequestId slotRequestId,
-            @Nonnull ResourceProfile resourceProfile,
-            @Nullable Time timeout) {
+            SlotRequestId slotRequestId, ResourceProfile resourceProfile, @Nullable Time timeout) {
         return requestNewAllocatedSlot(
                 slotRequestId, resourceProfile, Collections.emptyList(), timeout);
     }
@@ -184,9 +179,9 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
      * @return a newly allocated slot that was previously not available.
      */
     CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
-            @Nonnull SlotRequestId slotRequestId,
-            @Nonnull ResourceProfile resourceProfile,
-            @Nonnull Collection<AllocationID> preferredAllocations,
+            SlotRequestId slotRequestId,
+            ResourceProfile resourceProfile,
+            Collection<AllocationID> preferredAllocations,
             @Nullable Time timeout);
 
     /**
@@ -199,17 +194,15 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
      *     requested batch slot
      * @return a future which is completed with newly allocated batch slot
      */
-    @Nonnull
     default CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
-            @Nonnull SlotRequestId slotRequestId, @Nonnull ResourceProfile resourceProfile) {
+            SlotRequestId slotRequestId, ResourceProfile resourceProfile) {
         return requestNewAllocatedBatchSlot(
                 slotRequestId, resourceProfile, Collections.emptyList());
     }
 
-    @Nonnull
     CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
-            @Nonnull SlotRequestId slotRequestId,
-            @Nonnull ResourceProfile resourceProfile,
+            SlotRequestId slotRequestId,
+            ResourceProfile resourceProfile,
             Collection<AllocationID> preferredAllocations);
 
     /**
