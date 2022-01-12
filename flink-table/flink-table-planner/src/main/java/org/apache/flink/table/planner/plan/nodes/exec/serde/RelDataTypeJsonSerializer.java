@@ -18,48 +18,27 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.table.planner.plan.schema.GenericRelDataType;
-import org.apache.flink.table.planner.plan.schema.RawRelDataType;
-import org.apache.flink.table.planner.plan.schema.StructuredRelDataType;
-import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
-import org.apache.flink.table.types.logical.TimestampKind;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
-import org.apache.flink.table.utils.EncodingUtils;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.planner.typeutils.LogicalRelDataTypeConverter;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.sql.type.ArraySqlType;
-import org.apache.calcite.sql.type.MapSqlType;
-import org.apache.calcite.sql.type.MultisetSqlType;
-import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.io.IOException;
 
 /**
- * JSON serializer for {@link RelDataType}. refer to {@link RelDataTypeJsonDeserializer} for
- * deserializer.
+ * JSON serializer for {@link RelDataType}.
+ *
+ * @see RelDataTypeJsonDeserializer for the reverse operation.
  */
-public class RelDataTypeJsonSerializer extends StdSerializer<RelDataType> {
+@Internal
+public final class RelDataTypeJsonSerializer extends StdSerializer<RelDataType> {
     private static final long serialVersionUID = 1L;
-
-    public static final String FIELD_NAME_TYPE_NAME = "typeName";
-    public static final String FIELD_NAME_FILED_NAME = "fieldName";
-    public static final String FIELD_NAME_NULLABLE = "nullable";
-    public static final String FIELD_NAME_PRECISION = "precision";
-    public static final String FIELD_NAME_SCALE = "scale";
-    public static final String FIELD_NAME_FIELDS = "fields";
-    public static final String FIELD_NAME_STRUCT_KIND = "structKind";
-    public static final String FIELD_NAME_TIMESTAMP_KIND = "timestampKind";
-    public static final String FIELD_NAME_ELEMENT = "element";
-    public static final String FIELD_NAME_KEY = "key";
-    public static final String FIELD_NAME_VALUE = "value";
-    public static final String FIELD_NAME_TYPE_INFO = "typeInfo";
-    public static final String FIELD_NAME_RAW_TYPE = "rawType";
-    public static final String FIELD_NAME_STRUCTURED_TYPE = "structuredType";
 
     public RelDataTypeJsonSerializer() {
         super(RelDataType.class);
@@ -71,103 +50,14 @@ public class RelDataTypeJsonSerializer extends StdSerializer<RelDataType> {
             JsonGenerator jsonGenerator,
             SerializerProvider serializerProvider)
             throws IOException {
-        jsonGenerator.writeStartObject();
-        serializeInternal(relDataType, jsonGenerator, serializerProvider);
-        jsonGenerator.writeEndObject();
-    }
-
-    private void serializeInternal(
-            RelDataType relDataType, JsonGenerator gen, SerializerProvider serializerProvider)
-            throws IOException {
-        if (relDataType instanceof TimeIndicatorRelDataType) {
-            TimeIndicatorRelDataType timeIndicatorType = (TimeIndicatorRelDataType) relDataType;
-            gen.writeStringField(
-                    FIELD_NAME_TIMESTAMP_KIND,
-                    timeIndicatorType.isEventTime()
-                            ? TimestampKind.ROWTIME.name()
-                            : TimestampKind.PROCTIME.name());
-            gen.writeStringField(
-                    FIELD_NAME_TYPE_NAME, timeIndicatorType.originalType().getSqlTypeName().name());
-            gen.writeBooleanField(FIELD_NAME_NULLABLE, relDataType.isNullable());
-        } else if (relDataType instanceof StructuredRelDataType) {
-            StructuredRelDataType structuredType = (StructuredRelDataType) relDataType;
-            serializerProvider.defaultSerializeField(
-                    FIELD_NAME_STRUCTURED_TYPE, structuredType.getStructuredType(), gen);
-        } else if (relDataType.isStruct()) {
-            gen.writeStringField(FIELD_NAME_STRUCT_KIND, relDataType.getStructKind().name());
-            gen.writeBooleanField(FIELD_NAME_NULLABLE, relDataType.isNullable());
-
-            gen.writeFieldName(FIELD_NAME_FIELDS);
-            gen.writeStartArray();
-            for (RelDataTypeField field : relDataType.getFieldList()) {
-                gen.writeStartObject();
-                serializeInternal(field.getType(), gen, serializerProvider);
-                gen.writeStringField(FIELD_NAME_FILED_NAME, field.getName());
-                gen.writeEndObject();
-            }
-            gen.writeEndArray();
-        } else if (relDataType.getSqlTypeName() == SqlTypeName.ARRAY) {
-            serializeCommon(relDataType, gen);
-            ArraySqlType arraySqlType = (ArraySqlType) relDataType;
-
-            gen.writeFieldName(FIELD_NAME_ELEMENT);
-            gen.writeStartObject();
-            serializeInternal(arraySqlType.getComponentType(), gen, serializerProvider);
-            gen.writeEndObject();
-        } else if (relDataType.getSqlTypeName() == SqlTypeName.MULTISET) {
-            assert relDataType instanceof MultisetSqlType;
-            serializeCommon(relDataType, gen);
-            MultisetSqlType multisetSqlType = (MultisetSqlType) relDataType;
-
-            gen.writeFieldName(FIELD_NAME_ELEMENT);
-            gen.writeStartObject();
-            serializeInternal(multisetSqlType.getComponentType(), gen, serializerProvider);
-            gen.writeEndObject();
-        } else if (relDataType.getSqlTypeName() == SqlTypeName.MAP) {
-            assert relDataType instanceof MapSqlType;
-            serializeCommon(relDataType, gen);
-            MapSqlType mapSqlType = (MapSqlType) relDataType;
-
-            gen.writeFieldName(FIELD_NAME_KEY);
-            gen.writeStartObject();
-            serializeInternal(mapSqlType.getKeyType(), gen, serializerProvider);
-            gen.writeEndObject();
-
-            gen.writeFieldName(FIELD_NAME_VALUE);
-            gen.writeStartObject();
-            serializeInternal(mapSqlType.getValueType(), gen, serializerProvider);
-            gen.writeEndObject();
-        } else if (relDataType instanceof GenericRelDataType) {
-            assert relDataType.getSqlTypeName() == SqlTypeName.ANY;
-            serializeCommon(relDataType, gen);
-            TypeInformationRawType<?> rawType = ((GenericRelDataType) relDataType).genericType();
-
-            gen.writeFieldName(FIELD_NAME_RAW_TYPE);
-            gen.writeStartObject();
-            gen.writeBooleanField(FIELD_NAME_NULLABLE, rawType.isNullable());
-            gen.writeStringField(
-                    FIELD_NAME_TYPE_INFO,
-                    EncodingUtils.encodeObjectToString(rawType.getTypeInformation()));
-            gen.writeEndObject();
-        } else if (relDataType instanceof RawRelDataType) {
-            assert relDataType.getSqlTypeName() == SqlTypeName.OTHER;
-            serializeCommon(relDataType, gen);
-            RawRelDataType rawType = (RawRelDataType) relDataType;
-            gen.writeStringField(FIELD_NAME_RAW_TYPE, rawType.getRawType().asSerializableString());
-        } else {
-            serializeCommon(relDataType, gen);
-        }
-    }
-
-    private void serializeCommon(RelDataType relDataType, JsonGenerator gen) throws IOException {
-        final SqlTypeName typeName = relDataType.getSqlTypeName();
-        gen.writeStringField(FIELD_NAME_TYPE_NAME, typeName.name());
-        gen.writeBooleanField(FIELD_NAME_NULLABLE, relDataType.isNullable());
-        if (relDataType.getSqlTypeName().allowsPrec()) {
-            gen.writeNumberField(FIELD_NAME_PRECISION, relDataType.getPrecision());
-        }
-        if (relDataType.getSqlTypeName().allowsScale()) {
-            gen.writeNumberField(FIELD_NAME_SCALE, relDataType.getScale());
-        }
+        final SerdeContext serdeContext = SerdeContext.get(serializerProvider);
+        final DataTypeFactory dataTypeFactory =
+                serdeContext.getFlinkContext().getCatalogManager().getDataTypeFactory();
+        // Conversion to LogicalType also ensures that Calcite's type system is materialized
+        // so data types like DECIMAL will receive a concrete precision and scale (not unspecified
+        // anymore).
+        final LogicalType logicalType =
+                LogicalRelDataTypeConverter.toLogicalType(relDataType, dataTypeFactory);
+        serializerProvider.defaultSerializeValue(logicalType, jsonGenerator);
     }
 }

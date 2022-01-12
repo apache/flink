@@ -83,7 +83,7 @@ public class AggregateCallJsonSerializer extends StdSerializer<AggregateCall> {
         jsonGenerator.writeBooleanField(FIELD_NAME_DISTINCT, aggCall.isDistinct());
         jsonGenerator.writeBooleanField(FIELD_NAME_APPROXIMATE, aggCall.isApproximate());
         jsonGenerator.writeBooleanField(FIELD_NAME_IGNORE_NULLS, aggCall.ignoreNulls());
-        jsonGenerator.writeObjectField(FIELD_NAME_TYPE, aggCall.getType());
+        serializerProvider.defaultSerializeField(FIELD_NAME_TYPE, aggCall.getType(), jsonGenerator);
         jsonGenerator.writeEndObject();
     }
 

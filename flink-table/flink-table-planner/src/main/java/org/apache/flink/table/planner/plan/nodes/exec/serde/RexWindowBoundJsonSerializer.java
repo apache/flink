@@ -75,7 +75,8 @@ public class RexWindowBoundJsonSerializer extends StdSerializer<RexWindowBound> 
             } else {
                 throw new TableException("Unknown RexWindowBound: " + rexWindowBound);
             }
-            gen.writeObjectField(FIELD_NAME_OFFSET, rexWindowBound.getOffset());
+            serializerProvider.defaultSerializeField(
+                    FIELD_NAME_OFFSET, rexWindowBound.getOffset(), gen);
         }
         gen.writeEndObject();
     }

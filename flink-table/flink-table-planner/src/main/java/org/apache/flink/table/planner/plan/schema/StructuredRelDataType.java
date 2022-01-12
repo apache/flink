@@ -54,7 +54,7 @@ public final class StructuredRelDataType extends ObjectSqlType {
 
     private final StructuredType structuredType;
 
-    private StructuredRelDataType(StructuredType structuredType, List<RelDataTypeField> fields) {
+    public StructuredRelDataType(StructuredType structuredType, List<RelDataTypeField> fields) {
         super(
                 SqlTypeName.STRUCTURED,
                 createSqlIdentifier(structuredType),
