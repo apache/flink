@@ -45,11 +45,7 @@
     "watermarkExpr" : {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
-      "type" : {
-        "typeName" : "TIMESTAMP",
-        "nullable" : true,
-        "precision" : 3
-      }
+      "type" : "TIMESTAMP(3)"
     },
     "rowtimeFieldIndex" : 2,
     "id" : 2,
@@ -128,10 +124,7 @@
           "offset" : {
             "kind" : "INPUT_REF",
             "inputIndex" : 3,
-            "type" : {
-              "typeName" : "INTEGER",
-              "nullable" : false
-            }
+            "type" : "INT NOT NULL"
           }
         },
         "upperBound" : {
@@ -149,19 +142,13 @@
           "distinct" : false,
           "approximate" : false,
           "ignoreNulls" : false,
-          "type" : {
-            "typeName" : "BIGINT",
-            "nullable" : false
-          }
+          "type" : "BIGINT NOT NULL"
         } ]
       } ],
       "constants" : [ {
         "kind" : "LITERAL",
         "value" : "5",
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : false
-        }
+        "type" : "INT NOT NULL"
       } ],
       "originalInputFields" : 3
     },
@@ -199,17 +186,11 @@
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 3,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : false
-      }
+      "type" : "BIGINT NOT NULL"
     } ],
     "condition" : null,
     "id" : 5,

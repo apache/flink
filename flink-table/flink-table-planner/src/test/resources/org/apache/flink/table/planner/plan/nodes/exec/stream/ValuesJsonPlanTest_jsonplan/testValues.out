@@ -5,47 +5,27 @@
     "tuples" : [ [ {
       "kind" : "LITERAL",
       "value" : "1",
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : false
-      }
+      "type" : "INT NOT NULL"
     }, {
       "kind" : "LITERAL",
       "value" : "2",
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : false
-      }
+      "type" : "INT NOT NULL"
     }, {
       "kind" : "LITERAL",
       "value" : "Hi",
-      "type" : {
-        "typeName" : "CHAR",
-        "nullable" : false,
-        "precision" : 2
-      }
+      "type" : "CHAR(2) NOT NULL"
     } ], [ {
       "kind" : "LITERAL",
       "value" : "3",
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : false
-      }
+      "type" : "INT NOT NULL"
     }, {
       "kind" : "LITERAL",
       "value" : "4",
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : false
-      }
+      "type" : "INT NOT NULL"
     }, {
       "kind" : "LITERAL",
       "value" : "Hello",
-      "type" : {
-        "typeName" : "CHAR",
-        "nullable" : false,
-        "precision" : 5
-      }
+      "type" : "CHAR(5) NOT NULL"
     } ] ],
     "id" : 1,
     "outputType" : "ROW<`EXPR$0` INT NOT NULL, `EXPR$1` INT NOT NULL, `EXPR$2` VARCHAR(5) NOT NULL>",
@@ -63,15 +43,9 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 0,
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : false
-        }
+        "type" : "INT NOT NULL"
       } ],
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -82,15 +56,9 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 1,
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : false
-        }
+        "type" : "INT NOT NULL"
       } ],
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -101,17 +69,9 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 2,
-        "type" : {
-          "typeName" : "VARCHAR",
-          "nullable" : false,
-          "precision" : 5
-        }
+        "type" : "VARCHAR(5) NOT NULL"
       } ],
-      "type" : {
-        "typeName" : "VARCHAR",
-        "nullable" : true,
-        "precision" : 2147483647
-      }
+      "type" : "VARCHAR(2147483647)"
     } ],
     "condition" : null,
     "id" : 2,
