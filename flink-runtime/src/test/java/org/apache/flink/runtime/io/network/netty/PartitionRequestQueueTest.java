@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
@@ -139,34 +138,6 @@ public class PartitionRequestQueueTest {
         assertEquals(buffersToWrite, channel.outboundMessages().size());
     }
 
-    @Test
-    public void testProducerFailedException() throws Exception {
-        PartitionRequestQueue queue = new PartitionRequestQueue();
-
-        ResultSubpartitionView view = new ReleasedResultSubpartitionView();
-
-        ResultPartitionProvider partitionProvider =
-                (partitionId, index, availabilityListener) -> view;
-
-        EmbeddedChannel ch = new EmbeddedChannel(queue);
-
-        CreditBasedSequenceNumberingViewReader seqView =
-                new CreditBasedSequenceNumberingViewReader(new InputChannelID(), 2, queue);
-        seqView.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
-        // Add available buffer to trigger enqueue the erroneous view
-        seqView.notifyDataAvailable();
-
-        ch.runPendingTasks();
-
-        // Read the enqueued msg
-        Object msg = ch.readOutbound();
-
-        assertEquals(msg.getClass(), NettyMessage.ErrorResponse.class);
-
-        NettyMessage.ErrorResponse err = (NettyMessage.ErrorResponse) msg;
-        assertTrue(err.cause instanceof CancelTaskException);
-    }
-
     /** Tests {@link PartitionRequestQueue} buffer writing with default buffers. */
     @Test
     public void testDefaultBufferWriting() throws Exception {
@@ -262,19 +233,6 @@ public class PartitionRequestQueueTest {
         @Override
         public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
             return new AvailabilityWithBacklog(true, 0);
-        }
-    }
-
-    private static class ReleasedResultSubpartitionView
-            extends EmptyAlwaysAvailableResultSubpartitionView {
-        @Override
-        public boolean isReleased() {
-            return true;
-        }
-
-        @Override
-        public Throwable getFailureCause() {
-            return new RuntimeException("Expected test exception");
         }
     }
 

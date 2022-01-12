@@ -55,6 +55,14 @@ public interface ResultSubpartitionView {
 
     void acknowledgeAllDataProcessed();
 
+    /**
+     * {@link ResultSubpartitionView} can decide whether the failure cause should be reported to
+     * consumer as failure (primary failure) or {@link ProducerFailedException} (secondary failure).
+     * Secondary failure can be reported only if producer (upstream task) is guaranteed to failover.
+     *
+     * <p><strong>BEWARE:</strong> Incorrectly reporting failure cause as primary failure, can hide
+     * the root cause of the failure from the user.
+     */
     Throwable getFailureCause();
 
     AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable);
