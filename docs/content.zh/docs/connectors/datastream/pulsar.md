@@ -239,10 +239,14 @@ Pulsar Source 默认情况下使用流的方式消费数据。除非任务失败
   ```java
   StopCursor.afterMessageId(MessageId);
   ```
-- 停止于某个给定的消息时间戳。
+- 停止于某个给定的消息发布时间戳，比如 `Message<byte[]>.getPublishTime()`。
   ```java
-  StopCursor.atEventTime(long);
+  StopCursor.atPublishTime(long);
   ```
+
+{{< hint warning >}}
+StopCursor.atEventTime(long) 目前已经处于弃用状态。
+{{< /hint >}}
 
 ### Source 配置项
 
