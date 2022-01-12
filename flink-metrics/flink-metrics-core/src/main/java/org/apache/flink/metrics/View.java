@@ -18,7 +18,10 @@
 
 package org.apache.flink.metrics;
 
+import org.apache.flink.annotation.Public;
+
 /** An interface for metrics which should be updated in regular intervals by a background thread. */
+@Public
 public interface View {
     /** The interval in which metrics are updated. */
     int UPDATE_INTERVAL_SECONDS = 5;
