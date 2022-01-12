@@ -250,12 +250,16 @@ Pulsar 连接器同时支持流式和批的消费方式，默认情况下，连�
   ```java
   StopCursor.afterMessageId(MessageId)
   ```
-- 停止于某个给定的消息时间戳。
+- 停止于某个给定的消息发布时间戳，比如 `Message<byte[]>.getPublishTime()`。
   ```java
-  StopCursor.atEventTime(long)
+  StopCursor.atPublishTime(long);
   ```
 
-### 其他配置项
+{{< hint warning >}}
+StopCursor.atEventTime(long) 目前已经处于弃用状态。
+{{< /hint >}}
+
+### Source 配置项
 
 除了前面提到的配置选项，连接器还提供了丰富的选项供 Pulsar 专家使用，在 builder 类里通过 `setConfig(ConfigOption<T>, T)` 和 `setConfig(Configuration)` 方法给定下述的全部配置。
 

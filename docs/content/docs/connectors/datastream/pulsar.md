@@ -240,7 +240,7 @@ Built-in start cursors include:
   ```java
   StartCursor.fromMessageId(MessageId, boolean)
   ```
-- Start from the specified message time by `Message<byte[]>.getEventTime()`.
+- Start from the specified message time by `Message<byte[]>.getPublishTime()`.
   ```java
   StartCursor.fromMessageTime(long)
   ```
@@ -282,12 +282,16 @@ Built-in stop cursors include:
   ```java
   StopCursor.afterMessageId(MessageId)
   ```
-- Stop at the specified message time by `Message<byte[]>.getEventTime()`.
+- Stop at the specified message time by `Message<byte[]>.getPublishTime()`.
   ```java
-  StopCursor.atEventTime(long)
+  StopCursor.atPublishTime(long);
   ```
 
-### Configurable Options
+{{< hint warning >}}
+StopCursor.atEventTime(long) is now deprecated.
+  {{< /hint >}}
+
+### Source Configurable Options
 
 In addition to configuration options described above, you can set arbitrary options for `PulsarClient`,
 `PulsarAdmin`， Pulsar `Consumer` and `PulsarSource` by using `setConfig(ConfigOption<T>, T)` and `setConfig(Configuration)`.
