@@ -18,8 +18,9 @@
 
 package org.apache.flink.api.scala.migration
 
-import java.util
+import org.apache.flink.FlinkVersion
 
+import java.util
 import org.apache.flink.api.common.accumulators.IntCounter
 import org.apache.flink.api.common.functions.RichFlatMapFunction
 import org.apache.flink.api.common.state._
@@ -41,8 +42,8 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.test.checkpointing.utils.SavepointMigrationTestBase
-import org.apache.flink.testutils.migration.MigrationVersion
 import org.apache.flink.util.Collector
+
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Assert, Ignore, Test}
@@ -52,35 +53,35 @@ import scala.util.{Failure, Try}
 object StatefulJobWBroadcastStateMigrationITCase {
 
   @Parameterized.Parameters(name = "Migrate Savepoint / Backend: {0}")
-  def parameters: util.Collection[(MigrationVersion, String)] = {
+  def parameters: util.Collection[(FlinkVersion, String)] = {
     util.Arrays.asList(
-      (MigrationVersion.v1_5, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_5, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_7, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_7, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_8, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_8, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_9, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_9, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_10, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_10, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_11, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_11, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_12, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_12, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_13, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_13, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_14, StateBackendLoader.HASHMAP_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_14, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME))
+      (FlinkVersion.v1_5, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_5, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_7, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_7, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_8, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_8, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_9, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_9, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_10, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_10, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_11, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_11, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_12, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_12, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_13, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_13, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_14, StateBackendLoader.HASHMAP_STATE_BACKEND_NAME),
+      (FlinkVersion.v1_14, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME))
   }
 
   // TODO to generate savepoints for a specific Flink version / backend type,
   // TODO change these values accordingly, e.g. to generate for 1.3 with RocksDB,
-  // TODO set as (MigrationVersion.v1_3, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME)
+  // TODO set as (FlinkVersion.v1_3, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME)
   // TODO Note: You should generate the savepoint based on the release branch instead of the master.
-  val GENERATE_SAVEPOINT_VER: MigrationVersion = MigrationVersion.v1_14
+  val GENERATE_SAVEPOINT_VER: FlinkVersion = FlinkVersion.v1_14
   val GENERATE_SAVEPOINT_BACKEND_TYPE: String = StateBackendLoader.HASHMAP_STATE_BACKEND_NAME
 
   val NUM_ELEMENTS = 4
@@ -91,7 +92,7 @@ object StatefulJobWBroadcastStateMigrationITCase {
   */
 @RunWith(classOf[Parameterized])
 class StatefulJobWBroadcastStateMigrationITCase(
-                                        migrationVersionAndBackend: (MigrationVersion, String))
+                                        migrationVersionAndBackend: (FlinkVersion, String))
   extends SavepointMigrationTestBase with Serializable {
 
   @Test

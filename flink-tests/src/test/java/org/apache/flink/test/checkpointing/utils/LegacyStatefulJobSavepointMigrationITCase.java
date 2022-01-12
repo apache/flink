@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.checkpointing.utils;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -44,7 +45,6 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.Collector;
 
 import org.junit.Ignore;
@@ -67,28 +67,28 @@ public class LegacyStatefulJobSavepointMigrationITCase extends SavepointMigratio
     private static final int NUM_SOURCE_ELEMENTS = 4;
 
     @Parameterized.Parameters(name = "Migrate Savepoint / Backend: {0}")
-    public static Collection<Tuple2<MigrationVersion, String>> parameters() {
+    public static Collection<Tuple2<FlinkVersion, String>> parameters() {
         return Arrays.asList(
-                Tuple2.of(MigrationVersion.v1_4, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_4, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
+                Tuple2.of(FlinkVersion.v1_4, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_4, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
     }
 
     /**
      * TODO to generate savepoints for a specific Flink version / backend type, TODO change these
-     * values accordingly, e.g. to generate for 1.3 with RocksDB, TODO set as
-     * (MigrationVersion.v1_3, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME) TODO Note: You should
-     * generate the savepoint based on the release branch instead of the master.
+     * values accordingly, e.g. to generate for 1.3 with RocksDB, TODO set as (FlinkVersion.v1_3,
+     * StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME) TODO Note: You should generate the savepoint
+     * based on the release branch instead of the master.
      */
-    private final MigrationVersion flinkGenerateSavepointVersion = MigrationVersion.v1_4;
+    private final FlinkVersion flinkGenerateSavepointVersion = FlinkVersion.v1_4;
 
     private final String flinkGenerateSavepointBackendType =
             StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME;
 
-    private final MigrationVersion testMigrateVersion;
+    private final FlinkVersion testMigrateVersion;
     private final String testStateBackend;
 
     public LegacyStatefulJobSavepointMigrationITCase(
-            Tuple2<MigrationVersion, String> testMigrateVersionAndBackend) throws Exception {
+            Tuple2<FlinkVersion, String> testMigrateVersionAndBackend) throws Exception {
         this.testMigrateVersion = testMigrateVersionAndBackend.f0;
         this.testStateBackend = testMigrateVersionAndBackend.f1;
     }
@@ -235,7 +235,7 @@ public class LegacyStatefulJobSavepointMigrationITCase extends SavepointMigratio
                         AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR, NUM_SOURCE_ELEMENTS));
     }
 
-    private String getSavepointPath(MigrationVersion savepointVersion, String backendType) {
+    private String getSavepointPath(FlinkVersion savepointVersion, String backendType) {
         switch (backendType) {
             case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME:
                 return "stateful-udf-migration-itcase-flink"

@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.runtime.typeutils;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.hamcrest.Matcher;
@@ -48,7 +48,7 @@ public class LinkedListSerializerUpgradeTest
 
     @Parameterized.Parameters(name = "Test Specification = {0}")
     public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
-        return MigrationVersion.v1_13.orHigher().stream()
+        return FlinkVersion.v1_13.orHigher().stream()
                 .map(
                         version -> {
                             try {
@@ -121,8 +121,8 @@ public class LinkedListSerializerUpgradeTest
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<LinkedList<Long>>>
-                schemaCompatibilityMatcher(MigrationVersion version) {
-            if (version.isNewerVersionThan(MigrationVersion.v1_13)) {
+                schemaCompatibilityMatcher(FlinkVersion version) {
+            if (version.isNewerVersionThan(FlinkVersion.v1_13)) {
                 return TypeSerializerMatchers.isCompatibleAsIs();
             } else {
                 return TypeSerializerMatchers.isCompatibleAfterMigration();

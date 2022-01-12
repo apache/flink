@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.common.typeutils.base.array;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -39,11 +39,11 @@ public class PrimitiveArraySerializerUpgradeTest
     @Parameterized.Parameters(name = "Test Specification = {0}")
     public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             "boolean-primitive-array-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             PrimitiveArraySerializerUpgradeTestSpecifications
                                     .PrimitiveBooleanArraySetup.class,
                             PrimitiveArraySerializerUpgradeTestSpecifications
@@ -51,7 +51,7 @@ public class PrimitiveArraySerializerUpgradeTest
             testSpecifications.add(
                     new TestSpecification<>(
                             "byte-primitive-array-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             PrimitiveArraySerializerUpgradeTestSpecifications
                                     .PrimitiveByteArraySetup.class,
                             PrimitiveArraySerializerUpgradeTestSpecifications
@@ -59,7 +59,7 @@ public class PrimitiveArraySerializerUpgradeTest
             testSpecifications.add(
                     new TestSpecification<>(
                             "char-primitive-array-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             PrimitiveArraySerializerUpgradeTestSpecifications
                                     .PrimitiveCharArraySetup.class,
                             PrimitiveArraySerializerUpgradeTestSpecifications
@@ -67,7 +67,7 @@ public class PrimitiveArraySerializerUpgradeTest
             testSpecifications.add(
                     new TestSpecification<>(
                             "double-primitive-array-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             PrimitiveArraySerializerUpgradeTestSpecifications
                                     .PrimitiveDoubleArraySetup.class,
                             PrimitiveArraySerializerUpgradeTestSpecifications
@@ -75,7 +75,7 @@ public class PrimitiveArraySerializerUpgradeTest
             testSpecifications.add(
                     new TestSpecification<>(
                             "float-primitive-array-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             PrimitiveArraySerializerUpgradeTestSpecifications
                                     .PrimitiveFloatArraySetup.class,
                             PrimitiveArraySerializerUpgradeTestSpecifications
@@ -83,7 +83,7 @@ public class PrimitiveArraySerializerUpgradeTest
             testSpecifications.add(
                     new TestSpecification<>(
                             "int-primitive-array-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveIntArraySetup
                                     .class,
                             PrimitiveArraySerializerUpgradeTestSpecifications
@@ -91,7 +91,7 @@ public class PrimitiveArraySerializerUpgradeTest
             testSpecifications.add(
                     new TestSpecification<>(
                             "long-primitive-array-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             PrimitiveArraySerializerUpgradeTestSpecifications
                                     .PrimitiveLongArraySetup.class,
                             PrimitiveArraySerializerUpgradeTestSpecifications
@@ -99,7 +99,7 @@ public class PrimitiveArraySerializerUpgradeTest
             testSpecifications.add(
                     new TestSpecification<>(
                             "short-primitive-array-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             PrimitiveArraySerializerUpgradeTestSpecifications
                                     .PrimitiveShortArraySetup.class,
                             PrimitiveArraySerializerUpgradeTestSpecifications
@@ -107,7 +107,7 @@ public class PrimitiveArraySerializerUpgradeTest
             testSpecifications.add(
                     new TestSpecification<>(
                             "string-array-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             PrimitiveArraySerializerUpgradeTestSpecifications
                                     .PrimitiveStringArraySetup.class,
                             PrimitiveArraySerializerUpgradeTestSpecifications

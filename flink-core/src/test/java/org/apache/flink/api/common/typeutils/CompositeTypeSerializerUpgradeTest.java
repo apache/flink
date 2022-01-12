@@ -18,11 +18,11 @@
 
 package org.apache.flink.api.common.typeutils;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializer;
-import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.types.Either;
 
 import org.hamcrest.Matcher;
@@ -47,17 +47,17 @@ public class CompositeTypeSerializerUpgradeTest
     public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             "either-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             EitherSerializerSetup.class,
                             EitherSerializerVerifier.class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "generic-array-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             GenericArraySerializerSetup.class,
                             GenericArraySerializerVerifier.class));
         }
@@ -103,7 +103,7 @@ public class CompositeTypeSerializerUpgradeTest
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<Either<String, Integer>>>
-                schemaCompatibilityMatcher(MigrationVersion version) {
+                schemaCompatibilityMatcher(FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -149,7 +149,7 @@ public class CompositeTypeSerializerUpgradeTest
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<String[]>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }

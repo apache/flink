@@ -16,25 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.testutils.migration;
+package org.apache.flink;
 
 import java.util.Arrays;
-import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Enumeration for Flink versions, used in migration integration tests to indicate the migrated
- * snapshot version.
+ * Enumeration for Flink versions, used for enabling APIs versioning and SQL/TableAPI upgrades, but
+ * also used in migration integration tests to indicate the migrated snapshot version.
  */
-public enum MigrationVersion {
+public enum FlinkVersion {
 
     // NOTE: the version strings must not change,
     // as they are used to locate snapshot file paths.
-    // The definition order matters for performing version arithmetic.
+    // The definition order (enum ordinal) matters for performing version arithmetic.
     v1_3("1.3"),
     v1_4("1.4"),
     v1_5("1.5"),
@@ -50,7 +51,7 @@ public enum MigrationVersion {
 
     private final String versionStr;
 
-    MigrationVersion(String versionStr) {
+    FlinkVersion(String versionStr) {
         this.versionStr = versionStr;
     }
 
@@ -59,22 +60,22 @@ public enum MigrationVersion {
         return versionStr;
     }
 
-    public boolean isNewerVersionThan(MigrationVersion otherVersion) {
+    public boolean isNewerVersionThan(FlinkVersion otherVersion) {
         return this.ordinal() > otherVersion.ordinal();
     }
 
     /** Returns all versions equal to or higher than the selected version. */
-    public List<MigrationVersion> orHigher() {
-        return Stream.of(MigrationVersion.values())
+    public Set<FlinkVersion> orHigher() {
+        return Stream.of(FlinkVersion.values())
                 .filter(v -> this.ordinal() <= v.ordinal())
-                .collect(Collectors.toList());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
-    private static final Map<String, MigrationVersion> CODE_MAP =
+    private static final Map<String, FlinkVersion> CODE_MAP =
             Arrays.stream(values())
                     .collect(Collectors.toMap(v -> v.versionStr, Function.identity()));
 
-    public static Optional<MigrationVersion> byCode(String code) {
+    public static Optional<FlinkVersion> byCode(String code) {
         return Optional.ofNullable(CODE_MAP.get(code));
     }
 }

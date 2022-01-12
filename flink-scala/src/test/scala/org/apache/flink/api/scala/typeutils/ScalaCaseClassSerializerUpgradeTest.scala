@@ -18,14 +18,15 @@
 
 package org.apache.flink.api.scala.typeutils
 
-import java.util
+import org.apache.flink.FlinkVersion
 
+import java.util
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase.TestSpecification
 import org.apache.flink.api.common.typeutils.{TypeSerializer, TypeSerializerMatchers, TypeSerializerSchemaCompatibility, TypeSerializerUpgradeTestBase}
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.api.scala.types.CustomCaseClass
-import org.apache.flink.testutils.migration.MigrationVersion
+
 import org.hamcrest.Matcher
 import org.hamcrest.Matchers.is
 import org.junit.runner.RunWith
@@ -82,7 +83,7 @@ object ScalaCaseClassSerializerUpgradeTest {
 
     override def testDataMatcher: Matcher[CustomCaseClass] = is(CustomCaseClass("flink", 11))
 
-    override def schemaCompatibilityMatcher(version: MigrationVersion):
+    override def schemaCompatibilityMatcher(version: FlinkVersion):
         Matcher[TypeSerializerSchemaCompatibility[CustomCaseClass]] =
       TypeSerializerMatchers.isCompatibleAsIs[CustomCaseClass]()
   }
