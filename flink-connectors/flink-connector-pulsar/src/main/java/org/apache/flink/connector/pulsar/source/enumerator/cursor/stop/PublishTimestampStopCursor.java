@@ -22,18 +22,18 @@ import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 
 import org.apache.pulsar.client.api.Message;
 
-/** Stop consuming message at the given event time. */
-public class TimestampStopCursor implements StopCursor {
-    private static final long serialVersionUID = 3381576769339353027L;
+/** Stop consuming message at the given publish time. */
+public class PublishTimestampStopCursor implements StopCursor {
+    private static final long serialVersionUID = 4386276745339324527L;
 
     private final long timestamp;
 
-    public TimestampStopCursor(long timestamp) {
+    public PublishTimestampStopCursor(long timestamp) {
         this.timestamp = timestamp;
     }
 
     @Override
     public boolean shouldStop(Message<?> message) {
-        return message.getEventTime() >= timestamp;
+        return message.getPublishTime() >= timestamp;
     }
 }

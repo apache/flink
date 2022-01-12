@@ -241,7 +241,7 @@ The Pulsar connector consumes from the latest available message if the message I
   ```java
   StartCursor.fromMessageId(MessageId, boolean);
   ```
-- Start from the specified message time by `Message<byte[]>.getEventTime()`.
+- Start from the specified message time by `Message<byte[]>.getPublishTime()`.
   ```java
   StartCursor.fromMessageTime(long);
   ```
@@ -281,10 +281,14 @@ Built-in stop cursors include:
   ```java
   StopCursor.afterMessageId(MessageId);
   ```
-- Stop at the specified message time by `Message<byte[]>.getEventTime()`.
+- Stop at the specified message time by `Message<byte[]>.getPublishTime()`.
   ```java
-  StopCursor.atEventTime(long);
+  StopCursor.atPublishTime(long);
   ```
+
+{{< hint warning >}}
+StopCursor.atEventTime(long) is now deprecated.
+  {{< /hint >}}
 
 ### Source Configurable Options
 
