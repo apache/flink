@@ -149,11 +149,15 @@ Pulsar connector would filter the available topics by the `RegexSubscriptionMode
 ### Deserializer
 
 A deserializer (Deserialization schema) is required for parsing Pulsar messages. The deserializer is
-configured by `setDeserializationSchema(PulsarDeserializationSchema)`.
-The `PulsarDeserializationSchema` defines how to deserialize a Pulsar `Message<byte[]>`.
+configured by `setDeserializationSchema(PulsarDeserializationSchema)`. Pulsar Connector supports use
+[pulsar schema evoluiton](https://pulsar.apache.org/docs/en/schema-evolution-compatibility/)
+The `PulsarDeserializationSchema` defines how to deserialize a Pulsar Message. If use
+`nativePulsarSchema`, then pulsar client will receive deserialized `Message<T>` 
+directly instead of `Message<byte[]>`. If use other schema types, pulsar client will receive `Message<byte[]>`.
 
-If only the raw payload of a message (message data in bytes) is needed,
-you can use the predefined `PulsarDeserializationSchema`. Pulsar connector provides three types of implementation.
+Pulsar connector provides 4 types of implementation. Notice that only AVRO-based schema supports
+schema versioning. For complete list of AVRO-based schema, please refer to Pulsar documentation. 
+Pulsar connector does not support `AUTO_CONSUME` schema yet.
 
 - Decode the message by using Pulsar's [Schema](https://pulsar.apache.org/docs/en/schema-understand/).
   ```java
@@ -166,6 +170,17 @@ you can use the predefined `PulsarDeserializationSchema`. Pulsar connector provi
   // KeyValue type
   PulsarDeserializationSchema.pulsarSchema(Schema, Class, Class);
   ```
+- Decode the message by using Pulsar's Schema and pass the schema to pulsar client. Supports schema evolution.
+  ```java
+  // Primitive types
+  PulsarDeserializationSchema.nativePulsarSchema(Schema)
+
+  // Struct types (JSON, Protobuf, Avro, etc.)
+  PulsarDeserializationSchema.nativePulsarSchema(Schema, Class)
+
+  // KeyValue type
+  PulsarDeserializationSchema.nativePulsarSchema(Schema, Class, Class)
+  ```
 - Decode the message by using Flink's `DeserializationSchema`
   ```java
   PulsarDeserializationSchema.flinkSchema(DeserializationSchema);
@@ -174,6 +189,21 @@ you can use the predefined `PulsarDeserializationSchema`. Pulsar connector provi
   ```java
   PulsarDeserializationSchema.flinkTypeInfo(TypeInformation, ExecutionConfig);
   ```
+If using KeyValue type or Struct types, the pulsar `Schema` does not contain type class info which is 
+needed by `PulsarSchemaTypeInformation`. So the two APIs provides 2 parameter to pass the type info.
+
+A example would be:
+
+```java
+  // Primitive types: do not need to provide type class info
+  PulsarDeserializationSchema.pulsarSchema(Schema.INT32);
+
+  // Struct types (JSON, Protobuf, Avro, etc.)
+  PulsarDeserializationSchema.pulsarSchema(Schema.AVRO(SomeClass), SomeClass.class);
+
+  // KeyValue type
+  PulsarDeserializationSchema.pulsarSchema(Schema.KeyValue(Schema.INT32, Schema.AVRO(SomeClass)), Integer.class, SomeClass.class);
+```
 
 Pulsar `Message<byte[]>` contains some [extra properties](https://pulsar.apache.org/docs/en/concepts-messaging/#messages),
 such as message key, message publish time, message time, application defined key/value pairs that will be attached to the message, etc.
@@ -182,6 +212,13 @@ These properties could be acquired by the `Message<byte[]>` interface.
 If you want to deserialize the Pulsar message by these properties, you need to implement `PulsarDeserializationSchema`.
 And ensure that the `TypeInformation` from the `PulsarDeserializationSchema.getProducedType()` must be correct.
 Flink would use this `TypeInformation` for passing the messages to downstream operators.
+
+### Schema Evolution
+
+If you want to use Pulsar's [schema evolution](https://pulsar.apache.org/docs/en/schema-evolution-compatibility/) 
+. you can use `nativePulsarSchema()`instead of `pulsarSchema()`. In this mode it meas passing the user
+specified pulsar schema into the pulsar consumer, and delegate all deserialization work to
+pulsar consumer implementation.
 
 ### Pulsar Subscriptions
 

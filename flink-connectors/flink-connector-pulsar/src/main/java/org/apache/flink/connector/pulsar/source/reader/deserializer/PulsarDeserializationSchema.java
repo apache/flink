@@ -76,7 +76,10 @@ public interface PulsarDeserializationSchema<T> extends Serializable, ResultType
      * @param message The message decoded by pulsar.
      * @param out The collector to put the resulting messages.
      */
-    void deserialize(Message<byte[]> message, Collector<T> out) throws Exception;
+    void deserialize(Message<?> message, Collector<T> out) throws Exception;
+
+    /** @return The related Pulsar Schema for this serializer. */
+    Schema<?> schema();
 
     /**
      * Create a PulsarDeserializationSchema by using the flink's {@link DeserializationSchema}. It
@@ -88,8 +91,9 @@ public interface PulsarDeserializationSchema<T> extends Serializable, ResultType
     }
 
     /**
-     * Create a PulsarDeserializationSchema by using the Pulsar {@link Schema} instance. The message
-     * bytes must be encoded by pulsar Schema.
+     * Create a PulsarDeserializationSchema by using the Pulsar {@link Schema} instance. Flink read
+     * messages from pulsar consumer as {@link Schema#BYTES} and then deserialize the message using
+     * pulsar Schema.
      *
      * <p>We only support <a
      * href="https://pulsar.apache.org/docs/en/schema-understand/#primitive-type">primitive
@@ -101,8 +105,9 @@ public interface PulsarDeserializationSchema<T> extends Serializable, ResultType
     }
 
     /**
-     * Create a PulsarDeserializationSchema by using the Pulsar {@link Schema} instance. The message
-     * bytes must be encoded by pulsar Schema.
+     * Create a PulsarDeserializationSchema by using the Pulsar {@link Schema} instance. Flink read
+     * messages from pulsar consumer as {@link Schema#BYTES} and then deserialize the message using
+     * pulsar Schema.
      *
      * <p>We only support <a
      * href="https://pulsar.apache.org/docs/en/schema-understand/#struct">struct types</a> here.
@@ -113,8 +118,9 @@ public interface PulsarDeserializationSchema<T> extends Serializable, ResultType
     }
 
     /**
-     * Create a PulsarDeserializationSchema by using the Pulsar {@link Schema} instance. The message
-     * bytes must be encoded by pulsar Schema.
+     * Create a PulsarDeserializationSchema by using the Pulsar {@link Schema} instance. Flink read
+     * messages from pulsar consumer as {@link Schema#BYTES} and then deserialize the message using
+     * pulsar Schema.
      *
      * <p>We only support <a
      * href="https://pulsar.apache.org/docs/en/schema-understand/#keyvalue">keyvalue types</a> here.
@@ -124,6 +130,49 @@ public interface PulsarDeserializationSchema<T> extends Serializable, ResultType
         PulsarSchema<KeyValue<K, V>> pulsarSchema =
                 new PulsarSchema<>(schema, keyClass, valueClass);
         return new PulsarSchemaWrapper<>(pulsarSchema);
+    }
+
+    /**
+     * Create a PulsarDeserializationSchema by using the Pulsar {@link Schema} instance. The pulsar
+     * schema instance is passed directly to the pulsar client, decoding happen in Pulsar client
+     * thread. Supports pulsar schema evolution.
+     *
+     * <p>We only support <a
+     * href="https://pulsar.apache.org/docs/en/schema-understand/#primitive-type">primitive
+     * types</a> here.
+     */
+    static <T> PulsarDeserializationSchema<T> nativePulsarSchema(Schema<T> schema) {
+        PulsarSchema<T> pulsarSchema = new PulsarSchema<>(schema);
+        return new NativePulsarSchemaWrapper<>(pulsarSchema);
+    }
+
+    /**
+     * Create a PulsarDeserializationSchema by using the Pulsar {@link Schema} instance. The pulsar
+     * schema instance is passed directly to the pulsar client, decoding happen in Pulsar client
+     * thread. Supports pulsar schema evolution.
+     *
+     * <p>We only support <a
+     * href="https://pulsar.apache.org/docs/en/schema-understand/#struct">struct types</a> here.
+     */
+    static <T> PulsarDeserializationSchema<T> nativePulsarSchema(
+            Schema<T> schema, Class<T> typeClass) {
+        PulsarSchema<T> pulsarSchema = new PulsarSchema<>(schema, typeClass);
+        return new NativePulsarSchemaWrapper<>(pulsarSchema);
+    }
+
+    /**
+     * Create a PulsarDeserializationSchema by using the Pulsar {@link Schema} instance. The pulsar
+     * schema instance is passed directly to the pulsar client, decoding happen in Pulsar client
+     * thread. Supports pulsar schema evolution.
+     *
+     * <p>We only support <a
+     * href="https://pulsar.apache.org/docs/en/schema-understand/#keyvalue">keyvalue types</a> here.
+     */
+    static <K, V> PulsarDeserializationSchema<KeyValue<K, V>> nativePulsarSchema(
+            Schema<KeyValue<K, V>> schema, Class<K> keyClass, Class<V> valueClass) {
+        PulsarSchema<KeyValue<K, V>> pulsarSchema =
+                new PulsarSchema<>(schema, keyClass, valueClass);
+        return new NativePulsarSchemaWrapper<>(pulsarSchema);
     }
 
     /**

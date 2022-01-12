@@ -154,6 +154,18 @@ Topic 名称 | 是否分区
   // 键值对类型
   PulsarDeserializationSchema.pulsarSchema(Schema, Class, Class);
   ```
+- 使用 Pulsar 的 [Schema], 并将其传入pulsar client来解析消息，支持schema evolution。
+  ```java
+  // 基础数据类型
+  PulsarDeserializationSchema.nativePulsarSchema(Schema)
+
+  // 结构类型 (JSON, Protobuf, Avro, etc.)
+  PulsarDeserializationSchema.nativePulsarSchema(Schema, Class)
+
+  // 键值对类型
+  PulsarDeserializationSchema.nativePulsarSchema(Schema, Class, Class)
+  ```  
+
 - 使用 Flink 的 `DeserializationSchema` 解析消息。
   ```java
   PulsarDeserializationSchema.flinkSchema(DeserializationSchema);
@@ -169,6 +181,13 @@ Pulsar 的 `Message<byte[]>` 包含了很多 [额外的属性](https://pulsar.ap
 如果用户需要基于这些额外的属性来解析一条消息，可以实现 `PulsarDeserializationSchema` 接口。
 并一定要确保 `PulsarDeserializationSchema.getProducedType()` 方法返回的 `TypeInformation` 是正确的结果。
 Flink 使用 `TypeInformation` 将解析出来的结果序列化传递到下游算子。
+
+### Schema Evolution
+
+如果你想要使用Pulsar的 [schema evolution](https://pulsar.apache.org/docs/en/schema-evolution-compatibility/)
+特性, 你可以使用 `nativePulsarSchema()` 来代替 `pulsarSchema()`。 当使用schema evolution时，Pulsar Source
+将会把用户指定的pulsar schema直接传入pulsar consumer实例，
+在这种模式下实际的反序列化工作将委托给pulsar consumer的实现。
 
 ### Pulsar 订阅
 

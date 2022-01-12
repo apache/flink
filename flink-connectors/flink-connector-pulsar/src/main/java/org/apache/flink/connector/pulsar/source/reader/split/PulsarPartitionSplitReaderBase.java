@@ -72,7 +72,7 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
     protected final PulsarDeserializationSchema<OUT> deserializationSchema;
     protected final AtomicBoolean wakeup;
 
-    protected Consumer<byte[]> pulsarConsumer;
+    protected Consumer<?> pulsarConsumer;
     protected PulsarPartitionSplit registeredSplit;
 
     protected PulsarPartitionSplitReaderBase(
@@ -104,7 +104,7 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
         PulsarMessageCollector<OUT> collector = new PulsarMessageCollector<>(splitId, builder);
         Deadline deadline = Deadline.fromNow(sourceConfiguration.getMaxFetchTime());
 
-        // Consume message from pulsar until it was woke up by flink reader.
+        // Consume message from pulsar until it was woken up by flink reader.
         for (int messageNum = 0;
                 messageNum < sourceConfiguration.getMaxFetchRecords()
                         && deadline.hasTimeLeft()
@@ -112,16 +112,16 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
                 messageNum++) {
             try {
                 Duration timeout = deadline.timeLeftIfAny();
-                Message<byte[]> message = pollMessage(timeout);
+                Message<?> message = pollMessage(timeout);
                 if (message == null) {
                     break;
                 }
 
-                // Deserialize message.
                 collector.setMessage(message);
+
                 deserializationSchema.deserialize(message, collector);
 
-                // Acknowledge message if need.
+                // Acknowledge message if needed.
                 finishedPollMessage(message);
 
                 if (stopCursor.shouldStop(message)) {
@@ -166,7 +166,7 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
         PulsarPartitionSplit newSplit = newSplits.get(0);
 
         // Create pulsar consumer.
-        Consumer<byte[]> consumer = createPulsarConsumer(newSplit);
+        Consumer<?> consumer = createPulsarConsumer(newSplit);
 
         // Open start & stop cursor.
         newSplit.open(pulsarAdmin);
@@ -192,12 +192,12 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
     }
 
     @Nullable
-    protected abstract Message<byte[]> pollMessage(Duration timeout)
+    protected abstract Message<?> pollMessage(Duration timeout)
             throws ExecutionException, InterruptedException, PulsarClientException;
 
-    protected abstract void finishedPollMessage(Message<byte[]> message);
+    protected abstract void finishedPollMessage(Message<?> message);
 
-    protected abstract void startConsumer(PulsarPartitionSplit split, Consumer<byte[]> consumer);
+    protected abstract void startConsumer(PulsarPartitionSplit split, Consumer<?> consumer);
 
     // --------------------------- Helper Methods -----------------------------
 
@@ -206,14 +206,16 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
     }
 
     /** Create a specified {@link Consumer} by the given split information. */
-    protected Consumer<byte[]> createPulsarConsumer(PulsarPartitionSplit split) {
+    protected Consumer<?> createPulsarConsumer(PulsarPartitionSplit split) {
         return createPulsarConsumer(split.getPartition());
     }
 
-    /** Create a specified {@link Consumer} by the given topic partition. */
-    protected Consumer<byte[]> createPulsarConsumer(TopicPartition partition) {
-        ConsumerBuilder<byte[]> consumerBuilder =
-                createConsumerBuilder(pulsarClient, Schema.BYTES, sourceConfiguration);
+    protected Consumer<?> createPulsarConsumer(TopicPartition partition) {
+        Schema<?> schema;
+        schema = deserializationSchema.schema();
+
+        ConsumerBuilder<?> consumerBuilder =
+                createConsumerBuilder(pulsarClient, schema, sourceConfiguration);
 
         consumerBuilder.topic(partition.getFullTopicName());
 

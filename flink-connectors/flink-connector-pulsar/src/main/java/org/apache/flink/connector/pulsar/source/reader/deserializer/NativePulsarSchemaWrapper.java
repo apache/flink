@@ -29,29 +29,28 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import static org.apache.flink.connector.pulsar.common.schema.PulsarSchemaUtils.createTypeInformation;
 
 /**
- * The deserialization schema wrapper for pulsar original {@link Schema}. Pulsar would deserialize
- * the message and pass it to flink with a auto generate or given {@link TypeInformation}.
+ * The deserialization schema wrapper for pulsar original {@link Schema}. Compared with {@link
+ * PulsarSchemaWrapper}, using this schema will pass the schema to pulsar client and delegate
+ * deserialization to the pulsar client thus upports schema evolution.
  *
  * @param <T> The output type of the message.
  */
 @Internal
-class PulsarSchemaWrapper<T> implements PulsarDeserializationSchema<T> {
-    private static final long serialVersionUID = -4864701207257059158L;
+class NativePulsarSchemaWrapper<T> implements PulsarDeserializationSchema<T> {
+    private static final long serialVersionUID = -309926132217813235L;
 
     /** The serializable pulsar schema, it wrap the schema with type class. */
     private final PulsarSchema<T> pulsarSchema;
 
-    public PulsarSchemaWrapper(PulsarSchema<T> pulsarSchema) {
+    public NativePulsarSchemaWrapper(PulsarSchema<T> pulsarSchema) {
         this.pulsarSchema = pulsarSchema;
     }
 
     @Override
     public void deserialize(Message<?> message, Collector<T> out) throws Exception {
-        Schema<T> schema = this.pulsarSchema.getPulsarSchema();
-        byte[] bytes = message.getData();
-        T instance = schema.decode(bytes);
-
-        out.collect(instance);
+        @SuppressWarnings("unchecked")
+        T value = (T) message.getValue();
+        out.collect(value);
     }
 
     @Override
@@ -61,7 +60,7 @@ class PulsarSchemaWrapper<T> implements PulsarDeserializationSchema<T> {
     }
 
     @Override
-    public Schema<?> schema() {
-        return Schema.BYTES;
+    public Schema<T> schema() {
+        return pulsarSchema.getPulsarSchema();
     }
 }

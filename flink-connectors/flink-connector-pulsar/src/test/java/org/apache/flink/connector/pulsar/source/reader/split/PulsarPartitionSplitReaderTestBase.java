@@ -136,7 +136,8 @@ public abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuite
         SplitsAddition<PulsarPartitionSplit> addition = new SplitsAddition<>(singletonList(split));
 
         // create consumer and seek before split changes
-        try (Consumer<byte[]> consumer = reader.createPulsarConsumer(partition)) {
+        try (Consumer<byte[]> consumer =
+                (Consumer<byte[]>) reader.createPulsarConsumer(partition)) {
             // inclusive messageId
             StartCursor startCursor = StartCursor.fromMessageId(startPosition);
             startCursor.seekPosition(partition.getTopic(), partition.getPartitionId(), consumer);

@@ -26,6 +26,7 @@ import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.util.Collector;
 
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Schema;
 
 /**
  * A {@link PulsarDeserializationSchema} implementation which based on the given flink's {@link
@@ -52,11 +53,16 @@ class PulsarDeserializationSchemaWrapper<T> implements PulsarDeserializationSche
     }
 
     @Override
-    public void deserialize(Message<byte[]> message, Collector<T> out) throws Exception {
+    public void deserialize(Message<?> message, Collector<T> out) throws Exception {
         byte[] bytes = message.getData();
         T instance = deserializationSchema.deserialize(bytes);
 
         out.collect(instance);
+    }
+
+    @Override
+    public Schema<?> schema() {
+        return Schema.BYTES;
     }
 
     @Override

@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.util.Collector;
 
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Schema;
 
 /**
  * Wrap the flink TypeInformation into a {@code PulsarDeserializationSchema}. We would create a
@@ -51,12 +52,17 @@ public class PulsarTypeInformationWrapper<T> implements PulsarDeserializationSch
     }
 
     @Override
-    public void deserialize(Message<byte[]> message, Collector<T> out) throws Exception {
+    public void deserialize(Message<?> message, Collector<T> out) throws Exception {
         DataInputDeserializer dis = DESERIALIZER.get();
         dis.setBuffer(message.getData());
         T instance = serializer.deserialize(dis);
 
         out.collect(instance);
+    }
+
+    @Override
+    public Schema<?> schema() {
+        return Schema.BYTES;
     }
 
     @Override

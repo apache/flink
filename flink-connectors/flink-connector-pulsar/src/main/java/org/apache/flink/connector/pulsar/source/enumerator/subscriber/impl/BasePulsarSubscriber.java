@@ -20,7 +20,6 @@ package org.apache.flink.connector.pulsar.source.enumerator.subscriber.impl;
 
 import org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicMetadata;
-import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 
@@ -32,6 +31,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import static java.util.stream.Collectors.toList;
+import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicName;
 
 /** PulsarSubscriber abstract class to simplify Pulsar admin related operations. */
 public abstract class BasePulsarSubscriber implements PulsarSubscriber {
@@ -39,7 +39,7 @@ public abstract class BasePulsarSubscriber implements PulsarSubscriber {
 
     protected TopicMetadata queryTopicMetadata(PulsarAdmin pulsarAdmin, String topicName) {
         // Drop the complete topic name for a clean partitioned topic name.
-        String completeTopicName = TopicNameUtils.topicName(topicName);
+        String completeTopicName = topicName(topicName);
         try {
             PartitionedTopicMetadata metadata =
                     pulsarAdmin.topics().getPartitionedTopicMetadata(completeTopicName);

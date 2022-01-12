@@ -61,12 +61,12 @@ public class PulsarOrderedPartitionSplitReader<OUT> extends PulsarPartitionSplit
     }
 
     @Override
-    protected Message<byte[]> pollMessage(Duration timeout) throws PulsarClientException {
+    protected Message<?> pollMessage(Duration timeout) throws PulsarClientException {
         return pulsarConsumer.receive(Math.toIntExact(timeout.toMillis()), TimeUnit.MILLISECONDS);
     }
 
     @Override
-    protected void finishedPollMessage(Message<byte[]> message) {
+    protected void finishedPollMessage(Message<?> message) {
         // Nothing to do here.
         LOG.debug("Finished polling message {}", message);
 
@@ -75,7 +75,7 @@ public class PulsarOrderedPartitionSplitReader<OUT> extends PulsarPartitionSplit
     }
 
     @Override
-    protected void startConsumer(PulsarPartitionSplit split, Consumer<byte[]> consumer) {
+    protected void startConsumer(PulsarPartitionSplit split, Consumer<?> consumer) {
         MessageId latestConsumedId = split.getLatestConsumedId();
 
         // Reset the start position for ordered pulsar consumer.
