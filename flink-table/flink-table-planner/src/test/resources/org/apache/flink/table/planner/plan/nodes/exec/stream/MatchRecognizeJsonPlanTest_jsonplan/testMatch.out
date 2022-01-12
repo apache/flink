@@ -29,18 +29,11 @@
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
-      "type" : {
-        "typeName" : "VARCHAR",
-        "nullable" : true,
-        "precision" : 2147483647
-      }
+      "type" : "VARCHAR(2147483647)"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -50,9 +43,10 @@
       },
       "operands" : [ ],
       "type" : {
-        "timestampKind" : "PROCTIME",
-        "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-        "nullable" : false
+        "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable" : false,
+        "precision" : 3,
+        "kind" : "PROCTIME"
       }
     } ],
     "condition" : null,
@@ -132,37 +126,19 @@
           "operands" : [ {
             "kind" : "LITERAL",
             "value" : "A\"",
-            "type" : {
-              "typeName" : "CHAR",
-              "nullable" : false,
-              "precision" : 2
-            }
+            "type" : "CHAR(2) NOT NULL"
           }, {
             "kind" : "LITERAL",
             "value" : "l",
-            "type" : {
-              "typeName" : "CHAR",
-              "nullable" : false,
-              "precision" : 1
-            }
+            "type" : "CHAR(1) NOT NULL"
           } ],
-          "type" : {
-            "typeName" : "NULL",
-            "nullable" : true
-          }
+          "type" : "NULL"
         }, {
           "kind" : "LITERAL",
           "value" : "C",
-          "type" : {
-            "typeName" : "CHAR",
-            "nullable" : false,
-            "precision" : 1
-          }
+          "type" : "CHAR(1) NOT NULL"
         } ],
-        "type" : {
-          "typeName" : "NULL",
-          "nullable" : true
-        }
+        "type" : "NULL"
       },
       "patternDefinitions" : {
         "A\"" : {
@@ -183,37 +159,19 @@
               "kind" : "PATTERN_INPUT_REF",
               "alpha" : "*",
               "inputIndex" : 1,
-              "type" : {
-                "typeName" : "VARCHAR",
-                "nullable" : true,
-                "precision" : 2147483647
-              }
+              "type" : "VARCHAR(2147483647)"
             }, {
               "kind" : "LITERAL",
               "value" : "0",
-              "type" : {
-                "typeName" : "INTEGER",
-                "nullable" : false
-              }
+              "type" : "INT NOT NULL"
             } ],
-            "type" : {
-              "typeName" : "VARCHAR",
-              "nullable" : true,
-              "precision" : 2147483647
-            }
+            "type" : "VARCHAR(2147483647)"
           }, {
             "kind" : "LITERAL",
             "value" : "a",
-            "type" : {
-              "typeName" : "VARCHAR",
-              "nullable" : false,
-              "precision" : 2147483647
-            }
+            "type" : "VARCHAR(2147483647) NOT NULL"
           } ],
-          "type" : {
-            "typeName" : "BOOLEAN",
-            "nullable" : true
-          }
+          "type" : "BOOLEAN"
         },
         "l" : {
           "kind" : "REX_CALL",
@@ -233,37 +191,19 @@
               "kind" : "PATTERN_INPUT_REF",
               "alpha" : "*",
               "inputIndex" : 1,
-              "type" : {
-                "typeName" : "VARCHAR",
-                "nullable" : true,
-                "precision" : 2147483647
-              }
+              "type" : "VARCHAR(2147483647)"
             }, {
               "kind" : "LITERAL",
               "value" : "0",
-              "type" : {
-                "typeName" : "INTEGER",
-                "nullable" : false
-              }
+              "type" : "INT NOT NULL"
             } ],
-            "type" : {
-              "typeName" : "VARCHAR",
-              "nullable" : true,
-              "precision" : 2147483647
-            }
+            "type" : "VARCHAR(2147483647)"
           }, {
             "kind" : "LITERAL",
             "value" : "b",
-            "type" : {
-              "typeName" : "VARCHAR",
-              "nullable" : false,
-              "precision" : 2147483647
-            }
+            "type" : "VARCHAR(2147483647) NOT NULL"
           } ],
-          "type" : {
-            "typeName" : "BOOLEAN",
-            "nullable" : true
-          }
+          "type" : "BOOLEAN"
         },
         "C" : {
           "kind" : "REX_CALL",
@@ -283,37 +223,19 @@
               "kind" : "PATTERN_INPUT_REF",
               "alpha" : "*",
               "inputIndex" : 1,
-              "type" : {
-                "typeName" : "VARCHAR",
-                "nullable" : true,
-                "precision" : 2147483647
-              }
+              "type" : "VARCHAR(2147483647)"
             }, {
               "kind" : "LITERAL",
               "value" : "0",
-              "type" : {
-                "typeName" : "INTEGER",
-                "nullable" : false
-              }
+              "type" : "INT NOT NULL"
             } ],
-            "type" : {
-              "typeName" : "VARCHAR",
-              "nullable" : true,
-              "precision" : 2147483647
-            }
+            "type" : "VARCHAR(2147483647)"
           }, {
             "kind" : "LITERAL",
             "value" : "c",
-            "type" : {
-              "typeName" : "VARCHAR",
-              "nullable" : false,
-              "precision" : 2147483647
-            }
+            "type" : "VARCHAR(2147483647) NOT NULL"
           } ],
-          "type" : {
-            "typeName" : "BOOLEAN",
-            "nullable" : true
-          }
+          "type" : "BOOLEAN"
         }
       },
       "measures" : {
@@ -328,15 +250,9 @@
             "kind" : "PATTERN_INPUT_REF",
             "alpha" : "A\"",
             "inputIndex" : 0,
-            "type" : {
-              "typeName" : "BIGINT",
-              "nullable" : true
-            }
+            "type" : "BIGINT"
           } ],
-          "type" : {
-            "typeName" : "BIGINT",
-            "nullable" : true
-          }
+          "type" : "BIGINT"
         },
         "bid" : {
           "kind" : "REX_CALL",
@@ -349,15 +265,9 @@
             "kind" : "PATTERN_INPUT_REF",
             "alpha" : "l",
             "inputIndex" : 0,
-            "type" : {
-              "typeName" : "BIGINT",
-              "nullable" : true
-            }
+            "type" : "BIGINT"
           } ],
-          "type" : {
-            "typeName" : "BIGINT",
-            "nullable" : true
-          }
+          "type" : "BIGINT"
         },
         "cid" : {
           "kind" : "REX_CALL",
@@ -370,15 +280,9 @@
             "kind" : "PATTERN_INPUT_REF",
             "alpha" : "C",
             "inputIndex" : 0,
-            "type" : {
-              "typeName" : "BIGINT",
-              "nullable" : true
-            }
+            "type" : "BIGINT"
           } ],
-          "type" : {
-            "typeName" : "BIGINT",
-            "nullable" : true
-          }
+          "type" : "BIGINT"
         }
       },
       "after" : {
@@ -386,7 +290,7 @@
         "value" : "SKIP_TO_NEXT_ROW",
         "class" : "org.apache.calcite.sql.SqlMatchRecognize$AfterOption",
         "type" : {
-          "typeName" : "SYMBOL",
+          "type" : "SYMBOL",
           "nullable" : false
         }
       },
