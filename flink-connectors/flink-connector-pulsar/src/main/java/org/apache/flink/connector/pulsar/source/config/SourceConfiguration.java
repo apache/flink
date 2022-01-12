@@ -23,10 +23,12 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.pulsar.common.config.PulsarConfiguration;
+import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSchemaWrapper;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.CursorPosition;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 
@@ -39,6 +41,7 @@ import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSA
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_MAX_FETCH_RECORDS;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_MAX_FETCH_TIME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS;
+import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_READ_SCHEMA_EVOLUTION;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_READ_TRANSACTION_TIMEOUT;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_MODE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_NAME;
@@ -53,6 +56,7 @@ public class SourceConfiguration extends PulsarConfiguration {
     private final int messageQueueCapacity;
     private final long partitionDiscoveryIntervalMs;
     private final boolean enableAutoAcknowledgeMessage;
+    private final boolean enableSchemaEvolution;
     private final long autoCommitCursorInterval;
     private final long transactionTimeoutMillis;
     private final Duration maxFetchTime;
@@ -68,6 +72,7 @@ public class SourceConfiguration extends PulsarConfiguration {
         this.messageQueueCapacity = getInteger(ELEMENT_QUEUE_CAPACITY);
         this.partitionDiscoveryIntervalMs = get(PULSAR_PARTITION_DISCOVERY_INTERVAL_MS);
         this.enableAutoAcknowledgeMessage = get(PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE);
+        this.enableSchemaEvolution = get(PULSAR_READ_SCHEMA_EVOLUTION);
         this.autoCommitCursorInterval = get(PULSAR_AUTO_COMMIT_CURSOR_INTERVAL);
         this.transactionTimeoutMillis = get(PULSAR_READ_TRANSACTION_TIMEOUT);
         this.maxFetchTime = get(PULSAR_MAX_FETCH_TIME, Duration::ofMillis);
@@ -105,6 +110,14 @@ public class SourceConfiguration extends PulsarConfiguration {
      */
     public boolean isEnableAutoAcknowledgeMessage() {
         return enableAutoAcknowledgeMessage;
+    }
+
+    /**
+     * If we should deserialize the message with a specified Pulsar {@link Schema} instead the
+     * default {@link Schema#BYTES}. This switch is only used for {@link PulsarSchemaWrapper}.
+     */
+    public boolean isEnableSchemaEvolution() {
+        return enableSchemaEvolution;
     }
 
     /**

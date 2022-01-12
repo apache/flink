@@ -176,6 +176,21 @@ you can use the predefined `PulsarDeserializationSchema`. Pulsar connector provi
   ```java
   PulsarDeserializationSchema.flinkTypeInfo(TypeInformation, ExecutionConfig);
   ```
+If using KeyValue type or Struct types, the pulsar `Schema` does not contain type class info which is 
+needed by `PulsarSchemaTypeInformation`. So the two APIs provides 2 parameter to pass the type info.
+
+A example would be:
+
+```java
+  // Primitive types: do not need to provide type class info
+  PulsarDeserializationSchema.pulsarSchema(Schema.INT32);
+
+  // Struct types (JSON, Protobuf, Avro, etc.)
+  PulsarDeserializationSchema.pulsarSchema(Schema.AVRO(SomeClass), SomeClass.class);
+
+  // KeyValue type
+  PulsarDeserializationSchema.pulsarSchema(Schema.KeyValue(Schema.INT32, Schema.AVRO(SomeClass)), Integer.class, SomeClass.class);
+```
 
 Pulsar `Message<byte[]>` contains some [extra properties](https://pulsar.apache.org/docs/en/concepts-messaging/#messages),
 such as message key, message publish time, message time, and application-defined key/value pairs etc.

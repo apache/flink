@@ -69,11 +69,8 @@ public class KeyValueSchemaFactory<K, V> implements PulsarSchemaFactory<KeyValue
     public TypeInformation<KeyValue<K, V>> createTypeInfo(SchemaInfo info) {
         KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo = decodeKeyValueSchemaInfo(info);
 
-        Schema<K> keySchema = PulsarSchemaUtils.createSchema(kvSchemaInfo.getKey());
-        Class<K> keyClass = decodeClassInfo(keySchema.getSchemaInfo());
-
-        Schema<V> valueSchema = PulsarSchemaUtils.createSchema(kvSchemaInfo.getValue());
-        Class<V> valueClass = decodeClassInfo(valueSchema.getSchemaInfo());
+        Class<K> keyClass = decodeClassInfo(kvSchemaInfo.getKey());
+        Class<V> valueClass = decodeClassInfo(kvSchemaInfo.getValue());
 
         Schema<KeyValue<K, V>> schema = createSchema(info);
         PulsarSchema<KeyValue<K, V>> pulsarSchema =

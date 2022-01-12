@@ -51,7 +51,7 @@ public class PulsarTypeInformationWrapper<T> implements PulsarDeserializationSch
     }
 
     @Override
-    public void deserialize(Message<byte[]> message, Collector<T> out) throws Exception {
+    public void deserialize(Message<?> message, Collector<T> out) throws Exception {
         DataInputDeserializer dis = DESERIALIZER.get();
         dis.setBuffer(message.getData());
         T instance = serializer.deserialize(dis);

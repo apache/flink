@@ -75,9 +75,9 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
     }
 
     @Override
-    protected Message<byte[]> pollMessage(Duration timeout)
+    protected Message<?> pollMessage(Duration timeout)
             throws ExecutionException, InterruptedException, PulsarClientException {
-        Message<byte[]> message =
+        Message<?> message =
                 pulsarConsumer.receive(Math.toIntExact(timeout.toMillis()), TimeUnit.MILLISECONDS);
 
         // Skip the message when receive timeout
@@ -116,7 +116,7 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
     }
 
     @Override
-    protected void finishedPollMessage(Message<byte[]> message) {
+    protected void finishedPollMessage(Message<?> message) {
         if (sourceConfiguration.isEnableAutoAcknowledgeMessage()) {
             sneakyClient(() -> pulsarConsumer.acknowledge(message));
         }
@@ -126,7 +126,7 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
     }
 
     @Override
-    protected void startConsumer(PulsarPartitionSplit split, Consumer<byte[]> consumer) {
+    protected void startConsumer(PulsarPartitionSplit split, Consumer<?> consumer) {
         TxnID uncommittedTransactionId = split.getUncommittedTransactionId();
 
         // Abort the uncommitted pulsar transaction.

@@ -188,6 +188,17 @@ public final class PulsarSourceOptions {
                                             " A possible solution is to adjust the retention settings in Pulsar or ignoring the check result.")
                                     .build());
 
+    public static final ConfigOption<Boolean> PULSAR_READ_SCHEMA_EVOLUTION =
+            ConfigOptions.key(SOURCE_CONFIG_PREFIX + "enableSchemaEvolution")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "If you enable this option, we would consume and deserialize the message by using Pulsar's %s.",
+                                            code("Schema"))
+                                    .build());
+
     ///////////////////////////////////////////////////////////////////////////////
     //
     // The configuration for ConsumerConfigurationData part.

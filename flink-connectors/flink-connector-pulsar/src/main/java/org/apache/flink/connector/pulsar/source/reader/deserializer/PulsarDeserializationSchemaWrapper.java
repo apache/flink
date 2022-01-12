@@ -52,7 +52,7 @@ class PulsarDeserializationSchemaWrapper<T> implements PulsarDeserializationSche
     }
 
     @Override
-    public void deserialize(Message<byte[]> message, Collector<T> out) throws Exception {
+    public void deserialize(Message<?> message, Collector<T> out) throws Exception {
         byte[] bytes = message.getData();
         T instance = deserializationSchema.deserialize(bytes);
 

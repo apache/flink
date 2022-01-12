@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.pulsar.common.config.PulsarConfigBuilder;
 import org.apache.flink.connector.pulsar.common.config.PulsarOptions;
+import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSchemaWrapper;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
@@ -54,6 +55,7 @@ import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULS
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_CONSUMER_NAME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS;
+import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_READ_SCHEMA_EVOLUTION;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_READ_TRANSACTION_TIMEOUT;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_NAME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_TYPE;
@@ -274,6 +276,15 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
+     * If you enable this option, we would consume and deserialize the message by using Pulsar
+     * {@link Schema}.
+     */
+    public PulsarSourceBuilder<OUT> enableSchemaEvolution() {
+        configBuilder.set(PULSAR_READ_SCHEMA_EVOLUTION, true);
+        return this;
+    }
+
+    /**
      * Set a topic range generator for Key_Shared subscription.
      *
      * @param rangeGenerator A generator which would generate a set of {@link TopicRange} for given
@@ -468,6 +479,21 @@ public final class PulsarSourceBuilder<OUT> {
                                 + "make sure it was greater than your checkpoint interval.",
                         timeout);
             }
+        }
+
+        // Schema evolution check.
+        if (deserializationSchema instanceof PulsarSchemaWrapper
+                && !Boolean.TRUE.equals(configBuilder.get(PULSAR_READ_SCHEMA_EVOLUTION))) {
+            LOG.info(
+                    "It seems like you want to read message using Pulsar Schema."
+                            + " You can enableSchemaEvolution for using this feature."
+                            + " We would use Schema.BYTES as the default schema if you don't enable this option.");
+        }
+
+        if (Boolean.TRUE.equals(configBuilder.get(PULSAR_READ_SCHEMA_EVOLUTION))) {
+            checkState(
+                    deserializationSchema instanceof PulsarSchemaWrapper,
+                    "When enabling schema evolution, you must use a Pulsar schema.");
         }
 
         if (!configBuilder.contains(PULSAR_CONSUMER_NAME)) {

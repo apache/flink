@@ -76,7 +76,13 @@ public interface PulsarDeserializationSchema<T> extends Serializable, ResultType
      * @param message The message decoded by pulsar.
      * @param out The collector to put the resulting messages.
      */
-    void deserialize(Message<byte[]> message, Collector<T> out) throws Exception;
+    void deserialize(Message<?> message, Collector<T> out) throws Exception;
+
+    /** @return The related Pulsar Schema for this serializer. */
+    default Schema<T> schema() {
+        throw new UnsupportedOperationException(
+                "Implement this method if you need Pulsar schema evolution.");
+    }
 
     /**
      * Create a PulsarDeserializationSchema by using the flink's {@link DeserializationSchema}. It

@@ -46,7 +46,7 @@ class PulsarSchemaWrapper<T> implements PulsarDeserializationSchema<T> {
     }
 
     @Override
-    public void deserialize(Message<byte[]> message, Collector<T> out) throws Exception {
+    public void deserialize(Message<?> message, Collector<T> out) throws Exception {
         Schema<T> schema = this.pulsarSchema.getPulsarSchema();
         byte[] bytes = message.getData();
         T instance = schema.decode(bytes);
@@ -58,5 +58,10 @@ class PulsarSchemaWrapper<T> implements PulsarDeserializationSchema<T> {
     public TypeInformation<T> getProducedType() {
         SchemaInfo info = pulsarSchema.getSchemaInfo();
         return createTypeInformation(info);
+    }
+
+    @Override
+    public Schema<T> schema() {
+        return pulsarSchema.getPulsarSchema();
     }
 }
