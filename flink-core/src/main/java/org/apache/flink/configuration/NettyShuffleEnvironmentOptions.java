@@ -218,24 +218,24 @@ public class NettyShuffleEnvironmentOptions {
                                     + " config value.");
 
     /**
-     * Parallelism threshold to switch between sort-merge based blocking shuffle and the default
-     * hash-based blocking shuffle.
+     * Parallelism threshold to switch between sort-based blocking shuffle and hash-based blocking
+     * shuffle.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NETWORK_SORT_SHUFFLE_MIN_PARALLELISM =
             key("taskmanager.network.sort-shuffle.min-parallelism")
                     .intType()
-                    .defaultValue(Integer.MAX_VALUE)
+                    .defaultValue(1)
                     .withDescription(
                             String.format(
-                                    "Parallelism threshold to switch between sort-merge blocking "
-                                            + "shuffle and the default hash-based blocking shuffle,"
-                                            + " which means for batch jobs of small parallelism, "
-                                            + "the hash-based blocking shuffle will be used and for"
-                                            + " batch jobs of large parallelism, the sort-merge one"
-                                            + " will be used. Note: For production usage, if sort-"
-                                            + "merge blocking shuffle is enabled, you may also need"
-                                            + " to tune '%s' and '%s' for better performance.",
+                                    "Parallelism threshold to switch between sort-based blocking "
+                                            + "shuffle and hash-based blocking shuffle, which means"
+                                            + " for batch jobs of smaller parallelism, hash-shuffle"
+                                            + " will be used and for batch jobs of larger or equal "
+                                            + "parallelism, sort-shuffle will be used. The value 1 "
+                                            + "means that sort-shuffle is the default option. Note:"
+                                            + " For production usage, you may also need to tune "
+                                            + "'%s' and '%s' for better performance.",
                                     NETWORK_SORT_SHUFFLE_MIN_BUFFERS.key(),
                                     // raw string key is used here to avoid interdependence, a test
                                     // is implemented to guard that when the target key is modified,
