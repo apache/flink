@@ -16,33 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.kinesis.table;
+package org.apache.flink.connector.base.table.options;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSinkElementConverter.PartitionKeyGenerator;
 
-import java.util.UUID;
+import java.util.List;
+import java.util.Map;
 
-/**
- * A {@link PartitionKeyGenerator} that maps an arbitrary input {@code element} to a random
- * partition ID.
- *
- * @param <T> The input element type.
- */
+/** Interface for handling specific set of table options. */
 @PublicEvolving
-public final class RandomKinesisKeyGenerator<T> implements PartitionKeyGenerator<T> {
-    @Override
-    public String apply(T element) {
-        return UUID.randomUUID().toString();
-    }
+public interface TableOptionsUtils {
 
-    @Override
-    public boolean equals(Object o) {
-        return o instanceof RandomKinesisKeyGenerator;
-    }
+    /**
+     * Returns table options after processing keys and values to specific handler formats. i.e.
+     *
+     * @return key/value map of the table options after processing.
+     */
+    Map<String, String> getProcessedResolvedOptions();
 
-    @Override
-    public int hashCode() {
-        return RandomKinesisKeyGenerator.class.hashCode();
-    }
+    /** @return Common prefix of the options handled by this options handler. */
+    List<String> getNonValidatedPrefixes();
 }

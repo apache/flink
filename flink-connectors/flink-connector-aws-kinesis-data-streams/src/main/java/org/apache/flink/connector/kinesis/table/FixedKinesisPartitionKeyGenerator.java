@@ -30,7 +30,7 @@ import java.util.Objects;
  * <p>This is achieved by using the index of the producer task as a {@code PartitionKey}.
  */
 @PublicEvolving
-public final class FixedKinesisKeyGenerator<T> implements PartitionKeyGenerator<T> {
+public final class FixedKinesisPartitionKeyGenerator<T> implements PartitionKeyGenerator<T> {
 
     private static final long serialVersionUID = 1L;
 
@@ -62,12 +62,12 @@ public final class FixedKinesisKeyGenerator<T> implements PartitionKeyGenerator<
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        final FixedKinesisKeyGenerator<?> that = (FixedKinesisKeyGenerator<?>) o;
+        final FixedKinesisPartitionKeyGenerator<?> that = (FixedKinesisPartitionKeyGenerator<?>) o;
         return Objects.equals(this.indexOfThisSubtask, that.indexOfThisSubtask);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(FixedKinesisKeyGenerator.class.hashCode(), indexOfThisSubtask);
+        return Objects.hash(FixedKinesisPartitionKeyGenerator.class.hashCode(), indexOfThisSubtask);
     }
 }

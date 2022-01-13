@@ -46,7 +46,8 @@ import java.util.Set;
  * <p>Resulting partition key values are trimmed to the maximum length allowed by Kinesis.
  */
 @Internal
-public final class RowDataFieldsKinesisKeyGenerator implements PartitionKeyGenerator<RowData> {
+public final class RowDataFieldsKinesisPartitionKeyGenerator
+        implements PartitionKeyGenerator<RowData> {
 
     private static final long serialVersionUID = 1L;
 
@@ -58,7 +59,7 @@ public final class RowDataFieldsKinesisKeyGenerator implements PartitionKeyGener
      */
     public static final int MAX_PARTITION_KEY_LENGTH = 256;
 
-    /** Default delimiter for {@link RowDataFieldsKinesisKeyGenerator#delimiter}. */
+    /** Default delimiter for {@link RowDataFieldsKinesisPartitionKeyGenerator#delimiter}. */
     public static final String DEFAULT_DELIMITER = String.valueOf('|');
 
     /** The character used to delimit field values in the concatenated partition key string. */
@@ -72,7 +73,7 @@ public final class RowDataFieldsKinesisKeyGenerator implements PartitionKeyGener
 
     /**
      * A map of getter functions to dynamically extract the field values for all {@link
-     * RowDataFieldsKinesisKeyGenerator#fieldNames} from an input record.
+     * RowDataFieldsKinesisPartitionKeyGenerator#fieldNames} from an input record.
      */
     private final Map<String, RowData.FieldGetter> dynamicFieldGetters;
 
@@ -84,27 +85,30 @@ public final class RowDataFieldsKinesisKeyGenerator implements PartitionKeyGener
 
     /**
      * A prefix of static field values to be used instead of the corresponding {@link
-     * RowDataFieldsKinesisKeyGenerator#dynamicFieldGetters} entries.
+     * RowDataFieldsKinesisPartitionKeyGenerator#dynamicFieldGetters} entries.
      */
     private Map<String, String> staticFields = Collections.emptyMap();
 
     /**
-     * The length of the static prefix of the {@link RowDataFieldsKinesisKeyGenerator#keyBuffer}
-     * (derived from the values in {@link RowDataFieldsKinesisKeyGenerator#staticFields}).
+     * The length of the static prefix of the {@link
+     * RowDataFieldsKinesisPartitionKeyGenerator#keyBuffer} (derived from the values in {@link
+     * RowDataFieldsKinesisPartitionKeyGenerator#staticFields}).
      */
     private int keyBufferStaticPrefixLength = 0;
 
     /**
-     * The length of the prefix in {@link RowDataFieldsKinesisKeyGenerator#fieldNames} for which
-     * static field values are present in {@link RowDataFieldsKinesisKeyGenerator#staticFields}.
+     * The length of the prefix in {@link RowDataFieldsKinesisPartitionKeyGenerator#fieldNames} for
+     * which static field values are present in {@link
+     * RowDataFieldsKinesisPartitionKeyGenerator#staticFields}.
      */
     private int fieldNamesStaticPrefixLength = 0;
 
-    public RowDataFieldsKinesisKeyGenerator(RowType physicalType, List<String> partitionKeys) {
+    public RowDataFieldsKinesisPartitionKeyGenerator(
+            RowType physicalType, List<String> partitionKeys) {
         this(physicalType, partitionKeys, DEFAULT_DELIMITER);
     }
 
-    public RowDataFieldsKinesisKeyGenerator(
+    public RowDataFieldsKinesisPartitionKeyGenerator(
             RowType physicalType, List<String> partitionKeys, String delimiter) {
         Preconditions.checkNotNull(physicalType, "physicalType");
         Preconditions.checkNotNull(partitionKeys, "partitionKeys");
@@ -195,12 +199,12 @@ public final class RowDataFieldsKinesisKeyGenerator implements PartitionKeyGener
 
     /**
      * Check whether the set of field names in {@code candidatePrefix} forms a valid subset of the
-     * set of field names defined in {@link RowDataFieldsKinesisKeyGenerator#fieldNames}.
+     * set of field names defined in {@link RowDataFieldsKinesisPartitionKeyGenerator#fieldNames}.
      *
      * @param candidateSubset A set of field names forming a candidate subset of {@link
-     *     RowDataFieldsKinesisKeyGenerator#fieldNames}.
+     *     RowDataFieldsKinesisPartitionKeyGenerator#fieldNames}.
      * @return true if and only if the {@code candidatePrefix} is a proper subset of {@link
-     *     RowDataFieldsKinesisKeyGenerator#fieldNames}.
+     *     RowDataFieldsKinesisPartitionKeyGenerator#fieldNames}.
      */
     private boolean isPartitionKeySubset(Set<String> candidateSubset) {
         return new HashSet<>(fieldNames).containsAll(candidateSubset);
@@ -208,8 +212,8 @@ public final class RowDataFieldsKinesisKeyGenerator implements PartitionKeyGener
 
     /**
      * Pre-fills a prefix with static partition key values in the {@link
-     * RowDataFieldsKinesisKeyGenerator#keyBufferStaticPrefixLength} buffer based on the currently
-     * set {@link RowDataFieldsKinesisKeyGenerator#staticFields}.
+     * RowDataFieldsKinesisPartitionKeyGenerator#keyBufferStaticPrefixLength} buffer based on the
+     * currently set {@link RowDataFieldsKinesisPartitionKeyGenerator#staticFields}.
      */
     private void updateKeyBufferStaticPrefix() {
         // update the fixed prefix and its cumulative length
@@ -239,7 +243,8 @@ public final class RowDataFieldsKinesisKeyGenerator implements PartitionKeyGener
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        final RowDataFieldsKinesisKeyGenerator that = (RowDataFieldsKinesisKeyGenerator) o;
+        final RowDataFieldsKinesisPartitionKeyGenerator that =
+                (RowDataFieldsKinesisPartitionKeyGenerator) o;
         return Objects.equals(this.delimiter, that.delimiter)
                 && Objects.equals(this.fieldNames, that.fieldNames)
                 && Objects.equals(this.staticFields, that.staticFields)

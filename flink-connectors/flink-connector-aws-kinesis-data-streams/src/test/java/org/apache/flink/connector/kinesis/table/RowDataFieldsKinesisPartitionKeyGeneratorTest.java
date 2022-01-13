@@ -41,13 +41,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
-import static org.apache.flink.connector.kinesis.table.RowDataFieldsKinesisKeyGenerator.MAX_PARTITION_KEY_LENGTH;
+import static org.apache.flink.connector.kinesis.table.RowDataFieldsKinesisPartitionKeyGenerator.MAX_PARTITION_KEY_LENGTH;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.table.utils.EncodingUtils.repeat;
 import static org.junit.Assert.assertEquals;
 
-/** Test for {@link RowDataFieldsKinesisKeyGenerator}. */
-public class RowDataFieldsKinesisKeyGeneratorTest extends TestLogger {
+/** Test for {@link RowDataFieldsKinesisPartitionKeyGenerator}. */
+public class RowDataFieldsKinesisPartitionKeyGeneratorTest extends TestLogger {
 
     /** Table name to use for the tests. */
     private static final String TABLE_NAME = "click_stream";
@@ -100,8 +100,8 @@ public class RowDataFieldsKinesisKeyGeneratorTest extends TestLogger {
     @Test
     public void testGoodPartitioner() {
         for (String delimiter : FIELD_DELIMITERS) {
-            RowDataFieldsKinesisKeyGenerator partitioner =
-                    new RowDataFieldsKinesisKeyGenerator(
+            RowDataFieldsKinesisPartitionKeyGenerator partitioner =
+                    new RowDataFieldsKinesisPartitionKeyGenerator(
                             ROW_TYPE, PARTITION_BY_DATE_AND_IP, delimiter);
 
             for (LocalDateTime time : DATE_TIMES) {
@@ -115,8 +115,8 @@ public class RowDataFieldsKinesisKeyGeneratorTest extends TestLogger {
 
     @Test
     public void testGoodPartitionerExceedingMaxLength() {
-        RowDataFieldsKinesisKeyGenerator partitioner =
-                new RowDataFieldsKinesisKeyGenerator(ROW_TYPE, PARTITION_BY_ROUTE);
+        RowDataFieldsKinesisPartitionKeyGenerator partitioner =
+                new RowDataFieldsKinesisPartitionKeyGenerator(ROW_TYPE, PARTITION_BY_ROUTE);
 
         String ip = "255.255.255.255";
         String route = "http://www.very-" + repeat("long-", 50) + "address.com/home";
@@ -135,8 +135,9 @@ public class RowDataFieldsKinesisKeyGeneratorTest extends TestLogger {
         String month = String.valueOf(monthOfYear(DATE_TIMES.get(0)));
 
         for (String delimiter : FIELD_DELIMITERS) {
-            RowDataFieldsKinesisKeyGenerator partitioner =
-                    new RowDataFieldsKinesisKeyGenerator(ROW_TYPE, PARTITION_BY_DATE, delimiter);
+            RowDataFieldsKinesisPartitionKeyGenerator partitioner =
+                    new RowDataFieldsKinesisPartitionKeyGenerator(
+                            ROW_TYPE, PARTITION_BY_DATE, delimiter);
 
             partitioner.setStaticFields(
                     new HashMap<String, String>() {
@@ -163,8 +164,9 @@ public class RowDataFieldsKinesisKeyGeneratorTest extends TestLogger {
         String day = String.valueOf(dayOfMonth(DATE_TIMES.get(0)));
 
         for (String delimiter : FIELD_DELIMITERS) {
-            RowDataFieldsKinesisKeyGenerator partitioner =
-                    new RowDataFieldsKinesisKeyGenerator(ROW_TYPE, PARTITION_BY_DATE, delimiter);
+            RowDataFieldsKinesisPartitionKeyGenerator partitioner =
+                    new RowDataFieldsKinesisPartitionKeyGenerator(
+                            ROW_TYPE, PARTITION_BY_DATE, delimiter);
 
             partitioner.setStaticFields(
                     new HashMap<String, String>() {
@@ -190,8 +192,9 @@ public class RowDataFieldsKinesisKeyGeneratorTest extends TestLogger {
         String month = String.valueOf(monthOfYear(DATE_TIMES.get(0)));
 
         for (String delimiter : FIELD_DELIMITERS) {
-            RowDataFieldsKinesisKeyGenerator partitioner =
-                    new RowDataFieldsKinesisKeyGenerator(ROW_TYPE, PARTITION_BY_DATE, delimiter);
+            RowDataFieldsKinesisPartitionKeyGenerator partitioner =
+                    new RowDataFieldsKinesisPartitionKeyGenerator(
+                            ROW_TYPE, PARTITION_BY_DATE, delimiter);
 
             partitioner.setStaticFields(
                     new HashMap<String, String>() {
@@ -223,7 +226,7 @@ public class RowDataFieldsKinesisKeyGeneratorTest extends TestLogger {
                         new IllegalArgumentException(
                                 "Cannot create a RowDataFieldsKinesisPartitioner for a non-partitioned table")));
 
-        new RowDataFieldsKinesisKeyGenerator(ROW_TYPE, Collections.emptyList());
+        new RowDataFieldsKinesisPartitionKeyGenerator(ROW_TYPE, Collections.emptyList());
     }
 
     @Test
@@ -234,7 +237,7 @@ public class RowDataFieldsKinesisKeyGeneratorTest extends TestLogger {
                         new IllegalArgumentException(
                                 "The sequence of partition keys cannot contain duplicates")));
 
-        new RowDataFieldsKinesisKeyGenerator(ROW_TYPE, Arrays.asList("ip", "ip"));
+        new RowDataFieldsKinesisPartitionKeyGenerator(ROW_TYPE, Arrays.asList("ip", "ip"));
     }
 
     @Test
@@ -245,7 +248,7 @@ public class RowDataFieldsKinesisKeyGeneratorTest extends TestLogger {
                         new IllegalArgumentException(
                                 "The following partition keys are not present in the table: abc")));
 
-        new RowDataFieldsKinesisKeyGenerator(ROW_TYPE, Arrays.asList("ip", "abc"));
+        new RowDataFieldsKinesisPartitionKeyGenerator(ROW_TYPE, Arrays.asList("ip", "abc"));
     }
 
     @Test
@@ -256,7 +259,7 @@ public class RowDataFieldsKinesisKeyGeneratorTest extends TestLogger {
                         new IllegalArgumentException(
                                 "The following partition keys have types that are not supported by Kinesis: time")));
 
-        new RowDataFieldsKinesisKeyGenerator(ROW_TYPE, Arrays.asList("time", "ip"));
+        new RowDataFieldsKinesisPartitionKeyGenerator(ROW_TYPE, Arrays.asList("time", "ip"));
     }
 
     // --------------------------------------------------------------------------------------------
