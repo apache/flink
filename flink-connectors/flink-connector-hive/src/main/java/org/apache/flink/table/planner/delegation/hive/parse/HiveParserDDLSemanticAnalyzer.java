@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.delegation.hive.parse;
 
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils;
 import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase;
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
@@ -56,12 +57,12 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
-import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
@@ -837,14 +838,15 @@ public class HiveParserDDLSemanticAnalyzer {
                 String[] dbTblName = dbDotTab.split("\\.");
                 Table destTable = new Table(Table.getEmptyTable(dbTblName[0], dbTblName[1]));
                 destTable.getSd().setCols(cols);
-                // create the insert operation
-                SinkModifyOperation insertOperation =
-                        dmlHelper.createInsertOperation(
-                                queryRelNode,
-                                destTable,
-                                Collections.emptyMap(),
-                                Collections.emptyList(),
-                                false);
+
+                Tuple4<ObjectIdentifier, QueryOperation, Map<String, String>, Boolean>
+                        insertOperationInfo =
+                                dmlHelper.createInsertOperationInfo(
+                                        queryRelNode,
+                                        destTable,
+                                        Collections.emptyMap(),
+                                        Collections.emptyList(),
+                                        false);
 
                 CreateTableOperation createTableOperation =
                         convertCreateTable(
@@ -862,7 +864,11 @@ public class HiveParserDDLSemanticAnalyzer {
                                 primaryKeys,
                                 notNulls);
 
-                return new CreateTableASOperation(createTableOperation, insertOperation);
+                return new CreateTableASOperation(
+                        createTableOperation,
+                        insertOperationInfo.f2,
+                        insertOperationInfo.f1,
+                        insertOperationInfo.f3);
             default:
                 throw new ValidationException("Unrecognized command.");
         }
