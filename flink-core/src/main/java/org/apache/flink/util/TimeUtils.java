@@ -178,7 +178,7 @@ public class TimeUtils {
     private enum TimeUnit {
         DAYS(ChronoUnit.DAYS, singular("d"), plural("day")),
         HOURS(ChronoUnit.HOURS, singular("h"), plural("hour")),
-        MINUTES(ChronoUnit.MINUTES, singular("m"), singular("min"), plural("minute")),
+        MINUTES(ChronoUnit.MINUTES, singular("min"), singular("m"), plural("minute")),
         SECONDS(ChronoUnit.SECONDS, singular("s"), plural("sec"), plural("second")),
         MILLISECONDS(ChronoUnit.MILLIS, singular("ms"), plural("milli"), plural("millisecond")),
         MICROSECONDS(ChronoUnit.MICROS, singular("µs"), plural("micro"), plural("microsecond")),
