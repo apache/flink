@@ -139,13 +139,9 @@ class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
             final String fieldIsNullTerm = newName("f" + fieldIndex + "IsNull");
 
             final CastCodeBlock codeBlock =
-                    CastRuleProvider.generateCodeBlock(
-                            context,
-                            fieldTerm,
-                            fieldIsNullTerm,
-                            // Null check is done at the row access level
-                            fieldType.copy(false),
-                            targetTypeForElementCast);
+                    // Null check is done at the row access level
+                    CastRuleProvider.generateAlwaysNonNullCodeBlock(
+                            context, fieldTerm, fieldType, targetTypeForElementCast);
 
             // Write the comma
             if (fieldIndex != 0) {

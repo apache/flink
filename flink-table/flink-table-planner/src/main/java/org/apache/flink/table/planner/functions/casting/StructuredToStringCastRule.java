@@ -166,13 +166,9 @@ class StructuredToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
             final String fieldIsNullTerm = newName("f" + fieldIndex + "IsNull");
 
             final CastCodeBlock codeBlock =
-                    CastRuleProvider.generateCodeBlock(
-                            context,
-                            fieldTerm,
-                            fieldIsNullTerm,
-                            // Null check is done at the row access level
-                            attribute.getType().copy(false),
-                            VarCharType.STRING_TYPE);
+                    // Null check is done at the row access level
+                    CastRuleProvider.generateAlwaysNonNullCodeBlock(
+                            context, fieldTerm, attribute.getType(), VarCharType.STRING_TYPE);
 
             // Write the comma
             if (fieldIndex != 0) {

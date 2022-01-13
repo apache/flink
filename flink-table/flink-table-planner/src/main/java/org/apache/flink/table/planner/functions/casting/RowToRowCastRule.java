@@ -184,13 +184,9 @@ class RowToRowCastRule extends AbstractNullAwareCodeGeneratorCastRule<RowData, R
             final String fieldIsNullTerm = newName("f" + indexTerm + "IsNull");
 
             final CastCodeBlock codeBlock =
-                    CastRuleProvider.generateCodeBlock(
-                            context,
-                            fieldTerm,
-                            fieldIsNullTerm,
-                            // Null check is done at the row access level
-                            inputFieldType.copy(false),
-                            targetFieldType);
+                    // Null check is done at the row access level
+                    CastRuleProvider.generateAlwaysNonNullCodeBlock(
+                            context, fieldTerm, inputFieldType, targetFieldType);
 
             final String readField = rowFieldReadAccess(indexTerm, inputTerm, inputFieldType);
             final String writeField =

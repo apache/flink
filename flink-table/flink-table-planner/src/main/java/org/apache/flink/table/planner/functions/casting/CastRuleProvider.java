@@ -24,6 +24,7 @@ import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.NullType;
 
 import javax.annotation.Nullable;
 
@@ -142,6 +143,25 @@ public class CastRuleProvider {
         return ((CodeGeneratorCastRule) rule)
                 .generateCodeBlock(
                         context, inputTerm, inputIsNullTerm, inputLogicalType, targetLogicalType);
+    }
+
+    /**
+     * This method wraps {@link #generateCodeBlock(CodeGeneratorCastRule.Context, String, String,
+     * LogicalType, LogicalType)}, but adding the assumption that the inputTerm is always non-null.
+     * Used by {@link CodeGeneratorCastRule}s which checks for nullability, rather than deferring
+     * the check to the rules.
+     */
+    static @Nullable CastCodeBlock generateAlwaysNonNullCodeBlock(
+            CodeGeneratorCastRule.Context context,
+            String inputTerm,
+            LogicalType inputLogicalType,
+            LogicalType targetLogicalType) {
+        if (inputLogicalType instanceof NullType) {
+            return generateCodeBlock(
+                    context, inputTerm, "true", inputLogicalType, targetLogicalType);
+        }
+        return generateCodeBlock(
+                context, inputTerm, "false", inputLogicalType.copy(false), targetLogicalType);
     }
 
     /* ------ Implementation ------ */
