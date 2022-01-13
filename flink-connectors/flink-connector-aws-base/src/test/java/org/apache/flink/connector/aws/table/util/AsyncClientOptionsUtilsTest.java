@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.kinesis.table.util;
+package org.apache.flink.connector.aws.table.util;
 
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.util.TestLogger;
@@ -28,75 +28,85 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-/** Unit tests for {@link KinesisAsyncClientOptionsUtils}. */
-public class KinesisAsyncClientOptionsUtilsTest extends TestLogger {
+/** Unit tests for {@link AsyncClientOptionsUtils}. */
+public class AsyncClientOptionsUtilsTest extends TestLogger {
 
     @Test
-    public void testGoodKinesisClientOptionsMapping() {
-        Map<String, String> defaultClientOptions = getDefaultClientOptions();
-        KinesisAsyncClientOptionsUtils kinesisAsyncClientOptionsUtils =
-                new KinesisAsyncClientOptionsUtils(defaultClientOptions);
+    public void testGoodAsyncClientOptionsMapping() {
+        AsyncClientOptionsUtils asyncClientOptionsUtils =
+                new AsyncClientOptionsUtils(getDefaultClientOptions());
+
         Map<String, String> expectedConfigurations = getDefaultExpectedClientOptions();
         Map<String, String> actualConfigurations =
-                kinesisAsyncClientOptionsUtils.getProcessedResolvedOptions();
+                asyncClientOptionsUtils.getProcessedResolvedOptions();
+
         Assertions.assertThat(actualConfigurations).isEqualTo(expectedConfigurations);
     }
 
     @Test
-    public void testGoodKinesisClientOptionsSelectionAndMapping() {
+    public void testAsyncClientOptionsUtilsFilteringNonPrefixedOptions() {
         Map<String, String> defaultClientOptions = getDefaultClientOptions();
         defaultClientOptions.put("sink.not.http-client.some.option", "someValue");
-        KinesisAsyncClientOptionsUtils kinesisAsyncClientOptionsUtils =
-                new KinesisAsyncClientOptionsUtils(defaultClientOptions);
+
+        AsyncClientOptionsUtils asyncClientOptionsUtils =
+                new AsyncClientOptionsUtils(defaultClientOptions);
+
         Map<String, String> expectedConfigurations = getDefaultExpectedClientOptions();
         Map<String, String> actualConfigurations =
-                kinesisAsyncClientOptionsUtils.getProcessedResolvedOptions();
+                asyncClientOptionsUtils.getProcessedResolvedOptions();
+
         Assertions.assertThat(actualConfigurations).isEqualTo(expectedConfigurations);
     }
 
     @Test
-    public void testGoodKinesisClientConfigurations() {
-        Map<String, String> defaultClientOptions = getDefaultClientOptions();
-        KinesisAsyncClientOptionsUtils kinesisAsyncClientOptionsUtils =
-                new KinesisAsyncClientOptionsUtils(defaultClientOptions);
+    public void testAsyncClientOptionsUtilsExtractingCorrectConfiguration() {
+        AsyncClientOptionsUtils asyncClientOptionsUtils =
+                new AsyncClientOptionsUtils(getDefaultClientOptions());
+
         Properties expectedConfigurations = getDefaultExpectedClientConfigs();
-        Properties actualConfigurations =
-                kinesisAsyncClientOptionsUtils.getValidatedConfigurations();
+        Properties actualConfigurations = asyncClientOptionsUtils.getValidatedConfigurations();
+
         Assertions.assertThat(actualConfigurations).isEqualTo(expectedConfigurations);
     }
 
     @Test
-    public void testBadKinesisClientMaxConcurrency() {
+    public void testAsyncClientOptionsUtilsFailOnInvalidMaxConcurrency() {
         Map<String, String> defaultClientOptions = getDefaultClientOptions();
         defaultClientOptions.put("sink.http-client.max-concurrency", "invalid-integer");
-        KinesisAsyncClientOptionsUtils kinesisAsyncClientOptionsUtils =
-                new KinesisAsyncClientOptionsUtils(defaultClientOptions);
+
+        AsyncClientOptionsUtils asyncClientOptionsUtils =
+                new AsyncClientOptionsUtils(defaultClientOptions);
+
         Assertions.assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(kinesisAsyncClientOptionsUtils::getValidatedConfigurations)
+                .isThrownBy(asyncClientOptionsUtils::getValidatedConfigurations)
                 .withMessageContaining(
                         "Invalid value given for HTTP client max concurrency. Must be positive integer.");
     }
 
     @Test
-    public void testBadKinesisClientReadTimeout() {
+    public void testAsyncClientOptionsUtilsFailOnInvalidReadTimeout() {
         Map<String, String> defaultClientOptions = getDefaultClientOptions();
         defaultClientOptions.put("sink.http-client.read-timeout", "invalid-integer");
-        KinesisAsyncClientOptionsUtils kinesisAsyncClientOptionsUtils =
-                new KinesisAsyncClientOptionsUtils(defaultClientOptions);
+
+        AsyncClientOptionsUtils asyncClientOptionsUtils =
+                new AsyncClientOptionsUtils(defaultClientOptions);
+
         Assertions.assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(kinesisAsyncClientOptionsUtils::getValidatedConfigurations)
+                .isThrownBy(asyncClientOptionsUtils::getValidatedConfigurations)
                 .withMessageContaining(
                         "Invalid value given for HTTP read timeout. Must be positive integer.");
     }
 
     @Test
-    public void testBadKinesisClientHttpVersion() {
+    public void testAsyncClientOptionsUtilsFailOnInvalidHttpProtocol() {
         Map<String, String> defaultProperties = getDefaultClientOptions();
         defaultProperties.put("sink.http-client.protocol.version", "invalid-http-protocol");
-        KinesisAsyncClientOptionsUtils kinesisAsyncClientOptionsUtils =
-                new KinesisAsyncClientOptionsUtils(defaultProperties);
+
+        AsyncClientOptionsUtils asyncClientOptionsUtils =
+                new AsyncClientOptionsUtils(defaultProperties);
+
         Assertions.assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(kinesisAsyncClientOptionsUtils::getValidatedConfigurations)
+                .isThrownBy(asyncClientOptionsUtils::getValidatedConfigurations)
                 .withMessageContaining(
                         "Invalid value given for HTTP protocol. Must be HTTP1_1 or HTTP2.");
     }

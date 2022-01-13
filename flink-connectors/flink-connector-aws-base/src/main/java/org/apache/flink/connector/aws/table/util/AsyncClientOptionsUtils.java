@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.kinesis.table.util;
+package org.apache.flink.connector.aws.table.util;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
-import org.apache.flink.connector.aws.table.util.AWSOptionUtils;
 import org.apache.flink.connector.base.table.util.ConfigurationValidatorUtil;
 
 import software.amazon.awssdk.http.Protocol;
@@ -32,7 +31,7 @@ import java.util.Properties;
 
 /** Class for handling Kinesis async client specific options. */
 @PublicEvolving
-public class KinesisAsyncClientOptionsUtils extends AWSOptionUtils {
+public class AsyncClientOptionsUtils extends AWSOptionUtils {
     /** Prefix for properties defined in {@link AWSConfigConstants}. */
     public static final String SINK_CLIENT_PREFIX = "sink.http-client.";
 
@@ -42,7 +41,7 @@ public class KinesisAsyncClientOptionsUtils extends AWSOptionUtils {
 
     private final Map<String, String> resolvedOptions;
 
-    public KinesisAsyncClientOptionsUtils(Map<String, String> resolvedOptions) {
+    public AsyncClientOptionsUtils(Map<String, String> resolvedOptions) {
         super(resolvedOptions);
         this.resolvedOptions = resolvedOptions;
     }
