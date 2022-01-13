@@ -25,9 +25,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.connector.aws.table.util.AWSOptionUtils;
+import org.apache.flink.connector.aws.table.util.AsyncClientOptionsUtils;
 import org.apache.flink.connector.base.table.sink.options.AsyncSinkConfigurationValidator;
 import org.apache.flink.connector.kinesis.sink.PartitionKeyGenerator;
-import org.apache.flink.connector.kinesis.table.util.KinesisAsyncClientOptionsUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -53,15 +53,15 @@ import static org.apache.flink.connector.kinesis.table.KinesisConnectorOptions.S
 
 /**
  * Class for handling kinesis table options, including key mapping and validations and property
- * extraction. Class uses options decorators {@link AWSOptionUtils}, {@link
- * KinesisAsyncClientOptionsUtils} for handling each specified set of options.
+ * extraction. Class uses options decorators {@link AWSOptionUtils}, {@link AsyncClientOptionsUtils}
+ * for handling each specified set of options.
  */
 @Internal
 public class KinesisDataStreamsConnectorOptionsUtils {
-    /** Key for accessing KinesisAsyncClient properties. */
+    /** Key for accessing kinesisAsyncClient properties. */
     public static final String KINESIS_CLIENT_PROPERTIES_KEY = "sink.client.properties";
 
-    private final KinesisAsyncClientOptionsUtils kinesisAsyncClientOptionsUtils;
+    private final AsyncClientOptionsUtils asyncClientOptionsUtils;
     private final AsyncSinkConfigurationValidator asyncSinkconfigurationValidator;
     private final Map<String, String> resolvedOptions;
     private final ReadableConfig tableOptions;
@@ -74,7 +74,7 @@ public class KinesisDataStreamsConnectorOptionsUtils {
     private static final String[] NON_VALIDATED_PREFIXES =
             new String[] {
                 AWSOptionUtils.AWS_PROPERTIES_PREFIX,
-                KinesisAsyncClientOptionsUtils.SINK_CLIENT_PREFIX,
+                AsyncClientOptionsUtils.SINK_CLIENT_PREFIX,
                 KinesisProducerOptionsMapper.KINESIS_PRODUCER_PREFIX
             };
 
@@ -90,7 +90,7 @@ public class KinesisDataStreamsConnectorOptionsUtils {
         this.tableOptions = optionsMapper.mapDeprecatedTableOptions();
         this.asyncSinkconfigurationValidator =
                 new AsyncSinkConfigurationValidator(this.tableOptions);
-        this.kinesisAsyncClientOptionsUtils = new KinesisAsyncClientOptionsUtils(resolvedOptions);
+        this.asyncClientOptionsUtils = new AsyncClientOptionsUtils(resolvedOptions);
         this.partitioner =
                 KinesisPartitionKeyGeneratorFactory.getKinesisPartitioner(
                         tableOptions, physicalType, partitionKeys, classLoader);
@@ -99,7 +99,7 @@ public class KinesisDataStreamsConnectorOptionsUtils {
     public Properties getValidatedSinkConfigurations() {
         Properties properties = asyncSinkconfigurationValidator.getValidatedConfigurations();
         properties.put(STREAM.key(), tableOptions.get(STREAM));
-        Properties kinesisClientProps = kinesisAsyncClientOptionsUtils.getValidatedConfigurations();
+        Properties kinesisClientProps = asyncClientOptionsUtils.getValidatedConfigurations();
 
         properties.put(KINESIS_CLIENT_PROPERTIES_KEY, kinesisClientProps);
         properties.put(SINK_PARTITIONER.key(), this.partitioner);
