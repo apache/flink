@@ -401,7 +401,9 @@ object CodeGenUtils {
       throw new CodeGenException("Integer expression type expected.")
     }
 
-  def udfFieldName(udf: UserDefinedFunction): String = s"function_${udf.functionIdentifier}"
+  def udfFieldName(udf: UserDefinedFunction): String = {
+    s"function_${udf.functionIdentifier.replace('.', '$')}"
+  }
 
   def genLogInfo(logTerm: String, format: String, argTerm: String): String =
     s"""$logTerm.info("$format", $argTerm);"""

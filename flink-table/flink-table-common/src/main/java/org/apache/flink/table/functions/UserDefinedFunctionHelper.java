@@ -37,6 +37,7 @@ import org.apache.flink.util.InstantiationUtil;
 
 import javax.annotation.Nullable;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
@@ -241,6 +242,36 @@ public final class UserDefinedFunctionHelper {
     public static void prepareInstance(ReadableConfig config, UserDefinedFunction function) {
         validateClass(function.getClass(), false);
         cleanFunction(config, function);
+    }
+
+    /**
+     * Returns whether a {@link UserDefinedFunction} can be easily serialized and identified by only
+     * a fully qualified class name. It must have a default constructor and no serializable fields.
+     */
+    public static boolean isClassNameSerializable(UserDefinedFunction function) {
+        final Class<?> functionClass = function.getClass();
+        if (!InstantiationUtil.hasPublicNullaryConstructor(functionClass)) {
+            // function must be parameterized
+            return false;
+        }
+        Class<?> currentClass = functionClass;
+        while (!currentClass.equals(UserDefinedFunction.class)) {
+            for (Field field : currentClass.getDeclaredFields()) {
+                if (!Modifier.isTransient(field.getModifiers())
+                        && !Modifier.isStatic(field.getModifiers())) {
+                    // function seems to be stateful
+                    return false;
+                }
+            }
+            currentClass = currentClass.getSuperclass();
+        }
+        return true;
+    }
+
+    /** Name for anonymous, inline functions. */
+    public static String generateInlineFunctionName(UserDefinedFunction function) {
+        // use "*...*" to indicate anonymous function similar to types at other locations
+        return String.format("*%s*", function.functionIdentifier());
     }
 
     /**

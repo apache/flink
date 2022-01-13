@@ -19,7 +19,8 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.functions.FunctionIdentifier
+import org.apache.flink.table.functions.UserDefinedFunctionHelper.generateInlineFunctionName
+import org.apache.flink.table.functions.{FunctionIdentifier, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalRowType
 import org.apache.flink.table.planner.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
@@ -85,7 +86,7 @@ object SetOpRewriteUtil {
     val function = new TypedFlinkTableFunction(tf, fieldNames, resultType)
     val typeFactory = builder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val sqlFunction = new TableSqlFunction(
-      FunctionIdentifier.of(tf.functionIdentifier),
+      FunctionIdentifier.of(generateInlineFunctionName(tf)),
       tf.toString,
       tf,
       resultType,

@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.functions.UserDefinedFunctionHelper.generateInlineFunctionName;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
@@ -57,7 +58,7 @@ public class LookupCallContext extends AbstractSqlCallContext {
             Map<Integer, LookupKey> lookupKeys,
             int[] lookupKeyOrder,
             LogicalType lookupType) {
-        super(dataTypeFactory, function, function.functionIdentifier(), false);
+        super(dataTypeFactory, function, generateInlineFunctionName(function), false);
         this.lookupKeys = lookupKeys;
         this.lookupKeyOrder = lookupKeyOrder;
         this.argumentDataTypes =
