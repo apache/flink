@@ -135,7 +135,7 @@ import org.apache.flink.util.Collector;
 public abstract class TableFunction<T> extends UserDefinedFunction {
 
     /** The code generated collector used to emit rows. */
-    private Collector<T> collector;
+    private transient Collector<T> collector;
 
     /** Internal use. Sets the current collector. */
     public final void setCollector(Collector<T> collector) {
