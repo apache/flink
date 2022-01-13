@@ -1516,8 +1516,6 @@ public class SqlToOperationConverterTest {
         assertExplainDetails(parse(sql, planner, parser));
     }
 
-
-
     @Test
     public void testExplainDetailsWithInsert() {
         final String sql =
