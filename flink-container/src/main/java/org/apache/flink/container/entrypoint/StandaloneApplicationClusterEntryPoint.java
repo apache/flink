@@ -25,7 +25,9 @@ import org.apache.flink.client.deployment.application.ApplicationClusterEntryPoi
 import org.apache.flink.client.program.DefaultPackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
+import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
@@ -35,8 +37,13 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.FunctionUtils;
 
 import java.io.File;
+import java.net.URI;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /** An {@link ApplicationClusterEntryPoint} which is started with a job in a predefined location. */
 @Internal
@@ -102,12 +109,23 @@ public final class StandaloneApplicationClusterEntryPoint extends ApplicationClu
             Configuration flinkConfiguration)
             throws FlinkException {
         final File userLibDir = ClusterEntrypointUtils.tryFindUserLibDirectory().orElse(null);
-        final PackagedProgramRetriever programRetriever =
+        PackagedProgramRetriever programRetriever =
                 DefaultPackagedProgramRetriever.create(
                         userLibDir,
                         clusterConfiguration.getJobClassName(),
                         clusterConfiguration.getArgs(),
                         flinkConfiguration);
+
+        // No need to do pipelineJars validation if it is a PyFlink job.
+        if (!(PackagedProgramUtils.isPython(clusterConfiguration.getJobClassName())
+                || PackagedProgramUtils.isPython(clusterConfiguration.getArgs()))
+                && flinkConfiguration.getOptional(PipelineOptions.JARS).isPresent()) {
+            final List<File> pipelineJars = checkJarFileForApplicationMode(flinkConfiguration);
+            Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+            programRetriever =  DefaultPackagedProgramRetriever.create(
+                    userLibDir, pipelineJars.get(0), clusterConfiguration.getJobClassName(), clusterConfiguration.getArgs(), flinkConfiguration);
+        }
+
         return programRetriever.getPackagedProgram();
     }
 
@@ -118,5 +136,22 @@ public final class StandaloneApplicationClusterEntryPoint extends ApplicationClu
         if (jobId != null) {
             configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
         }
+    }
+
+    @VisibleForTesting
+    static List<File> checkJarFileForApplicationMode(Configuration configuration) {
+        return configuration.get(PipelineOptions.JARS).stream()
+                .map(
+                        FunctionUtils.uncheckedFunction(
+                                uri -> {
+                                    final URI jarURI = PackagedProgramUtils.resolveURI(uri);
+                                    if (jarURI.getScheme().equals("local") && jarURI.isAbsolute()) {
+                                        return new File(jarURI.getPath());
+                                    }
+                                    throw new IllegalArgumentException(
+                                            "Only \"file\" is supported as schema for the job jars."
+                                                    + " An example of such path is: file:///opt/flink/examples/streaming/WindowJoin.jar");
+                                }))
+                .collect(Collectors.toList());
     }
 }

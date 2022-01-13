@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
@@ -37,6 +38,8 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -82,6 +85,7 @@ public class StandaloneApplicationClusterConfigurationParserFactoryTest extends 
         final int restPort = 1234;
         final String arg1 = "arg1";
         final String arg2 = "arg2";
+        final String jarPath = "file:///opt/flink/examples/streaming/WindowJoin.jar";
         final String[] args = {
             "--configDir",
             confDirPath,
@@ -107,6 +111,10 @@ public class StandaloneApplicationClusterConfigurationParserFactoryTest extends 
         final Configuration configuration =
                 StandaloneApplicationClusterEntryPoint.loadConfigurationFromClusterConfig(
                         clusterConfiguration);
+
+        configuration.set(PipelineOptions.JARS, Collections.singletonList(jarPath));
+        List<File> jars = StandaloneApplicationClusterEntryPoint.checkJarFileForApplicationMode(configuration);
+        assertThat(new File(jarPath).toURI().getScheme(), is(equalTo(jars.get(0).toURI().getScheme())));
 
         final String strJobId = configuration.get(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID);
         assertThat(JobID.fromHexString(strJobId), is(equalTo(jobID)));
