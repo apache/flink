@@ -25,6 +25,7 @@ import org.apache.flink.connector.file.sink.utils.NoOpCommitter;
 import org.apache.flink.connector.file.sink.utils.NoOpRecoverable;
 import org.apache.flink.connector.file.sink.utils.NoOpRecoverableFsDataOutputStream;
 import org.apache.flink.connector.file.sink.utils.NoOpRecoverableWriter;
+import org.apache.flink.connector.file.table.FileSystemTableSink;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
@@ -39,6 +40,9 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RowWiseBucketWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -223,6 +227,50 @@ public class FileWriterBucketTest {
         assertNull("The bucket should roll since interval is reached", bucket.getInProgressPart());
         List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
         compareNumberOfPendingAndInProgress(fileSinkCommittables, 1, 0);
+    }
+
+    @Test
+    public void testTableRollingOnProcessingTime() throws IOException {
+        File outDir = TEMP_FOLDER.newFolder();
+        Path path = new Path(outDir.toURI());
+
+        FileSystemTableSink.TableRollingPolicy tableRollingPolicy =
+                new FileSystemTableSink.TableRollingPolicy(
+                        false,
+                        Long.MAX_VALUE,
+                        Duration.ofMillis(20).toMillis(),
+                        Duration.ofMillis(10).toMillis());
+
+        TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
+        FileWriterBucket<RowData> bucket =
+                createRowDataBucket(
+                        recoverableWriter,
+                        path,
+                        tableRollingPolicy,
+                        OutputFileConfig.builder().build());
+        bucket.write(GenericRowData.of(StringData.fromString("test-element")), 11);
+        bucket.write(GenericRowData.of(StringData.fromString("test-element")), 12);
+
+        bucket.onProcessingTime(21);
+        assertNotNull(
+                "The bucket should not roll since interval and inactivity not reached",
+                bucket.getInProgressPart());
+
+        bucket.onProcessingTime(22);
+        assertNull(
+                "The bucket should roll since inactivity is reached", bucket.getInProgressPart());
+
+        bucket.write(GenericRowData.of(StringData.fromString("test-element")), 11);
+        bucket.write(GenericRowData.of(StringData.fromString("test-element")), 21);
+        bucket.onProcessingTime(30);
+        assertNotNull(
+                "The bucket should not roll since interval and inactivity not reached",
+                bucket.getInProgressPart());
+
+        bucket.onProcessingTime(31);
+        assertNull("The bucket should roll since interval is reached", bucket.getInProgressPart());
+        List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
+        compareNumberOfPendingAndInProgress(fileSinkCommittables, 2, 0);
     }
 
     // --------------------------- Checking Restore ---------------------------
@@ -434,6 +482,8 @@ public class FileWriterBucketTest {
 
     private static final Encoder<String> ENCODER = new SimpleStringEncoder<>();
 
+    private static final Encoder<RowData> rowDataENCODER = new SimpleStringEncoder<>();
+
     private static final RollingPolicy<String, String> DEFAULT_ROLLING_POLICY =
             DefaultRollingPolicy.builder().build();
 
@@ -453,6 +503,20 @@ public class FileWriterBucketTest {
                 BUCKET_ID,
                 bucketPath,
                 new RowWiseBucketWriter<>(writer, ENCODER),
+                rollingPolicy,
+                outputFileConfig);
+    }
+
+    private static FileWriterBucket<RowData> createRowDataBucket(
+            RecoverableWriter writer,
+            Path bucketPath,
+            RollingPolicy<RowData, String> rollingPolicy,
+            OutputFileConfig outputFileConfig) {
+
+        return FileWriterBucket.getNew(
+                BUCKET_ID,
+                bucketPath,
+                new RowWiseBucketWriter(writer, rowDataENCODER),
                 rollingPolicy,
                 outputFileConfig);
     }
