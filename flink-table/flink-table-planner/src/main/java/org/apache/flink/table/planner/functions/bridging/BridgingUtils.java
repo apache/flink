@@ -28,6 +28,7 @@ import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.inference.TypeInferenceOperandChecker;
 import org.apache.flink.table.planner.functions.inference.TypeInferenceOperandInference;
@@ -74,7 +75,7 @@ final class BridgingUtils {
                 extractUserDefinedFunction(functionDefinition);
 
         return userDefinedFunction
-                .map(UserDefinedFunction::functionIdentifier)
+                .map(UserDefinedFunctionHelper::generateInlineFunctionName)
                 .orElseThrow(
                         () ->
                                 new TableException(
