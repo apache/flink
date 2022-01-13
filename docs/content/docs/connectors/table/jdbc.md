@@ -542,7 +542,8 @@ Flink supports connect to several databases which uses dialect like MySQL, Oracl
     </tr>
     <tr>
       <td><code>FLOAT</code></td>
-      <td><code>FLOAT</code></td>
+      <td>
+        <code>BINARY_FLOAT</code></td>
       <td>
         <code>REAL</code><br>
         <code>FLOAT4</code></td>
@@ -552,7 +553,7 @@ Flink supports connect to several databases which uses dialect like MySQL, Oracl
       <td>
         <code>DOUBLE</code><br>
         <code>DOUBLE PRECISION</code></td>
-      <td></td>
+      <td><code>BINARY_DOUBLE</code></td>
       <td>
         <code>FLOAT8</code><br>
         <code>DOUBLE PRECISION</code></td>
@@ -563,6 +564,10 @@ Flink supports connect to several databases which uses dialect like MySQL, Oracl
         <code>NUMERIC(p, s)</code><br>
         <code>DECIMAL(p, s)</code></td>
       <td>
+        <code>SMALLINT</code><br> 
+        <code>FLOAT(s)</code><br> 
+        <code>DOUBLE PRECISION</code><br> 
+        <code>REAL</code><br>
         <code>NUMBER(p, s)</code></td>
       <td>
         <code>NUMERIC(p, s)</code><br>
@@ -617,7 +622,9 @@ Flink supports connect to several databases which uses dialect like MySQL, Oracl
         <code>BINARY</code><br>
         <code>VARBINARY</code><br>
         <code>BLOB</code></td>
-      <td><code>RAW(s)</code></td>
+      <td>
+        <code>RAW(s)</code><br>
+        <code>BLOB</code></td>
       <td><code>BYTEA</code></td>
       <td><code>BYTES</code></td>
     </tr>

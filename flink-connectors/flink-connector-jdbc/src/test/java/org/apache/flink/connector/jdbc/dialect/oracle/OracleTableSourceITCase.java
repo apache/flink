@@ -66,7 +66,7 @@ public class OracleTableSourceITCase extends AbstractTestBase {
                             + INPUT_TABLE
                             + " ("
                             + "id INTEGER NOT NULL,"
-                            + "float_col FLOAT(126),"
+                            + "float_col FLOAT,"
                             + "double_col DOUBLE PRECISION ,"
                             + "decimal_col NUMBER(10, 4) NOT NULL,"
                             + "binary_float_col BINARY_FLOAT NOT NULL,"
@@ -84,14 +84,14 @@ public class OracleTableSourceITCase extends AbstractTestBase {
                     "INSERT INTO "
                             + INPUT_TABLE
                             + " VALUES ("
-                            + "1, 1.175E-10, 1.79769E+40, 100.1234, 1.175E-10, 1.79769E+40, 'a', 'abc', 'abcdef', "
+                            + "1, 1.12345, 2.12345678790, 100.1234, 1.175E-10, 1.79769E+40, 'a', 'abc', 'abcdef', "
                             + "TO_DATE('1997-01-01','yyyy-mm-dd'),TIMESTAMP '2020-01-01 15:35:00.123456',"
                             + " TIMESTAMP '2020-01-01 15:35:00.123456789', 'Hello World', hextoraw('453d7a34'))");
             statement.executeUpdate(
                     "INSERT INTO "
                             + INPUT_TABLE
                             + " VALUES ("
-                            + "2, -1.175E-10, -1.79769E+40, 101.1234, -1.175E-10, -1.79769E+40, 'a', 'abc', 'abcdef', "
+                            + "2, 1.12345, 2.12345678790, 101.1234, -1.175E-10, -1.79769E+40, 'a', 'abc', 'abcdef', "
                             + "TO_DATE('1997-01-02','yyyy-mm-dd'),  TIMESTAMP '2020-01-01 15:36:01.123456', "
                             + "TIMESTAMP '2020-01-01 15:36:01.123456789', 'Hey Leonard', hextoraw('453d7a34'))");
         }
@@ -120,8 +120,8 @@ public class OracleTableSourceITCase extends AbstractTestBase {
                         + INPUT_TABLE
                         + "("
                         + "id BIGINT,"
-                        + "float_col FLOAT,"
-                        + "double_col DOUBLE,"
+                        + "float_col DECIMAL(6, 5),"
+                        + "double_col DECIMAL(11, 10),"
                         + "decimal_col DECIMAL(10, 4),"
                         + "binary_float_col FLOAT,"
                         + "binary_double_col DOUBLE,"
@@ -151,8 +151,8 @@ public class OracleTableSourceITCase extends AbstractTestBase {
                         .collect(Collectors.toList());
         List<String> expected =
                 Stream.of(
-                                "+I[1, 1.175E-10, 1.79769E40, 100.1234, 1.175E-10, 1.79769E40, a, abc, abcdef, 1997-01-01, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, Hello World, [69, 61, 122, 52]]",
-                                "+I[2, -1.175E-10, -1.79769E40, 101.1234, -1.175E-10, -1.79769E40, a, abc, abcdef, 1997-01-02, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, Hey Leonard, [69, 61, 122, 52]]")
+                                "+I[1, 1.12345, 2.1234567879, 100.1234, 1.175E-10, 1.79769E40, a, abc, abcdef, 1997-01-01, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, Hello World, [69, 61, 122, 52]]",
+                                "+I[2, 1.12345, 2.1234567879, 101.1234, -1.175E-10, -1.79769E40, a, abc, abcdef, 1997-01-02, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, Hey Leonard, [69, 61, 122, 52]]")
                         .sorted()
                         .collect(Collectors.toList());
         assertEquals(expected, result);
@@ -167,8 +167,8 @@ public class OracleTableSourceITCase extends AbstractTestBase {
                         + "id BIGINT,"
                         + "timestamp6_col TIMESTAMP(6),"
                         + "timestamp9_col TIMESTAMP(9),"
-                        + "float_col FLOAT,"
-                        + "double_col DOUBLE,"
+                        + "binary_float_col FLOAT,"
+                        + "binary_double_col DOUBLE,"
                         + "decimal_col DECIMAL(10, 4)"
                         + ") WITH ("
                         + "  'connector'='jdbc',"
@@ -210,8 +210,8 @@ public class OracleTableSourceITCase extends AbstractTestBase {
                         + "id BIGINT,\n"
                         + "timestamp6_col TIMESTAMP(6),\n"
                         + "timestamp9_col TIMESTAMP(9),\n"
-                        + "float_col FLOAT,\n"
-                        + "double_col DOUBLE,\n"
+                        + "binary_float_col FLOAT,\n"
+                        + "binary_double_col DOUBLE,\n"
                         + "decimal_col DECIMAL(10, 4)\n"
                         + ") WITH (\n"
                         + "  'connector'='jdbc',\n"
