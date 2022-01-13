@@ -1,7 +1,7 @@
 ---
-title: DataStream API
-bookCollapseSection: true
-weight: 2
+title: "Test Dependencies"
+weight: 6
+type: docs
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -21,3 +21,29 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+
+# DataStream API Test Dependencies
+
+You need to add the following dependencies if you want to develop tests for a job built with the 
+DataStream API:
+
+{{< artifact flink-test-utils withTestScope >}}
+{{< artifact flink-runtime withTestScope >}}
+
+
+# Table Program Test Dependencies
+
+If you want to test the Table API & SQL programs locally within your IDE, you can add the following 
+dependency:
+
+```xml
+<dependency>
+    <groupId>org.apache.flink</groupId>
+    <artifactId>flink-table-test-utils</artifactId>
+    <version>{{< version >}}</version>
+    <scope>test</scope>
+</dependency>
+```
+
+This will automatically bring in the query planner and the runtime, required respectively to plan 
+and execute the queries.

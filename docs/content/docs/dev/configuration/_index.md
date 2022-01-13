@@ -1,7 +1,7 @@
 ---
-title: DataStream API
+title: "Project Configuration"
 bookCollapseSection: true
-weight: 2
+weight: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
