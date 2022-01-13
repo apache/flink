@@ -29,7 +29,10 @@ import javax.annotation.Nullable;
 /**
  * Resource which provides a {@link TestingFatalErrorHandler} and checks whether no exception has
  * been caught when calling {@link #after()}.
+ *
+ * @deprecated Continue using {@link TestingFatalErrorHandlerExtension} with Junit5 tests
  */
+@Deprecated
 public final class TestingFatalErrorHandlerResource implements TestRule {
 
     @Nullable private TestingFatalErrorHandler testingFatalErrorHandler;
