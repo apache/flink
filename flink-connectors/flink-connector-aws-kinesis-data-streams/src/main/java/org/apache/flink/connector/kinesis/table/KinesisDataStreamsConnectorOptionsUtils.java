@@ -25,9 +25,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.connector.aws.table.util.AWSOptionUtils;
+import org.apache.flink.connector.aws.table.util.KinesisAsyncClientOptionsUtils;
 import org.apache.flink.connector.base.table.sink.options.AsyncSinkConfigurationValidator;
 import org.apache.flink.connector.kinesis.sink.PartitionKeyGenerator;
-import org.apache.flink.connector.kinesis.table.util.KinesisAsyncClientOptionsUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 

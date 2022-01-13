@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.kinesis.table.util;
+package org.apache.flink.connector.aws.table.util;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
-import org.apache.flink.connector.aws.table.util.AWSOptionUtils;
 import org.apache.flink.connector.base.table.util.ConfigurationValidatorUtil;
 
 import software.amazon.awssdk.http.Protocol;

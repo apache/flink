@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.kinesis.table.util;
+package org.apache.flink.connector.aws.table.util;
 
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.util.TestLogger;

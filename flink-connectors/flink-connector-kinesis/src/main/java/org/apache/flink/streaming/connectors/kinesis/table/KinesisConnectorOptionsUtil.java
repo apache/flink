@@ -21,7 +21,7 @@ package org.apache.flink.streaming.connectors.kinesis.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.aws.table.util.AWSOptionUtils;
-import org.apache.flink.connector.kinesis.table.util.KinesisAsyncClientOptionsUtils;
+import org.apache.flink.connector.aws.table.util.KinesisAsyncClientOptionsUtils;
 
 import java.util.List;
 import java.util.Map;
