@@ -213,7 +213,7 @@ Calc(select=[CAST(2 AS INTEGER) AS b, EXPR$0])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
-+- LogicalAggregate(group=[{1}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6(DISTINCT $0, $2)], EXPR$1=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6($0, $2)])
++- LogicalAggregate(group=[{1}], EXPR$0=[*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvg*(DISTINCT $0, $2)], EXPR$1=[*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvg*($0, $2)])
    +- LogicalProject(a=[$0], c=[$2], b0=[CAST($1):BIGINT])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
@@ -221,7 +221,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
-+- GroupAggregate(groupBy=[c], select=[c, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6(DISTINCT a, b0) AS EXPR$0, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6(a, b0) AS EXPR$1])
++- GroupAggregate(groupBy=[c], select=[c, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvg*(DISTINCT a, b0) AS EXPR$0, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvg*(a, b0) AS EXPR$1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, CAST(b AS BIGINT) AS b0])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
