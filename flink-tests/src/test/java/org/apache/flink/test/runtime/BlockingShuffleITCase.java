@@ -65,6 +65,8 @@ public class BlockingShuffleITCase {
         Configuration configuration = new Configuration();
         configuration.setInteger(
                 NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM, 1);
+        configuration.setInteger(
+                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 64);
 
         JobGraph jobGraph = createJobGraph(1000000);
         JobGraphRunningUtil.execute(
@@ -76,6 +78,8 @@ public class BlockingShuffleITCase {
         Configuration configuration = new Configuration();
         configuration.setInteger(
                 NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM, 1);
+        configuration.setInteger(
+                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 64);
 
         JobGraph jobGraph = createJobGraph(0);
         JobGraphRunningUtil.execute(
