@@ -22,9 +22,9 @@
         </tr>
         <tr>
             <td><h5>taskmanager.memory.framework.off-heap.batch-shuffle.size</h5></td>
-            <td style="word-wrap: break-word;">32 mb</td>
+            <td style="word-wrap: break-word;">64 mb</td>
             <td>MemorySize</td>
-            <td>Size of memory used by blocking shuffle for shuffle data read (currently only used by sort-merge shuffle). Notes: 1) The memory is cut from 'taskmanager.memory.framework.off-heap.size' so must be smaller than that, which means you may also need to increase 'taskmanager.memory.framework.off-heap.size' after you increase this config value; 2) This memory size can influence the shuffle performance and you can increase this config value for large-scale batch jobs (for example, to 128M or 256M).</td>
+            <td>Size of memory used by blocking shuffle for shuffle data read (currently only used by sort-shuffle). Notes: 1) The memory is cut from 'taskmanager.memory.framework.off-heap.size' so must be smaller than that, which means you may also need to increase 'taskmanager.memory.framework.off-heap.size' after you increase this config value; 2) This memory size can influence the shuffle performance and you can increase this config value for large-scale batch jobs (for example, to 128M or 256M).</td>
         </tr>
         <tr>
             <td><h5>taskmanager.memory.framework.off-heap.size</h5></td>
