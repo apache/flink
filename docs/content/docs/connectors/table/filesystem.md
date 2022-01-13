@@ -127,12 +127,15 @@ You can modify the watch interval using the following option.
   <tbody>
     <tr>
         <td><h5>source.monitor-interval</h5></td>
-        <td style="word-wrap: break-word;">1 min</td>
+        <td style="word-wrap: break-word;">(none)</td>
         <td>Duration</td>
         <td>The interval in which the source checks for new files. 
+        Each file is uniquely identified by its path, and will be processed once, as soon as it's discovered. 
+        The set of files already processed is kept in state during the whole lifecycle of the source, 
+        so it's persisted in checkpoints and savepoints together with the source state. 
         Shorter intervals mean that files are discovered more quickly, 
         but also imply more frequent listing or directory traversal of the file system / object store. 
-        This option is used only if the execution mode is STREAMING.</td>
+        If this config option is empty, the provided path will be scanned once, hence the source will be bounded.</td>
     </tr>
   </tbody>
 </table>

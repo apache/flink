@@ -39,7 +39,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test of the filesystem source in streaming mode. */
-public class FileSystemTableSinkStreamingTest extends StreamingTestBase {
+public class FileSystemTableSinkStreamingITCase extends StreamingTestBase {
 
     @Test
     public void testMonitorContinuously() throws Exception {
@@ -61,33 +61,30 @@ public class FileSystemTableSinkStreamingTest extends StreamingTestBase {
                                 .format("testcsv")
                                 .option(FileSystemConnectorOptions.PATH, testPath.getPath())
                                 .option(
-                                        FileSystemConnectorOptions.SOURCE_WATCH_INTERVAL,
+                                        FileSystemConnectorOptions.SOURCE_MONITOR_INTERVAL,
                                         monitorInterval)
                                 .build());
 
-        CloseableIterator<Row> resultsIterator =
-                tEnv().sqlQuery("SELECT * FROM my_streaming_table").execute().collect();
-
         List<Integer> actual = new ArrayList<>();
 
-        // Iterate over the first 3 rows
-        for (int i = 0; i < 3; i++) {
-            actual.add(resultsIterator.next().<Integer>getFieldAs(0));
+        try (CloseableIterator<Row> resultsIterator =
+                tEnv().sqlQuery("SELECT * FROM my_streaming_table").execute().collect()) {
+            // Iterate over the first 3 rows
+            for (int i = 0; i < 3; i++) {
+                actual.add(resultsIterator.next().<Integer>getFieldAs(0));
+            }
+
+            // Write second csv file out
+            Files.write(
+                    Paths.get(testPath.getPath(), "input_1.csv"),
+                    Arrays.asList("4", "5", "6"),
+                    StandardOpenOption.CREATE);
+
+            // Iterate over the next 3 rows
+            for (int i = 0; i < 3; i++) {
+                actual.add(resultsIterator.next().<Integer>getFieldAs(0));
+            }
         }
-
-        // Write second csv file out
-        Files.write(
-                Paths.get(testPath.getPath(), "input_1.csv"),
-                Arrays.asList("4", "5", "6"),
-                StandardOpenOption.CREATE);
-
-        // Iterate over the next 3 rows
-        for (int i = 0; i < 3; i++) {
-            actual.add(resultsIterator.next().<Integer>getFieldAs(0));
-        }
-
-        // Close the streaming query
-        resultsIterator.close();
 
         assertThat(actual).containsExactlyInAnyOrder(1, 2, 3, 4, 5, 6);
     }
