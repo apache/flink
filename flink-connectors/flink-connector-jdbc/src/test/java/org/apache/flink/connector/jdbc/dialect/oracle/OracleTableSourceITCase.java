@@ -65,24 +65,35 @@ public class OracleTableSourceITCase extends AbstractTestBase {
                     "CREATE TABLE "
                             + INPUT_TABLE
                             + " ("
-                            + "id NUMBER(20, 0) NOT NULL,"
-                            + "timestamp6_col TIMESTAMP(6), "
-                            + "timestamp9_col TIMESTAMP(9), "
-                            + "float_col FLOAT(126), "
+                            + "id INTEGER NOT NULL,"
+                            + "float_col FLOAT(126),"
                             + "double_col DOUBLE PRECISION ,"
-                            + "decimal_col NUMBER(10, 4))");
+                            + "decimal_col NUMBER(10, 4) NOT NULL,"
+                            + "binary_float_col BINARY_FLOAT NOT NULL,"
+                            + "binary_double_col BINARY_DOUBLE NOT NULL,"
+                            + "char_col CHAR NOT NULL,"
+                            + "nchar_col NCHAR(3) NOT NULL,"
+                            + "varchar2_col VARCHAR2(30) NOT NULL,"
+                            + "date_col DATE NOT NULL,"
+                            + "timestamp6_col TIMESTAMP(6),"
+                            + "timestamp9_col TIMESTAMP(9),"
+                            + "clob_col CLOB,"
+                            + "blob_col BLOB"
+                            + ")");
             statement.executeUpdate(
                     "INSERT INTO "
                             + INPUT_TABLE
                             + " VALUES ("
-                            + "1, TIMESTAMP '2020-01-01 15:35:00.123456', TIMESTAMP '2020-01-01 15:35:00.123456789', "
-                            + "1.175E-10, 1.79769E+40, 100.1234)");
+                            + "1, 1.175E-10, 1.79769E+40, 100.1234, 1.175E-10, 1.79769E+40, 'a', 'abc', 'abcdef', "
+                            + "TO_DATE('1997-01-01','yyyy-mm-dd'),TIMESTAMP '2020-01-01 15:35:00.123456',"
+                            + " TIMESTAMP '2020-01-01 15:35:00.123456789', 'Hello World', hextoraw('453d7a34'))");
             statement.executeUpdate(
                     "INSERT INTO "
                             + INPUT_TABLE
                             + " VALUES ("
-                            + "2, TIMESTAMP '2020-01-01 15:36:01.123456', TIMESTAMP '2020-01-01 15:36:01.123456789', "
-                            + "-1.175E-10, -1.79769E+40, 101.1234)");
+                            + "2, -1.175E-10, -1.79769E+40, 101.1234, -1.175E-10, -1.79769E+40, 'a', 'abc', 'abcdef', "
+                            + "TO_DATE('1997-01-02','yyyy-mm-dd'),  TIMESTAMP '2020-01-01 15:36:01.123456', "
+                            + "TIMESTAMP '2020-01-01 15:36:01.123456789', 'Hey Leonard', hextoraw('453d7a34'))");
         }
     }
 
@@ -109,11 +120,19 @@ public class OracleTableSourceITCase extends AbstractTestBase {
                         + INPUT_TABLE
                         + "("
                         + "id BIGINT,"
-                        + "timestamp6_col TIMESTAMP(6),"
-                        + "timestamp9_col TIMESTAMP(9),"
                         + "float_col FLOAT,"
                         + "double_col DOUBLE,"
-                        + "decimal_col DECIMAL(10, 4)"
+                        + "decimal_col DECIMAL(10, 4),"
+                        + "binary_float_col FLOAT,"
+                        + "binary_double_col DOUBLE,"
+                        + "char_col CHAR(1),"
+                        + "nchar_col VARCHAR(3),"
+                        + "varchar2_col VARCHAR(30),"
+                        + "date_col DATE,"
+                        + "timestamp6_col TIMESTAMP(6),"
+                        + "timestamp9_col TIMESTAMP(9),"
+                        + "clob_col STRING,"
+                        + "blob_col BYTES"
                         + ") WITH ("
                         + "  'connector'='jdbc',"
                         + "  'url'='"
@@ -132,8 +151,8 @@ public class OracleTableSourceITCase extends AbstractTestBase {
                         .collect(Collectors.toList());
         List<String> expected =
                 Stream.of(
-                                "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 1.175E-10, 1.79769E40, 100.1234]",
-                                "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, -1.175E-10, -1.79769E40, 101.1234]")
+                                "+I[1, 1.175E-10, 1.79769E40, 100.1234, 1.175E-10, 1.79769E40, a, abc, abcdef, 1997-01-01, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, Hello World, [69, 61, 122, 52]]",
+                                "+I[2, -1.175E-10, -1.79769E40, 101.1234, -1.175E-10, -1.79769E40, a, abc, abcdef, 1997-01-02, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, Hey Leonard, [69, 61, 122, 52]]")
                         .sorted()
                         .collect(Collectors.toList());
         assertEquals(expected, result);

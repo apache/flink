@@ -26,6 +26,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
+import oracle.jdbc.internal.OracleBlob;
 import oracle.jdbc.internal.OracleClob;
 import oracle.sql.BINARY_DOUBLE;
 import oracle.sql.BINARY_FLOAT;
@@ -34,7 +35,6 @@ import oracle.sql.DATE;
 import oracle.sql.NUMBER;
 import oracle.sql.RAW;
 import oracle.sql.TIMESTAMP;
-import oracle.sql.TIMESTAMPLTZ;
 import oracle.sql.TIMESTAMPTZ;
 
 import java.math.BigDecimal;
@@ -42,8 +42,6 @@ import java.math.BigInteger;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
 /**
@@ -123,21 +121,33 @@ public class OracleRowConverter extends AbstractJdbcRowConverter {
             case VARBINARY:
             case RAW:
                 return val ->
-                        (val instanceof RAW) ? ((RAW) val).getBytes() : val;
+                        val instanceof RAW
+                                ? ((RAW) val).getBytes()
+                                : val instanceof OracleBlob
+                                        ? ((OracleBlob) val)
+                                                .getBytes(1, (int) ((OracleBlob) val).length())
+                                        : val.toString().getBytes();
+
             case INTERVAL_YEAR_MONTH:
             case INTERVAL_DAY_TIME:
                 return val -> val instanceof NUMBER ? ((NUMBER) val).intValue() : val;
             case DATE:
                 return val ->
                         val instanceof DATE
-                                ? ((DATE) val).dateValue().toLocalDate().toEpochDay()
-                                : (int) (((Date) val).toLocalDate().toEpochDay());
+                                ? (int) (((DATE) val).dateValue().toLocalDate().toEpochDay())
+                                : val instanceof Timestamp
+                                        ? (int)
+                                                (((Timestamp) val)
+                                                        .toLocalDateTime()
+                                                        .toLocalDate()
+                                                        .toEpochDay())
+                                        : (int) (((Date) val).toLocalDate().toEpochDay());
             case TIME_WITHOUT_TIME_ZONE:
                 return val ->
                         val instanceof DATE
                                 ? (int)
-                                (((DATE) val).timeValue().toLocalTime().toNanoOfDay()
-                                        / 1_000_000L)
+                                        (((DATE) val).timeValue().toLocalTime().toNanoOfDay()
+                                                / 1_000_000L)
                                 : (int) (((Time) val).toLocalTime().toNanoOfDay() / 1_000_000L);
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 return val ->
@@ -152,20 +162,6 @@ public class OracleRowConverter extends AbstractJdbcRowConverter {
                                 ZonedDateTime.ofInstant(
                                         ts.timestampValue().toInstant(),
                                         ts.getTimeZone().toZoneId());
-                        return TimestampData.fromLocalDateTime(zdt.toLocalDateTime());
-                    } else {
-                        return TimestampData.fromTimestamp((Timestamp) val);
-                    }
-                };
-            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-                return val -> {
-                    if (val instanceof TIMESTAMPLTZ) {
-                        final TIMESTAMPLTZ ts = (TIMESTAMPLTZ) val;
-                        final ZonedDateTime zdt =
-                                ZonedDateTime.ofInstant(
-                                                ts.timestampValue().toInstant(),
-                                                ZoneId.systemDefault())
-                                        .withZoneSameInstant(ZoneOffset.UTC);
                         return TimestampData.fromLocalDateTime(zdt.toLocalDateTime());
                     } else {
                         return TimestampData.fromTimestamp((Timestamp) val);
