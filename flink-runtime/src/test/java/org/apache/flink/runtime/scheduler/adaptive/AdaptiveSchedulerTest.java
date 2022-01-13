@@ -807,7 +807,9 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final CompletableFuture<JobStatus> completedCheckpointStoreShutdownFuture =
                 new CompletableFuture<>();
         final CompletedCheckpointStore completedCheckpointStore =
-                new TestingCompletedCheckpointStore(completedCheckpointStoreShutdownFuture);
+                TestingCompletedCheckpointStore
+                        .createStoreWithShutdownCheckAndNoCompletedCheckpoints(
+                                completedCheckpointStoreShutdownFuture);
 
         final CompletableFuture<JobStatus> checkpointIdCounterShutdownFuture =
                 new CompletableFuture<>();
