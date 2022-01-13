@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kinesis;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSinkElementConverter.PartitionKeyGenerator;
 
 import java.io.Serializable;
 
@@ -27,7 +28,7 @@ import java.io.Serializable;
  * @param <T> record type
  */
 @PublicEvolving
-public abstract class KinesisPartitioner<T> implements Serializable {
+public abstract class KinesisPartitioner<T> implements Serializable, PartitionKeyGenerator<T> {
 
     private static final long serialVersionUID = -7467294664702189780L;
 
@@ -56,4 +57,9 @@ public abstract class KinesisPartitioner<T> implements Serializable {
      * @param numberOfParallelSubtasks Total number of parallel instances
      */
     public void initialize(int indexOfThisSubtask, int numberOfParallelSubtasks) {}
+
+    @Override
+    public String apply(T element) {
+        return getPartitionId(element);
+    }
 }
