@@ -33,7 +33,11 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWri
 import java.io.IOException;
 
 /** Mocks and utilities for serde tests. */
-class JsonSerdeMocks {
+final class JsonSerdeMocks {
+
+    private JsonSerdeMocks() {
+        // no instantiation
+    }
 
     static SerdeContext configuredSerdeContext() {
         return configuredSerdeContext(
@@ -68,9 +72,5 @@ class JsonSerdeMocks {
         } catch (IOException e) {
             throw new AssertionError(e);
         }
-    }
-
-    private JsonSerdeMocks() {
-        // no instantiation
     }
 }

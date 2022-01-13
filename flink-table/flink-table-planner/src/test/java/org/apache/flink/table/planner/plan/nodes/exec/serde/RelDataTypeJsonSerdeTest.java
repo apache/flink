@@ -88,6 +88,16 @@ public class RelDataTypeJsonSerdeTest {
                                         SqlParserPos.ZERO)));
     }
 
+    @Test
+    public void testNegativeScale() {
+        final SerdeContext serdeContext = configuredSerdeContext();
+
+        final String json = toJson(serdeContext, FACTORY.createSqlType(SqlTypeName.DECIMAL, 5, -1));
+        final RelDataType actual = toObject(serdeContext, json, RelDataType.class);
+
+        assertThat(actual).isSameAs(FACTORY.createSqlType(SqlTypeName.DECIMAL, 6, 0));
+    }
+
     // --------------------------------------------------------------------------------------------
     // Test data
     // --------------------------------------------------------------------------------------------
