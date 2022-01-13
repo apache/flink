@@ -16,20 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kinesis.table;
+package org.apache.flink.connector.kinesis.table;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.description.Description;
-import org.apache.flink.streaming.connectors.kinesis.KinesisPartitioner;
+import org.apache.flink.connector.base.table.AsyncSinkConnectorOptions;
+import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSinkElementConverter.PartitionKeyGenerator;
 
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /** Options for the Kinesis connector. */
 @PublicEvolving
-public class KinesisConnectorOptions {
+public class KinesisConnectorOptions extends AsyncSinkConnectorOptions {
 
     // -----------------------------------------------------------------------------------------
     // Kinesis specific options
@@ -40,6 +41,12 @@ public class KinesisConnectorOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription("Name of the Kinesis stream backing this table.");
+
+    public static final ConfigOption<String> AWS_REGION =
+            ConfigOptions.key("aws.region")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("AWS region of used Kinesis stream.");
 
     // -----------------------------------------------------------------------------------------
     // Sink options
@@ -64,7 +71,7 @@ public class KinesisConnectorOptions {
                                                     "fixed (each Flink partition ends up in at most one Kinesis shard)"),
                                             text(
                                                     "custom class name (use a custom %s subclass)",
-                                                    text(KinesisPartitioner.class.getName())))
+                                                    text(PartitionKeyGenerator.class.getName())))
                                     .build());
 
     public static final ConfigOption<String> SINK_PARTITIONER_FIELD_DELIMITER =
@@ -78,5 +85,10 @@ public class KinesisConnectorOptions {
                                             code("PARTITION BY"))
                                     .build());
 
-    private KinesisConnectorOptions() {}
+    public static final ConfigOption<Boolean> SINK_FAIL_ON_ERROR =
+            ConfigOptions.key("sink.fail-on-error")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Determines whether an exception should fail the job, otherwise failed requests are retried.");
 }
