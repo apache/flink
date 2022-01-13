@@ -74,10 +74,6 @@ Here are [metrics]({{< ref "docs/ops/metrics" >}}#io) you can use to monitor the
 
 Currently, there are a few cases that are not handled automatically by the buffer debloating mechanism.
 
-#### Large records
-
-If your record size exceeds the [minimum memory segment size]({{< ref "docs/deployment/config" >}}#taskmanager-memory-min-segment-size), buffer debloating can potentially shrink the buffer size so much, that the network stack will require more than one buffer to transfer a single record. This can have adverse effects on the throughput, without actually reducing the amount of in-flight data. 
-
 #### Multiple inputs and unions
 
 Currently, the throughput calculation and buffer debloating happen on the subtask level. 
