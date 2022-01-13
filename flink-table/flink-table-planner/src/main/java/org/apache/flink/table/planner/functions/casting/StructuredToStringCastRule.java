@@ -155,7 +155,7 @@ class StructuredToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
         final CastRuleUtils.CodeWriter writer =
                 new CastRuleUtils.CodeWriter()
                         .stmt(methodCall(builderTerm, "setLength", 0))
-                        .stmt(methodCall(builderTerm, "append", strLiteral("{")));
+                        .stmt(methodCall(builderTerm, "append", strLiteral("(")));
 
         for (int i = 0; i < inputStructuredType.getAttributes().size(); i++) {
             final int fieldIndex = i;
@@ -214,7 +214,7 @@ class StructuredToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
                                                                     context.legacyBehaviour()))));
         }
 
-        writer.stmt(methodCall(builderTerm, "append", strLiteral("}")));
+        writer.stmt(methodCall(builderTerm, "append", strLiteral(")")));
 
         return CharVarCharTrimPadCastRule.padAndTrimStringIfNeeded(
                         writer,

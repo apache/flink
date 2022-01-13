@@ -663,7 +663,7 @@ class CastRulesTest {
                                                     fromString("b"),
                                                     fromString("c")
                                                 })),
-                                fromString("{a=10, b=NULL, c=12:34:56.123, d=[a, b, c]}"))
+                                fromString("(a=10, b=NULL, c=12:34:56.123, d=[a, b, c])"))
                         .fromCase(
                                 MY_STRUCTURED_TYPE_WITHOUT_IMPLEMENTATION_CLASS,
                                 GenericRowData.of(
@@ -676,7 +676,7 @@ class CastRulesTest {
                                                     fromString("b"),
                                                     fromString("c")
                                                 })),
-                                fromString("{a=10, b=NULL, c=12:34:56.123, d=[a, b, c]}")),
+                                fromString("(a=10, b=NULL, c=12:34:56.123, d=[a, b, c])")),
                 CastTestSpecBuilder.testCastTo(CHAR(6))
                         .fromCase(STRING(), null, EMPTY_UTF8)
                         .fromCaseLegacy(STRING(), null, EMPTY_UTF8)
