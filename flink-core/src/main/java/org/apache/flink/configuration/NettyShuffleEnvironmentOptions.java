@@ -197,15 +197,17 @@ public class NettyShuffleEnvironmentOptions {
                                     + " help relieve back-pressure caused by unbalanced data distribution among the subpartitions. This value should be"
                                     + " increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.");
 
-    /** Minimum number of network buffers required per sort-merge blocking result partition. */
+    /**
+     * Minimum number of network buffers required per blocking result partition for sort-shuffle.
+     */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NETWORK_SORT_SHUFFLE_MIN_BUFFERS =
             key("taskmanager.network.sort-shuffle.min-buffers")
                     .intType()
-                    .defaultValue(64)
+                    .defaultValue(512)
                     .withDescription(
-                            "Minimum number of network buffers required per sort-merge blocking "
-                                    + "result partition. For production usage, it is suggested to "
+                            "Minimum number of network buffers required per blocking result partition"
+                                    + " for sort-shuffle. For production usage, it is suggested to "
                                     + "increase this config value to at least 2048 (64M memory if "
                                     + "the default 32K memory segment size is used) to improve the "
                                     + "data compression ratio and reduce the small network packets."
