@@ -84,7 +84,7 @@ public class ExecutionCheckpointingOptions {
                     .intType()
                     .noDefaultValue()
                     .withDescription(
-                            "The tolerable checkpoint failure number. If set to 0, that means "
+                            "The tolerable checkpoint consecutive failure number. If set to 0, that means "
                                     + "we do not tolerance any checkpoint failure.");
 
     public static final ConfigOption<CheckpointConfig.ExternalizedCheckpointCleanup>
