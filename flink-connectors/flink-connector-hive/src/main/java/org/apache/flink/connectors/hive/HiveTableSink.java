@@ -494,6 +494,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 long rollingFileSize, long rollingTimeInterval, long inactivityInterval) {
             Preconditions.checkArgument(rollingFileSize > 0L);
             Preconditions.checkArgument(rollingTimeInterval > 0L);
+            Preconditions.checkArgument(inactivityInterval > 0L);
             this.rollingFileSize = rollingFileSize;
             this.rollingTimeInterval = rollingTimeInterval;
             this.inactivityInterval = inactivityInterval;
