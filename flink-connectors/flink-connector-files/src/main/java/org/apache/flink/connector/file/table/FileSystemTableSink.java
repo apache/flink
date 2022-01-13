@@ -608,7 +608,9 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         private final long inactivityInterval;
 
         public TableRollingPolicy(
-                boolean rollOnCheckpoint, long rollingFileSize, long rollingTimeInterval,
+                boolean rollOnCheckpoint,
+                long rollingFileSize,
+                long rollingTimeInterval,
                 long inactivityInterval) {
             this.rollOnCheckpoint = rollOnCheckpoint;
             Preconditions.checkArgument(rollingFileSize > 0L);

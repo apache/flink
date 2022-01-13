@@ -170,7 +170,9 @@ public class StreamingFileWriterTest {
         // it can ensure the file can be closed only when the partition is committable in this test.
         FileSystemTableSink.TableRollingPolicy tableRollingPolicy =
                 new FileSystemTableSink.TableRollingPolicy(
-                        false, Long.MAX_VALUE, Duration.ofDays(1).toMillis(),
+                        false,
+                        Long.MAX_VALUE,
+                        Duration.ofDays(1).toMillis(),
                         Duration.ofDays(1).toMillis());
         List<String> partitionKeys = Collections.singletonList("d");
         // commit delay is 1 second with process-time trigger
@@ -244,7 +246,9 @@ public class StreamingFileWriterTest {
         // it can ensure the file can be closed only when the partition is committable in this test.
         FileSystemTableSink.TableRollingPolicy tableRollingPolicy =
                 new FileSystemTableSink.TableRollingPolicy(
-                        false, Long.MAX_VALUE, Duration.ofDays(1).toMillis(),
+                        false,
+                        Long.MAX_VALUE,
+                        Duration.ofDays(1).toMillis(),
                         Duration.ofDays(1).toMillis());
         List<String> partitionKeys = Collections.singletonList("d");
         // commit delay is 1 day with partition-time trigger
