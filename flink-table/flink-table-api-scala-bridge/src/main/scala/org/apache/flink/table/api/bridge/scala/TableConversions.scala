@@ -22,7 +22,7 @@ import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.internal.TableImpl
-import org.apache.flink.table.api.{Schema, Table, TableException, ValidationException}
+import org.apache.flink.table.api.{DataTypes, Schema, Table, TableException, ValidationException}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.types.{AbstractDataType, DataType}
 import org.apache.flink.types.Row
@@ -186,7 +186,13 @@ class TableConversions(table: Table) {
     *
     * @tparam T The type of the resulting [[DataStream]].
     * @return The converted [[DataStream]].
+    * @deprecated Use [[toDataStream(Table, Class)]] instead. It integrates with the new type
+    *             system and supports all kinds of [[DataTypes]] that the table runtime can produce.
+    *             The semantics might be slightly different for raw and structured types. Use
+    *             `toDataStream(DataTypes.of(Types.of[Class]))` if [[TypeInformation]]
+    *             should be used as source of truth.
     */
+  @deprecated
   def toAppendStream[T: TypeInformation]: DataStream[T] = {
     internalEnv match {
       case tEnv: StreamTableEnvironment =>
@@ -203,8 +209,11 @@ class TableConversions(table: Table) {
     * the second field holds the record of the specified type [[T]].
     *
     * A true [[Boolean]] flag indicates an add message, a false flag indicates a retract message.
-    *
+    * @deprecated Use [[toChangelogStream(Table, Schema)]] instead. It integrates with the new
+    *             type system and supports all kinds of [[DataTypes]] and every [[ChangelogMode]]
+    *             that the table runtime can produce.
     */
+  @deprecated
   def toRetractStream[T: TypeInformation]: DataStream[(Boolean, T)] = {
     internalEnv match {
       case tEnv: StreamTableEnvironment =>
