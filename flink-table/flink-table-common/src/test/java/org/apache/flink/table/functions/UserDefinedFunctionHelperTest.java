@@ -145,10 +145,8 @@ public class UserDefinedFunctionHelperTest {
                                         + ParameterizedTableFunction.class.getName()
                                         + "' must have a public default constructor."),
                 TestSpec.forClass(HierarchicalTableAggregateFunction.class).expectSuccess(),
-                TestSpec.forCatalogFunction(
-                                ValidScalarFunction.class.getName(), FunctionLanguage.JAVA)
-                        .expectSuccess(),
-                TestSpec.forCatalogFunction("I don't exist.", FunctionLanguage.JAVA)
+                TestSpec.forCatalogFunction(ValidScalarFunction.class.getName()).expectSuccess(),
+                TestSpec.forCatalogFunction("I don't exist.")
                         .expectErrorMessage("Cannot instantiate user-defined function 'f'."));
     }
 
@@ -179,10 +177,8 @@ public class UserDefinedFunctionHelperTest {
             return new TestSpec(null, function, null);
         }
 
-        static TestSpec forCatalogFunction(
-                String className,
-                @SuppressWarnings("SameParameterValue") FunctionLanguage language) {
-            return new TestSpec(null, null, new CatalogFunctionMock(className, language));
+        static TestSpec forCatalogFunction(String className) {
+            return new TestSpec(null, null, new CatalogFunctionMock(className));
         }
 
         TestSpec expectErrorMessage(String expectedErrorMessage) {
@@ -200,11 +196,8 @@ public class UserDefinedFunctionHelperTest {
 
         private final String className;
 
-        private final FunctionLanguage language;
-
-        CatalogFunctionMock(String className, FunctionLanguage language) {
+        CatalogFunctionMock(String className) {
             this.className = className;
-            this.language = language;
         }
 
         @Override
@@ -234,7 +227,7 @@ public class UserDefinedFunctionHelperTest {
 
         @Override
         public FunctionLanguage getFunctionLanguage() {
-            return language;
+            return FunctionLanguage.JAVA;
         }
     }
 
