@@ -18,97 +18,223 @@
 
 package org.apache.flink.kubernetes.highavailability;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
-import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.leaderelection.LeaderElectionEvent;
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
+import org.apache.flink.runtime.leaderelection.LeaderInformationWithComponentId;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionListener;
+import org.apache.flink.runtime.leaderelection.TestingListener;
+import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.TestLoggerExtension;
+import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.Collections;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
+import static org.assertj.core.api.Assertions.assertThat;
 
+/** Tests for the {@link KubernetesMultipleComponentLeaderElectionDriver}. */
 @ExtendWith(TestLoggerExtension.class)
 public class KubernetesMultipleComponentLeaderElectionDriverTest {
 
     private static final String CLUSTER_ID = "test-cluster";
+    private static final String LEADER_CONFIGMAP_NAME = "leader-configmap-name";
+    private static final String LOCK_IDENTITY = "lock-identity";
 
     @RegisterExtension
     private final TestingFatalErrorHandlerExtension testingFatalErrorHandlerExtension =
             new TestingFatalErrorHandlerExtension();
 
     @RegisterExtension
-    private final TestExecutorExtension<ExecutorService> testExecutorExtension =
+    private static final TestExecutorExtension<ExecutorService> testExecutorExtension =
             new TestExecutorExtension<>(Executors::newSingleThreadScheduledExecutor);
 
     @Test
-    public void testElectionDriverGainsLeadership() throws InterruptedException {
-        final Configuration configuration = new Configuration();
-        configuration.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
-        final KubernetesLeaderElectionConfiguration leaderElectionConfiguration =
-                new KubernetesLeaderElectionConfiguration("foobar", "barfoo", configuration);
-
-        CompletableFuture<KubernetesLeaderElector.LeaderCallbackHandler>
-                leaderCallbackHandlerFuture = new CompletableFuture<>();
-        final FlinkKubeClient flinkKubeClient =
-                TestingFlinkKubeClient.builder()
-                        .setCreateLeaderElectorFunction(
-                                (leaderConfig, callbackHandler) -> {
-                                    leaderCallbackHandlerFuture.complete(callbackHandler);
-                                    return new TestingFlinkKubeClient
-                                            .TestingKubernetesLeaderElector(
-                                            leaderConfig, callbackHandler);
-                                })
-                        .build();
-
-        final KubernetesConfigMapSharedWatcher configMapSharedWatcher =
-                flinkKubeClient.createConfigMapSharedWatcher(
-                        KubernetesUtils.getConfigMapLabels(
-                                CLUSTER_ID, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
-
-        final TestingLeaderElectionListener leaderElectionListener =
-                new TestingLeaderElectionListener();
-
-        final KubernetesMultipleComponentLeaderElectionDriver leaderElectionDriver =
-                new KubernetesMultipleComponentLeaderElectionDriver(
-                        leaderElectionConfiguration,
-                        flinkKubeClient,
-                        leaderElectionListener,
-                        configMapSharedWatcher,
-                        testExecutorExtension.getExecutor(),
-                        testingFatalErrorHandlerExtension.getTestingFatalErrorHandler());
-
-        final KubernetesLeaderElector.LeaderCallbackHandler leaderCallbackHandler =
-                leaderCallbackHandlerFuture.join();
-
-        leaderCallbackHandler.isLeader();
-
-        leaderElectionListener.await(LeaderElectionEvent.IsLeaderEvent.class);
+    public void testElectionDriverGainsLeadership() throws Exception {
+        new TestFixture() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+                            leaderElectionListener.await(LeaderElectionEvent.IsLeaderEvent.class);
+                        });
+            }
+        };
     }
 
     @Test
-    public void testElectionDriverLosesLeadership() throws Exception {}
+    public void testElectionDriverLosesLeadership() throws Exception {
+        new TestFixture() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+                            leaderElectionListener.await(LeaderElectionEvent.IsLeaderEvent.class);
+                            getLeaderCallback().notLeader();
+                            leaderElectionListener.await(LeaderElectionEvent.NotLeaderEvent.class);
+                        });
+            }
+        };
+    }
 
     @Test
-    public void testPublishLeaderInformation() throws Exception {}
+    public void testPublishLeaderInformation() throws Exception {
+        new TestFixture() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+                            leaderElectionListener.await(LeaderElectionEvent.IsLeaderEvent.class);
+                            final LeaderInformation leaderInformation =
+                                    LeaderInformation.known(UUID.randomUUID(), "localhost");
+                            final String componentId = "componentId";
+
+                            final DefaultLeaderRetrievalService leaderRetrievalService =
+                                    new DefaultLeaderRetrievalService(
+                                            new KubernetesMultipleComponentLeaderRetrievalDriverFactory(
+                                                    getFlinkKubeClient(),
+                                                    getConfigMapSharedWatcher(),
+                                                    testExecutorExtension.getExecutor(),
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    componentId));
+
+                            final TestingListener leaderRetrievalListener = new TestingListener();
+                            leaderRetrievalService.start(leaderRetrievalListener);
+
+                            leaderElectionDriver.publishLeaderInformation(
+                                    componentId, leaderInformation);
+
+                            notifyLeaderRetrievalWatchOnModifiedConfigMap();
+
+                            leaderRetrievalListener.waitForNewLeader(10_000L);
+                            assertThat(leaderRetrievalListener.getLeader())
+                                    .isEqualTo(leaderInformation);
+                        });
+            }
+        };
+    }
 
     @Test
-    public void testLeaderInformationChange() throws Exception {}
+    public void testLeaderInformationChangeNotifiesListener() throws Exception {
+        new TestFixture() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+                            final String componentA = "componentA";
+                            final LeaderInformation leaderInformationA =
+                                    LeaderInformation.known(UUID.randomUUID(), "localhost");
+                            final String componentB = "componentB";
+                            final LeaderInformation leaderInformationB =
+                                    LeaderInformation.known(UUID.randomUUID(), "localhost");
+                            leaderElectionDriver.publishLeaderInformation(
+                                    componentA, leaderInformationA);
+                            leaderElectionDriver.publishLeaderInformation(
+                                    componentB, leaderInformationB);
 
-    @Test
-    public void testLeaderElectionWithMultipleDrivers() throws Exception {}
+                            notifyLeaderElectionWatchOnModifiedConfigMap();
+
+                            final LeaderElectionEvent.AllKnownLeaderInformationEvent
+                                    allKnownLeaderInformationEvent =
+                                            leaderElectionListener.await(
+                                                    LeaderElectionEvent
+                                                            .AllKnownLeaderInformationEvent.class);
+
+                            assertThat(
+                                            allKnownLeaderInformationEvent
+                                                    .getLeaderInformationWithComponentIds())
+                                    .containsExactlyInAnyOrder(
+                                            LeaderInformationWithComponentId.create(
+                                                    componentA, leaderInformationA),
+                                            LeaderInformationWithComponentId.create(
+                                                    componentB, leaderInformationB));
+                        });
+            }
+        };
+    }
+
+    /** Test fixture for the {@link KubernetesMultipleComponentLeaderElectionDriverTest}. */
+    protected class TestFixture {
+        private final KubernetesTestFixture kubernetesTestFixture;
+        final TestingLeaderElectionListener leaderElectionListener;
+        final KubernetesMultipleComponentLeaderElectionDriver leaderElectionDriver;
+
+        TestFixture() {
+            kubernetesTestFixture =
+                    new KubernetesTestFixture(CLUSTER_ID, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
+            leaderElectionListener = new TestingLeaderElectionListener();
+            leaderElectionDriver = createLeaderElectionDriver();
+        }
+
+        private KubernetesMultipleComponentLeaderElectionDriver createLeaderElectionDriver() {
+            final KubernetesLeaderElectionConfiguration leaderElectionConfiguration =
+                    new KubernetesLeaderElectionConfiguration(
+                            LEADER_CONFIGMAP_NAME,
+                            LOCK_IDENTITY,
+                            kubernetesTestFixture.getConfiguration());
+            return new KubernetesMultipleComponentLeaderElectionDriver(
+                    leaderElectionConfiguration,
+                    kubernetesTestFixture.getFlinkKubeClient(),
+                    leaderElectionListener,
+                    kubernetesTestFixture.getConfigMapSharedWatcher(),
+                    testExecutorExtension.getExecutor(),
+                    testingFatalErrorHandlerExtension.getTestingFatalErrorHandler());
+        }
+
+        void leaderCallbackGrantLeadership() throws Exception {
+            kubernetesTestFixture.leaderCallbackGrantLeadership();
+        }
+
+        KubernetesLeaderElector.LeaderCallbackHandler getLeaderCallback() throws Exception {
+            return kubernetesTestFixture.getLeaderCallback();
+        }
+
+        FlinkKubeClient getFlinkKubeClient() {
+            return kubernetesTestFixture.getFlinkKubeClient();
+        }
+
+        KubernetesConfigMapSharedWatcher getConfigMapSharedWatcher() {
+            return kubernetesTestFixture.getConfigMapSharedWatcher();
+        }
+
+        FlinkKubeClient.WatchCallbackHandler<KubernetesConfigMap>
+                getLeaderRetrievalConfigMapCallback() throws Exception {
+            return kubernetesTestFixture.getLeaderRetrievalConfigMapCallback();
+        }
+
+        void notifyLeaderRetrievalWatchOnModifiedConfigMap() throws Exception {
+            kubernetesTestFixture
+                    .getLeaderRetrievalConfigMapCallback()
+                    .onModified(
+                            Collections.singletonList(kubernetesTestFixture.getLeaderConfigMap()));
+        }
+
+        void notifyLeaderElectionWatchOnModifiedConfigMap() throws Exception {
+            kubernetesTestFixture
+                    .getLeaderElectionConfigMapCallback()
+                    .onModified(
+                            Collections.singletonList(kubernetesTestFixture.getLeaderConfigMap()));
+        }
+
+        void runTest(RunnableWithException testMethod) throws Exception {
+            try {
+                testMethod.run();
+            } finally {
+                leaderElectionDriver.close();
+                kubernetesTestFixture.close();
+            }
+        }
+    }
 }

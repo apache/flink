@@ -100,5 +100,9 @@ public abstract class LeaderElectionEvent {
         public boolean isAllKnownLeaderInformationEvent() {
             return true;
         }
+
+        public Collection<LeaderInformationWithComponentId> getLeaderInformationWithComponentIds() {
+            return leaderInformationWithComponentIds;
+        }
     }
 }
