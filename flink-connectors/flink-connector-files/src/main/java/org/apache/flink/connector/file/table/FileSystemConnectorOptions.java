@@ -51,13 +51,13 @@ public class FileSystemConnectorOptions {
                     .durationType()
                     .noDefaultValue()
                     .withDescription(
-                            "The interval in which the source checks for new files. "
+                            "The interval in which the source checks for new files. The interval must be greater than 0. "
                                     + "Each file is uniquely identified by its path, and will be processed once, as soon as it's discovered. "
                                     + "The set of files already processed is kept in state during the whole lifecycle of the source, "
                                     + "so it's persisted in checkpoints and savepoints together with the source state. "
                                     + "Shorter intervals mean that files are discovered more quickly, "
                                     + "but also imply more frequent listing or directory traversal of the file system / object store. "
-                                    + "If this config option is empty, the provided path will be scanned once, hence the source will be bounded.");
+                                    + "If this config option is not set, the provided path will be scanned once, hence the source will be bounded.");
 
     public static final ConfigOption<MemorySize> SINK_ROLLING_POLICY_FILE_SIZE =
             key("sink.rolling-policy.file-size")
