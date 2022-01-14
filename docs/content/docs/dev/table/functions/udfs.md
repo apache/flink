@@ -242,7 +242,7 @@ The class must be declared `public`, not `abstract`, and should be globally acce
 
 For storing a user-defined function in a persistent catalog, the class must have a default constructor
 and must be instantiable during runtime. Anonymous functions in Table API can only be persisted if the
-function is not stateful (i.e. no non-transient fields).
+function is not stateful (i.e. containing only transient and static fields).
 
 ### Evaluation Methods
 

@@ -76,7 +76,7 @@ import org.apache.flink.util.Collector;
  *
  * <p>For storing a user-defined function in a catalog, the class must have a default constructor
  * and must be instantiable during runtime. Anonymous functions in Table API can only be persisted
- * if the function is not stateful (i.e. no non-transient fields).
+ * if the function is not stateful (i.e. containing only transient and static fields).
  *
  * <pre>{@code
  * Processes the input values and updates the provided accumulator instance. The method
