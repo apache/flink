@@ -87,6 +87,9 @@ public class NettyShuffleEnvironmentConfiguration {
 
     private final int maxBuffersPerChannel;
 
+    /** The maximum number of tpc connections between taskmanagers for data communication. */
+    private final int maxNumberOfConnections;
+
     public NettyShuffleEnvironmentConfiguration(
             int numNetworkBuffers,
             int networkBufferSize,
@@ -104,7 +107,8 @@ public class NettyShuffleEnvironmentConfiguration {
             int maxBuffersPerChannel,
             long batchShuffleReadMemoryBytes,
             int sortShuffleMinBuffers,
-            int sortShuffleMinParallelism) {
+            int sortShuffleMinParallelism,
+            int maxNumberOfConnections) {
 
         this.numNetworkBuffers = numNetworkBuffers;
         this.networkBufferSize = networkBufferSize;
@@ -123,6 +127,7 @@ public class NettyShuffleEnvironmentConfiguration {
         this.batchShuffleReadMemoryBytes = batchShuffleReadMemoryBytes;
         this.sortShuffleMinBuffers = sortShuffleMinBuffers;
         this.sortShuffleMinParallelism = sortShuffleMinParallelism;
+        this.maxNumberOfConnections = maxNumberOfConnections;
     }
 
     // ------------------------------------------------------------------------
@@ -197,6 +202,10 @@ public class NettyShuffleEnvironmentConfiguration {
 
     public int getMaxBuffersPerChannel() {
         return maxBuffersPerChannel;
+    }
+
+    public int getMaxNumberOfConnections() {
+        return maxNumberOfConnections;
     }
 
     // ------------------------------------------------------------------------
@@ -280,6 +289,11 @@ public class NettyShuffleEnvironmentConfiguration {
         String compressionCodec =
                 configuration.getString(NettyShuffleEnvironmentOptions.SHUFFLE_COMPRESSION_CODEC);
 
+        int maxNumConnections =
+                Math.max(
+                        1,
+                        configuration.getInteger(
+                                NettyShuffleEnvironmentOptions.MAX_NUM_TCP_CONNECTIONS));
         return new NettyShuffleEnvironmentConfiguration(
                 numberOfNetworkBuffers,
                 pageSize,
@@ -297,7 +311,8 @@ public class NettyShuffleEnvironmentConfiguration {
                 maxBuffersPerChannel,
                 batchShuffleReadMemoryBytes,
                 sortShuffleMinBuffers,
-                sortShuffleMinParallelism);
+                sortShuffleMinParallelism,
+                maxNumConnections);
     }
 
     /**
@@ -434,6 +449,7 @@ public class NettyShuffleEnvironmentConfiguration {
         result = 31 * result + Objects.hashCode(batchShuffleReadMemoryBytes);
         result = 31 * result + sortShuffleMinBuffers;
         result = 31 * result + sortShuffleMinParallelism;
+        result = 31 * result + maxNumberOfConnections;
         return result;
     }
 
@@ -464,7 +480,8 @@ public class NettyShuffleEnvironmentConfiguration {
                     && this.blockingShuffleCompressionEnabled
                             == that.blockingShuffleCompressionEnabled
                     && this.maxBuffersPerChannel == that.maxBuffersPerChannel
-                    && Objects.equals(this.compressionCodec, that.compressionCodec);
+                    && Objects.equals(this.compressionCodec, that.compressionCodec)
+                    && this.maxNumberOfConnections == that.maxNumberOfConnections;
         }
     }
 
@@ -501,6 +518,8 @@ public class NettyShuffleEnvironmentConfiguration {
                 + sortShuffleMinBuffers
                 + ", sortShuffleMinParallelism="
                 + sortShuffleMinParallelism
+                + ", maxNumberOfConnections="
+                + maxNumberOfConnections
                 + '}';
     }
 }
