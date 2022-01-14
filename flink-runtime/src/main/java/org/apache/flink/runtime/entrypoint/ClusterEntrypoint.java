@@ -202,7 +202,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                 // clean up any partial state
                 shutDownAsync(
                                 ApplicationStatus.FAILED,
-                                ShutdownBehaviour.STOP_APPLICATION,
+                                ShutdownBehaviour.GRACEFUL_SHUTDOWN,
                                 ExceptionUtils.stringifyException(strippedThrowable),
                                 false)
                         .get(
@@ -271,7 +271,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                                 if (throwable != null) {
                                     shutDownAsync(
                                             ApplicationStatus.UNKNOWN,
-                                            ShutdownBehaviour.STOP_APPLICATION,
+                                            ShutdownBehaviour.GRACEFUL_SHUTDOWN,
                                             ExceptionUtils.stringifyException(throwable),
                                             false);
                                 } else {
@@ -280,7 +280,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                                     // already triggered, this will do nothing
                                     shutDownAsync(
                                             applicationStatus,
-                                            ShutdownBehaviour.STOP_APPLICATION,
+                                            ShutdownBehaviour.GRACEFUL_SHUTDOWN,
                                             null,
                                             true);
                                 }
@@ -386,7 +386,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
         return shutDownAsync(
                         ApplicationStatus.UNKNOWN,
-                        ShutdownBehaviour.STOP_PROCESS,
+                        ShutdownBehaviour.PROCESS_FAILURE,
                         "Cluster entrypoint has been closed externally.",
                         false)
                 .thenAccept(ignored -> {});
@@ -540,9 +540,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         synchronized (lock) {
             if (clusterComponent != null) {
                 switch (shutdownBehaviour) {
-                    case STOP_APPLICATION:
+                    case GRACEFUL_SHUTDOWN:
                         return clusterComponent.stopApplication(applicationStatus, diagnostics);
-                    case STOP_PROCESS:
+                    case PROCESS_FAILURE:
                     default:
                         return clusterComponent.stopProcess();
                 }
@@ -650,7 +650,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     }
 
     private enum ShutdownBehaviour {
-        STOP_APPLICATION,
-        STOP_PROCESS,
+        GRACEFUL_SHUTDOWN,
+        PROCESS_FAILURE,
     }
 }
