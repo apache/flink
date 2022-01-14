@@ -755,3 +755,39 @@ some_stream.filter(...).slot_sharing_group("name")
 ```
 {{< /tab >}}
 {{< /tabs>}}
+
+## 名字和描述
+
+Flink里的算子和作业节点会有一个名字和一个描述。名字和描述。名字和描述都是用来介绍一个算子或者节点是在做什么操作，但是他们会被用在不同地方。
+
+名字会用在用户界面、线程名、日志、指标等场景。节点的名字会根据节点中算子的名字来构建。
+名字需要尽可能的简洁，避免对外部系统产生大的压力。
+
+描述主要用在执行计划展示，以及用户界面展示。节点的描述同样是根据节点中算子的描述来构建。
+描述可以包括详细的算子行为的信息，以便我们在运行时进行debug分析。
+
+{{< tabs namedescription>}}
+{{< tab "Java" >}}
+```java
+someStream.filter(...).setName("filter").setDescription("x in (1, 2, 3, 4) and y > 1")
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+someStream.filter(...).setName("filter").setDescription("x in (1, 2, 3, 4) and y > 1")
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+some_stream.filter(...).name("filter").set_description("x in (1, 2, 3, 4) and y > 1")
+```
+{{< /tab >}}
+{{< /tabs>}}
+
+节点的描述默认是按照一个多行的树形结构来构建的，用户可以通过把`pipeline.vertex-description-mode`设为`CASCADING`, 实现将描述改为老版本的单行递归模式。
+
+Flink SQL框架生成的算子默认会有一个由算子的类型以及id构成的名字，以及一个带有详细信息的描述。
+用户可以通过将`table.optimizer.simplify-operator-name-enabled`设为`false`，将名字改为和以前的版本一样的详细描述。
+
+当一个作业的拓扑很复杂时，用户可以把`pipeline.vertex-name-include-index-prefix`设为`true`，在节点的名字前增加一个拓扑序的前缀，这样就可以很容易根据指标以及日志的信息快速找到拓扑图中对应节点。
+
