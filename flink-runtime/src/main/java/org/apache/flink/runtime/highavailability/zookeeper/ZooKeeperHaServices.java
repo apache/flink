@@ -82,7 +82,10 @@ import java.util.concurrent.Executor;
  * <p>In the case of a standalone cluster, that cluster-id needs to be configured via {@link
  * HighAvailabilityOptions#HA_CLUSTER_ID}. All nodes with the same cluster id will join the same
  * cluster and participate in the execution of the same set of jobs.
+ *
+ * @deprecated in favour of {@link ZooKeeperMultipleComponentLeaderElectionHaServices}
  */
+@Deprecated
 public class ZooKeeperHaServices extends AbstractZooKeeperHaServices {
 
     // ------------------------------------------------------------------------

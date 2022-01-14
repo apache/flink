@@ -22,7 +22,11 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
 
-/** {@link LeaderElectionDriverFactory} implementation for Zookeeper. */
+/**
+ * {@link LeaderElectionDriverFactory} implementation for Zookeeper.
+ *
+ * @deprecated in favour of {@link ZooKeeperMultipleComponentLeaderElectionDriverFactory}
+ */
 public class ZooKeeperLeaderElectionDriverFactory implements LeaderElectionDriverFactory {
 
     private final CuratorFramework client;
