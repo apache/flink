@@ -39,8 +39,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.kubernetes.highavailability.KubernetesHighAvailabilityTestBase.LEADER_ADDRESS;
-import static org.apache.flink.kubernetes.highavailability.KubernetesHighAvailabilityTestBase.LEADER_CONFIGMAP_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -53,6 +51,9 @@ import static org.hamcrest.Matchers.is;
  */
 public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
 
+    private static final String LEADER_CONFIGMAP_NAME = "leader-test-cluster";
+    private static final String LEADER_ADDRESS =
+            "akka.tcp://flink@172.20.1.21:6123/user/rpc/dispatcher";
     @ClassRule public static KubernetesResource kubernetesResource = new KubernetesResource();
 
     private static final long TIMEOUT = 120L * 1000L;
