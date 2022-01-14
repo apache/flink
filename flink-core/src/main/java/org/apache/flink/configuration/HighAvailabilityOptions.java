@@ -204,6 +204,25 @@ public class HighAvailabilityOptions {
                     .withDescription(
                             "The time before a JobManager after a fail over recovers the current jobs.");
 
+    /**
+     * Safety hatch to fallback to the old ha services implementations.
+     *
+     * <p>Ideally, we can remove this option together with the old implementations in the next
+     * release.
+     *
+     * @see <a href="https://issues.apache.org/jira/browse/FLINK-25806">FLINK-25806</a>
+     */
+    @Documentation.Section(Documentation.Sections.EXPERT_HIGH_AVAILABILITY)
+    public static final ConfigOption<Boolean> USE_OLD_HA_SERVICES =
+            key("high-availability.use-old-ha-services")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Use this option to disable the new HA service implementations for ZooKeeper and K8s. This is a safety hatch in case that the new ha services are buggy.")
+                                    .build());
+
     // ------------------------------------------------------------------------
 
     /** Not intended to be instantiated. */
