@@ -61,7 +61,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * k8s-ha-app1-00000000000000000000000000000000-jobmanager-leader
  *
  * <p>Note that underline("_") is not allowed in Kubernetes ConfigMap name.
+ *
+ * @deprecated in favour of {@link KubernetesMultipleComponentLeaderElectionHaServices}
  */
+@Deprecated
 public class KubernetesHaServices extends AbstractHaServices {
 
     private final String clusterId;

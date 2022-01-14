@@ -54,7 +54,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Kubernetes ConfigMap. Note that the contending lock and leader storage are using the same
  * ConfigMap. And every component(e.g. ResourceManager, Dispatcher, RestEndpoint, JobManager for
  * each job) will have a separate ConfigMap.
+ *
+ * @deprecated in favour of {@link KubernetesMultipleComponentLeaderElectionDriver}
  */
+@Deprecated
 public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
     private static final Logger LOG = LoggerFactory.getLogger(KubernetesLeaderElectionDriver.class);

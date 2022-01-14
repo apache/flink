@@ -27,7 +27,12 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
 import java.util.concurrent.Executor;
 
-/** {@link LeaderRetrievalDriverFactory} implementation for Kubernetes. */
+/**
+ * {@link LeaderRetrievalDriverFactory} implementation for Kubernetes.
+ *
+ * @deprecated in favour of {@link KubernetesMultipleComponentLeaderRetrievalDriverFactory}
+ */
+@Deprecated
 public class KubernetesLeaderRetrievalDriverFactory implements LeaderRetrievalDriverFactory {
 
     private final FlinkKubeClient kubeClient;
