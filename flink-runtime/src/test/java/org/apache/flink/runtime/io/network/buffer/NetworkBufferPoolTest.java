@@ -18,12 +18,14 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.MatcherAssert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -35,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -48,6 +51,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.core.IsCollectionContaining.hasItem;
 import static org.hamcrest.core.IsNot.not;
@@ -285,6 +289,71 @@ public class NetworkBufferPoolTest extends TestLogger {
             assertEquals(globalPool.getNumberOfAvailableMemorySegments(), numBuffers);
         } finally {
             globalPool.destroy();
+        }
+    }
+
+    @Test
+    public void testSegmentsUsage() throws IOException {
+        try (CloseableRegistry closeableRegistry = new CloseableRegistry()) {
+            NetworkBufferPool globalPool = new NetworkBufferPool(50, 128);
+            closeableRegistry.registerCloseable(globalPool::destroy);
+
+            BufferPool bufferPool1 = globalPool.createBufferPool(10, 20);
+
+            assertEquals(20, globalPool.getNumberOfRequestedMemorySegments());
+            assertEquals(40, globalPool.getRequestedSegmentsUsage());
+            MatcherAssert.assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
+
+            closeableRegistry.registerCloseable(
+                    (globalPool.createBufferPool(10, Integer.MAX_VALUE))::lazyDestroy);
+
+            assertEquals(30, globalPool.getNumberOfRequestedMemorySegments());
+            assertEquals(60, globalPool.getRequestedSegmentsUsage());
+            MatcherAssert.assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
+
+            closeableRegistry.registerCloseable((globalPool.createBufferPool(10, 30))::lazyDestroy);
+
+            assertEquals(60, globalPool.getNumberOfRequestedMemorySegments());
+            assertEquals(120, globalPool.getRequestedSegmentsUsage());
+            MatcherAssert.assertThat(
+                    globalPool.getUsageWarning(),
+                    equalTo(
+                            Optional.of(
+                                    "Memory usage [120%] is too high to satisfy all of the requests. "
+                                            + "This can severely impact network throughput. "
+                                            + "Please consider increasing available network memory, "
+                                            + "or decreasing configured size of network buffer pools. ("
+                                            + "totalMemory=6.250kb (6400 bytes), "
+                                            + "requestedMemory=7.500kb (7680 bytes), "
+                                            + "missingMemory=1.250kb (1280 bytes))")));
+            MatcherAssert.assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
+
+            BufferPool bufferPool2 = globalPool.createBufferPool(10, 20);
+
+            assertEquals(80, globalPool.getNumberOfRequestedMemorySegments());
+            assertEquals(160, globalPool.getRequestedSegmentsUsage());
+            MatcherAssert.assertThat(
+                    globalPool.getUsageWarning(),
+                    equalTo(
+                            Optional.of(
+                                    "Memory usage [160%] is too high to satisfy all of the requests. "
+                                            + "This can severely impact network throughput. "
+                                            + "Please consider increasing available network memory, "
+                                            + "or decreasing configured size of network buffer pools. ("
+                                            + "totalMemory=6.250kb (6400 bytes), "
+                                            + "requestedMemory=10.000kb (10240 bytes), "
+                                            + "missingMemory=3.750kb (3840 bytes))")));
+
+            bufferPool2.lazyDestroy();
+            bufferPool1.lazyDestroy();
+
+            assertEquals(40, globalPool.getNumberOfRequestedMemorySegments());
+            assertEquals(40 * 128, globalPool.getRequestedMemory());
+            assertEquals(80, globalPool.getRequestedSegmentsUsage());
+            MatcherAssert.assertThat(
+                    globalPool.getUsageWarning(),
+                    equalTo(Optional.of("Memory usage [80%] went back to normal")));
+            MatcherAssert.assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
         }
     }
 

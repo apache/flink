@@ -884,8 +884,8 @@ Metrics related to data exchange between task executors using netty network comm
   </thead>
   <tbody>
     <tr>
-      <th rowspan="6"><strong>TaskManager</strong></th>
-      <td rowspan="6">Status.Shuffle.Netty</td>
+      <th rowspan="7"><strong>TaskManager</strong></th>
+      <td rowspan="7">Status.Shuffle.Netty</td>
       <td>AvailableMemorySegments</td>
       <td>The number of unused memory segments.</td>
       <td>Gauge</td>
@@ -913,6 +913,11 @@ Metrics related to data exchange between task executors using netty network comm
     <tr>
       <td>TotalMemory</td>
       <td>The amount of allocated memory in bytes.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>RequestedMemoryUsage</td>
+      <td>Experimental: The usage of the network memory. Shows (as percentage) the total amount of requested memory from all of the subtasks. It can exceed 100% as not all requested memory is required for subtask to make progress. However if usage exceeds 100% throughput can suffer greatly and please consider increasing available network memory, or decreasing configured size of network buffer pools.</td>
       <td>Gauge</td>
     </tr>
     <tr>
