@@ -53,6 +53,7 @@ import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.runners.Parameterized.Parameters;
@@ -66,6 +67,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.test.TableAssertions.assertThat;
 
 /** Tests for {@link LogicalRelDataTypeConverter}. */
+@Disabled // temporarily disabled see FLINK-25659
 public class LogicalRelDataTypeConverterTest {
 
     @ParameterizedTest
