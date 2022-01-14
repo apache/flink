@@ -33,13 +33,16 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
@@ -110,6 +113,36 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
             nettyServerAndClient.client().shutdown();
             nettyServerAndClient.server().shutdown();
         }
+    }
+
+    @Test
+    public void testReuseNettyPartitionRequestClient() throws Exception {
+        NettyTestUtil.NettyServerAndClient nettyServerAndClient = createNettyServerAndClient();
+        try {
+            checkReuseNettyPartitionRequestClient(nettyServerAndClient, 1);
+            checkReuseNettyPartitionRequestClient(nettyServerAndClient, 2);
+            checkReuseNettyPartitionRequestClient(nettyServerAndClient, 5);
+            checkReuseNettyPartitionRequestClient(nettyServerAndClient, 10);
+        } finally {
+            nettyServerAndClient.client().shutdown();
+            nettyServerAndClient.server().shutdown();
+        }
+    }
+
+    private void checkReuseNettyPartitionRequestClient(
+            NettyTestUtil.NettyServerAndClient nettyServerAndClient, int maxNumberOfConnections)
+            throws Exception {
+        final Set<NettyPartitionRequestClient> set = new HashSet<>();
+
+        final PartitionRequestClientFactory factory =
+                new PartitionRequestClientFactory(
+                        nettyServerAndClient.client(), 0, maxNumberOfConnections);
+        for (int i = 0; i < Math.max(100, maxNumberOfConnections); i++) {
+            final ConnectionID connectionID =
+                    nettyServerAndClient.getConnectionID((int) (Math.random() * Integer.MAX_VALUE));
+            set.add(factory.createPartitionRequestClient(connectionID));
+        }
+        assertTrue(set.size() <= maxNumberOfConnections);
     }
 
     @Test
