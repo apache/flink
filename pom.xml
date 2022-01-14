@@ -102,6 +102,7 @@ under the License.
 		<!-- Allow overriding the fork behaviour for the expensive tests in flink-tests
 			 to avoid process kills due to container limits on TravisCI -->
 		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
+		<flink.forkCountTablePlanner>${flink.forkCount}</flink.forkCountTablePlanner>
 		<flink.reuseForks>true</flink.reuseForks>
 		<flink.shaded.version>14.0</flink.shaded.version>
 		<flink.shaded.jackson.version>2.12.4</flink.shaded.jackson.version>

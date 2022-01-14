@@ -500,6 +500,7 @@ under the License.
 							</includes>
 							<!-- override reuseForks to true to reduce testing time -->
 							<reuseForks>true</reuseForks>
+							<forkCount>${flink.forkCountTablePlanner}</forkCount>
 						</configuration>
 					</execution>
 				</executions>
