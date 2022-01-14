@@ -243,6 +243,10 @@ $ ./bin/flink run \
 ```
 This is useful if your program dropped an operator that was part of the savepoint.
 
+You can also select the [restore mode]({{< ref "docs/ops/state/savepoints" >}}#restore-mode)
+which should be used for the savepoint. The mode controls who takes ownership of the files of
+the specified savepoint.
+
 {{< top >}}
 
 ## CLI Actions
