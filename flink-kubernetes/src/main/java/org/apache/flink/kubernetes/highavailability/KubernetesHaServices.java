@@ -130,10 +130,11 @@ public class KubernetesHaServices extends AbstractHaServices {
 
     @Override
     public CheckpointRecoveryFactory createCheckpointRecoveryFactory() {
-        return new KubernetesCheckpointRecoveryFactory(
+        return KubernetesCheckpointRecoveryFactory.withLeadershipValidation(
                 kubeClient,
                 configuration,
                 ioExecutor,
+                clusterId,
                 this::getLeaderPathForJobManager,
                 lockIdentity);
     }

@@ -149,8 +149,8 @@ public class KubernetesMultipleComponentLeaderElectionHaServices extends Abstrac
 
     @Override
     protected CheckpointRecoveryFactory createCheckpointRecoveryFactory() {
-        return new KubernetesCheckpointRecoveryFactory(
-                kubeClient, configuration, ioExecutor, this::getJobSpecificConfigMap, lockIdentity);
+        return KubernetesCheckpointRecoveryFactory.withoutLeadershipValidation(
+                kubeClient, configuration, ioExecutor, clusterId, this::getJobSpecificConfigMap);
     }
 
     private String getJobSpecificConfigMap(JobID jobID) {

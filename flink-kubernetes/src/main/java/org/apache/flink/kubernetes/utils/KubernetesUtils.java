@@ -44,6 +44,8 @@ import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -51,6 +53,7 @@ import org.apache.flink.util.function.FunctionUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
+import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.KubernetesResource;
@@ -73,12 +76,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.kubernetes.utils.Constants.CHECKPOINT_ID_KEY_PREFIX;
 import static org.apache.flink.kubernetes.utils.Constants.COMPLETED_CHECKPOINT_FILE_SUFFIX;
 import static org.apache.flink.kubernetes.utils.Constants.JOB_GRAPH_STORE_KEY_PREFIX;
+import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_ADDRESS_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_SESSION_ID_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.SUBMITTED_JOBGRAPH_FILE_PREFIX;
@@ -299,7 +304,7 @@ public class KubernetesUtils {
             FlinkKubeClient kubeClient,
             Executor executor,
             String configMapName,
-            String lockIdentity,
+            @Nullable String lockIdentity,
             int maxNumberOfCheckpointsToRetain,
             SharedStateRegistryFactory sharedStateRegistryFactory,
             Executor ioExecutor)
@@ -510,6 +515,51 @@ public class KubernetesUtils {
     /** Checks if hostNetwork is enabled. */
     public static boolean isHostNetwork(Configuration configuration) {
         return configuration.getBoolean(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED);
+    }
+
+    /**
+     * Creates a config map with the given name if it does not exist.
+     *
+     * @param flinkKubeClient to use for creating the config map
+     * @param configMapName name of the config map
+     * @param clusterId clusterId to which the map belongs
+     * @throws FlinkException if the config map could not be created
+     */
+    public static void createConfigMapIfItDoesNotExist(
+            FlinkKubeClient flinkKubeClient, String configMapName, String clusterId)
+            throws FlinkException {
+
+        int attempt = 0;
+        CompletionException lastException = null;
+
+        final int maxAttempts = 10;
+        final KubernetesConfigMap configMap =
+                new KubernetesConfigMap(
+                        new ConfigMapBuilder()
+                                .withNewMetadata()
+                                .withName(configMapName)
+                                .withLabels(
+                                        getConfigMapLabels(
+                                                clusterId, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY))
+                                .endMetadata()
+                                .build());
+
+        while (!flinkKubeClient.getConfigMap(configMapName).isPresent() && attempt < maxAttempts) {
+            try {
+                flinkKubeClient.createConfigMap(configMap).join();
+            } catch (CompletionException e) {
+                // retrying
+                lastException = ExceptionUtils.firstOrSuppressed(e, lastException);
+            }
+
+            attempt++;
+        }
+
+        if (attempt >= maxAttempts && lastException != null) {
+            throw new FlinkException(
+                    String.format("Could not create the config map %s.", configMapName),
+                    lastException);
+        }
     }
 
     /** Cluster components. */
