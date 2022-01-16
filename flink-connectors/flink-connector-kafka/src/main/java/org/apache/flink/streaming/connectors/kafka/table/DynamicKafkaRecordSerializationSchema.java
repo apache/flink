@@ -30,6 +30,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 
 import javax.annotation.Nullable;
 
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.TOPIC_UNSPECIFIED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** SerializationSchema used by {@link KafkaDynamicSink} to configure a {@link KafkaSink}. */
@@ -77,13 +78,14 @@ class DynamicKafkaRecordSerializationSchema implements KafkaRecordSerializationS
         // shortcut in case no input projection is required
         if (keySerialization == null && !hasMetadata) {
             final byte[] valueSerialized = valueSerialization.serialize(consumedRow);
+            final String targetTopic = getTargetTopic(consumedRow);
             return new ProducerRecord<>(
-                    topic,
+                    targetTopic,
                     extractPartition(
                             consumedRow,
                             null,
                             valueSerialized,
-                            context.getPartitionsForTopic(topic)),
+                            context.getPartitionsForTopic(targetTopic)),
                     null,
                     valueSerialized);
         }
@@ -116,13 +118,14 @@ class DynamicKafkaRecordSerializationSchema implements KafkaRecordSerializationS
             valueSerialized = valueSerialization.serialize(valueRow);
         }
 
+        final String targetTopic = getTargetTopic(consumedRow);
         return new ProducerRecord<>(
-                topic,
+                targetTopic,
                 extractPartition(
                         consumedRow,
                         keySerialized,
                         valueSerialized,
-                        context.getPartitionsForTopic(topic)),
+                        context.getPartitionsForTopic(targetTopic)),
                 readMetadata(consumedRow, KafkaDynamicSink.WritableMetadata.TIMESTAMP),
                 keySerialized,
                 valueSerialized,
@@ -144,6 +147,12 @@ class DynamicKafkaRecordSerializationSchema implements KafkaRecordSerializationS
         valueSerialization.open(context);
     }
 
+    private String getTargetTopic(RowData element) {
+        return TOPIC_UNSPECIFIED.equals(topic)
+                ? readMetadata(element, KafkaDynamicSink.WritableMetadata.TOPIC)
+                : topic;
+    }
+
     private Integer extractPartition(
             RowData consumedRow,
             @Nullable byte[] keySerialized,
@@ -151,7 +160,11 @@ class DynamicKafkaRecordSerializationSchema implements KafkaRecordSerializationS
             int[] partitions) {
         if (partitioner != null) {
             return partitioner.partition(
-                    consumedRow, keySerialized, valueSerialized, topic, partitions);
+                    consumedRow,
+                    keySerialized,
+                    valueSerialized,
+                    getTargetTopic(consumedRow),
+                    partitions);
         }
         return null;
     }

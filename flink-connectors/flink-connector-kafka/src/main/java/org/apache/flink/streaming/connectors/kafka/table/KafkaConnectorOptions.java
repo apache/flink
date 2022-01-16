@@ -118,8 +118,8 @@ public class KafkaConnectorOptions {
                     .asList()
                     .noDefaultValue()
                     .withDescription(
-                            "Topic names from which the table is read. Either 'topic' or 'topic-pattern' must be set for source. "
-                                    + "Option 'topic' is required for sink.");
+                            "Topic name(s) to read data from when the table is used as source. It also supports topic list for source by separating topic by semicolon like 'topic-1;topic-2'. Note, only one of 'topic-pattern' and 'topic' can be specified for sources. "
+                                    + "When the table is used as sink, the topic name is the topic to write data. If the 'topic' option isn't specified for sink table, 'topic' metadata column must be specified. If the 'topic' option is specified for sink table, 'topic' metadata column can only be readable.");
 
     public static final ConfigOption<String> TOPIC_PATTERN =
             ConfigOptions.key("topic-pattern")
