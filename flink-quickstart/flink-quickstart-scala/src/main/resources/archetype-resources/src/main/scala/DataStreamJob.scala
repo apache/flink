@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.scala._
  * 'mvn clean package' on the command line.
  *
  * <p>If you change the name of the main class (with the public static void main(String[] args))
- * method, change the respective entry in the POM.xml file (simply search for 'mainClass').
+ * method, change the respective entry in the pom.xml file (simply search for 'mainClass').
  */
 object DataStreamJob {
   def main(args: Array[String]) {
