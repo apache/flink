@@ -22,6 +22,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -46,7 +47,6 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -112,16 +112,17 @@ public class TemporalTableSourceSpecSerdeTest {
         TableSourceTable tableSourceTable1 =
                 new TableSourceTable(
                         null,
-                        ObjectIdentifier.of("default_catalog", "default_db", "MyTable"),
                         relDataType1,
                         FlinkStatistic.UNKNOWN(),
                         lookupTableSource,
                         true,
-                        resolvedCatalogTable,
+                        ContextResolvedTable.temporary(
+                                ObjectIdentifier.of("default_catalog", "default_db", "MyTable"),
+                                resolvedCatalogTable),
                         FLINK_CONTEXT,
                         new SourceAbilitySpec[] {});
         TemporalTableSourceSpec temporalTableSourceSpec1 =
                 new TemporalTableSourceSpec(tableSourceTable1, new TableConfig());
-        return Arrays.asList(temporalTableSourceSpec1);
+        return Collections.singletonList(temporalTableSourceSpec1);
     }
 }

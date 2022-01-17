@@ -73,6 +73,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.assertj.core.api.Assertions;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -215,7 +216,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         StartupMode.SPECIFIC_OFFSETS,
                         specificOffsets,
                         0);
-        assertEquals(actualKafkaSource, expectedKafkaSource);
+        Assertions.assertThat(actualKafkaSource).isEqualTo(expectedKafkaSource);
 
         ScanTableSource.ScanRuntimeProvider provider =
                 actualKafkaSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);

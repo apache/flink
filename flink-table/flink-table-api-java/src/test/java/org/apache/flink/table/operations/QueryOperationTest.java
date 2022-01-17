@@ -19,7 +19,11 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
@@ -45,8 +49,16 @@ public class QueryOperationTest {
                 new ProjectQueryOperation(
                         Collections.singletonList(
                                 new FieldReferenceExpression("a", DataTypes.INT(), 0, 0)),
-                        new CatalogQueryOperation(
-                                ObjectIdentifier.of("cat1", "db1", "tab1"), schema),
+                        new SourceQueryOperation(
+                                ContextResolvedTable.temporary(
+                                        ObjectIdentifier.of("cat1", "db1", "tab1"),
+                                        new ResolvedCatalogTable(
+                                                CatalogTable.of(
+                                                        Schema.newBuilder().build(),
+                                                        null,
+                                                        Collections.emptyList(),
+                                                        Collections.emptyMap()),
+                                                schema))),
                         schema);
 
         SetQueryOperation unionQueryOperation =
@@ -60,9 +72,9 @@ public class QueryOperationTest {
         assertEquals(
                 "Union: (all: [true])\n"
                         + "    Project: (projections: [a])\n"
-                        + "        CatalogTable: (identifier: [`cat1`.`db1`.`tab1`], fields: [a])\n"
+                        + "        CatalogTable: (identifier: [cat1.db1.tab1], fields: [a])\n"
                         + "    Project: (projections: [a])\n"
-                        + "        CatalogTable: (identifier: [`cat1`.`db1`.`tab1`], fields: [a])",
+                        + "        CatalogTable: (identifier: [cat1.db1.tab1], fields: [a])",
                 unionQueryOperation.asSummaryString());
     }
 
@@ -83,8 +95,16 @@ public class QueryOperationTest {
                         Collections.emptyList(),
                         WindowAggregateQueryOperation.ResolvedGroupWindow.sessionWindow(
                                 "w", field, intervalOfMillis(10)),
-                        new CatalogQueryOperation(
-                                ObjectIdentifier.of("cat1", "db1", "tab1"), schema),
+                        new SourceQueryOperation(
+                                ContextResolvedTable.temporary(
+                                        ObjectIdentifier.of("cat1", "db1", "tab1"),
+                                        new ResolvedCatalogTable(
+                                                CatalogTable.of(
+                                                        Schema.newBuilder().build(),
+                                                        null,
+                                                        Collections.emptyList(),
+                                                        Collections.emptyMap()),
+                                                schema))),
                         schema);
 
         DistinctQueryOperation distinctQueryOperation = new DistinctQueryOperation(tableOperation);
@@ -93,7 +113,7 @@ public class QueryOperationTest {
                 "Distinct:\n"
                         + "    WindowAggregate: (group: [a], agg: [sum(a)], windowProperties: [],"
                         + " window: [SessionWindow(field: [a], gap: [10])])\n"
-                        + "        CatalogTable: (identifier: [`cat1`.`db1`.`tab1`], fields: [a])",
+                        + "        CatalogTable: (identifier: [cat1.db1.tab1], fields: [a])",
                 distinctQueryOperation.asSummaryString());
     }
 

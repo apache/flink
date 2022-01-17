@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
@@ -104,7 +105,7 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
         if (!(dynamicTableSource instanceof SupportsPartitionPushDown)) {
             return false;
         }
-        CatalogTable catalogTable = tableSourceTable.catalogTable();
+        CatalogTable catalogTable = tableSourceTable.contextResolvedTable().getTable();
         if (!catalogTable.isPartitioned() || catalogTable.getPartitionKeys().isEmpty()) {
             return false;
         }
@@ -120,7 +121,11 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
 
         RelDataType inputFieldTypes = filter.getInput().getRowType();
         List<String> inputFieldNames = inputFieldTypes.getFieldNames();
-        List<String> partitionFieldNames = tableSourceTable.catalogTable().getPartitionKeys();
+        List<String> partitionFieldNames =
+                tableSourceTable
+                        .contextResolvedTable()
+                        .<ResolvedCatalogTable>getResolvedTable()
+                        .getPartitionKeys();
         // extract partition predicates
         RelBuilder relBuilder = call.builder();
         RexBuilder rexBuilder = relBuilder.getRexBuilder();
@@ -183,14 +188,13 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
 
         // build new statistic
         TableStats newTableStat = null;
-        ObjectIdentifier identifier = tableSourceTable.tableIdentifier();
-        ObjectPath tablePath = identifier.toObjectPath();
-        Optional<Catalog> catalogOptional =
-                context.getCatalogManager().getCatalog(identifier.getCatalogName());
-        Optional<TableStats> partitionStats;
-        if (catalogOptional.isPresent()) {
+        if (tableSourceTable.contextResolvedTable().isPermanent()) {
+            ObjectIdentifier identifier = tableSourceTable.contextResolvedTable().getIdentifier();
+            ObjectPath tablePath = identifier.toObjectPath();
+            Catalog catalog = tableSourceTable.contextResolvedTable().getCatalog().get();
             for (Map<String, String> partition : remainingPartitions) {
-                partitionStats = getPartitionStats(catalogOptional.get(), tablePath, partition);
+                Optional<TableStats> partitionStats =
+                        getPartitionStats(catalog, tablePath, partition);
                 if (!partitionStats.isPresent()) {
                     // clear all information before
                     newTableStat = null;
@@ -271,12 +275,9 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
             Seq<RexNode> partitionPredicate,
             List<String> inputFieldNames) {
         // get partitions from table/catalog and prune
-        Optional<Catalog> catalogOptional =
-                context.getCatalogManager()
-                        .getCatalog(tableSourceTable.tableIdentifier().getCatalogName());
+        Optional<Catalog> catalogOptional = tableSourceTable.contextResolvedTable().getCatalog();
 
         DynamicTableSource dynamicTableSource = tableSourceTable.tableSource();
-        ObjectIdentifier identifier = tableSourceTable.tableIdentifier();
         Optional<List<Map<String, String>>> optionalPartitions =
                 ((SupportsPartitionPushDown) dynamicTableSource).listPartitions();
         if (optionalPartitions.isPresent()) {
@@ -287,27 +288,37 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
             if (!catalogOptional.isPresent()) {
                 throw new TableException(
                         String.format(
-                                "Table %s must from a catalog, but %s is not a catalog",
-                                identifier.asSummaryString(), identifier.getCatalogName()));
+                                "Table '%s' connector doesn't provide partitions, and it cannot be loaded from the catalog",
+                                tableSourceTable
+                                        .contextResolvedTable()
+                                        .getIdentifier()
+                                        .asSummaryString()));
             }
             try {
                 return readPartitionFromCatalogAndPrune(
                         rexBuilder,
                         context,
                         catalogOptional.get(),
-                        identifier,
+                        tableSourceTable.contextResolvedTable().getIdentifier(),
                         inputFieldNames,
                         partitionPredicate,
                         pruner);
             } catch (TableNotExistException tableNotExistException) {
                 throw new TableException(
                         String.format(
-                                "Table %s is not found in catalog.", identifier.asSummaryString()));
+                                "Table %s is not found in catalog.",
+                                tableSourceTable
+                                        .contextResolvedTable()
+                                        .getIdentifier()
+                                        .asSummaryString()));
             } catch (TableNotPartitionedException tableNotPartitionedException) {
                 throw new TableException(
                         String.format(
                                 "Table %s is not a partitionable source. Validator should have checked it.",
-                                identifier.asSummaryString()),
+                                tableSourceTable
+                                        .contextResolvedTable()
+                                        .getIdentifier()
+                                        .asSummaryString()),
                         tableNotPartitionedException);
             }
         }

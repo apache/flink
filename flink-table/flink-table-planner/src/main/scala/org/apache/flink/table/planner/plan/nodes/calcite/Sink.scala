@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.calcite
 
-import org.apache.flink.table.catalog.{ObjectIdentifier, ResolvedCatalogTable}
+import org.apache.flink.table.catalog.{ContextResolvedTable, ObjectIdentifier, ResolvedCatalogTable}
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
@@ -38,7 +38,7 @@ import scala.collection.JavaConversions._
  * @param traitSet the traits of this rel
  * @param hints    the hints
  * @param input    input relational expression
- * @param tableIdentifier the full path of the table to retrieve.
+ * @param contextResolvedTable the table definition.
  * @param catalogTable Resolved catalog table where this table source table comes from
  * @param tableSink the [[DynamicTableSink]] for which to write into
  */
@@ -47,8 +47,7 @@ abstract class Sink(
     traitSet: RelTraitSet,
     input: RelNode,
     val hints: util.List[RelHint],
-    val tableIdentifier: ObjectIdentifier,
-    val catalogTable: ResolvedCatalogTable,
+    val contextResolvedTable: ContextResolvedTable,
     val tableSink: DynamicTableSink)
   extends SingleRel(cluster, traitSet, input) {
 
@@ -58,7 +57,7 @@ abstract class Sink(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
-      .item("table", tableIdentifier.asSummaryString())
+      .item("table", contextResolvedTable.getIdentifier.asSummaryString())
       .item("fields", getRowType.getFieldNames.mkString(", "))
       .itemIf("hints", RelExplainUtil.hintsToString(hints), !hints.isEmpty)
   }

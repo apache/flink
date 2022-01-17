@@ -16,16 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.connectors;
+package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.catalog.CatalogBaseTable;
-import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.ResolvedSchema;
 
 import java.util.Collections;
 import java.util.List;
@@ -34,20 +30,20 @@ import java.util.Optional;
 
 /**
  * Helper {@link CatalogTable} for representing a table that is backed by some inline connector
- * (i.e. {@link DataStream} or {@link TableResult#collect()}).
+ * (i.e. {@code DataStream} or {@link TableResult#collect()}).
  */
 @Internal
-final class InlineCatalogTable implements CatalogTable {
+public final class ExternalCatalogTable implements CatalogTable {
 
-    private final ResolvedSchema schema;
+    private final Schema schema;
 
-    InlineCatalogTable(ResolvedSchema schema) {
+    public ExternalCatalogTable(Schema schema) {
         this.schema = schema;
     }
 
     @Override
     public Schema getUnresolvedSchema() {
-        return Schema.newBuilder().fromResolvedSchema(schema).build();
+        return schema;
     }
 
     @Override
@@ -64,7 +60,7 @@ final class InlineCatalogTable implements CatalogTable {
 
     @Override
     public CatalogBaseTable copy() {
-        return new InlineCatalogTable(schema);
+        return new ExternalCatalogTable(schema);
     }
 
     @Override

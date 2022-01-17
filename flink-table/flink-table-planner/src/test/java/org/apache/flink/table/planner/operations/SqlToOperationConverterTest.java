@@ -48,7 +48,6 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
-import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -57,6 +56,7 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
 import org.apache.flink.table.operations.ShowModulesOperation;
+import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
@@ -895,8 +895,8 @@ public class SqlToOperationConverterTest {
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         Operation operation = parse(sql, planner, parser);
-        assertThat(operation).isInstanceOf(CatalogSinkModifyOperation.class);
-        CatalogSinkModifyOperation sinkModifyOperation = (CatalogSinkModifyOperation) operation;
+        assertThat(operation).isInstanceOf(SinkModifyOperation.class);
+        SinkModifyOperation sinkModifyOperation = (SinkModifyOperation) operation;
         final Map<String, String> expectedStaticPartitions = new HashMap<>();
         expectedStaticPartitions.put("a", "1");
         assertThat(sinkModifyOperation.getStaticPartitions()).isEqualTo(expectedStaticPartitions);
@@ -910,8 +910,8 @@ public class SqlToOperationConverterTest {
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         Operation operation = parse(sql, planner, parser);
-        assertThat(operation).isInstanceOf(CatalogSinkModifyOperation.class);
-        CatalogSinkModifyOperation sinkModifyOperation = (CatalogSinkModifyOperation) operation;
+        assertThat(operation).isInstanceOf(SinkModifyOperation.class);
+        SinkModifyOperation sinkModifyOperation = (SinkModifyOperation) operation;
         Map<String, String> dynamicOptions = sinkModifyOperation.getDynamicOptions();
         assertThat(dynamicOptions).isNotNull();
         assertThat(dynamicOptions.size()).isEqualTo(2);
@@ -1567,7 +1567,7 @@ public class SqlToOperationConverterTest {
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         Operation operation = parse(sql, planner, parser);
-        assertThat(operation).isInstanceOf(CatalogSinkModifyOperation.class);
+        assertThat(operation).isInstanceOf(SinkModifyOperation.class);
     }
 
     @Test

@@ -743,12 +743,11 @@ public interface TableEnvironment {
     /**
      * Returns a {@link Table} backed by the given {@link TableDescriptor descriptor}.
      *
-     * <p>The {@link TableDescriptor descriptor} is registered as an inline (i.e. anonymous)
-     * temporary table (see {@link #createTemporaryTable(String, TableDescriptor)}) using a unique
-     * identifier and then read. Note that calling this method multiple times, even with the same
-     * descriptor, results in multiple temporary tables. In such cases, it is recommended to
-     * register it under a name using #createTemporaryTable(String, TableDescriptor) and reference
-     * it via {@link #from(String)}.
+     * <p>The {@link TableDescriptor descriptor} won't be registered in the catalog, but it will be
+     * propagated directly in the operation tree. Note that calling this method multiple times, even
+     * with the same descriptor, results in multiple temporary tables. In such cases, it is
+     * recommended to register it under a name using {@link #createTemporaryTable(String,
+     * TableDescriptor)} and reference it via {@link #from(String)}.
      *
      * <p>Examples:
      *

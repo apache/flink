@@ -19,40 +19,45 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Describes a relational operation that was created from a lookup to a catalog. */
+/**
+ * Describes a query operation from a {@link ContextResolvedTable}.
+ *
+ * <p>The source table is described by {@link #getContextResolvedTable()}, and in general is used
+ * for every source which implementation is defined with {@link DynamicTableSource}. {@code
+ * DataStream} sources are handled by {@code ExternalQueryOperation}.
+ */
 @Internal
-public class CatalogQueryOperation implements QueryOperation {
+public class SourceQueryOperation implements QueryOperation {
 
-    private final ObjectIdentifier tableIdentifier;
-    private final ResolvedSchema resolvedSchema;
+    private final ContextResolvedTable contextResolvedTable;
 
-    public CatalogQueryOperation(ObjectIdentifier tableIdentifier, ResolvedSchema resolvedSchema) {
-        this.tableIdentifier = tableIdentifier;
-        this.resolvedSchema = resolvedSchema;
+    public SourceQueryOperation(ContextResolvedTable contextResolvedTable) {
+        this.contextResolvedTable = contextResolvedTable;
     }
 
-    public ObjectIdentifier getTableIdentifier() {
-        return tableIdentifier;
+    public ContextResolvedTable getContextResolvedTable() {
+        return contextResolvedTable;
     }
 
     @Override
     public ResolvedSchema getResolvedSchema() {
-        return resolvedSchema;
+        return contextResolvedTable.getResolvedSchema();
     }
 
     @Override
     public String asSummaryString() {
         Map<String, Object> args = new LinkedHashMap<>();
-        args.put("identifier", tableIdentifier);
-        args.put("fields", resolvedSchema.getColumnNames());
+        args.put("identifier", getContextResolvedTable().getIdentifier().asSummaryString());
+        args.put("fields", getResolvedSchema().getColumnNames());
 
         return OperationUtils.formatWithChildren(
                 "CatalogTable", args, getChildren(), Operation::asSummaryString);

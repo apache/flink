@@ -166,7 +166,7 @@ abstract class CommonPhysicalLookupJoin(
         resultFieldNames.mkString(", ")
     }
     val tableIdentifier: ObjectIdentifier = temporalTable match {
-      case t: TableSourceTable => t.tableIdentifier
+      case t: TableSourceTable => t.contextResolvedTable.getIdentifier
       case t: LegacyTableSourceTable[_] => t.tableIdentifier
     }
 

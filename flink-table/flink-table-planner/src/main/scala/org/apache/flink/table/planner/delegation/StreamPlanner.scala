@@ -26,7 +26,7 @@ import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
+import org.apache.flink.table.operations.{ModifyOperation, Operation, QueryOperation, SinkModifyOperation}
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
@@ -81,37 +81,7 @@ class StreamPlanner(
   }
 
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
-    require(operations.nonEmpty, "operations should not be empty")
-    validateAndOverrideConfiguration()
-    val sinkRelNodes = operations.map {
-      case queryOperation: QueryOperation =>
-        val relNode = getRelBuilder.queryOperation(queryOperation).build()
-        relNode match {
-          // SQL: explain plan for insert into xx
-          case modify: LogicalTableModify =>
-            // convert LogicalTableModify to CatalogSinkModifyOperation
-            val qualifiedName = modify.getTable.getQualifiedName
-            require(qualifiedName.size() == 3, "the length of qualified name should be 3.")
-            val modifyOperation = new CatalogSinkModifyOperation(
-              ObjectIdentifier.of(qualifiedName.get(0), qualifiedName.get(1), qualifiedName.get(2)),
-              new PlannerQueryOperation(modify.getInput)
-            )
-            translateToRel(modifyOperation)
-          case _ =>
-            relNode
-        }
-      case modifyOperation: ModifyOperation =>
-        translateToRel(modifyOperation)
-      case o => throw new TableException(s"Unsupported operation: ${o.getClass.getCanonicalName}")
-    }
-    val optimizedRelNodes = optimize(sinkRelNodes)
-    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
-
-    val transformations = translateToPlan(execGraph)
-    cleanupInternalConfigurations()
-
-    val streamGraph = executor.createPipeline(transformations, config.getConfiguration, null)
-      .asInstanceOf[StreamGraph]
+    val (sinkRelNodes, optimizedRelNodes, execGraph, streamGraph) = getExplainGraphs(operations)
 
     val sb = new StringBuilder
     sb.append("== Abstract Syntax Tree ==")

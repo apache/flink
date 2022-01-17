@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
 import org.apache.flink.table.api._
 import org.apache.flink.table.catalog._
@@ -41,6 +42,7 @@ import org.apache.flink.table.planner.connectors.DynamicSinkUtils.validateSchema
 import org.apache.flink.table.planner.delegation.ParserFactory.DefaultParserContext
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
+import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.processor.{ExecNodeGraphProcessor, ProcessorContext}
 import org.apache.flink.table.planner.plan.nodes.exec.serde.SerdeContext
@@ -60,13 +62,15 @@ import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.hint.RelHint
+import org.apache.calcite.rel.logical.LogicalTableModify
 import org.apache.calcite.tools.FrameworkConfig
 
 import java.lang.{Long => JLong}
 import java.util
-import java.util.TimeZone
+import java.util.{Collections, TimeZone}
 
 import _root_.scala.collection.JavaConversions._
+import scala.collection.mutable
 
 /**
   * Implementation of a [[Planner]]. It supports only streaming use cases.
@@ -225,12 +229,13 @@ abstract class PlannerBase(
           getClassLoader
         )
 
-      case catalogSink: CatalogSinkModifyOperation =>
+      case catalogSink: SinkModifyOperation =>
         val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
-        val identifier = catalogSink.getTableIdentifier
         val dynamicOptions = catalogSink.getDynamicOptions
-        getTableSink(identifier, dynamicOptions).map {
+        getTableSink(catalogSink.getContextResolvedTable, dynamicOptions).map {
           case (table, sink: TableSink[_]) =>
+            // Legacy tables can't be anonymous
+            val identifier = catalogSink.getContextResolvedTable.getIdentifier
             // check the logical field type and physical field type are compatible
             val queryLogicalType = FlinkTypeFactory.toLogicalRowType(input.getRowType)
             // validate logical schema and physical schema are compatible
@@ -241,7 +246,7 @@ abstract class PlannerBase(
             val query = validateSchemaAndApplyImplicitCast(
               input,
               table.getResolvedSchema,
-              catalogSink.getTableIdentifier,
+              identifier.asSummaryString,
               dataTypeFactory,
               getTypeFactory)
             val hints = new util.ArrayList[RelHint]
@@ -257,11 +262,12 @@ abstract class PlannerBase(
               catalogSink.getStaticPartitions.toMap)
 
           case (table, sink: DynamicTableSink) =>
-            DynamicSinkUtils.convertSinkToRel(getRelBuilder, input, catalogSink, sink, table)
+            DynamicSinkUtils.convertSinkToRel(getRelBuilder, input, catalogSink, sink)
         } match {
           case Some(sinkRel) => sinkRel
           case None =>
-            throw new TableException(s"Sink ${catalogSink.getTableIdentifier} does not exists")
+            throw new TableException(
+              s"Sink '${catalogSink.getContextResolvedTable}' does not exists")
         }
 
       case externalModifyOperation: ExternalModifyOperation =>
@@ -359,42 +365,38 @@ abstract class PlannerBase(
   protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]]
 
   private def getTableSink(
-      objectIdentifier: ObjectIdentifier,
+      contextResolvedTable: ContextResolvedTable,
       dynamicOptions: JMap[String, String])
     : Option[(ResolvedCatalogTable, Any)] = {
-    val optionalLookupResult =
-      toScala(catalogManager.getTable(objectIdentifier))
-    if (optionalLookupResult.isEmpty) {
-      return None
-    }
-    val lookupResult = optionalLookupResult.get
-    lookupResult.getTable match {
+    contextResolvedTable.getTable[CatalogBaseTable] match {
       case connectorTable: ConnectorCatalogTable[_, _] =>
-        val resolvedTable = lookupResult.getResolvedTable.asInstanceOf[ResolvedCatalogTable]
+        val resolvedTable = contextResolvedTable.getResolvedTable[ResolvedCatalogTable]
         toScala(connectorTable.getTableSink) match {
           case Some(sink) => Some(resolvedTable, sink)
           case None => None
         }
 
       case regularTable: CatalogTable =>
-        val resolvedTable = lookupResult.getResolvedTable.asInstanceOf[ResolvedCatalogTable]
+        val resolvedTable = contextResolvedTable.getResolvedTable[ResolvedCatalogTable]
         val tableToFind = if (dynamicOptions.nonEmpty) {
           resolvedTable.copy(FlinkHints.mergeTableOptions(dynamicOptions, resolvedTable.getOptions))
         } else {
           resolvedTable
         }
-        val catalog = toScala(catalogManager.getCatalog(objectIdentifier.getCatalogName))
-        val isTemporary = lookupResult.isTemporary
+        val catalog = toScala(contextResolvedTable.getCatalog)
+        val objectIdentifier = contextResolvedTable.getIdentifier
+        val isTemporary = contextResolvedTable.isTemporary
 
-        if (isStreamingMode && isManagedTable(catalog.get, resolvedTable) &&
+        if (isStreamingMode && isManagedTable(catalog.orNull, resolvedTable) &&
           !executor.isCheckpointingEnabled) {
           throw new TableException(
             s"You should enable the checkpointing for sinking to managed table " +
-              s"${objectIdentifier}, managed table relies on checkpoint to commit and " +
+              s"'${contextResolvedTable}', managed table relies on checkpoint to commit and " +
               s"the data is visible only after commit.")
         }
 
-        if (isLegacyConnectorOptions(objectIdentifier, resolvedTable.getOrigin, isTemporary)) {
+        if (!contextResolvedTable.isAnonymous &&
+          isLegacyConnectorOptions(objectIdentifier, resolvedTable.getOrigin, isTemporary)) {
           val tableSink = TableFactoryUtil.findAndCreateTableSink(
             catalog.orNull,
             objectIdentifier,
@@ -420,6 +422,7 @@ abstract class PlannerBase(
             factory,
             objectIdentifier,
             tableToFind,
+            Collections.emptyMap(),
             getTableConfig.getConfiguration,
             getClassLoader,
             isTemporary)
@@ -542,5 +545,48 @@ abstract class PlannerBase(
     val configuration = config.getConfiguration
     configuration.removeConfig(TABLE_QUERY_START_EPOCH_TIME)
     configuration.removeConfig(TABLE_QUERY_START_LOCAL_TIME)
+  }
+
+  /**
+   * Returns all the graphs required to execute EXPLAIN
+   */
+  private[flink] def getExplainGraphs(operations: util.List[Operation]
+      ): (mutable.Buffer[RelNode], Seq[RelNode], ExecNodeGraph, StreamGraph) = {
+    require(operations.nonEmpty, "operations should not be empty")
+    validateAndOverrideConfiguration()
+    val sinkRelNodes = operations.map {
+      case queryOperation: QueryOperation =>
+        val relNode = getRelBuilder.queryOperation(queryOperation).build()
+        relNode match {
+          // SQL: explain plan for insert into xx
+          case modify: LogicalTableModify =>
+            // convert LogicalTableModify to SinkModifyOperation
+            val qualifiedName = modify.getTable.getQualifiedName
+            require(qualifiedName.size() == 3, "the length of qualified name should be 3.")
+            val objectIdentifier = ObjectIdentifier.of(
+              qualifiedName.get(0), qualifiedName.get(1), qualifiedName.get(2))
+            val contextResolvedTable = catalogManager.getTableOrError(objectIdentifier)
+            val modifyOperation = new SinkModifyOperation(
+              contextResolvedTable,
+              new PlannerQueryOperation(modify.getInput)
+            )
+            translateToRel(modifyOperation)
+          case _ =>
+            relNode
+        }
+      case modifyOperation: ModifyOperation =>
+        translateToRel(modifyOperation)
+      case o => throw new TableException(s"Unsupported operation: ${o.getClass.getCanonicalName}")
+    }
+    val optimizedRelNodes = optimize(sinkRelNodes)
+    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
+
+    val transformations = translateToPlan(execGraph)
+    cleanupInternalConfigurations()
+
+    val streamGraph = executor.createPipeline(transformations, config.getConfiguration, null)
+      .asInstanceOf[StreamGraph]
+
+    (sinkRelNodes, optimizedRelNodes, execGraph, streamGraph)
   }
 }

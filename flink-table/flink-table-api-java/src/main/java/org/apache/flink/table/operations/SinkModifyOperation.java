@@ -19,44 +19,50 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * DML operation that tells to write to a sink. The sink has to be looked up in a {@link
- * org.apache.flink.table.catalog.Catalog}.
+ * DML operation that tells to write to a sink.
+ *
+ * <p>The sink is described by {@link #getContextResolvedTable()}, and in general is used for every
+ * sink which implementation is defined with {@link DynamicTableSink}. {@code DataStream} and {@link
+ * TableResult#collect()} sinks are handled by respectively {@link ExternalModifyOperation} and
+ * {@link CollectModifyOperation}.
  */
 @Internal
-public class CatalogSinkModifyOperation implements ModifyOperation {
+public class SinkModifyOperation implements ModifyOperation {
 
-    private final ObjectIdentifier tableIdentifier;
+    private final ContextResolvedTable contextResolvedTable;
     private final Map<String, String> staticPartitions;
     private final QueryOperation child;
     private final boolean overwrite;
     private final Map<String, String> dynamicOptions;
 
-    public CatalogSinkModifyOperation(ObjectIdentifier tableIdentifier, QueryOperation child) {
-        this(tableIdentifier, child, Collections.emptyMap(), false, Collections.emptyMap());
+    public SinkModifyOperation(ContextResolvedTable contextResolvedTable, QueryOperation child) {
+        this(contextResolvedTable, child, Collections.emptyMap(), false, Collections.emptyMap());
     }
 
-    public CatalogSinkModifyOperation(
-            ObjectIdentifier tableIdentifier,
+    public SinkModifyOperation(
+            ContextResolvedTable contextResolvedTable,
             QueryOperation child,
             Map<String, String> staticPartitions,
             boolean overwrite,
             Map<String, String> dynamicOptions) {
-        this.tableIdentifier = tableIdentifier;
+        this.contextResolvedTable = contextResolvedTable;
         this.child = child;
         this.staticPartitions = staticPartitions;
         this.overwrite = overwrite;
         this.dynamicOptions = dynamicOptions;
     }
 
-    public ObjectIdentifier getTableIdentifier() {
-        return tableIdentifier;
+    public ContextResolvedTable getContextResolvedTable() {
+        return contextResolvedTable;
     }
 
     public Map<String, String> getStaticPartitions() {
@@ -84,7 +90,7 @@ public class CatalogSinkModifyOperation implements ModifyOperation {
     @Override
     public String asSummaryString() {
         Map<String, Object> params = new LinkedHashMap<>();
-        params.put("identifier", tableIdentifier);
+        params.put("identifier", getContextResolvedTable().getIdentifier().asSummaryString());
         params.put("staticPartitions", staticPartitions);
         params.put("overwrite", overwrite);
         params.put("dynamicOptions", dynamicOptions);

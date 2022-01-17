@@ -93,6 +93,7 @@ import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.CatalogViewImpl;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ManagedTableListener;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -102,7 +103,6 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
-import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
@@ -122,6 +122,7 @@ import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
+import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
@@ -350,7 +351,7 @@ public class SqlToOperationConverter {
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(alterView.fullViewName());
         ObjectIdentifier viewIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-        Optional<CatalogManager.TableLookupResult> optionalCatalogTable =
+        Optional<ContextResolvedTable> optionalCatalogTable =
                 catalogManager.getTable(viewIdentifier);
         if (!optionalCatalogTable.isPresent() || optionalCatalogTable.get().isTemporary()) {
             throw new ValidationException(
@@ -408,7 +409,7 @@ public class SqlToOperationConverter {
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlAlterTable.fullTableName());
         ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-        Optional<CatalogManager.TableLookupResult> optionalCatalogTable =
+        Optional<ContextResolvedTable> optionalCatalogTable =
                 catalogManager.getTable(tableIdentifier);
         if (!optionalCatalogTable.isPresent() || optionalCatalogTable.get().isTemporary()) {
             throw new ValidationException(
@@ -507,7 +508,7 @@ public class SqlToOperationConverter {
             return new DropPartitionsOperation(tableIdentifier, dropPartitions.ifExists(), specs);
         } else if (sqlAlterTable instanceof SqlAlterTableCompact) {
             ResolvedCatalogTable resolvedCatalogTable =
-                    (ResolvedCatalogTable) optionalCatalogTable.get().getResolvedTable();
+                    optionalCatalogTable.get().getResolvedTable();
             return convertAlterTableCompact(
                     tableIdentifier, resolvedCatalogTable, (SqlAlterTableCompact) sqlAlterTable);
         } else {
@@ -716,6 +717,7 @@ public class SqlToOperationConverter {
 
         UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath);
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        ContextResolvedTable contextResolvedTable = catalogManager.getTableOrError(identifier);
 
         PlannerQueryOperation query =
                 (PlannerQueryOperation)
@@ -728,8 +730,8 @@ public class SqlToOperationConverter {
                                                                         .getClass()
                                                                         .getSimpleName()));
 
-        return new CatalogSinkModifyOperation(
-                identifier,
+        return new SinkModifyOperation(
+                contextResolvedTable,
                 query,
                 insert.getStaticPartitionKVs(),
                 insert.isOverwrite(),

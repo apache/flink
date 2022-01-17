@@ -26,7 +26,10 @@ import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
@@ -38,8 +41,8 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
-import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.utils.FunctionLookupMock;
 
@@ -357,12 +360,23 @@ public class ExpressionResolverTest {
                                     .map(
                                             schema ->
                                                     (QueryOperation)
-                                                            new CatalogQueryOperation(
-                                                                    ObjectIdentifier.of("", "", ""),
-                                                                    ResolvedSchema.physical(
-                                                                            schema.getFieldNames(),
-                                                                            schema
-                                                                                    .getFieldDataTypes())))
+                                                            new SourceQueryOperation(
+                                                                    ContextResolvedTable.anonymous(
+                                                                            new ResolvedCatalogTable(
+                                                                                    CatalogTable.of(
+                                                                                            schema
+                                                                                                    .toSchema(),
+                                                                                            null,
+                                                                                            Collections
+                                                                                                    .emptyList(),
+                                                                                            Collections
+                                                                                                    .emptyMap()),
+                                                                                    ResolvedSchema
+                                                                                            .physical(
+                                                                                                    schema
+                                                                                                            .getFieldNames(),
+                                                                                                    schema
+                                                                                                            .getFieldDataTypes())))))
                                     .toArray(QueryOperation[]::new))
                     .build();
         }
