@@ -248,7 +248,8 @@ public class ChangelogStateBackendTestUtils {
     private static void materialize(
             ChangelogKeyedStateBackend<Integer> keyedBackend,
             PeriodicMaterializationManager periodicMaterializationManager) {
-        StateChangelogWriter<ChangelogStateHandle> writer = keyedBackend.getChangelogWriter();
+        StateChangelogWriter<? extends ChangelogStateHandle> writer =
+                keyedBackend.getChangelogWriter();
         SequenceNumber sqnBefore = writer.lastAppendedSequenceNumber();
         periodicMaterializationManager.triggerMaterialization();
         assertTrue(
@@ -356,7 +357,8 @@ public class ChangelogStateBackendTestUtils {
                 1);
     }
 
-    static class DummyCheckpointingStorageAccess implements CheckpointStorageAccess {
+    /** Dummy {@link CheckpointStorageAccess}. */
+    public static class DummyCheckpointingStorageAccess implements CheckpointStorageAccess {
 
         DummyCheckpointingStorageAccess() {}
 

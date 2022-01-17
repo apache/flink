@@ -48,20 +48,25 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
 
     List<ChangelogStateHandle> getNonMaterializedStateHandles();
 
+    long getMaterializationID();
+
     class ChangelogStateBackendHandleImpl implements ChangelogStateBackendHandle {
         private static final long serialVersionUID = 1L;
         private final List<KeyedStateHandle> materialized;
         private final List<ChangelogStateHandle> nonMaterialized;
         private final KeyGroupRange keyGroupRange;
+        private final long materializationID;
 
         public ChangelogStateBackendHandleImpl(
                 List<KeyedStateHandle> materialized,
                 List<ChangelogStateHandle> nonMaterialized,
-                KeyGroupRange keyGroupRange) {
+                KeyGroupRange keyGroupRange,
+                long materializationID) {
             this.materialized = unmodifiableList(materialized);
             this.nonMaterialized = unmodifiableList(nonMaterialized);
             this.keyGroupRange = keyGroupRange;
             checkArgument(keyGroupRange.getNumberOfKeyGroups() > 0);
+            this.materializationID = materializationID;
         }
 
         @Override
@@ -104,7 +109,8 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
                                                     handle.getIntersection(keyGroupRange))
                             .filter(Objects::nonNull)
                             .collect(Collectors.toList());
-            return new ChangelogStateBackendHandleImpl(basePart, deltaPart, intersection);
+            return new ChangelogStateBackendHandleImpl(
+                    basePart, deltaPart, intersection, materializationID);
         }
 
         @Override
@@ -121,6 +127,11 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
         @Override
         public List<ChangelogStateHandle> getNonMaterializedStateHandles() {
             return nonMaterialized;
+        }
+
+        @Override
+        public long getMaterializationID() {
+            return materializationID;
         }
 
         @Override

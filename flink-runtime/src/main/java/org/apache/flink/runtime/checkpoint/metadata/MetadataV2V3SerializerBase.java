@@ -336,6 +336,8 @@ public abstract class MetadataV2V3SerializerBase {
                 serializeKeyedStateHandle(k, dos);
             }
 
+            dos.writeLong(handle.getMaterializationID());
+
         } else if (stateHandle instanceof InMemoryChangelogStateHandle) {
             InMemoryChangelogStateHandle handle = (InMemoryChangelogStateHandle) stateHandle;
             dos.writeByte(CHANGELOG_BYTE_INCREMENT_HANDLE);
@@ -441,8 +443,11 @@ public abstract class MetadataV2V3SerializerBase {
             for (int i = 0; i < deltaSize; i++) {
                 delta.add((ChangelogStateHandle) deserializeKeyedStateHandle(dis, context));
             }
+
+            long materializationID = dis.readLong();
+
             return new ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl(
-                    base, delta, keyGroupRange);
+                    base, delta, keyGroupRange, materializationID);
 
         } else if (CHANGELOG_BYTE_INCREMENT_HANDLE == type) {
             int start = dis.readInt();
