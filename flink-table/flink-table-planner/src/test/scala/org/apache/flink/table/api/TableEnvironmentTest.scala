@@ -691,10 +691,12 @@ class TableEnvironmentTest {
 
   @Test
   def testExecuteSqlWithEnhancedShowTables(): Unit = {
-    val createCatalogResult = tableEnv.executeSql("CREATE CATALOG catalog1 WITH('type'='generic_in_memory')")
+    val createCatalogResult = tableEnv.executeSql(
+      "CREATE CATALOG catalog1 WITH('type'='generic_in_memory')")
     assertEquals(ResultKind.SUCCESS, createCatalogResult.getResultKind)
 
-    val createDbResult = tableEnv.executeSql("CREATE database catalog1.db1")
+    val createDbResult = tableEnv.executeSql(
+      "CREATE database catalog1.db1")
     assertEquals(ResultKind.SUCCESS, createDbResult.getResultKind)
 
     val createTableStmt =
