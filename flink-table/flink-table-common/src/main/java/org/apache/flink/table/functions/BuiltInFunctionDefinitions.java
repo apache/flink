@@ -51,6 +51,7 @@ import java.util.Set;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
+import static org.apache.flink.table.functions.FunctionKind.TABLE;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.ANY;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.COMMON_ARG_NULLABLE;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL;
@@ -138,6 +139,15 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfAllArgs(COMMON))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.CoalesceFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("$REPLICATE_ROWS")
+                    .kind(TABLE)
+                    .outputTypeStrategy(SpecificTypeStrategies.INTERNAL_REPLICATE_ROWS)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.table.ReplicateRowsFunction")
                     .build();
 
     // --------------------------------------------------------------------------------------------
