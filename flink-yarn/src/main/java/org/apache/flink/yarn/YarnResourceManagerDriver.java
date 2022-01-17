@@ -32,6 +32,7 @@ import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.runtime.resourcemanager.active.AbstractResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
+import org.apache.flink.runtime.util.ResourceManagerUtils;
 import org.apache.flink.runtime.webmonitor.history.HistoryServerUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -492,24 +493,11 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     }
 
     private RegisterApplicationMasterResponse registerApplicationMaster() throws Exception {
-        final int restPort;
-        final String webInterfaceUrl = configuration.getWebInterfaceUrl();
-        final String rpcAddress = configuration.getRpcAddress();
-
-        if (webInterfaceUrl != null) {
-            final int lastColon = webInterfaceUrl.lastIndexOf(':');
-
-            if (lastColon == -1) {
-                restPort = -1;
-            } else {
-                restPort = Integer.parseInt(webInterfaceUrl.substring(lastColon + 1));
-            }
-        } else {
-            restPort = -1;
-        }
-
         return resourceManagerClient.registerApplicationMaster(
-                rpcAddress, restPort, webInterfaceUrl);
+                configuration.getRpcAddress(),
+                ResourceManagerUtils.parseRestBindPortFromWebInterfaceUrl(
+                        configuration.getWebInterfaceUrl()),
+                configuration.getWebInterfaceUrl());
     }
 
     private void getContainersFromPreviousAttempts(
