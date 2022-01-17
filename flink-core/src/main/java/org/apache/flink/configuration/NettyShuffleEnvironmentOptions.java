@@ -233,9 +233,7 @@ public class NettyShuffleEnvironmentOptions {
                                             + " batch jobs of large parallelism, the sort-merge one"
                                             + " will be used. Note: For production usage, if sort-"
                                             + "merge blocking shuffle is enabled, you may also need"
-                                            + " to enable data compression by setting '%s' to true "
-                                            + "and tune '%s' and '%s' for better performance.",
-                                    BLOCKING_SHUFFLE_COMPRESSION_ENABLED.key(),
+                                            + " to tune '%s' and '%s' for better performance.",
                                     NETWORK_SORT_SHUFFLE_MIN_BUFFERS.key(),
                                     // raw string key is used here to avoid interdependence, a test
                                     // is implemented to guard that when the target key is modified,
