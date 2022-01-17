@@ -55,14 +55,14 @@ object ScalaCaseClassSerializerUpgradeTest {
   def testSpecifications(): util.Collection[TestSpecification[_, _]] = {
     val testSpecifications =
       new util.ArrayList[TypeSerializerUpgradeTestBase.TestSpecification[_, _]]
-    for (migrationVersion <- TypeSerializerUpgradeTestBase.MIGRATION_VERSIONS) {
+    TypeSerializerUpgradeTestBase.MIGRATION_VERSIONS.forEach(migrationVersion =>
       testSpecifications.add(
         new TypeSerializerUpgradeTestBase.TestSpecification[CustomCaseClass, CustomCaseClass]
         ("scala-case-class-serializer",
           migrationVersion,
           classOf[ScalaCaseClassSerializerSetup],
-          classOf[ScalaCaseClassSerializerVerifier]))
-    }
+          classOf[ScalaCaseClassSerializerVerifier])))
+
     testSpecifications
   }
 

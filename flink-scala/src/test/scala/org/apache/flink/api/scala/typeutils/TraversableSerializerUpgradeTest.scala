@@ -79,7 +79,7 @@ object TraversableSerializerUpgradeTest {
 
     val testSpecifications =
       new util.ArrayList[TypeSerializerUpgradeTestBase.TestSpecification[_, _]]
-    for (migrationVersion <- TypeSerializerUpgradeTestBase.MIGRATION_VERSIONS) {
+    TypeSerializerUpgradeTestBase.MIGRATION_VERSIONS.forEach(migrationVersion => {
       testSpecifications.add(
         new TestSpecification[BitSet, BitSet](
           "traversable-serializer-bitset",
@@ -134,7 +134,7 @@ object TraversableSerializerUpgradeTest {
           migrationVersion,
           classOf[SeqWithPojoSetup],
           classOf[SeqWithPojoVerifier]))
-    }
+    })
     testSpecifications
   }
 

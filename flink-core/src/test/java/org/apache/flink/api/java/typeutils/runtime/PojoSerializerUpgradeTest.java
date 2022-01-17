@@ -25,7 +25,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -48,7 +47,7 @@ public class PojoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obj
         testVersions.add(FlinkVersion.v1_7);
         testVersions.add(FlinkVersion.v1_8);
         testVersions.add(FlinkVersion.v1_9);
-        testVersions.addAll(Arrays.asList(MIGRATION_VERSIONS));
+        testVersions.addAll(MIGRATION_VERSIONS);
         for (FlinkVersion flinkVersion : testVersions) {
             testSpecifications.add(
                     new TestSpecification<>(
