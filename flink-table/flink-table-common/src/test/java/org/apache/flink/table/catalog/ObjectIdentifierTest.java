@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.api.TableException;
+
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/** Tests for {@link ObjectIdentifier}. */
 class ObjectIdentifierTest {
 
     @Test
@@ -38,8 +41,7 @@ class ObjectIdentifierTest {
                 .isEqualTo(objectName);
 
         assertThatThrownBy(objectIdentifier::asSerializableString)
-                .isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(objectIdentifier::toObjectPath)
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(TableException.class);
+        assertThatThrownBy(objectIdentifier::toObjectPath).isInstanceOf(TableException.class);
     }
 }

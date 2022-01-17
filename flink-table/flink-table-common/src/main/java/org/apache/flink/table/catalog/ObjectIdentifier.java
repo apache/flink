@@ -65,10 +65,10 @@ public final class ObjectIdentifier implements Serializable {
 
     /**
      * This method allows to create an {@link ObjectIdentifier} without catalog and database name,
-     * in order to propagate anonymous objects unique identifiers throughout the stack.
+     * in order to propagate anonymous objects with unique identifiers throughout the stack.
      *
-     * <p>This method for no reason should be exposed to the users, as this should be used only when
-     * creating anonymous tables to store a unique generated id.
+     * <p>This method for no reason should be exposed to users, as this should be used only when
+     * creating anonymous tables with uniquely generated identifiers.
      */
     static ObjectIdentifier ofAnonymous(String objectName) {
         return new ObjectIdentifier(
@@ -105,9 +105,9 @@ public final class ObjectIdentifier implements Serializable {
     /**
      * Convert this {@link ObjectIdentifier} to {@link ObjectPath}.
      *
-     * @throws IllegalStateException if the identifier cannot be converted
+     * @throws TableException if the identifier cannot be converted
      */
-    public ObjectPath toObjectPath() throws IllegalStateException {
+    public ObjectPath toObjectPath() throws TableException {
         if (catalogName == null) {
             throw new TableException(
                     "This ObjectIdentifier instance refers to an anonymous object, "
@@ -128,9 +128,9 @@ public final class ObjectIdentifier implements Serializable {
      * Returns a string that fully serializes this instance. The serialized string can be used for
      * transmitting or persisting an object identifier.
      *
-     * @throws IllegalStateException if the identifier cannot be serialized
+     * @throws TableException if the identifier cannot be serialized
      */
-    public String asSerializableString() throws IllegalStateException {
+    public String asSerializableString() throws TableException {
         if (catalogName == null) {
             throw new TableException(
                     "This ObjectIdentifier instance refers to an anonymous object, "
