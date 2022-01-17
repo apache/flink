@@ -69,6 +69,8 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     /** Whether to create empty snapshot ({@link MockKeyedStateHandle} isn't recognized by JM). */
     private final boolean emptySnapshot;
 
+    private long lastCompletedCheckpointID;
+
     private interface StateFactory {
         <N, SV, S extends State, IS extends S> IS createInternalState(
                 TypeSerializer<N> namespaceSerializer, StateDescriptor<S, SV> stateDesc)
@@ -188,7 +190,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) {
-        // noop
+        lastCompletedCheckpointID = checkpointId;
     }
 
     @Override
@@ -298,6 +300,10 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 0,
                 keyGroupRange,
                 0);
+    }
+
+    public long getLastCompletedCheckpointID() {
+        return lastCompletedCheckpointID;
     }
 
     static class MockKeyedStateHandle<K> implements KeyedStateHandle {
