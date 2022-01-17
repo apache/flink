@@ -78,7 +78,7 @@ Kafka Source 提供了 3 种 Topic / Partition 的订阅方式：
   ```
 - 正则表达式匹配，订阅与正则表达式所匹配的 Topic 下的所有 Partition：
   ```java
-  KafkaSource.builder().setTopicPattern("topic.*")
+  KafkaSource.builder().setTopicPattern(Pattern.compile("topic.*"))
   ```
 - Partition 列表，订阅指定的 Partition：
   ```java
