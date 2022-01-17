@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.catalog;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.CatalogManager.TableLookupResult;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
@@ -74,7 +74,6 @@ class DatabaseCalciteSchema extends FlinkSchema {
                 .map(
                         lookupResult ->
                                 new CatalogSchemaTable(
-                                        identifier,
                                         lookupResult,
                                         getStatistic(lookupResult, identifier),
                                         isStreamingMode))
@@ -82,12 +81,13 @@ class DatabaseCalciteSchema extends FlinkSchema {
     }
 
     private FlinkStatistic getStatistic(
-            TableLookupResult lookupResult, ObjectIdentifier identifier) {
-        final ResolvedCatalogBaseTable<?> resolvedBaseTable = lookupResult.getResolvedTable();
+            ContextResolvedTable contextResolvedTable, ObjectIdentifier identifier) {
+        final ResolvedCatalogBaseTable<?> resolvedBaseTable =
+                contextResolvedTable.getResolvedTable();
         switch (resolvedBaseTable.getTableKind()) {
             case TABLE:
                 return FlinkStatistic.builder()
-                        .tableStats(extractTableStats(lookupResult, identifier))
+                        .tableStats(extractTableStats(contextResolvedTable, identifier))
                         // this is a temporary solution, FLINK-15123 will resolve this
                         .uniqueKeys(
                                 resolvedBaseTable.getResolvedSchema().getPrimaryKey().orElse(null))
@@ -99,7 +99,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
     }
 
     private TableStats extractTableStats(
-            TableLookupResult lookupResult, ObjectIdentifier identifier) {
+            ContextResolvedTable lookupResult, ObjectIdentifier identifier) {
         if (lookupResult.isTemporary()) {
             return TableStats.UNKNOWN;
         }

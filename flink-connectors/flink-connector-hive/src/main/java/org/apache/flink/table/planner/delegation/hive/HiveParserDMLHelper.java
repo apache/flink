@@ -22,8 +22,8 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
-import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQB;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunctionConverter;
@@ -84,7 +84,7 @@ public class HiveParserDMLHelper {
         this.catalogManager = catalogManager;
     }
 
-    public CatalogSinkModifyOperation createInsertOperation(
+    public SinkModifyOperation createInsertOperation(
             RelNode queryRelNode,
             Table destTable,
             Map<String, String> staticPartSpec,
@@ -202,8 +202,8 @@ public class HiveParserDMLHelper {
         UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath);
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
-        return new CatalogSinkModifyOperation(
-                identifier,
+        return new SinkModifyOperation(
+                catalogManager.getTable(identifier).get(),
                 new PlannerQueryOperation(queryRelNode),
                 staticPartSpec,
                 overwrite,

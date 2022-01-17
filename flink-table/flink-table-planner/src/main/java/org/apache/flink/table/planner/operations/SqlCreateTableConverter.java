@@ -27,6 +27,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
@@ -144,7 +145,7 @@ class SqlCreateTableConverter {
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlTableLike.getSourceTable().names);
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-        CatalogManager.TableLookupResult lookupResult =
+        ContextResolvedTable lookupResult =
                 catalogManager
                         .getTable(identifier)
                         .orElseThrow(
@@ -162,7 +163,7 @@ class SqlCreateTableConverter {
                             "Source table '%s' of the LIKE clause can not be a VIEW, at %s",
                             identifier, sqlTableLike.getSourceTable().getParserPosition()));
         }
-        return (CatalogTable) lookupResult.getTable();
+        return lookupResult.getTable();
     }
 
     private void verifyPartitioningColumnsExist(

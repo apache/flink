@@ -23,7 +23,6 @@ import org.apache.flink.table.api.internal.ResultProvider;
 import org.apache.flink.table.types.DataType;
 
 import java.util.Collections;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Special, internal kind of {@link ModifyOperation} that collects the content of {@link
@@ -31,8 +30,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Internal
 public final class CollectModifyOperation implements ModifyOperation {
-
-    private static final AtomicInteger uniqueId = new AtomicInteger(0);
 
     private final QueryOperation child;
 
@@ -47,10 +44,6 @@ public final class CollectModifyOperation implements ModifyOperation {
 
     public CollectModifyOperation(QueryOperation child) {
         this.child = child;
-    }
-
-    public static int getUniqueId() {
-        return uniqueId.incrementAndGet();
     }
 
     public void setSelectResultProvider(ResultProvider resultProvider) {

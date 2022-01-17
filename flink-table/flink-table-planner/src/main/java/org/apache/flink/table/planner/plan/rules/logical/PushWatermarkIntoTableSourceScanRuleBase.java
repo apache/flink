@@ -144,7 +144,7 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
     }
 
     private boolean hasSourceWatermarkDeclaration(TableSourceTable table) {
-        final ResolvedSchema schema = table.catalogTable().getResolvedSchema();
+        final ResolvedSchema schema = table.contextResolvedTable().getResolvedSchema();
         final List<WatermarkSpec> specs = schema.getWatermarkSpecs();
         // we only support one watermark spec for now
         if (specs.size() != 1) {

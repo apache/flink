@@ -19,9 +19,9 @@
 package org.apache.flink.table.operations.ddl;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
+import org.apache.flink.table.operations.SinkModifyOperation;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -32,10 +32,10 @@ import java.util.Map;
 public class CreateTableASOperation implements CreateOperation {
 
     private final CreateTableOperation createTableOperation;
-    private final CatalogSinkModifyOperation insertOperation;
+    private final SinkModifyOperation insertOperation;
 
     public CreateTableASOperation(
-            CreateTableOperation createTableOperation, CatalogSinkModifyOperation insertOperation) {
+            CreateTableOperation createTableOperation, SinkModifyOperation insertOperation) {
         this.createTableOperation = createTableOperation;
         this.insertOperation = insertOperation;
     }
@@ -44,7 +44,7 @@ public class CreateTableASOperation implements CreateOperation {
         return createTableOperation;
     }
 
-    public CatalogSinkModifyOperation getInsertOperation() {
+    public SinkModifyOperation getInsertOperation() {
         return insertOperation;
     }
 

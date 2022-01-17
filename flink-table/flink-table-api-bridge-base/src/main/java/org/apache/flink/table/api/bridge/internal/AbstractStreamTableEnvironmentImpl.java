@@ -40,8 +40,6 @@ import org.apache.flink.table.catalog.ExternalCatalogTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
-import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.catalog.SchemaResolver;
 import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -138,17 +136,15 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
         }
 
         final CatalogManager catalogManager = getCatalogManager();
-        final SchemaResolver schemaResolver = catalogManager.getSchemaResolver();
         final OperationTreeBuilder operationTreeBuilder = getOperationTreeBuilder();
 
         final SchemaTranslator.ConsumingResult schemaTranslationResult =
                 SchemaTranslator.createConsumingResult(
                         catalogManager.getDataTypeFactory(), dataStream.getType(), schema);
 
-        final ResolvedSchema resolvedSchema =
-                schemaTranslationResult.getSchema().resolve(schemaResolver);
         final ResolvedCatalogTable resolvedCatalogTable =
-                new ResolvedCatalogTable(new ExternalCatalogTable(resolvedSchema), resolvedSchema);
+                catalogManager.resolveCatalogTable(
+                        new ExternalCatalogTable(schemaTranslationResult.getSchema()));
 
         final ContextResolvedTable contextResolvedTable;
         if (viewPath != null) {
@@ -190,7 +186,6 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
             SchemaTranslator.ProducingResult schemaTranslationResult,
             @Nullable ChangelogMode changelogMode) {
         final CatalogManager catalogManager = getCatalogManager();
-        final SchemaResolver schemaResolver = catalogManager.getSchemaResolver();
         final OperationTreeBuilder operationTreeBuilder = getOperationTreeBuilder();
 
         final QueryOperation projectOperation =
@@ -205,20 +200,22 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
                                                 table.getQueryOperation()))
                         .orElseGet(table::getQueryOperation);
 
-        final ResolvedSchema resolvedSchema =
-                schemaResolver.resolve(schemaTranslationResult.getSchema());
+        final ResolvedCatalogTable resolvedCatalogTable =
+                catalogManager.resolveCatalogTable(
+                        new ExternalCatalogTable(schemaTranslationResult.getSchema()));
 
         final ExternalModifyOperation modifyOperation =
                 new ExternalModifyOperation(
-                        ContextResolvedTable.anonymous(
-                                "datastream_sink",
-                                new ResolvedCatalogTable(
-                                        new ExternalCatalogTable(resolvedSchema), resolvedSchema)),
+                        ContextResolvedTable.anonymous("datastream_sink", resolvedCatalogTable),
                         projectOperation,
                         changelogMode,
                         schemaTranslationResult
                                 .getPhysicalDataType()
-                                .orElseGet(resolvedSchema::toPhysicalRowDataType));
+                                .orElseGet(
+                                        () ->
+                                                resolvedCatalogTable
+                                                        .getResolvedSchema()
+                                                        .toPhysicalRowDataType()));
 
         return toStreamInternal(table, modifyOperation);
     }

@@ -61,7 +61,7 @@ class FlinkRelBuilder(
   require(context != null)
 
   private val toRelNodeConverter = {
-    new QueryOperationConverter(this)
+    new QueryOperationConverter(this, context.unwrap(classOf[FlinkContext]).isBatchMode)
   }
 
   private val expandFactory: ExpandFactory = {

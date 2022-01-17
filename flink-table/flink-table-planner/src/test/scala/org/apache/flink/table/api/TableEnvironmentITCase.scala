@@ -794,7 +794,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     val tableResult = tEnv.asInstanceOf[TableEnvironmentInternal].getCatalogManager
       .getTable(ObjectIdentifier.of(listener.getName, "default", "tbl1"))
     assertTrue(tableResult.isPresent)
-    assertEquals(listener.tableComment, tableResult.get().getTable.getComment)
+    assertEquals(listener.tableComment, tableResult.get().getTable[CatalogBaseTable].getComment)
     tEnv.executeSql("drop temporary table tbl1")
     assertEquals(1, listener.numTempTable)
     tEnv.executeSql(s"drop temporary table ${listener.getName}.`default`.tbl1")
@@ -814,7 +814,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     val viewResult = tEnv.asInstanceOf[TableEnvironmentInternal].getCatalogManager
       .getTable(ObjectIdentifier.of(listener.getName, "default", "v1"))
     assertTrue(viewResult.isPresent)
-    assertEquals(listener.tableComment, viewResult.get().getTable.getComment)
+    assertEquals(listener.tableComment, viewResult.get().getTable[CatalogBaseTable].getComment)
     tEnv.executeSql("drop temporary view v1")
     assertEquals(1, listener.numTempTable)
     tEnv.executeSql(s"drop temporary view ${listener.getName}.`default`.v1")

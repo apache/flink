@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.source.LookupTableSource;
@@ -67,8 +68,8 @@ public class TemporalTableSourceSpec {
             outputType = tableSourceTable.getRowType();
             this.tableSourceSpec =
                     new DynamicTableSourceSpec(
-                            tableSourceTable.tableIdentifier(),
-                            tableSourceTable.catalogTable(),
+                            tableSourceTable.contextResolvedTable().getIdentifier(),
+                            tableSourceTable.contextResolvedTable().getResolvedTable(),
                             Arrays.asList(tableSourceTable.abilitySpecs()));
             tableSourceSpec.setTableSource(tableSourceTable.tableSource());
             tableSourceSpec.setReadableConfig(tableConfig.getConfiguration());
@@ -101,12 +102,11 @@ public class TemporalTableSourceSpec {
             }
             return new TableSourceTable(
                     null,
-                    objectIdentifier,
                     outputType,
                     FlinkStatistic.UNKNOWN(),
                     lookupTableSource,
                     true,
-                    catalogTable,
+                    ContextResolvedTable.temporary(objectIdentifier, catalogTable),
                     flinkContext,
                     sourceAbilitySpecs);
         }
