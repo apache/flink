@@ -48,7 +48,7 @@ public class LinkedListSerializerUpgradeTest
 
     @Parameterized.Parameters(name = "Test Specification = {0}")
     public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
-        return FlinkVersion.v1_13.orHigher().stream()
+        return FlinkVersion.rangeOf(FlinkVersion.v1_13, CURRENT_VERSION).stream()
                 .map(
                         version -> {
                             try {
