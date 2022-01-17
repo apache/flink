@@ -114,6 +114,7 @@ import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.offe
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.enableCheckpointing;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertFalse;
@@ -587,7 +588,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         assertThat(upTimeGauge.getValue(), greaterThan(0L));
         assertThat(downTimeGauge.getValue(), is(0L));
-        assertThat(restartTimeGauge.getValue(), greaterThan(0L));
+        // can be zero if the restart is very quick
+        assertThat(restartTimeGauge.getValue(), greaterThanOrEqualTo(0L));
     }
 
     // ---------------------------------------------------------------------------------------------
