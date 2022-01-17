@@ -106,7 +106,7 @@ public class CreatingExecutionGraph implements State {
 
     @Override
     public JobStatus getJobStatus() {
-        return JobStatus.INITIALIZING;
+        return JobStatus.CREATED;
     }
 
     @Override

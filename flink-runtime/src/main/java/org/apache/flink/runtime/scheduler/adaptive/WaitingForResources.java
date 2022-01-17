@@ -119,7 +119,7 @@ class WaitingForResources implements State, ResourceConsumer {
 
     @Override
     public JobStatus getJobStatus() {
-        return JobStatus.INITIALIZING;
+        return JobStatus.CREATED;
     }
 
     @Override
