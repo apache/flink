@@ -1333,6 +1333,83 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
   }
 
   @TestTemplate
+  def testMinMaxWithChar(): Unit = {
+    val data =
+      List(
+        rowOf(1, "a", "gg"),
+        rowOf(1, "b", "hh"),
+        rowOf(2, "d", "j"),
+        rowOf(2, "c", "i")
+      )
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE src(
+                       |  `id` INT,
+                       |  `char1` CHAR(1),
+                       |  `char2` CHAR(2)
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
+
+    val sql =
+      """
+        |select `id`, count(*), min(`char1`), max(`char1`), min(`char2`), max(`char2`)  from src group by `id`
+      """.stripMargin
+
+    val sink = new TestingRetractSink()
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List("1,2,a,b,gg,hh", "2,2,c,d,i,j")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testRetractMinMaxWithChar(): Unit = {
+    val data =
+      List(
+        changelogRow("+I", Int.box(1), "a", "ee"),
+        changelogRow("+I", Int.box(1), "b", "ff"),
+        changelogRow("+I", Int.box(1), "c", "gg"),
+        changelogRow("-D", Int.box(1), "c", "gg"),
+        changelogRow("-D", Int.box(1), "a", "ee"),
+        changelogRow("+I", Int.box(2), "a", "e"),
+        changelogRow("+I", Int.box(2), "b", "f"),
+        changelogRow("+I", Int.box(2), "c", "g"),
+        changelogRow("-U", Int.box(2), "b", "f"),
+        changelogRow("+U", Int.box(2), "d", "h"),
+        changelogRow("-U", Int.box(2), "a", "e"),
+        changelogRow("+U", Int.box(2), "b", "f")
+      )
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE src(
+                       |  `id` INT,
+                       |  `char1` CHAR(1),
+                       |  `char2` CHAR(2)
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId',
+                       |  'changelog-mode' = 'I,UA,UB,D'
+                       |)
+                       |""".stripMargin)
+
+    val sql =
+      """
+        |select `id`, count(*), min(`char1`), max(`char1`), min(`char2`), max(`char2`) from src group by `id`
+      """.stripMargin
+
+    val sink = new TestingRetractSink()
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List("1,1,b,b,ff,ff", "2,3,b,d,f,h")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
   def testCollectOnClusteredFields(): Unit = {
     val data = List(
       (1, 1, (12, "45.6")),
