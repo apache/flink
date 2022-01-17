@@ -20,17 +20,24 @@ package org.apache.flink.tests.util.flink;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connectors.test.common.environment.ClusterControllable;
-import org.apache.flink.connectors.test.common.environment.TestEnvironment;
+import org.apache.flink.connector.testframe.environment.ClusterControllable;
+import org.apache.flink.connector.testframe.environment.TestEnvironment;
+import org.apache.flink.connector.testframe.environment.TestEnvironmentSettings;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.tests.util.flink.container.FlinkContainers;
+import org.apache.flink.tests.util.flink.container.FlinkContainersBuilder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URL;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.HeartbeatManagerOptions.HEARTBEAT_INTERVAL;
 import static org.apache.flink.configuration.HeartbeatManagerOptions.HEARTBEAT_TIMEOUT;
@@ -43,44 +50,70 @@ public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterCo
     private static final Logger LOG = LoggerFactory.getLogger(FlinkContainerTestEnvironment.class);
 
     private final FlinkContainers flinkContainers;
-    private final String[] jarPath;
+    private final List<String> jarPaths = new ArrayList<>();
 
     public FlinkContainerTestEnvironment(
-            int numTaskManagers, int numSlotsPerTaskManager, String... jarPath) {
+            int numTaskManagers, int numSlotsPerTaskManager, String... jarPaths) {
+        this(new Configuration(), numTaskManagers, numSlotsPerTaskManager, jarPaths);
+    }
 
-        Configuration flinkConfiguration = flinkConfiguration();
-        flinkConfiguration.set(NUM_TASK_SLOTS, numSlotsPerTaskManager);
-
-        this.flinkContainers =
+    public FlinkContainerTestEnvironment(
+            Configuration clusterConfiguration,
+            int numTaskManagers,
+            int numSlotsPerTaskManager,
+            String... jarPaths) {
+        Configuration config = new Configuration();
+        config.addAll(clusterConfiguration);
+        config.set(NUM_TASK_SLOTS, numSlotsPerTaskManager);
+        config.set(HEARTBEAT_INTERVAL, 1000L);
+        config.set(HEARTBEAT_TIMEOUT, 5000L);
+        config.set(SLOT_REQUEST_TIMEOUT, 10000L);
+        flinkContainers =
                 FlinkContainers.builder()
                         .setNumTaskManagers(numTaskManagers)
-                        .setConfiguration(flinkConfiguration)
+                        .setConfiguration(config)
                         .setLogger(LOG)
                         .enableZookeeperHA()
                         .build();
-        this.jarPath = jarPath;
+        this.jarPaths.addAll(Arrays.asList(jarPaths));
     }
 
     @Override
     public void startUp() throws Exception {
         if (!flinkContainers.isStarted()) {
-            this.flinkContainers.start();
+            flinkContainers.start();
         }
     }
 
     @Override
     public void tearDown() {
         if (flinkContainers.isStarted()) {
-            this.flinkContainers.stop();
+            flinkContainers.stop();
         }
     }
 
     @Override
-    public StreamExecutionEnvironment createExecutionEnvironment() {
+    public StreamExecutionEnvironment createExecutionEnvironment(
+            TestEnvironmentSettings envOptions) {
+        jarPaths.addAll(
+                envOptions.getConnectorJarPaths().stream()
+                        .map(URL::getPath)
+                        .collect(Collectors.toList()));
         return StreamExecutionEnvironment.createRemoteEnvironment(
-                this.flinkContainers.getJobManagerHost(),
-                this.flinkContainers.getJobManagerPort(),
-                this.jarPath);
+                flinkContainers.getJobManagerHost(),
+                flinkContainers.getJobManagerPort(),
+                jarPaths.toArray(new String[0]));
+    }
+
+    @Override
+    public Endpoint getRestEndpoint() {
+        return new Endpoint(
+                flinkContainers.getJobManagerHost(), flinkContainers.getJobManagerPort());
+    }
+
+    @Override
+    public String getCheckpointUri() {
+        return FlinkContainersBuilder.CHECKPOINT_PATH.toString();
     }
 
     @Override
@@ -120,14 +153,5 @@ public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterCo
      */
     public FlinkContainers getFlinkContainers() {
         return this.flinkContainers;
-    }
-
-    protected Configuration flinkConfiguration() {
-        Configuration flinkConfiguration = new Configuration();
-        flinkConfiguration.set(HEARTBEAT_INTERVAL, 1000L);
-        flinkConfiguration.set(HEARTBEAT_TIMEOUT, 5000L);
-        flinkConfiguration.set(SLOT_REQUEST_TIMEOUT, 10000L);
-
-        return flinkConfiguration;
     }
 }

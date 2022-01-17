@@ -141,7 +141,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-testing</artifactId>
+			<artifactId>flink-connector-test-utils</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
 				<exclusion>
