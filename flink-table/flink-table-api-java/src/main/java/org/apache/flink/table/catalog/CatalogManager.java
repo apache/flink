@@ -363,6 +363,20 @@ public final class CatalogManager {
     }
 
     /**
+     * Like {@link #getTable(ObjectIdentifier)}, but throws an error when the table is not available
+     * in any of the catalogs.
+     */
+    public ContextResolvedTable getTableOrError(ObjectIdentifier objectIdentifier) {
+        return getTable(objectIdentifier)
+                .orElseThrow(
+                        () ->
+                                new TableException(
+                                        String.format(
+                                                "Cannot find table '%s' in any of the catalogs %s, nor as a temporary table.",
+                                                objectIdentifier, listCatalogs())));
+    }
+
+    /**
      * Retrieves a partition with a fully qualified table path and partition spec. If the path is
      * not yet fully qualified use{@link #qualifyIdentifier(UnresolvedIdentifier)} first.
      *
