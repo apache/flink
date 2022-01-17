@@ -96,6 +96,13 @@ public class PipelinedSubpartition extends ResultSubpartition
     @GuardedBy("buffers")
     private boolean flushRequested;
 
+    /**
+     * Both {@link #add(BufferConsumer, int, boolean)} and {@link #flush()} function will trigger
+     * notifyDataAvailable, this flag is used to reduce useless notifyDataAvailable.
+     */
+    @GuardedBy("buffers")
+    private boolean dataAvailableIsNotified = false;
+
     /** Flag indicating whether the subpartition has been released. */
     volatile boolean isReleased;
 
@@ -185,7 +192,10 @@ public class PipelinedSubpartition extends ResultSubpartition
             }
             updateStatistics(bufferConsumer);
             increaseBuffersInBacklog(bufferConsumer);
-            notifyDataAvailable = finish || shouldNotifyDataAvailable();
+            notifyDataAvailable =
+                    finish || (shouldNotifyDataAvailableDuringAdd() && !dataAvailableIsNotified);
+
+            dataAvailableIsNotified |= notifyDataAvailable;
 
             isFinished |= finish;
             newBufferSize = bufferSize;
@@ -305,6 +315,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 
             if (buffers.isEmpty()) {
                 flushRequested = false;
+                dataAvailableIsNotified = false;
             }
 
             while (!buffers.isEmpty()) {
@@ -322,6 +333,7 @@ public class PipelinedSubpartition extends ResultSubpartition
                 if (buffers.size() == 1) {
                     // turn off flushRequested flag if we drained all of the available data
                     flushRequested = false;
+                    dataAvailableIsNotified = false;
                 }
 
                 if (bufferConsumer.isFinished()) {
@@ -368,6 +380,12 @@ public class PipelinedSubpartition extends ResultSubpartition
                     buffer,
                     parent.getOwningTaskName(),
                     subpartitionInfo);
+
+            // if data unavailable, we should also reset dataAvailableIsNotified = false
+            if (!isDataAvailableUnsafe()) {
+                dataAvailableIsNotified = false;
+            }
+
             return new BufferAndBacklog(
                     buffer,
                     getBuffersInBacklogUnsafe(),
@@ -504,11 +522,25 @@ public class PipelinedSubpartition extends ResultSubpartition
             if (buffers.isEmpty() || flushRequested) {
                 return;
             }
-            // if there is more then 1 buffer, we already notified the reader
-            // (at the latest when adding the second buffer)
+
+            // Flush have two case will trigger notifyDataAvailable :
+            //  case1: resultPartition only contain one unfinished-buffer, but its data is available
+            //  case2: buffers have more than one (which is added during isBlocked == true) and
+            // dataAvailableIsNotified == false
+
             boolean isDataAvailableInUnfinishedBuffer =
                     buffers.size() == 1 && buffers.peek().getBufferConsumer().isDataAvailable();
-            notifyDataAvailable = !isBlocked && isDataAvailableInUnfinishedBuffer;
+
+            boolean moreThanOneBufferIsAddedDuringBlocked =
+                    (buffers.size() > 1 && !dataAvailableIsNotified);
+
+            notifyDataAvailable =
+                    !isBlocked
+                            && (isDataAvailableInUnfinishedBuffer
+                                    || moreThanOneBufferIsAddedDuringBlocked);
+
+            dataAvailableIsNotified |= notifyDataAvailable;
+
             flushRequested = buffers.size() > 1 || isDataAvailableInUnfinishedBuffer;
         }
         if (notifyDataAvailable) {
@@ -576,8 +608,10 @@ public class PipelinedSubpartition extends ResultSubpartition
     }
 
     @GuardedBy("buffers")
-    private boolean shouldNotifyDataAvailable() {
+    private boolean shouldNotifyDataAvailableDuringAdd() {
         // Notify only when we added first finished buffer.
+        // Attention, the number of finishedBuffers maybe more than on during isBlocked == true,
+        // this case will be handled by flush
         return readView != null
                 && !flushRequested
                 && !isBlocked

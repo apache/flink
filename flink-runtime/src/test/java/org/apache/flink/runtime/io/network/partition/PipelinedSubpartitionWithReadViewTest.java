@@ -413,16 +413,23 @@ public class PipelinedSubpartitionWithReadViewTest {
                         new CheckpointStorageLocationReference(new byte[] {0, 1, 2}));
         BufferConsumer barrierBuffer =
                 EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options), true);
+
+        // before add one buffer, notified must be zero
+        assertEquals(0, availablityListener.getNumNotifications());
+        assertEquals(0, availablityListener.getNumPriorityEvents());
+
         subpartition.add(barrierBuffer);
         assertEquals(1, availablityListener.getNumNotifications());
         assertEquals(1, availablityListener.getNumPriorityEvents());
 
+        // add one more finished buffer should not notifyDataAvailable, because of
+        // Adding-BarrierBuffer is already notified
         subpartition.add(createFilledFinishedBufferConsumer(1));
-        assertEquals(2, availablityListener.getNumNotifications());
+        assertEquals(1, availablityListener.getNumNotifications());
         assertEquals(1, availablityListener.getNumPriorityEvents());
 
         subpartition.add(createFilledFinishedBufferConsumer(2));
-        assertEquals(2, availablityListener.getNumNotifications());
+        assertEquals(1, availablityListener.getNumNotifications());
         assertEquals(1, availablityListener.getNumPriorityEvents());
 
         assertNextEvent(
@@ -560,6 +567,61 @@ public class PipelinedSubpartitionWithReadViewTest {
         // Resumption will not make the subpartition available since it is empty.
         resumeConsumptionAndCheckAvailability(Integer.MAX_VALUE, false);
         assertNoNextBuffer(readView);
+    }
+
+    @Test
+    public void testBlockedByCheckpointAndAddOneDataBufferBeforeResumeConsumption()
+            throws Exception {
+        testBlockedByCheckpointAndAddBuffersBeforeResumeConsumption(
+                createFilledFinishedBufferConsumer(BUFFER_SIZE));
+    }
+
+    @Test
+    public void testBlockedByCheckpointAndAddTwoDataBufferBeforeResumeConsumption()
+            throws Exception {
+        testBlockedByCheckpointAndAddBuffersBeforeResumeConsumption(
+                createFilledFinishedBufferConsumer(BUFFER_SIZE),
+                createFilledFinishedBufferConsumer(BUFFER_SIZE));
+    }
+
+    @Test
+    public void testBlockedByCheckpointAndAddOneEventBufferBeforeResumeConsumption()
+            throws Exception {
+        testBlockedByCheckpointAndAddBuffersBeforeResumeConsumption(
+                createEventBufferConsumer(BUFFER_SIZE, Buffer.DataType.ALIGNED_CHECKPOINT_BARRIER));
+    }
+
+    @Test
+    public void testBlockedByCheckpointAndAddTwoEventBufferBeforeResumeConsumption()
+            throws Exception {
+        testBlockedByCheckpointAndAddBuffersBeforeResumeConsumption(
+                createEventBufferConsumer(BUFFER_SIZE, Buffer.DataType.ALIGNED_CHECKPOINT_BARRIER),
+                createEventBufferConsumer(BUFFER_SIZE, Buffer.DataType.ALIGNED_CHECKPOINT_BARRIER));
+    }
+
+    @Test
+    public void testBlockedByCheckpointAndAddOneDataBufferAndOneEventBufferBeforeResumeConsumption()
+            throws Exception {
+        testBlockedByCheckpointAndAddBuffersBeforeResumeConsumption(
+                createFilledFinishedBufferConsumer(BUFFER_SIZE),
+                createEventBufferConsumer(BUFFER_SIZE, Buffer.DataType.ALIGNED_CHECKPOINT_BARRIER));
+    }
+
+    private void testBlockedByCheckpointAndAddBuffersBeforeResumeConsumption(
+            BufferConsumer... bufferConsumers) throws Exception {
+        blockSubpartitionByCheckpoint(1);
+
+        for (int idx = 0; idx < bufferConsumers.length; idx++) {
+            subpartition.add(bufferConsumers[idx]);
+        }
+
+        assertEquals(1, availablityListener.getNumNotifications());
+        readView.resumeConsumption();
+        subpartition.flush();
+        assertEquals(2, availablityListener.getNumNotifications());
+
+        subpartition.flush();
+        assertEquals(2, availablityListener.getNumNotifications());
     }
 
     // ------------------------------------------------------------------------
