@@ -1332,6 +1332,39 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
   }
 
   @TestTemplate
+  def testMinMaxWithChar(): Unit = {
+    val data =
+      List(
+        rowOf(1, "a"),
+        rowOf(1, "b"),
+        rowOf(2, "d"),
+        rowOf(2, "c")
+      )
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE src(
+                       |  `id` INT,
+                       |  `char` CHAR(1)
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
+
+    val sql =
+      """
+        |select `id`, count(*), min(`char`), max(`char`) from src group by `id`
+      """.stripMargin
+
+    val sink = new TestingRetractSink()
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List("1,2,a,b", "2,2,c,d")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
   def testCollectOnClusteredFields(): Unit = {
     val data = List(
       (1, 1, (12, "45.6")),
