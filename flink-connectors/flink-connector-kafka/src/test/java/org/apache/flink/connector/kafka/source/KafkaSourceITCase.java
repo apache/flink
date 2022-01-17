@@ -26,15 +26,14 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
-import org.apache.flink.connector.kafka.testutils.KafkaMultipleTopicExternalContext;
-import org.apache.flink.connector.kafka.testutils.KafkaSingleTopicExternalContext;
+import org.apache.flink.connector.kafka.testutils.KafkaSourceExternalContextFactory;
 import org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv;
-import org.apache.flink.connectors.test.common.environment.MiniClusterTestEnvironment;
-import org.apache.flink.connectors.test.common.external.DefaultContainerizedExternalSystem;
-import org.apache.flink.connectors.test.common.junit.annotations.ExternalContextFactory;
-import org.apache.flink.connectors.test.common.junit.annotations.ExternalSystem;
-import org.apache.flink.connectors.test.common.junit.annotations.TestEnv;
-import org.apache.flink.connectors.test.common.testsuites.SourceTestSuiteBase;
+import org.apache.flink.connector.testframe.environment.MiniClusterTestEnvironment;
+import org.apache.flink.connector.testframe.external.DefaultContainerizedExternalSystem;
+import org.apache.flink.connector.testframe.junit.annotations.TestContext;
+import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
+import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
+import org.apache.flink.connector.testframe.testsuites.SourceTestSuiteBase;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
@@ -72,6 +71,8 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.connector.kafka.testutils.KafkaSourceExternalContext.SplitMappingMode.PARTITION;
+import static org.apache.flink.connector.kafka.testutils.KafkaSourceExternalContext.SplitMappingMode.TOPIC;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Unite test class for {@link KafkaSource}. */
@@ -265,7 +266,7 @@ public class KafkaSourceITCase {
         MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
 
         // Defines external system
-        @ExternalSystem
+        @TestExternalSystem
         DefaultContainerizedExternalSystem<KafkaContainer> kafka =
                 DefaultContainerizedExternalSystem.builder()
                         .fromContainer(
@@ -276,14 +277,16 @@ public class KafkaSourceITCase {
         // Defines 2 External context Factories, so test cases will be invoked twice using these two
         // kinds of external contexts.
         @SuppressWarnings("unused")
-        @ExternalContextFactory
-        KafkaSingleTopicExternalContext.Factory singleTopic =
-                new KafkaSingleTopicExternalContext.Factory(kafka.getContainer());
+        @TestContext
+        KafkaSourceExternalContextFactory singleTopic =
+                new KafkaSourceExternalContextFactory(
+                        kafka.getContainer(), Collections.emptyList(), PARTITION);
 
         @SuppressWarnings("unused")
-        @ExternalContextFactory
-        KafkaMultipleTopicExternalContext.Factory multipleTopic =
-                new KafkaMultipleTopicExternalContext.Factory(kafka.getContainer());
+        @TestContext
+        KafkaSourceExternalContextFactory multipleTopic =
+                new KafkaSourceExternalContextFactory(
+                        kafka.getContainer(), Collections.emptyList(), TOPIC);
     }
 
     // -----------------
