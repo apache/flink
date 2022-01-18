@@ -47,7 +47,14 @@ public class DefaultResultPartitionTest extends TestLogger {
     public void setUp() {
         resultPartition =
                 new DefaultResultPartition(
-                        resultPartitionId, intermediateResultId, BLOCKING, resultPartitionState);
+                        resultPartitionId,
+                        intermediateResultId,
+                        BLOCKING,
+                        resultPartitionState,
+                        null,
+                        () -> {
+                            throw new UnsupportedOperationException();
+                        });
     }
 
     @Test

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -61,22 +60,7 @@ class DefaultResultPartition implements SchedulingResultPartition {
         this.partitionType = checkNotNull(partitionType);
         this.resultPartitionStateSupplier = checkNotNull(resultPartitionStateSupplier);
         this.consumerVertexGroup = consumerVertexGroup;
-        this.consumerPartitionGroupSupplier = consumerPartitionGroupSupplier;
-    }
-
-    @VisibleForTesting
-    DefaultResultPartition(
-            IntermediateResultPartitionID partitionId,
-            IntermediateDataSetID intermediateDataSetId,
-            ResultPartitionType partitionType,
-            Supplier<ResultPartitionState> resultPartitionStateSupplier) {
-        this(
-                partitionId,
-                intermediateDataSetId,
-                partitionType,
-                resultPartitionStateSupplier,
-                null,
-                null);
+        this.consumerPartitionGroupSupplier = checkNotNull(consumerPartitionGroupSupplier);
     }
 
     @Override
