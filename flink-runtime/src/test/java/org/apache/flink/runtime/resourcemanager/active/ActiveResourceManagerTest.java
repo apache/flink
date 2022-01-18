@@ -894,6 +894,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                             UUID.randomUUID(),
                             ResourceID.generate(),
                             rmServices.heartbeatServices,
+                            rmServices.delegationTokenManager,
                             rmServices.slotManager,
                             NoOpResourceManagerPartitionTracker::get,
                             rmServices.jobLeaderIdService,

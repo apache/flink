@@ -40,6 +40,7 @@ import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.Preconditions;
@@ -192,6 +193,7 @@ public class ExecutionGraphInfoStoreTestUtils {
                         RpcServiceFactory rpcServiceFactory,
                         BlobServer blobServer,
                         HeartbeatServices heartbeatServices,
+                        DelegationTokenManager delegationTokenManager,
                         MetricRegistry metricRegistry,
                         MetricQueryServiceRetriever metricQueryServiceRetriever,
                         FatalErrorHandler fatalErrorHandler)
@@ -232,6 +234,7 @@ public class ExecutionGraphInfoStoreTestUtils {
                             getHaServices(),
                             blobServer,
                             heartbeatServices,
+                            delegationTokenManager,
                             metricRegistry,
                             executionGraphInfoStore,
                             metricQueryServiceRetriever,

@@ -40,6 +40,7 @@ import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerExcept
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -107,6 +108,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
             UUID leaderSessionId,
             ResourceID resourceId,
             HeartbeatServices heartbeatServices,
+            DelegationTokenManager delegationTokenManager,
             SlotManager slotManager,
             ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
             JobLeaderIdService jobLeaderIdService,
@@ -122,6 +124,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                 leaderSessionId,
                 resourceId,
                 heartbeatServices,
+                delegationTokenManager,
                 slotManager,
                 clusterPartitionTrackerFactory,
                 jobLeaderIdService,

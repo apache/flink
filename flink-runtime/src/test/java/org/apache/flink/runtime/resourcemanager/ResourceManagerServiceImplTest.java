@@ -31,6 +31,8 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
+import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
 
@@ -58,6 +60,8 @@ public class ResourceManagerServiceImplTest extends TestLogger {
     private static final Time FAST_TIMEOUT = Time.milliseconds(50L);
 
     private static final HeartbeatServices heartbeatServices = new TestingHeartbeatServices();
+    private static final DelegationTokenManager delegationTokenManager =
+            new NoOpDelegationTokenManager();
     private static final ClusterInformation clusterInformation =
             new ClusterInformation("localhost", 1234);
     private static final MetricRegistry metricRegistry = TestingMetricRegistry.builder().build();
@@ -125,6 +129,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
                         rpcService,
                         haService,
                         heartbeatServices,
+                        delegationTokenManager,
                         fatalErrorHandler,
                         clusterInformation,
                         null,

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.security.token.DelegationTokenConverter;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.StringUtils;
@@ -221,16 +222,9 @@ public final class Utils {
             LOG.info("Adding user token " + token.getService() + " with " + token);
             credentials.addToken(token.getService(), token);
         }
-        try (DataOutputBuffer dob = new DataOutputBuffer()) {
-            credentials.writeTokenStorageToStream(dob);
 
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Wrote tokens. Credentials buffer length: " + dob.getLength());
-            }
-
-            ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
-            amContainer.setTokens(securityTokens);
-        }
+        ByteBuffer tokens = ByteBuffer.wrap(DelegationTokenConverter.serialize(credentials));
+        amContainer.setTokens(tokens);
     }
 
     /** Obtain Kerberos security token for HBase. */

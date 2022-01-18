@@ -29,6 +29,7 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 
 import javax.annotation.Nullable;
 
@@ -46,6 +47,7 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
             UUID leaderSessionId,
             ResourceID resourceId,
             HeartbeatServices heartbeatServices,
+            DelegationTokenManager delegationTokenManager,
             SlotManager slotManager,
             ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
             JobLeaderIdService jobLeaderIdService,
@@ -57,6 +59,7 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
                 leaderSessionId,
                 resourceId,
                 heartbeatServices,
+                delegationTokenManager,
                 slotManager,
                 clusterPartitionTrackerFactory,
                 jobLeaderIdService,

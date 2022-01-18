@@ -43,6 +43,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
+import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -655,6 +656,7 @@ public class ResourceManagerTest extends TestLogger {
                             resourceManagerId.toUUID(),
                             resourceManagerResourceId,
                             heartbeatServices,
+                            new NoOpDelegationTokenManager(),
                             slotManager,
                             NoOpResourceManagerPartitionTracker::get,
                             jobLeaderIdService,
