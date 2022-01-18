@@ -74,10 +74,6 @@ Here are [metrics]({{< ref "docs/ops/metrics" >}}#io) you can use to monitor the
 
 Currently, there are a few cases that are not handled automatically by the buffer debloating mechanism.
 
-#### Large records
-
-If your record size exceeds the [minimum memory segment size]({{< ref "docs/deployment/config" >}}#taskmanager-memory-min-segment-size), buffer debloating can potentially shrink the buffer size so much, that the network stack will require more than one buffer to transfer a single record. This can have adverse effects on the throughput, without actually reducing the amount of in-flight data. 
-
 #### Multiple inputs and unions
 
 Currently, the throughput calculation and buffer debloating happen on the subtask level. 
@@ -89,6 +85,14 @@ If your subtask has multiple different inputs or it has a single but unioned inp
 Currently, buffer debloating only caps at the maximal used buffer size. The actual buffer size and the number of buffers remain unchanged. This means that the debloating mechanism cannot reduce the memory usage of your job. You would have to manually reduce either the amount or the size of the buffers. 
 
 Furthermore, if you want to reduce the amount of buffered in-flight data below what buffer debloating currently allows, you might want to manually configure the number of buffers.
+
+#### High parallelism
+
+Currently, the buffer debloating mechanism might not perform correctly with high parallelism (above ~200) using the default configuration. 
+If you observe reduced throughput or higher than expected checkpointing times 
+we suggest increasing the number of floating buffers (`taskmanager.network.memory.floating-buffers-per-gate`) from the default value to at least the number equal to the parallelism.
+
+The actual value of parallelism from which the problem occurs is various from job to job but normally it should be more than a couple of hundreds.
 
 ## Network buffer lifecycle
  
@@ -137,7 +141,7 @@ If the buffer size is too large, this can lead to:
 The number of buffers is configured by the `taskmanager.network.memory.buffers-per-channel` and `taskmanager.network.memory.floating-buffers-per-gate` settings. 
 
 For best throughput, we recommend using the default values for the number of exclusive
-and floating buffers. If the amount of in-flight data is causing issues, enabling
+and floating buffers(except you have one of [limit cases]({{< ref "docs/deployment/memory/network_mem_tuning" >}}#limitations)). If the amount of in-flight data is causing issues, enabling
 [buffer debloating]({{< ref "docs/deployment/memory/network_mem_tuning" >}}#the-buffer-debloating-mechanism) is recommended. 
 
 You can tune the number of network buffers manually, but consider the following: 
