@@ -385,7 +385,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      */
     @Override
     public List<Void> prepareCommit(boolean flush) {
-        while (inFlightRequestsCount > 0 || bufferedRequestEntries.size() > 0) {
+        while (inFlightRequestsCount > 0 || (bufferedRequestEntries.size() > 0 && flush)) {
             mailboxExecutor.tryYield();
             if (flush) {
                 flush();
