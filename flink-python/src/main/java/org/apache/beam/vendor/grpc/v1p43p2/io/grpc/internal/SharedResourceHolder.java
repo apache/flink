@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package org.apache.beam.vendor.grpc.v1p26p0.io.grpc.internal;
+package org.apache.beam.vendor.grpc.v1p43p2.io.grpc.internal;
 
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.common.base.Preconditions;
 
 import javax.annotation.concurrent.ThreadSafe;
 

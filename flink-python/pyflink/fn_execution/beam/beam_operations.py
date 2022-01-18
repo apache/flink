@@ -17,6 +17,7 @@
 ################################################################################
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners import common
 from apache_beam.runners.worker import bundle_processor, operation_specs
 from apache_beam.utils import proto_utils
 
@@ -150,6 +151,7 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
         input=None,
         side_inputs=None,
         output_coders=[output_coders[tag] for tag in output_tags])
+    name = common.NameContext(transform_proto.unique_name)
 
     serialized_fn = spec.serialized_fn
     if hasattr(serialized_fn, "key_type"):
@@ -172,7 +174,7 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             serialized_fn.map_state_write_cache_size)
 
         return beam_operation_cls(
-            transform_proto.unique_name,
+            name,
             spec,
             factory.counter_factory,
             factory.state_sampler,
@@ -189,7 +191,7 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             serialized_fn.map_state_read_cache_size,
             serialized_fn.map_state_write_cache_size)
         return beam_operation_cls(
-            transform_proto.unique_name,
+            name,
             spec,
             factory.counter_factory,
             factory.state_sampler,
@@ -198,7 +200,7 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             keyed_state_backend)
     else:
         return beam_operation_cls(
-            transform_proto.unique_name,
+            name,
             spec,
             factory.counter_factory,
             factory.state_sampler,
