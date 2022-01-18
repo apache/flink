@@ -19,13 +19,19 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl;
 
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Optional;
 
 import static junit.framework.TestCase.assertFalse;
+import static org.apache.flink.runtime.state.ChangelogTestUtils.ChangelogStateHandleWrapper;
+import static org.apache.flink.runtime.state.ChangelogTestUtils.IncrementalStateHandleWrapper;
+import static org.apache.flink.runtime.state.ChangelogTestUtils.createDummyChangelogStateHandle;
+import static org.apache.flink.runtime.state.ChangelogTestUtils.createDummyIncrementalStateHandle;
 import static org.junit.Assert.assertTrue;
 
 public class SharedStateRegistryTest {
@@ -96,6 +102,74 @@ public class SharedStateRegistryTest {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         sharedStateRegistry.unregisterUnusedState(-1);
         sharedStateRegistry.unregisterUnusedState(Long.MAX_VALUE);
+    }
+
+    @Test
+    public void testRegisterChangelogStateBackendHandles() throws InterruptedException {
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
+        long materializationId1 = 1L;
+        // the base materialized state on TM side
+        ChangelogTestUtils.IncrementalStateHandleWrapper materializedStateBase1 =
+                createDummyIncrementalStateHandle(materializationId1);
+
+        // we copy the state handle due to FLINK-25479 to mock on JM side
+        IncrementalStateHandleWrapper materializedState1 = materializedStateBase1.copy();
+        ChangelogStateHandleWrapper nonMaterializedState1 = createDummyChangelogStateHandle(1, 2);
+        long materializationId = 1L;
+        long checkpointId1 = 41;
+        ChangelogStateBackendHandleImpl changelogStateBackendHandle1 =
+                new ChangelogStateBackendHandleImpl(
+                        Collections.singletonList(materializedState1),
+                        Collections.singletonList(nonMaterializedState1),
+                        materializedStateBase1.getKeyGroupRange(),
+                        materializationId,
+                        nonMaterializedState1.getStateSize());
+        changelogStateBackendHandle1.registerSharedStates(sharedStateRegistry, checkpointId1);
+        sharedStateRegistry.checkpointCompleted(checkpointId1);
+        sharedStateRegistry.unregisterUnusedState(checkpointId1);
+
+        IncrementalStateHandleWrapper materializedState2 = materializedStateBase1.copy();
+        ChangelogStateHandleWrapper nonMaterializedState2 = createDummyChangelogStateHandle(2, 3);
+        long checkpointId2 = 42;
+        ChangelogStateBackendHandleImpl changelogStateBackendHandle2 =
+                new ChangelogStateBackendHandleImpl(
+                        Collections.singletonList(materializedState2),
+                        Collections.singletonList(nonMaterializedState2),
+                        materializedStateBase1.getKeyGroupRange(),
+                        materializationId,
+                        nonMaterializedState2.getStateSize());
+        changelogStateBackendHandle2.registerSharedStates(sharedStateRegistry, checkpointId2);
+        sharedStateRegistry.checkpointCompleted(checkpointId2);
+        sharedStateRegistry.unregisterUnusedState(checkpointId2);
+
+        // the 1st materialized state would not be discarded since the 2nd changelog state backend
+        // handle still use it.
+        assertFalse(materializedState1.isDiscarded());
+        assertTrue(nonMaterializedState1.isDiscarded());
+
+        long materializationId2 = 2L;
+        IncrementalStateHandleWrapper materializedStateBase2 =
+                createDummyIncrementalStateHandle(materializationId2);
+
+        IncrementalStateHandleWrapper materializedState3 = materializedStateBase2.copy();
+        long checkpointId3 = 43L;
+        ChangelogStateBackendHandleImpl changelogStateBackendHandle3 =
+                new ChangelogStateBackendHandleImpl(
+                        Collections.singletonList(materializedState3),
+                        Collections.singletonList(nonMaterializedState2),
+                        materializedState3.getKeyGroupRange(),
+                        materializationId2,
+                        0L);
+        changelogStateBackendHandle3.registerSharedStates(sharedStateRegistry, checkpointId3);
+        sharedStateRegistry.checkpointCompleted(checkpointId3);
+        sharedStateRegistry.unregisterUnusedState(checkpointId3);
+
+        // the 1st materialized state would be discarded since we have a newer materialized
+        // state registered.
+        assertTrue(materializedState1.isDiscarded());
+        // the 2nd non-materialized state would not be discarded as 3rd changelog state backend
+        // handle still use it.
+        assertFalse(nonMaterializedState2.isDiscarded());
     }
 
     private static class TestSharedState implements StreamStateHandle {

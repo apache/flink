@@ -413,12 +413,9 @@ public class ChangelogKeyedStateBackend<K>
                 && changelogStateBackendStateCopy.getMaterializedSnapshot().isEmpty()) {
             return SnapshotResult.empty();
         } else {
-            List<KeyedStateHandle> materializedSnapshot =
-                    changelogStateBackendStateCopy.getMaterializedSnapshot();
-
             return SnapshotResult.of(
                     new ChangelogStateBackendHandleImpl(
-                            materializedSnapshot,
+                            changelogStateBackendStateCopy.getMaterializedSnapshot(),
                             prevDeltaCopy,
                             getKeyGroupRange(),
                             changelogStateBackendStateCopy.materializationID,

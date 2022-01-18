@@ -20,6 +20,8 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.util.StringBasedID;
 
+import java.util.UUID;
+
 /**
  * Unique ID that allows for logical comparison between state handles.
  *
@@ -33,5 +35,9 @@ public class StateHandleID extends StringBasedID {
 
     public StateHandleID(String keyString) {
         super(keyString);
+    }
+
+    public static StateHandleID randomStateHandleId() {
+        return new StateHandleID(UUID.randomUUID().toString());
     }
 }
