@@ -90,7 +90,7 @@ public class PulsarTestEnvironment
         runtime.startUp();
     }
 
-    /** flink-connector-test-utils setup method. */
+    /** Start up the test resource. */
     @Override
     public void startUp() {
         runtime.startUp();
@@ -102,7 +102,7 @@ public class PulsarTestEnvironment
         runtime.tearDown();
     }
 
-    /** flink-connector-testing shutdown method. */
+    /** Tear down the test resource. */
     @Override
     public void tearDown() {
         runtime.tearDown();

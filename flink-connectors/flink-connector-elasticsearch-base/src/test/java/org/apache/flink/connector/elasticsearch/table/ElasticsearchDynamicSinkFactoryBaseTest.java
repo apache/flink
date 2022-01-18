@@ -20,7 +20,6 @@ package org.apache.flink.connector.elasticsearch.table;
 
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.connector.elasticsearch.ElasticsearchUtil;
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
@@ -28,6 +27,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

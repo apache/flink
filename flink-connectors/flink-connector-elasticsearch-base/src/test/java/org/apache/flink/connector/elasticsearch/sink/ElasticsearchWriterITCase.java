@@ -20,7 +20,6 @@ package org.apache.flink.connector.elasticsearch.sink;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.elasticsearch.ElasticsearchUtil;
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
@@ -30,6 +29,7 @@ import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.DockerImageVersions;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.apache.http.HttpHost;

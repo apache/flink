@@ -18,7 +18,7 @@
 package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.connector.base.DeliveryGuarantee;
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.http.HttpHost;
 import org.junit.jupiter.api.DynamicTest;

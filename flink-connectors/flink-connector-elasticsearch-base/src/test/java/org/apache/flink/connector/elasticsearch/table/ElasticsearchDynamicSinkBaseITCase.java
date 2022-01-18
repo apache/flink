@@ -21,7 +21,6 @@ package org.apache.flink.connector.elasticsearch.table;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.connector.elasticsearch.ElasticsearchUtil;
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -36,6 +35,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
