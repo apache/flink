@@ -19,14 +19,14 @@
 package org.apache.flink.connector.pulsar.testutils;
 
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator;
-import org.apache.flink.connectors.test.common.external.SourceSplitDataWriter;
+import org.apache.flink.connector.testframe.external.ExternalSystemSplitDataWriter;
 
 import org.apache.pulsar.client.api.Schema;
 
-import java.util.Collection;
+import java.util.List;
 
 /** Source split data writer for writing test data into a Pulsar topic partition. */
-public class PulsarPartitionDataWriter implements SourceSplitDataWriter<String> {
+public class PulsarPartitionDataWriter implements ExternalSystemSplitDataWriter<String> {
 
     private final PulsarRuntimeOperator operator;
     private final String fullTopicName;
@@ -37,7 +37,7 @@ public class PulsarPartitionDataWriter implements SourceSplitDataWriter<String> 
     }
 
     @Override
-    public void writeRecords(Collection<String> records) {
+    public void writeRecords(List<String> records) {
         operator.sendMessages(fullTopicName, Schema.STRING, records);
     }
 

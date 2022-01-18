@@ -23,6 +23,10 @@ import org.apache.flink.connector.pulsar.testutils.cases.MultipleTopicTemplateCo
 
 import org.apache.pulsar.client.api.SubscriptionType;
 
+import java.net.URL;
+import java.util.Collections;
+import java.util.List;
+
 import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_SERVICE_URL;
 
@@ -31,7 +35,12 @@ public class ExclusiveSubscriptionContext extends MultipleTopicTemplateContext {
     private static final long serialVersionUID = 6238209089442257487L;
 
     public ExclusiveSubscriptionContext(PulsarTestEnvironment environment) {
-        super(environment);
+        this(environment, Collections.emptyList());
+    }
+
+    public ExclusiveSubscriptionContext(
+            PulsarTestEnvironment environment, List<URL> connectorJarPaths) {
+        super(environment, connectorJarPaths);
     }
 
     @Override
