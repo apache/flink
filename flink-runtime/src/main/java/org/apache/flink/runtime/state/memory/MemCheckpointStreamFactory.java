@@ -28,13 +28,14 @@ import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** {@link CheckpointStreamFactory} that produces streams that write to in-memory byte arrays. */
 public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
 
-    /** The maximal size that the snapshotted memory state may have */
+    /** The maximal size that the snapshotted memory state may have. */
     private final int maxStateSize;
 
     /**
@@ -51,6 +52,17 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
     public CheckpointStateOutputStream createCheckpointStateOutputStream(
             CheckpointedStateScope scope) throws IOException {
         return new MemoryCheckpointOutputStream(maxStateSize);
+    }
+
+    @Override
+    public boolean canFastDuplicate(StreamStateHandle stateHandle, CheckpointedStateScope scope) {
+        return false;
+    }
+
+    @Override
+    public List<StreamStateHandle> duplicate(
+            List<StreamStateHandle> stateHandles, CheckpointedStateScope scope) throws IOException {
+        throw new UnsupportedOperationException("We can not duplicate handles in memory.");
     }
 
     @Override
