@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -45,23 +47,25 @@ public final class PartitionableListState<S> implements ListState<S> {
     private final ArrayListSerializer<S> internalListCopySerializer;
 
     PartitionableListState(RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo) {
-        this(stateMetaInfo, new ArrayList<S>());
+        this(stateMetaInfo, new ArrayList<>(), stateMetaInfo.getPartitionStateSerializer());
+    }
+
+    // constructor for deep copy.
+    private PartitionableListState(PartitionableListState<S> toCopy) {
+        this(
+                toCopy.stateMetaInfo.deepCopy(),
+                toCopy.internalListCopySerializer.copy(toCopy.internalList),
+                toCopy.stateMetaInfo.getPartitionStateSerializer().duplicate());
     }
 
     private PartitionableListState(
-            RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo, ArrayList<S> internalList) {
+            RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo,
+            ArrayList<S> internalList,
+            TypeSerializer<S> stateSerializer) {
 
         this.stateMetaInfo = Preconditions.checkNotNull(stateMetaInfo);
         this.internalList = Preconditions.checkNotNull(internalList);
-        this.internalListCopySerializer =
-                new ArrayListSerializer<>(stateMetaInfo.getPartitionStateSerializer());
-    }
-
-    private PartitionableListState(PartitionableListState<S> toCopy) {
-
-        this(
-                toCopy.stateMetaInfo.deepCopy(),
-                toCopy.internalListCopySerializer.copy(toCopy.internalList));
+        this.internalListCopySerializer = new ArrayListSerializer<>(stateSerializer);
     }
 
     public void setStateMetaInfo(RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo) {
@@ -74,6 +78,11 @@ public final class PartitionableListState<S> implements ListState<S> {
 
     public PartitionableListState<S> deepCopy() {
         return new PartitionableListState<>(this);
+    }
+
+    @VisibleForTesting
+    ArrayListSerializer<S> getInternalListCopySerializer() {
+        return internalListCopySerializer;
     }
 
     @Override

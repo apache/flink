@@ -40,6 +40,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -65,6 +66,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -984,6 +986,41 @@ public class OperatorStateBackendTest {
             runnableFuture.get(60, TimeUnit.SECONDS);
             Assert.fail();
         } catch (CancellationException ignore) {
+        }
+    }
+
+    @Test
+    public void testDeepCopyOperatorState() throws Exception {
+        DefaultOperatorStateBackend operatorStateBackend =
+                new DefaultOperatorStateBackendBuilder(
+                                OperatorStateBackendTest.class.getClassLoader(),
+                                new ExecutionConfig(),
+                                true,
+                                emptyStateHandles,
+                                new CloseableRegistry())
+                        .build();
+        try {
+            ListStateDescriptor<MutableType> stateDescriptor =
+                    new ListStateDescriptor<>("kryo-serializer", MutableType.class);
+            ListState<MutableType> listState = operatorStateBackend.getListState(stateDescriptor);
+            assertTrue(listState instanceof PartitionableListState);
+
+            PartitionableListState<MutableType> originalState =
+                    (PartitionableListState<MutableType>) listState;
+            PartitionableListState<MutableType> copiedState = originalState.deepCopy();
+            assertNotSame(copiedState, originalState);
+
+            ArrayListSerializer<MutableType> originalStateArrayListSerializer =
+                    originalState.getInternalListCopySerializer();
+            ArrayListSerializer<MutableType> copiedArrayListSerializer =
+                    copiedState.getInternalListCopySerializer();
+            assertNotSame(copiedArrayListSerializer, originalStateArrayListSerializer);
+            assertNotSame(
+                    copiedArrayListSerializer.getElementSerializer(),
+                    originalStateArrayListSerializer.getElementSerializer());
+        } finally {
+            IOUtils.closeQuietly(operatorStateBackend);
+            operatorStateBackend.dispose();
         }
     }
 
