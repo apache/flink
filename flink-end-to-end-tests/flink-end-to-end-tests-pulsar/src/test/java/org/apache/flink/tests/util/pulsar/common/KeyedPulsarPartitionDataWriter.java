@@ -19,11 +19,10 @@
 package org.apache.flink.tests.util.pulsar.common;
 
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator;
-import org.apache.flink.connectors.test.common.external.SourceSplitDataWriter;
+import org.apache.flink.connector.testframe.external.ExternalSystemSplitDataWriter;
 
 import org.apache.pulsar.client.api.Schema;
 
-import java.util.Collection;
 import java.util.List;
 
 import static java.util.stream.Collectors.toList;
@@ -32,7 +31,7 @@ import static java.util.stream.Collectors.toList;
  * Source split data writer for writing test data into a Pulsar topic partition. It will write the
  * message with two keys.
  */
-public class KeyedPulsarPartitionDataWriter implements SourceSplitDataWriter<String> {
+public class KeyedPulsarPartitionDataWriter implements ExternalSystemSplitDataWriter<String> {
 
     private final PulsarRuntimeOperator operator;
     private final String fullTopicName;
@@ -48,7 +47,7 @@ public class KeyedPulsarPartitionDataWriter implements SourceSplitDataWriter<Str
     }
 
     @Override
-    public void writeRecords(Collection<String> records) {
+    public void writeRecords(List<String> records) {
         operator.sendMessages(fullTopicName, Schema.STRING, key1, records);
 
         List<String> newRecords = records.stream().map(a -> a + key1).collect(toList());
