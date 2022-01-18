@@ -53,4 +53,9 @@ public class TestCheckpointStorageWorkerView implements CheckpointStorageWorkerV
         return taskOwnedCheckpointStreamFactory.createCheckpointStateOutputStream(
                 taskOwnedStateScope);
     }
+
+    @Override
+    public CheckpointStateToolset createTaskOwnedCheckpointStateToolset() {
+        return new NotDuplicatingCheckpointStateToolset();
+    }
 }

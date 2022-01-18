@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.IOException;
 
 /**
@@ -27,6 +29,7 @@ import java.io.IOException;
  *
  * <p>Methods of this interface act as a worker role in task manager.
  */
+@Internal
 public interface CheckpointStorageWorkerView {
 
     /**
@@ -64,4 +67,12 @@ public interface CheckpointStorageWorkerView {
      * @throws IOException Thrown, if the stream cannot be opened.
      */
     CheckpointStateOutputStream createTaskOwnedStateStream() throws IOException;
+
+    /**
+     * A complementary method to {@link #createTaskOwnedStateStream()}. Creates a toolset that gives
+     * access to additional operations that can be performed in the task owned state location.
+     *
+     * @return A toolset for additional operations for state owned by tasks.
+     */
+    CheckpointStateToolset createTaskOwnedCheckpointStateToolset();
 }
