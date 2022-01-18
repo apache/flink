@@ -62,6 +62,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.FileType;
@@ -150,11 +151,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     /** The heartbeat manager with job managers. */
     private HeartbeatManager<Void, Void> jobManagerHeartbeatManager;
 
+    private final DelegationTokenManager delegationTokenManager;
+
     public ResourceManager(
             RpcService rpcService,
             UUID leaderSessionId,
             ResourceID resourceId,
             HeartbeatServices heartbeatServices,
+            DelegationTokenManager delegationTokenManager,
             SlotManager slotManager,
             ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
             JobLeaderIdService jobLeaderIdService,
@@ -205,6 +209,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         this.ioExecutor = ioExecutor;
 
         this.startedFuture = new CompletableFuture<>();
+
+        this.delegationTokenManager = delegationTokenManager;
     }
 
     // ------------------------------------------------------------------------
@@ -237,6 +243,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
             slotManager.start(
                     getFencingToken(), getMainThreadExecutor(), new ResourceActionsImpl());
+
+            delegationTokenManager.start();
 
             initialize();
         } catch (Exception e) {
@@ -283,6 +291,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         } catch (Exception e) {
             exception =
                     new ResourceManagerException("Error while shutting down resource manager", e);
+        }
+
+        try {
+            delegationTokenManager.stop();
+        } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
         }
 
         stopHeartbeatServices();

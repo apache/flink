@@ -32,6 +32,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
 
@@ -108,6 +109,7 @@ public class StandaloneResourceManagerTest extends TestLogger {
                         UUID.randomUUID(),
                         ResourceID.generate(),
                         rmServices.heartbeatServices,
+                        rmServices.delegationTokenManager,
                         rmServices.slotManager,
                         rmServices.jobLeaderIdService,
                         new ClusterInformation("localhost", 1234),
@@ -128,6 +130,7 @@ public class StandaloneResourceManagerTest extends TestLogger {
                 UUID leaderSessionId,
                 ResourceID resourceId,
                 HeartbeatServices heartbeatServices,
+                DelegationTokenManager delegationTokenManager,
                 SlotManager slotManager,
                 JobLeaderIdService jobLeaderIdService,
                 ClusterInformation clusterInformation,
@@ -139,6 +142,7 @@ public class StandaloneResourceManagerTest extends TestLogger {
                     leaderSessionId,
                     resourceId,
                     heartbeatServices,
+                    delegationTokenManager,
                     slotManager,
                     NoOpResourceManagerPartitionTracker::get,
                     jobLeaderIdService,

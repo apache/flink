@@ -32,6 +32,7 @@ import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.dispatcher.MiniDispatcher;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
+import org.apache.flink.runtime.hadoop.HadoopDependency;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -65,6 +67,9 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.contexts.SecurityContext;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
+import org.apache.flink.runtime.security.token.KerberosDelegationTokenManager;
+import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcMetricQueryServiceRetriever;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -148,6 +153,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
     @GuardedBy("lock")
     private HeartbeatServices heartbeatServices;
+
+    @GuardedBy("lock")
+    private DelegationTokenManager delegationTokenManager;
 
     @GuardedBy("lock")
     private RpcService commonRpcService;
@@ -293,6 +301,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             haServices,
                             blobServer,
                             heartbeatServices,
+                            delegationTokenManager,
                             metricRegistry,
                             executionGraphInfoStore,
                             new RpcMetricQueryServiceRetriever(
@@ -382,6 +391,12 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             blobServer.start();
             configuration.setString(BlobServerOptions.PORT, String.valueOf(blobServer.getPort()));
             heartbeatServices = createHeartbeatServices(configuration);
+            delegationTokenManager =
+                    configuration.getBoolean(SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN)
+                                    && HadoopDependency.isHadoopCommonOnClasspath(
+                                            getClass().getClassLoader())
+                            ? new KerberosDelegationTokenManager(configuration)
+                            : new NoOpDelegationTokenManager();
             metricRegistry = createMetricRegistry(configuration, pluginManager, rpcSystem);
 
             final RpcService metricQueryServiceRpcService =

@@ -33,6 +33,7 @@ import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -189,6 +190,7 @@ public class TestingResourceManagerService implements ResourceManagerService {
                             rpcService,
                             haServices,
                             new TestingHeartbeatServices(),
+                            new NoOpDelegationTokenManager(),
                             fatalErrorHandler,
                             new ClusterInformation("localhost", 1234),
                             null,

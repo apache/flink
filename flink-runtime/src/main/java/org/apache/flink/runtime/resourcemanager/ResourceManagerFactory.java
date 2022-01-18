@@ -29,6 +29,7 @@ import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.util.ConfigurationException;
 
 import org.slf4j.Logger;
@@ -54,6 +55,7 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
             RpcService rpcService,
             HighAvailabilityServices highAvailabilityServices,
             HeartbeatServices heartbeatServices,
+            DelegationTokenManager delegationTokenManager,
             FatalErrorHandler fatalErrorHandler,
             ClusterInformation clusterInformation,
             @Nullable String webInterfaceUrl,
@@ -83,6 +85,7 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
                 rpcService,
                 highAvailabilityServices,
                 heartbeatServices,
+                delegationTokenManager,
                 fatalErrorHandler,
                 clusterInformation,
                 webInterfaceUrl,
@@ -107,6 +110,7 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
                 context.getRpcService(),
                 leaderSessionId,
                 context.getHeartbeatServices(),
+                context.getDelegationTokenManager(),
                 context.getFatalErrorHandler(),
                 context.getClusterInformation(),
                 context.getWebInterfaceUrl(),
@@ -145,6 +149,7 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
             RpcService rpcService,
             UUID leaderSessionId,
             HeartbeatServices heartbeatServices,
+            DelegationTokenManager delegationTokenManager,
             FatalErrorHandler fatalErrorHandler,
             ClusterInformation clusterInformation,
             @Nullable String webInterfaceUrl,

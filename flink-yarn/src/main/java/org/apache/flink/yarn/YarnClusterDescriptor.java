@@ -51,6 +51,9 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
+import org.apache.flink.runtime.security.token.DelegationTokenConverter;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
+import org.apache.flink.runtime.security.token.KerberosDelegationTokenManager;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkException;
@@ -68,6 +71,7 @@ import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
+import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
@@ -106,6 +110,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URLDecoder;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -1124,9 +1129,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         final ContainerLaunchContext amContainer =
                 setupApplicationMasterContainer(yarnClusterEntrypoint, hasKrb5, processSpec);
 
-        // setup security tokens
+        // New delegation token framework
+        if (configuration.getBoolean(SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN)) {
+            setTokensFor(amContainer);
+        }
+        // Old delegation token framework
         if (UserGroupInformation.isSecurityEnabled()) {
-            // set HDFS delegation tokens when security is enabled
             LOG.info("Adding delegation token to the AM container.");
             final List<Path> pathsToObtainToken = new ArrayList<>();
             boolean fetchToken =
@@ -1256,6 +1264,21 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         // since deployment was successful, remove the hook
         ShutdownHookUtil.removeShutdownHook(deploymentFailureHook, getClass().getSimpleName(), LOG);
         return report;
+    }
+
+    private void setTokensFor(ContainerLaunchContext containerLaunchContext) throws IOException {
+        LOG.info("Adding delegation tokens to the AM container.");
+
+        Credentials credentials = UserGroupInformation.getCurrentUser().getCredentials();
+
+        DelegationTokenManager delegationTokenManager =
+                new KerberosDelegationTokenManager(flinkConfiguration);
+        delegationTokenManager.obtainDelegationTokens(credentials);
+
+        ByteBuffer tokens = ByteBuffer.wrap(DelegationTokenConverter.serialize(credentials));
+        containerLaunchContext.setTokens(tokens);
+
+        LOG.info("Delegation tokens added to the AM container.");
     }
 
     /**

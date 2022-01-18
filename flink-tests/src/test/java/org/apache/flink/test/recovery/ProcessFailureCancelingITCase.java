@@ -48,6 +48,7 @@ import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcUtils;
+import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
 import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.impl.VoidMetricQueryServiceRetriever;
@@ -147,6 +148,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                             haServices,
                             blobServerResource.getBlobServer(),
                             new HeartbeatServices(100L, 10000L, 2),
+                            new NoOpDelegationTokenManager(),
                             NoOpMetricRegistry.INSTANCE,
                             new MemoryExecutionGraphInfoStore(),
                             VoidMetricQueryServiceRetriever.INSTANCE,
