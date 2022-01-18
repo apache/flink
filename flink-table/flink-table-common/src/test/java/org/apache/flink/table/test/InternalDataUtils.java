@@ -103,7 +103,7 @@ class InternalDataUtils {
                         : ((MapType) logicalType).getValueType();
 
         final ArrayData.ElementGetter keyGetter = ArrayData.createElementGetter(keyType);
-        final ArrayData.ElementGetter valueGetter = ArrayData.createElementGetter(keyType);
+        final ArrayData.ElementGetter valueGetter = ArrayData.createElementGetter(valueType);
 
         final ArrayData keys = mapData.keyArray();
         final ArrayData values = mapData.valueArray();
