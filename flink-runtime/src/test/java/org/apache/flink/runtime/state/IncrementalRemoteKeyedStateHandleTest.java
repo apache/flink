@@ -28,6 +28,8 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -228,6 +230,16 @@ public class IncrementalRemoteKeyedStateHandleTest {
         IncrementalRemoteKeyedStateHandle stateHandle2 =
                 create(ThreadLocalRandom.current(), checkpointedSize);
         Assert.assertEquals(checkpointedSize, stateHandle2.getCheckpointedSize());
+    }
+
+    @Test
+    public void testNonEmptyIntersection() {
+        IncrementalRemoteKeyedStateHandle handle = create(ThreadLocalRandom.current());
+
+        KeyGroupRange expectedRange = new KeyGroupRange(0, 3);
+        KeyedStateHandle newHandle = handle.getIntersection(expectedRange);
+        assertTrue(newHandle instanceof IncrementalRemoteKeyedStateHandle);
+        assertEquals(handle.getStateHandleId(), newHandle.getStateHandleId());
     }
 
     private static IncrementalRemoteKeyedStateHandle create(Random rnd) {

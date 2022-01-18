@@ -218,11 +218,12 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
         String subtaskName = env.getTaskInfo().getTaskNameWithSubtasks();
         ExecutionConfig executionConfig = env.getExecutionConfig();
 
+        Collection<ChangelogStateBackendHandle> stateBackendHandles = castHandles(stateHandles);
         ChangelogKeyedStateBackend<K> keyedStateBackend =
                 ChangelogBackendRestoreOperation.restore(
                         changelogStorage.createReader(),
                         env.getUserCodeClassLoader().asClassLoader(),
-                        castHandles(stateHandles),
+                        stateBackendHandles,
                         baseBackendBuilder,
                         (baseBackend, baseState) ->
                                 new ChangelogKeyedStateBackend(

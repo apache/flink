@@ -87,6 +87,8 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
 
     private final long persistedSizeOfThisCheckpoint;
 
+    private final StateHandleID stateHandleId;
+
     /**
      * Once the shared states are registered, it is the {@link SharedStateRegistry}'s responsibility
      * to cleanup those shared states. But in the cases where the state handle is discarded before
@@ -96,6 +98,7 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
      */
     private transient SharedStateRegistry sharedStateRegistry;
 
+    @VisibleForTesting
     public IncrementalRemoteKeyedStateHandle(
             UUID backendIdentifier,
             KeyGroupRange keyGroupRange,
@@ -110,7 +113,8 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
                 sharedState,
                 privateState,
                 metaStateHandle,
-                UNKNOWN_CHECKPOINTED_SIZE);
+                UNKNOWN_CHECKPOINTED_SIZE,
+                new StateHandleID(UUID.randomUUID().toString()));
     }
 
     public IncrementalRemoteKeyedStateHandle(
@@ -122,6 +126,26 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
             StreamStateHandle metaStateHandle,
             long persistedSizeOfThisCheckpoint) {
 
+        this(
+                backendIdentifier,
+                keyGroupRange,
+                checkpointId,
+                sharedState,
+                privateState,
+                metaStateHandle,
+                persistedSizeOfThisCheckpoint,
+                new StateHandleID(UUID.randomUUID().toString()));
+    }
+
+    protected IncrementalRemoteKeyedStateHandle(
+            UUID backendIdentifier,
+            KeyGroupRange keyGroupRange,
+            long checkpointId,
+            Map<StateHandleID, StreamStateHandle> sharedState,
+            Map<StateHandleID, StreamStateHandle> privateState,
+            StreamStateHandle metaStateHandle,
+            long persistedSizeOfThisCheckpoint,
+            StateHandleID stateHandleId) {
         this.backendIdentifier = Preconditions.checkNotNull(backendIdentifier);
         this.keyGroupRange = Preconditions.checkNotNull(keyGroupRange);
         this.checkpointId = checkpointId;
@@ -133,6 +157,27 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
                 persistedSizeOfThisCheckpoint == UNKNOWN_CHECKPOINTED_SIZE
                         ? getStateSize()
                         : persistedSizeOfThisCheckpoint;
+        this.stateHandleId = stateHandleId;
+    }
+
+    public static IncrementalRemoteKeyedStateHandle restore(
+            UUID backendIdentifier,
+            KeyGroupRange keyGroupRange,
+            long checkpointId,
+            Map<StateHandleID, StreamStateHandle> sharedState,
+            Map<StateHandleID, StreamStateHandle> privateState,
+            StreamStateHandle metaStateHandle,
+            long persistedSizeOfThisCheckpoint,
+            StateHandleID stateHandleId) {
+        return new IncrementalRemoteKeyedStateHandle(
+                backendIdentifier,
+                keyGroupRange,
+                checkpointId,
+                sharedState,
+                privateState,
+                metaStateHandle,
+                persistedSizeOfThisCheckpoint,
+                stateHandleId);
     }
 
     @Override
@@ -178,6 +223,11 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
                         this.keyGroupRange.getIntersection(keyGroupRange))
                 ? null
                 : this;
+    }
+
+    @Override
+    public StateHandleID getStateHandleId() {
+        return stateHandleId;
     }
 
     @Override
@@ -283,6 +333,19 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
         }
     }
 
+    @VisibleForTesting
+    IncrementalRemoteKeyedStateHandle copy() {
+        return new IncrementalRemoteKeyedStateHandle(
+                backendIdentifier,
+                keyGroupRange,
+                checkpointId,
+                sharedState,
+                privateState,
+                metaStateHandle,
+                persistedSizeOfThisCheckpoint,
+                stateHandleId);
+    }
+
     /** Create a unique key to register one of our shared state handles. */
     @VisibleForTesting
     public SharedStateRegistryKey createSharedStateRegistryKeyFromFileName(StateHandleID shId) {
@@ -305,6 +368,9 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
 
         IncrementalRemoteKeyedStateHandle that = (IncrementalRemoteKeyedStateHandle) o;
 
+        if (!getStateHandleId().equals(that.getStateHandleId())) {
+            return false;
+        }
         if (getCheckpointId() != that.getCheckpointId()) {
             return false;
         }
@@ -333,6 +399,7 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
         result = 31 * result + getSharedState().hashCode();
         result = 31 * result + getPrivateState().hashCode();
         result = 31 * result + getMetaStateHandle().hashCode();
+        result = 31 * result + getStateHandleId().hashCode();
         return result;
     }
 
@@ -341,6 +408,8 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
         return "IncrementalRemoteKeyedStateHandle{"
                 + "backendIdentifier="
                 + backendIdentifier
+                + "stateHandleId="
+                + stateHandleId
                 + ", keyGroupRange="
                 + keyGroupRange
                 + ", checkpointId="
