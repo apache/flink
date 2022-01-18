@@ -209,6 +209,12 @@ function install_miniconda() {
     if [ ! -d "$CURRENT_DIR/.conda" ]; then
         print_function "STEP" "installing conda..."
         $CONDA_INSTALL_SH -b -p $CURRENT_DIR/.conda 2>&1 >/dev/null
+
+        # orjson depend on pip >= 20.3
+        print_function "STEP" "upgrade pip..."
+        $CURRENT_DIR/.conda/bin/python -m pip install --upgrade pip 2>&1 >/dev/null
+        print_function "STEP" "upgrade pip... [SUCCESS]"
+
         if [ $? -ne 0 ]; then
             echo "install miniconda failed"
             exit $CONDA_INSTALL_STATUS

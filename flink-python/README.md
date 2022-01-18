@@ -26,7 +26,7 @@ The auto-generated Python docs can be found at [https://nightlies.apache.org/fli
 
 ## Python Requirements
 
-Apache Flink Python API depends on Py4J (currently version 0.10.9.3), CloudPickle (currently version 1.2.2), python-dateutil(currently version 2.8.0), Apache Beam (currently version 2.27.0).
+Apache Flink Python API depends on Py4J (currently version 0.10.9.3), CloudPickle (currently version 2.1.0), python-dateutil(currently version 2.8.0), Apache Beam (currently version 2.38.0).
 
 ## Development Notices
 
@@ -41,7 +41,7 @@ python pyflink/gen_protos.py
 PyFlink depends on the following libraries to execute the above script:
 1. grpcio-tools (>=1.3.5,<=1.14.2)
 2. setuptools (>=37.0.0)
-3. pip (>=7.1.0)
+3. pip (>=20.3)
 
 ### Running Test Cases 
 

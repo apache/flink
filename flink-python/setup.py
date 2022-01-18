@@ -297,6 +297,23 @@ try:
         'pyflink.examples': ['*.py', '*/*.py'],
         'pyflink.bin': ['*']}
 
+    install_requires = ['py4j==0.10.9.3', 'python-dateutil==2.8.0', 'apache-beam==2.38.0',
+                        'cloudpickle==2.1.0', 'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
+                        'pytz>=2018.3', 'fastavro>=0.21.4,<0.24', 'requests>=2.26.0',
+                        'protobuf<3.18', 'pemja==0.1.5;python_full_version >= "3.7"',
+                        'httplib2>=0.8,<0.19.0', apache_flink_libraries_dependency]
+
+    if sys.version_info < (3, 7):
+        # python 3.6 upper and lower limit
+        install_requires.append('numpy>=1.14.3,<1.20')
+        install_requires.append('pandas>=1.0,<1.2.0')
+        install_requires.append('pyarrow>=0.15.1,<7.0.0')
+    else:
+        # python 3.7 3.8 upper limit and M1 chip lower limit,
+        install_requires.append('numpy>=1.21.4,<1.22.0')
+        install_requires.append('pandas>=1.3.0,<1.4.0')
+        install_requires.append('pyarrow>=5.0.0,<9.0.0')
+
     setup(
         name='apache-flink',
         version=VERSION,
@@ -310,13 +327,7 @@ try:
         author='Apache Software Foundation',
         author_email='dev@flink.apache.org',
         python_requires='>=3.6',
-        install_requires=['py4j==0.10.9.3', 'python-dateutil==2.8.0', 'apache-beam==2.27.0',
-                          'cloudpickle==1.2.2', 'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
-                          'pandas>=1.0,<1.2.0', 'pyarrow>=0.15.1,<3.0.0',
-                          'pytz>=2018.3', 'numpy>=1.14.3,<1.20', 'fastavro>=0.21.4,<0.24',
-                          'requests>=2.26.0', 'protobuf<3.18',
-                          'pemja==0.1.4;python_full_version >= "3.7"',
-                          apache_flink_libraries_dependency],
+        install_requires=install_requires,
         cmdclass={'build_ext': build_ext},
         tests_require=['pytest==4.4.1'],
         description='Apache Flink Python API',
