@@ -371,7 +371,7 @@ public class PythonOperatorChainingOptimizer {
                     upTransform.getDescription() + ", " + downTransform.getDescription());
         } else if (upTransform.getDescription() != null) {
             chainedTransformation.setDescription(upTransform.getDescription());
-        } else {
+        } else if (downTransform.getDescription() != null) {
             chainedTransformation.setDescription(downTransform.getDescription());
         }
         return chainedTransformation;
