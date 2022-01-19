@@ -137,7 +137,8 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
         ExecutionDeploymentListener executionDeploymentListener =
                 new ExecutionDeploymentTrackerDeploymentListenerAdapter(executionDeploymentTracker);
         ExecutionStateUpdateListener executionStateUpdateListener =
-                (execution, newState) -> {
+                (execution, previousState, newState) -> {
+                    executionStateUpdateListener.onStateUpdate(execution, previousState, newState);
                     if (newState.isTerminal()) {
                         executionDeploymentTracker.stopTrackingDeploymentOf(execution);
                     }
