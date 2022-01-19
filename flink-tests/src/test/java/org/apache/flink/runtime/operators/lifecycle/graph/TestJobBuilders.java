@@ -196,7 +196,9 @@ public class TestJobBuilders {
                     SingleOutputStreamOperator<TestDataElement> keyedTransform =
                             forwardTransform
                                     .startNewChain()
-                                    .keyBy(e -> e)
+                                    // distribute the load evenly but keep the number of keys
+                                    // manageable to not overload state backends
+                                    .keyBy(e -> e.seq % 1000)
                                     .transform(
                                             "transform-2-keyed",
                                             TypeInformation.of(TestDataElement.class),
