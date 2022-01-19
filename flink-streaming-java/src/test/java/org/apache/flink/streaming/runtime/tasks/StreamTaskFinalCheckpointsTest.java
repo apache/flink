@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -691,20 +692,18 @@ public class StreamTaskFinalCheckpointsTest {
 
     static CompletableFuture<Boolean> triggerStopWithSavepointDrain(
             StreamTaskMailboxTestHarness<String> testHarness, long checkpointId) {
-        return triggerStopWithSavepoint(
-                testHarness, checkpointId, CheckpointType.SAVEPOINT_TERMINATE);
+        return triggerStopWithSavepoint(testHarness, checkpointId, SavepointType.terminate());
     }
 
     static CompletableFuture<Boolean> triggerStopWithSavepointNoDrain(
             StreamTaskMailboxTestHarness<String> testHarness, long checkpointId) {
-        return triggerStopWithSavepoint(
-                testHarness, checkpointId, CheckpointType.SAVEPOINT_SUSPEND);
+        return triggerStopWithSavepoint(testHarness, checkpointId, SavepointType.suspend());
     }
 
     static CompletableFuture<Boolean> triggerStopWithSavepoint(
             StreamTaskMailboxTestHarness<String> testHarness,
             long checkpointId,
-            CheckpointType checkpointType) {
+            SavepointType checkpointType) {
         testHarness.getTaskStateManager().getWaitForReportLatch().reset();
         return testHarness
                 .getStreamTask()

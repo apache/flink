@@ -28,7 +28,7 @@ import java.util.Random;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointOptions.NO_ALIGNED_CHECKPOINT_TIME_OUT;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
-import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
+import static org.apache.flink.runtime.checkpoint.CheckpointType.FULL_CHECKPOINT;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -55,9 +55,17 @@ public class CheckpointOptionsTest {
         final byte[] locationBytes = new byte[rnd.nextInt(41) + 1];
         rnd.nextBytes(locationBytes);
 
+        final SnapshotType[] snapshotTypes = {
+            CHECKPOINT,
+            FULL_CHECKPOINT,
+            SavepointType.savepoint(),
+            SavepointType.suspend(),
+            SavepointType.terminate()
+        };
+
         final CheckpointOptions options =
                 new CheckpointOptions(
-                        CheckpointType.values()[rnd.nextInt(CheckpointType.values().length)],
+                        snapshotTypes[rnd.nextInt(snapshotTypes.length)],
                         new CheckpointStorageLocationReference(locationBytes));
 
         final CheckpointOptions copy = CommonTestUtils.createCopySerializable(options);
@@ -68,7 +76,7 @@ public class CheckpointOptionsTest {
     @Test(expected = IllegalArgumentException.class)
     public void testSavepointNeedsAlignment() {
         new CheckpointOptions(
-                SAVEPOINT,
+                SavepointType.savepoint(),
                 CheckpointStorageLocationReference.getDefault(),
                 AlignmentType.UNALIGNED,
                 0);
@@ -146,9 +154,11 @@ public class CheckpointOptionsTest {
         assertReversable(CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, location), true);
 
         assertReversable(CheckpointOptions.alignedNoTimeout(CHECKPOINT, location), false);
-        assertReversable(CheckpointOptions.alignedNoTimeout(SAVEPOINT, location), false);
+        assertReversable(
+                CheckpointOptions.alignedNoTimeout(SavepointType.savepoint(), location), false);
         assertReversable(CheckpointOptions.notExactlyOnce(CHECKPOINT, location), false);
-        assertReversable(CheckpointOptions.notExactlyOnce(SAVEPOINT, location), false);
+        assertReversable(
+                CheckpointOptions.notExactlyOnce(SavepointType.savepoint(), location), false);
     }
 
     private void assertReversable(CheckpointOptions options, boolean forceHasEffect) {

@@ -37,6 +37,7 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -867,9 +868,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     }
 
     @Override
-    public boolean requiresLegacySynchronousTimerSnapshots(CheckpointType checkpointType) {
+    public boolean requiresLegacySynchronousTimerSnapshots(SnapshotType checkpointType) {
         return priorityQueueFactory instanceof HeapPriorityQueueSetFactory
-                && checkpointType == CheckpointType.CHECKPOINT;
+                && !checkpointType.isSavepoint();
     }
 
     @Override

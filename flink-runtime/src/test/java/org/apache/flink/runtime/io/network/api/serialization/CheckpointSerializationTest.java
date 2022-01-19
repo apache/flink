@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
@@ -44,7 +45,7 @@ public class CheckpointSerializationTest {
     public void testSuspendingCheckpointBarrierSerialization() throws Exception {
         CheckpointOptions suspendSavepointToSerialize =
                 new CheckpointOptions(
-                        CheckpointType.SAVEPOINT_SUSPEND,
+                        SavepointType.suspend(),
                         new CheckpointStorageLocationReference(STORAGE_LOCATION_REF));
         testCheckpointBarrierSerialization(suspendSavepointToSerialize);
     }
@@ -53,7 +54,7 @@ public class CheckpointSerializationTest {
     public void testSavepointBarrierSerialization() throws Exception {
         CheckpointOptions savepointToSerialize =
                 new CheckpointOptions(
-                        CheckpointType.SAVEPOINT,
+                        SavepointType.savepoint(),
                         new CheckpointStorageLocationReference(STORAGE_LOCATION_REF));
         testCheckpointBarrierSerialization(savepointToSerialize);
     }
@@ -63,6 +64,15 @@ public class CheckpointSerializationTest {
         CheckpointOptions checkpointToSerialize =
                 new CheckpointOptions(
                         CheckpointType.CHECKPOINT,
+                        new CheckpointStorageLocationReference(STORAGE_LOCATION_REF));
+        testCheckpointBarrierSerialization(checkpointToSerialize);
+    }
+
+    @Test
+    public void testFullCheckpointBarrierSerialization() throws Exception {
+        CheckpointOptions checkpointToSerialize =
+                new CheckpointOptions(
+                        CheckpointType.FULL_CHECKPOINT,
                         new CheckpointStorageLocationReference(STORAGE_LOCATION_REF));
         testCheckpointBarrierSerialization(checkpointToSerialize);
     }

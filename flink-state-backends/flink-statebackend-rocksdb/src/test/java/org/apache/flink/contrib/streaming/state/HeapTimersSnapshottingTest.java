@@ -23,6 +23,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend.PriorityQueueStateType;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
@@ -58,7 +59,7 @@ public class HeapTimersSnapshottingTest {
 
             OperatorSubtaskState state =
                     testHarness
-                            .snapshotWithLocalState(0L, 1L, CheckpointType.SAVEPOINT)
+                            .snapshotWithLocalState(0L, 1L, SavepointType.savepoint())
                             .getJobManagerOwnedState();
             assertThat(state.getRawKeyedState().isEmpty(), equalTo(true));
         }

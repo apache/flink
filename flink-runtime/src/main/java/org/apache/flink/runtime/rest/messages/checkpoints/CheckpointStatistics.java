@@ -24,6 +24,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats;
 import org.apache.flink.runtime.checkpoint.FailedCheckpointStats;
 import org.apache.flink.runtime.checkpoint.PendingCheckpointStats;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.TaskStateStats;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
@@ -395,17 +397,12 @@ public class CheckpointStatistics implements ResponseBody {
         SAVEPOINT,
         SYNC_SAVEPOINT;
 
-        public static RestAPICheckpointType valueOf(CheckpointType checkpointType) {
-            switch (checkpointType) {
-                case CHECKPOINT:
-                    return CHECKPOINT;
-                case SAVEPOINT:
-                    return SAVEPOINT;
-                case SAVEPOINT_SUSPEND:
-                case SAVEPOINT_TERMINATE:
-                    return SYNC_SAVEPOINT;
-                default:
-                    throw new UnsupportedOperationException(checkpointType.toString());
+        public static RestAPICheckpointType valueOf(SnapshotType checkpointType) {
+            if (checkpointType.isSavepoint()) {
+                SavepointType savepointType = (SavepointType) checkpointType;
+                return savepointType.isSynchronous() ? SYNC_SAVEPOINT : SAVEPOINT;
+            } else {
+                return CHECKPOINT;
             }
         }
     }

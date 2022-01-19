@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -92,8 +92,7 @@ public class SynchronousCheckpointTest {
         streamTaskUnderTest.triggerCheckpointAsync(
                 new CheckpointMetaData(42, System.currentTimeMillis()),
                 new CheckpointOptions(
-                        CheckpointType.SAVEPOINT_SUSPEND,
-                        CheckpointStorageLocationReference.getDefault()));
+                        SavepointType.suspend(), CheckpointStorageLocationReference.getDefault()));
         waitForSyncSavepointIdToBeSet(streamTaskUnderTest);
     }
 
