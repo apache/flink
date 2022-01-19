@@ -271,13 +271,16 @@ public class AdaptiveScheduler
         tmpJobStatusListeners.add(Preconditions.checkNotNull(jobStatusListener));
         tmpJobStatusListeners.add(jobStatusStore);
 
+        final MetricOptions.JobStatusMetricsSettings jobStatusMetricsSettings =
+                MetricOptions.JobStatusMetricsSettings.fromConfiguration(configuration);
+
         SchedulerBase.registerJobMetrics(
                 jobManagerJobMetricGroup,
                 jobStatusStore,
                 () -> (long) numRestarts,
                 tmpJobStatusListeners::add,
                 initializationTimestamp,
-                MetricOptions.JobStatusMetricsSettings.fromConfiguration(configuration));
+                jobStatusMetricsSettings);
 
         jobStatusListeners = Collections.unmodifiableCollection(tmpJobStatusListeners);
     }

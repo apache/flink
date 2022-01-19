@@ -631,8 +631,10 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         metrics.gauge(MetricNames.NUM_RESTARTS, numberOfRestarts);
         metrics.gauge(MetricNames.FULL_RESTARTS, numberOfRestarts);
 
-        jobStatusListenerRegistrar.accept(
-                new JobStatusMetrics(metrics, initializationTimestamp, jobStatusMetricsSettings));
+        final JobStatusMetrics jobStatusMetrics =
+                new JobStatusMetrics(initializationTimestamp, jobStatusMetricsSettings);
+        jobStatusMetrics.registerMetrics(metrics);
+        jobStatusListenerRegistrar.accept(jobStatusMetrics);
     }
 
     protected abstract void startSchedulingInternal();
