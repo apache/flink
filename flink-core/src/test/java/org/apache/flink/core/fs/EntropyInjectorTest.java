@@ -178,8 +178,8 @@ public class EntropyInjectorTest {
         final Path path = new Path(Path.fromLocalFile(folder), entropyKey + "/path/");
         final Path pathWithEntropy = new Path(Path.fromLocalFile(folder), entropyValue + "/path/");
 
-        PluginFileSystemFactory pluginFsFactory =
-                PluginFileSystemFactory.of(new TestFileSystemFactory(entropyKey, entropyValue));
+        SafeFileSystemFactory pluginFsFactory =
+                SafeFileSystemFactory.of(new TestFileSystemFactory(entropyKey, entropyValue));
         FileSystem testFs = pluginFsFactory.create(URI.create("test"));
 
         FileSystemSafetyNet.initializeSafetyNetForThread();
@@ -204,8 +204,8 @@ public class EntropyInjectorTest {
         final Path path = new Path(Path.fromLocalFile(folder), entropyKey + "/path/");
         final Path pathWithEntropy = new Path(Path.fromLocalFile(folder), entropyValue + "/path/");
 
-        PluginFileSystemFactory pluginFsFactory =
-                PluginFileSystemFactory.of(new TestFileSystemFactory(entropyKey, entropyValue));
+        SafeFileSystemFactory pluginFsFactory =
+                SafeFileSystemFactory.of(new TestFileSystemFactory(entropyKey, entropyValue));
         FileSystem testFs = pluginFsFactory.create(URI.create("test"));
 
         OutputStreamAndPath streamAndPath =

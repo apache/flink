@@ -18,27 +18,83 @@
 package org.apache.flink.core.fs;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.apache.flink.util.WrappingProxy;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
- * A wrapper around {@link FileSystemFactory} that ensures the plugin classloader is used for all
- * {@link FileSystem} operations.
+ * A wrapper around {@link FileSystemFactory} that ensures the same classloader is used for all
+ * {@link FileSystem} operations and that we don't leak the user classloader via inherited {@link
+ * java.security.ProtectionDomain protection domains}.
+ *
+ * <h1>Avoiding protection domains leaks
+ *
+ * <p>To understand the protection domain leaks, let's revisit how the classloading works.
+ *
+ * <p>Every class that is loaded is assigned with a {@link java.security.ProtectionDomain protection
+ * domain}. The {@code protection domain} contains reference to a {@link java.security.CodeSource}
+ * (location of the class file + signing certificates), reference to a {@link ClassLoader} that has
+ * loaded it, {@link java.security.Principal list of principals} and {@link java.security.Permission
+ * permissions}.
+ *
+ * <p>The problematic part is the reference to the {@link ClassLoader} that has loaded our class.
+ * The only way to get rid of the reference, would involve re-implementing a good part of the low
+ * level ClassLoaders, because the important parts are intentionally marked as final.
+ *
+ * <p>Now to the actual problem. There is a thing called {@link java.security.AccessControlContext},
+ * which can be obtained by calling {@link java.security.AccessController#getContext()}. This
+ * context contains list of the current protection domains.
+ *
+ * <p>In pseudo-code, the list of protection domain is obtained as follows:
+ *
+ * <pre>
+ * {@code getCurrentStackTrace() | getStackTraceElementClass | Class#getProtectionDomain | uniq (as in bash)}
+ * </pre>
+ *
+ * <p>When a new thread is spawned it inherits the {@link java.security.AccessControlContext} of the
+ * caller, which means that if we spawn any thread that outlives a job from a place that has been
+ * called by user code (there is anything loaded by user classloader on stack), we'll leak the
+ * reference to user classloader to this newly created thread. This happens especially with hadoop
+ * filesystem, where the initialization of the filesystem spawn "cleaner threads" that are attached
+ * to the JVM lifecycle.
+ *
+ * <p>The way to work around this, is to spawn initialize filesystems in a "safe" thread, that has
+ * no potentially leaky protection domains, that the new thread can inherit.
  */
-public class PluginFileSystemFactory implements FileSystemFactory {
+public class SafeFileSystemFactory implements FileSystemFactory {
+
+    private static final ExecutorService EXECUTOR =
+            Executors.newSingleThreadExecutor(
+                    new ExecutorThreadFactory.Builder()
+                            .setPoolName("filesystem-factory")
+                            .setExceptionHandler(FatalExitExceptionHandler.INSTANCE)
+                            .build());
+
+    static {
+        EXECUTOR.execute(
+                () -> {
+                    // No-op. This is just to warm up thread in the right context.
+                });
+    }
+
+    public static SafeFileSystemFactory of(final FileSystemFactory inner) {
+        return new SafeFileSystemFactory(inner, inner.getClass().getClassLoader());
+    }
+
     private final FileSystemFactory inner;
     private final ClassLoader loader;
 
-    private PluginFileSystemFactory(final FileSystemFactory inner, final ClassLoader loader) {
+    private SafeFileSystemFactory(final FileSystemFactory inner, final ClassLoader loader) {
         this.inner = inner;
         this.loader = loader;
-    }
-
-    public static PluginFileSystemFactory of(final FileSystemFactory inner) {
-        return new PluginFileSystemFactory(inner, inner.getClass().getClassLoader());
     }
 
     @Override
@@ -58,8 +114,28 @@ public class PluginFileSystemFactory implements FileSystemFactory {
 
     @Override
     public FileSystem create(final URI fsUri) throws IOException {
-        try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
-            return new ClassLoaderFixingFileSystem(inner.create(fsUri), loader);
+        final Future<FileSystem> future =
+                EXECUTOR.submit(
+                        () -> {
+                            synchronized (inner) {
+                                try (TemporaryClassLoaderContext ignored =
+                                        TemporaryClassLoaderContext.of(loader)) {
+                                    return new ClassLoaderFixingFileSystem(
+                                            inner.create(fsUri), loader);
+                                }
+                            }
+                        });
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            throw new IOException(
+                    String.format("Interrupted while creating the '%s' file system.", fsUri));
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IOException) {
+                throw (IOException) e.getCause();
+            }
+            throw new IOException(
+                    String.format("Unable to create the '%s' file system.", fsUri), e.getCause());
         }
     }
 

@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.fs.s3.common.FlinkS3FileSystem;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
+import org.apache.flink.util.WrappingProxy;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -97,10 +98,15 @@ public class PrestoS3FileSystemTest {
     //  utilities
     // ------------------------------------------------------------------------
 
-    private static void validateBasicCredentials(FileSystem fs) throws Exception {
-        assertTrue(fs instanceof FlinkS3FileSystem);
+    private static void validateBasicCredentials(FileSystem wrappedFileSystem) throws Exception {
+        assertTrue(wrappedFileSystem instanceof WrappingProxy);
+        @SuppressWarnings("unchecked")
+        final FileSystem fileSystem =
+                ((WrappingProxy<FileSystem>) wrappedFileSystem).getWrappedDelegate();
+        assertTrue(fileSystem instanceof FlinkS3FileSystem);
 
-        org.apache.hadoop.fs.FileSystem hadoopFs = ((FlinkS3FileSystem) fs).getHadoopFileSystem();
+        org.apache.hadoop.fs.FileSystem hadoopFs =
+                ((FlinkS3FileSystem) fileSystem).getHadoopFileSystem();
         assertTrue(hadoopFs instanceof PrestoS3FileSystem);
 
         try (PrestoS3FileSystem prestoFs = (PrestoS3FileSystem) hadoopFs) {
