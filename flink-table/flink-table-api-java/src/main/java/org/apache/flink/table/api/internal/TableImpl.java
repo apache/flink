@@ -37,7 +37,7 @@ import org.apache.flink.table.api.WindowGroupedTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -587,10 +587,10 @@ public class TableImpl implements Table {
         final TableDescriptor updatedDescriptor =
                 descriptor.toBuilder().schema(schemaTranslationResult.getSchema()).build();
 
-        final ResolvedCatalogBaseTable<?> resolvedCatalogBaseTable =
+        final ResolvedCatalogTable resolvedCatalogBaseTable =
                 tableEnvironment
                         .getCatalogManager()
-                        .resolveCatalogBaseTable(updatedDescriptor.toCatalogTable());
+                        .resolveCatalogTable(updatedDescriptor.toCatalogTable());
 
         return executeInsert(ContextResolvedTable.anonymous(resolvedCatalogBaseTable), overwrite);
     }

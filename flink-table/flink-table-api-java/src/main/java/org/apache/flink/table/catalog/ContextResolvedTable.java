@@ -147,7 +147,7 @@ public class ContextResolvedTable {
     public ContextResolvedTable copy(Map<String, String> newOptions) {
         if (resolvedTable.getTableKind() == CatalogBaseTable.TableKind.VIEW) {
             throw new ValidationException(
-                    String.format("The view '%s' cannot be enriched with new options.", this));
+                    String.format("View '%s' cannot be enriched with new options.", this));
         }
         return new ContextResolvedTable(
                 objectIdentifier,
@@ -168,8 +168,6 @@ public class ContextResolvedTable {
      */
     private static String generateAnonymousStringIdentifier(
             @Nullable String hint, ResolvedCatalogBaseTable<?> resolvedTable) {
-        // This has been added after a very intensive debugging session, so don't remove it unless
-        // you really know what you're doing.
         // Planner can do some fancy optimizations' logic squashing two sources together in the same
         // operator. Because this logic is string based, anonymous tables still need some kind of
         // unique string based identifier that can be used later by the planner.
@@ -182,9 +180,9 @@ public class ContextResolvedTable {
 
         int id = uniqueId.incrementAndGet();
         if (hint == null) {
-            return "anonymous$" + id;
+            return "*anonymous$" + id + "*";
         }
 
-        return "anonymous_" + hint + "$" + id;
+        return "*anonymous_" + hint + "$" + id + "*";
     }
 }

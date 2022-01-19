@@ -86,11 +86,8 @@ class DatabaseCalciteSchema extends FlinkSchema {
                 contextResolvedTable.getResolvedTable();
         switch (resolvedBaseTable.getTableKind()) {
             case TABLE:
-                return FlinkStatistic.builder()
+                return FlinkStatistic.unknown(resolvedBaseTable.getResolvedSchema())
                         .tableStats(extractTableStats(contextResolvedTable, identifier))
-                        // this is a temporary solution, FLINK-15123 will resolve this
-                        .uniqueKeys(
-                                resolvedBaseTable.getResolvedSchema().getPrimaryKey().orElse(null))
                         .build();
             case VIEW:
             default:

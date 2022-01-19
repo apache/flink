@@ -1377,7 +1377,7 @@ public interface Table {
      *
      * <p>The {@link TableDescriptor descriptor} won't be registered in the catalog, but it will be
      * propagated directly in the operation tree. Note that calling this method multiple times, even
-     * with the same descriptor, results in multiple sink tables being registered.
+     * with the same descriptor, results in multiple sink tables instances.
      *
      * <p>This method allows to declare a {@link Schema} for the sink descriptor. The declaration is
      * similar to a {@code CREATE TABLE} DDL in SQL and allows to:

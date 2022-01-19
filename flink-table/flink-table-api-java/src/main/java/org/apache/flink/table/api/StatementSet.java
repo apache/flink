@@ -62,10 +62,10 @@ public interface StatementSet {
      * written to a table (backed by a {@link DynamicTableSink}) expressed via the given {@link
      * TableDescriptor}.
      *
-     * <p>The given {@link TableDescriptor descriptor} won't be registered in the catalog, but it
-     * will be propagated directly in the operation tree, adding a statement to the statement set
-     * that inserts the {@link Table} object's pipeline into the anonymous table described with
-     * {@link TableDescriptor descriptor}.
+     * <p>The given {@link TableDescriptor descriptor} describes an anonymous table that won't be
+     * registered in the catalog. This table will be propagated directly in the operation tree,
+     * adding a statement that inserts the provided {@link Table} object's pipeline into such a
+     * table.
      *
      * <p>This method allows to declare a {@link Schema} for the sink descriptor. The declaration is
      * similar to a {@code CREATE TABLE} DDL in SQL and allows to:

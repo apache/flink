@@ -246,7 +246,7 @@ class TableEnvironmentTest {
     tableEnv.executeSql(statementWithTypo)
     assertThatThrownBy(
         () => tableEnv.executeSql("explain plan for select * from MyTable where a > 10"))
-      .hasMessageContaining("Unable to create a source for reading the table " +
+      .hasMessageContaining("Unable to create a source for reading table " +
       "'default_catalog.default_database.MyTable'.\n\n" +
       "Table options are:\n\n'connector'='datagen'\n" +
       "'invalid-key'='invalid-value'" )
@@ -314,7 +314,7 @@ class TableEnvironmentTest {
         .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.MyTable")).getOptions)
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
-      "Unable to create a source for reading the table 'default_catalog.default_database.MyTable'.")
+      "Unable to create a source for reading table 'default_catalog.default_database.MyTable'.")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT,
       tableEnv.executeSql("explain plan for select * from MyTable where a > 10").getResultKind)
   }

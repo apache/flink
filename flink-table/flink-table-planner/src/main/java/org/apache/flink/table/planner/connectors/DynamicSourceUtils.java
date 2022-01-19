@@ -92,14 +92,7 @@ public final class DynamicSourceUtils {
                         isTopLevelRecord,
                         changelogMode);
         final FlinkStatistic statistic =
-                FlinkStatistic.builder()
-                        // this is a temporary solution, FLINK-15123 will resolve this
-                        .uniqueKeys(
-                                contextResolvedTable
-                                        .getResolvedSchema()
-                                        .getPrimaryKey()
-                                        .orElse(null))
-                        .build();
+                FlinkStatistic.unknown(contextResolvedTable.getResolvedSchema()).build();
         return convertSourceToRel(
                 isBatchMode,
                 config,

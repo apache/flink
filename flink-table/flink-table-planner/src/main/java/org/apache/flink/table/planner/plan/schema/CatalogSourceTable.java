@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -29,7 +30,6 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.module.Module;
-import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
@@ -87,15 +87,7 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
         // Statistics are unknown for anonymous tables
         // Look at DatabaseCalciteSchema#getStatistic for more details
         FlinkStatistic flinkStatistic =
-                FlinkStatistic.builder()
-                        .tableStats(TableStats.UNKNOWN)
-                        // this is a temporary solution, FLINK-15123 will resolve this
-                        .uniqueKeys(
-                                contextResolvedTable
-                                        .getResolvedSchema()
-                                        .getPrimaryKey()
-                                        .orElse(null))
-                        .build();
+                FlinkStatistic.unknown(contextResolvedTable.getResolvedSchema()).build();
 
         CatalogSchemaTable catalogSchemaTable =
                 new CatalogSchemaTable(contextResolvedTable, flinkStatistic, !isBatchMode);
@@ -147,6 +139,13 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
                             "The '%s' hint is allowed only when the config option '%s' is set to true.",
                             FlinkHints.HINT_NAME_OPTIONS,
                             TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED.key()));
+        }
+        if (contextResolvedTable.getResolvedTable().getTableKind() == TableKind.VIEW) {
+            throw new ValidationException(
+                    String.format(
+                            "View '%s' cannot be enriched with new options. "
+                                    + "Hints can only be applied to tables.",
+                            contextResolvedTable.getIdentifier()));
         }
         return contextResolvedTable.copy(
                 FlinkHints.mergeTableOptions(

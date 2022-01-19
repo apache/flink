@@ -55,7 +55,7 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
-import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.WatermarkSpec;
@@ -538,8 +538,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     public Table from(TableDescriptor descriptor) {
         Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
 
-        final ResolvedCatalogBaseTable<?> resolvedCatalogBaseTable =
-                catalogManager.resolveCatalogBaseTable(descriptor.toCatalogTable());
+        final ResolvedCatalogTable resolvedCatalogBaseTable =
+                catalogManager.resolveCatalogTable(descriptor.toCatalogTable());
         final QueryOperation queryOperation =
                 new SourceQueryOperation(ContextResolvedTable.anonymous(resolvedCatalogBaseTable));
         return createTable(queryOperation);
@@ -1152,32 +1152,33 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         } else if (operation instanceof ShowCreateTableOperation) {
             ShowCreateTableOperation showCreateTableOperation =
                     (ShowCreateTableOperation) operation;
-            Optional<ContextResolvedTable> result =
-                    catalogManager.getTable(showCreateTableOperation.getTableIdentifier());
-            if (result.isPresent()) {
-                return TableResultImpl.builder()
-                        .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                        .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
-                        .data(
-                                Collections.singletonList(
-                                        Row.of(
-                                                ShowCreateUtil.buildShowCreateTableRow(
-                                                        result.get().getResolvedTable(),
-                                                        showCreateTableOperation
-                                                                .getTableIdentifier(),
-                                                        result.get().isTemporary()))))
-                        .build();
-            } else {
-                throw new ValidationException(
-                        String.format(
-                                "Could not execute SHOW CREATE TABLE. Table with identifier %s does not exist.",
-                                showCreateTableOperation
-                                        .getTableIdentifier()
-                                        .asSerializableString()));
-            }
+            ContextResolvedTable table =
+                    catalogManager
+                            .getTable(showCreateTableOperation.getTableIdentifier())
+                            .orElseThrow(
+                                    () ->
+                                            new ValidationException(
+                                                    String.format(
+                                                            "Could not execute SHOW CREATE TABLE. Table with identifier %s does not exist.",
+                                                            showCreateTableOperation
+                                                                    .getTableIdentifier()
+                                                                    .asSerializableString())));
+
+            return TableResultImpl.builder()
+                    .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+                    .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
+                    .data(
+                            Collections.singletonList(
+                                    Row.of(
+                                            ShowCreateUtil.buildShowCreateTableRow(
+                                                    table.getResolvedTable(),
+                                                    showCreateTableOperation.getTableIdentifier(),
+                                                    table.isTemporary()))))
+                    .build();
+
         } else if (operation instanceof ShowCreateViewOperation) {
             ShowCreateViewOperation showCreateViewOperation = (ShowCreateViewOperation) operation;
-            final ContextResolvedTable result =
+            final ContextResolvedTable table =
                     catalogManager
                             .getTable(showCreateViewOperation.getViewIdentifier())
                             .orElseThrow(
@@ -1196,9 +1197,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             Collections.singletonList(
                                     Row.of(
                                             ShowCreateUtil.buildShowCreateViewRow(
-                                                    result.getResolvedTable(),
+                                                    table.getResolvedTable(),
                                                     showCreateViewOperation.getViewIdentifier(),
-                                                    result.isTemporary()))))
+                                                    table.isTemporary()))))
                     .build();
         } else if (operation instanceof ShowCurrentCatalogOperation) {
             return buildShowResult(

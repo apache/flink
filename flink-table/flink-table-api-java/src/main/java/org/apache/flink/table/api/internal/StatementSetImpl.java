@@ -28,7 +28,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -109,10 +109,10 @@ public class StatementSetImpl<E extends TableEnvironmentInternal> implements Sta
         final TableDescriptor updatedDescriptor =
                 targetDescriptor.toBuilder().schema(schemaTranslationResult.getSchema()).build();
 
-        final ResolvedCatalogBaseTable<?> resolvedCatalogBaseTable =
+        final ResolvedCatalogTable resolvedCatalogBaseTable =
                 tableEnvironment
                         .getCatalogManager()
-                        .resolveCatalogBaseTable(updatedDescriptor.toCatalogTable());
+                        .resolveCatalogTable(updatedDescriptor.toCatalogTable());
 
         operations.add(
                 new SinkModifyOperation(
