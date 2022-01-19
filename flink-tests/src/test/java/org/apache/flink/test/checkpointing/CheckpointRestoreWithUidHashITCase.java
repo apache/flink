@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -106,7 +107,11 @@ public class CheckpointRestoreWithUidHashITCase {
             startWaitingForCheckpointLatch.get().await();
             String savepointPath =
                     miniCluster
-                            .triggerSavepoint(jobId, TMP_FOLDER.newFolder().getAbsolutePath(), true)
+                            .triggerSavepoint(
+                                    jobId,
+                                    TMP_FOLDER.newFolder().getAbsolutePath(),
+                                    true,
+                                    SavepointFormatType.CANONICAL)
                             .get();
 
             // Get the operator id

@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
@@ -547,7 +548,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
     private CheckpointBarrier createStopWithSavepointDrainBarrier() {
         CheckpointOptions checkpointOptions =
                 CheckpointOptions.alignedNoTimeout(
-                        SavepointType.terminate(), CheckpointStorageLocationReference.getDefault());
+                        SavepointType.terminate(SavepointFormatType.CANONICAL),
+                        CheckpointStorageLocationReference.getDefault());
 
         return new CheckpointBarrier(
                 metaData.getCheckpointId(), metaData.getTimestamp(), checkpointOptions);

@@ -24,6 +24,7 @@ import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -85,7 +86,9 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
             String[] parameters = {jobId.toString()};
             frontend.savepoint(parameters);
 
-            verify(clusterClient, times(1)).triggerSavepoint(eq(jobId), isNull(String.class));
+            verify(clusterClient, times(1))
+                    .triggerSavepoint(
+                            eq(jobId), isNull(String.class), eq(SavepointFormatType.DEFAULT));
 
             assertTrue(buffer.toString().contains(savepointPath));
         } finally {
@@ -167,7 +170,43 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
             String[] parameters = {jobId.toString(), savepointDirectory};
             frontend.savepoint(parameters);
 
-            verify(clusterClient, times(1)).triggerSavepoint(eq(jobId), eq(savepointDirectory));
+            verify(clusterClient, times(1))
+                    .triggerSavepoint(
+                            eq(jobId), eq(savepointDirectory), eq(SavepointFormatType.DEFAULT));
+
+            assertTrue(buffer.toString().contains(savepointDirectory));
+        } finally {
+            clusterClient.close();
+
+            restoreStdOutAndStdErr();
+        }
+    }
+
+    /**
+     * Tests that a CLI call with a custom savepoint directory target is forwarded correctly to the
+     * cluster client.
+     */
+    @Test
+    public void testTriggerSavepointCustomFormat() throws Exception {
+        replaceStdOutAndStdErr();
+
+        JobID jobId = new JobID();
+
+        String savepointDirectory = "customTargetDirectory";
+
+        final ClusterClient<String> clusterClient = createClusterClient(savepointDirectory);
+
+        try {
+            MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
+
+            String[] parameters = {
+                jobId.toString(), savepointDirectory, "-type", SavepointFormatType.NATIVE.toString()
+            };
+            frontend.savepoint(parameters);
+
+            verify(clusterClient, times(1))
+                    .triggerSavepoint(
+                            eq(jobId), eq(savepointDirectory), eq(SavepointFormatType.NATIVE));
 
             assertTrue(buffer.toString().contains(savepointDirectory));
         } finally {
@@ -318,7 +357,10 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
             throws Exception {
         final ClusterClient<String> clusterClient = mock(ClusterClient.class);
 
-        when(clusterClient.triggerSavepoint(any(JobID.class), nullable(String.class)))
+        when(clusterClient.triggerSavepoint(
+                        any(JobID.class),
+                        nullable(String.class),
+                        nullable(SavepointFormatType.class)))
                 .thenReturn(CompletableFuture.completedFuture(expectedResponse));
 
         return clusterClient;
@@ -328,7 +370,10 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
             throws Exception {
         final ClusterClient<String> clusterClient = mock(ClusterClient.class);
 
-        when(clusterClient.triggerSavepoint(any(JobID.class), nullable(String.class)))
+        when(clusterClient.triggerSavepoint(
+                        any(JobID.class),
+                        nullable(String.class),
+                        nullable(SavepointFormatType.class)))
                 .thenReturn(FutureUtils.completedExceptionally(expectedException));
 
         return clusterClient;

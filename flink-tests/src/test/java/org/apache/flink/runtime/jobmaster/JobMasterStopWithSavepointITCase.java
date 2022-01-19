@@ -25,6 +25,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.MiniClusterClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -214,7 +215,8 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
                 .stopWithSavepoint(
                         jobGraph.getJobID(),
                         savepointDirectory.toAbsolutePath().toString(),
-                        terminate);
+                        terminate,
+                        SavepointFormatType.CANONICAL);
     }
 
     private JobStatus getJobStatus() throws InterruptedException, ExecutionException {

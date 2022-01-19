@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 
 import java.io.Serializable;
@@ -248,14 +249,6 @@ public class CheckpointProperties implements Serializable {
     //  Factories and pre-configured properties
     // ------------------------------------------------------------------------
 
-    private static final CheckpointProperties SAVEPOINT =
-            new CheckpointProperties(
-                    true, SavepointType.savepoint(), false, false, false, false, false, false);
-
-    private static final CheckpointProperties SAVEPOINT_NO_FORCE =
-            new CheckpointProperties(
-                    false, SavepointType.savepoint(), false, false, false, false, false, false);
-
     private static final CheckpointProperties CHECKPOINT_NEVER_RETAINED =
             new CheckpointProperties(
                     false,
@@ -297,8 +290,17 @@ public class CheckpointProperties implements Serializable {
      *
      * @return Checkpoint properties for a (manually triggered) savepoint.
      */
-    public static CheckpointProperties forSavepoint(boolean forced) {
-        return forced ? SAVEPOINT : SAVEPOINT_NO_FORCE;
+    public static CheckpointProperties forSavepoint(
+            boolean forced, SavepointFormatType formatType) {
+        return new CheckpointProperties(
+                forced,
+                SavepointType.savepoint(formatType),
+                false,
+                false,
+                false,
+                false,
+                false,
+                false);
     }
 
     /**
@@ -311,7 +313,10 @@ public class CheckpointProperties implements Serializable {
     public static CheckpointProperties forUnclaimedSnapshot() {
         return new CheckpointProperties(
                 false,
-                SavepointType.savepoint(), // unclaimed snapshot is similar to a savepoint
+                // unclaimed snapshot is similar to a savepoint
+                // we do not care about the format when restoring, the format is
+                // necessary when triggering a savepoint
+                SavepointType.savepoint(SavepointFormatType.CANONICAL),
                 false,
                 false,
                 false,
@@ -320,10 +325,11 @@ public class CheckpointProperties implements Serializable {
                 true);
     }
 
-    public static CheckpointProperties forSyncSavepoint(boolean forced, boolean terminate) {
+    public static CheckpointProperties forSyncSavepoint(
+            boolean forced, boolean terminate, SavepointFormatType formatType) {
         return new CheckpointProperties(
                 forced,
-                terminate ? SavepointType.terminate() : SavepointType.suspend(),
+                terminate ? SavepointType.terminate(formatType) : SavepointType.suspend(formatType),
                 false,
                 false,
                 false,

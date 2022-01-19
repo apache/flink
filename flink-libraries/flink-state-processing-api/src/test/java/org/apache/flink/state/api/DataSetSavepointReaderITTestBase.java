@@ -28,6 +28,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -201,7 +202,8 @@ public abstract class DataSetSavepointReaderITTestBase extends AbstractTestBase 
                 Assert.fail("Failed to initialize state within deadline");
             }
 
-            CompletableFuture<String> path = client.triggerSavepoint(jobID, dirPath);
+            CompletableFuture<String> path =
+                    client.triggerSavepoint(jobID, dirPath, SavepointFormatType.CANONICAL);
             return path.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
         } finally {
             client.cancel(jobId).get();

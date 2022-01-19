@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
@@ -994,7 +995,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
 
         assertThat(
-                scheduler.triggerSavepoint("some directory", false),
+                scheduler.triggerSavepoint("some directory", false, SavepointFormatType.CANONICAL),
                 futureFailedWith(CheckpointException.class));
     }
 
@@ -1004,7 +1005,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
 
         assertThat(
-                scheduler.stopWithSavepoint("some directory", false),
+                scheduler.stopWithSavepoint("some directory", false, SavepointFormatType.CANONICAL),
                 futureFailedWith(CheckpointException.class));
     }
 

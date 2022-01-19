@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.core.execution.SavepointFormatType;
+
 import java.util.Objects;
 
 /** The type of checkpoint to perform. */
@@ -25,23 +27,27 @@ public class SavepointType implements SnapshotType {
 
     private final String name;
     private final PostCheckpointAction postCheckpointAction;
+    private final SavepointFormatType formatType;
 
-    private SavepointType(final String name, final PostCheckpointAction postCheckpointAction) {
-
+    private SavepointType(
+            final String name,
+            final PostCheckpointAction postCheckpointAction,
+            final SavepointFormatType formatType) {
         this.postCheckpointAction = postCheckpointAction;
         this.name = name;
+        this.formatType = formatType;
     }
 
-    public static SavepointType savepoint() {
-        return new SavepointType("Savepoint", PostCheckpointAction.NONE);
+    public static SavepointType savepoint(SavepointFormatType formatType) {
+        return new SavepointType("Savepoint", PostCheckpointAction.NONE, formatType);
     }
 
-    public static SavepointType terminate() {
-        return new SavepointType("Terminate Savepoint", PostCheckpointAction.TERMINATE);
+    public static SavepointType terminate(SavepointFormatType formatType) {
+        return new SavepointType("Terminate Savepoint", PostCheckpointAction.TERMINATE, formatType);
     }
 
-    public static SavepointType suspend() {
-        return new SavepointType("Suspend Savepoint", PostCheckpointAction.SUSPEND);
+    public static SavepointType suspend(SavepointFormatType formatType) {
+        return new SavepointType("Suspend Savepoint", PostCheckpointAction.SUSPEND, formatType);
     }
 
     public boolean isSavepoint() {
@@ -70,6 +76,10 @@ public class SavepointType implements SnapshotType {
 
     public String getName() {
         return name;
+    }
+
+    public SavepointFormatType getFormatType() {
+        return formatType;
     }
 
     public SharingFilesStrategy getSharingFilesStrategy() {

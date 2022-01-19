@@ -29,6 +29,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobStatusMessage;
@@ -414,7 +415,7 @@ public class ClassLoaderITCase extends TestLogger {
             try {
                 savepointPath =
                         clusterClient
-                                .triggerSavepoint(jobId, null)
+                                .triggerSavepoint(jobId, null, SavepointFormatType.CANONICAL)
                                 .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
             } catch (Exception cause) {
                 LOG.info("Failed to trigger savepoint. Retrying...", cause);

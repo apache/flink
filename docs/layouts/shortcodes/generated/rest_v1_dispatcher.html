@@ -3418,6 +3418,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "cancel-job" : {
       "type" : "boolean"
     },
+    "formatType" : {
+      "type" : "string",
+      "enum" : [ "CANONICAL", "NATIVE" ]
+    },
     "target-directory" : {
       "type" : "string"
     },
@@ -3592,6 +3596,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "properties" : {
     "drain" : {
       "type" : "boolean"
+    },
+    "formatType" : {
+      "type" : "string",
+      "enum" : [ "CANONICAL", "NATIVE" ]
     },
     "targetDirectory" : {
       "type" : "string"

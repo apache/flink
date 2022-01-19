@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions.AlignmentType;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
@@ -58,9 +59,9 @@ public class CheckpointOptionsTest {
         final SnapshotType[] snapshotTypes = {
             CHECKPOINT,
             FULL_CHECKPOINT,
-            SavepointType.savepoint(),
-            SavepointType.suspend(),
-            SavepointType.terminate()
+            SavepointType.savepoint(SavepointFormatType.CANONICAL),
+            SavepointType.suspend(SavepointFormatType.CANONICAL),
+            SavepointType.terminate(SavepointFormatType.CANONICAL)
         };
 
         final CheckpointOptions options =
@@ -76,7 +77,7 @@ public class CheckpointOptionsTest {
     @Test(expected = IllegalArgumentException.class)
     public void testSavepointNeedsAlignment() {
         new CheckpointOptions(
-                SavepointType.savepoint(),
+                SavepointType.savepoint(SavepointFormatType.CANONICAL),
                 CheckpointStorageLocationReference.getDefault(),
                 AlignmentType.UNALIGNED,
                 0);
@@ -155,10 +156,14 @@ public class CheckpointOptionsTest {
 
         assertReversable(CheckpointOptions.alignedNoTimeout(CHECKPOINT, location), false);
         assertReversable(
-                CheckpointOptions.alignedNoTimeout(SavepointType.savepoint(), location), false);
+                CheckpointOptions.alignedNoTimeout(
+                        SavepointType.savepoint(SavepointFormatType.CANONICAL), location),
+                false);
         assertReversable(CheckpointOptions.notExactlyOnce(CHECKPOINT, location), false);
         assertReversable(
-                CheckpointOptions.notExactlyOnce(SavepointType.savepoint(), location), false);
+                CheckpointOptions.notExactlyOnce(
+                        SavepointType.savepoint(SavepointFormatType.CANONICAL), location),
+                false);
     }
 
     private void assertReversable(CheckpointOptions options, boolean forceHasEffect) {

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.SavepointType;
@@ -233,7 +234,7 @@ public abstract class SavepointStateBackendSwitchTestBase {
 
         SnapshotStrategyRunner<KeyedStateHandle, ? extends FullSnapshotResources<?>>
                 savepointRunner =
-                        StreamOperatorStateHandler.prepareSavepoint(
+                        StreamOperatorStateHandler.prepareCanonicalSavepoint(
                                 keyedBackend, new CloseableRegistry());
 
         RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot =
@@ -242,7 +243,7 @@ public abstract class SavepointStateBackendSwitchTestBase {
                         0L,
                         new MemCheckpointStreamFactory(4 * 1024 * 1024),
                         new CheckpointOptions(
-                                SavepointType.savepoint(),
+                                SavepointType.savepoint(SavepointFormatType.CANONICAL),
                                 CheckpointStorageLocationReference.getDefault()));
 
         snapshot.run();

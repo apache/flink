@@ -20,7 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.util.function.QuadFunction;
+import org.apache.flink.core.execution.SavepointFormatType;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -28,6 +28,12 @@ import java.util.concurrent.CompletableFuture;
  * Wrapper interface for functions triggering savepoints. Currently only serves to shorten
  * signatures.
  */
-public interface TriggerSavepointFunction
-        extends QuadFunction<
-                JobID, String, TriggerSavepointMode, Time, CompletableFuture<String>> {}
+@FunctionalInterface
+public interface TriggerSavepointFunction {
+    CompletableFuture<String> apply(
+            JobID jobId,
+            String targetDirectory,
+            SavepointFormatType formatType,
+            TriggerSavepointMode savepointMode,
+            Time timeout);
+}

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.CompletedScheduledFuture;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobWriter;
@@ -340,7 +341,7 @@ public class ExecutingTest extends TestLogger {
                             .build(ctx);
 
             ctx.setExpectStopWithSavepoint(assertNonNull());
-            exec.stopWithSavepoint("file:///tmp/target", true);
+            exec.stopWithSavepoint("file:///tmp/target", true, SavepointFormatType.CANONICAL);
         }
     }
 
@@ -368,7 +369,7 @@ public class ExecutingTest extends TestLogger {
             assertThat(coordinator.isPeriodicCheckpointingStarted(), is(true));
 
             ctx.setExpectStopWithSavepoint(assertNonNull());
-            exec.stopWithSavepoint("file:///tmp/target", true);
+            exec.stopWithSavepoint("file:///tmp/target", true, SavepointFormatType.CANONICAL);
 
             assertThat(coordinator.isPeriodicCheckpointingStarted(), is(false));
         }
