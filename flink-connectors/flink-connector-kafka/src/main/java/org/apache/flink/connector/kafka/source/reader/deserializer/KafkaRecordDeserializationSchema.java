@@ -25,7 +25,6 @@ import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 import org.apache.flink.util.Collector;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.Configurable;
 import org.apache.kafka.common.serialization.Deserializer;
 
 import java.io.IOException;
@@ -108,24 +107,24 @@ public interface KafkaRecordDeserializationSchema<T> extends Serializable, Resul
      */
     static <V> KafkaRecordDeserializationSchema<V> valueOnly(
             Class<? extends Deserializer<V>> valueDeserializerClass) {
-        return new KafkaValueOnlyDeserializerWrapper<>(
-                valueDeserializerClass, Collections.emptyMap());
+        return valueOnly(valueDeserializerClass, Collections.emptyMap());
     }
 
     /**
      * Wraps a Kafka {@link Deserializer} to a {@link KafkaRecordDeserializationSchema}.
      *
      * @param valueDeserializerClass the deserializer class used to deserialize the value.
-     * @param config the configuration of the value deserializer, only valid when the deserializer
-     *     is an implementation of {@code Configurable}.
+     * @param config the configuration of the value deserializer. If the deserializer is an
+     *     implementation of {@code Configurable}, the configuring logic will be handled by {@link
+     *     org.apache.kafka.common.Configurable#configure(Map)} with the given {@link config},
+     *     otherwise {@link Deserializer#configure(Map, boolean)} will be invoked.
      * @param <V> the value type.
      * @param <D> the type of the deserializer.
      * @return A {@link KafkaRecordDeserializationSchema} that deserialize the value with the given
      *     deserializer.
      */
-    static <V, D extends Configurable & Deserializer<V>>
-            KafkaRecordDeserializationSchema<V> valueOnly(
-                    Class<D> valueDeserializerClass, Map<String, String> config) {
+    static <V, D extends Deserializer<V>> KafkaRecordDeserializationSchema<V> valueOnly(
+            Class<D> valueDeserializerClass, Map<String, String> config) {
         return new KafkaValueOnlyDeserializerWrapper<>(valueDeserializerClass, config);
     }
 }
