@@ -93,6 +93,7 @@ import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Reference;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -897,22 +898,26 @@ public class MiniCluster implements AutoCloseableAsync {
     }
 
     public CompletableFuture<JobSubmissionResult> submitJob(JobGraph jobGraph) {
-        checkRestoreModeForRandomizedChangelogStateBackend(jobGraph);
+        // When MiniCluster uses the local RPC, the provided JobGraph is passed directly to the
+        // Dispatcher. This means that any mutations to the JG can affect the Dispatcher behaviour,
+        // so we rather clone it to guard against this.
+        final JobGraph clonedJobGraph = cloneJobGraph(jobGraph);
+        checkRestoreModeForRandomizedChangelogStateBackend(clonedJobGraph);
         final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture =
                 getDispatcherGatewayFuture();
         final CompletableFuture<InetSocketAddress> blobServerAddressFuture =
                 createBlobServerAddress(dispatcherGatewayFuture);
         final CompletableFuture<Void> jarUploadFuture =
-                uploadAndSetJobFiles(blobServerAddressFuture, jobGraph);
+                uploadAndSetJobFiles(blobServerAddressFuture, clonedJobGraph);
         final CompletableFuture<Acknowledge> acknowledgeCompletableFuture =
                 jarUploadFuture
                         .thenCombine(
                                 dispatcherGatewayFuture,
                                 (Void ack, DispatcherGateway dispatcherGateway) ->
-                                        dispatcherGateway.submitJob(jobGraph, rpcTimeout))
+                                        dispatcherGateway.submitJob(clonedJobGraph, rpcTimeout))
                         .thenCompose(Function.identity());
         return acknowledgeCompletableFuture.thenApply(
-                (Acknowledge ignored) -> new JobSubmissionResult(jobGraph.getJobID()));
+                (Acknowledge ignored) -> new JobSubmissionResult(clonedJobGraph.getJobID()));
     }
 
     // HACK: temporary hack to make the randomized changelog state backend tests work with forced
@@ -1204,6 +1209,14 @@ public class MiniCluster implements AutoCloseableAsync {
             if (workingDirectory != null) {
                 workingDirectory.delete();
             }
+        }
+    }
+
+    private static JobGraph cloneJobGraph(JobGraph jobGraph) {
+        try {
+            return InstantiationUtil.clone(jobGraph);
+        } catch (ClassNotFoundException | IOException e) {
+            throw new IllegalStateException("Unable to clone the provided JobGraph.", e);
         }
     }
 
