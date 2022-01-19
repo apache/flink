@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.streaming.connectors.kafka.config.EndMode;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -127,6 +128,7 @@ public class UpsertKafkaDynamicTableFactory
         Properties properties = getKafkaProperties(context.getCatalogTable().getOptions());
         // always use earliest to keep data integrity
         StartupMode earliest = StartupMode.EARLIEST;
+        EndMode aDefault = EndMode.DEFAULT;
 
         return new KafkaDynamicSource(
                 context.getPhysicalRowDataType(),
@@ -141,8 +143,10 @@ public class UpsertKafkaDynamicTableFactory
                 earliest,
                 Collections.emptyMap(),
                 0,
-                true,
+                aDefault,
                 Collections.emptyMap(),
+                0,
+                true,
                 context.getObjectIdentifier().asSummaryString());
     }
 

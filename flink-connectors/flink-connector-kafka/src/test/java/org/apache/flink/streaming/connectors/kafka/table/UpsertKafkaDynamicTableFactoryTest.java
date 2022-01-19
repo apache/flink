@@ -34,6 +34,7 @@ import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.apache.flink.streaming.connectors.kafka.config.EndMode;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.runtime.operators.sink.SinkOperatorFactory;
 import org.apache.flink.table.api.DataTypes;
@@ -611,8 +612,10 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                 StartupMode.EARLIEST,
                 Collections.emptyMap(),
                 0,
-                true,
+                EndMode.DEFAULT,
                 Collections.emptyMap(),
+                0,
+                true,
                 FactoryMocks.IDENTIFIER.asSummaryString());
     }
 
