@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler;
+package org.apache.flink.runtime.scheduler.metrics;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
@@ -39,12 +39,12 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class SchedulerBaseTest {
+class JobStatusMetricsTest {
 
     @Test
     void testStateMetric() {
-        final SchedulerBase.JobStatusMetrics jobStatusMetrics =
-                new SchedulerBase.JobStatusMetrics(
+        final JobStatusMetrics jobStatusMetrics =
+                new JobStatusMetrics(
                         new UnregisteredMetricsGroup(),
                         0L,
                         enable(
@@ -63,8 +63,8 @@ class SchedulerBaseTest {
 
     @Test
     void testCurrentTimeMetric() {
-        final SchedulerBase.JobStatusMetrics jobStatusMetrics =
-                new SchedulerBase.JobStatusMetrics(
+        final JobStatusMetrics jobStatusMetrics =
+                new JobStatusMetrics(
                         new UnregisteredMetricsGroup(),
                         0L,
                         enable(
@@ -86,8 +86,8 @@ class SchedulerBaseTest {
 
     @Test
     void testTotalTimeMetric() {
-        final SchedulerBase.JobStatusMetrics jobStatusMetrics =
-                new SchedulerBase.JobStatusMetrics(
+        final JobStatusMetrics jobStatusMetrics =
+                new JobStatusMetrics(
                         new UnregisteredMetricsGroup(),
                         0L,
                         enable(
@@ -123,9 +123,8 @@ class SchedulerBaseTest {
     void testStatusSelection() {
         final InterceptingOperatorMetricGroup metricGroup = new InterceptingOperatorMetricGroup();
 
-        final SchedulerBase.JobStatusMetrics jobStatusMetrics =
-                new SchedulerBase.JobStatusMetrics(
-                        metricGroup, 0L, enable(MetricOptions.JobStatusMetrics.STATE));
+        final JobStatusMetrics jobStatusMetrics =
+                new JobStatusMetrics(metricGroup, 0L, enable(MetricOptions.JobStatusMetrics.STATE));
         final Map<JobStatus, StatusMetricSet> registeredMetrics = extractMetrics(metricGroup);
 
         for (JobStatus value : JobStatus.values()) {
@@ -166,8 +165,8 @@ class SchedulerBaseTest {
 
         final InterceptingOperatorMetricGroup metricGroup = new InterceptingOperatorMetricGroup();
 
-        final SchedulerBase.JobStatusMetrics jobStatusMetrics =
-                new SchedulerBase.JobStatusMetrics(metricGroup, 1L, enable(selectedMetrics));
+        final JobStatusMetrics jobStatusMetrics =
+                new JobStatusMetrics(metricGroup, 1L, enable(selectedMetrics));
         final Map<JobStatus, StatusMetricSet> registeredMetrics = extractMetrics(metricGroup);
 
         for (StatusMetricSet metrics : registeredMetrics.values()) {
@@ -200,17 +199,13 @@ class SchedulerBaseTest {
             final StatusMetricSet statusMetricSet =
                     new StatusMetricSet(
                             (Gauge<Long>)
-                                    metrics.get(
-                                            SchedulerBase.JobStatusMetrics.getStateMetricName(
-                                                    jobStatus)),
+                                    metrics.get(JobStatusMetrics.getStateMetricName(jobStatus)),
                             (Gauge<Long>)
                                     metrics.get(
-                                            SchedulerBase.JobStatusMetrics.getCurrentTimeMetricName(
-                                                    jobStatus)),
+                                            JobStatusMetrics.getCurrentTimeMetricName(jobStatus)),
                             (Gauge<Long>)
                                     metrics.get(
-                                            SchedulerBase.JobStatusMetrics.getTotalTimeMetricName(
-                                                    jobStatus)));
+                                            JobStatusMetrics.getTotalTimeMetricName(jobStatus)));
             if (statusMetricSet.getState().isPresent()
                     || statusMetricSet.getCurrentTime().isPresent()
                     || statusMetricSet.getTotalTime().isPresent()) {
