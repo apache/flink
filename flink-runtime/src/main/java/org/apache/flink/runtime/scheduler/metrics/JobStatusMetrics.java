@@ -21,7 +21,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.util.clock.Clock;
@@ -30,78 +29,77 @@ import org.apache.flink.util.clock.SystemClock;
 import java.util.Locale;
 
 /** Metrics that capture the time that a job spends in each {@link JobStatus}. */
-public class JobStatusMetrics implements JobStatusListener {
+public class JobStatusMetrics implements JobStatusListener, MetricsRegistrar {
 
+    private final MetricOptions.JobStatusMetricsSettings jobStatusMetricsSettings;
     private JobStatus currentStatus = JobStatus.INITIALIZING;
     private long currentStatusTimestamp;
     private final long[] cumulativeStatusTimes;
+    private final Clock clock;
 
     public JobStatusMetrics(
-            MetricGroup metricGroup,
             long initializationTimestamp,
             MetricOptions.JobStatusMetricsSettings jobStatusMetricsSettings) {
+        this(initializationTimestamp, jobStatusMetricsSettings, SystemClock.getInstance());
+    }
+
+    @VisibleForTesting
+    JobStatusMetrics(
+            long initializationTimestamp,
+            MetricOptions.JobStatusMetricsSettings jobStatusMetricsSettings,
+            Clock clock) {
+        this.jobStatusMetricsSettings = jobStatusMetricsSettings;
+        this.clock = clock;
 
         currentStatus = JobStatus.INITIALIZING;
         currentStatusTimestamp = initializationTimestamp;
         cumulativeStatusTimes = new long[JobStatus.values().length];
+    }
 
+    @Override
+    public void registerMetrics(MetricGroup metricGroup) {
         for (JobStatus jobStatus : JobStatus.values()) {
             if (!jobStatus.isTerminalState() && jobStatus != JobStatus.RECONCILING) {
 
-                if (jobStatusMetricsSettings.isStateMetricsEnabled()) {
-                    metricGroup.gauge(getStateMetricName(jobStatus), createStateMetric(jobStatus));
-                }
+                final StateTimeMetric stateTimeMetric = createTimeMetric(jobStatus);
 
-                if (jobStatusMetricsSettings.isCurrentTimeMetricsEnabled()) {
-                    metricGroup.gauge(
-                            getCurrentTimeMetricName(jobStatus),
-                            createCurrentTimeMetric(jobStatus, SystemClock.getInstance()));
-                }
-
-                if (jobStatusMetricsSettings.isTotalTimeMetricsEnabled()) {
-                    metricGroup.gauge(
-                            getTotalTimeMetricName(jobStatus),
-                            createTotalTimeMetric(jobStatus, SystemClock.getInstance()));
-                }
+                StateTimeMetric.register(
+                        jobStatusMetricsSettings,
+                        metricGroup,
+                        stateTimeMetric,
+                        getBaseMetricName(jobStatus));
             }
         }
     }
 
     @VisibleForTesting
-    Gauge<Long> createStateMetric(JobStatus jobStatus) {
-        return () -> currentStatus == jobStatus ? 1L : 0L;
-    }
-
-    @VisibleForTesting
-    Gauge<Long> createCurrentTimeMetric(JobStatus jobStatus, Clock clock) {
-        return () ->
-                currentStatus == jobStatus
+    StateTimeMetric createTimeMetric(JobStatus jobStatus) {
+        return new StateTimeMetric() {
+            @Override
+            public long getCurrentTime() {
+                return currentStatus == jobStatus
                         ? Math.max(clock.absoluteTimeMillis() - currentStatusTimestamp, 0)
                         : 0;
-    }
+            }
 
-    @VisibleForTesting
-    Gauge<Long> createTotalTimeMetric(JobStatus jobStatus, Clock clock) {
-        return () ->
-                currentStatus == jobStatus
+            @Override
+            public long getTotalTime() {
+                return currentStatus == jobStatus
                         ? cumulativeStatusTimes[jobStatus.ordinal()]
                                 + Math.max(clock.absoluteTimeMillis() - currentStatusTimestamp, 0)
                         : cumulativeStatusTimes[jobStatus.ordinal()];
+            }
+
+            @Override
+            public long getBinary() {
+                return currentStatus == jobStatus ? 1L : 0L;
+            }
+        };
     }
 
     @VisibleForTesting
-    static String getStateMetricName(JobStatus jobStatus) {
-        return jobStatus.name().toLowerCase(Locale.ROOT) + "State";
-    }
-
-    @VisibleForTesting
-    static String getCurrentTimeMetricName(JobStatus jobStatus) {
-        return jobStatus.name().toLowerCase(Locale.ROOT) + "Time";
-    }
-
-    @VisibleForTesting
-    static String getTotalTimeMetricName(JobStatus jobStatus) {
-        return jobStatus.name().toLowerCase(Locale.ROOT) + "TimeTotal";
+    static String getBaseMetricName(JobStatus jobStatus) {
+        return jobStatus.name().toLowerCase(Locale.ROOT);
     }
 
     @Override
