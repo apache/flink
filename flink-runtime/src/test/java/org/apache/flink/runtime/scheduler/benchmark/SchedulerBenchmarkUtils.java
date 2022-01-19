@@ -124,6 +124,7 @@ public class SchedulerBenchmarkUtils {
         for (ExecutionVertex vertex : executionGraph.getJobVertex(jobVertexID).getTaskVertices()) {
             LogicalSlot slot = slotBuilder.createTestingLogicalSlot();
             Execution execution = vertex.getCurrentExecutionAttempt();
+            execution.transitionState(ExecutionState.SCHEDULED);
             execution
                     .registerProducedPartitions(
                             slot.getTaskManagerLocation(), sendScheduleOrUpdateConsumersMessage)
@@ -138,9 +139,9 @@ public class SchedulerBenchmarkUtils {
 
         for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
             LogicalSlot slot = slotBuilder.createTestingLogicalSlot();
-            vertex.getCurrentExecutionAttempt()
-                    .registerProducedPartitions(slot.getTaskManagerLocation(), true)
-                    .get();
+            Execution execution = vertex.getCurrentExecutionAttempt();
+            execution.transitionState(ExecutionState.SCHEDULED);
+            execution.registerProducedPartitions(slot.getTaskManagerLocation(), true).get();
             assignResourceAndDeploy(vertex, slot);
         }
     }
