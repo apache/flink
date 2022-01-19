@@ -406,6 +406,7 @@ public class RemoveCachedShuffleDescriptorTest extends TestLogger {
 
             Execution execution = vertex.getCurrentExecutionAttempt();
             execution.registerProducedPartitions(slot.getTaskManagerLocation(), true).get();
+            execution.transitionState(ExecutionState.SCHEDULED);
 
             vertex.tryAssignResource(slot);
             vertex.deploy();
