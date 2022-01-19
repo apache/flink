@@ -46,6 +46,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -120,7 +121,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT_TERMINATE;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.processMailTillCheckpointSucceeds;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.triggerCheckpoint;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -1107,7 +1107,7 @@ public class MultipleInputStreamTaskTest {
                     testHarness.streamTask.triggerCheckpointAsync(
                             new CheckpointMetaData(2, 2),
                             CheckpointOptions.alignedNoTimeout(
-                                    SAVEPOINT_TERMINATE,
+                                    SavepointType.terminate(),
                                     CheckpointStorageLocationReference.getDefault()));
             checkpointCompleted.whenComplete(
                     (ignored, exception) ->

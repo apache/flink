@@ -19,6 +19,8 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.event.RuntimeEvent;
@@ -63,7 +65,6 @@ import static org.apache.flink.runtime.checkpoint.CheckpointOptions.alignedNoTim
 import static org.apache.flink.runtime.checkpoint.CheckpointOptions.alignedWithTimeout;
 import static org.apache.flink.runtime.checkpoint.CheckpointOptions.unaligned;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
-import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
 import static org.apache.flink.runtime.io.network.api.serialization.EventSerializer.toBuffer;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
@@ -107,7 +108,7 @@ public class AlternatingCheckpointsTest {
             sendBarrier(
                     0,
                     clock.relativeTimeMillis(),
-                    SAVEPOINT,
+                    SavepointType.savepoint(),
                     gate,
                     0); // using AC because UC would require ordering in gate while polling
             ((RemoteInputChannel) gate.getChannel(0))
@@ -165,7 +166,7 @@ public class AlternatingCheckpointsTest {
 
     @Test
     public void testSavepointHandling() throws Exception {
-        testBarrierHandling(SAVEPOINT);
+        testBarrierHandling(SavepointType.savepoint());
     }
 
     @Test
@@ -181,7 +182,7 @@ public class AlternatingCheckpointsTest {
             List<Long> barriers = new ArrayList<>();
             for (long barrier = 0; barrier < numBarriers; barrier++) {
                 barriers.add(barrier);
-                CheckpointType type = barrier % 2 == 0 ? CHECKPOINT : SAVEPOINT;
+                SnapshotType type = barrier % 2 == 0 ? CHECKPOINT : SavepointType.savepoint();
                 for (int channel = 0; channel < numChannels; channel++) {
                     send(
                             barrier(
@@ -1059,7 +1060,7 @@ public class AlternatingCheckpointsTest {
 
         startNanos = clock.relativeTimeNanos();
         long checkpoint2CreationTime = clock.relativeTimeMillis() - 5;
-        sendBarrier(2, checkpoint2CreationTime, SAVEPOINT, gate, 0);
+        sendBarrier(2, checkpoint2CreationTime, SavepointType.savepoint(), gate, 0);
         sendData(bufferSize, 1, gate);
 
         assertMetrics(
@@ -1071,7 +1072,7 @@ public class AlternatingCheckpointsTest {
                 5_000_000L,
                 bufferSize * 2);
         clock.advanceTime(5, TimeUnit.MILLISECONDS);
-        sendBarrier(2, checkpoint2CreationTime, SAVEPOINT, gate, 1);
+        sendBarrier(2, checkpoint2CreationTime, SavepointType.savepoint(), gate, 1);
         sendData(bufferSize, 0, gate);
 
         assertMetrics(
@@ -1136,7 +1137,7 @@ public class AlternatingCheckpointsTest {
         long checkpoint2CreationTime = clock.relativeTimeMillis() - 5;
         startNanos = clock.relativeTimeNanos();
         sendData(1000, 0, gate);
-        sendBarrier(2, checkpoint2CreationTime, SAVEPOINT, gate, 0);
+        sendBarrier(2, checkpoint2CreationTime, SavepointType.savepoint(), gate, 0);
         sendData(1000, 0, gate);
         clock.advanceTime(5, TimeUnit.MILLISECONDS);
         assertMetrics(
@@ -1178,7 +1179,7 @@ public class AlternatingCheckpointsTest {
 
         for (int i = 0; i < 4; i++) {
             int channel = i % 2;
-            CheckpointType type = channel == 0 ? SAVEPOINT : CHECKPOINT;
+            SnapshotType type = channel == 0 ? SavepointType.savepoint() : CHECKPOINT;
             target.setNextExpectedCheckpointId(-1);
 
             if (type.isSavepoint()) {
@@ -1253,7 +1254,7 @@ public class AlternatingCheckpointsTest {
                 new CheckpointBarrier(
                         outOfOrderSavepointId,
                         clock.relativeTimeMillis(),
-                        new CheckpointOptions(SAVEPOINT, getDefault())),
+                        new CheckpointOptions(SavepointType.savepoint(), getDefault())),
                 new InputChannelInfo(0, 1),
                 false);
 
@@ -1289,7 +1290,7 @@ public class AlternatingCheckpointsTest {
                 target.lastAlignmentDurationNanos.get().longValue());
     }
 
-    private void testBarrierHandling(CheckpointType checkpointType) throws Exception {
+    private void testBarrierHandling(SnapshotType checkpointType) throws Exception {
         final long barrierId = 123L;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         SingleInputGate gate = new SingleInputGateBuilder().setNumberOfChannels(2).build();
@@ -1328,7 +1329,7 @@ public class AlternatingCheckpointsTest {
     private void sendBarrier(
             long barrierId,
             long barrierCreationTime,
-            CheckpointType type,
+            SnapshotType type,
             CheckpointedInputGate gate,
             int channelId)
             throws Exception {

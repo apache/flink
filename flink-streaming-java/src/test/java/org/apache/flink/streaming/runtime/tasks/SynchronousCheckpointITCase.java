@@ -27,6 +27,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -109,7 +110,7 @@ public class SynchronousCheckpointITCase {
                     42,
                     156865867234L,
                     new CheckpointOptions(
-                            CheckpointType.SAVEPOINT_SUSPEND,
+                            SavepointType.suspend(),
                             CheckpointStorageLocationReference.getDefault()));
 
             assertThat(eventQueue.take(), is(Event.PRE_TRIGGER_CHECKPOINT));

@@ -39,7 +39,7 @@ public class CheckpointProperties implements Serializable {
     private static final long serialVersionUID = 2L;
 
     /** Type - checkpoint / savepoint. */
-    private final CheckpointType checkpointType;
+    private final SnapshotType checkpointType;
 
     /**
      * This has a misleading name and actually means whether the snapshot must be triggered, or
@@ -59,7 +59,7 @@ public class CheckpointProperties implements Serializable {
     @VisibleForTesting
     CheckpointProperties(
             boolean forced,
-            CheckpointType checkpointType,
+            SnapshotType checkpointType,
             boolean discardSubsumed,
             boolean discardFinished,
             boolean discardCancelled,
@@ -166,7 +166,7 @@ public class CheckpointProperties implements Serializable {
     }
 
     /** Gets the type of the checkpoint (checkpoint / savepoint). */
-    public CheckpointType getCheckpointType() {
+    public SnapshotType getCheckpointType() {
         return checkpointType;
     }
 
@@ -187,7 +187,7 @@ public class CheckpointProperties implements Serializable {
      *     </code> otherwise.
      */
     public boolean isSynchronous() {
-        return checkpointType.isSynchronous();
+        return isSavepoint() && ((SavepointType) checkpointType).isSynchronous();
     }
 
     // ------------------------------------------------------------------------
@@ -204,7 +204,7 @@ public class CheckpointProperties implements Serializable {
 
         CheckpointProperties that = (CheckpointProperties) o;
         return forced == that.forced
-                && checkpointType == that.checkpointType
+                && checkpointType.equals(that.checkpointType)
                 && discardSubsumed == that.discardSubsumed
                 && discardFinished == that.discardFinished
                 && discardCancelled == that.discardCancelled
@@ -250,11 +250,11 @@ public class CheckpointProperties implements Serializable {
 
     private static final CheckpointProperties SAVEPOINT =
             new CheckpointProperties(
-                    true, CheckpointType.SAVEPOINT, false, false, false, false, false, false);
+                    true, SavepointType.savepoint(), false, false, false, false, false, false);
 
     private static final CheckpointProperties SAVEPOINT_NO_FORCE =
             new CheckpointProperties(
-                    false, CheckpointType.SAVEPOINT, false, false, false, false, false, false);
+                    false, SavepointType.savepoint(), false, false, false, false, false, false);
 
     private static final CheckpointProperties CHECKPOINT_NEVER_RETAINED =
             new CheckpointProperties(
@@ -311,7 +311,7 @@ public class CheckpointProperties implements Serializable {
     public static CheckpointProperties forUnclaimedSnapshot() {
         return new CheckpointProperties(
                 false,
-                CheckpointType.SAVEPOINT, // unclaimed snapshot is similar to a savepoint
+                SavepointType.savepoint(), // unclaimed snapshot is similar to a savepoint
                 false,
                 false,
                 false,
@@ -323,7 +323,7 @@ public class CheckpointProperties implements Serializable {
     public static CheckpointProperties forSyncSavepoint(boolean forced, boolean terminate) {
         return new CheckpointProperties(
                 forced,
-                terminate ? CheckpointType.SAVEPOINT_TERMINATE : CheckpointType.SAVEPOINT_SUSPEND,
+                terminate ? SavepointType.terminate() : SavepointType.suspend(),
                 false,
                 false,
                 false,

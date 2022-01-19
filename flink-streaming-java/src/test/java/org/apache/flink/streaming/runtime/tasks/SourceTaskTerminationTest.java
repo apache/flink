@@ -23,7 +23,7 @@ import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
@@ -98,8 +98,8 @@ public class SourceTaskTerminationTest extends TestLogger {
                                     new CheckpointMetaData(syncSavepointId, 900),
                                     new CheckpointOptions(
                                             shouldTerminate
-                                                    ? CheckpointType.SAVEPOINT_TERMINATE
-                                                    : CheckpointType.SAVEPOINT_SUSPEND,
+                                                    ? SavepointType.terminate()
+                                                    : SavepointType.suspend(),
                                             CheckpointStorageLocationReference.getDefault()))
                             ::isDone);
 
