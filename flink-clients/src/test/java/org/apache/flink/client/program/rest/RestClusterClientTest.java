@@ -746,9 +746,16 @@ public class RestClusterClientTest extends TestLogger {
                 temporaryFolder.create();
                 File file = temporaryFolder.newFile();
                 Files.write(file.toPath(), "hello world".getBytes(ConfigConstants.DEFAULT_CHARSET));
+
+                // Add file path with scheme
                 jobGraph.addUserArtifact(
                         "file",
                         new DistributedCache.DistributedCacheEntry(file.toURI().toString(), false));
+
+                // Add file path without scheme
+                jobGraph.addUserArtifact(
+                        "file2",
+                        new DistributedCache.DistributedCacheEntry(file.toURI().getPath(), false));
 
                 restClusterClient.submitJob(jobGraph).get();
             }

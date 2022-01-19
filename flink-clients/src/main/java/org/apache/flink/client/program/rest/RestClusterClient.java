@@ -111,8 +111,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -360,12 +358,10 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                                         filesToUpload.add(
                                                 new FileUpload(
                                                         Paths.get(
-                                                                new URI(
-                                                                        artifacts.getValue()
-                                                                                .filePath)),
+                                                                artifactFilePath.toUri().getPath()),
                                                         RestConstants.CONTENT_TYPE_BINARY));
                                     }
-                                } catch (IOException | URISyntaxException e) {
+                                } catch (IOException e) {
                                     throw new CompletionException(
                                             new FlinkException(
                                                     "Failed to get the FileSystem of artifact "
