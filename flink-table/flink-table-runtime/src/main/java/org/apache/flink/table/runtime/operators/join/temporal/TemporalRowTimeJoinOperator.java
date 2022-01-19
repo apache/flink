@@ -210,7 +210,7 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
                 registerProcessingCleanupTimer();
             } else {
                 cleanupLastTimer();
-                nextLeftIndex.clear();
+                cleanupState(Long.MAX_VALUE);
             }
         }
     }
