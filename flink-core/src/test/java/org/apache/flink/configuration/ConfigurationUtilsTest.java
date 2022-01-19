@@ -30,10 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link ConfigurationUtils}. */
 public class ConfigurationUtilsTest extends TestLogger {
@@ -50,10 +48,10 @@ public class ConfigurationUtilsTest extends TestLogger {
         final Configuration configuration = ConfigurationUtils.createConfiguration(properties);
 
         for (String key : properties.stringPropertyNames()) {
-            assertThat(configuration.getString(key, ""), is(equalTo(properties.getProperty(key))));
+            assertThat(configuration.getString(key, "")).isEqualTo(properties.getProperty(key));
         }
 
-        assertThat(configuration.toMap().size(), is(properties.size()));
+        assertThat(configuration.toMap()).hasSize(properties.size());
     }
 
     @Test
@@ -74,7 +72,7 @@ public class ConfigurationUtilsTest extends TestLogger {
         final Map<String, String> hiddenSensitiveValues =
                 ConfigurationUtils.hideSensitiveValues(keyValuePairs);
 
-        assertThat(hiddenSensitiveValues, is(equalTo(expectedKeyValuePairs)));
+        assertThat(hiddenSensitiveValues).isEqualTo(expectedKeyValuePairs);
     }
 
     @Test
@@ -94,7 +92,7 @@ public class ConfigurationUtilsTest extends TestLogger {
         final Map<String, String> resultKeyValuePairs =
                 ConfigurationUtils.getPrefixedKeyValuePairs(prefix, configuration);
 
-        assertThat(resultKeyValuePairs, is(equalTo(expectedKeyValuePairs)));
+        assertThat(resultKeyValuePairs).isEqualTo(expectedKeyValuePairs);
     }
 
     @Test
