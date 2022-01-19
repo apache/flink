@@ -21,6 +21,7 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -135,9 +136,11 @@ public interface ClusterClient<T> extends AutoCloseable {
      *
      * @param jobId the job id
      * @param savepointDirectory directory the savepoint should be written to
+     * @param formatType a binary format of the savepoint
      * @return future of path where the savepoint is located
      */
-    CompletableFuture<String> cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory);
+    CompletableFuture<String> cancelWithSavepoint(
+            JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType);
 
     /**
      * Stops a program on Flink cluster whose job-manager is configured in this client's
@@ -149,12 +152,14 @@ public interface ClusterClient<T> extends AutoCloseable {
      * @param advanceToEndOfEventTime flag indicating if the source should inject a {@code
      *     MAX_WATERMARK} in the pipeline
      * @param savepointDirectory directory the savepoint should be written to
+     * @param formatType a binary format of the savepoint
      * @return a {@link CompletableFuture} containing the path where the savepoint is located
      */
     CompletableFuture<String> stopWithSavepoint(
             final JobID jobId,
             final boolean advanceToEndOfEventTime,
-            @Nullable final String savepointDirectory);
+            @Nullable final String savepointDirectory,
+            final SavepointFormatType formatType);
 
     /**
      * Triggers a savepoint for the job identified by the job id. The savepoint will be written to
@@ -163,9 +168,11 @@ public interface ClusterClient<T> extends AutoCloseable {
      *
      * @param jobId job id
      * @param savepointDirectory directory the savepoint should be written to
+     * @param formatType a binary format of the savepoint
      * @return path future where the savepoint is located
      */
-    CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory);
+    CompletableFuture<String> triggerSavepoint(
+            JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType);
 
     /**
      * Sends out a request to a specified coordinator and return the response.

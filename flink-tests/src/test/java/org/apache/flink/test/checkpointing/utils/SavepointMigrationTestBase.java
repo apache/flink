@@ -30,6 +30,7 @@ import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -163,7 +164,8 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 
         LOG.info("Triggering savepoint.");
 
-        CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null);
+        CompletableFuture<String> savepointPathFuture =
+                client.triggerSavepoint(jobID, null, SavepointFormatType.CANONICAL);
 
         String jobmanagerSavepointPath =
                 savepointPathFuture.get(deadLine.timeLeft().toMillis(), TimeUnit.MILLISECONDS);

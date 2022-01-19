@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -692,12 +693,14 @@ public class StreamTaskFinalCheckpointsTest {
 
     static CompletableFuture<Boolean> triggerStopWithSavepointDrain(
             StreamTaskMailboxTestHarness<String> testHarness, long checkpointId) {
-        return triggerStopWithSavepoint(testHarness, checkpointId, SavepointType.terminate());
+        return triggerStopWithSavepoint(
+                testHarness, checkpointId, SavepointType.terminate(SavepointFormatType.CANONICAL));
     }
 
     static CompletableFuture<Boolean> triggerStopWithSavepointNoDrain(
             StreamTaskMailboxTestHarness<String> testHarness, long checkpointId) {
-        return triggerStopWithSavepoint(testHarness, checkpointId, SavepointType.suspend());
+        return triggerStopWithSavepoint(
+                testHarness, checkpointId, SavepointType.suspend(SavepointFormatType.CANONICAL));
     }
 
     static CompletableFuture<Boolean> triggerStopWithSavepoint(

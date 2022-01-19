@@ -23,6 +23,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -156,7 +157,9 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
                 savepointPath =
                         clusterClient
                                 .cancelWithSavepoint(
-                                        jobToMigrate.getJobID(), targetDirectory.getAbsolutePath())
+                                        jobToMigrate.getJobID(),
+                                        targetDirectory.getAbsolutePath(),
+                                        SavepointFormatType.CANONICAL)
                                 .get();
             } catch (Exception e) {
                 String exceptionString = ExceptionUtils.stringifyException(e);

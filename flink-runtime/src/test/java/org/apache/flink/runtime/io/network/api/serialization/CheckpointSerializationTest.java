@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.serialization;
 
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.SavepointType;
@@ -45,7 +46,7 @@ public class CheckpointSerializationTest {
     public void testSuspendingCheckpointBarrierSerialization() throws Exception {
         CheckpointOptions suspendSavepointToSerialize =
                 new CheckpointOptions(
-                        SavepointType.suspend(),
+                        SavepointType.suspend(SavepointFormatType.CANONICAL),
                         new CheckpointStorageLocationReference(STORAGE_LOCATION_REF));
         testCheckpointBarrierSerialization(suspendSavepointToSerialize);
     }
@@ -54,7 +55,7 @@ public class CheckpointSerializationTest {
     public void testSavepointBarrierSerialization() throws Exception {
         CheckpointOptions savepointToSerialize =
                 new CheckpointOptions(
-                        SavepointType.savepoint(),
+                        SavepointType.savepoint(SavepointFormatType.CANONICAL),
                         new CheckpointStorageLocationReference(STORAGE_LOCATION_REF));
         testCheckpointBarrierSerialization(savepointToSerialize);
     }

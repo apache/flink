@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
@@ -164,7 +165,9 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
     }
 
     CompletableFuture<String> stopWithSavepoint(
-            @Nullable final String targetDirectory, boolean terminate) {
+            @Nullable final String targetDirectory,
+            boolean terminate,
+            SavepointFormatType formatType) {
         final ExecutionGraph executionGraph = getExecutionGraph();
 
         StopWithSavepointTerminationManager.checkSavepointActionPreconditions(
@@ -182,7 +185,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         final CompletableFuture<String> savepointFuture =
                 executionGraph
                         .getCheckpointCoordinator()
-                        .triggerSynchronousSavepoint(terminate, targetDirectory)
+                        .triggerSynchronousSavepoint(terminate, targetDirectory, formatType)
                         .thenApply(CompletedCheckpoint::getExternalPointer);
         return context.goToStopWithSavepoint(
                 executionGraph,

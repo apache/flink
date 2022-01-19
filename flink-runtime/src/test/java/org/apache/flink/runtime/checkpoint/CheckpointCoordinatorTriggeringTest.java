@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
@@ -296,7 +297,8 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
             int savepointId)
             throws Exception {
         final CompletableFuture<CompletedCheckpoint> savepointFuture =
-                checkpointCoordinator.triggerSavepoint(temporaryFolder.newFolder().getPath());
+                checkpointCoordinator.triggerSavepoint(
+                        temporaryFolder.newFolder().getPath(), SavepointFormatType.CANONICAL);
         manuallyTriggeredScheduledExecutor.triggerAll();
         checkpointCoordinator.receiveAcknowledgeMessage(
                 new AcknowledgeCheckpoint(graph.getJobID(), attemptID, savepointId),

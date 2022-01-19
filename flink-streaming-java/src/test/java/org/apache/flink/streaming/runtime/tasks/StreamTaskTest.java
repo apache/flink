@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -224,13 +225,17 @@ public class StreamTaskTest extends TestLogger {
     @Test
     public void testSavepointSuspendCompleted() throws Exception {
         testSyncSavepointWithEndInput(
-                StreamTask::notifyCheckpointCompleteAsync, SavepointType.suspend(), false);
+                StreamTask::notifyCheckpointCompleteAsync,
+                SavepointType.suspend(SavepointFormatType.CANONICAL),
+                false);
     }
 
     @Test
     public void testSavepointTerminateCompleted() throws Exception {
         testSyncSavepointWithEndInput(
-                StreamTask::notifyCheckpointCompleteAsync, SavepointType.terminate(), true);
+                StreamTask::notifyCheckpointCompleteAsync,
+                SavepointType.terminate(SavepointFormatType.CANONICAL),
+                true);
     }
 
     @Test
@@ -243,7 +248,7 @@ public class StreamTaskTest extends TestLogger {
                                 id,
                                 new CheckpointException(
                                         UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE)),
-                SavepointType.suspend(),
+                SavepointType.suspend(SavepointFormatType.CANONICAL),
                 false);
     }
 
@@ -257,7 +262,7 @@ public class StreamTaskTest extends TestLogger {
                                 id,
                                 new CheckpointException(
                                         UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE)),
-                SavepointType.terminate(),
+                SavepointType.terminate(SavepointFormatType.CANONICAL),
                 true);
     }
 
@@ -268,7 +273,7 @@ public class StreamTaskTest extends TestLogger {
         testSyncSavepointWithEndInput(
                 (streamTask, abortCheckpointId) ->
                         streamTask.notifyCheckpointAbortAsync(abortCheckpointId, 0),
-                SavepointType.suspend(),
+                SavepointType.suspend(SavepointFormatType.CANONICAL),
                 false);
     }
 
@@ -279,7 +284,7 @@ public class StreamTaskTest extends TestLogger {
         testSyncSavepointWithEndInput(
                 (streamTask, abortCheckpointId) ->
                         streamTask.notifyCheckpointAbortAsync(abortCheckpointId, 0),
-                SavepointType.terminate(),
+                SavepointType.terminate(SavepointFormatType.CANONICAL),
                 true);
     }
 

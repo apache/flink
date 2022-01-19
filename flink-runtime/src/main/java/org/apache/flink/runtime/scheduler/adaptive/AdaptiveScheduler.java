@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
@@ -600,12 +601,12 @@ public class AdaptiveScheduler
 
     @Override
     public CompletableFuture<String> triggerSavepoint(
-            @Nullable String targetDirectory, boolean cancelJob) {
+            @Nullable String targetDirectory, boolean cancelJob, SavepointFormatType formatType) {
         return state.tryCall(
                         StateWithExecutionGraph.class,
                         stateWithExecutionGraph ->
                                 stateWithExecutionGraph.triggerSavepoint(
-                                        targetDirectory, cancelJob),
+                                        targetDirectory, cancelJob, formatType),
                         "triggerSavepoint")
                 .orElse(
                         FutureUtils.completedExceptionally(
@@ -670,10 +671,11 @@ public class AdaptiveScheduler
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            @Nullable String targetDirectory, boolean terminate) {
+            @Nullable String targetDirectory, boolean terminate, SavepointFormatType formatType) {
         return state.tryCall(
                         Executing.class,
-                        executing -> executing.stopWithSavepoint(targetDirectory, terminate),
+                        executing ->
+                                executing.stopWithSavepoint(targetDirectory, terminate, formatType),
                         "stopWithSavepoint")
                 .orElse(
                         FutureUtils.completedExceptionally(

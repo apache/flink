@@ -24,6 +24,7 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -346,7 +347,11 @@ public class DispatcherTest extends AbstractDispatcherTest {
         try {
             dispatcherGateway
                     .triggerSavepointAndGetLocation(
-                            jobId, "file:///tmp/savepoint", TriggerSavepointMode.SAVEPOINT, TIMEOUT)
+                            jobId,
+                            "file:///tmp/savepoint",
+                            SavepointFormatType.CANONICAL,
+                            TriggerSavepointMode.SAVEPOINT,
+                            TIMEOUT)
                     .get();
             fail("Previous statement should have failed");
         } catch (ExecutionException t) {

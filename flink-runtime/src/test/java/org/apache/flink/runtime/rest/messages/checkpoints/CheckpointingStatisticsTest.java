@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.checkpoints;
 
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.SavepointType;
@@ -100,7 +101,8 @@ public class CheckpointingStatisticsTest
                         4244L,
                         9,
                         9,
-                        RestAPICheckpointType.valueOf(SavepointType.savepoint()),
+                        RestAPICheckpointType.valueOf(
+                                SavepointType.savepoint(SavepointFormatType.CANONICAL)),
                         checkpointStatisticsPerTask,
                         "externalPath",
                         false);
