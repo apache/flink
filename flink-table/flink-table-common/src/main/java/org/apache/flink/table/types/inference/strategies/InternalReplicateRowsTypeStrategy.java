@@ -36,7 +36,7 @@ class InternalReplicateRowsTypeStrategy implements TypeStrategy {
         return Optional.of(
                 DataTypes.ROW(
                         callContext.getArgumentDataTypes().stream()
-                                .skip(1)
+                                .skip(1) // skip the replication factor
                                 .toArray(DataType[]::new)));
     }
 }
