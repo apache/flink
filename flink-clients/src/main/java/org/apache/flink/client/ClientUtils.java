@@ -34,6 +34,7 @@ import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedThrowable;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
@@ -87,10 +88,8 @@ public enum ClientUtils {
             boolean suppressSysout)
             throws ProgramInvocationException {
         checkNotNull(executorServiceLoader);
-        final ClassLoader userCodeClassLoader = program.getUserCodeClassLoader();
-        final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-        try {
-            Thread.currentThread().setContextClassLoader(userCodeClassLoader);
+        try (final TemporaryClassLoaderContext ignored =
+                TemporaryClassLoaderContext.of(program.getUserCodeClassLoader())) {
 
             LOG.info(
                     "Starting program (detached: {})",
@@ -99,14 +98,14 @@ public enum ClientUtils {
             ContextEnvironment.setAsContext(
                     executorServiceLoader,
                     configuration,
-                    userCodeClassLoader,
+                    program.getUserCodeClassLoader(),
                     enforceSingleJobExecution,
                     suppressSysout);
 
             StreamContextEnvironment.setAsContext(
                     executorServiceLoader,
                     configuration,
-                    userCodeClassLoader,
+                    program.getUserCodeClassLoader(),
                     enforceSingleJobExecution,
                     suppressSysout);
 
@@ -116,8 +115,6 @@ public enum ClientUtils {
                 ContextEnvironment.unsetAsContext();
                 StreamContextEnvironment.unsetAsContext();
             }
-        } finally {
-            Thread.currentThread().setContextClassLoader(contextClassLoader);
         }
     }
 
