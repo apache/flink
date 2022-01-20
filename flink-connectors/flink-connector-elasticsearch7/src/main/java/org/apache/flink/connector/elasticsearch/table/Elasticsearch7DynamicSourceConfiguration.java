@@ -42,10 +42,10 @@ import static org.apache.flink.connector.elasticsearch.table.Elasticsearch7Sourc
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @Internal
-public class Elasticsearch7DymamicSourceConfiguration {
+class Elasticsearch7DynamicSourceConfiguration {
     protected final ReadableConfig config;
 
-    Elasticsearch7DymamicSourceConfiguration(ReadableConfig config) {
+    Elasticsearch7DynamicSourceConfiguration(ReadableConfig config) {
         this.config = checkNotNull(config);
     }
 
@@ -87,7 +87,7 @@ public class Elasticsearch7DymamicSourceConfiguration {
 
     public List<HttpHost> getHosts() {
         return config.get(HOSTS_OPTION).stream()
-                .map(Elasticsearch7DymamicSourceConfiguration::validateAndParseHostsString)
+                .map(Elasticsearch7DynamicSourceConfiguration::validateAndParseHostsString)
                 .collect(Collectors.toList());
     }
 

@@ -69,8 +69,8 @@ public class Elasticsearch7DynamicSourceFactory implements DynamicTableSourceFac
 
         DataType physicalRowDataType = context.getPhysicalRowDataType();
 
-        Elasticsearch7DymamicSourceConfiguration sourceConfig =
-                new Elasticsearch7DymamicSourceConfiguration(
+        Elasticsearch7DynamicSourceConfiguration sourceConfig =
+                new Elasticsearch7DynamicSourceConfiguration(
                         Configuration.fromMap(context.getCatalogTable().getOptions()));
 
         final boolean failOnMissingFields = tableOptions.get(FAIL_ON_MISSING_FIELDS);
@@ -89,7 +89,7 @@ public class Elasticsearch7DynamicSourceFactory implements DynamicTableSourceFac
     @VisibleForTesting
     protected DynamicTableSource createElasticsearchTableSource(
             DataType physicalRowDataType,
-            Elasticsearch7DymamicSourceConfiguration config,
+            Elasticsearch7DynamicSourceConfiguration config,
             String tableIdentifier,
             boolean failOnMissingFields,
             boolean ignoreParseErrors,

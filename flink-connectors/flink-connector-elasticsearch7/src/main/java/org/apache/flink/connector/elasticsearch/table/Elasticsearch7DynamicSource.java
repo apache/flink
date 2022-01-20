@@ -50,7 +50,7 @@ public class Elasticsearch7DynamicSource implements ScanTableSource {
     /** Data type that describes the final output of the source. */
     private final DataType producedDataType;
 
-    private final Elasticsearch7DymamicSourceConfiguration sourceConfig;
+    private final Elasticsearch7DynamicSourceConfiguration sourceConfig;
 
     private final String tableIdentifier;
 
@@ -62,7 +62,7 @@ public class Elasticsearch7DynamicSource implements ScanTableSource {
 
     public Elasticsearch7DynamicSource(
             DataType producedDataType,
-            Elasticsearch7DymamicSourceConfiguration sourceConfig,
+            Elasticsearch7DynamicSourceConfiguration sourceConfig,
             String tableIdentifier,
             boolean failOnMissingFields,
             boolean ignoreParseErrors,
