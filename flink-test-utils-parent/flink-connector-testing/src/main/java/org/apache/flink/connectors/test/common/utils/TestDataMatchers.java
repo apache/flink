@@ -81,34 +81,51 @@ public class TestDataMatchers {
                 return false;
             }
 
+            boolean dataMismatch = false;
+            boolean sizeMismatch = false;
+            String sizeMismatchDescription = "";
+            String dataMismatchDescription = "";
             int recordCounter = 0;
             for (T testRecord : testData) {
                 if (!resultIterator.hasNext()) {
-                    mismatchDescription =
+                    sizeMismatchDescription =
                             String.format(
                                     "Expected to have %d records in result, but only received %d records",
                                     limit == UNSET ? testData.size() : limit, recordCounter);
-                    return false;
+                    sizeMismatch = true;
+                    break;
                 }
                 T resultRecord = resultIterator.next();
                 if (!testRecord.equals(resultRecord)) {
-                    mismatchDescription =
+                    dataMismatchDescription =
                             String.format(
                                     "Mismatched record at position %d: Expected '%s' but was '%s'",
                                     recordCounter, testRecord, resultRecord);
-                    return false;
+                    dataMismatch = true;
                 }
                 recordCounter++;
                 if (limit != UNSET && recordCounter >= limit) {
                     break;
                 }
             }
+
             if (limit == UNSET && resultIterator.hasNext()) {
-                mismatchDescription =
+                sizeMismatchDescription =
                         String.format(
                                 "Expected to have exactly %d records in result, "
                                         + "but result iterator hasn't reached the end",
                                 testData.size());
+                sizeMismatch = true;
+            }
+
+            if (dataMismatch && sizeMismatch) {
+                mismatchDescription = sizeMismatchDescription + " And " + dataMismatchDescription;
+                return false;
+            } else if (dataMismatch) {
+                mismatchDescription = dataMismatchDescription;
+                return false;
+            } else if (sizeMismatch) {
+                mismatchDescription = sizeMismatchDescription;
                 return false;
             } else {
                 return true;
