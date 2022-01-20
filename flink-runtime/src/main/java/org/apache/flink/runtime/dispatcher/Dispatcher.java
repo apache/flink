@@ -337,6 +337,21 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         }
     }
 
+    @Override
+    public CompletableFuture<Acknowledge> submitFailedJob(
+            JobID jobId, String jobName, Throwable exception) {
+        final ArchivedExecutionGraph archivedExecutionGraph =
+                ArchivedExecutionGraph.createFromInitializingJob(
+                        jobId,
+                        jobName,
+                        JobStatus.FAILED,
+                        exception,
+                        null,
+                        System.currentTimeMillis());
+        archiveExecutionGraph(new ExecutionGraphInfo(archivedExecutionGraph));
+        return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
     /**
      * Checks whether the given job has already been submitted or executed.
      *

@@ -87,6 +87,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
 
+import org.assertj.core.api.Assertions;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Assert;
@@ -1057,16 +1058,46 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final PermanentBlobKey blobKey1 = blobServer.putPermanent(jobId1, fileContent);
         final PermanentBlobKey blobKey2 = blobServer.putPermanent(jobId2, fileContent);
 
-        final TestingDispatcher dispatcher =
+        dispatcher =
                 new TestingDispatcherBuilder()
                         .setInitialJobGraphs(Collections.singleton(new JobGraph(jobId1, "foobar")))
                         .build();
 
-        org.assertj.core.api.Assertions.assertThat(blobServer.getFile(jobId1, blobKey1))
-                .hasBinaryContent(fileContent);
-        org.assertj.core.api.Assertions.assertThatThrownBy(
-                        () -> blobServer.getFile(jobId2, blobKey2))
+        Assertions.assertThat(blobServer.getFile(jobId1, blobKey1)).hasBinaryContent(fileContent);
+        Assertions.assertThatThrownBy(() -> blobServer.getFile(jobId2, blobKey2))
                 .isInstanceOf(NoSuchFileException.class);
+    }
+
+    @Test
+    public void testRetrieveJobResultAfterSubmissionOfFailedJob() throws Exception {
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices,
+                        haServices,
+                        new ExpectedJobIdJobManagerRunnerFactory(
+                                jobId, createdJobManagerRunnerLatch));
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+        final JobID failedJobId = new JobID();
+        final String failedJobName = "test";
+        final CompletableFuture<Acknowledge> submitFuture =
+                dispatcherGateway.submitFailedJob(
+                        failedJobId, failedJobName, new RuntimeException("Test exception."));
+        submitFuture.get();
+        final ArchivedExecutionGraph archivedExecutionGraph =
+                dispatcherGateway.requestJob(failedJobId, TIMEOUT).get();
+        Assertions.assertThat(archivedExecutionGraph.getJobID()).isEqualTo(failedJobId);
+        Assertions.assertThat(archivedExecutionGraph.getJobName()).isEqualTo(failedJobName);
+        Assertions.assertThat(archivedExecutionGraph.getState()).isEqualTo(JobStatus.FAILED);
+        Assertions.assertThat(archivedExecutionGraph.getFailureInfo())
+                .isNotNull()
+                .extracting(ErrorInfo::getException)
+                .extracting(e -> e.deserializeError(Thread.currentThread().getContextClassLoader()))
+                .satisfies(
+                        exception ->
+                                Assertions.assertThat(exception)
+                                        .isInstanceOf(RuntimeException.class)
+                                        .hasMessage("Test exception."));
     }
 
     private void testJobDataAreCleanedUpInCorrectOrder(JobStatus jobStatus) throws Exception {
