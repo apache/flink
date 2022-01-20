@@ -16,25 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.env;
+package org.apache.flink.python.env.pemja;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.python.env.PythonEnvironment;
 
-/**
- * The base interface of python environment manager which is used to create the PythonEnvironment
- * object used to execute Python functions.
- */
+import pemja.core.PythonInterpreterConfig;
+
+import java.util.Map;
+
+/** A {@link PythonEnvironment} for executing UDFs in embedded environment. */
 @Internal
-public interface PythonEnvironmentManager extends AutoCloseable {
+public class EmbeddedPythonEnvironment implements PythonEnvironment {
+    private final PythonInterpreterConfig config;
+    private final Map<String, String> env;
 
-    /** Initialize the environment manager. */
-    void open() throws Exception;
+    public EmbeddedPythonEnvironment(PythonInterpreterConfig config, Map<String, String> env) {
+        this.config = config;
+        this.env = env;
+    }
 
-    /**
-     * Creates the PythonEnvironment object used to execute Python functions.
-     *
-     * @return The PythonEnvironment object which represents the environment(embedded thread,
-     *     process, docker, etc) the python worker would run in.
-     */
-    PythonEnvironment createEnvironment() throws Exception;
+    public PythonInterpreterConfig getConfig() {
+        return config;
+    }
+
+    public Map<String, String> getEnv() {
+        return env;
+    }
 }

@@ -28,7 +28,6 @@ import pickle
 from typing import List, Union
 
 import cloudpickle
-import pyarrow as pa
 
 from pyflink.common import Row, RowKind
 from pyflink.common.time import Instant
@@ -437,6 +436,8 @@ cdef class ArrowCoderImpl(FieldCoderImpl):
         self._batch_reader = self._load_from_stream(self._resettable_io)
 
     cpdef encode_to_stream(self, cols, OutputStream out_stream):
+        import pyarrow as pa
+
         self._resettable_io.set_output_stream(out_stream)
         batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
         batch_writer.write_batch(
@@ -451,6 +452,8 @@ cdef class ArrowCoderImpl(FieldCoderImpl):
         return arrow_to_pandas(self._timezone, self._field_types, [next(self._batch_reader)])
 
     def _load_from_stream(self, stream):
+        import pyarrow as pa
+
         while stream.readable():
             reader = pa.ipc.open_stream(stream)
             yield reader.read_next_batch()

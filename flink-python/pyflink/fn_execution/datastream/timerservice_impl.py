@@ -20,14 +20,9 @@ import time
 from enum import Enum
 from io import BytesIO
 
-from apache_beam.runners.worker.bundle_processor import TimerInfo
-from apache_beam.transforms import userstate
-from apache_beam.transforms.window import GlobalWindow
-
 from pyflink.common import Row
 from pyflink.datastream import TimerService
 from pyflink.fn_execution.datastream.timerservice import InternalTimer, K, N, InternalTimerService
-from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 
 
 class TimerOperandType(Enum):
@@ -44,7 +39,7 @@ class LegacyInternalTimerServiceImpl(InternalTimerService[N]):
     TODO: Use InternalTimerServiceImpl instead.
     """
 
-    def __init__(self, keyed_state_backend: RemoteKeyedStateBackend):
+    def __init__(self, keyed_state_backend):
         self._keyed_state_backend = keyed_state_backend
         self._current_watermark = None
         self.timers = collections.OrderedDict()
@@ -85,14 +80,17 @@ class InternalTimerServiceImpl(InternalTimerService[N]):
     Internal implementation of InternalTimerService.
     """
 
-    def __init__(self, keyed_state_backend: RemoteKeyedStateBackend):
+    def __init__(self, keyed_state_backend):
         self._keyed_state_backend = keyed_state_backend
         self._current_watermark = None
         self._timer_coder_impl = None
         self._output_stream = None
+
+        from apache_beam.transforms.window import GlobalWindow
+
         self._global_window = GlobalWindow()
 
-    def add_timer_info(self, timer_info: TimerInfo):
+    def add_timer_info(self, timer_info):
         self._timer_coder_impl = timer_info.timer_coder_impl
         self._output_stream = timer_info.output_stream
 
@@ -125,6 +123,8 @@ class InternalTimerServiceImpl(InternalTimerService[N]):
         self._set_timer(TimerOperandType.DELETE_EVENT_TIMER, ts, current_key, namespace)
 
     def _set_timer(self, timer_operation_type, ts, key, namespace):
+        from apache_beam.transforms import userstate
+
         bytes_io = BytesIO()
         self._namespace_serializer.serialize(namespace, bytes_io)
         encoded_namespace = bytes_io.getvalue()
