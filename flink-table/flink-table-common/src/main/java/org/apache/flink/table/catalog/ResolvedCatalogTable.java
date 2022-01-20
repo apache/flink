@@ -24,6 +24,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -110,5 +111,33 @@ public final class ResolvedCatalogTable
     @Override
     public ResolvedCatalogTable copy(Map<String, String> options) {
         return new ResolvedCatalogTable(origin.copy(options), resolvedSchema);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ResolvedCatalogTable that = (ResolvedCatalogTable) o;
+        return Objects.equals(origin, that.origin)
+                && Objects.equals(resolvedSchema, that.resolvedSchema);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(origin, resolvedSchema);
+    }
+
+    @Override
+    public String toString() {
+        return "ResolvedCatalogTable{"
+                + "origin="
+                + origin
+                + ", resolvedSchema="
+                + resolvedSchema
+                + '}';
     }
 }
