@@ -24,15 +24,20 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.cli.ClientOptions;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.testjar.BlockingJob;
+import org.apache.flink.client.testjar.FailingJob;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -47,14 +52,17 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
-import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Integration tests related to {@link ApplicationDispatcherBootstrap}. */
 public class ApplicationDispatcherBootstrapITCase extends TestLogger {
@@ -119,8 +127,7 @@ public class ApplicationDispatcherBootstrapITCase extends TestLogger {
                     cluster.requestJobResult(ApplicationDispatcherBootstrap.ZERO_JOB_ID);
             haServices.revokeDispatcherLeadership();
             // make sure the leadership is revoked to avoid race conditions
-            Assertions.assertEquals(
-                    ApplicationStatus.UNKNOWN, firstJobResult.get().getApplicationStatus());
+            assertEquals(ApplicationStatus.UNKNOWN, firstJobResult.get().getApplicationStatus());
             haServices.grantDispatcherLeadership();
 
             // job is suspended, wait until it's running
@@ -136,14 +143,64 @@ public class ApplicationDispatcherBootstrapITCase extends TestLogger {
             // and wait for it to actually finish
             final CompletableFuture<JobResult> secondJobResult =
                     cluster.requestJobResult(ApplicationDispatcherBootstrap.ZERO_JOB_ID);
-            Assertions.assertTrue(secondJobResult.get().isSuccess());
-            Assertions.assertEquals(
-                    ApplicationStatus.SUCCEEDED, secondJobResult.get().getApplicationStatus());
+            assertTrue(secondJobResult.get().isSuccess());
+            assertEquals(ApplicationStatus.SUCCEEDED, secondJobResult.get().getApplicationStatus());
 
             // the cluster should shut down automatically once the application completes
             awaitClusterStopped(cluster, deadline);
         } finally {
             BlockingJob.cleanUp(blockId);
+        }
+    }
+
+    @Test
+    public void testSubmitFailedJobOnApplicationError() throws Exception {
+        final Deadline deadline = Deadline.fromNow(TIMEOUT);
+        final JobID jobId = new JobID();
+        final Configuration configuration = new Configuration();
+        configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
+        configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
+        configuration.set(ClientOptions.CLIENT_RETRY_PERIOD, Duration.ofMillis(100));
+        configuration.set(DeploymentOptions.SHUTDOWN_ON_APPLICATION_FINISH, false);
+        configuration.set(DeploymentOptions.SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR, true);
+        configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
+        final TestingMiniClusterConfiguration clusterConfiguration =
+                TestingMiniClusterConfiguration.newBuilder()
+                        .setConfiguration(configuration)
+                        .build();
+        final EmbeddedHaServicesWithLeadershipControl haServices =
+                new EmbeddedHaServicesWithLeadershipControl(TestingUtils.defaultExecutor());
+        final TestingMiniCluster.Builder clusterBuilder =
+                TestingMiniCluster.newBuilder(clusterConfiguration)
+                        .setHighAvailabilityServicesSupplier(() -> haServices)
+                        .setDispatcherResourceManagerComponentFactorySupplier(
+                                createApplicationModeDispatcherResourceManagerComponentFactorySupplier(
+                                        clusterConfiguration.getConfiguration(),
+                                        FailingJob.getProgram()));
+        try (final MiniCluster cluster = clusterBuilder.build()) {
+
+            // start mini cluster and submit the job
+            cluster.start();
+
+            // wait until the failed job has been submitted
+            awaitJobStatus(cluster, jobId, JobStatus.FAILED, deadline);
+
+            final ArchivedExecutionGraph graph = cluster.getArchivedExecutionGraph(jobId).get();
+
+            assertThat(graph.getJobID()).isEqualTo(jobId);
+            assertThat(graph.getJobName())
+                    .isEqualTo(ApplicationDispatcherBootstrap.FAILED_JOB_NAME);
+            assertThat(graph.getFailureInfo())
+                    .isNotNull()
+                    .extracting(ErrorInfo::getException)
+                    .extracting(
+                            e -> e.deserializeError(Thread.currentThread().getContextClassLoader()))
+                    .satisfies(
+                            e ->
+                                    assertThat(e)
+                                            .isInstanceOf(ProgramInvocationException.class)
+                                            .hasRootCauseInstanceOf(RuntimeException.class)
+                                            .hasRootCauseMessage(FailingJob.EXCEPTION_MESSAGE));
         }
     }
 

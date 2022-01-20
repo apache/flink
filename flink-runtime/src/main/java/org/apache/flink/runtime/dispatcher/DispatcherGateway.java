@@ -42,6 +42,9 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
      */
     CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, @RpcTimeout Time timeout);
 
+    CompletableFuture<Acknowledge> submitFailedJob(
+            JobID jobId, String jobName, Throwable exception);
+
     /**
      * List the current set of submitted jobs.
      *

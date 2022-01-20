@@ -58,6 +58,10 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
 
     static final Function<JobGraph, CompletableFuture<Acknowledge>> DEFAULT_SUBMIT_FUNCTION =
             jobGraph -> CompletableFuture.completedFuture(Acknowledge.get());
+    static final TriFunction<JobID, String, Throwable, CompletableFuture<Acknowledge>>
+            DEFAULT_SUBMIT_FAILED_FUNCTION =
+                    (jobId, jobName, Throwable) ->
+                            CompletableFuture.completedFuture(Acknowledge.get());
     static final Supplier<CompletableFuture<Collection<JobID>>> DEFAULT_LIST_FUNCTION =
             () -> CompletableFuture.completedFuture(Collections.emptyList());
     static final int DEFAULT_BLOB_SERVER_PORT = 1234;
@@ -78,6 +82,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
 
     private final Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction;
+    private final TriFunction<JobID, String, Throwable, CompletableFuture<Acknowledge>>
+            submitFailedFunction;
     private final Supplier<CompletableFuture<Collection<JobID>>> listFunction;
     private final int blobServerPort;
     private final DispatcherId fencingToken;
@@ -93,6 +99,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
     public TestingDispatcherGateway() {
         super();
         submitFunction = DEFAULT_SUBMIT_FUNCTION;
+        submitFailedFunction = DEFAULT_SUBMIT_FAILED_FUNCTION;
         listFunction = DEFAULT_LIST_FUNCTION;
         blobServerPort = DEFAULT_BLOB_SERVER_PORT;
         fencingToken = DEFAULT_FENCING_TOKEN;
@@ -131,6 +138,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
             Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
                     getSavepointStatusFunction,
             Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction,
+            TriFunction<JobID, String, Throwable, CompletableFuture<Acknowledge>>
+                    submitFailedFunction,
             Supplier<CompletableFuture<Collection<JobID>>> listFunction,
             int blobServerPort,
             DispatcherId fencingToken,
@@ -163,6 +172,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                 clusterShutdownSupplier,
                 deliverCoordinationRequestToCoordinatorFunction);
         this.submitFunction = submitFunction;
+        this.submitFailedFunction = submitFailedFunction;
         this.listFunction = listFunction;
         this.blobServerPort = blobServerPort;
         this.fencingToken = fencingToken;
@@ -175,6 +185,12 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
     @Override
     public CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, Time timeout) {
         return submitFunction.apply(jobGraph);
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> submitFailedJob(
+            JobID jobId, String jobName, Throwable exception) {
+        return submitFailedFunction.apply(jobId, jobName, exception);
     }
 
     @Override
@@ -222,6 +238,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
     public static final class Builder extends TestingRestfulGateway.AbstractBuilder<Builder> {
 
         private Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction;
+        private TriFunction<JobID, String, Throwable, CompletableFuture<Acknowledge>>
+                submitFailedFunction;
         private Supplier<CompletableFuture<Collection<JobID>>> listFunction;
         private int blobServerPort;
         private DispatcherId fencingToken;
@@ -241,6 +259,13 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
         public Builder setSubmitFunction(
                 Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction) {
             this.submitFunction = submitFunction;
+            return this;
+        }
+
+        public Builder setSubmitFailedFunction(
+                TriFunction<JobID, String, Throwable, CompletableFuture<Acknowledge>>
+                        submitFailedFunction) {
+            this.submitFailedFunction = submitFailedFunction;
             return this;
         }
 
@@ -319,6 +344,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                     stopWithSavepointAndGetLocationFunction,
                     getSavepointStatusFunction,
                     submitFunction,
+                    submitFailedFunction,
                     listFunction,
                     blobServerPort,
                     fencingToken,

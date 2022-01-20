@@ -80,9 +80,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ApplicationDispatcherBootstrap.class);
-
     public static final JobID ZERO_JOB_ID = new JobID(0, 0);
+
+    @VisibleForTesting static final String FAILED_JOB_NAME = "(application driver)";
+
+    private static final Logger LOG = LoggerFactory.getLogger(ApplicationDispatcherBootstrap.class);
 
     private static boolean isCanceledOrFailed(ApplicationStatus applicationStatus) {
         return applicationStatus == ApplicationStatus.CANCELED
@@ -204,20 +206,21 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
 
     private CompletableFuture<Void> fixJobIdAndRunApplicationAsync(
             final DispatcherGateway dispatcherGateway, final ScheduledExecutor scheduledExecutor) {
-
         final Optional<String> configuredJobId =
                 configuration.getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID);
-
+        final boolean submitFailedJobOnApplicationError =
+                configuration.getBoolean(DeploymentOptions.SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR);
         if (!HighAvailabilityMode.isHighAvailabilityModeActivated(configuration)
                 && !configuredJobId.isPresent()) {
-            return runApplicationAsync(dispatcherGateway, scheduledExecutor, false);
+            return runApplicationAsync(
+                    dispatcherGateway, scheduledExecutor, false, submitFailedJobOnApplicationError);
         }
-
         if (!configuredJobId.isPresent()) {
             configuration.set(
                     PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, ZERO_JOB_ID.toHexString());
         }
-        return runApplicationAsync(dispatcherGateway, scheduledExecutor, true);
+        return runApplicationAsync(
+                dispatcherGateway, scheduledExecutor, true, submitFailedJobOnApplicationError);
     }
 
     /**
@@ -228,7 +231,8 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
     private CompletableFuture<Void> runApplicationAsync(
             final DispatcherGateway dispatcherGateway,
             final ScheduledExecutor scheduledExecutor,
-            final boolean enforceSingleJobExecution) {
+            final boolean enforceSingleJobExecution,
+            final boolean submitFailedJobOnApplicationError) {
         final CompletableFuture<List<JobID>> applicationExecutionFuture = new CompletableFuture<>();
         final Set<JobID> tolerateMissingResult = Collections.synchronizedSet(new HashSet<>());
 
@@ -242,7 +246,8 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
                                         tolerateMissingResult,
                                         dispatcherGateway,
                                         scheduledExecutor,
-                                        enforceSingleJobExecution),
+                                        enforceSingleJobExecution,
+                                        submitFailedJobOnApplicationError),
                         0L,
                         TimeUnit.MILLISECONDS);
 
@@ -266,10 +271,19 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
             final Set<JobID> tolerateMissingResult,
             final DispatcherGateway dispatcherGateway,
             final ScheduledExecutor scheduledExecutor,
-            final boolean enforceSingleJobExecution) {
+            final boolean enforceSingleJobExecution,
+            final boolean submitFailedJobOnApplicationError) {
+        if (submitFailedJobOnApplicationError && !enforceSingleJobExecution) {
+            jobIdsFuture.completeExceptionally(
+                    new ApplicationExecutionException(
+                            String.format(
+                                    "Submission of failed job in case of an application error ('%s') is not supported in non-HA setups.",
+                                    DeploymentOptions.SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR
+                                            .key())));
+            return;
+        }
+        final List<JobID> applicationJobIds = new ArrayList<>(recoveredJobIds);
         try {
-            final List<JobID> applicationJobIds = new ArrayList<>(recoveredJobIds);
-
             final PipelineExecutorServiceLoader executorServiceLoader =
                     new EmbeddedExecutorServiceLoader(
                             applicationJobIds, dispatcherGateway, scheduledExecutor);
@@ -299,6 +313,12 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
                 final JobID jobId = maybeDuplicate.get().getJobID();
                 tolerateMissingResult.add(jobId);
                 jobIdsFuture.complete(Collections.singletonList(jobId));
+            } else if (submitFailedJobOnApplicationError && applicationJobIds.isEmpty()) {
+                final JobID failedJobId =
+                        JobID.fromHexString(
+                                configuration.get(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID));
+                dispatcherGateway.submitFailedJob(failedJobId, FAILED_JOB_NAME, t);
+                jobIdsFuture.complete(Collections.singletonList(failedJobId));
             } else {
                 jobIdsFuture.completeExceptionally(
                         new ApplicationExecutionException("Could not execute application.", t));
