@@ -64,7 +64,8 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
 - **Trigger Time**: The time when the checkpoint was triggered at the JobManager.
 - **Latest Acknowledgement**: The time when the latest acknowledgement for any subtask was received at the JobManager (or n/a if no acknowledgement received yet).
 - **End to End Duration**: The duration from the trigger timestamp until the latest acknowledgement (or n/a if no acknowledgement received yet). This end to end duration for a complete checkpoint is determined by the last subtask that acknowledges the checkpoint. This time is usually larger than single subtasks need to actually checkpoint the state.
-- **Checkpointed Data Size**: The checkpointed data size over all acknowledged subtasks. If incremental checkpointing is enabled this value is the checkpointed data size delta.
+- **Checkpointed Data Size**: The persisted data size during the sync and async phases of that checkpoint, the value could be different from full checkpoint data size if incremental checkpoint or changelog is enabled.
+- **Full Checkpoint Data Size**: The accumulated checkpoint data size over all acknowledged subtasks.
 - **Processed (persisted) in-flight data**: The approximate number of bytes processed/persisted during the alignment (time between receiving the first and the last checkpoint barrier) over all acknowledged subtasks. Persisted data could be larger than zero only if the unaligned checkpoints are enabled.
 
 For subtasks there are a couple of more detailed stats available.
@@ -88,7 +89,7 @@ web.checkpoints.history: 15
 
 ### Summary Tab
 
-The summary computes a simple min/average/maximum statistics over all completed checkpoints for the End to End Duration, Checkpointed Data Size, and Bytes Buffered During Alignment (see [History](#history) for details about what these mean).
+The summary computes a simple min/average/maximum statistics over all completed checkpoints for the End to End Duration, Incremental Checkpoint Data Size, Full Checkpoint Data Size, and Bytes Buffered During Alignment (see [History](#history) for details about what these mean).
 
 {{< img src="/fig/checkpoint_monitoring-summary.png" width="700px" alt="Checkpoint Monitoring: Summary" >}}
 
