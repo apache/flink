@@ -132,11 +132,12 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
             long initializationTimestamp,
             VertexAttemptNumberStore vertexAttemptNumberStore,
             VertexParallelismStore vertexParallelismStore,
+            ExecutionStateUpdateListener executionStateUpdateListener,
             Logger log)
             throws Exception {
         ExecutionDeploymentListener executionDeploymentListener =
                 new ExecutionDeploymentTrackerDeploymentListenerAdapter(executionDeploymentTracker);
-        ExecutionStateUpdateListener executionStateUpdateListener =
+        ExecutionStateUpdateListener combinedExecutionStateUpdateListener =
                 (execution, previousState, newState) -> {
                     executionStateUpdateListener.onStateUpdate(execution, previousState, newState);
                     if (newState.isTerminal()) {
@@ -161,7 +162,7 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                         jobMasterPartitionTracker,
                         partitionLocationConstraint,
                         executionDeploymentListener,
-                        executionStateUpdateListener,
+                        combinedExecutionStateUpdateListener,
                         initializationTimestamp,
                         vertexAttemptNumberStore,
                         vertexParallelismStore,
