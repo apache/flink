@@ -33,7 +33,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /** A simple testing implementation of the {@link OperatorCoordinator}. */
-class TestingOperatorCoordinator implements OperatorCoordinator {
+public class TestingOperatorCoordinator implements OperatorCoordinator {
 
     public static final byte[] NULL_RESTORE_VALUE = new byte[0];
 
