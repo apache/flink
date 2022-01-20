@@ -26,6 +26,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -156,11 +157,6 @@ public class ContextResolvedTable {
                 false);
     }
 
-    @Override
-    public String toString() {
-        return objectIdentifier.asSummaryString();
-    }
-
     /**
      * This method tries to return the connector name of the table, trying to provide a bit more
      * helpful toString for anonymous tables. It's only to help users to debug, and its return value
@@ -184,5 +180,30 @@ public class ContextResolvedTable {
         }
 
         return "*anonymous_" + hint + "$" + id + "*";
+    }
+
+    @Override
+    public String toString() {
+        return objectIdentifier.asSummaryString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ContextResolvedTable that = (ContextResolvedTable) o;
+        return anonymous == that.anonymous
+                && Objects.equals(objectIdentifier, that.objectIdentifier)
+                && Objects.equals(catalog, that.catalog)
+                && Objects.equals(resolvedTable, that.resolvedTable);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(objectIdentifier, catalog, resolvedTable, anonymous);
     }
 }
