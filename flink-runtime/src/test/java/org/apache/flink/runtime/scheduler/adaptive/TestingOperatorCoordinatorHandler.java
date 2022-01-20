@@ -23,10 +23,12 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.util.FlinkException;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 class TestingOperatorCoordinatorHandler implements OperatorCoordinatorHandler {
@@ -61,6 +63,13 @@ class TestingOperatorCoordinatorHandler implements OperatorCoordinatorHandler {
     @Override
     public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             OperatorID operator, CoordinationRequest request) throws FlinkException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void registerAndStartNewCoordinators(
+            Collection<OperatorCoordinatorHolder> coordinators,
+            ComponentMainThreadExecutor mainThreadExecutor) {
         throw new UnsupportedOperationException();
     }
 }
