@@ -57,6 +57,7 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.exceptions.NoHostAvailableException;
 import com.datastax.driver.mapping.Mapper;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -72,6 +73,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -143,6 +145,8 @@ public class CassandraConnectorITCase
             "CREATE TABLE flink."
                     + TABLE_NAME_VARIABLE
                     + " (id text PRIMARY KEY, counter int, batch_id int);";
+    private static final String DROP_TABLE_QUERY =
+            "DROP TABLE IF EXISTS flink." + TABLE_NAME_VARIABLE + " ;";
     private static final String INSERT_DATA_QUERY =
             "INSERT INTO flink."
                     + TABLE_NAME_VARIABLE
@@ -213,6 +217,18 @@ public class CassandraConnectorITCase
     public void createTable() {
         tableID = random.nextInt(Integer.MAX_VALUE);
         session.execute(injectTableName(CREATE_TABLE_QUERY));
+    }
+
+    @After
+    public void dropTables() {
+        // need to drop tables in case of retrials. Need to drop all the tables
+        // that are created in test because this method is executed with every test
+        session.execute(
+                DROP_TABLE_QUERY.replace(
+                        TABLE_NAME_VARIABLE, CustomCassandraAnnotatedPojo.TABLE_NAME));
+        session.execute(DROP_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, "test"));
+        session.execute(
+                DROP_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, "testPojoNoAnnotatedKeyspace"));
     }
 
     @AfterClass
@@ -505,6 +521,19 @@ public class CassandraConnectorITCase
         }
         Assert.assertTrue(
                 "The input data was not completely written to Cassandra", input.isEmpty());
+    }
+
+    private static int retrialsCount = 0;
+
+    @Test
+    public void testRetrialAndDropTables() {
+        session.execute(
+                CREATE_TABLE_QUERY.replace(
+                        TABLE_NAME_VARIABLE, CustomCassandraAnnotatedPojo.TABLE_NAME));
+        if (retrialsCount < 2) {
+            retrialsCount++;
+            throw new NoHostAvailableException(new HashMap<>());
+        }
     }
 
     @Test
