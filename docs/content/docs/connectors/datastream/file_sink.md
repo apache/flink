@@ -683,10 +683,11 @@ Old buckets can still receive new records as the bucketing policy is evaluated o
 Finished files can be distinguished from the in-progress ones by their naming scheme only.
 
 By default, the file naming strategy is as follows:
- - **In-progress / Pending**: `part-<uid>-<partFileIndex>.inprogress.uid`
+ - **In-progress / Pending**: `part-<uid>-<partFileIndex>.inprogress.<file_uid>`
  - **Finished:** `part-<uid>-<partFileIndex>`
-where `uid` is a random id assigned to a subtask of the sink when the subtask is instantiated. This `uid` is not fault-tolerant 
-so it is regenerated when the subtask recovers from a failure.
+where `uid` is a random id assigned to a subtask of the sink when the subtask is instantiated,
+and `file_uid` is a randomly generated id for every in-progress file.
+This `uid` is not fault-tolerant so it is regenerated when the subtask recovers from a failure.
 
 Flink allows the user to specify a prefix and/or a suffix for his/her part files. 
 This can be done using an `OutputFileConfig`. 
