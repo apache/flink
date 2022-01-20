@@ -26,8 +26,10 @@ import org.apache.flink.connector.elasticsearch.source.Elasticsearch7Source;
 import java.time.Duration;
 import java.util.List;
 
-/** Options for the {@link Elasticsearch7Source}. Needs to be public so that the {@link
- * org.apache.flink.table.api.TableDescriptor} can access it. */
+/**
+ * Options for the {@link Elasticsearch7Source}. Needs to be public so that the {@link
+ * org.apache.flink.table.api.TableDescriptor} can access it.
+ */
 @PublicEvolving
 public class Elasticsearch7SourceOptions {
     Elasticsearch7SourceOptions() {}
