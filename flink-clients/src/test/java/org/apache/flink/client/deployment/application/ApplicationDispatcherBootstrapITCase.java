@@ -57,9 +57,10 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -68,11 +69,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Integration tests related to {@link ApplicationDispatcherBootstrap}. */
-public class ApplicationDispatcherBootstrapITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class ApplicationDispatcherBootstrapITCase {
 
     private static final Duration TIMEOUT = Duration.ofMinutes(10);
 
@@ -134,7 +134,9 @@ public class ApplicationDispatcherBootstrapITCase extends TestLogger {
                     cluster.requestJobResult(ApplicationDispatcherBootstrap.ZERO_JOB_ID);
             haServices.revokeDispatcherLeadership();
             // make sure the leadership is revoked to avoid race conditions
-            assertEquals(ApplicationStatus.UNKNOWN, firstJobResult.get().getApplicationStatus());
+            assertThat(firstJobResult.get())
+                    .extracting(JobResult::getApplicationStatus)
+                    .isEqualTo(ApplicationStatus.UNKNOWN);
             haServices.grantDispatcherLeadership();
 
             // job is suspended, wait until it's running
@@ -148,10 +150,11 @@ public class ApplicationDispatcherBootstrapITCase extends TestLogger {
             BlockingJob.unblock(blockId);
 
             // and wait for it to actually finish
-            final CompletableFuture<JobResult> secondJobResult =
-                    cluster.requestJobResult(ApplicationDispatcherBootstrap.ZERO_JOB_ID);
-            assertTrue(secondJobResult.get().isSuccess());
-            assertEquals(ApplicationStatus.SUCCEEDED, secondJobResult.get().getApplicationStatus());
+            final JobResult secondJobResult =
+                    cluster.requestJobResult(ApplicationDispatcherBootstrap.ZERO_JOB_ID).get();
+            assertThat(secondJobResult.isSuccess()).isTrue();
+            assertThat(secondJobResult.getApplicationStatus())
+                    .isEqualTo(ApplicationStatus.SUCCEEDED);
 
             // the cluster should shut down automatically once the application completes
             awaitClusterStopped(cluster, deadline);
