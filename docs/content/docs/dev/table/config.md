@@ -33,8 +33,6 @@ Depending on the requirements of a table program, it might be necessary to adjus
 certain parameters for optimization. For example, unbounded streaming programs may need to ensure
 that the required state size is capped (see [streaming concepts]({{< ref "docs/dev/table/concepts/overview" >}})).
 
-
-
 ### Overview
 
 In every table environment, the `TableConfig` offers options for configuring the current session.

@@ -37,7 +37,7 @@ If you're simply using Flink's own serializers, this page is irrelevant and can 
 
 When registering a managed operator or keyed state, a `StateDescriptor` is required
 to specify the state's name, as well as information about the type of the state. The type information is used by Flink's
-[type serialization framework](../../types_serialization.html) to create appropriate serializers for the state.
+[type serialization framework]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}) to create appropriate serializers for the state.
 
 It is also possible to completely bypass this and let Flink use your own custom serializer to serialize managed states,
 simply by directly instantiating the `StateDescriptor` with your own `TypeSerializer` implementation:
