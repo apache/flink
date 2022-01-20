@@ -214,7 +214,7 @@ Checkpointing 用于故障恢复的特点之一是，在发生故障时，Flink 
 
 如[上文所述](#故障恢复)，批处理程序的故障恢复不使用检查点。
 
-重要的是要记住，因为没有 checkpoints，某些功能如 ({{< javadoc file="org/apache/flink/api/common/state/CheckpointListener.html" name="CheckpointListener">}})，以及因此，Kafka 的 [精确一次（EXACTLY_ONCE）]({{< ref "docs/connectors/datastream/kafka" >}}#kafka-producers-and-fault-tolerance) 模式或 `StreamingFileSink` 的 [OnCheckpointRollingPolicy]({{< ref "docs/connectors/datastream/streamfile_sink" >}}#rolling-policy) 将无法工作。
+重要的是要记住，因为没有 checkpoints，某些功能如 ({{< javadoc file="org/apache/flink/api/common/state/CheckpointListener.html" name="CheckpointListener">}})，以及因此，Kafka 的 [精确一次（EXACTLY_ONCE）]({{< ref "docs/connectors/datastream/kafka" >}}#kafka-producers-and-fault-tolerance) 模式或 `File Sink` 的 [OnCheckpointRollingPolicy]({{< ref "docs/connectors/datastream/filesystem" >}}#rolling-policy) 将无法工作。
 如果你需要一个在`批`模式下工作的事务型 sink，请确保它使用 [FLIP-143](https://cwiki.apache.org/confluence/x/KEJ4CQ) 中提出的统一 Sink API。
 
 你仍然可以使用所有的 [状态原语（state primitives）]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#working-with-state)，只是用于故障恢复的机制会有所不同。
