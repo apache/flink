@@ -95,11 +95,6 @@ Once the project folder and files have been created, we recommend that you impor
 your IDE for developing and testing. IntelliJ IDEA supports Maven projects out-of-the-box and Eclipse
 offers the [m2e plugin](http://www.eclipse.org/m2e/) to [import Maven projects](http://books.sonatype.com/m2eclipse-book/reference/creating-sect-importing-projects.html#fig-creating-import).
 
-*Note*: The default JVM heap size for Java may be too small for Flink and you have to manually increase it.
-In Eclipse, choose `Run Configurations -> Arguments` and write `-Xmx800m` into the `VM Arguments` box.
-In IntelliJ IDEA, the recommended way to change JVM options is from the `Help | Edit Custom VM Options` menu.
-See [this article](https://intellij-support.jetbrains.com/hc/en-us/articles/206544869-Configuring-JVM-options-and-platform-properties) for details.
-
 ## Building the project
 
 If you want to build/package your project, navigate to your project directory and run the

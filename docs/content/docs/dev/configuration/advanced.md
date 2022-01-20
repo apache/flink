@@ -50,6 +50,18 @@ are already part of the Flink Core Dependencies.
 The user application is typically packaged into an *application jar*, which contains the application
 code and the required connector and library dependencies.
 
+## IDE configuration
+
+The default JVM heap size for Java may be too small for Flink and you have to manually increase it.
+In Eclipse, choose `Run Configurations -> Arguments` and write `-Xmx800m` into the `VM Arguments` box.
+In IntelliJ IDEA, the recommended way to change JVM options is from the `Help | Edit Custom VM Options` menu.
+See [this article](https://intellij-support.jetbrains.com/hc/en-us/articles/206544869-Configuring-JVM-options-and-platform-properties) for details.
+
+**Note on IntelliJ:** To make the applications run within IntelliJ IDEA, it is necessary to tick the
+`Include dependencies with "Provided" scope` box in the run configuration. If this option is not available
+(possibly due to using an older IntelliJ IDEA version), then a workaround is to create a test that
+calls the application's `main()` method.
+
 # Scala Versions
 
 Different Scala versions are not binary compatible with one another. For that reason, Flink for 

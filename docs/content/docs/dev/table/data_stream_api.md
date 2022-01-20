@@ -412,60 +412,7 @@ also the [dedicated batch mode section below](#batch-runtime-mode) for more insi
 
 ### Dependencies and Imports
 
-Projects that combine Table API with DataStream API need to add one of the following bridging modules.
-They include transitive dependencies to `flink-table-api-java` or `flink-table-api-scala` and the
-corresponding language-specific DataStream API module.
-
-{{< tabs "0d2da52a-ee43-4d06-afde-b165517c0617" >}}
-{{< tab "Java" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-api-java-bridge{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-api-scala-bridge{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-The following imports are required to declare common pipelines using either the Java or Scala version
-of both DataStream API and Table API.
-
-{{< tabs "19a47e2d-168b-4f73-a966-abfcc8a6baca" >}}
-{{< tab "Java" >}}
-```java
-// imports for Java DataStream API
-import org.apache.flink.streaming.api.*;
-import org.apache.flink.streaming.api.environment.*;
-
-// imports for Table API with bridging to Java DataStream API
-import org.apache.flink.table.api.*;
-import org.apache.flink.table.api.bridge.java.*;
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-// imports for Scala DataStream API
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.scala._
-
-// imports for Table API with bridging to Scala DataStream API
-import org.apache.flink.table.api._
-import org.apache.flink.table.api.bridge.scala._
-```
-{{< /tab >}}
-{{< /tabs >}}
+Please refer to the [configuration]({{< ref "docs/dev/configuration/overview" >}}) section. 
 
 ### Configuration
 

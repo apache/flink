@@ -95,6 +95,8 @@ Flink natively support various connectors. The following tables list all availab
 
 {{< top >}}
 
+Please refer to the [configuration]({{< ref "docs/dev/configuration/connector" >}}) section on how to add connectors as a dependency. 
+
 How to use connectors
 --------
 

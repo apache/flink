@@ -43,7 +43,7 @@ on the Flink APIs and, in addition, on certain connector libraries (i.e. Kafka, 
 When running Flink applications (either in a distributed deployment or in the IDE for testing),
 the Flink runtime library must be available.
 
-## Setting up a Flink project: Getting started
+## Getting started
 
 Every Flink application needs, at a minimum, the API dependencies to develop against. When setting up
 a project manually, you need to add the following dependencies for the Java/Scala API.
@@ -52,46 +52,36 @@ In Maven syntax, it would look like:
 
 {{< tabs "a49d57a4-27ee-4dd3-a2b8-a673b99b011e" >}}
 {{< tab "Java" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-streaming-java</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-```
+
+{{< artifact flink-streaming-java withProvidedScope >}}
+
 {{< /tab >}}
 {{< tab "Scala" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-streaming-scala{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-```
+
+{{< artifact flink-streaming-scala withScalaVersion withProvidedScope >}}
+
 {{< /tab >}}
 {{< /tabs >}}
 
-**Important:** Note that all these dependencies have their scope set to *provided*. This means that
+## Which dependencies do you need?
+
+Different APIs will require different dependencies. 
+
+| APIs you want to use              | Dependency you need to add    |
+|-----------------------------------|-------------------------------|
+| DataStream                        | flink-streaming-java          |  
+| DataStream with Scala             | flink-streaming-scala{{< scala_version >}}         |   
+| Table API                         | flink-table-api-java          |   
+| Table API with Scala              | flink-table-api-scala{{< scala_version >}}         |
+| Table API + DataStream            | flink-table-api-java-bridge   |
+| Table API + DataStream with Scala | flink-table-api-scala-bridge{{< scala_version >}}  |
+
+You can use [Maven]({{< ref "docs/dev/configuration/maven" >}}), [Gradle]({{< ref "docs/dev/configuration/gradle" >}}), 
+or [sbt]({{< ref "docs/dev/configuration/sbt" >}}) to configure your project and add these dependencies.
+
+**Important:** Note that all these dependencies should have their scope set to *provided*. This means that
 they are needed to compile against, but that they should not be packaged into the project's resulting
 application JAR file. If not set to *provided*, the best case scenario is that the resulting JAR
 becomes excessively large, because it also contains all Flink core dependencies. The worst case scenario
 is that the Flink core dependencies that are added to the application's JAR file clash with some of
 your own dependency versions (which is normally avoided through inverted classloading).
-
-**Note on IntelliJ:** To make the applications run within IntelliJ IDEA, it is necessary to tick the
-`Include dependencies with "Provided" scope` box in the run configuration. If this option is not available
-(possibly due to using an older IntelliJ IDEA version), then a workaround is to create a test that
-calls the application's `main()` method.
-
-## Which dependencies do you need?
-
-| APIs you want to use              | Dependency you need to add    |
-|-----------------------------------|-------------------------------|
-| DataStream                        | flink-streaming-java          |  
-| DataStream with Scala             | flink-streaming-scala         |   
-| Table API                         | flink-table-api-java          |   
-| Table API with Scala              | flink-table-api-scala         |
-| Table API + DataStream            | flink-table-api-java-bridge   |
-| Table API + DataStream with Scala | flink-table-api-scala-bridge  |

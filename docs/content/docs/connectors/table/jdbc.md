@@ -40,6 +40,9 @@ Dependencies
 
 {{< sql_download_table "jdbc" >}}
 
+The JDBC connector is not currently part of the binary distribution.
+See how to link with it for cluster execution [here]({{< ref "docs/dev/configuration" >}}).
+
 A driver dependency is also required to connect to a specified database. Here are drivers currently supported:
 
 | Driver      |      Group Id      |      Artifact Id       |      JAR         |

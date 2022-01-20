@@ -36,14 +36,7 @@ DataStream API:
 If you want to test the Table API & SQL programs locally within your IDE, you can add the following 
 dependency:
 
-```xml
-<dependency>
-    <groupId>org.apache.flink</groupId>
-    <artifactId>flink-table-test-utils</artifactId>
-    <version>{{< version >}}</version>
-    <scope>test</scope>
-</dependency>
-```
+{{< artifact flink-table-test-utils withTestScope >}}
 
 This will automatically bring in the query planner and the runtime, required respectively to plan 
 and execute the queries.
