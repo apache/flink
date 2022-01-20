@@ -115,6 +115,7 @@ public class LogicalWindowSerdeTest {
     public void testLogicalWindowSerde() throws IOException {
         SerdeContext serdeCtx =
                 new SerdeContext(
+                        null,
                         new FlinkContextImpl(
                                 false,
                                 TableConfig.getDefault(),

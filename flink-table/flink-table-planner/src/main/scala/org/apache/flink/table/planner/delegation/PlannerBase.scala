@@ -493,6 +493,7 @@ abstract class PlannerBase(
   protected def createSerdeContext: SerdeContext = {
     val planner = createFlinkPlanner
     new SerdeContext(
+      getParser,
       planner.config.getContext.asInstanceOf[FlinkContext],
       getClassLoader,
       plannerContext.getTypeFactory,
