@@ -45,6 +45,7 @@ A driver dependency is also required to connect to a specified database. Here ar
 | Driver      |      Group Id      |      Artifact Id       |      JAR         |
 | :-----------| :------------------| :----------------------| :----------------|
 | MySQL       |       `mysql`      | `mysql-connector-java` | [Download](https://repo.maven.apache.org/maven2/mysql/mysql-connector-java/) |
+| Oracle      | `com.oracle.database.jdbc` |        `ojdbc8`        | [Download](https://mvnrepository.com/artifact/com.oracle.database.jdbc/ojdbc8) |
 | PostgreSQL  |  `org.postgresql`  |      `postgresql`      | [Download](https://jdbc.postgresql.org/download.html) |
 | Derby       | `org.apache.derby` |        `derby`         | [Download](http://db.apache.org/derby/derby_downloads.html) |
 
@@ -311,45 +312,56 @@ As there is no standard syntax for upsert, the following table describes the dat
             <td>INSERT .. ON DUPLICATE KEY UPDATE ..</td>
         </tr>
         <tr>
+            <td>Oracle</td>
+            <td>MERGE INTO .. USING (..) ON (..) <br>
+                WHEN MATCHED THEN UPDATE SET (..) <br>
+                WHEN NOT MATCHED THEN INSERT (..) <br>
+                VALUES (..)</td>
+        </tr>
+        <tr>
             <td>PostgreSQL</td>
             <td>INSERT .. ON CONFLICT .. DO UPDATE SET ..</td>
         </tr>
     </tbody>
 </table>
 
-### Postgres Database as a Catalog
+JDBC Catalog
+------------
 
 The `JdbcCatalog` enables users to connect Flink to relational databases over JDBC protocol.
 
-Currently, `PostgresCatalog` is the only implementation of JDBC Catalog at the moment, `PostgresCatalog` only supports limited `Catalog` methods include:
+Currently, there are two JDBC catalog implementations, Postgres Catalog and MySQL Catalog. They support the following catalog methods. Other methods are currently not supported.
 
 ```java
-// The supported methods by Postgres Catalog.
-PostgresCatalog.databaseExists(String databaseName)
-PostgresCatalog.listDatabases()
-PostgresCatalog.getDatabase(String databaseName)
-PostgresCatalog.listTables(String databaseName)
-PostgresCatalog.getTable(ObjectPath tablePath)
-PostgresCatalog.tableExists(ObjectPath tablePath)
+// The supported methods by Postgres & MySQL Catalog.
+databaseExists(String databaseName);
+listDatabases();
+getDatabase(String databaseName);
+listTables(String databaseName);
+getTable(ObjectPath tablePath);
+tableExists(ObjectPath tablePath);
 ```
 
 Other `Catalog` methods are currently not supported.
 
-#### Usage of PostgresCatalog
+### Usage of JDBC Catalog
 
-Please refer to [Dependencies](#dependencies) section for how to setup a JDBC connector and Postgres driver.
+The section mainly describes how to create and use a Postgres Catalog or MySQL Catalog.
+Please refer to [Dependencies](#dependencies) section for how to setup a JDBC connector and the corresponding driver.
 
-Postgres catalog supports the following options:
+The JDBC catalog supports the following options:
 - `name`: required, name of the catalog.
 - `default-database`: required, default database to connect to.
-- `username`: required, username of Postgres account.
+- `username`: required, username of Postgres/MySQL account.
 - `password`: required, password of the account.
-- `base-url`: required, should be of format `"jdbc:postgresql://<ip>:<port>"`, and should not contain database name here.
+- `base-url`: required (should not contain the database name)
+  - for Postgres Catalog this should be `"jdbc:postgresql://<ip>:<port>"`
+  - for MySQL Catalog this should be `"jdbc:mysql://<ip>:<port>"`
 
 {{< tabs "10bd8bfb-674c-46aa-8a36-385537df5791" >}}
 {{< tab "SQL" >}}
 ```sql
-CREATE CATALOG mypg WITH(
+CREATE CATALOG my_catalog WITH(
     'type' = 'jdbc',
     'default-database' = '...',
     'username' = '...',
@@ -357,7 +369,7 @@ CREATE CATALOG mypg WITH(
     'base-url' = '...'
 );
 
-USE CATALOG mypg;
+USE CATALOG my_catalog;
 ```
 {{< /tab >}}
 {{< tab "Java" >}}
@@ -366,17 +378,17 @@ USE CATALOG mypg;
 EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
-String name            = "mypg";
+String name            = "my_catalog";
 String defaultDatabase = "mydb";
 String username        = "...";
 String password        = "...";
 String baseUrl         = "..."
 
 JdbcCatalog catalog = new JdbcCatalog(name, defaultDatabase, username, password, baseUrl);
-tableEnv.registerCatalog("mypg", catalog);
+tableEnv.registerCatalog("my_catalog", catalog);
 
 // set the JdbcCatalog as the current catalog of the session
-tableEnv.useCatalog("mypg");
+tableEnv.useCatalog("my_catalog");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -385,17 +397,17 @@ tableEnv.useCatalog("mypg");
 val settings = EnvironmentSettings.inStreamingMode()
 val tableEnv = TableEnvironment.create(settings)
 
-val name            = "mypg"
+val name            = "my_catalog"
 val defaultDatabase = "mydb"
 val username        = "..."
 val password        = "..."
 val baseUrl         = "..."
 
 val catalog = new JdbcCatalog(name, defaultDatabase, username, password, baseUrl)
-tableEnv.registerCatalog("mypg", catalog)
+tableEnv.registerCatalog("my_catalog", catalog)
 
 // set the JdbcCatalog as the current catalog of the session
-tableEnv.useCatalog("mypg")
+tableEnv.useCatalog("my_catalog")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -405,17 +417,17 @@ from pyflink.table.catalog import JdbcCatalog
 environment_settings = EnvironmentSettings.in_streaming_mode()
 t_env = TableEnvironment.create(environment_settings)
 
-name = "mypg"
+name = "my_catalog"
 default_database = "mydb"
 username = "..."
 password = "..."
 base_url = "..."
 
 catalog = JdbcCatalog(name, default_database, username, password, base_url)
-t_env.register_catalog("mypg", catalog)
+t_env.register_catalog("my_catalog", catalog)
 
 # set the JdbcCatalog as the current catalog of the session
-t_env.use_catalog("mypg")
+t_env.use_catalog("my_catalog")
 ```
 {{< /tab >}}
 {{< tab "YAML" >}}
@@ -423,11 +435,11 @@ t_env.use_catalog("mypg")
 
 execution:
     ...
-    current-catalog: mypg  # set the JdbcCatalog as the current catalog of the session
+    current-catalog: my_catalog  # set the target JdbcCatalog as the current catalog of the session
     current-database: mydb
 
 catalogs:
-   - name: mypg
+   - name: my_catalog
      type: jdbc
      default-database: mydb
      username: ...
@@ -437,12 +449,14 @@ catalogs:
 {{< /tab >}}
 {{< /tabs >}}
 
+### JDBC Catalog for PostgreSQL
+
 #### PostgreSQL Metaspace Mapping
 
 PostgreSQL has an additional namespace as `schema` besides database. A Postgres instance can have multiple databases, each database can have multiple schemas with a default one named "public", each schema can have multiple tables.
 In Flink, when querying tables registered by Postgres catalog, users can use either `schema_name.table_name` or just `table_name`. The `schema_name` is optional and defaults to "public".
 
-Therefor the metaspace mapping between Flink Catalog and Postgres is as following:
+Therefore, the metaspace mapping between Flink Catalog and Postgres is as following:
 
 | Flink Catalog Metaspace Structure    |   Postgres Metaspace Structure      |
 | :------------------------------------| :-----------------------------------|
@@ -467,14 +481,45 @@ SELECT * FROM mydb.`custom_schema.test_table2`;
 SELECT * FROM `custom_schema.test_table2`;
 ```
 
+### JDBC Catalog for MySQL
+
+#### MySQL Metaspace Mapping
+
+The databases in a MySQL instance are at the same mapping level as the databases under the catalog registered with MySQL Catalog. A MySQL instance can have multiple databases, each database can have multiple tables.
+In Flink, when querying tables registered by MySQL catalog, users can use either `database.table_name` or just `table_name`. The default value is the default database specified when MySQL Catalog was created.
+
+Therefore, the metaspace mapping between Flink Catalog and MySQL Catalog is as following:
+
+| Flink Catalog Metaspace Structure    |   MySQL Metaspace Structure         |
+| :------------------------------------| :-----------------------------------|
+| catalog name (defined in Flink only) | N/A                                 |
+| database name                        | database name                       |
+| table name                           | table_name                          |
+
+The full path of MySQL table in Flink should be ``"`<catalog>`.`<db>`.`<table>`"``.
+
+Here are some examples to access MySQL tables:
+
+```sql
+-- scan table 'test_table', the default database is 'mydb'.
+SELECT * FROM mysql_catalog.mydb.test_table;
+SELECT * FROM mydb.test_table;
+SELECT * FROM test_table;
+
+-- scan table 'test_table' with the given database.
+SELECT * FROM mysql_catalog.given_database.test_table2;
+SELECT * FROM given_database.test_table2;
+```
+
 Data Type Mapping
 ----------------
-Flink supports connect to several databases which uses dialect like MySQL, PostgreSQL, Derby. The Derby dialect usually used for testing purpose. The field data type mappings from relational databases data types to Flink SQL data types are listed in the following table, the mapping table can help define JDBC table in Flink easily.
+Flink supports connect to several databases which uses dialect like MySQL, Oracle, PostgreSQL, Derby. The Derby dialect usually used for testing purpose. The field data type mappings from relational databases data types to Flink SQL data types are listed in the following table, the mapping table can help define JDBC table in Flink easily.
 
 <table class="table table-bordered">
     <thead>
       <tr>
         <th class="text-left"><a href="https://dev.mysql.com/doc/refman/8.0/en/data-types.html">MySQL type</a></th>
+        <th class="text-left"><a href="https://docs.oracle.com/database/121/SQLRF/sql_elements001.htm#SQLRF30020">Oracle type</a></th>
         <th class="text-left"><a href="https://www.postgresql.org/docs/12/datatype.html">PostgreSQL type</a></th>
         <th class="text-left"><a href="{{< ref "docs/dev/table/types" >}}">Flink SQL type</a></th>
       </tr>
@@ -483,12 +528,14 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
     <tr>
       <td><code>TINYINT</code></td>
       <td></td>
+      <td></td>
       <td><code>TINYINT</code></td>
     </tr>
     <tr>
       <td>
         <code>SMALLINT</code><br>
         <code>TINYINT UNSIGNED</code></td>
+      <td></td>
       <td>
         <code>SMALLINT</code><br>
         <code>INT2</code><br>
@@ -501,6 +548,7 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
         <code>INT</code><br>
         <code>MEDIUMINT</code><br>
         <code>SMALLINT UNSIGNED</code></td>
+      <td></td>
       <td>
         <code>INTEGER</code><br>
         <code>SERIAL</code></td>
@@ -510,6 +558,7 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
       <td>
         <code>BIGINT</code><br>
         <code>INT UNSIGNED</code></td>
+      <td></td>
       <td>
         <code>BIGINT</code><br>
         <code>BIGSERIAL</code></td>
@@ -518,15 +567,19 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
    <tr>
       <td><code>BIGINT UNSIGNED</code></td>
       <td></td>
+      <td></td>
       <td><code>DECIMAL(20, 0)</code></td>
     </tr>
     <tr>
       <td><code>BIGINT</code></td>
+      <td></td>
       <td><code>BIGINT</code></td>
       <td><code>BIGINT</code></td>
     </tr>
     <tr>
       <td><code>FLOAT</code></td>
+      <td>
+        <code>BINARY_FLOAT</code></td>
       <td>
         <code>REAL</code><br>
         <code>FLOAT4</code></td>
@@ -536,6 +589,7 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
       <td>
         <code>DOUBLE</code><br>
         <code>DOUBLE PRECISION</code></td>
+      <td><code>BINARY_DOUBLE</code></td>
       <td>
         <code>FLOAT8</code><br>
         <code>DOUBLE PRECISION</code></td>
@@ -544,7 +598,13 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
     <tr>
       <td>
         <code>NUMERIC(p, s)</code><br>
-         <code>DECIMAL(p, s)</code></td>
+        <code>DECIMAL(p, s)</code></td>
+      <td>
+        <code>SMALLINT</code><br> 
+        <code>FLOAT(s)</code><br> 
+        <code>DOUBLE PRECISION</code><br> 
+        <code>REAL</code><br>
+        <code>NUMBER(p, s)</code></td>
       <td>
         <code>NUMERIC(p, s)</code><br>
         <code>DECIMAL(p, s)</code></td>
@@ -553,22 +613,26 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
     <tr>
       <td>
         <code>BOOLEAN</code><br>
-         <code>TINYINT(1)</code></td>
+        <code>TINYINT(1)</code></td>
+      <td></td>
       <td><code>BOOLEAN</code></td>
       <td><code>BOOLEAN</code></td>
     </tr>
     <tr>
+      <td><code>DATE</code></td>
       <td><code>DATE</code></td>
       <td><code>DATE</code></td>
       <td><code>DATE</code></td>
     </tr>
     <tr>
       <td><code>TIME [(p)]</code></td>
+      <td><code>DATE</code></td>
       <td><code>TIME [(p)] [WITHOUT TIMEZONE]</code></td>
       <td><code>TIME [(p)] [WITHOUT TIMEZONE]</code></td>
     </tr>
     <tr>
       <td><code>DATETIME [(p)]</code></td>
+      <td><code>TIMESTAMP [(p)] [WITHOUT TIMEZONE]</code></td>
       <td><code>TIMESTAMP [(p)] [WITHOUT TIMEZONE]</code></td>
       <td><code>TIMESTAMP [(p)] [WITHOUT TIMEZONE]</code></td>
     </tr>
@@ -577,6 +641,10 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
         <code>CHAR(n)</code><br>
         <code>VARCHAR(n)</code><br>
         <code>TEXT</code></td>
+      <td>
+        <code>CHAR(n)</code><br>
+        <code>VARCHAR(n)</code><br>
+        <code>CLOB</code></td>
       <td>
         <code>CHAR(n)</code><br>
         <code>CHARACTER(n)</code><br>
@@ -590,10 +658,14 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
         <code>BINARY</code><br>
         <code>VARBINARY</code><br>
         <code>BLOB</code></td>
+      <td>
+        <code>RAW(s)</code><br>
+        <code>BLOB</code></td>
       <td><code>BYTEA</code></td>
       <td><code>BYTES</code></td>
     </tr>
     <tr>
+      <td></td>
       <td></td>
       <td><code>ARRAY</code></td>
       <td><code>ARRAY</code></td>

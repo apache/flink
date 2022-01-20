@@ -2650,16 +2650,16 @@ Calc(select=[a, w0$o0])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(f0=[$0], f1=[$1])
-+- LogicalTableAggregate(group=[{}], tableAggregate=[[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734($0)]])
++- LogicalTableAggregate(group=[{}], tableAggregate=[[*org.apache.flink.table.planner.utils.Top3*($0)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MySource]])
 
 == Optimized Physical Plan ==
-GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734(f0) AS (f0, f1)])
+GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (f0, f1)])
 +- Exchange(distribution=[single])
    +- DataStreamScan(table=[[default_catalog, default_database, MySource]], fields=[f0])
 
 == Optimized Execution Plan ==
-GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734(f0) AS (f0, f1)])
+GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (f0, f1)])
 +- Exchange(distribution=[single])
    +- DataStreamScan(table=[[default_catalog, default_database, MySource]], fields=[f0])
 
@@ -2684,9 +2684,9 @@ GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c
     } ]
   }, {
     "id" : ,
-    "type" : "GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734(f0) AS (f0, f1)])",
+    "type" : "GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (f0, f1)])",
     "pact" : "Operator",
-    "contents" : "GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734(f0) AS (f0, f1)])",
+    "contents" : "GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (f0, f1)])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -2701,16 +2701,16 @@ GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(f0=[$0], f1=[$1])
-+- LogicalTableAggregate(group=[{}], tableAggregate=[[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734($0)]])
++- LogicalTableAggregate(group=[{}], tableAggregate=[[*org.apache.flink.table.planner.utils.Top3*($0)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MySource]])
 
 == Optimized Physical Plan ==
-GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734(f0) AS (f0, f1)])
+GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (f0, f1)])
 +- Exchange(distribution=[single])
    +- DataStreamScan(table=[[default_catalog, default_database, MySource]], fields=[f0])
 
 == Optimized Execution Plan ==
-GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734(f0) AS (f0, f1)])
+GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (f0, f1)])
 +- Exchange(distribution=[single])
    +- DataStreamScan(table=[[default_catalog, default_database, MySource]], fields=[f0])
 
@@ -2737,7 +2737,7 @@ GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c
     "id" : ,
     "type" : "GroupTableAggregate[]",
     "pact" : "Operator",
-    "contents" : "[]:GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734(f0) AS (f0, f1)])",
+    "contents" : "[]:GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (f0, f1)])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

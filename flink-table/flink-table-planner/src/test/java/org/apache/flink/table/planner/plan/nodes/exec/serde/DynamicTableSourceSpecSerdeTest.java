@@ -53,6 +53,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectRea
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
 import org.apache.calcite.avatica.util.TimeUnit;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
@@ -221,7 +222,9 @@ public class DynamicTableSourceSpecSerdeTest {
                                                         BigDecimal.valueOf(1000),
                                                         new SqlIntervalQualifier(
                                                                 TimeUnit.SECOND,
+                                                                RelDataType.PRECISION_NOT_SPECIFIED,
                                                                 TimeUnit.SECOND,
+                                                                3,
                                                                 SqlParserPos.ZERO))),
                                         5000,
                                         RowType.of(

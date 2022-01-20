@@ -71,6 +71,32 @@ entirely. For correct SQL semantics, the runtime needs to assume that a matching
 point in time from both sides. Flink provides [optimized window and interval joins]({{< ref "docs/dev/table/sql/queries/joins" >}})
 that aim to keep the state size small by exploiting the concept of [watermarks]({{< ref "docs/dev/table/concepts/time_attributes" >}}).
 
+Another example is the following query that computes the number of clicks per session.
+
+```sql
+SELECT sessionId, COUNT(*) FROM clicks GROUP BY sessionId;
+```
+
+The `sessionId` attribute is used as a grouping key and the continuous query maintains a count
+for each `sessionId` it observes. The `sessionId` attribute is evolving over time and `sessionId`
+values are only active until the session ends, i.e., for a limited period of time. However, the
+continuous query cannot know about this property of `sessionId` and expects that every `sessionId`
+value can occur at any point of time. It maintains a count for each observed `sessionId` value.
+Consequently, the total state size of the query is continuously growing as more and more `sessionId`
+values are observed.
+
+#### Idle State Retention Time
+
+The *Idle State Retention Time* parameter [`table.exec.state.ttl`]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl)
+defines for how long the state of a key is retained without being updated before it is removed.
+For the previous example query, the count of a`sessionId` would be removed as soon as it has not
+been updated for the configured period of time.
+
+By removing the state of a key, the continuous query completely forgets that it has seen this key
+before. If a record with a key, whose state has been removed before, is processed, the record will
+be treated as if it was the first record with the respective key. For the example above this means
+that the count of a `sessionId` would start again at `0`.
+
 ### Stateful Upgrades and Evolution
 
 Table programs that are executed in streaming mode are intended as *standing queries* which means they

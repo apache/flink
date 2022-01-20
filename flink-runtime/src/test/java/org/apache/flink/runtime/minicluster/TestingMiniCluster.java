@@ -20,6 +20,7 @@ package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
@@ -156,6 +157,7 @@ public class TestingMiniCluster extends MiniCluster {
             result.add(
                     dispatcherResourceManagerComponentFactory.create(
                             configuration,
+                            ResourceID.generate(),
                             getIOExecutor(),
                             rpcServiceFactory.createRpcService(),
                             haServices,

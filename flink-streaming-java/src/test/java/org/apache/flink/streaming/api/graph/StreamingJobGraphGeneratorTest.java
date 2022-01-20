@@ -40,6 +40,7 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.TypeSerializerInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -1330,6 +1331,8 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         JobGraph graph = createGraphWithMultipleInputs(true, sources);
         JobVertex head = graph.getVerticesSortedTopologicallyFromSources().iterator().next();
         Arrays.stream(sources).forEach(source -> assertTrue(head.getName().contains(source)));
+        Arrays.stream(sources)
+                .forEach(source -> assertTrue(head.getOperatorPrettyName().contains(source)));
     }
 
     @Test
@@ -1343,11 +1346,12 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                                 vertex.getInvokableClassName()
                                         .equals(MultipleInputStreamTask.class.getName()));
         assertFalse(head.getName(), head.getName().contains("source-1"));
+        assertFalse(
+                head.getOperatorPrettyName(), head.getOperatorPrettyName().contains("source-1"));
     }
 
     public JobGraph createGraphWithMultipleInputs(boolean chain, String... inputNames) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
         MultipleInputTransformation<Long> transform =
                 new MultipleInputTransformation<>(
                         "mit", new UnusedOperatorFactory(), Types.LONG, env.getParallelism());
@@ -1365,6 +1369,106 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
         env.addOperator(transform);
 
+        return StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+    }
+
+    @Test
+    public void testTreeDescription() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        JobGraph job = createJobGraphWithDescription(env, "test source");
+        JobVertex[] allVertices = job.getVerticesAsArray();
+        assertEquals(1, allVertices.length);
+        assertEquals(
+                "test source\n"
+                        + ":- x + 1\n"
+                        + ":  :- first print of map1\n"
+                        + ":  +- second print of map1\n"
+                        + "+- x + 2\n"
+                        + "   :- first print of map2\n"
+                        + "   +- second print of map2\n",
+                allVertices[0].getOperatorPrettyName());
+    }
+
+    @Test
+    public void testTreeDescriptionWithChainedSource() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        JobGraph job = createJobGraphWithDescription(env, "test source 1", "test source 2");
+        JobVertex[] allVertices = job.getVerticesAsArray();
+        assertEquals(1, allVertices.length);
+        assertEquals(
+                "operator chained with source [test source 1, test source 2]\n"
+                        + ":- x + 1\n"
+                        + ":  :- first print of map1\n"
+                        + ":  +- second print of map1\n"
+                        + "+- x + 2\n"
+                        + "   :- first print of map2\n"
+                        + "   +- second print of map2\n",
+                allVertices[0].getOperatorPrettyName());
+    }
+
+    @Test
+    public void testCascadingDescription() {
+        final Configuration config = new Configuration();
+        config.set(
+                PipelineOptions.VERTEX_DESCRIPTION_MODE,
+                PipelineOptions.VertexDescriptionMode.CASCADING);
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(config);
+        JobGraph job = createJobGraphWithDescription(env, "test source");
+        JobVertex[] allVertices = job.getVerticesAsArray();
+        assertEquals(1, allVertices.length);
+        assertEquals(
+                "test source -> (x + 1 -> (first print of map1 , second print of map1) , x + 2 -> (first print of map2 , second print of map2))",
+                allVertices[0].getOperatorPrettyName());
+    }
+
+    @Test
+    public void testCascadingDescriptionWithChainedSource() {
+        final Configuration config = new Configuration();
+        config.set(
+                PipelineOptions.VERTEX_DESCRIPTION_MODE,
+                PipelineOptions.VertexDescriptionMode.CASCADING);
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(config);
+        JobGraph job = createJobGraphWithDescription(env, "test source 1", "test source 2");
+        JobVertex[] allVertices = job.getVerticesAsArray();
+        assertEquals(1, allVertices.length);
+        assertEquals(
+                "operator chained with source [test source 1, test source 2] -> (x + 1 -> (first print of map1 , second print of map1) , x + 2 -> (first print of map2 , second print of map2))",
+                allVertices[0].getOperatorPrettyName());
+    }
+
+    private JobGraph createJobGraphWithDescription(
+            StreamExecutionEnvironment env, String... inputNames) {
+        env.setParallelism(1);
+        DataStream<Long> source;
+        if (inputNames.length == 1) {
+            source = env.fromElements(1L, 2L, 3L).setDescription(inputNames[0]);
+        } else {
+            MultipleInputTransformation<Long> transform =
+                    new MultipleInputTransformation<>(
+                            "mit", new UnusedOperatorFactory(), Types.LONG, env.getParallelism());
+            transform.setDescription("operator chained with source");
+            transform.setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES);
+            Arrays.stream(inputNames)
+                    .map(
+                            name ->
+                                    env.fromSource(
+                                                    new NumberSequenceSource(1, 2),
+                                                    WatermarkStrategy.noWatermarks(),
+                                                    name)
+                                            .setDescription(name)
+                                            .getTransformation())
+                    .forEach(transform::addInput);
+
+            source = new DataStream<>(env, transform);
+        }
+        DataStream<Long> map1 = source.map(x -> x + 1).setDescription("x + 1");
+        DataStream<Long> map2 = source.map(x -> x + 2).setDescription("x + 2");
+        map1.print().setDescription("first print of map1");
+        map1.print().setDescription("second print of map1");
+        map2.print().setDescription("first print of map2");
+        map2.print().setDescription("second print of map2");
         return StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
     }
 

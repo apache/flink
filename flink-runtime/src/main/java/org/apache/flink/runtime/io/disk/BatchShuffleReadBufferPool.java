@@ -75,6 +75,10 @@ public class BatchShuffleReadBufferPool {
     @GuardedBy("buffers")
     private final Queue<MemorySegment> buffers = new ArrayDeque<>();
 
+    /** The timestamp when the last buffer is recycled or allocated. */
+    @GuardedBy("buffers")
+    private long lastBufferOperationTimestamp = System.nanoTime();
+
     /** Whether this buffer pool has been destroyed or not. */
     @GuardedBy("buffers")
     private boolean destroyed;
@@ -203,6 +207,7 @@ public class BatchShuffleReadBufferPool {
             while (allocated.size() < numBuffersPerRequest) {
                 allocated.add(buffers.poll());
             }
+            lastBufferOperationTimestamp = System.nanoTime();
         }
         return allocated;
     }
@@ -236,9 +241,16 @@ public class BatchShuffleReadBufferPool {
             }
 
             buffers.addAll(segments);
+            lastBufferOperationTimestamp = System.nanoTime();
             if (buffers.size() >= numBuffersPerRequest) {
                 buffers.notifyAll();
             }
+        }
+    }
+
+    public long getLastBufferOperationTimestamp() {
+        synchronized (buffers) {
+            return lastBufferOperationTimestamp;
         }
     }
 

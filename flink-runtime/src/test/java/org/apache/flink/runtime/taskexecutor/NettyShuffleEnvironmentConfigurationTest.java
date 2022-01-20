@@ -90,12 +90,13 @@ public class NettyShuffleEnvironmentConfigurationTest extends TestLogger {
         String description = formatter.format(configOption.description());
 
         String configKey =
-                getConfigKey(NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED);
-        assertTrue(description.contains(configKey));
-        configKey = getConfigKey(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
+                getConfigKey(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
         assertTrue(description.contains(configKey));
         configKey = getConfigKey(TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY);
         assertTrue(description.contains(configKey));
+
+        assertTrue(
+                NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED.defaultValue());
     }
 
     private static String getConfigKey(ConfigOption<?> configOption) {

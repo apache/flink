@@ -18,6 +18,8 @@
 
 package org.apache.flink.metrics.reporter;
 
+import org.apache.flink.annotation.Public;
+
 import java.util.Properties;
 
 /**
@@ -32,6 +34,7 @@ import java.util.Properties;
  * InstantiateViaFactory} annotation to redirect reflection-base instantiation attempts to the
  * factory instead.
  */
+@Public
 public interface MetricReporterFactory {
 
     /**

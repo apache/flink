@@ -146,6 +146,21 @@ aligned checkpoints. If your operator depends on the latest watermark being alwa
 workaround is to store the watermark in the operator state. In that case, watermarks should be
 stored per key group in a union state to support rescaling.
 
+#### Interplay with long-running record processing
+
+Despite that unaligned checkpoints barriers are able to overtake all other records in the queue. 
+The handling of this barrier still can be delayed if the current record takes a lot of time to be processed. 
+This situation can occur when firing many timers all at once, for example in windowed operations.
+Second problematic scenario might occur when system is being blocked waiting for more than one
+network buffer availability when processing a single input record. Flink can not interrupt processing of
+a single input record, and unaligned checkpoints have to wait for the currently processed record to be
+fully processed. This can cause problems in two scenarios. Either as a result of serialisation of a large
+record that doesn't fit into single network buffer or in a flatMap operation, that produces many output
+records for one input record. In such scenarios back pressure can block unaligned checkpoints until all
+the network buffers required to process the single input record are available.
+It also can happen in any other situation when the processing of the single record takes a while. 
+As result, the time of the checkpoint can be higher than expected or it can vary.
+
 #### Certain data distribution patterns are not checkpointed
 
 There are types of connections with properties that are impossible to keep with channel data stored

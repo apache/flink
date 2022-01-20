@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.entrypoint;
 
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -67,6 +68,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
@@ -228,6 +230,83 @@ public class ClusterEntrypointTest extends TestLogger {
 
             clusterEntrypointProcess.destroy();
         }
+    }
+
+    @Test
+    public void testWorkingDirectoryIsSetupWhenStartingTheClusterEntrypoint() throws Exception {
+        final File workingDirBase = TEMPORARY_FOLDER.newFolder();
+        final ResourceID resourceId = new ResourceID("foobar");
+
+        configureWorkingDirectory(flinkConfig, workingDirBase, resourceId);
+
+        final File workingDir =
+                ClusterEntrypointUtils.generateJobManagerWorkingDirectoryFile(
+                        flinkConfig, resourceId);
+
+        try (final TestingEntryPoint testingEntryPoint =
+                new TestingEntryPoint.Builder().setConfiguration(flinkConfig).build()) {
+            testingEntryPoint.startCluster();
+            assertTrue(workingDir.exists());
+        }
+    }
+
+    private static void configureWorkingDirectory(
+            Configuration configuration, File workingDirBase, ResourceID resourceId) {
+        configuration.set(
+                ClusterOptions.PROCESS_WORKING_DIR_BASE, workingDirBase.getAbsolutePath());
+        configuration.set(JobManagerOptions.JOB_MANAGER_RESOURCE_ID, resourceId.toString());
+    }
+
+    @Test
+    public void testWorkingDirectoryIsNotDeletedWhenStoppingClusterEntrypoint() throws Exception {
+        final File workingDirBase = TEMPORARY_FOLDER.newFolder();
+        final ResourceID resourceId = new ResourceID("foobar");
+
+        configureWorkingDirectory(flinkConfig, workingDirBase, resourceId);
+
+        final File workingDir =
+                ClusterEntrypointUtils.generateJobManagerWorkingDirectoryFile(
+                        flinkConfig, resourceId);
+
+        try (final TestingEntryPoint testingEntryPoint =
+                new TestingEntryPoint.Builder().setConfiguration(flinkConfig).build()) {
+            testingEntryPoint.startCluster();
+        }
+
+        assertTrue(
+                "The working directory has been deleted when the cluster entrypoint shut down. This should not happen.",
+                workingDir.exists());
+    }
+
+    @Test
+    public void testWorkingDirectoryIsDeletedIfApplicationCompletes() throws Exception {
+        final File workingDirBase = TEMPORARY_FOLDER.newFolder();
+        final ResourceID resourceId = new ResourceID("foobar");
+
+        configureWorkingDirectory(flinkConfig, workingDirBase, resourceId);
+
+        final File workingDir =
+                ClusterEntrypointUtils.generateJobManagerWorkingDirectoryFile(
+                        flinkConfig, resourceId);
+
+        final CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
+
+        final TestingEntryPoint testingEntryPoint =
+                new TestingEntryPoint.Builder()
+                        .setConfiguration(flinkConfig)
+                        .setDispatcherRunnerFactory(
+                                new TestingDispatcherRunnerFactory.Builder()
+                                        .setShutDownFuture(shutDownFuture)
+                                        .build())
+                        .build();
+        testingEntryPoint.startCluster();
+
+        shutDownFuture.complete(ApplicationStatus.SUCCEEDED);
+        testingEntryPoint.getTerminationFuture().join();
+
+        assertFalse(
+                "The working directory has not been deleted when the application completed successfully.",
+                workingDir.exists());
     }
 
     private CompletableFuture<ApplicationStatus> startClusterEntrypoint(

@@ -126,18 +126,12 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<!-- Default file system support. The Hadoop and MapR dependencies -->
-		<!--       are optional, so not being added to the dist jar        -->
+		<!-- Default file system support. The Hadoop dependency			   -->
+		<!--       is optional, so not being added to the dist jar         -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-hadoop-fs</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-mapr-fs</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 

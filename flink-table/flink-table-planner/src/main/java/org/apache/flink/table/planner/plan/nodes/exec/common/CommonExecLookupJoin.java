@@ -499,7 +499,10 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
         if (temporalTable instanceof TableSourceTable) {
             return String.format(
                     "table [%s]",
-                    ((TableSourceTable) temporalTable).tableIdentifier().asSummaryString());
+                    ((TableSourceTable) temporalTable)
+                            .contextResolvedTable()
+                            .getIdentifier()
+                            .asSummaryString());
         } else if (temporalTable instanceof LegacyTableSourceTable) {
             return String.format(
                     "table [%s]",

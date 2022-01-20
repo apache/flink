@@ -35,6 +35,7 @@ import java.util.function.Supplier;
 /** Factory for {@link MergingSharedSlotProfileRetriever}. */
 class MergingSharedSlotProfileRetrieverFactory
         implements SharedSlotProfileRetriever.SharedSlotProfileRetrieverFactory {
+
     private final SyncPreferredLocationsRetriever preferredLocationsRetriever;
 
     private final Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever;
@@ -102,6 +103,7 @@ class MergingSharedSlotProfileRetrieverFactory
                         preferredLocationsRetriever.getPreferredLocations(
                                 execution, producersToIgnore));
             }
+
             return SlotProfile.priorAllocation(
                     physicalSlotResourceProfile,
                     physicalSlotResourceProfile,

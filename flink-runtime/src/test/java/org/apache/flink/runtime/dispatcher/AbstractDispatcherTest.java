@@ -21,7 +21,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
@@ -109,10 +108,8 @@ public class AbstractDispatcherTest extends TestLogger {
         haServices.setJobGraphStore(new StandaloneJobGraphStore());
 
         configuration = new Configuration();
-        configuration.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
-        blobServer = new BlobServer(configuration, new VoidBlobStore());
+        blobServer =
+                new BlobServer(configuration, temporaryFolder.newFolder(), new VoidBlobStore());
     }
 
     @After
@@ -123,6 +120,10 @@ public class AbstractDispatcherTest extends TestLogger {
         if (blobServer != null) {
             blobServer.close();
         }
+    }
+
+    protected BlobServer getBlobServer() {
+        return blobServer;
     }
 
     /** A convenient builder for the {@link TestingDispatcher}. */

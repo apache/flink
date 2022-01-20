@@ -80,15 +80,17 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
         try {
             Configuration config = new Configuration();
-            config.setString(
-                    BlobServerOptions.STORAGE_DIRECTORY,
-                    temporaryFolder.newFolder().getAbsolutePath());
             config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
-            server = new BlobServer(config, new VoidBlobStore());
+            server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
             server.start();
             InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-            cache = new PermanentBlobCache(config, new VoidBlobStore(), serverAddress);
+            cache =
+                    new PermanentBlobCache(
+                            config,
+                            temporaryFolder.newFolder(),
+                            new VoidBlobStore(),
+                            serverAddress);
 
             keys1.add(server.putPermanent(jobId1, buf));
             buf[0] += 1;
@@ -211,15 +213,17 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
         try {
             Configuration config = new Configuration();
-            config.setString(
-                    BlobServerOptions.STORAGE_DIRECTORY,
-                    temporaryFolder.newFolder().getAbsolutePath());
             config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
-            server = new BlobServer(config, new VoidBlobStore());
+            server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
             server.start();
             InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-            cache = new PermanentBlobCache(config, new VoidBlobStore(), serverAddress);
+            cache =
+                    new PermanentBlobCache(
+                            config,
+                            temporaryFolder.newFolder(),
+                            new VoidBlobStore(),
+                            serverAddress);
 
             keys.add(server.putPermanent(jobId, buf));
             buf[0] += 1;
@@ -318,15 +322,17 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
         try {
             // create the blob transfer services
             Configuration config = new Configuration();
-            config.setString(
-                    BlobServerOptions.STORAGE_DIRECTORY,
-                    temporaryFolder.newFolder().getAbsolutePath());
             config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1_000_000L);
 
-            server = new BlobServer(config, new VoidBlobStore());
+            server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
             server.start();
             InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-            cache = new PermanentBlobCache(config, new VoidBlobStore(), serverAddress);
+            cache =
+                    new PermanentBlobCache(
+                            config,
+                            temporaryFolder.newFolder(),
+                            new VoidBlobStore(),
+                            serverAddress);
 
             // upload some meaningless data to the server
             PermanentBlobKey dataKey1 =
@@ -600,11 +606,12 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
         private TestingBlobLibraryCacheManagerBuilder() throws IOException {
             final Configuration blobClientConfig = new Configuration();
-            blobClientConfig.setString(
-                    BlobServerOptions.STORAGE_DIRECTORY,
-                    temporaryFolder.newFolder().getAbsolutePath());
             this.permanentBlobCache =
-                    new PermanentBlobCache(blobClientConfig, new VoidBlobStore(), null);
+                    new PermanentBlobCache(
+                            blobClientConfig,
+                            temporaryFolder.newFolder(),
+                            new VoidBlobStore(),
+                            null);
         }
 
         public TestingBlobLibraryCacheManagerBuilder setPermanentBlobCache(

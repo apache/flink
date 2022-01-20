@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -41,7 +42,6 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.operations.AggregateQueryOperation;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
-import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.DataStreamQueryOperation;
 import org.apache.flink.table.operations.DistinctQueryOperation;
 import org.apache.flink.table.operations.ExternalQueryOperation;
@@ -53,6 +53,7 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.QueryOperationVisitor;
 import org.apache.flink.table.operations.SetQueryOperation;
 import org.apache.flink.table.operations.SortQueryOperation;
+import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.ValuesQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation;
@@ -74,6 +75,7 @@ import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
+import org.apache.flink.table.planner.plan.schema.CatalogSourceTable;
 import org.apache.flink.table.planner.plan.schema.DataStreamTable;
 import org.apache.flink.table.planner.plan.schema.DataStreamTable$;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
@@ -93,6 +95,7 @@ import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.calcite.plan.ViewExpanders;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.JoinRelType;
@@ -137,10 +140,12 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
     private final AggregateVisitor aggregateVisitor = new AggregateVisitor();
     private final TableAggregateVisitor tableAggregateVisitor = new TableAggregateVisitor();
     private final JoinExpressionVisitor joinExpressionVisitor = new JoinExpressionVisitor();
+    private final boolean isBatchMode;
 
-    public QueryOperationConverter(FlinkRelBuilder relBuilder) {
+    public QueryOperationConverter(FlinkRelBuilder relBuilder, boolean isBatchMode) {
         this.relBuilder = relBuilder;
         this.expressionConverter = new ExpressionConverter(relBuilder);
+        this.isBatchMode = isBatchMode;
     }
 
     @Override
@@ -340,13 +345,14 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
         }
 
         @Override
-        public RelNode visit(CatalogQueryOperation catalogTable) {
-            ObjectIdentifier objectIdentifier = catalogTable.getTableIdentifier();
+        public RelNode visit(SourceQueryOperation queryOperation) {
+            if (queryOperation.getContextResolvedTable().isAnonymous()) {
+                return CatalogSourceTable.createAnonymous(
+                                relBuilder, queryOperation.getContextResolvedTable(), isBatchMode)
+                        .toRel(ViewExpanders.simpleContext(relBuilder.getCluster()));
+            }
             return relBuilder
-                    .scan(
-                            objectIdentifier.getCatalogName(),
-                            objectIdentifier.getDatabaseName(),
-                            objectIdentifier.getObjectName())
+                    .scan(queryOperation.getContextResolvedTable().getIdentifier().toList())
                     .build();
         }
 
@@ -432,12 +438,11 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                 final ExternalQueryOperation<?> externalQueryOperation =
                         (ExternalQueryOperation<?>) other;
                 return convertToExternalScan(
-                        externalQueryOperation.getIdentifier(),
+                        externalQueryOperation.getContextResolvedTable(),
                         externalQueryOperation.getDataStream(),
                         externalQueryOperation.getPhysicalDataType(),
                         externalQueryOperation.isTopLevelRecord(),
-                        externalQueryOperation.getChangelogMode(),
-                        externalQueryOperation.getResolvedSchema());
+                        externalQueryOperation.getChangelogMode());
             }
             // legacy
             else if (other instanceof DataStreamQueryOperation) {
@@ -508,20 +513,18 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
         }
 
         private RelNode convertToExternalScan(
-                ObjectIdentifier identifier,
+                ContextResolvedTable contextResolvedTable,
                 DataStream<?> dataStream,
                 DataType physicalDataType,
                 boolean isTopLevelRecord,
-                ChangelogMode changelogMode,
-                ResolvedSchema resolvedSchema) {
+                ChangelogMode changelogMode) {
             final FlinkContext flinkContext = ShortcutUtils.unwrapContext(relBuilder);
             final ReadableConfig config = flinkContext.getTableConfig().getConfiguration();
             return DynamicSourceUtils.convertDataStreamToRel(
                     flinkContext.isBatchMode(),
                     config,
                     relBuilder,
-                    identifier,
-                    resolvedSchema,
+                    contextResolvedTable,
                     dataStream,
                     physicalDataType,
                     isTopLevelRecord,

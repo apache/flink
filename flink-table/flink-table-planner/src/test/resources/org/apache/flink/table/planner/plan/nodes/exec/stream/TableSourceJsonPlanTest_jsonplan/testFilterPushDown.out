@@ -31,22 +31,13 @@
           "operands" : [ {
             "kind" : "INPUT_REF",
             "inputIndex" : 0,
-            "type" : {
-              "typeName" : "BIGINT",
-              "nullable" : true
-            }
+            "type" : "BIGINT"
           }, {
             "kind" : "LITERAL",
             "value" : "0",
-            "type" : {
-              "typeName" : "INTEGER",
-              "nullable" : false
-            }
+            "type" : "INT NOT NULL"
           } ],
-          "type" : {
-            "typeName" : "BOOLEAN",
-            "nullable" : true
-          }
+          "type" : "BOOLEAN"
         } ]
       } ]
     },

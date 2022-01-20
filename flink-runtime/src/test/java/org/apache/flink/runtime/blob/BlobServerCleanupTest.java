@@ -19,9 +19,11 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -34,9 +36,12 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.NoSuchFileException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
@@ -52,10 +57,9 @@ import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.get;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 /** A few tests for the cleanup of transient BLOBs at the {@link BlobServer}. */
 public class BlobServerCleanupTest extends TestLogger {
@@ -95,13 +99,12 @@ public class BlobServerCleanupTest extends TestLogger {
         byte[] data2 = Arrays.copyOfRange(data, 10, 54);
 
         Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
         config.setLong(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
 
         long cleanupLowerBound;
 
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+        try (BlobServer server =
+                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
 
             ConcurrentMap<Tuple2<JobID, TransientBlobKey>, Long> transientBlobExpiryTimes =
                     server.getBlobExpiryTimes();
@@ -113,13 +116,13 @@ public class BlobServerCleanupTest extends TestLogger {
             final TransientBlobKey key1 =
                     (TransientBlobKey) put(server, jobId, data, TRANSIENT_BLOB);
             final Long key1ExpiryAfterPut = transientBlobExpiryTimes.get(Tuple2.of(jobId, key1));
-            assertThat(key1ExpiryAfterPut, greaterThanOrEqualTo(cleanupLowerBound));
+            assertThat(key1ExpiryAfterPut).isGreaterThanOrEqualTo(cleanupLowerBound);
 
             cleanupLowerBound = System.currentTimeMillis() + cleanupInterval;
             final TransientBlobKey key2 =
                     (TransientBlobKey) put(server, jobId, data2, TRANSIENT_BLOB);
             final Long key2ExpiryAfterPut = transientBlobExpiryTimes.get(Tuple2.of(jobId, key2));
-            assertThat(key2ExpiryAfterPut, greaterThanOrEqualTo(cleanupLowerBound));
+            assertThat(key2ExpiryAfterPut).isGreaterThanOrEqualTo(cleanupLowerBound);
 
             // check that HA contents are not cleaned up
             final JobID jobIdHA = (jobId == null) ? new JobID() : jobId;
@@ -131,8 +134,8 @@ public class BlobServerCleanupTest extends TestLogger {
             cleanupLowerBound = System.currentTimeMillis() + cleanupInterval;
             verifyContents(server, jobId, key1, data);
             final Long key1ExpiryAfterGet = transientBlobExpiryTimes.get(Tuple2.of(jobId, key1));
-            assertThat(key1ExpiryAfterGet, greaterThan(key1ExpiryAfterPut));
-            assertThat(key1ExpiryAfterGet, greaterThanOrEqualTo(cleanupLowerBound));
+            assertThat(key1ExpiryAfterGet).isGreaterThan(key1ExpiryAfterPut);
+            assertThat(key1ExpiryAfterGet).isGreaterThanOrEqualTo(cleanupLowerBound);
             assertEquals(key2ExpiryAfterPut, transientBlobExpiryTimes.get(Tuple2.of(jobId, key2)));
 
             // access key2, verify expiry times (delay at least 1ms to also verify key1 expiry is
@@ -141,12 +144,10 @@ public class BlobServerCleanupTest extends TestLogger {
             cleanupLowerBound = System.currentTimeMillis() + cleanupInterval;
             verifyContents(server, jobId, key2, data2);
             assertEquals(key1ExpiryAfterGet, transientBlobExpiryTimes.get(Tuple2.of(jobId, key1)));
-            assertThat(
-                    transientBlobExpiryTimes.get(Tuple2.of(jobId, key2)),
-                    greaterThan(key2ExpiryAfterPut));
-            assertThat(
-                    transientBlobExpiryTimes.get(Tuple2.of(jobId, key2)),
-                    greaterThanOrEqualTo(cleanupLowerBound));
+            assertThat(transientBlobExpiryTimes.get(Tuple2.of(jobId, key2)))
+                    .isGreaterThan(key2ExpiryAfterPut);
+            assertThat(transientBlobExpiryTimes.get(Tuple2.of(jobId, key2)))
+                    .isGreaterThanOrEqualTo(cleanupLowerBound);
 
             // cleanup task is run every cleanupInterval seconds
             // => unaccessed file should remain at most 2*cleanupInterval seconds
@@ -184,6 +185,60 @@ public class BlobServerCleanupTest extends TestLogger {
 
             // HA content should be unaffected
             verifyContents(server, jobIdHA, keyHA, data);
+        }
+    }
+
+    @Test
+    public void testBlobServerExpiresRecoveredTransientJobBlob() throws Exception {
+        runBlobServerExpiresRecoveredTransientBlob(new JobID());
+    }
+
+    @Test
+    public void testBlobServerExpiresRecoveredTransientNoJobBlob() throws Exception {
+        runBlobServerExpiresRecoveredTransientBlob(null);
+    }
+
+    private void runBlobServerExpiresRecoveredTransientBlob(@Nullable JobID jobId)
+            throws Exception {
+        final long cleanupInterval = 1L;
+        final Configuration configuration = new Configuration();
+        configuration.set(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
+        final File storageDirectory = temporaryFolder.newFolder();
+
+        final TransientBlobKey transientBlobKey =
+                TestingBlobUtils.writeTransientBlob(
+                        storageDirectory.toPath(), jobId, new byte[] {1, 2, 3, 4});
+        final File blob = BlobUtils.getStorageLocation(storageDirectory, jobId, transientBlobKey);
+
+        try (final BlobServer blobServer =
+                new BlobServer(configuration, storageDirectory, new VoidBlobStore())) {
+            CommonTestUtils.waitUntilCondition(
+                    () -> !blob.exists(),
+                    Deadline.fromNow(Duration.ofSeconds(cleanupInterval * 5L)),
+                    "The transient blob has not been cleaned up automatically.");
+        }
+    }
+
+    @Test
+    public void testBlobServerRetainsJobs() throws IOException {
+        final File storageDirectory = temporaryFolder.newFolder();
+
+        final JobID jobId1 = new JobID();
+        final JobID jobId2 = new JobID();
+
+        final byte[] fileContent = {1, 2, 3, 4};
+        final PermanentBlobKey blobKey1 =
+                TestingBlobUtils.writePermanentBlob(storageDirectory.toPath(), jobId1, fileContent);
+        final PermanentBlobKey blobKey2 =
+                TestingBlobUtils.writePermanentBlob(storageDirectory.toPath(), jobId2, fileContent);
+
+        try (final BlobServer blobServer =
+                new BlobServer(new Configuration(), storageDirectory, new VoidBlobStore())) {
+            blobServer.retainJobs(Collections.singleton(jobId1));
+
+            assertThat(blobServer.getFile(jobId1, blobKey1)).hasBinaryContent(fileContent);
+            assertThatThrownBy(() -> blobServer.getFile(jobId2, blobKey2))
+                    .isInstanceOf(NoSuchFileException.class);
         }
     }
 

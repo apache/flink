@@ -71,10 +71,6 @@ Flink 1.14 新引入的缓冲消胀机制尝试通过自动调整缓冲数据量
 
 当前，有一些场景还没有自动地被缓冲消胀机制处理。
 
-#### 大消息
-
-如果您的消息超过了[最小内存段 (memory segment) 长度]({{< ref "docs/deployment/config" >}}#taskmanager-memory-min-segment-size)，缓冲消胀可能会极大减少单个缓冲区大小，从而导致网络栈需要更多的缓冲区去传输一条消息。在实际上没有减少缓冲数据量的情况下，这可能对吞吐产生不利影响。
-
 #### 多个输入和合并
 
 当前，吞吐计算和缓冲消胀发生在 subtask 层面。
@@ -86,6 +82,14 @@ Flink 1.14 新引入的缓冲消胀机制尝试通过自动调整缓冲数据量
 当前，缓冲消胀仅在使用的缓冲区大小上设置上限。实际的缓冲区大小和个数保持不变。这意味着缓冲消胀机制不会减少作业的内存使用。您应该手动减少缓冲区的大小或者个数。
 
 此外，如果您想减少缓冲数据量使其低于缓冲消胀当前允许的量，您可能需要手动的设置缓冲区的个数。
+
+#### High parallelism
+
+Currently, the buffer debloating mechanism might not perform correctly with high parallelism (above ~200) using the default configuration.
+If you observe reduced throughput or higher than expected checkpointing times
+we suggest increasing the number of floating buffers (`taskmanager.network.memory.floating-buffers-per-gate`) from the default value to at least the number equal to the parallelism.
+
+The actual value of parallelism from which the problem occurs is various from job to job but normally it should be more than a couple of hundreds.
 
 ## 网络缓冲生命周期
  
@@ -134,7 +138,7 @@ Flink 有多个本地缓冲区池 —— 每个输出和输入流对应一个。
 
 缓冲区的数量是通过 `taskmanager.network.memory.buffers-per-channel` 和 `taskmanager.network.memory.floating-buffers-per-gate` 来配置的。
 
-为了最好的吞吐率，我们建议使用独占缓冲区和流动缓冲区的默认值。如果缓冲数据量存在问题，更建议打开[缓冲消胀]({{< ref "docs/deployment/memory/network_mem_tuning" >}}#the-buffer-debloating-mechanism)。
+为了最好的吞吐率，我们建议使用独占缓冲区和流动缓冲区的默认值(except you have one of [limit cases]({{< ref "docs/deployment/memory/network_mem_tuning" >}}#limitations))。如果缓冲数据量存在问题，更建议打开[缓冲消胀]({{< ref "docs/deployment/memory/network_mem_tuning" >}}#the-buffer-debloating-mechanism)。
 
 您可以人工地调整网络缓冲区的个数，但是需要注意：
 

@@ -641,7 +641,7 @@ class TableSinkTest extends TableTestBase {
     expectedException.expect(classOf[TableException])
     expectedException.expectMessage(
       s"You should enable the checkpointing for sinking to managed table " +
-        s"`default_catalog`.`default_database`.`sink`, " +
+        s"'default_catalog.default_database.sink', " +
         s"managed table relies on checkpoint to commit and " +
         s"the data is visible only after commit.")
     util.verifyAstPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)

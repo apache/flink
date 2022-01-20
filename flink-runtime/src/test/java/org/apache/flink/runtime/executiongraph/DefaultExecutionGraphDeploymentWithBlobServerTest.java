@@ -30,6 +30,8 @@ import org.apache.flink.util.SerializedValue;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.rules.TemporaryFolder;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 
@@ -49,6 +51,8 @@ import static org.mockito.Mockito.doAnswer;
 public class DefaultExecutionGraphDeploymentWithBlobServerTest
         extends DefaultExecutionGraphDeploymentTest {
 
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+
     private Set<byte[]> seenHashes =
             Collections.newSetFromMap(new ConcurrentHashMap<byte[], Boolean>());
 
@@ -59,7 +63,9 @@ public class DefaultExecutionGraphDeploymentWithBlobServerTest
         Configuration config = new Configuration();
         // always offload the serialized job and task information
         config.setInteger(BlobServerOptions.OFFLOAD_MINSIZE, 0);
-        blobServer = Mockito.spy(new BlobServer(config, new VoidBlobStore()));
+        blobServer =
+                Mockito.spy(
+                        new BlobServer(config, TEMPORARY_FOLDER.newFolder(), new VoidBlobStore()));
         blobWriter = blobServer;
         blobCache = blobServer;
 

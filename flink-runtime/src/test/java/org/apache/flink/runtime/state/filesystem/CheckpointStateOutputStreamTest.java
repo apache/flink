@@ -23,11 +23,9 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalDataOutputStream;
-import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.function.FunctionWithException;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -329,20 +327,6 @@ public class CheckpointStateOutputStreamTest extends TestLogger {
         @Override
         public void close() throws IOException {
             throw new IOException();
-        }
-    }
-
-    private static class TestFs extends LocalFileSystem {
-
-        private final FunctionWithException<Path, FSDataOutputStream, IOException> streamFactory;
-
-        TestFs(FunctionWithException<Path, FSDataOutputStream, IOException> streamFactory) {
-            this.streamFactory = streamFactory;
-        }
-
-        @Override
-        public FSDataOutputStream create(Path filePath, WriteMode overwrite) throws IOException {
-            return streamFactory.apply(filePath);
         }
     }
 }

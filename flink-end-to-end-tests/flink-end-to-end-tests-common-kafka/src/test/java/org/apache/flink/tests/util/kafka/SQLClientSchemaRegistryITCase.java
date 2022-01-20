@@ -37,7 +37,6 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 import org.slf4j.Logger;
@@ -59,7 +58,6 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 /** End-to-end test for SQL client using Avro Confluent Registry format. */
-@Ignore("FLINK-25209")
 public class SQLClientSchemaRegistryITCase {
     private static final Logger LOG = LoggerFactory.getLogger(SQLClientSchemaRegistryITCase.class);
     private static final Slf4jLogConsumer LOG_CONSUMER = new Slf4jLogConsumer(LOG);
@@ -84,7 +82,7 @@ public class SQLClientSchemaRegistryITCase {
 
     @ClassRule
     public static final SchemaRegistryContainer REGISTRY =
-            new SchemaRegistryContainer("5.5.2")
+            new SchemaRegistryContainer("6.2.2")
                     .withKafka(INTER_CONTAINER_KAFKA_ALIAS + ":9092")
                     .withNetwork(NETWORK)
                     .withNetworkAliases(INTER_CONTAINER_REGISTRY_ALIAS)

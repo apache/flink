@@ -30,7 +30,6 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
@@ -76,7 +75,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /** Tests for configuring the RocksDB State Backend. */
 @SuppressWarnings("serial")
@@ -331,11 +329,10 @@ public class RocksDBStateBackendConfigTest {
         RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
 
         File dir1 = tempFolder.newFolder();
-        File dir2 = tempFolder.newFolder();
 
         assertNull(rocksDbBackend.getDbStoragePaths());
 
-        final MockEnvironment env = getMockEnvironment(dir1, dir2);
+        final MockEnvironment env = getMockEnvironment(dir1);
         RocksDBKeyedStateBackend<Integer> keyedBackend =
                 (RocksDBKeyedStateBackend<Integer>)
                         rocksDbBackend.createKeyedStateBackend(
@@ -353,9 +350,7 @@ public class RocksDBStateBackendConfigTest {
 
         try {
             File instanceBasePath = keyedBackend.getInstanceBasePath();
-            assertThat(
-                    instanceBasePath.getAbsolutePath(),
-                    anyOf(startsWith(dir1.getAbsolutePath()), startsWith(dir2.getAbsolutePath())));
+            assertThat(instanceBasePath.getAbsolutePath(), startsWith(dir1.getAbsolutePath()));
         } finally {
             IOUtils.closeQuietly(keyedBackend);
             keyedBackend.dispose();
@@ -793,20 +788,11 @@ public class RocksDBStateBackendConfigTest {
     //  Utilities
     // ------------------------------------------------------------------------
 
-    static MockEnvironment getMockEnvironment(File... tempDirs) {
-        final String[] tempDirStrings = new String[tempDirs.length];
-        for (int i = 0; i < tempDirs.length; i++) {
-            tempDirStrings[i] = tempDirs[i].getAbsolutePath();
-        }
-
-        IOManager ioMan = mock(IOManager.class);
-        when(ioMan.getSpillingDirectories()).thenReturn(tempDirs);
-
+    static MockEnvironment getMockEnvironment(File tempDir) {
         return MockEnvironment.builder()
                 .setUserCodeClassLoader(RocksDBStateBackendConfigTest.class.getClassLoader())
                 .setTaskManagerRuntimeInfo(
-                        new TestingTaskManagerRuntimeInfo(new Configuration(), tempDirStrings))
-                .setIOManager(ioMan)
+                        new TestingTaskManagerRuntimeInfo(new Configuration(), tempDir))
                 .build();
     }
 

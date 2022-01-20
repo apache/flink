@@ -24,13 +24,11 @@ import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 
 import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /** Partition descriptor for {@link ShuffleMaster} to obtain {@link ShuffleDescriptor}. */
 public class PartitionDescriptor implements Serializable {
@@ -108,20 +106,13 @@ public class PartitionDescriptor implements Serializable {
     public static PartitionDescriptor from(IntermediateResultPartition partition) {
         checkNotNull(partition);
 
-        ConsumerVertexGroup consumerVertexGroup = partition.getConsumerVertexGroup();
-        checkState(consumerVertexGroup.size() > 0);
-
-        // The produced data is partitioned among a number of subpartitions, one for each consuming
-        // sub task.
-        int numberOfSubpartitions = consumerVertexGroup.size();
-
         IntermediateResult result = partition.getIntermediateResult();
         return new PartitionDescriptor(
                 result.getId(),
                 partition.getIntermediateResult().getNumberOfAssignedPartitions(),
                 partition.getPartitionId(),
                 result.getResultType(),
-                numberOfSubpartitions,
+                partition.getNumberOfSubpartitions(),
                 result.getConnectionIndex());
     }
 }

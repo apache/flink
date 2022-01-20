@@ -20,7 +20,9 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.api.common.typeutils.base.LocalDateSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
@@ -32,6 +34,7 @@ import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.data.utils.CastExecutor;
 import org.apache.flink.table.planner.functions.CastFunctionITCase;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.utils.DateTimeUtils;
 
 import org.junit.jupiter.api.DynamicTest;
@@ -134,6 +137,20 @@ class CastRulesTest {
                     FIELD("b", BIGINT()),
                     FIELD("c", STRING()),
                     FIELD("d", ARRAY(STRING())));
+    private static final DataType MY_STRUCTURED_TYPE_WITHOUT_IMPLEMENTATION_CLASS =
+            DataTypes.of(
+                    StructuredType.newBuilder(ObjectIdentifier.of("a", "b", "c"))
+                            .attributes(
+                                    Arrays.asList(
+                                            new StructuredType.StructuredAttribute(
+                                                    "a", BIGINT().notNull().getLogicalType()),
+                                            new StructuredType.StructuredAttribute(
+                                                    "b", BIGINT().getLogicalType()),
+                                            new StructuredType.StructuredAttribute(
+                                                    "c", STRING().getLogicalType()),
+                                            new StructuredType.StructuredAttribute(
+                                                    "d", ARRAY(STRING()).getLogicalType())))
+                            .build());
 
     Stream<CastTestSpecBuilder> testCases() {
         return Stream.of(
@@ -490,19 +507,23 @@ class CastRulesTest {
                         .fromCase(BOOLEAN(), false, fromString("FALSE"))
                         .fromCaseLegacy(BOOLEAN(), true, fromString("true"))
                         .fromCaseLegacy(BOOLEAN(), false, fromString("false"))
-                        .fromCase(BINARY(2), new byte[] {0, 1}, fromString("\u0000\u0001"))
-                        .fromCase(
+                        .fromCase(BINARY(2), new byte[] {0, 1}, fromString("0001"))
+                        .fromCaseLegacy(BINARY(2), new byte[] {0, 1}, fromString("\u0000\u0001"))
+                        .fromCase(VARBINARY(3), new byte[] {0, 1, 2}, fromString("000102"))
+                        .fromCaseLegacy(
                                 VARBINARY(3),
                                 new byte[] {0, 1, 2},
                                 fromString("\u0000\u0001\u0002"))
-                        .fromCase(
-                                VARBINARY(5),
-                                new byte[] {0, 1, 2},
-                                fromString("\u0000\u0001\u0002"))
+                        .fromCase(VARBINARY(5), new byte[] {0, -1, -2}, fromString("00fffe"))
+                        .fromCaseLegacy(VARBINARY(5), new byte[] {102, 111, 111}, fromString("foo"))
                         .fromCase(
                                 BYTES(),
-                                new byte[] {0, 1, 2, 3, 4},
-                                fromString("\u0000\u0001\u0002\u0003\u0004"))
+                                new byte[] {-123, 43, -4, 125, 5},
+                                fromString("852bfc7d05"))
+                        .fromCaseLegacy(
+                                BYTES(), new byte[] {70, 108, 105, 110, 107}, fromString("Flink"))
+                        .fromCase(BOOLEAN(), true, StringData.fromString("TRUE"))
+                        .fromCase(BOOLEAN(), false, StringData.fromString("FALSE"))
                         .fromCase(
                                 DECIMAL(4, 3),
                                 fromBigDecimal(new BigDecimal("9.87"), 4, 3),
@@ -646,7 +667,20 @@ class CastRulesTest {
                                                     fromString("b"),
                                                     fromString("c")
                                                 })),
-                                fromString("(10, NULL, 12:34:56.123, [a, b, c])")),
+                                fromString("(a=10, b=NULL, c=12:34:56.123, d=[a, b, c])"))
+                        .fromCase(
+                                MY_STRUCTURED_TYPE_WITHOUT_IMPLEMENTATION_CLASS,
+                                GenericRowData.of(
+                                        10L,
+                                        null,
+                                        TIME_STRING,
+                                        new GenericArrayData(
+                                                new Object[] {
+                                                    fromString("a"),
+                                                    fromString("b"),
+                                                    fromString("c")
+                                                })),
+                                fromString("(a=10, b=NULL, c=12:34:56.123, d=[a, b, c])")),
                 CastTestSpecBuilder.testCastTo(CHAR(6))
                         .fromCase(STRING(), null, EMPTY_UTF8)
                         .fromCaseLegacy(STRING(), null, EMPTY_UTF8)
@@ -660,28 +694,12 @@ class CastRulesTest {
                         .fromCaseLegacy(BOOLEAN(), true, fromString("true"))
                         .fromCase(BOOLEAN(), false, fromString("FALSE "))
                         .fromCaseLegacy(BOOLEAN(), false, fromString("false"))
-                        .fromCase(
-                                BINARY(3),
-                                new byte[] {0, 1, 2},
-                                fromString("\u0000\u0001\u0002   "))
-                        .fromCaseLegacy(
-                                BINARY(3), new byte[] {0, 1, 2}, fromString("\u0000\u0001\u0002"))
-                        .fromCase(
-                                VARBINARY(4),
-                                new byte[] {0, 1, 2, 3},
-                                fromString("\u0000\u0001\u0002\u0003  "))
-                        .fromCaseLegacy(
-                                VARBINARY(4),
-                                new byte[] {0, 1, 2, 3},
-                                fromString("\u0000\u0001\u0002\u0003"))
-                        .fromCase(
-                                BYTES(),
-                                new byte[] {0, 1, 2, 3, 4},
-                                fromString("\u0000\u0001\u0002\u0003\u0004 "))
-                        .fromCaseLegacy(
-                                BYTES(),
-                                new byte[] {0, 1, 2, 3, 4},
-                                fromString("\u0000\u0001\u0002\u0003\u0004"))
+                        .fromCase(BINARY(1), new byte[] {-12}, fromString("f4    "))
+                        .fromCaseLegacy(BINARY(1), new byte[] {102}, fromString("f"))
+                        .fromCase(VARBINARY(1), new byte[] {23}, fromString("17    "))
+                        .fromCaseLegacy(VARBINARY(1), new byte[] {33}, fromString("\u0021"))
+                        .fromCase(BYTES(), new byte[] {32}, fromString("20    "))
+                        .fromCaseLegacy(BYTES(), new byte[] {32}, fromString(" "))
                         .fromCase(TINYINT(), (byte) -125, fromString("-125  "))
                         .fromCaseLegacy(TINYINT(), (byte) -125, fromString("-125"))
                         .fromCase(SMALLINT(), (short) 32767, fromString("32767 "))
@@ -699,6 +717,22 @@ class CastRulesTest {
                         .fromCase(INTERVAL(MONTH()), 5, fromString("+0-05 "))
                         .fromCaseLegacy(INTERVAL(MONTH()), 5, fromString("+0-05")),
                 CastTestSpecBuilder.testCastTo(CHAR(12))
+                        .fromCase(
+                                BINARY(4),
+                                new byte[] {-12, 32, 46, -72},
+                                fromString("f4202eb8    "))
+                        .fromCaseLegacy(
+                                BINARY(4),
+                                new byte[] {1, 11, 111, 2},
+                                fromString("\u0001\u000B\u006F\u0002"))
+                        .fromCase(VARBINARY(4), new byte[] {1, 11, 22}, fromString("010b16      "))
+                        .fromCaseLegacy(
+                                VARBINARY(4),
+                                new byte[] {1, 11, 22},
+                                fromString("\u0001\u000B\u0016"))
+                        .fromCase(BYTES(), new byte[] {1, 11}, fromString("010b        "))
+                        .fromCaseLegacy(
+                                BYTES(), new byte[] {1, 11, 111}, fromString("\u0001\u000B\u006F"))
                         .fromCase(
                                 ARRAY(INT()),
                                 new GenericArrayData(new int[] {-1, 2, 3}),
@@ -785,26 +819,17 @@ class CastRulesTest {
                         .fromCaseLegacy(BOOLEAN(), true, fromString("true"))
                         .fromCase(BOOLEAN(), false, fromString("FAL"))
                         .fromCaseLegacy(BOOLEAN(), false, fromString("false"))
-                        .fromCase(
-                                BINARY(5),
-                                new byte[] {0, 1, 2, 3, 4},
-                                fromString("\u0000\u0001\u0002"))
+                        .fromCase(BINARY(5), new byte[] {0, 1, 2, 3, 4}, fromString("000"))
                         .fromCaseLegacy(
                                 BINARY(5),
                                 new byte[] {0, 1, 2, 3, 4},
                                 fromString("\u0000\u0001\u0002\u0003\u0004"))
-                        .fromCase(
-                                VARBINARY(5),
-                                new byte[] {0, 1, 2, 3, 4},
-                                fromString("\u0000\u0001\u0002"))
+                        .fromCase(VARBINARY(5), new byte[] {0, 1, 2, 3, 4}, fromString("000"))
                         .fromCaseLegacy(
                                 VARBINARY(5),
                                 new byte[] {0, 1, 2, 3, 4},
                                 fromString("\u0000\u0001\u0002\u0003\u0004"))
-                        .fromCase(
-                                BYTES(),
-                                new byte[] {0, 1, 2, 3, 4},
-                                fromString("\u0000\u0001\u0002"))
+                        .fromCase(BYTES(), new byte[] {0, 1, 2, 3, 4}, fromString("000"))
                         .fromCaseLegacy(
                                 BYTES(),
                                 new byte[] {0, 1, 2, 3, 4},
@@ -958,24 +983,30 @@ class CastRulesTest {
                         .fromCase(DOUBLE(), 0.0d, false)
                         .fromCase(DOUBLE(), -0.12345678d, true),
                 CastTestSpecBuilder.testCastTo(BINARY(4))
-                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111, 0})
+                        .fromCase(CHAR(4), fromString("66"), new byte[] {102, 0, 0, 0})
                         .fromCaseLegacy(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
-                        .fromCase(CHAR(1), fromString("f"), new byte[] {102, 0, 0, 0})
+                        .fromCase(CHAR(10), fromString("66A2"), new byte[] {102, -94, 0, 0})
                         .fromCaseLegacy(CHAR(1), fromString("f"), new byte[] {102})
-                        .fromCase(CHAR(3), fromString("f"), new byte[] {102, 0, 0, 0})
+                        .fromCase(CHAR(16), fromString("12f4aBc7"), new byte[] {18, -12, -85, -57})
                         .fromCaseLegacy(CHAR(3), fromString("f"), new byte[] {102})
-                        .fromCase(VARCHAR(5), fromString("Flink"), new byte[] {70, 108, 105, 110})
+                        .fromCase(VARCHAR(8), fromString("bACd"), new byte[] {-70, -51, 0, 0})
                         .fromCaseLegacy(
                                 VARCHAR(5),
                                 fromString("Flink"),
                                 new byte[] {70, 108, 105, 110, 107})
-                        .fromCase(STRING(), fromString("Apache"), new byte[] {65, 112, 97, 99})
+                        .fromCase(
+                                STRING(),
+                                fromString("12f4ABc71232"),
+                                new byte[] {18, -12, -85, -57})
                         .fromCaseLegacy(
                                 STRING(),
                                 fromString("Apache"),
                                 new byte[] {65, 112, 97, 99, 104, 101})
-                        .fromCase(STRING(), fromString("bar"), new byte[] {98, 97, 114, 0})
+                        .fromCase(STRING(), fromString("12F4ab"), new byte[] {18, -12, -85, 0})
                         .fromCaseLegacy(STRING(), fromString("bar"), new byte[] {98, 97, 114})
+                        .fail(STRING(), fromString("123"), TableException.class)
+                        .fail(STRING(), fromString("12P9"), TableException.class)
+                        .fail(STRING(), fromString("12  A9"), TableException.class)
                         .fromCase(BINARY(2), new byte[] {1, 2}, new byte[] {1, 2, 0, 0})
                         .fromCaseLegacy(BINARY(2), new byte[] {1, 2}, new byte[] {1, 2})
                         .fromCase(VARBINARY(3), new byte[] {1, 2, 3}, new byte[] {1, 2, 3, 0})
@@ -983,17 +1014,24 @@ class CastRulesTest {
                         .fromCase(BYTES(), new byte[] {1, 2, 3}, new byte[] {1, 2, 3, 0})
                         .fromCaseLegacy(BYTES(), new byte[] {1, 2, 3}, new byte[] {1, 2, 3}),
                 CastTestSpecBuilder.testCastTo(VARBINARY(4))
-                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
+                        .fromCase(CHAR(4), fromString("c9"), new byte[] {-55})
+                        .fromCaseLegacy(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
+                        .fromCase(VARCHAR(8), fromString("7de2"), new byte[] {125, -30})
                         .fromCaseLegacy(
                                 VARCHAR(5),
                                 fromString("Flink"),
                                 new byte[] {70, 108, 105, 110, 107})
-                        .fromCase(VARCHAR(5), fromString("Flink"), new byte[] {70, 108, 105, 110})
-                        .fromCase(STRING(), fromString("Apache"), new byte[] {65, 112, 97, 99})
+                        .fromCase(
+                                STRING(),
+                                fromString("12F4abC71232"),
+                                new byte[] {18, -12, -85, -57})
                         .fromCaseLegacy(
                                 STRING(),
                                 fromString("Apache"),
                                 new byte[] {65, 112, 97, 99, 104, 101})
+                        .fail(STRING(), fromString("123"), TableException.class)
+                        .fail(STRING(), fromString("12P9"), TableException.class)
+                        .fail(STRING(), fromString("12  A9"), TableException.class)
                         // We assume that the input length is respected, therefore, no trimming is
                         // applied
                         .fromCase(BINARY(2), new byte[] {1, 2, 3, 4, 5}, new byte[] {1, 2, 3, 4, 5})
@@ -1008,15 +1046,24 @@ class CastRulesTest {
                                 new byte[] {1, 2, 3, 4, 5},
                                 new byte[] {1, 2, 3, 4, 5}),
                 CastTestSpecBuilder.testCastTo(BYTES())
-                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
-                        .fromCase(
+                        .fromCase(CHAR(4), fromString("9C"), new byte[] {-100})
+                        .fromCaseLegacy(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
+                        .fromCase(VARCHAR(8), fromString("3ee3"), new byte[] {62, -29})
+                        .fromCaseLegacy(
                                 VARCHAR(5),
                                 fromString("Flink"),
                                 new byte[] {70, 108, 105, 110, 107})
                         .fromCase(
                                 STRING(),
+                                fromString("AAbbCcDdff"),
+                                new byte[] {-86, -69, -52, -35, -1})
+                        .fromCaseLegacy(
+                                STRING(),
                                 fromString("Apache"),
-                                new byte[] {65, 112, 97, 99, 104, 101}),
+                                new byte[] {65, 112, 97, 99, 104, 101})
+                        .fail(STRING(), fromString("123"), TableException.class)
+                        .fail(STRING(), fromString("12P9"), TableException.class)
+                        .fail(STRING(), fromString("12  A9"), TableException.class),
                 CastTestSpecBuilder.testCastTo(DECIMAL(5, 3))
                         .fail(CHAR(3), fromString("foo"), TableException.class)
                         .fail(VARCHAR(5), fromString("Flink"), TableException.class)
@@ -1084,6 +1131,56 @@ class CastRulesTest {
                                             new GenericArrayData(new Integer[] {3})
                                         }),
                                 NullPointerException.class),
+                CastTestSpecBuilder.testCastTo(MAP(DOUBLE().notNull(), DOUBLE().notNull()))
+                        .fromCase(
+                                MAP(INT().nullable(), INT().nullable()),
+                                mapData(entry(1, 2)),
+                                mapData(entry(1d, 2d))),
+                CastTestSpecBuilder.testCastTo(MAP(BIGINT().nullable(), BIGINT().nullable()))
+                        .fromCase(
+                                MAP(INT().nullable(), INT().nullable()),
+                                mapData(entry(1, 2)),
+                                mapData(entry(1L, 2L))),
+                CastTestSpecBuilder.testCastTo(MAP(BIGINT().nullable(), BIGINT().nullable()))
+                        .fromCase(
+                                MAP(INT().nullable(), INT().nullable()),
+                                mapData(entry(1, 2), entry(null, 3), entry(4, null)),
+                                mapData(entry(1L, 2L), entry(null, 3L), entry(4L, null))),
+                CastTestSpecBuilder.testCastTo(MAP(STRING().nullable(), STRING().nullable()))
+                        .fromCase(
+                                MAP(TIMESTAMP().nullable(), DOUBLE().nullable()),
+                                mapData(entry(TIMESTAMP, 123.456)),
+                                mapData(entry(TIMESTAMP_STRING, fromString("123.456")))),
+                CastTestSpecBuilder.testCastTo(MAP(STRING().notNull(), STRING().nullable()))
+                        .fail(
+                                MAP(INT().nullable(), DOUBLE().nullable()),
+                                mapData(entry(null, 1d)),
+                                NullPointerException.class),
+                CastTestSpecBuilder.testCastTo(MAP(STRING().notNull(), STRING().notNull()))
+                        .fail(
+                                MAP(INT().nullable(), DOUBLE().nullable()),
+                                mapData(entry(123, null)),
+                                NullPointerException.class),
+                CastTestSpecBuilder.testCastTo(MULTISET(DOUBLE().notNull()))
+                        .fromCase(
+                                MULTISET(INT().nullable()),
+                                mapData(entry(1, 1)),
+                                mapData(entry(1d, 1))),
+                CastTestSpecBuilder.testCastTo(MULTISET(STRING().notNull()))
+                        .fromCase(
+                                MULTISET(INT().nullable()),
+                                mapData(entry(1, 1)),
+                                mapData(entry(fromString("1"), 1))),
+                CastTestSpecBuilder.testCastTo(MULTISET(FLOAT().nullable()))
+                        .fromCase(
+                                MULTISET(INT().nullable()),
+                                mapData(entry(null, 1)),
+                                mapData(entry(null, 1))),
+                CastTestSpecBuilder.testCastTo(MULTISET(STRING().notNull()))
+                        .fail(
+                                MULTISET(INT().nullable()),
+                                mapData(entry(null, 1)),
+                                NullPointerException.class),
                 CastTestSpecBuilder.testCastTo(
                                 ROW(BIGINT().notNull(), BIGINT(), STRING(), ARRAY(STRING())))
                         .fromCase(
@@ -1127,6 +1224,15 @@ class CastRulesTest {
                                                     fromString("b"),
                                                     fromString("c")
                                                 }))),
+                CastTestSpecBuilder.testCastTo(
+                                ROW(MAP(BIGINT().notNull(), STRING()), MULTISET(STRING())))
+                        .fromCase(
+                                ROW(MAP(INT().notNull(), INT()), MULTISET(TIMESTAMP())),
+                                GenericRowData.of(
+                                        mapData(entry(1, 2)), mapData(entry(TIMESTAMP, 1))),
+                                GenericRowData.of(
+                                        mapData(entry(1L, fromString("2"))),
+                                        mapData(entry(TIMESTAMP_STRING, 1)))),
                 CastTestSpecBuilder.testCastTo(MY_STRUCTURED_TYPE)
                         .fromCase(
                                 ROW(INT().notNull(), INT(), TIME(5), ARRAY(TIMESTAMP())),
@@ -1177,6 +1283,28 @@ class CastRulesTest {
         public Long b;
         public String c;
         public String[] d;
+
+        public MyStructuredType(long a, Long b, String c, String[] d) {
+            this.a = a;
+            this.b = b;
+            this.c = c;
+            this.d = d;
+        }
+
+        @Override
+        public String toString() {
+            return "My fancy string representation{"
+                    + "a="
+                    + a
+                    + ", b="
+                    + b
+                    + ", c='"
+                    + c
+                    + '\''
+                    + ", d="
+                    + Arrays.toString(d)
+                    + '}';
+        }
     }
 
     @SuppressWarnings({"rawtypes"})

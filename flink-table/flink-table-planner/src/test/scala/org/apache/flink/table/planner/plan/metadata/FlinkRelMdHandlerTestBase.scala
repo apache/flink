@@ -799,8 +799,7 @@ class FlinkRelMdHandlerTestBase {
       streamPhysicalTraits,
       streamExchange,
       key,
-      table.tableIdentifier,
-      table.catalogTable)
+      table.contextResolvedTable)
   }
 
   protected lazy val streamDropUpdateBefore = {

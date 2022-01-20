@@ -27,7 +27,7 @@ under the License.
 
 # Microsoft Azure Table Storage format
 
-This example is using the `HadoopInputFormat` wrapper to use an existing Hadoop input format implementation for accessing [Azure's Table Storage](https://azure.microsoft.com/en-us/documentation/articles/storage-introduction/).
+This example is using the `HadoopInputFormat` wrapper to use an existing Hadoop input format implementation for accessing [Azure's Table Storage](https://docs.microsoft.com/en-us/azure/storage/tables/table-storage-overview).
 
 1. Download and compile the `azure-tables-hadoop` project. The input format developed by the project is not yet available in Maven Central, therefore, we have to build the project ourselves.
    Execute the following commands:

@@ -25,7 +25,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.IOException;
@@ -53,8 +52,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 @NotThreadSafe
 public class PartitionSortedBuffer implements SortBuffer {
 
-    private final Object lock;
-
     /**
      * Size of an index entry: 4 bytes for record length, 4 bytes for data type and 8 bytes for
      * pointer to next entry.
@@ -65,7 +62,6 @@ public class PartitionSortedBuffer implements SortBuffer {
     private final BufferPool bufferPool;
 
     /** A segment list as a joint buffer which stores all records and index entries. */
-    @GuardedBy("lock")
     private final ArrayList<MemorySegment> segments = new ArrayList<>();
 
     /** Addresses of the first record's index entry for each subpartition. */
@@ -97,7 +93,6 @@ public class PartitionSortedBuffer implements SortBuffer {
     private boolean isFinished;
 
     /** Whether this sort buffer is released. A released sort buffer can not be used. */
-    @GuardedBy("lock")
     private boolean isReleased;
 
     // ---------------------------------------------------------------------------------------------
@@ -127,7 +122,6 @@ public class PartitionSortedBuffer implements SortBuffer {
     private int readOrderIndex = -1;
 
     public PartitionSortedBuffer(
-            Object lock,
             BufferPool bufferPool,
             int numSubpartitions,
             int bufferSize,
@@ -136,7 +130,6 @@ public class PartitionSortedBuffer implements SortBuffer {
         checkArgument(bufferSize > INDEX_ENTRY_SIZE, "Buffer size is too small.");
         checkArgument(numGuaranteedBuffers > 0, "No guaranteed buffers for sort.");
 
-        this.lock = checkNotNull(lock);
         this.bufferPool = checkNotNull(bufferPool);
         this.bufferSize = bufferSize;
         this.numGuaranteedBuffers = numGuaranteedBuffers;
@@ -250,19 +243,17 @@ public class PartitionSortedBuffer implements SortBuffer {
     }
 
     private void addBuffer(MemorySegment segment) {
-        synchronized (lock) {
-            if (segment.size() != bufferSize) {
-                bufferPool.recycle(segment);
-                throw new IllegalStateException("Illegal memory segment size.");
-            }
-
-            if (isReleased) {
-                bufferPool.recycle(segment);
-                throw new IllegalStateException("Sort buffer is already released.");
-            }
-
-            segments.add(segment);
+        if (segment.size() != bufferSize) {
+            bufferPool.recycle(segment);
+            throw new IllegalStateException("Illegal memory segment size.");
         }
+
+        if (isReleased) {
+            bufferPool.recycle(segment);
+            throw new IllegalStateException("Sort buffer is already released.");
+        }
+
+        segments.add(segment);
     }
 
     private MemorySegment requestBufferFromPool() throws IOException {
@@ -436,27 +427,23 @@ public class PartitionSortedBuffer implements SortBuffer {
     @Override
     public void release() {
         // the sort buffer can be released by other threads
-        synchronized (lock) {
-            if (isReleased) {
-                return;
-            }
-
-            isReleased = true;
-
-            for (MemorySegment segment : segments) {
-                bufferPool.recycle(segment);
-            }
-            segments.clear();
-
-            numTotalBytes = 0;
-            numTotalRecords = 0;
+        if (isReleased) {
+            return;
         }
+
+        isReleased = true;
+
+        for (MemorySegment segment : segments) {
+            bufferPool.recycle(segment);
+        }
+        segments.clear();
+
+        numTotalBytes = 0;
+        numTotalRecords = 0;
     }
 
     @Override
     public boolean isReleased() {
-        synchronized (lock) {
-            return isReleased;
-        }
+        return isReleased;
     }
 }

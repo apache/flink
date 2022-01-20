@@ -78,6 +78,7 @@ public class TimeUtilsTest {
 
     @Test
     public void testParseDurationMinutes() {
+        assertEquals(7657623, TimeUtils.parseDuration("7657623m").toMinutes());
         assertEquals(7657623, TimeUtils.parseDuration("7657623min").toMinutes());
         assertEquals(7657623, TimeUtils.parseDuration("7657623minute").toMinutes());
         assertEquals(7657623, TimeUtils.parseDuration("7657623minutes").toMinutes());

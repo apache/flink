@@ -22,6 +22,9 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
@@ -36,6 +39,9 @@ import java.util.Set;
  */
 public class PreviousAllocationSlotSelectionStrategy implements SlotSelectionStrategy {
 
+    private static final Logger LOG =
+            LoggerFactory.getLogger(PreviousAllocationSlotSelectionStrategy.class);
+
     private final SlotSelectionStrategy fallbackSlotSelectionStrategy;
 
     private PreviousAllocationSlotSelectionStrategy(
@@ -47,6 +53,8 @@ public class PreviousAllocationSlotSelectionStrategy implements SlotSelectionStr
     public Optional<SlotInfoAndLocality> selectBestSlotForProfile(
             @Nonnull Collection<SlotInfoAndResources> availableSlots,
             @Nonnull SlotProfile slotProfile) {
+
+        LOG.debug("Select best slot for profile {}.", slotProfile);
 
         Collection<AllocationID> priorAllocations = slotProfile.getPreferredAllocations();
 

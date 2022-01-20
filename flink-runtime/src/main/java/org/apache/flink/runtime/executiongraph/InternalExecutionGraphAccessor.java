@@ -27,6 +27,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionGroupReleaseStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.types.Either;
@@ -106,4 +107,8 @@ public interface InternalExecutionGraphAccessor {
     IntermediateResultPartition getResultPartitionOrThrow(final IntermediateResultPartitionID id);
 
     void deleteBlobs(List<PermanentBlobKey> blobKeys);
+
+    ExecutionJobVertex getJobVertex(JobVertexID id);
+
+    boolean isDynamic();
 }

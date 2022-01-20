@@ -23,11 +23,14 @@ import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
+import org.apache.flink.runtime.state.CheckpointStateToolset;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
@@ -50,7 +53,9 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -223,13 +228,36 @@ public class UnalignedCheckpointFailureHandlingITCase {
         @Override
         public CheckpointStreamFactory resolveCheckpointStorageLocation(
                 long checkpointId, CheckpointStorageLocationReference reference) {
-            return ign -> new FailingOnceFsCheckpointOutputStream(path, 100, 0, failOnClose);
+            return new CheckpointStreamFactory() {
+                @Override
+                public CheckpointStateOutputStream createCheckpointStateOutputStream(
+                        CheckpointedStateScope scope) throws IOException {
+                    return new FailingOnceFsCheckpointOutputStream(path, 100, 0, failOnClose);
+                }
+
+                @Override
+                public boolean canFastDuplicate(
+                        StreamStateHandle stateHandle, CheckpointedStateScope scope) {
+                    return false;
+                }
+
+                @Override
+                public List<StreamStateHandle> duplicate(
+                        List<StreamStateHandle> stateHandles, CheckpointedStateScope scope)
+                        throws IOException {
+                    throw new UnsupportedEncodingException();
+                }
+            };
         }
 
         @Override
-        public CheckpointStreamFactory.CheckpointStateOutputStream createTaskOwnedStateStream()
-                throws IOException {
+        public CheckpointStateOutputStream createTaskOwnedStateStream() throws IOException {
             return delegate.createTaskOwnedStateStream();
+        }
+
+        @Override
+        public CheckpointStateToolset createTaskOwnedCheckpointStateToolset() {
+            return delegate.createTaskOwnedCheckpointStateToolset();
         }
 
         @Override

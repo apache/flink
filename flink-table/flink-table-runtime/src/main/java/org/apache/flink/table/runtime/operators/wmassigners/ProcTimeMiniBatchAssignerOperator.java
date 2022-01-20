@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.wmassigners;
 
+import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -25,7 +26,6 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.table.data.RowData;
 
 /**
@@ -41,7 +41,8 @@ import org.apache.flink.table.data.RowData;
  * watermarks from upstream.
  */
 public class ProcTimeMiniBatchAssignerOperator extends AbstractStreamOperator<RowData>
-        implements OneInputStreamOperator<RowData, RowData>, ProcessingTimeCallback {
+        implements OneInputStreamOperator<RowData, RowData>,
+                ProcessingTimeService.ProcessingTimeCallback {
 
     private static final long serialVersionUID = 1L;
 

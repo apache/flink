@@ -34,9 +34,10 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
 import org.apache.flink.types.RowKind
+
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.table.catalog.ManagedTableListener
+import org.apache.flink.table.catalog.{ManagedTableListener, ResolvedCatalogBaseTable}
 
 import scala.collection.JavaConversions._
 
@@ -122,7 +123,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         requiredTrait: ModifyKindSetTrait,
         requester: String): StreamPhysicalRel = rel match {
       case sink: StreamPhysicalSink =>
-        val name = s"Table sink '${sink.tableIdentifier.asSummaryString()}'"
+        val name = s"Table sink '${sink.contextResolvedTable.getIdentifier.asSummaryString()}'"
         val queryModifyKindSet = deriveQueryDefaultChangelogMode(sink.getInput, name)
         val sinkRequiredTrait = ModifyKindSetTrait.fromChangelogMode(
           sink.tableSink.getChangelogMode(queryModifyKindSet))
@@ -627,19 +628,22 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         }
 
       case normalize: StreamPhysicalChangelogNormalize =>
-        val tableIdentifier = normalize.tableIdentifier
-        if (tableIdentifier != null && requiredTrait == UpdateKindTrait.ONLY_UPDATE_AFTER) {
+        val contextResolvedTable = normalize.contextResolvedTable
+        val tableIdentifier = contextResolvedTable.getIdentifier
+        if (!contextResolvedTable.isAnonymous
+          && requiredTrait == UpdateKindTrait.ONLY_UPDATE_AFTER) {
           val catalogName = tableIdentifier.getCatalogName
           val catalog = context.getCatalogManager.getCatalog(catalogName).orElse(null)
-          val catalogTable = normalize.table
+          val catalogTable = contextResolvedTable.getResolvedTable[ResolvedCatalogBaseTable[_]]
           if (ManagedTableListener.isManagedTable(catalog, catalogTable)) {
             // if requiredTrait is ONLY_UPDATE_AFTER and table is ManagedTable,
             // we can eliminate current normalize stage,
             // cuz ManagedTable has preserved complete delete messages.
-            val input = if(normalize.getInput.isInstanceOf[StreamPhysicalExchange]) {
-              normalize.getInput.asInstanceOf[StreamPhysicalExchange].getInput
-            } else {
-              normalize.getInput
+            val input = normalize.getInput match {
+              case exchange: StreamPhysicalExchange =>
+                exchange.getInput
+              case _ =>
+                normalize.getInput
             }
             val inputPhysicalRel = input.asInstanceOf[StreamPhysicalRel]
             return this.visit(inputPhysicalRel, UpdateKindTrait.ONLY_UPDATE_AFTER)
@@ -789,7 +793,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         // if sink's pk(s) are not exactly match input changeLogUpsertKeys then it will fallback
         // to beforeAndAfter mode for the correctness
         var requireBeforeAndAfter: Boolean = false
-        val sinkDefinedPks = sink.catalogTable.getResolvedSchema.getPrimaryKeyIndexes
+        val sinkDefinedPks = sink.contextResolvedTable.getResolvedSchema.getPrimaryKeyIndexes
 
         if (sinkDefinedPks.nonEmpty) {
           val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
@@ -827,8 +831,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           .getTableConfig
       val inputChangelogMode = ChangelogPlanUtils.getChangelogMode(
         sink.getInput.asInstanceOf[StreamPhysicalRel]).get
-      val catalogTable = sink.catalogTable
-      val primaryKeys = catalogTable.getResolvedSchema.getPrimaryKeyIndexes
+      val primaryKeys = sink.contextResolvedTable.getResolvedSchema.getPrimaryKeyIndexes
       val upsertMaterialize = tableConfig.getConfiguration.get(
         ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE) match {
         case UpsertMaterialize.FORCE => primaryKeys.nonEmpty

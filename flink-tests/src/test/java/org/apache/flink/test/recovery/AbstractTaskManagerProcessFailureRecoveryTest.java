@@ -24,6 +24,7 @@ import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.plugin.PluginManager;
@@ -105,6 +106,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
+        config.set(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 16);
         config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
         config.set(TaskManagerOptions.CPU_CORES, 1.0);
         config.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
@@ -263,7 +265,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
     public abstract void testTaskManagerFailure(Configuration configuration, File coordinateDir)
             throws Exception;
 
-    protected static void printProcessLog(String processName, TestProcess process) {
+    static void printProcessLog(String processName, TestProcess process) {
         if (process == null) {
             System.out.println("-----------------------------------------");
             System.out.println(" PROCESS " + processName + " WAS NOT STARTED.");

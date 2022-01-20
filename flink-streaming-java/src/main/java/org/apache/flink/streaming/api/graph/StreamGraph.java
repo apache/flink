@@ -32,6 +32,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -128,6 +129,8 @@ public class StreamGraph implements Pipeline {
     private InternalTimeServiceManager.Provider timerServiceProvider;
     private JobType jobType = JobType.STREAMING;
     private Map<String, ResourceProfile> slotSharingGroupResources;
+    private PipelineOptions.VertexDescriptionMode descriptionMode =
+            PipelineOptions.VertexDescriptionMode.TREE;
 
     public StreamGraph(
             ExecutionConfig executionConfig,
@@ -980,5 +983,13 @@ public class StreamGraph implements Pipeline {
 
     public JobType getJobType() {
         return jobType;
+    }
+
+    public PipelineOptions.VertexDescriptionMode getVertexDescriptionMode() {
+        return descriptionMode;
+    }
+
+    public void setVertexDescriptionMode(PipelineOptions.VertexDescriptionMode mode) {
+        this.descriptionMode = mode;
     }
 }

@@ -37,7 +37,7 @@ Flink [DataStream API]({{< ref "docs/dev/datastream/execution_mode" >}}) 和 [Ta
 
 ## Hash Shuffle
 
-`Hash Shuffle` 是 blocking shuffle 的默认实现，它为每个下游任务将每个上游任务的结果以单独文件的方式保存在 TaskManager 本地磁盘上。当下游任务运行时会向上游的 TaskManager 请求分片，TaskManager 读取文件之后通过网络传输（给下游任务）。
+对于 1.14 以及更低的版本，`Hash Shuffle` 是 blocking shuffle 的默认实现，它为每个下游任务将每个上游任务的结果以单独文件的方式保存在 TaskManager 本地磁盘上。当下游任务运行时会向上游的 TaskManager 请求分片，TaskManager 读取文件之后通过网络传输（给下游任务）。
 
 `Hash Shuffle` 为读写文件提供了不同的机制:
 
@@ -68,11 +68,11 @@ Flink [DataStream API]({{< ref "docs/dev/datastream/execution_mode" >}}) 和 [Ta
 
 ## Sort Shuffle
 
-`Sort Shuffle` 是 1.13 版中引入的另一种 blocking shuffle 实现。不同于 `Hash Shuffle`，sort shuffle 将每个分区结果写入到一个文件。当多个下游任务同时读取结果分片，数据文件只会被打开一次并共享给所有的读请求。因此，集群使用更少的资源。例如：节点和文件描述符以提升稳定性。此外，通过写更少的文件和尽可能线性的读取文件，尤其是在使用机械硬盘情况下 sort shuffle 可以获得比 hash shuffle 更好的性能。另外，`sort shuffle` 使用额外管理的内存作为读数据缓存并不依赖 `sendfile` 或 `mmap` 机制，因此也适用于 [SSL]({{< ref "docs/deployment/security/security-ssl" >}})。关于 sort shuffle 的更多细节请参考 [FLINK-19582](https://issues.apache.org/jira/browse/FLINK-19582) 和 [FLINK-19614](https://issues.apache.org/jira/browse/FLINK-19614)。
+`Sort Shuffle` 是 1.13 版中引入的另一种 blocking shuffle 实现，它在 1.15 版本成为默认。不同于 `Hash Shuffle`，sort shuffle 将每个分区结果写入到一个文件。当多个下游任务同时读取结果分片，数据文件只会被打开一次并共享给所有的读请求。因此，集群使用更少的资源。例如：节点和文件描述符以提升稳定性。此外，通过写更少的文件和尽可能线性的读取文件，尤其是在使用机械硬盘情况下 sort shuffle 可以获得比 hash shuffle 更好的性能。另外，`sort shuffle` 使用额外管理的内存作为读数据缓存并不依赖 `sendfile` 或 `mmap` 机制，因此也适用于 [SSL]({{< ref "docs/deployment/security/security-ssl" >}})。关于 sort shuffle 的更多细节请参考 [FLINK-19582](https://issues.apache.org/jira/browse/FLINK-19582) 和 [FLINK-19614](https://issues.apache.org/jira/browse/FLINK-19614)。
 
 当使用sort blocking shuffle的时候有些配置需要适配:
-- [taskmanager.network.blocking-shuffle.compression.enabled]({{< ref "docs/deployment/config" >}}#taskmanager-network-blocking-shuffle-compression-enabled): 配置该选项以启用 shuffle data 压缩，大部分任务建议开启除非你的数据压缩比率比较低。
-- [taskmanager.network.sort-shuffle.min-parallelism]({{< ref "docs/deployment/config" >}}#taskmanager-network-sort-shuffle-min-parallelism): 根据下游任务的并行度配置该选项以启用 sort shuffle。如果并行度低于设置的值，则使用 `hash shuffle`，否则 `sort shuffle`。
+- [taskmanager.network.blocking-shuffle.compression.enabled]({{< ref "docs/deployment/config" >}}#taskmanager-network-blocking-shuffle-compression-enabled): 配置该选项以启用 shuffle data 压缩，大部分任务建议开启除非你的数据压缩比率比较低。对于 1.14 以及更低的版本默认为 false，1.15 版本起默认为 true。
+- [taskmanager.network.sort-shuffle.min-parallelism]({{< ref "docs/deployment/config" >}}#taskmanager-network-sort-shuffle-min-parallelism): 根据下游任务的并行度配置该选项以启用 sort shuffle。如果并行度低于设置的值，则使用 `hash shuffle`，否则 `sort shuffle`。对于 1.15 以下的版本，它的默认值是 `Integer.MAX_VALUE`，所以默认情况下总是会使用 `hash shuffle`。从 1.15 开始，它的默认值是 1, 所以默认情况下总是会使用 `sort shuffle`。
 - [taskmanager.network.sort-shuffle.min-buffers]({{< ref "docs/deployment/config" >}}#taskmanager-network-sort-shuffle-min-buffers): 配置该选项以控制数据写缓存大小。对于大规模的任务而言，你可能需要调大这个值，正常几百兆内存就足够了。
 - [taskmanager.memory.framework.off-heap.batch-shuffle.size]({{< ref "docs/deployment/config" >}}#taskmanager-memory-framework-off-heap-batch-shuffle-size): 配置该选项以控制数据读取缓存大小。对于大规模的任务而言，你可能需要调大这个值，正常几百兆内存就足够了。
 

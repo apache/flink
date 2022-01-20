@@ -20,6 +20,7 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import java.io.EOFException;
@@ -207,19 +208,7 @@ public abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 
     @Override
     public String toString() {
-        final String typeString;
-        switch (this.type) {
-            case TRANSIENT_BLOB:
-                typeString = "t-";
-                break;
-            case PERMANENT_BLOB:
-                typeString = "p-";
-                break;
-            default:
-                // this actually never happens!
-                throw new IllegalStateException("Invalid BLOB type");
-        }
-        return typeString + StringUtils.byteToHexString(this.key) + "-" + random.toString();
+        return toString(this);
     }
 
     @Override
@@ -313,5 +302,52 @@ public abstract class BlobKey implements Serializable, Comparable<BlobKey> {
         outputStream.write(this.key);
         outputStream.write(this.type.ordinal());
         outputStream.write(this.random.getBytes());
+    }
+
+    static BlobKey fromString(String stringRepresentation) {
+        final String[] splits = stringRepresentation.split("-");
+
+        Preconditions.checkState(
+                splits.length == 3, "Blobs have to follow the format format (t|p)-key-random");
+
+        final BlobType blobType;
+
+        final char blobTypeCharacter = splits[0].charAt(0);
+        switch (blobTypeCharacter) {
+            case 't':
+                blobType = TRANSIENT_BLOB;
+                break;
+            case 'p':
+                blobType = PERMANENT_BLOB;
+                break;
+            default:
+                throw new IllegalStateException(
+                        String.format("Unknown blob type %s.", blobTypeCharacter));
+        }
+
+        final byte[] key = StringUtils.hexStringToByte(splits[1]);
+
+        final byte[] random = StringUtils.hexStringToByte(splits[2]);
+
+        return createKey(blobType, key, random);
+    }
+
+    private static String toString(BlobKey blobKey) {
+        final String typeString;
+        switch (blobKey.type) {
+            case TRANSIENT_BLOB:
+                typeString = "t-";
+                break;
+            case PERMANENT_BLOB:
+                typeString = "p-";
+                break;
+            default:
+                // this actually never happens!
+                throw new IllegalStateException("Invalid BLOB type");
+        }
+        return typeString
+                + StringUtils.byteToHexString(blobKey.key)
+                + "-"
+                + blobKey.random.toString();
     }
 }

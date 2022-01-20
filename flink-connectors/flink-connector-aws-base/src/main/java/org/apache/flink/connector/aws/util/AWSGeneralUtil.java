@@ -43,6 +43,7 @@ import software.amazon.awssdk.utils.AttributeMap;
 
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -85,6 +86,20 @@ public class AWSGeneralUtil {
         } else {
             return CredentialProvider.valueOf(configProps.getProperty(configPrefix));
         }
+    }
+
+    /**
+     * Return a {@link AwsCredentialsProvider} instance corresponding to the configuration
+     * properties.
+     *
+     * @param configProps the configuration property map
+     * @return The corresponding AWS Credentials Provider instance
+     */
+    public static AwsCredentialsProvider getCredentialsProvider(final Map<String, ?> configProps) {
+        Properties properties = new Properties();
+        properties.putAll(configProps);
+
+        return getCredentialsProvider(properties);
     }
 
     /**

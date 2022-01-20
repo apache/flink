@@ -34,8 +34,10 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WindowGroupedTable;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -45,10 +47,10 @@ import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.resolver.LookupCallResolver;
 import org.apache.flink.table.functions.TemporalTableFunction;
 import org.apache.flink.table.functions.TemporalTableFunctionImpl;
-import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils.CategorizedExpressions;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
@@ -563,16 +565,10 @@ public class TableImpl implements Table {
                 tableEnvironment.getParser().parseIdentifier(tablePath);
         ObjectIdentifier objectIdentifier =
                 tableEnvironment.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
+        ContextResolvedTable contextResolvedTable =
+                tableEnvironment.getCatalogManager().getTableOrError(objectIdentifier);
 
-        ModifyOperation operation =
-                new CatalogSinkModifyOperation(
-                        objectIdentifier,
-                        getQueryOperation(),
-                        Collections.emptyMap(),
-                        overwrite,
-                        Collections.emptyMap());
-
-        return tableEnvironment.executeInternal(Collections.singletonList(operation));
+        return executeInsert(contextResolvedTable, overwrite);
     }
 
     @Override
@@ -582,8 +578,6 @@ public class TableImpl implements Table {
 
     @Override
     public TableResult executeInsert(TableDescriptor descriptor, boolean overwrite) {
-        final String path = TableDescriptorUtil.getUniqueAnonymousPath();
-
         final SchemaTranslator.ConsumingResult schemaTranslationResult =
                 SchemaTranslator.createConsumingResult(
                         tableEnvironment.getCatalogManager().getDataTypeFactory(),
@@ -593,8 +587,25 @@ public class TableImpl implements Table {
         final TableDescriptor updatedDescriptor =
                 descriptor.toBuilder().schema(schemaTranslationResult.getSchema()).build();
 
-        tableEnvironment.createTemporaryTable(path, updatedDescriptor);
-        return executeInsert(path, overwrite);
+        final ResolvedCatalogTable resolvedCatalogBaseTable =
+                tableEnvironment
+                        .getCatalogManager()
+                        .resolveCatalogTable(updatedDescriptor.toCatalogTable());
+
+        return executeInsert(ContextResolvedTable.anonymous(resolvedCatalogBaseTable), overwrite);
+    }
+
+    private TableResultInternal executeInsert(
+            ContextResolvedTable contextResolvedTable, boolean overwrite) {
+        ModifyOperation operation =
+                new SinkModifyOperation(
+                        contextResolvedTable,
+                        getQueryOperation(),
+                        Collections.emptyMap(),
+                        overwrite,
+                        Collections.emptyMap());
+
+        return tableEnvironment.executeInternal(Collections.singletonList(operation));
     }
 
     @Override

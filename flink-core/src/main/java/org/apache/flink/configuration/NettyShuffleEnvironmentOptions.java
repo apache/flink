@@ -76,7 +76,8 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Boolean> BLOCKING_SHUFFLE_COMPRESSION_ENABLED =
             key("taskmanager.network.blocking-shuffle.compression.enabled")
-                    .defaultValue(false)
+                    .booleanType()
+                    .defaultValue(true)
                     .withDescription(
                             "Boolean flag indicating whether the shuffle data will be compressed "
                                     + "for blocking shuffle mode. Note that data is compressed per "
@@ -152,6 +153,15 @@ public class NettyShuffleEnvironmentOptions {
                     .defaultValue("1gb")
                     .withDescription("Maximum memory size for network buffers.");
 
+    /** The maximum number of tpc connections between taskmanagers for data communication. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> MAX_NUM_TCP_CONNECTIONS =
+            key("taskmanager.network.max-num-tcp-connections")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            "The maximum number of tpc connections between taskmanagers for data communication.");
+
     /**
      * Number of network buffers to use for each outgoing/incoming channel (subpartition/input
      * channel). The minimum valid value that can be configured is 0. When 0 buffers-per-channel is
@@ -196,15 +206,17 @@ public class NettyShuffleEnvironmentOptions {
                                     + " help relieve back-pressure caused by unbalanced data distribution among the subpartitions. This value should be"
                                     + " increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.");
 
-    /** Minimum number of network buffers required per sort-merge blocking result partition. */
+    /**
+     * Minimum number of network buffers required per blocking result partition for sort-shuffle.
+     */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NETWORK_SORT_SHUFFLE_MIN_BUFFERS =
             key("taskmanager.network.sort-shuffle.min-buffers")
                     .intType()
-                    .defaultValue(64)
+                    .defaultValue(512)
                     .withDescription(
-                            "Minimum number of network buffers required per sort-merge blocking "
-                                    + "result partition. For production usage, it is suggested to "
+                            "Minimum number of network buffers required per blocking result partition"
+                                    + " for sort-shuffle. For production usage, it is suggested to "
                                     + "increase this config value to at least 2048 (64M memory if "
                                     + "the default 32K memory segment size is used) to improve the "
                                     + "data compression ratio and reduce the small network packets."
@@ -215,26 +227,24 @@ public class NettyShuffleEnvironmentOptions {
                                     + " config value.");
 
     /**
-     * Parallelism threshold to switch between sort-merge based blocking shuffle and the default
-     * hash-based blocking shuffle.
+     * Parallelism threshold to switch between sort-based blocking shuffle and hash-based blocking
+     * shuffle.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NETWORK_SORT_SHUFFLE_MIN_PARALLELISM =
             key("taskmanager.network.sort-shuffle.min-parallelism")
                     .intType()
-                    .defaultValue(Integer.MAX_VALUE)
+                    .defaultValue(1)
                     .withDescription(
                             String.format(
-                                    "Parallelism threshold to switch between sort-merge blocking "
-                                            + "shuffle and the default hash-based blocking shuffle,"
-                                            + " which means for batch jobs of small parallelism, "
-                                            + "the hash-based blocking shuffle will be used and for"
-                                            + " batch jobs of large parallelism, the sort-merge one"
-                                            + " will be used. Note: For production usage, if sort-"
-                                            + "merge blocking shuffle is enabled, you may also need"
-                                            + " to enable data compression by setting '%s' to true "
-                                            + "and tune '%s' and '%s' for better performance.",
-                                    BLOCKING_SHUFFLE_COMPRESSION_ENABLED.key(),
+                                    "Parallelism threshold to switch between sort-based blocking "
+                                            + "shuffle and hash-based blocking shuffle, which means"
+                                            + " for batch jobs of smaller parallelism, hash-shuffle"
+                                            + " will be used and for batch jobs of larger or equal "
+                                            + "parallelism, sort-shuffle will be used. The value 1 "
+                                            + "means that sort-shuffle is the default option. Note:"
+                                            + " For production usage, you may also need to tune "
+                                            + "'%s' and '%s' for better performance.",
                                     NETWORK_SORT_SHUFFLE_MIN_BUFFERS.key(),
                                     // raw string key is used here to avoid interdependence, a test
                                     // is implemented to guard that when the target key is modified,

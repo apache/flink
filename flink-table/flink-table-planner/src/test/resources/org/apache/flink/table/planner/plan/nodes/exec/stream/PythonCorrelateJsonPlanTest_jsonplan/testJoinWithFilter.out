@@ -30,32 +30,19 @@
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 3,
-      "type" : {
-        "typeName" : "TIMESTAMP",
-        "nullable" : true,
-        "precision" : 3
-      }
+      "type" : "TIMESTAMP(3)"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -66,22 +53,13 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 0,
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : true
-        }
+        "type" : "INT"
       }, {
         "kind" : "INPUT_REF",
         "inputIndex" : 0,
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : true
-        }
+        "type" : "INT"
       } ],
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     } ],
     "condition" : null,
     "id" : 2,
@@ -107,10 +85,7 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 4,
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : true
-        }
+        "type" : "INT"
       }, {
         "kind" : "REX_CALL",
         "operator" : {
@@ -124,36 +99,15 @@
         "operands" : [ {
           "kind" : "INPUT_REF",
           "inputIndex" : 0,
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : true
-          }
+          "type" : "INT"
         }, {
           "kind" : "INPUT_REF",
           "inputIndex" : 1,
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : true
-          }
+          "type" : "INT"
         } ],
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : false
-        }
+        "type" : "INT NOT NULL"
       } ],
-      "type" : {
-        "structKind" : "FULLY_QUALIFIED",
-        "nullable" : false,
-        "fields" : [ {
-          "typeName" : "INTEGER",
-          "nullable" : true,
-          "fieldName" : "f0"
-        }, {
-          "typeName" : "INTEGER",
-          "nullable" : true,
-          "fieldName" : "f1"
-        } ]
-      }
+      "type" : "ROW<`f0` INT, `f1` INT> NOT NULL"
     },
     "id" : 3,
     "inputProperties" : [ {
@@ -170,17 +124,11 @@
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 5,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 6,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     } ],
     "condition" : {
       "kind" : "REX_CALL",
@@ -206,22 +154,13 @@
           "operands" : [ {
             "kind" : "INPUT_REF",
             "inputIndex" : 6,
-            "type" : {
-              "typeName" : "INTEGER",
-              "nullable" : true
-            }
+            "type" : "INT"
           }, {
             "kind" : "LITERAL",
             "value" : "1",
-            "type" : {
-              "typeName" : "INTEGER",
-              "nullable" : false
-            }
+            "type" : "INT NOT NULL"
           } ],
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : true
-          }
+          "type" : "INT"
         }, {
           "kind" : "REX_CALL",
           "operator" : {
@@ -232,27 +171,15 @@
           "operands" : [ {
             "kind" : "INPUT_REF",
             "inputIndex" : 6,
-            "type" : {
-              "typeName" : "INTEGER",
-              "nullable" : true
-            }
+            "type" : "INT"
           }, {
             "kind" : "INPUT_REF",
             "inputIndex" : 6,
-            "type" : {
-              "typeName" : "INTEGER",
-              "nullable" : true
-            }
+            "type" : "INT"
           } ],
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : true
-          }
+          "type" : "INT"
         } ],
-        "type" : {
-          "typeName" : "BOOLEAN",
-          "nullable" : true
-        }
+        "type" : "BOOLEAN"
       }, {
         "kind" : "REX_CALL",
         "operator" : {
@@ -263,27 +190,15 @@
         "operands" : [ {
           "kind" : "INPUT_REF",
           "inputIndex" : 5,
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : true
-          }
+          "type" : "INT"
         }, {
           "kind" : "INPUT_REF",
           "inputIndex" : 0,
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : true
-          }
+          "type" : "INT"
         } ],
-        "type" : {
-          "typeName" : "BOOLEAN",
-          "nullable" : true
-        }
+        "type" : "BOOLEAN"
       } ],
-      "type" : {
-        "typeName" : "BOOLEAN",
-        "nullable" : true
-      }
+      "type" : "BOOLEAN"
     },
     "id" : 4,
     "inputProperties" : [ {

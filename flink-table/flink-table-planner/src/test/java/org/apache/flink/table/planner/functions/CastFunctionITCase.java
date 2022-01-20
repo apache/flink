@@ -40,10 +40,13 @@ import java.time.LocalTime;
 import java.time.Period;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -58,6 +61,7 @@ import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
+import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.MONTH;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.SECOND;
@@ -157,11 +161,11 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(STRING(), "Apache Flink", "Apache Flink")
                         .fromCase(STRING(), null, null)
                         .fromCase(BOOLEAN(), true, "TRUE")
-                        .fromCase(BINARY(2), DEFAULT_BINARY, "\u0000\u0001")
-                        .fromCase(BINARY(3), DEFAULT_BINARY, "\u0000\u0001\u0000")
-                        .fromCase(VARBINARY(3), DEFAULT_VARBINARY, "\u0000\u0001\u0002")
-                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, "\u0000\u0001\u0002")
-                        .fromCase(BYTES(), DEFAULT_BYTES, "\u0000\u0001\u0002\u0003\u0004")
+                        .fromCase(BINARY(2), DEFAULT_BINARY, "0001")
+                        .fromCase(BINARY(3), DEFAULT_BINARY, "000100")
+                        .fromCase(VARBINARY(3), DEFAULT_VARBINARY, "000102")
+                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, "000102")
+                        .fromCase(BYTES(), DEFAULT_BYTES, "0001020304")
                         .fromCase(DECIMAL(4, 3), 9.87, "9.870")
                         .fromCase(DECIMAL(10, 5), 1, "1.00000")
                         .fromCase(
@@ -298,11 +302,11 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(BINARY(2))
                         .fromCase(BINARY(5), null, null)
-                        .fromCase(CHAR(3), "foo", new byte[] {102, 111})
-                        .fromCase(VARCHAR(5), "Flink", new byte[] {70, 108})
-                        .fromCase(STRING(), "Apache", new byte[] {65, 112})
-                        .fromCase(VARCHAR(5), "f", new byte[] {102, 0})
-                        .fromCase(STRING(), "f", new byte[] {102, 0})
+                        .fromCase(CHAR(4), "666F", new byte[] {102, 111})
+                        .fromCase(VARCHAR(8), "666f", new byte[] {102, 111})
+                        .fromCase(STRING(), "AAbbcCdD", new byte[] {-86, -69})
+                        .fromCase(VARCHAR(4), "FC", new byte[] {-4, 0})
+                        .fromCase(STRING(), "df", new byte[] {-33, 0})
                         // Not supported - no fix
                         .fail(BOOLEAN(), true)
                         //
@@ -336,9 +340,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(VARBINARY(4))
                         .fromCase(VARBINARY(5), null, null)
-                        .fromCase(CHAR(3), "foo", new byte[] {102, 111, 111})
-                        .fromCase(VARCHAR(5), "Flink", new byte[] {70, 108, 105, 110})
-                        .fromCase(STRING(), "Apache", new byte[] {65, 112, 97, 99})
+                        .fromCase(CHAR(4), "666F", new byte[] {102, 111})
+                        .fromCase(VARCHAR(8), "666f", new byte[] {102, 111})
+                        .fromCase(STRING(), "AAbbCcDdEe", new byte[] {-86, -69, -52, -35})
                         // Not supported - no fix
                         .fail(BOOLEAN(), true)
                         //
@@ -370,9 +374,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(BYTES())
                         .fromCase(BYTES(), null, null)
-                        .fromCase(CHAR(3), "foo", new byte[] {102, 111, 111})
-                        .fromCase(VARCHAR(5), "Flink", new byte[] {70, 108, 105, 110, 107})
-                        .fromCase(STRING(), "Apache", new byte[] {65, 112, 97, 99, 104, 101})
+                        .fromCase(CHAR(4), "666f", new byte[] {102, 111})
+                        .fromCase(VARCHAR(8), "666F", new byte[] {102, 111})
+                        .fromCase(STRING(), "aaBBCcDdEe", new byte[] {-86, -69, -52, -35, -18})
                         // Not supported - no fix
                         .fail(BOOLEAN(), true)
                         //
@@ -1142,14 +1146,27 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
     public static List<TestSpec> constructedTypes() {
         return Arrays.asList(
-                // https://issues.apache.org/jira/browse/FLINK-17321
-                // MULTISET
-                // MAP
+                CastTestSpecBuilder.testCastTo(MAP(STRING(), STRING()))
+                        .fromCase(MAP(FLOAT(), DOUBLE()), null, null)
+                        .fromCase(
+                                MAP(INT(), INT()),
+                                Collections.singletonMap(1, 2),
+                                Collections.singletonMap("1", "2"))
+                        .build(),
+                // https://issues.apache.org/jira/browse/FLINK-25567
+                // CastTestSpecBuilder.testCastTo(MULTISET(STRING()))
+                //        .fromCase(MULTISET(TIMESTAMP()), null, null)
+                //        .fromCase(
+                //                MULTISET(INT()),
+                //                map(entry(1, 2), entry(3, 4)),
+                //                map(entry("1", 2), entry("3", 4)))
+                //        .build(),
                 CastTestSpecBuilder.testCastTo(ARRAY(INT()))
                         .fromCase(ARRAY(INT()), null, null)
-                        // https://issues.apache.org/jira/browse/FLINK-17321
-                        // .fromCase(ARRAY(STRING()), new String[] {'1', '2', '3'}, new Integer[]
-                        // {1, 2, 3})
+                        .fromCase(
+                                ARRAY(STRING()),
+                                new String[] {"1", "2", "3"},
+                                new Integer[] {1, 2, 3})
                         // https://issues.apache.org/jira/browse/FLINK-24425 Cast from corresponding
                         // single type
                         // .fromCase(INT(), DEFAULT_POSITIVE_INT, new int[] {DEFAULT_POSITIVE_INT})
@@ -1313,5 +1330,21 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
     private static boolean isTimestampToNumeric(LogicalType srcType, LogicalType trgType) {
         return srcType.is(LogicalTypeFamily.TIMESTAMP) && trgType.is(LogicalTypeFamily.NUMERIC);
+    }
+
+    private static <K, V> Map.Entry<K, V> entry(K k, V v) {
+        return new AbstractMap.SimpleImmutableEntry<>(k, v);
+    }
+
+    @SafeVarargs
+    private static <K, V> Map<K, V> map(Map.Entry<K, V>... entries) {
+        if (entries == null) {
+            return Collections.emptyMap();
+        }
+        Map<K, V> map = new HashMap<>();
+        for (Map.Entry<K, V> entry : entries) {
+            map.put(entry.getKey(), entry.getValue());
+        }
+        return map;
     }
 }

@@ -18,23 +18,37 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
+import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
+import org.apache.flink.runtime.entrypoint.WorkingDirectory;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.TimeUtils;
 
 import org.junit.After;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
 
 import javax.annotation.Nonnull;
 
+import java.io.File;
 import java.net.InetAddress;
 import java.util.concurrent.CompletableFuture;
 
@@ -42,10 +56,14 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link TaskManagerRunner}. */
 public class TaskManagerRunnerTest extends TestLogger {
+
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
     @Rule public final Timeout timeout = Timeout.seconds(30);
 
@@ -189,6 +207,61 @@ public class TaskManagerRunnerTest extends TestLogger {
                 is(equalTo(TaskManagerRunner.Result.SUCCESS)));
     }
 
+    @Test
+    public void testWorkingDirIsSetupWhenStartingTaskManagerRunner() throws Exception {
+        final File workingDirBase = TEMPORARY_FOLDER.newFolder();
+        final ResourceID taskManagerResourceId = new ResourceID("foobar");
+
+        final Configuration configuration =
+                createConfigurationWithWorkingDirectory(workingDirBase, taskManagerResourceId);
+        final File workingDir =
+                ClusterEntrypointUtils.generateTaskManagerWorkingDirectoryFile(
+                        configuration, taskManagerResourceId);
+        final TaskManagerRunner taskManagerRunner = createTaskManagerRunner(configuration);
+
+        try {
+            assertTrue(workingDir.exists());
+        } finally {
+            taskManagerRunner.close();
+        }
+
+        assertFalse(
+                "The working dir should be cleaned up when stopping the TaskManager process gracefully.",
+                workingDir.exists());
+    }
+
+    @Nonnull
+    private Configuration createConfigurationWithWorkingDirectory(
+            File workingDirBase, ResourceID taskManagerResourceId) {
+        final Configuration configuration = createConfiguration();
+
+        configuration.set(
+                ClusterOptions.PROCESS_WORKING_DIR_BASE, workingDirBase.getAbsolutePath());
+        configuration.set(
+                TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, taskManagerResourceId.toString());
+        return configuration;
+    }
+
+    @Test
+    public void testWorkingDirIsNotDeletedInCaseOfFailure() throws Exception {
+        final File workingDirBase = TEMPORARY_FOLDER.newFolder();
+        final ResourceID resourceId = ResourceID.generate();
+
+        final Configuration configuration =
+                createConfigurationWithWorkingDirectory(workingDirBase, resourceId);
+
+        final TaskManagerRunner taskManagerRunner =
+                createTaskManagerRunner(
+                        configuration, new TestingFailingTaskExecutorServiceFactory());
+
+        taskManagerRunner.getTerminationFuture().join();
+
+        assertTrue(
+                ClusterEntrypointUtils.generateTaskManagerWorkingDirectoryFile(
+                                configuration, resourceId)
+                        .exists());
+    }
+
     @Nonnull
     private TaskManagerRunner.TaskExecutorServiceFactory createTaskExecutorServiceFactory(
             TestingTaskExecutorService taskExecutorService) {
@@ -201,6 +274,7 @@ public class TaskManagerRunnerTest extends TestLogger {
                 blobCacheService,
                 localCommunicationOnly,
                 externalResourceInfoProvider,
+                workingDirectory,
                 fatalErrorHandler) -> taskExecutorService;
     }
 
@@ -226,5 +300,30 @@ public class TaskManagerRunnerTest extends TestLogger {
                 new TaskManagerRunner(configuration, pluginManager, taskExecutorServiceFactory);
         taskManagerRunner.start();
         return taskManagerRunner;
+    }
+
+    private static class TestingFailingTaskExecutorServiceFactory
+            implements TaskManagerRunner.TaskExecutorServiceFactory {
+        @Override
+        public TaskManagerRunner.TaskExecutorService createTaskExecutor(
+                Configuration configuration,
+                ResourceID resourceID,
+                RpcService rpcService,
+                HighAvailabilityServices highAvailabilityServices,
+                HeartbeatServices heartbeatServices,
+                MetricRegistry metricRegistry,
+                BlobCacheService blobCacheService,
+                boolean localCommunicationOnly,
+                ExternalResourceInfoProvider externalResourceInfoProvider,
+                WorkingDirectory workingDirectory,
+                FatalErrorHandler fatalErrorHandler) {
+            return TestingTaskExecutorService.newBuilder()
+                    .setStartRunnable(
+                            () ->
+                                    fatalErrorHandler.onFatalError(
+                                            new FlinkException(
+                                                    "Cannot instantiate the TaskExecutorService.")))
+                    .build();
+        }
     }
 }

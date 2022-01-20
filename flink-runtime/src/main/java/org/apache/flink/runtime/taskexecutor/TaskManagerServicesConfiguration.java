@@ -29,6 +29,7 @@ import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
+import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
@@ -36,6 +37,7 @@ import org.apache.flink.util.NetUtils;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.net.InetAddress;
 import java.util.Optional;
 
@@ -239,6 +241,8 @@ public class TaskManagerServicesConfiguration {
      *     accessible
      * @param localCommunicationOnly True if only local communication is possible. Use only in cases
      *     where only one task manager runs.
+     * @param taskExecutorResourceSpec resource specification of the TaskManager to start
+     * @param workingDirectory working directory of the TaskManager
      * @return configuration of task manager services used to create them
      */
     public static TaskManagerServicesConfiguration fromConfiguration(
@@ -246,13 +250,15 @@ public class TaskManagerServicesConfiguration {
             ResourceID resourceID,
             String externalAddress,
             boolean localCommunicationOnly,
-            TaskExecutorResourceSpec taskExecutorResourceSpec)
+            TaskExecutorResourceSpec taskExecutorResourceSpec,
+            WorkingDirectory workingDirectory)
             throws Exception {
-        final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
         String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
+
         if (localStateRootDir.length == 0) {
-            // default to temp dirs.
-            localStateRootDir = tmpDirs;
+            final File localStateDir = workingDirectory.getLocalStateDirectory();
+
+            localStateRootDir = new String[] {localStateDir.getAbsolutePath()};
         }
 
         boolean localRecoveryMode = configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY);
@@ -281,6 +287,8 @@ public class TaskManagerServicesConfiguration {
                 CoreOptions.getParentFirstLoaderPatterns(configuration);
 
         final int numIoThreads = ClusterEntrypointUtils.getPoolSize(configuration);
+
+        final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
 
         return new TaskManagerServicesConfiguration(
                 configuration,

@@ -177,7 +177,7 @@ public class ExecutionJobVertex
 
             this.producedDataSets[i] =
                     new IntermediateResult(
-                            result.getId(),
+                            result,
                             this,
                             this.parallelismInfo.getParallelism(),
                             result.getResultType());

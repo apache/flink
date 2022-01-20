@@ -61,4 +61,12 @@ public final class SlotPoolTestUtils {
         return slotPool.offerSlots(
                 slotOffers, new LocalTaskManagerLocation(), taskManagerGateway, 0);
     }
+
+    @Nonnull
+    public static Collection<SlotOffer> offerSlots(
+            SlotPool slotPool,
+            Collection<SlotOffer> slotOffers,
+            TaskManagerGateway taskManagerGateway) {
+        return slotPool.offerSlots(new LocalTaskManagerLocation(), taskManagerGateway, slotOffers);
+    }
 }

@@ -1,0 +1,71 @@
+flink-gs-fs-hadoop
+Copyright 2014-2021 The Apache Software Foundation
+
+This project includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.google.cloud:google-cloud-storage:2.2.3
+- com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava
+- com.google.http-client:google-http-client:1.41.0
+- io.opencensus:opencensus-contrib-http-util:0.28.0
+- com.google.http-client:google-http-client-jackson2:1.41.0
+- com.google.api-client:google-api-client-jackson2:1.32.2
+- com.google.api-client:google-api-client:1.33.0
+- com.google.oauth-client:google-oauth-client:1.32.1
+- com.google.http-client:google-http-client-gson:1.41.0
+- com.google.http-client:google-http-client-apache-v2:1.41.0
+- com.google.apis:google-api-services-storage:v1-rev20211201-1.32.1
+- com.google.code.gson:gson:2.8.9
+- com.google.cloud:google-cloud-core:2.3.5
+- com.google.auto.value:auto-value-annotations:1.9
+- com.google.api.grpc:proto-google-common-protos:2.7.1
+- com.google.cloud:google-cloud-core-http:2.3.5
+- com.google.http-client:google-http-client-appengine:1.41.0
+- io.opencensus:opencensus-api:0.28.0
+- io.grpc:grpc-context:1.43.2
+- com.google.api.grpc:proto-google-iam-v1:1.2.0
+- com.fasterxml.jackson.core:jackson-core:2.13.0
+- com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.4
+- com.google.cloud.bigdataoss:util:2.2.4
+- com.google.apis:google-api-services-iamcredentials:v1-rev20210326-1.32.1
+- org.apache.httpcomponents:httpclient:4.5.13
+- org.apache.httpcomponents:httpcore:4.4.14
+- commons-codec:commons-codec:1.15
+- com.google.cloud.bigdataoss:util-hadoop:hadoop3-2.2.4
+- com.google.cloud.bigdataoss:gcsio:2.2.4
+- io.grpc:grpc-api:1.43.2
+- io.grpc:grpc-alts:1.43.2
+- io.grpc:grpc-auth:1.43.2
+- io.grpc:grpc-grpclb:1.43.2
+- org.conscrypt:conscrypt-openjdk-uber:2.5.1
+- io.grpc:grpc-core:1.43.2
+- io.grpc:grpc-netty-shaded:1.43.2
+- io.grpc:grpc-protobuf:1.43.2
+- io.grpc:grpc-protobuf-lite:1.43.2
+- com.google.api.grpc:grpc-google-cloud-storage-v2:2.0.1-alpha
+- com.google.api.grpc:proto-google-cloud-storage-v2:2.0.1-alpha
+- io.grpc:grpc-stub:1.43.2
+- com.google.flogger:flogger:0.7.1
+- com.google.flogger:google-extensions:0.7.1
+- com.google.flogger:flogger-system-backend:0.7.1
+- com.google.android:annotations:4.1.1.4
+- io.perfmark:perfmark-api:0.23.0
+
+This project bundles the following dependencies under BSD-2 License (https://opensource.org/licenses/BSD-2-Clause).
+See bundled license files for details.
+
+- com.google.api:api-common:2.1.2
+- com.google.api:gax-httpjson:0.93.1
+- com.google.api:gax:2.8.1
+
+This project bundles the following dependencies under BSD-3 License (https://opensource.org/licenses/BSD-3-Clause).
+See bundled license files for details.
+
+- com.google.auth:google-auth-library-credentials:1.3.0
+- com.google.auth:google-auth-library-oauth2-http:1.3.0
+- com.google.protobuf:protobuf-java-util:3.19.2
+- com.google.protobuf:protobuf-java:3.19.2
+- org.threeten:threetenbp:1.5.2
+

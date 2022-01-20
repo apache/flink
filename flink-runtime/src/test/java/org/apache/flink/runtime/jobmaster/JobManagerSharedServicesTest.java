@@ -28,7 +28,9 @@ import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.ThrowingRunnable;
 
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
 
@@ -45,6 +47,8 @@ import static org.junit.Assert.assertEquals;
 public class JobManagerSharedServicesTest extends TestLogger {
 
     private static final int CPU_CORES = Hardware.getNumberCPUCores();
+
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
     @Test
     public void testFutureExecutorNoConfiguration() throws Exception {
@@ -111,7 +115,7 @@ public class JobManagerSharedServicesTest extends TestLogger {
             throws Exception {
         return JobManagerSharedServices.fromConfiguration(
                 configuration,
-                new BlobServer(configuration, new VoidBlobStore()),
+                new BlobServer(configuration, TEMPORARY_FOLDER.newFolder(), new VoidBlobStore()),
                 new TestingFatalErrorHandler());
     }
 

@@ -242,8 +242,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
 
         this.leaderSessionID = newLeaderSessionID;
         this.leaderResourceManager =
-                resourceManagerFactory.createResourceManager(
-                        rmProcessContext, newLeaderSessionID, ResourceID.generate());
+                resourceManagerFactory.createResourceManager(rmProcessContext, newLeaderSessionID);
 
         final ResourceManager<?> newLeaderResourceManager = this.leaderResourceManager;
 
@@ -334,6 +333,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
     public static ResourceManagerServiceImpl create(
             ResourceManagerFactory<?> resourceManagerFactory,
             Configuration configuration,
+            ResourceID resourceId,
             RpcService rpcService,
             HighAvailabilityServices highAvailabilityServices,
             HeartbeatServices heartbeatServices,
@@ -349,6 +349,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
                 resourceManagerFactory,
                 resourceManagerFactory.createResourceManagerProcessContext(
                         configuration,
+                        resourceId,
                         rpcService,
                         highAvailabilityServices,
                         heartbeatServices,

@@ -626,6 +626,7 @@ class KafkaConnectorOptionsUtil {
             return new FactoryUtil.DefaultDynamicTableContext(
                     context.getObjectIdentifier(),
                     context.getCatalogTable().copy(newOptions),
+                    context.getEnrichmentOptions(),
                     context.getConfiguration(),
                     context.getClassLoader(),
                     context.isTemporary());

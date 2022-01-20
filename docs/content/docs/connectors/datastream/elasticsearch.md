@@ -372,7 +372,7 @@ all the pending requests, or until the maximum number of retries has been reache
 The internal `BulkProcessor` can be further configured for its behaviour
 on how buffered action requests are flushed, by using the following methods of the Elasticsearch6SinkBuilder:
 
-* **setBulkFlushMaxActions(int numMaxActions)** Maximum amount of actions to buffer before flushing.
+* **setBulkFlushMaxActions(int numMaxActions)**: Maximum amount of actions to buffer before flushing.
 * **setBulkFlushMaxSizeMb(int maxSizeMb)**: Maximum size of data (in megabytes) to buffer before flushing.
 * **setBulkFlushInterval(long intervalMillis)**: Interval at which to flush regardless of the amount or size of buffered actions.
  

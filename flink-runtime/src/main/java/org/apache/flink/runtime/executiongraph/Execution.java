@@ -453,10 +453,7 @@ public class Execution
 
         for (IntermediateResultPartition partition : partitions) {
             PartitionDescriptor partitionDescriptor = PartitionDescriptor.from(partition);
-            int maxParallelism =
-                    getPartitionMaxParallelism(
-                            partition,
-                            vertex.getExecutionGraphAccessor()::getExecutionVertexOrThrow);
+            int maxParallelism = getPartitionMaxParallelism(partition);
             CompletableFuture<? extends ShuffleDescriptor> shuffleDescriptorFuture =
                     vertex.getExecutionGraphAccessor()
                             .getShuffleMaster()
@@ -485,13 +482,10 @@ public class Execution
                         });
     }
 
-    private static int getPartitionMaxParallelism(
-            IntermediateResultPartition partition,
-            Function<ExecutionVertexID, ExecutionVertex> getVertexById) {
-        final ConsumerVertexGroup consumerVertexGroup = partition.getConsumerVertexGroup();
-        return getVertexById
-                .apply(consumerVertexGroup.getFirst())
-                .getJobVertex()
+    private static int getPartitionMaxParallelism(IntermediateResultPartition partition) {
+        return partition
+                .getIntermediateResult()
+                .getConsumerExecutionJobVertex()
                 .getMaxParallelism();
     }
 
@@ -554,10 +548,11 @@ public class Execution
             }
 
             LOG.info(
-                    "Deploying {} (attempt #{}) with attempt id {} to {} with allocation id {}",
+                    "Deploying {} (attempt #{}) with attempt id {} and vertex id {} to {} with allocation id {}",
                     vertex.getTaskNameWithSubtaskIndex(),
                     attemptNumber,
                     vertex.getCurrentExecutionAttempt().getAttemptId(),
+                    vertex.getID(),
                     getAssignedResourceLocation(),
                     slot.getAllocationId());
 

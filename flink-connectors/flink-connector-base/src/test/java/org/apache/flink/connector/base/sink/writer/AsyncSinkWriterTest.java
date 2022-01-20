@@ -470,6 +470,23 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
+    public void prepareCommitDoesNotFlushElementsIfFlushIsSetToFalse() throws Exception {
+        AsyncSinkWriterImpl sink =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(10)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(100)
+                        .simulateFailures(false)
+                        .build();
+        sink.write(String.valueOf(0));
+        sink.write(String.valueOf(1));
+        sink.write(String.valueOf(2));
+        sink.prepareCommit(false);
+        assertEquals(0, res.size());
+    }
+
+    @Test
     public void testThatWhenNumberOfItemAndSizeOfRecordThresholdsAreMetSimultaneouslyAFlushOccurs()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =

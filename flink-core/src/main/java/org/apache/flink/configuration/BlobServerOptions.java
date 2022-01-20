@@ -33,7 +33,8 @@ public class BlobServerOptions {
             key("blob.storage.directory")
                     .noDefaultValue()
                     .withDescription(
-                            "The config parameter defining the storage directory to be used by the blob server.");
+                            "The config parameter defining the storage directory to be used by the blob server. "
+                                    + "If not configured, then it will default to <WORKING_DIR>/blobStorage.");
 
     /** The config parameter defining number of retires for failed BLOB fetches. */
     public static final ConfigOption<Integer> FETCH_RETRIES =

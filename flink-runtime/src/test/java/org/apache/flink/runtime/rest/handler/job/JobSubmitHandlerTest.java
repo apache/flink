@@ -20,7 +20,6 @@ package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
@@ -90,11 +89,8 @@ public class JobSubmitHandlerTest extends TestLogger {
     @Before
     public void setup() throws IOException {
         Configuration config = new Configuration(configuration);
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY,
-                TEMPORARY_FOLDER.newFolder().getAbsolutePath());
 
-        blobServer = new BlobServer(config, new VoidBlobStore());
+        blobServer = new BlobServer(config, TEMPORARY_FOLDER.newFolder(), new VoidBlobStore());
         blobServer.start();
     }
 

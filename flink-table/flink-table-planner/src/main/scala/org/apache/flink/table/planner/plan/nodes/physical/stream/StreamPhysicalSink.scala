@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.table.catalog.{ObjectIdentifier, ResolvedCatalogTable}
+import org.apache.flink.table.catalog.{ContextResolvedTable, ObjectIdentifier, ResolvedCatalogTable}
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec
@@ -44,12 +44,11 @@ class StreamPhysicalSink(
     traitSet: RelTraitSet,
     inputRel: RelNode,
     hints: util.List[RelHint],
-    tableIdentifier: ObjectIdentifier,
-    catalogTable: ResolvedCatalogTable,
+    contextResolvedTable: ContextResolvedTable,
     tableSink: DynamicTableSink,
     abilitySpecs: Array[SinkAbilitySpec],
     upsertMaterialize: Boolean = false)
-  extends Sink(cluster, traitSet, inputRel, hints, tableIdentifier, catalogTable, tableSink)
+  extends Sink(cluster, traitSet, inputRel, hints, contextResolvedTable, tableSink)
   with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = false
@@ -60,8 +59,7 @@ class StreamPhysicalSink(
       traitSet,
       inputs.get(0),
       hints,
-      tableIdentifier,
-      catalogTable,
+      contextResolvedTable,
       tableSink,
       abilitySpecs,
       upsertMaterialize)
@@ -73,8 +71,7 @@ class StreamPhysicalSink(
       traitSet,
       inputRel,
       hints,
-      tableIdentifier,
-      catalogTable,
+      contextResolvedTable,
       tableSink,
       abilitySpecs,
       newUpsertMaterialize)
@@ -84,8 +81,8 @@ class StreamPhysicalSink(
     val inputChangelogMode = ChangelogPlanUtils.getChangelogMode(
       getInput.asInstanceOf[StreamPhysicalRel]).get
     val tableSinkSpec = new DynamicTableSinkSpec(
-      tableIdentifier,
-      catalogTable,
+      contextResolvedTable.getIdentifier,
+      contextResolvedTable.getResolvedTable[ResolvedCatalogTable],
       util.Arrays.asList(abilitySpecs: _*))
     tableSinkSpec.setTableSink(tableSink)
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)

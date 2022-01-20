@@ -18,21 +18,11 @@
 
 package org.apache.flink.connector.pulsar.source.reader.split;
 
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.connector.pulsar.testutils.extension.SubType;
 
-import static org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema.flinkSchema;
+import org.apache.pulsar.client.api.SubscriptionType;
 
 /** Unit tests for {@link PulsarUnorderedPartitionSplitReaderTest}. */
 class PulsarUnorderedPartitionSplitReaderTest extends PulsarPartitionSplitReaderTestBase {
-
-    @Override
-    protected PulsarPartitionSplitReaderBase<String> splitReader() {
-        return new PulsarUnorderedPartitionSplitReader<>(
-                operator().client(),
-                operator().admin(),
-                readerConfig(),
-                sourceConfig(),
-                flinkSchema(new SimpleStringSchema()),
-                null);
-    }
+    @SubType SubscriptionType subscriptionType = SubscriptionType.Shared;
 }

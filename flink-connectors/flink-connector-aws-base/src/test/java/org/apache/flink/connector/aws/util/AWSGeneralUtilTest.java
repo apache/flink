@@ -38,9 +38,11 @@ import software.amazon.awssdk.http.nio.netty.internal.NettyConfiguration;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.utils.AttributeMap;
+import software.amazon.awssdk.utils.ImmutableMap;
 
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_CREDENTIALS_PROVIDER;
@@ -173,6 +175,15 @@ public class AWSGeneralUtilTest {
 
         AwsCredentialsProvider credentialsProvider =
                 AWSGeneralUtil.getCredentialsProvider(properties);
+
+        assertTrue(credentialsProvider instanceof DefaultCredentialsProvider);
+    }
+
+    @Test
+    public void testGetCredentialsProviderFromMap() {
+        Map<String, Object> config = ImmutableMap.of(AWS_CREDENTIALS_PROVIDER, "AUTO");
+
+        AwsCredentialsProvider credentialsProvider = AWSGeneralUtil.getCredentialsProvider(config);
 
         assertTrue(credentialsProvider instanceof DefaultCredentialsProvider);
     }

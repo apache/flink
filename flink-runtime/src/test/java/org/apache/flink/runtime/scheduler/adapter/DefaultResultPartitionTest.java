@@ -20,16 +20,25 @@ package org.apache.flink.runtime.scheduler.adapter;
 
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /** Unit tests for {@link DefaultResultPartition}. */
 public class DefaultResultPartitionTest extends TestLogger {
@@ -43,11 +52,21 @@ public class DefaultResultPartitionTest extends TestLogger {
 
     private DefaultResultPartition resultPartition;
 
+    private final Map<IntermediateResultPartitionID, ConsumerVertexGroup> consumerVertexGroups =
+            new HashMap<>();
+
     @Before
     public void setUp() {
         resultPartition =
                 new DefaultResultPartition(
-                        resultPartitionId, intermediateResultId, BLOCKING, resultPartitionState);
+                        resultPartitionId,
+                        intermediateResultId,
+                        BLOCKING,
+                        resultPartitionState,
+                        () -> consumerVertexGroups.get(resultPartitionId),
+                        () -> {
+                            throw new UnsupportedOperationException();
+                        });
     }
 
     @Test
@@ -56,6 +75,19 @@ public class DefaultResultPartitionTest extends TestLogger {
             resultPartitionState.setResultPartitionState(state);
             assertEquals(state, resultPartition.getState());
         }
+    }
+
+    @Test
+    public void testGetConsumerVertexGroup() {
+
+        assertFalse(resultPartition.getConsumerVertexGroup().isPresent());
+
+        // test update consumers
+        ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
+        consumerVertexGroups.put(
+                resultPartition.getId(), ConsumerVertexGroup.fromSingleVertex(executionVertexId));
+        assertTrue(resultPartition.getConsumerVertexGroup().isPresent());
+        assertThat(resultPartition.getConsumerVertexGroup().get(), contains(executionVertexId));
     }
 
     /** A test {@link ResultPartitionState} supplier. */

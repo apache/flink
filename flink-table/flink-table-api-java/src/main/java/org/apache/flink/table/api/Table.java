@@ -1375,10 +1375,9 @@ public interface Table {
      * table (backed by a {@link DynamicTableSink}) expressed via the given {@link TableDescriptor}.
      * It executes the insert operation.
      *
-     * <p>The {@link TableDescriptor descriptor} is registered as an inline (i.e. anonymous)
-     * temporary catalog table (see {@link TableEnvironment#createTemporaryTable(String,
-     * TableDescriptor)}) using a unique identifier. Note that calling this method multiple times,
-     * even with the same descriptor, results in multiple sink tables being registered.
+     * <p>The {@link TableDescriptor descriptor} won't be registered in the catalog, but it will be
+     * propagated directly in the operation tree. Note that calling this method multiple times, even
+     * with the same descriptor, results in multiple sink tables instances.
      *
      * <p>This method allows to declare a {@link Schema} for the sink descriptor. The declaration is
      * similar to a {@code CREATE TABLE} DDL in SQL and allows to:
@@ -1425,10 +1424,9 @@ public interface Table {
      * table (backed by a {@link DynamicTableSink}) expressed via the given {@link TableDescriptor}.
      * It executes the insert operation.
      *
-     * <p>The {@link TableDescriptor descriptor} is registered as an inline (i.e. anonymous)
-     * temporary catalog table (see {@link TableEnvironment#createTemporaryTable(String,
-     * TableDescriptor)}) using a unique identifier. Note that calling this method multiple times,
-     * even with the same descriptor, results in multiple sink tables being registered.
+     * <p>The {@link TableDescriptor descriptor} won't be registered in the catalog, but it will be
+     * propagated directly in the operation tree. Note that calling this method multiple times, even
+     * with the same descriptor, results in multiple sink tables being registered.
      *
      * <p>This method allows to declare a {@link Schema} for the sink descriptor. The declaration is
      * similar to a {@code CREATE TABLE} DDL in SQL and allows to:

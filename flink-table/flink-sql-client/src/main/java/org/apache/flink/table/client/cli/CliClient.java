@@ -28,7 +28,6 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
-import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -37,6 +36,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowCreateTableOperation;
 import org.apache.flink.table.operations.ShowCreateViewOperation;
+import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
@@ -373,7 +373,7 @@ public class CliClient implements AutoCloseable {
 
         // check the current operation is allowed in STATEMENT SET.
         if (isStatementSetMode) {
-            if (!(operation instanceof CatalogSinkModifyOperation
+            if (!(operation instanceof SinkModifyOperation
                     || operation instanceof EndStatementSetOperation)) {
                 // It's up to invoker of the executeStatement to determine whether to continue
                 // execution
@@ -417,9 +417,9 @@ public class CliClient implements AutoCloseable {
         } else if (operation instanceof ResetOperation) {
             // RESET
             callReset((ResetOperation) operation);
-        } else if (operation instanceof CatalogSinkModifyOperation) {
+        } else if (operation instanceof SinkModifyOperation) {
             // INSERT INTO/OVERWRITE
-            callInsert((CatalogSinkModifyOperation) operation);
+            callInsert((SinkModifyOperation) operation);
         } else if (operation instanceof QueryOperation) {
             // SELECT
             callSelect((QueryOperation) operation);
@@ -557,7 +557,7 @@ public class CliClient implements AutoCloseable {
         }
     }
 
-    private void callInsert(CatalogSinkModifyOperation operation) {
+    private void callInsert(SinkModifyOperation operation) {
         if (isStatementSetMode) {
             statementSetOperations.add(operation);
             printInfo(CliStrings.MESSAGE_ADD_STATEMENT_TO_STATEMENT_SET);
