@@ -140,14 +140,18 @@ public final class ClusterEntrypointUtils {
      * working directory exists.
      *
      * @param configuration to extract the required settings from
-     * @param resourceId identifying the TaskManager process
+     * @param envelopedResourceId identifying the TaskManager process
      * @return working directory
      * @throws IOException if the working directory could not be created
      */
-    public static WorkingDirectory createTaskManagerWorkingDirectory(
-            Configuration configuration, ResourceID resourceId) throws IOException {
-        return WorkingDirectory.create(
-                generateTaskManagerWorkingDirectoryFile(configuration, resourceId));
+    public static DeterminismEnvelope<WorkingDirectory> createTaskManagerWorkingDirectory(
+            Configuration configuration, DeterminismEnvelope<ResourceID> envelopedResourceId)
+            throws IOException {
+        return envelopedResourceId.map(
+                resourceId ->
+                        WorkingDirectory.create(
+                                generateTaskManagerWorkingDirectoryFile(
+                                        configuration, resourceId)));
     }
 
     /**
@@ -225,13 +229,16 @@ public final class ClusterEntrypointUtils {
      * working diretory exists.
      *
      * @param configuration to extract the required settings from
-     * @param resourceId identifying the TaskManager process
+     * @param envelopedResourceId identifying the TaskManager process
      * @return working directory
      * @throws IOException if the working directory could not be created
      */
-    public static WorkingDirectory createJobManagerWorkingDirectory(
-            Configuration configuration, ResourceID resourceId) throws IOException {
-        return WorkingDirectory.create(
-                generateJobManagerWorkingDirectoryFile(configuration, resourceId));
+    public static DeterminismEnvelope<WorkingDirectory> createJobManagerWorkingDirectory(
+            Configuration configuration, DeterminismEnvelope<ResourceID> envelopedResourceId)
+            throws IOException {
+        return envelopedResourceId.map(
+                resourceId ->
+                        WorkingDirectory.create(
+                                generateJobManagerWorkingDirectoryFile(configuration, resourceId)));
     }
 }
