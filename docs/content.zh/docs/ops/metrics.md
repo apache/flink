@@ -1105,6 +1105,46 @@ Whether these metrics are reported depends on the [metrics.job.status.enable]({{
   </tbody>
 </table>
 
+{{< hint info >}}
+<span class="label label-info">Experimental</span>
+
+While the job is in the RUNNING state the metrics in this table provide additional details on what the job is currently doing.
+Whether these metrics are reported depends on the [metrics.job.status.enable]({{< ref "docs/deployment/config" >}}#metrics-job-status-enable) setting.
+
+<table class="table table-bordered table-inline">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="3"><strong>Job (only available on JobManager)</strong></th>
+      <td>deployingState</td>
+      <td>Return 1 if the job is currently deploying* tasks, otherwise return 0.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>deployingTime</td>
+      <td>Return the time (in milliseconds) since the job has started deploying* tasks, otherwise return 0.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>deployingTimeTotal</td>
+      <td>Return how much time (in milliseconds) the job has spent deploying* tasks in total.</td>
+      <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
+
+*A job is considered to be deploying tasks when:
+* for streaming jobs, any task is in the DEPLOYING state
+* for batch jobs, if at least 1 task is in the DEPLOYING state, and there are no INITIALIZING/RUNNING tasks
+{{< /hint >}}
+
 <table class="table table-bordered">
   <thead>
     <tr>
