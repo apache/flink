@@ -272,8 +272,8 @@ under the License.
 							<goal>install-node-and-npm</goal>
 						</goals>
 						<configuration>
-							<nodeVersion>v12.14.1</nodeVersion>
-							<npmVersion>6.13.4</npmVersion>
+							<nodeVersion>v16.13.2</nodeVersion>
+							<npmVersion>8.1.2</npmVersion>
 						</configuration>
 					</execution>
 					<execution>
