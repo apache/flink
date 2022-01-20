@@ -423,6 +423,23 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-gs-fs-hadoop</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<exclusions>
+				<!--
+					Despite at provided scope, grpc artifacts can cause dependency resolving errors,
+					unstably, during javadoc aggregation.
+				 -->
+				<exclusion>
+					<groupId>io.grpc</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-queryable-state-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
