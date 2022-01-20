@@ -160,6 +160,25 @@ public class TimestampITCase extends TestLogger {
     }
 
     @Test
+    public void testSelfUnionWatermarkPropagation() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        DataStream<Integer> dataStream1 = env.fromElements(1, 2, 3);
+
+        dataStream1
+                .union(dataStream1)
+                .transform(
+                        "Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(false))
+                .addSink(new DiscardingSink<>());
+        env.execute();
+
+        assertEquals(
+                Watermark.MAX_WATERMARK,
+                CustomOperator.finalWatermarks[0].get(
+                        CustomOperator.finalWatermarks[0].size() - 1));
+    }
+
+    @Test
     public void testWatermarkPropagationNoFinalWatermarkOnStop() throws Exception {
 
         // for this test to work, we need to be sure that no other jobs are being executed
