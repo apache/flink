@@ -21,9 +21,11 @@ package org.apache.flink.architecture.common;
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.Source;
+import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.core.importer.Location;
 
 import static com.tngtech.archunit.core.importer.ImportOption.Predefined.DO_NOT_INCLUDE_TESTS;
+import static com.tngtech.archunit.core.importer.ImportOption.Predefined.ONLY_INCLUDE_TESTS;
 
 /** Predicates for a {@link JavaClass}'s {@link Source}. */
 public class SourcePredicates {
@@ -34,13 +36,27 @@ public class SourcePredicates {
      * <p>This check is best-effort only.
      */
     public static DescribedPredicate<JavaClass> areProductionCode() {
-        return new DescribedPredicate<JavaClass>("are production code") {
+        return targetCode(DO_NOT_INCLUDE_TESTS, "are production code");
+    }
+
+    /**
+     * Passes if and only if the given class is from test code.
+     *
+     * <p>This check is best-effort only.
+     */
+    public static DescribedPredicate<JavaClass> areTestCode() {
+        return targetCode(ONLY_INCLUDE_TESTS, "are test code");
+    }
+
+    private static DescribedPredicate<JavaClass> targetCode(
+            ImportOption.Predefined predicates, String description) {
+        return new DescribedPredicate<JavaClass>(description) {
             @Override
             public boolean apply(JavaClass clazz) {
                 return clazz.getSource()
                         .map(Source::getUri)
                         .map(Location::of)
-                        .map(DO_NOT_INCLUDE_TESTS::includes)
+                        .map(predicates::includes)
                         .orElse(false);
             }
         };
