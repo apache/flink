@@ -1217,6 +1217,59 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
 ### RocksDB
 Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{< ref "docs/deployment/config" >}}#rocksdb-native-metrics)
 
+### State Changelog
+
+Note that the metrics are only available via reporters.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="20"><strong>Job (only available on TaskManager)</strong></th>
+      <td>numberOfUploadRequests</td>
+      <td>Total number of upload requests made</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>numberOfUploadFailures</td>
+      <td>Total number of failed upload requests (request may be retried after the failure)</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>attemptsPerUpload</td>
+      <td>The number of attempts per upload</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>uploadBatchSizes</td>
+      <td>The number of upload tasks (coming from one or more writers, i.e. backends/tasks) that were grouped together and form a single upload resulting in a single file</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>uploadLatenciesNanos</td>
+      <td>The latency distributions of uploads</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>uploadSizes</td>
+      <td>The size distributions of uploads</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>uploadQueueSize</td>
+      <td>Current size of upload queue. Queue items can be packed together and form a single upload.</td>
+      <td>Meter</td>
+    </tr>
+  </tbody>
+</table>
+
 ### IO
 <table class="table table-bordered">
   <thead>

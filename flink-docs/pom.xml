@@ -168,7 +168,13 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-dstl-dfs</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
 			<!-- Used for parsing HTML -->
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>
