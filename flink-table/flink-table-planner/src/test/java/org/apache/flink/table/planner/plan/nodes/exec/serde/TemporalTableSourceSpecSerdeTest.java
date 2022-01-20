@@ -72,6 +72,7 @@ public class TemporalTableSourceSpecSerdeTest {
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         SerdeContext serdeCtx =
                 new SerdeContext(
+                        null,
                         FLINK_CONTEXT,
                         classLoader,
                         FlinkTypeFactory.INSTANCE(),

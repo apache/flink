@@ -47,6 +47,7 @@ final class JsonSerdeMocks {
     static SerdeContext configuredSerdeContext(
             CatalogManager catalogManager, TableConfig tableConfig) {
         return new SerdeContext(
+                null,
                 new FlinkContextImpl(
                         false, tableConfig, new ModuleManager(), null, catalogManager, null),
                 Thread.currentThread().getContextClassLoader(),

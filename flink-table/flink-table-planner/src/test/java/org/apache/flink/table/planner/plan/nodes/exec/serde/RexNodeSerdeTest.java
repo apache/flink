@@ -299,6 +299,7 @@ public class RexNodeSerdeTest {
     public void testRexNodeSerde() throws Exception {
         SerdeContext serdeCtx =
                 new SerdeContext(
+                        null,
                         flinkContext,
                         Thread.currentThread().getContextClassLoader(),
                         FACTORY,
