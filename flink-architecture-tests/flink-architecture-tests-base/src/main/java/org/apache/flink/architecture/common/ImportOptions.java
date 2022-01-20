@@ -16,36 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.architecture;
-
-import org.apache.flink.architecture.common.GivenJavaClasses;
-import org.apache.flink.architecture.common.SourcePredicates;
-import org.apache.flink.architecture.rules.ApiAnnotationRules;
-import org.apache.flink.architecture.rules.TableApiRules;
+package org.apache.flink.architecture.common;
 
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.core.importer.Location;
-import com.tngtech.archunit.junit.AnalyzeClasses;
-import com.tngtech.archunit.junit.ArchTest;
-import com.tngtech.archunit.junit.ArchTests;
 
 import java.util.regex.Pattern;
 
-/** Architecture tests. */
-@AnalyzeClasses(
-        packages = "org.apache.flink",
-        importOptions = {
-            ImportOption.DoNotIncludeTests.class,
-            ArchitectureTest.ExcludeScalaImportOption.class,
-            ArchitectureTest.ExcludeShadedImportOption.class
-        })
-public class ArchitectureTest {
-    @ArchTest
-    public static final ArchTests API_ANNOTATIONS = ArchTests.in(ApiAnnotationRules.class);
-
-    @ArchTest public static final ArchTests TABLE_API = ArchTests.in(TableApiRules.class);
-
-    // ---------------------------------------------------------------------------------------------
+/** Provide the most used {@link ImportOption}. */
+public class ImportOptions {
 
     /**
      * Excludes Scala classes on a best-effort basis.
@@ -55,7 +34,7 @@ public class ArchitectureTest {
      * GivenJavaClasses} or {@link SourcePredicates#areJavaClasses()} should be used in rules as
      * well.
      */
-    static class ExcludeScalaImportOption implements ImportOption {
+    public static final class ExcludeScalaImportOption implements ImportOption {
         private static final Pattern SCALA = Pattern.compile(".*/scala/.*");
 
         @Override
@@ -70,7 +49,7 @@ public class ArchitectureTest {
      * <p>This is not only important to exclude external code shaded into a package like {@code
      * org.apache.flink.shaded.*} from being tested, but crucial for memory consumption.
      */
-    static class ExcludeShadedImportOption implements ImportOption {
+    public static final class ExcludeShadedImportOption implements ImportOption {
         private static final Pattern SHADED = Pattern.compile(".*/shaded/.*");
 
         @Override
