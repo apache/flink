@@ -79,6 +79,7 @@ import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -917,6 +918,25 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         assertOnlyContainsSingleJobWithState(
                 JobStatus.FINISHED, dispatcherGateway.requestMultipleJobDetails(TIMEOUT).get());
+    }
+
+    @Test
+    public void testRequestMultipleJobDetails_isSerializable() throws Exception {
+        final JobManagerRunnerFactory blockingJobMaster =
+                new QueuedJobManagerRunnerFactory(
+                        completedJobManagerRunnerWithJobStatus(JobStatus.SUSPENDED));
+
+        dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
+        DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+
+        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+        dispatcherGateway.requestJobResult(jobId, TIMEOUT).get();
+
+        final MultipleJobsDetails multipleJobsDetails =
+                dispatcherGateway.requestMultipleJobDetails(TIMEOUT).get();
+
+        InstantiationUtil.serializeObject(multipleJobsDetails);
     }
 
     private JobManagerRunner runningJobManagerRunnerWithJobStatus(

@@ -585,7 +585,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                     completedJobDetails.forEach(job -> deduplicatedJobs.put(job.getJobId(), job));
                     runningJobDetails.forEach(job -> deduplicatedJobs.put(job.getJobId(), job));
 
-                    return new MultipleJobsDetails(deduplicatedJobs.values());
+                    return new MultipleJobsDetails(new HashSet<>(deduplicatedJobs.values()));
                 });
     }
 
