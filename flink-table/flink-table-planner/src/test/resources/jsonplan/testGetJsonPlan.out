@@ -4,11 +4,7 @@
       {
          "class":"org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
          "scanTableSource":{
-            "identifier":{
-               "catalogName":"default_catalog",
-               "databaseName":"default_database",
-               "tableName":"MyTable"
-            },
+            "identifier": "`default_catalog`.`default_database`.`MyTable`",
             "catalogTable":{
                "schema.2.data-type":"VARCHAR(2147483647)",
                "connector":"values",
@@ -30,11 +26,7 @@
       {
          "class":"org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
          "dynamicTableSink":{
-            "identifier":{
-               "catalogName":"default_catalog",
-               "databaseName":"default_database",
-               "tableName":"MySink"
-            },
+            "identifier": "`default_catalog`.`default_database`.`MySink`",
             "catalogTable":{
                "table-sink-class":"DEFAULT",
                "schema.2.data-type":"VARCHAR(2147483647)",

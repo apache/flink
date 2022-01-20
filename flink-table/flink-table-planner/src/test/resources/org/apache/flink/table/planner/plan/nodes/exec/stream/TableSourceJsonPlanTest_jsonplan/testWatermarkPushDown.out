@@ -3,11 +3,7 @@
   "nodes" : [ {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
     "scanTableSource" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "WatermarkTable"
-      },
+      "identifier" : "`default_catalog`.`default_database`.`WatermarkTable`",
       "catalogTable" : {
         "schema.watermark.0.strategy.expr" : "`c` - INTERVAL '5' SECOND",
         "disable-lookup" : "true",
@@ -87,11 +83,7 @@
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "sink"
-      },
+      "identifier" : "`default_catalog`.`default_database`.`sink`",
       "catalogTable" : {
         "table-sink-class" : "DEFAULT",
         "schema.2.data-type" : "TIMESTAMP(3)",
