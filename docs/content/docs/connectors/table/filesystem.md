@@ -114,7 +114,7 @@ The file system connector supports streaming writes, based on Flink's [FileSyste
 to write records to file. Row-encoded Formats are CSV and JSON. Bulk-encoded Formats are Parquet, ORC and Avro.
 
 You can write SQL directly, insert the stream data into the non-partitioned table.
-If it is a partitioned table, you can configure partition related operations. See [Partition Commit](filesystem.html#partition-commit) for details.
+If it is a partitioned table, you can configure partition related operations. See [Partition Commit]({{< ref "docs/connectors/table/filesystem" >}}#partition-commit) for details.
 
 ### Rolling Policy
 

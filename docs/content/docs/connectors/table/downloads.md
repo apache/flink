@@ -33,7 +33,7 @@ Download links are available only for stable releases.
 {{< /hint >}}
 {{< /unstable >}}
 
-The page contains links to optional sql-client connectors and formats that are not part of the binary distribution.
+The page contains links to optional SQL Client connectors and formats that are not part of the binary distribution.
 
 # Optional SQL formats
 -------------------
