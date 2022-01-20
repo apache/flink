@@ -105,7 +105,7 @@ public class JobSubmitHandlerTest extends TestLogger {
     public void testSerializationFailureHandling() throws Exception {
         final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
         DispatcherGateway mockGateway =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
                         .build();
@@ -140,7 +140,7 @@ public class JobSubmitHandlerTest extends TestLogger {
             objectOut.writeObject(JobGraphTestUtils.emptyJobGraph());
         }
 
-        TestingDispatcherGateway.Builder builder = new TestingDispatcherGateway.Builder();
+        TestingDispatcherGateway.Builder builder = TestingDispatcherGateway.newBuilder();
         builder.setBlobServerPort(blobServer.getPort())
                 .setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
                 .setHostname("localhost");
@@ -178,7 +178,7 @@ public class JobSubmitHandlerTest extends TestLogger {
         }
         final Path countExceedingFile = TEMPORARY_FOLDER.newFile().toPath();
 
-        TestingDispatcherGateway.Builder builder = new TestingDispatcherGateway.Builder();
+        TestingDispatcherGateway.Builder builder = TestingDispatcherGateway.newBuilder();
         builder.setBlobServerPort(blobServer.getPort())
                 .setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
                 .setHostname("localhost");
@@ -222,7 +222,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 
         CompletableFuture<JobGraph> submittedJobGraphFuture = new CompletableFuture<>();
         DispatcherGateway dispatcherGateway =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setBlobServerPort(blobServer.getPort())
                         .setSubmitFunction(
                                 submittedJobGraph -> {
@@ -282,7 +282,7 @@ public class JobSubmitHandlerTest extends TestLogger {
     public void testFailedJobSubmission() throws Exception {
         final String errorMessage = "test";
         DispatcherGateway mockGateway =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobgraph ->
                                         FutureUtils.completedExceptionally(

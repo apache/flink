@@ -245,7 +245,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
         final OneShotLatch createDispatcherServiceLatch = new OneShotLatch();
         final String dispatcherAddress = "myAddress";
         final TestingDispatcherGateway dispatcherGateway =
-                new TestingDispatcherGateway.Builder().setAddress(dispatcherAddress).build();
+                TestingDispatcherGateway.newBuilder().setAddress(dispatcherAddress).build();
 
         dispatcherServiceFactory =
                 TestingDispatcherServiceFactory.newBuilder()
@@ -397,7 +397,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
     public void onAddedJobGraph_submitsRecoveredJob() throws Exception {
         final CompletableFuture<JobGraph> submittedJobFuture = new CompletableFuture<>();
         final TestingDispatcherGateway testingDispatcherGateway =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 submittedJob -> {
                                     submittedJobFuture.complete(submittedJob);
@@ -540,7 +540,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
     @Test
     public void onAddedJobGraph_failingRecoveredJobSubmission_failsFatally() throws Exception {
         final TestingDispatcherGateway dispatcherGateway =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph ->
                                         FutureUtils.completedExceptionally(
@@ -566,7 +566,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
     public void onAddedJobGraph_duplicateJobSubmissionDueToFalsePositive_willBeIgnored()
             throws Exception {
         final TestingDispatcherGateway dispatcherGateway =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph ->
                                         FutureUtils.completedExceptionally(

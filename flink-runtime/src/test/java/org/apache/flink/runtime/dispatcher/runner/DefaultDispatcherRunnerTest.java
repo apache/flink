@@ -380,7 +380,7 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
     }
 
     private TestingDispatcherGateway createDispatcherGateway(UUID leaderSessionId) {
-        return new TestingDispatcherGateway.Builder()
+        return TestingDispatcherGateway.newBuilder()
                 .setFencingToken(DispatcherId.fromUuid(leaderSessionId))
                 .build();
     }

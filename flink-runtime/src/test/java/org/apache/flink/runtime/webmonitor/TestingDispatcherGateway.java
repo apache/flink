@@ -214,6 +214,10 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
         return stopWithSavepointAndGetLocationFunction.apply(jobId, targetDirectory);
     }
 
+    public static Builder newBuilder() {
+        return new Builder();
+    }
+
     /** Builder for the {@link TestingDispatcherGateway}. */
     public static final class Builder extends TestingRestfulGateway.AbstractBuilder<Builder> {
 
@@ -229,6 +233,10 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                 triggerSavepointAndGetLocationFunction;
         private BiFunction<JobID, String, CompletableFuture<String>>
                 stopWithSavepointAndGetLocationFunction;
+
+        private Builder() {
+            // No-op.
+        }
 
         public Builder setSubmitFunction(
                 Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction) {

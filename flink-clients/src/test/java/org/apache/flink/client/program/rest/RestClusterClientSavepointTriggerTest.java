@@ -87,7 +87,7 @@ import static org.junit.Assert.assertTrue;
 public class RestClusterClientSavepointTriggerTest extends TestLogger {
 
     private static final DispatcherGateway mockRestfulGateway =
-            new TestingDispatcherGateway.Builder().build();
+            TestingDispatcherGateway.newBuilder().build();
 
     private static final GatewayRetriever<DispatcherGateway> mockGatewayRetriever =
             () -> CompletableFuture.completedFuture(mockRestfulGateway);

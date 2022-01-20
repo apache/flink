@@ -74,7 +74,7 @@ public class JobManagerLogListHandlerTest extends TestLogger {
 
     @Before
     public void setUp() {
-        dispatcherGateway = new TestingDispatcherGateway.Builder().build();
+        dispatcherGateway = TestingDispatcherGateway.newBuilder().build();
     }
 
     @Test
