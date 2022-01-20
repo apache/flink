@@ -153,7 +153,7 @@ import static org.junit.Assert.fail;
 public class RestClusterClientTest extends TestLogger {
 
     private final DispatcherGateway mockRestfulGateway =
-            new TestingDispatcherGateway.Builder().build();
+            TestingDispatcherGateway.newBuilder().build();
 
     private GatewayRetriever<DispatcherGateway> mockGatewayRetriever;
 

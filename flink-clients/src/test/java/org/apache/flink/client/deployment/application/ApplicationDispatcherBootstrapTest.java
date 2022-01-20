@@ -92,7 +92,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
     @Test
     public void testExceptionThrownWhenApplicationContainsNoJobs() throws Throwable {
         final TestingDispatcherGateway.Builder dispatcherBuilder =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()));
 
@@ -223,7 +223,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
         final ConcurrentLinkedDeque<JobID> submittedJobIds = new ConcurrentLinkedDeque<>();
 
         final TestingDispatcherGateway.Builder dispatcherBuilder =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph -> {
                                     submittedJobIds.add(jobGraph.getJobID());
@@ -418,7 +418,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
     private void testErrorHandlerIsCalled(Supplier<CompletableFuture<Acknowledge>> shutdownFunction)
             throws Exception {
         final TestingDispatcherGateway.Builder dispatcherBuilder =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
                         .setRequestJobStatusFunction(
@@ -649,7 +649,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
         configurationUnderTest.set(
                 HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
         final TestingDispatcherGateway.Builder dispatcherBuilder =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph ->
                                         FutureUtils.completedExceptionally(
@@ -684,7 +684,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
         configurationUnderTest.set(
                 HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
         final TestingDispatcherGateway.Builder dispatcherBuilder =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph ->
                                         FutureUtils.completedExceptionally(
@@ -712,7 +712,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
         configurationUnderTest.set(
                 HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
         final TestingDispatcherGateway.Builder dispatcherBuilder =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph ->
                                         FutureUtils.completedExceptionally(
@@ -773,7 +773,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
 
     private TestingDispatcherGateway.Builder dispatcherGatewayBuilder(JobStatus jobStatus) {
         TestingDispatcherGateway.Builder builder =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
                         .setRequestJobStatusFunction(
