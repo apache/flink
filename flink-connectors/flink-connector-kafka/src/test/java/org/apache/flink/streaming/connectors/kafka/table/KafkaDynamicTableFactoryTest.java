@@ -909,8 +909,10 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                 startupMode,
                 specificStartupOffsets,
                 startupTimestampMillis,
-                false,
+                null,
                 Collections.emptyMap(),
+                0,
+                false,
                 FactoryMocks.IDENTIFIER.asSummaryString());
     }
 

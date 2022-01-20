@@ -151,11 +151,11 @@ public class KafkaConnectorOptions {
                     .defaultValue(ScanStartupMode.GROUP_OFFSETS)
                     .withDescription("Startup mode for Kafka consumer.");
 
-    public static final ConfigOption<ScanEndMode> SCAN_END_MODE =
-            ConfigOptions.key("scan.end.mode")
-                    .enumType(ScanEndMode.class)
-                    .defaultValue(ScanEndMode.DEFAULT)
-                    .withDescription("End mode for Kafka consumer.");
+    public static final ConfigOption<ScanBoundedMode> SCAN_BOUNDED_MODE =
+            ConfigOptions.key("scan.bounded.mode")
+                    .enumType(ScanBoundedMode.class)
+                    .noDefaultValue()
+                    .withDescription("Bounded mode for Kafka consumer.");
 
     public static final ConfigOption<String> SCAN_STARTUP_SPECIFIC_OFFSETS =
             ConfigOptions.key("scan.startup.specific-offsets")
@@ -164,12 +164,12 @@ public class KafkaConnectorOptions {
                     .withDescription(
                             "Optional offsets used in case of \"specific-offsets\" startup mode");
 
-    public static final ConfigOption<String> SCAN_END_SPECIFIC_OFFSETS =
-            ConfigOptions.key("scan.end.specific-offsets")
+    public static final ConfigOption<String> SCAN_BOUNDED_SPECIFIC_OFFSETS =
+            ConfigOptions.key("scan.bounded.specific-offsets")
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "Optional offsets used in case of \"specific-offsets\" end mode");
+                            "Optional offsets used in case of \"specific-offsets\" bounded mode");
 
     public static final ConfigOption<Long> SCAN_STARTUP_TIMESTAMP_MILLIS =
             ConfigOptions.key("scan.startup.timestamp-millis")
@@ -178,11 +178,12 @@ public class KafkaConnectorOptions {
                     .withDescription(
                             "Optional timestamp used in case of \"timestamp\" startUp mode");
 
-    public static final ConfigOption<Long> SCAN_END_TIMESTAMP_MILLIS =
-            ConfigOptions.key("scan.end.timestamp-millis")
+    public static final ConfigOption<Long> SCAN_BOUNDED_TIMESTAMP_MILLIS =
+            ConfigOptions.key("scan.bounded.timestamp-millis")
                     .longType()
                     .noDefaultValue()
-                    .withDescription("Optional timestamp used in case of \"timestamp\" end mode");
+                    .withDescription(
+                            "Optional timestamp used in case of \"timestamp\" bounded mode");
 
     public static final ConfigOption<Duration> SCAN_TOPIC_PARTITION_DISCOVERY =
             ConfigOptions.key("scan.topic-partition-discovery.interval")
@@ -310,22 +311,21 @@ public class KafkaConnectorOptions {
         }
     }
 
-    /** End mode for the Kafka consumer, see {@link #SCAN_END_MODE}. */
-    public enum ScanEndMode implements DescribedEnum {
-        END_LATEST_OFFSET("end-latest-offset", text("end from the latest offset.")),
-        END_GROUP_OFFSETS(
-                "end-group-offsets",
+    /** Bounded mode for the Kafka consumer, see {@link #SCAN_BOUNDED_MODE}. */
+    public enum ScanBoundedMode implements DescribedEnum {
+        LATEST_OFFSET("latest-offset", text("Bounded from the latest offset.")),
+        GROUP_OFFSETS(
+                "group-offsets",
                 text(
-                        "End from committed offsets in ZooKeeper / Kafka brokers of a specific consumer group.")),
-        END_TIMESTAMP("timestamp", text("End from user-supplied timestamp for each partition.")),
-        END_SPECIFIC_OFFSETS(
-                "end-specific-offsets",
-                text("End from user-supplied specific offsets for each partition.")),
-        DEFAULT("default", text("Default is unbounded flow"));
+                        "Bounded from committed offsets in ZooKeeper / Kafka brokers of a specific consumer group.")),
+        TIMESTAMP("timestamp", text("Bounded from user-supplied timestamp for each partition.")),
+        SPECIFIC_OFFSETS(
+                "specific-offsets",
+                text("Bounded from user-supplied specific offsets for each partition."));
         private final String value;
         private final InlineElement description;
 
-        ScanEndMode(String value, InlineElement description) {
+        ScanBoundedMode(String value, InlineElement description) {
             this.value = value;
             this.description = description;
         }

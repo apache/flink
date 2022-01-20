@@ -24,12 +24,12 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.base.DeliveryGuarantee;
-import org.apache.flink.streaming.connectors.kafka.config.EndMode;
+import org.apache.flink.streaming.connectors.kafka.config.BoundedMode;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.ScanEndMode;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.ScanBoundedMode;
 import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.ScanStartupMode;
 import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.ValueFieldsStrategy;
 import org.apache.flink.table.api.TableException;
@@ -58,9 +58,9 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FORMAT;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_END_MODE;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_END_SPECIFIC_OFFSETS;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_END_TIMESTAMP_MILLIS;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_BOUNDED_MODE;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_BOUNDED_SPECIFIC_OFFSETS;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_BOUNDED_TIMESTAMP_MILLIS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_MODE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_SPECIFIC_OFFSETS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_TIMESTAMP_MILLIS;
@@ -106,7 +106,7 @@ class KafkaConnectorOptionsUtil {
     public static void validateTableSourceOptions(ReadableConfig tableOptions) {
         validateSourceTopic(tableOptions);
         validateScanStartupMode(tableOptions);
-        validateScanEndMode(tableOptions);
+        validateScanBoundedMode(tableOptions);
     }
 
     public static void validateTableSinkOptions(ReadableConfig tableOptions) {
@@ -189,45 +189,44 @@ class KafkaConnectorOptionsUtil {
                         });
     }
 
-    private static void validateScanEndMode(ReadableConfig tableOptions) {
+    private static void validateScanBoundedMode(ReadableConfig tableOptions) {
         tableOptions
-                .getOptional(SCAN_END_MODE)
+                .getOptional(SCAN_BOUNDED_MODE)
                 .ifPresent(
                         mode -> {
                             switch (mode) {
-                                case END_TIMESTAMP:
+                                case TIMESTAMP:
                                     if (!tableOptions
-                                            .getOptional(SCAN_END_TIMESTAMP_MILLIS)
+                                            .getOptional(SCAN_BOUNDED_TIMESTAMP_MILLIS)
                                             .isPresent()) {
                                         throw new ValidationException(
                                                 String.format(
-                                                        "'%s' is required in '%s' end mode"
+                                                        "'%s' is required in '%s' bounded mode"
                                                                 + " but missing.",
-                                                        SCAN_END_TIMESTAMP_MILLIS.key(),
-                                                        ScanEndMode.END_TIMESTAMP));
+                                                        SCAN_BOUNDED_TIMESTAMP_MILLIS.key(),
+                                                        ScanBoundedMode.TIMESTAMP));
                                     }
 
                                     break;
-                                case END_SPECIFIC_OFFSETS:
+                                case SPECIFIC_OFFSETS:
                                     if (!tableOptions
-                                            .getOptional(SCAN_END_SPECIFIC_OFFSETS)
+                                            .getOptional(SCAN_BOUNDED_SPECIFIC_OFFSETS)
                                             .isPresent()) {
                                         throw new ValidationException(
                                                 String.format(
-                                                        "'%s' is required in '%s' end mode"
+                                                        "'%s' is required in '%s' bounded mode"
                                                                 + " but missing.",
-                                                        SCAN_END_SPECIFIC_OFFSETS.key(),
-                                                        ScanEndMode.END_SPECIFIC_OFFSETS));
+                                                        SCAN_BOUNDED_SPECIFIC_OFFSETS.key(),
+                                                        ScanBoundedMode.SPECIFIC_OFFSETS));
                                     }
                                     if (!isSingleTopic(tableOptions)) {
                                         throw new ValidationException(
                                                 "Currently Kafka source only supports specific offset for single topic.");
                                     }
                                     String specificOffsets =
-                                            tableOptions.get(SCAN_END_SPECIFIC_OFFSETS);
+                                            tableOptions.get(SCAN_BOUNDED_SPECIFIC_OFFSETS);
                                     parseSpecificOffsets(
-                                            specificOffsets, SCAN_END_SPECIFIC_OFFSETS.key());
-
+                                            specificOffsets, SCAN_BOUNDED_SPECIFIC_OFFSETS.key());
                                     break;
                             }
                         });
@@ -291,22 +290,22 @@ class KafkaConnectorOptionsUtil {
         return options;
     }
 
-    public static EndOptions getEndOptions(ReadableConfig tableOptions) {
+    public static BoundedOptions getBoundedOptions(ReadableConfig tableOptions) {
         final Map<KafkaTopicPartition, Long> specificOffsets = new HashMap<>();
-        final EndMode endMode =
+        final BoundedMode boundedMode =
                 tableOptions
-                        .getOptional(SCAN_END_MODE)
+                        .getOptional(SCAN_BOUNDED_MODE)
                         .map(KafkaConnectorOptionsUtil::fromOption)
-                        .orElse(EndMode.END_GROUP_OFFSETS);
-        if (endMode == EndMode.END_SPECIFIC_OFFSETS) {
+                        .orElse(null);
+        if (boundedMode == BoundedMode.SPECIFIC_OFFSETS) {
             buildBoundedOffsets(tableOptions, tableOptions.get(TOPIC).get(0), specificOffsets);
         }
 
-        final EndOptions options = new EndOptions();
-        options.endMode = endMode;
-        options.endSpecificOffsets = specificOffsets;
-        if (endMode == EndMode.END_TIMESTAMP) {
-            options.endTimestampMillis = tableOptions.get(SCAN_END_TIMESTAMP_MILLIS);
+        final BoundedOptions options = new BoundedOptions();
+        options.boundedMode = boundedMode;
+        options.specificOffsets = specificOffsets;
+        if (boundedMode == BoundedMode.TIMESTAMP) {
+            options.boundedTimestampMillis = tableOptions.get(SCAN_BOUNDED_TIMESTAMP_MILLIS);
         }
         return options;
     }
@@ -330,9 +329,9 @@ class KafkaConnectorOptionsUtil {
             ReadableConfig tableOptions,
             String topic,
             Map<KafkaTopicPartition, Long> specificOffsets) {
-        String specificOffsetsEndOpt = tableOptions.get(SCAN_END_SPECIFIC_OFFSETS);
+        String specificOffsetsEndOpt = tableOptions.get(SCAN_BOUNDED_SPECIFIC_OFFSETS);
         final Map<Integer, Long> offsetMap =
-                parseSpecificOffsets(specificOffsetsEndOpt, SCAN_END_SPECIFIC_OFFSETS.key());
+                parseSpecificOffsets(specificOffsetsEndOpt, SCAN_BOUNDED_SPECIFIC_OFFSETS.key());
 
         offsetMap.forEach(
                 (partition, offset) -> {
@@ -366,23 +365,23 @@ class KafkaConnectorOptionsUtil {
     }
 
     /**
-     * Returns the {@link EndMode} of Kafka Consumer by passed-in table-specific {@link
-     * ScanEndMode}.
+     * Returns the {@link BoundedMode} of Kafka Consumer by passed-in table-specific {@link
+     * ScanBoundedMode}.
      */
-    private static EndMode fromOption(ScanEndMode scanEndMode) {
-        switch (scanEndMode) {
-            case END_LATEST_OFFSET:
-                return EndMode.END_LATEST;
-            case END_GROUP_OFFSETS:
-                return EndMode.END_GROUP_OFFSETS;
-            case END_TIMESTAMP:
-                return EndMode.END_TIMESTAMP;
-            case END_SPECIFIC_OFFSETS:
-                return EndMode.END_SPECIFIC_OFFSETS;
+    private static BoundedMode fromOption(ScanBoundedMode scanBoundedMode) {
+        switch (scanBoundedMode) {
+            case LATEST_OFFSET:
+                return BoundedMode.LATEST;
+            case GROUP_OFFSETS:
+                return BoundedMode.GROUP_OFFSETS;
+            case TIMESTAMP:
+                return BoundedMode.TIMESTAMP;
+            case SPECIFIC_OFFSETS:
+                return BoundedMode.SPECIFIC_OFFSETS;
 
             default:
                 throw new TableException(
-                        "Unsupported End mode. Validator should have checked that.");
+                        "Unsupported bounded mode. Validator should have checked that.");
         }
     }
 
@@ -427,15 +426,15 @@ class KafkaConnectorOptionsUtil {
     }
 
     /**
-     * Parses SpecificOffsets String to Map.
+     * Parses specificOffsets String to Map.
      *
-     * <p>SpecificOffsets String format was given as following:
+     * <p>specificOffsets String format was given as following:
      *
      * <pre>
      *     scan.startup.specific-offsets = partition:0,offset:42;partition:1,offset:300
      * </pre>
      *
-     * @return SpecificOffsets with Map format, key is partition, and value is offset
+     * @return specificOffsets with Map format, key is partition, and value is offset
      */
     public static Map<Integer, Long> parseSpecificOffsets(
             String specificOffsetsStr, String optionKey) {
@@ -688,11 +687,11 @@ class KafkaConnectorOptionsUtil {
         public long startupTimestampMillis;
     }
 
-    /** Kafka end options. * */
-    public static class EndOptions {
-        public EndMode endMode;
-        public Map<KafkaTopicPartition, Long> endSpecificOffsets;
-        public long endTimestampMillis;
+    /** Kafka bounded options. * */
+    public static class BoundedOptions {
+        public BoundedMode boundedMode;
+        public Map<KafkaTopicPartition, Long> specificOffsets;
+        public long boundedTimestampMillis;
     }
 
     private KafkaConnectorOptionsUtil() {}
