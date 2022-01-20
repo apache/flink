@@ -1069,6 +1069,8 @@ Metrics related to data exchange between task executors using netty network comm
 The metrics in this table are available for each of the following job states: INITIALIZING, CREATED, RUNNING, RESTARTING, CANCELLING, FAILING.
 Whether these metrics are reported depends on the [metrics.job.status.enable]({{< ref "docs/deployment/config" >}}#metrics-job-status-enable) setting.
 
+<span class="label label-info">Evolving</span> The semantics of these metrics may change in later releases.
+
 <table class="table table-bordered">
   <thead>
     <tr>
