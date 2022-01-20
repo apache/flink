@@ -127,7 +127,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     private final AtomicBoolean isShutDown = new AtomicBoolean(false);
 
     @GuardedBy("lock")
-    private ResourceID resourceId;
+    private DeterminismEnvelope<ResourceID> resourceId;
 
     @GuardedBy("lock")
     private DispatcherResourceManagerComponent clusterComponent;
@@ -154,7 +154,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     private ExecutorService ioExecutor;
 
     @GuardedBy("lock")
-    private WorkingDirectory workingDirectory;
+    private DeterminismEnvelope<WorkingDirectory> workingDirectory;
 
     private ExecutionGraphInfoStore executionGraphInfoStore;
 
@@ -262,7 +262,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             clusterComponent =
                     dispatcherResourceManagerComponentFactory.create(
                             configuration,
-                            resourceId,
+                            resourceId.unwrap(),
                             ioExecutor,
                             commonRpcService,
                             haServices,
@@ -307,8 +307,14 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             resourceId =
                     configuration
                             .getOptional(JobManagerOptions.JOB_MANAGER_RESOURCE_ID)
-                            .map(ResourceID::new)
-                            .orElseGet(ResourceID::generate);
+                            .map(
+                                    value ->
+                                            DeterminismEnvelope.deterministicValue(
+                                                    new ResourceID(value)))
+                            .orElseGet(
+                                    () ->
+                                            DeterminismEnvelope.nondeterministicValue(
+                                                    ResourceID.generate()));
 
             LOG.debug(
                     "Initialize cluster entrypoint {} with resource id {}.",
@@ -346,7 +352,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             blobServer =
                     BlobUtils.createBlobServer(
                             configuration,
-                            Reference.borrowed(workingDirectory.getBlobStorageDirectory()),
+                            Reference.borrowed(workingDirectory.unwrap().getBlobStorageDirectory()),
                             haServices.createBlobStore());
             blobServer.start();
             heartbeatServices = createHeartbeatServices(configuration);
@@ -601,13 +607,15 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             ioException = ioe;
         }
 
-        // We only clean up the working directory if we gracefully shut down. If it is a process
-        // failure, then we want to keep the working directory for potential recoveries.
-        if (shutdownBehaviour == ShutdownBehaviour.GRACEFUL_SHUTDOWN) {
-            synchronized (lock) {
-                if (workingDirectory != null) {
+        synchronized (lock) {
+            if (workingDirectory != null) {
+                // We only clean up the working directory if we gracefully shut down or if its path
+                // is nondeterministic. If it is a process failure, then we want to keep the working
+                // directory for potential recoveries.
+                if (!workingDirectory.isDeterministic()
+                        || shutdownBehaviour == ShutdownBehaviour.GRACEFUL_SHUTDOWN) {
                     try {
-                        workingDirectory.delete();
+                        workingDirectory.unwrap().delete();
                     } catch (IOException ioe) {
                         ioException = ExceptionUtils.firstOrSuppressed(ioe, ioException);
                     }

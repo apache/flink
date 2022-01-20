@@ -37,6 +37,7 @@ import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.blob.TaskExecutorBlobService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
+import org.apache.flink.runtime.entrypoint.DeterminismEnvelope;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -78,6 +79,7 @@ import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TaskManagerExceptionUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,7 +116,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
     private final Configuration configuration;
 
-    private final ResourceID resourceId;
+    private final DeterminismEnvelope<ResourceID> resourceId;
 
     private final Time timeout;
 
@@ -131,7 +133,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
     private final TaskExecutorService taskExecutorService;
 
-    private final WorkingDirectory workingDirectory;
+    private final DeterminismEnvelope<WorkingDirectory> workingDirectory;
 
     private final CompletableFuture<Result> terminationFuture;
 
@@ -188,12 +190,12 @@ public class TaskManagerRunner implements FatalErrorHandler {
         final RpcService metricQueryServiceRpcService =
                 MetricUtils.startRemoteMetricsRpcService(
                         configuration, rpcService.getAddress(), rpcSystem);
-        metricRegistry.startQueryService(metricQueryServiceRpcService, resourceId);
+        metricRegistry.startQueryService(metricQueryServiceRpcService, resourceId.unwrap());
 
         blobCacheService =
                 BlobUtils.createBlobCacheService(
                         configuration,
-                        Reference.borrowed(workingDirectory.getBlobStorageDirectory()),
+                        Reference.borrowed(workingDirectory.unwrap().getBlobStorageDirectory()),
                         highAvailabilityServices.createBlobStore(),
                         null);
 
@@ -204,7 +206,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
         taskExecutorService =
                 taskExecutorServiceFactory.createTaskExecutor(
                         this.configuration,
-                        this.resourceId,
+                        this.resourceId.unwrap(),
                         rpcService,
                         highAvailabilityServices,
                         heartbeatServices,
@@ -212,7 +214,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         blobCacheService,
                         false,
                         externalResourceInfoProvider,
-                        workingDirectory,
+                        workingDirectory.unwrap(),
                         this);
 
         this.terminationFuture = new CompletableFuture<>();
@@ -271,16 +273,10 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         FutureUtils.composeAfterwards(
                                 taskManagerTerminationFuture, this::shutDownServices);
 
-                final CompletableFuture<Void> workingDirCleanupFuture;
-
-                if (terminationResult == Result.SUCCESS) {
-                    workingDirCleanupFuture =
-                            FutureUtils.runAfterwards(
-                                    serviceTerminationFuture, this::deleteWorkingDir);
-                } else {
-                    // keep the working directory in case of a failure
-                    workingDirCleanupFuture = serviceTerminationFuture;
-                }
+                final CompletableFuture<Void> workingDirCleanupFuture =
+                        FutureUtils.runAfterwards(
+                                serviceTerminationFuture,
+                                () -> deleteWorkingDir(terminationResult));
 
                 final CompletableFuture<Void> rpcSystemClassLoaderCloseFuture =
                         FutureUtils.runAfterwards(workingDirCleanupFuture, rpcSystem::close);
@@ -299,9 +295,11 @@ public class TaskManagerRunner implements FatalErrorHandler {
         return terminationFuture;
     }
 
-    private void deleteWorkingDir() throws IOException {
+    private void deleteWorkingDir(Result terminationResult) throws IOException {
         if (workingDirectory != null) {
-            workingDirectory.delete();
+            if (!workingDirectory.isDeterministic() || terminationResult == Result.SUCCESS) {
+                workingDirectory.unwrap().delete();
+            }
         }
     }
 
@@ -664,21 +662,38 @@ public class TaskManagerRunner implements FatalErrorHandler {
     }
 
     @VisibleForTesting
-    static ResourceID getTaskManagerResourceID(Configuration config, String rpcAddress, int rpcPort)
-            throws Exception {
-        return new ResourceID(
-                config.getString(
-                        TaskManagerOptions.TASK_MANAGER_RESOURCE_ID,
-                        StringUtils.isNullOrWhitespaceOnly(rpcAddress)
-                                ? InetAddress.getLocalHost().getHostName()
-                                        + "-"
-                                        + new AbstractID().toString().substring(0, 6)
-                                : rpcAddress
-                                        + ":"
-                                        + rpcPort
-                                        + "-"
-                                        + new AbstractID().toString().substring(0, 6)),
-                config.getString(TaskManagerOptionsInternal.TASK_MANAGER_RESOURCE_ID_METADATA, ""));
+    static DeterminismEnvelope<ResourceID> getTaskManagerResourceID(
+            Configuration config, String rpcAddress, int rpcPort) {
+
+        final String metadata =
+                config.getString(TaskManagerOptionsInternal.TASK_MANAGER_RESOURCE_ID_METADATA, "");
+        return config.getOptional(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID)
+                .map(
+                        value ->
+                                DeterminismEnvelope.deterministicValue(
+                                        new ResourceID(value, metadata)))
+                .orElseGet(
+                        FunctionUtils.uncheckedSupplier(
+                                () -> {
+                                    final String hostName =
+                                            InetAddress.getLocalHost().getHostName();
+                                    final String value =
+                                            StringUtils.isNullOrWhitespaceOnly(rpcAddress)
+                                                    ? hostName
+                                                            + "-"
+                                                            + new AbstractID()
+                                                                    .toString()
+                                                                    .substring(0, 6)
+                                                    : rpcAddress
+                                                            + ":"
+                                                            + rpcPort
+                                                            + "-"
+                                                            + new AbstractID()
+                                                                    .toString()
+                                                                    .substring(0, 6);
+                                    return DeterminismEnvelope.nondeterministicValue(
+                                            new ResourceID(value, metadata));
+                                }));
     }
 
     /** Factory for {@link TaskExecutor}. */

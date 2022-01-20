@@ -29,13 +29,20 @@ import org.apache.flink.runtime.testutils.DispatcherProcess;
 import org.apache.flink.test.util.TestProcessBuilder;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /** Integration tests for the {@link org.apache.flink.runtime.entrypoint.ClusterEntrypoint}. */
@@ -44,7 +51,8 @@ public class ClusterEntrypointITCase extends TestLogger {
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
     @Test
-    public void testWorkingDirectoryIsNotDeletedInCaseOfProcessFailure() throws Exception {
+    public void testDeterministicWorkingDirectoryIsNotDeletedInCaseOfProcessFailure()
+            throws Exception {
         final File workingDirBase = TEMPORARY_FOLDER.newFolder();
         final ResourceID resourceId = ResourceID.generate();
 
@@ -73,6 +81,51 @@ public class ClusterEntrypointITCase extends TestLogger {
             jobManagerProcess.getProcess().waitFor();
 
             assertTrue(workingDirectory.exists());
+            success = true;
+        } finally {
+            if (!success) {
+                AbstractTaskManagerProcessFailureRecoveryTest.printProcessLog(
+                        "JobManager", jobManagerProcess);
+            }
+        }
+    }
+
+    @Test
+    public void testNondeterministicWorkingDirectoryIsDeletedInCaseOfProcessFailure()
+            throws Exception {
+        final File workingDirBase = TEMPORARY_FOLDER.newFolder();
+
+        final Configuration configuration = new Configuration();
+        configuration.set(
+                ClusterOptions.PROCESS_WORKING_DIR_BASE, workingDirBase.getAbsolutePath());
+
+        final TestProcessBuilder.TestProcess jobManagerProcess =
+                new TestProcessBuilder(
+                                DispatcherProcess.DispatcherProcessEntryPoint.class.getName())
+                        .addConfigAsMainClassArgs(configuration)
+                        .start();
+
+        boolean success = false;
+        try {
+            CommonTestUtils.waitUntilCondition(
+                    () -> {
+                        try (Stream<Path> files = Files.list(workingDirBase.toPath())) {
+                            return files.findAny().isPresent();
+                        }
+                    },
+                    Deadline.fromNow(Duration.ofMinutes(1L)));
+
+            final File workingDirectory =
+                    Iterables.getOnlyElement(
+                                    Files.list(workingDirBase.toPath())
+                                            .collect(Collectors.toList()))
+                            .toFile();
+
+            jobManagerProcess.getProcess().destroy();
+
+            jobManagerProcess.getProcess().waitFor();
+
+            assertFalse(workingDirectory.exists());
             success = true;
         } finally {
             if (!success) {
