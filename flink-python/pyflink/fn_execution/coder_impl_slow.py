@@ -22,7 +22,6 @@ from abc import ABC, abstractmethod
 from typing import List
 
 import cloudpickle
-import pyarrow as pa
 
 from pyflink.common import Row, RowKind
 from pyflink.common.time import Instant
@@ -281,6 +280,8 @@ class ArrowCoderImpl(FieldCoderImpl):
         self._batch_reader = ArrowCoderImpl._load_from_stream(self._resettable_io)
 
     def encode_to_stream(self, cols, out_stream: OutputStream):
+        import pyarrow as pa
+
         self._resettable_io.set_output_stream(out_stream)
         batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
         batch_writer.write_batch(
@@ -296,6 +297,8 @@ class ArrowCoderImpl(FieldCoderImpl):
 
     @staticmethod
     def _load_from_stream(stream):
+        import pyarrow as pa
+
         while stream.readable():
             reader = pa.ipc.open_stream(stream)
             yield reader.read_next_batch()

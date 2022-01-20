@@ -30,6 +30,8 @@ import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.runtime.typeutils.serializers.python.ArrayDataSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.DecimalDataSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.MapDataSerializer;
@@ -56,9 +58,12 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
+import org.apache.flink.table.types.utils.TypeConversions;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.Time;
 import java.util.TimeZone;
 
 /**
@@ -82,6 +87,10 @@ public final class PythonTypeUtils {
 
     public static TypeSerializer toInternalSerializer(LogicalType logicalType) {
         return logicalType.accept(new LogicalTypetoInternalSerializerConverter());
+    }
+
+    public static DataConverter toDataConverter(LogicalType logicalType) {
+        return logicalType.accept(new LogicalTypeToDataConverter());
     }
 
     /**
@@ -456,6 +465,269 @@ public final class PythonTypeUtils {
                     String.format(
                             "Python UDF doesn't support logical type %s currently.",
                             logicalType.asSummaryString()));
+        }
+    }
+
+    /** Data Converter that converts the data to the java format data which can be used in PemJa. */
+    public abstract static class DataConverter<IN, INTER, OUT> implements Serializable {
+
+        private static final long serialVersionUID = 1L;
+
+        private final DataFormatConverters.DataFormatConverter<IN, INTER> dataFormatConverter;
+
+        public DataConverter(
+                DataFormatConverters.DataFormatConverter<IN, INTER> dataFormatConverter) {
+            this.dataFormatConverter = dataFormatConverter;
+        }
+
+        public final IN toInternal(OUT value) {
+            return dataFormatConverter.toInternal(toInternalImpl(value));
+        }
+
+        public final OUT toExternal(RowData row, int column) {
+            return toExternalImpl(dataFormatConverter.toExternal(row, column));
+        }
+
+        abstract INTER toInternalImpl(OUT value);
+
+        abstract OUT toExternalImpl(INTER value);
+    }
+
+    /** Identity data converter. */
+    public static final class IdentityDataConverter<IN, OUT> extends DataConverter<IN, OUT, OUT> {
+        IdentityDataConverter(
+                DataFormatConverters.DataFormatConverter<IN, OUT> dataFormatConverter) {
+            super(dataFormatConverter);
+        }
+
+        @Override
+        OUT toInternalImpl(OUT value) {
+            return value;
+        }
+
+        @Override
+        OUT toExternalImpl(OUT value) {
+            return value;
+        }
+    }
+
+    /**
+     * Python Long will be converted to Long in PemJa, so we need ByteDataConverter to convert Java
+     * Long to internal Byte.
+     */
+    public static final class ByteDataConverter extends DataConverter<Byte, Byte, Long> {
+
+        public static final ByteDataConverter INSTANCE = new ByteDataConverter();
+
+        private ByteDataConverter() {
+            super(DataFormatConverters.ByteConverter.INSTANCE);
+        }
+
+        @Override
+        Byte toInternalImpl(Long value) {
+            return value.byteValue();
+        }
+
+        @Override
+        Long toExternalImpl(Byte value) {
+            return value.longValue();
+        }
+    }
+
+    /**
+     * Python Long will be converted to Long in PemJa, so we need ShortDataConverter to convert Java
+     * Long to internal Short.
+     */
+    public static final class ShortDataConverter extends DataConverter<Short, Short, Long> {
+
+        public static final ShortDataConverter INSTANCE = new ShortDataConverter();
+
+        private ShortDataConverter() {
+            super(DataFormatConverters.ShortConverter.INSTANCE);
+        }
+
+        @Override
+        Short toInternalImpl(Long value) {
+            return value.shortValue();
+        }
+
+        @Override
+        Long toExternalImpl(Short value) {
+            return value.longValue();
+        }
+    }
+
+    /**
+     * Python Long will be converted to Long in PemJa, so we need IntDataConverter to convert Java
+     * Long to internal Integer.
+     */
+    public static final class IntDataConverter extends DataConverter<Integer, Integer, Long> {
+
+        public static final IntDataConverter INSTANCE = new IntDataConverter();
+
+        private IntDataConverter() {
+            super(DataFormatConverters.IntConverter.INSTANCE);
+        }
+
+        @Override
+        Integer toInternalImpl(Long value) {
+            return value.intValue();
+        }
+
+        @Override
+        Long toExternalImpl(Integer value) {
+            return value.longValue();
+        }
+    }
+
+    /**
+     * Python Float will be converted to Double in PemJa, so we need FloatDataConverter to convert
+     * Java Double to internal Float.
+     */
+    public static final class FloatDataConverter extends DataConverter<Float, Float, Double> {
+
+        public static final FloatDataConverter INSTANCE = new FloatDataConverter();
+
+        private FloatDataConverter() {
+            super(DataFormatConverters.FloatConverter.INSTANCE);
+        }
+
+        @Override
+        Float toInternalImpl(Double value) {
+            return value.floatValue();
+        }
+
+        @Override
+        Double toExternalImpl(Float value) {
+            return value.doubleValue();
+        }
+    }
+
+    /**
+     * Python datetime.time will be converted to Time in PemJa, so we need TimeDataConverter to
+     * convert Java Double to internal Integer.
+     */
+    public static final class TimeDataConverter extends DataConverter<Integer, Integer, Time> {
+
+        public static final TimeDataConverter INSTANCE = new TimeDataConverter();
+
+        private TimeDataConverter() {
+            super(DataFormatConverters.IntConverter.INSTANCE);
+        }
+
+        @Override
+        Integer toInternalImpl(Time value) {
+            return (int) value.getTime();
+        }
+
+        @Override
+        Time toExternalImpl(Integer value) {
+            return new Time(value);
+        }
+    }
+
+    private static final class LogicalTypeToDataConverter
+            extends LogicalTypeDefaultVisitor<DataConverter> {
+
+        @Override
+        public DataConverter visit(BooleanType booleanType) {
+            return defaultConverter(booleanType);
+        }
+
+        @Override
+        public DataConverter visit(TinyIntType tinyIntType) {
+            return ByteDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(SmallIntType smallIntType) {
+            return ShortDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(IntType intType) {
+            return IntDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(BigIntType bigIntType) {
+            return defaultConverter(bigIntType);
+        }
+
+        @Override
+        public DataConverter visit(FloatType floatType) {
+            return FloatDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(DoubleType doubleType) {
+            return defaultConverter(doubleType);
+        }
+
+        @Override
+        public DataConverter visit(DecimalType decimalType) {
+            return defaultConverter(decimalType);
+        }
+
+        @Override
+        public DataConverter visit(VarCharType varCharType) {
+            return defaultConverter(varCharType);
+        }
+
+        @Override
+        public DataConverter visit(CharType charType) {
+            return defaultConverter(charType);
+        }
+
+        @Override
+        public DataConverter visit(VarBinaryType varBinaryType) {
+            return defaultConverter(varBinaryType);
+        }
+
+        @Override
+        public DataConverter visit(BinaryType binaryType) {
+            return defaultConverter(binaryType);
+        }
+
+        @Override
+        public DataConverter visit(DateType dateType) {
+            return new IdentityDataConverter<>(DataFormatConverters.DateConverter.INSTANCE);
+        }
+
+        @Override
+        public DataConverter visit(TimeType timeType) {
+            return TimeDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(TimestampType timestampType) {
+            return new IdentityDataConverter<>(
+                    new DataFormatConverters.TimestampConverter(timestampType.getPrecision()));
+        }
+
+        @Override
+        public DataConverter visit(ArrayType arrayType) {
+            return defaultConverter(arrayType);
+        }
+
+        @Override
+        public DataConverter visit(MapType mapType) {
+            return defaultConverter(mapType);
+        }
+
+        @Override
+        protected DataConverter defaultMethod(LogicalType logicalType) {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Currently, Python UDF doesn't support logical type %s in Thread Mode.",
+                            logicalType.asSummaryString()));
+        }
+
+        @SuppressWarnings("unchecked")
+        private DataConverter defaultConverter(LogicalType logicalType) {
+            return new IdentityDataConverter<>(
+                    DataFormatConverters.getConverterForDataType(
+                            TypeConversions.fromLogicalToDataType(logicalType)));
         }
     }
 }

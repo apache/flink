@@ -214,4 +214,17 @@ public class PythonOptions {
                                     + "in each batch when iterating a Python MapState. Note that this is an experimental flag "
                                     + "and might not be available "
                                     + "in future releases.");
+
+    /** Specify the python runtime execution mode. */
+    @Experimental
+    public static final ConfigOption<String> PYTHON_EXECUTION_MODE =
+            ConfigOptions.key("python.execution-mode")
+                    .defaultValue("process")
+                    .withDescription(
+                            "Specify the python runtime execution mode. The optional values are `process`, `multi-thread` and `sub-interpreter`. "
+                                    + "The `process` mode means that the Python user-defined functions will be executed in separate Python process. "
+                                    + "The `multi-thread` mode means that the Python user-defined functions will be executed in the same thread as Java Operator, but it will be affected by GIL performance. "
+                                    + "The `sub-interpreter` mode means that the Python user-defined functions will be executed in python different sub-interpreters rather than different threads of one interpreter, "
+                                    + "which can largely overcome the effects of the GIL, but it maybe fail in some CPython extensions libraries, such as numpy, tensorflow. "
+                                    + "Note that if the python operator dose not support `multi-thread` and `sub-interpreter` mode, we will still use `process` mode.");
 }

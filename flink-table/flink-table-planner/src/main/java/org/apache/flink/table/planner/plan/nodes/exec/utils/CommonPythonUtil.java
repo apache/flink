@@ -158,6 +158,20 @@ public class CommonPythonUtil {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    public static boolean isPythonWorkerInProcessMode(Configuration config) {
+        Class clazz = loadClass("org.apache.flink.python.PythonOptions");
+        try {
+            return config.getString(
+                            (ConfigOption<String>)
+                                    (clazz.getField("PYTHON_EXECUTION_MODE").get(null)))
+                    .equalsIgnoreCase("process");
+
+        } catch (IllegalAccessException | NoSuchFieldException e) {
+            throw new TableException("Field PYTHON_EXECUTION_MODE accessed failed.", e);
+        }
+    }
+
     public static Tuple2<PythonAggregateFunctionInfo[], DataViewSpec[][]>
             extractPythonAggregateFunctionInfos(
                     AggregateInfoList pythonAggregateInfoList, AggregateCall[] aggCalls) {

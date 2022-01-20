@@ -17,19 +17,15 @@
 ################################################################################
 import abc
 
-from apache_beam.runners.worker.bundle_processor import TimerInfo
-
 from pyflink.common import Row
 from pyflink.common.serializer import VoidNamespaceSerializer
 from pyflink.datastream import TimeDomain, RuntimeContext
-from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.fn_execution import pickle
 from pyflink.fn_execution.datastream.process_function import \
     InternalKeyedProcessFunctionOnTimerContext, InternalKeyedProcessFunctionContext, \
     InternalProcessFunctionContext
 from pyflink.fn_execution.datastream.runtime_context import StreamingRuntimeContext
 from pyflink.fn_execution.datastream.window.window_operator import WindowOperator
-from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.fn_execution.datastream.timerservice_impl import (
     TimerServiceImpl, InternalTimerServiceImpl, NonKeyedTimerServiceImpl)
 from pyflink.fn_execution.datastream.input_handler import (RunnerInputHandler, TimerHandler,
@@ -43,9 +39,8 @@ DATA_STREAM_STATEFUL_FUNCTION_URN = "flink:transform:ds:stateful_function:v1"
 
 class Operation(abc.ABC):
 
-    def __init__(self, spec):
-        self.spec = spec
-        if self.spec.serialized_fn.metric_enabled:
+    def __init__(self, serialized_fn):
+        if serialized_fn.metric_enabled:
             self.base_metric_group = GenericMetricGroup(None, None)
         else:
             self.base_metric_group = None
@@ -74,13 +69,13 @@ class Operation(abc.ABC):
 
 class StatelessOperation(Operation):
 
-    def __init__(self, spec):
-        super(StatelessOperation, self).__init__(spec)
+    def __init__(self, serialized_fn):
+        super(StatelessOperation, self).__init__(serialized_fn)
         self.open_func, self.close_func, self.process_element_func = \
             extract_stateless_function(
-                user_defined_function_proto=self.spec.serialized_fn,
+                user_defined_function_proto=serialized_fn,
                 runtime_context=StreamingRuntimeContext.of(
-                    self.spec.serialized_fn.runtime_context,
+                    serialized_fn.runtime_context,
                     self.base_metric_group))
 
     def open(self):
@@ -95,15 +90,15 @@ class StatelessOperation(Operation):
 
 class StatefulOperation(Operation):
 
-    def __init__(self, spec, keyed_state_backend):
-        super(StatefulOperation, self).__init__(spec)
+    def __init__(self, serialized_fn, keyed_state_backend):
+        super(StatefulOperation, self).__init__(serialized_fn)
         self.keyed_state_backend = keyed_state_backend
         self.open_func, self.close_func, self.process_element_func, self.process_timer_func, \
             self.internal_timer_service = \
             extract_stateful_function(
-                user_defined_function_proto=self.spec.serialized_fn,
+                user_defined_function_proto=serialized_fn,
                 runtime_context=StreamingRuntimeContext.of(
-                    self.spec.serialized_fn.runtime_context,
+                    serialized_fn.runtime_context,
                     self.base_metric_group,
                     self.keyed_state_backend),
                 keyed_state_backend=self.keyed_state_backend)
@@ -124,7 +119,7 @@ class StatefulOperation(Operation):
     def process_timer(self, timer_data):
         return self.process_timer_func(timer_data)
 
-    def add_timer_info(self, timer_info: TimerInfo):
+    def add_timer_info(self, timer_info):
         self.internal_timer_service.add_timer_info(timer_info)
 
 
@@ -136,6 +131,8 @@ def extract_stateless_function(user_defined_function_proto, runtime_context: Run
     :param user_defined_function_proto: the proto representation of the Python :class:`Function`
     :param runtime_context: the streaming runtime context
     """
+    from pyflink.fn_execution import flink_fn_execution_pb2
+
     func_type = user_defined_function_proto.function_type
     UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
 
@@ -210,7 +207,9 @@ def extract_stateless_function(user_defined_function_proto, runtime_context: Run
 
 def extract_stateful_function(user_defined_function_proto,
                               runtime_context: RuntimeContext,
-                              keyed_state_backend: RemoteKeyedStateBackend):
+                              keyed_state_backend):
+    from pyflink.fn_execution import flink_fn_execution_pb2
+
     func_type = user_defined_function_proto.function_type
     user_defined_func = pickle.loads(user_defined_function_proto.payload)
     internal_timer_service = InternalTimerServiceImpl(keyed_state_backend)

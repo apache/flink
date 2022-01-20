@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.env;
+package org.apache.flink.python.env.process;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.python.env.PythonEnvironment;
 
 import java.util.Map;
 

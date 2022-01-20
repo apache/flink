@@ -21,6 +21,7 @@ package org.apache.flink.python.env;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.python.PythonConfig;
+import org.apache.flink.python.PythonOptions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -69,17 +70,37 @@ public final class PythonDependencyInfo {
      */
     @Nonnull private final String pythonExec;
 
+    /** Execution Mode. */
+    @Nonnull private final String executionMode;
+
     public PythonDependencyInfo(
             @Nonnull Map<String, String> pythonFiles,
             @Nullable String requirementsFilePath,
             @Nullable String requirementsCacheDir,
             @Nonnull Map<String, String> archives,
             @Nonnull String pythonExec) {
+        this(
+                pythonFiles,
+                requirementsFilePath,
+                requirementsCacheDir,
+                archives,
+                pythonExec,
+                PythonOptions.PYTHON_EXECUTION_MODE.defaultValue());
+    }
+
+    public PythonDependencyInfo(
+            @Nonnull Map<String, String> pythonFiles,
+            @Nullable String requirementsFilePath,
+            @Nullable String requirementsCacheDir,
+            @Nonnull Map<String, String> archives,
+            @Nonnull String pythonExec,
+            @Nonnull String executionMode) {
         this.pythonFiles = Objects.requireNonNull(pythonFiles);
         this.requirementsFilePath = requirementsFilePath;
         this.requirementsCacheDir = requirementsCacheDir;
         this.pythonExec = Objects.requireNonNull(pythonExec);
         this.archives = Objects.requireNonNull(archives);
+        this.executionMode = Objects.requireNonNull(executionMode);
     }
 
     public Map<String, String> getPythonFiles() {
@@ -100,6 +121,10 @@ public final class PythonDependencyInfo {
 
     public Map<String, String> getArchives() {
         return archives;
+    }
+
+    public String getExecutionMode() {
+        return executionMode;
     }
 
     /**
@@ -144,6 +169,11 @@ public final class PythonDependencyInfo {
         String pythonExec = pythonConfig.getPythonExec();
 
         return new PythonDependencyInfo(
-                pythonFiles, requirementsFilePath, requirementsCacheDir, archives, pythonExec);
+                pythonFiles,
+                requirementsFilePath,
+                requirementsCacheDir,
+                archives,
+                pythonExec,
+                pythonConfig.getExecutionMode());
     }
 }

@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.runners.python.beam;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -54,7 +54,7 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
 
     public BeamTablePythonFunctionRunner(
             String taskName,
-            PythonEnvironmentManager environmentManager,
+            ProcessPythonEnvironmentManager environmentManager,
             String functionUrn,
             GeneratedMessageV3 userDefinedFunctionProto,
             Map<String, String> jobOptions,
@@ -119,7 +119,7 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
 
     public static BeamTablePythonFunctionRunner stateless(
             String taskName,
-            PythonEnvironmentManager environmentManager,
+            ProcessPythonEnvironmentManager environmentManager,
             String functionUrn,
             GeneratedMessageV3 userDefinedFunctionProto,
             Map<String, String> jobOptions,
@@ -146,7 +146,7 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
 
     public static BeamTablePythonFunctionRunner stateful(
             String taskName,
-            PythonEnvironmentManager environmentManager,
+            ProcessPythonEnvironmentManager environmentManager,
             String functionUrn,
             GeneratedMessageV3 userDefinedFunctionProto,
             Map<String, String> jobOptions,

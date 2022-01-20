@@ -22,12 +22,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.AbstractExternalPythonFunctionOperator;
 
 /** Base class for all one input stream operators to execute Python functions. */
 @Internal
 public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
-        extends AbstractPythonFunctionOperator<OUT>
+        extends AbstractExternalPythonFunctionOperator<OUT>
         implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
 
     private static final long serialVersionUID = 1L;

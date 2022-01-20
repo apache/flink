@@ -27,6 +27,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.beam:beam-vendor-sdks-java-extensions-protobuf:2.27.0
 - org.apache.beam:beam-vendor-guava-26_0-jre:0.1
 - org.apache.beam:beam-vendor-grpc-1_26_0:0.3
+- com.alibaba:pemja:0.1.2
 
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details

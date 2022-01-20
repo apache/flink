@@ -151,12 +151,13 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
         side_inputs=None,
         output_coders=[output_coders[tag] for tag in output_tags])
 
-    if hasattr(spec.serialized_fn, "key_type"):
+    serialized_fn = spec.serialized_fn
+    if hasattr(serialized_fn, "key_type"):
         # keyed operation, need to create the KeyedStateBackend.
-        row_schema = spec.serialized_fn.key_type.row_schema
+        row_schema = serialized_fn.key_type.row_schema
         key_row_coder = FlattenRowCoder([from_proto(f.type) for f in row_schema.fields])
-        if spec.serialized_fn.HasField('group_window'):
-            if spec.serialized_fn.group_window.is_time_window:
+        if serialized_fn.HasField('group_window'):
+            if serialized_fn.group_window.is_time_window:
                 window_coder = TimeWindowCoder()
             else:
                 window_coder = CountWindowCoder()
@@ -166,9 +167,9 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             factory.state_handler,
             key_row_coder,
             window_coder,
-            spec.serialized_fn.state_cache_size,
-            spec.serialized_fn.map_state_read_cache_size,
-            spec.serialized_fn.map_state_write_cache_size)
+            serialized_fn.state_cache_size,
+            serialized_fn.map_state_read_cache_size,
+            serialized_fn.map_state_write_cache_size)
 
         return beam_operation_cls(
             transform_proto.unique_name,
@@ -179,7 +180,7 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             internal_operation_cls,
             keyed_state_backend)
     elif internal_operation_cls == datastream_operations.StatefulOperation:
-        key_row_coder = from_type_info_proto(spec.serialized_fn.key_type_info)
+        key_row_coder = from_type_info_proto(serialized_fn.key_type_info)
         keyed_state_backend = RemoteKeyedStateBackend(
             factory.state_handler,
             key_row_coder,
