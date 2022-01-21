@@ -1144,6 +1144,7 @@ public class AdaptiveScheduler
         Preconditions.checkState(
                 state.getClass() != targetState.getStateClass(),
                 "Attempted to transition into the very state the scheduler is already in.");
+        componentMainThreadExecutor.assertRunningInMainThread();
 
         try {
             isTransitioningState = true;
