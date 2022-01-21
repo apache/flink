@@ -157,8 +157,9 @@ public class MultipleInputStreamMemoryIssueTest {
                                                 acc += 1;
                                             } else if (ct
                                                     > (Duration.ofSeconds(10).toMillis() / 100)) {
-                                                ct = 0;
-                                                isIdle = false;
+                                                //recover from idle
+//                                                ct = 0;
+//                                                isIdle = false;
                                             } else if (!isIdle) {
                                                 isIdle = true;
                                                 ctx.markAsTemporarilyIdle();
