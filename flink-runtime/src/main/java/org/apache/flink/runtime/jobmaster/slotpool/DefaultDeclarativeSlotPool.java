@@ -434,6 +434,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     public ResourceCounter releaseSlots(ResourceID owner, Exception cause) {
         final AllocatedSlotPool.AllocatedSlotsAndReservationStatus removedSlots =
                 slotPool.removeSlots(owner);
+        System.out.println("------------- Releasing slots: " + removedSlots.getAllocatedSlots());
 
         final Collection<AllocatedSlot> slotsToFree = new ArrayList<>();
         for (AllocatedSlot removedSlot : removedSlots.getAllocatedSlots()) {

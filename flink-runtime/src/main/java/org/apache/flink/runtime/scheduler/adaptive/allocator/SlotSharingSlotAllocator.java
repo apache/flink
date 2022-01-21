@@ -36,11 +36,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /** {@link SlotAllocator} implementation that supports slot sharing. */
@@ -92,8 +92,17 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     }
 
     @Override
-    public Optional<VertexParallelismWithSlotSharing> determineParallelism(
+    public Optional<? extends VertexParallelism> determineParallelism(
             JobInformation jobInformation, Collection<? extends SlotInfo> freeSlots) {
+        return determineParallelismAndCalculateAssignment(
+                jobInformation, freeSlots, new DefaultSlotAssigner());
+    }
+
+    @Override
+    public Optional<VertexParallelismWithSlotSharing> determineParallelismAndCalculateAssignment(
+            JobInformation jobInformation,
+            Collection<? extends SlotInfo> freeSlots,
+            SlotAssigner slotAssigner) {
         // TODO: This can waste slots if the max parallelism for slot sharing groups is not equal
         final int slotsPerSlotSharingGroup =
                 freeSlots.size() / jobInformation.getSlotSharingGroups().size();
@@ -103,60 +112,53 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
             return Optional.empty();
         }
 
-        final Iterator<? extends SlotInfo> slotIterator = freeSlots.iterator();
-
         final Collection<ExecutionSlotSharingGroupAndSlot> assignments = new ArrayList<>();
         final Map<JobVertexID, Integer> allVertexParallelism = new HashMap<>();
+
+        final Map<SlotSharingGroupId, Set<? extends SlotInfo>> slotsByGroupId =
+                slotAssigner.splitSlotsBetweenSlotSharingGroups(
+                        freeSlots, jobInformation.getSlotSharingGroups());
 
         for (SlotSharingGroup slotSharingGroup : jobInformation.getSlotSharingGroups()) {
             final List<JobInformation.VertexInformation> containedJobVertices =
                     slotSharingGroup.getJobVertexIds().stream()
                             .map(jobInformation::getVertexInformation)
                             .collect(Collectors.toList());
-
-            final Map<JobVertexID, Integer> vertexParallelism =
-                    determineParallelism(containedJobVertices, slotsPerSlotSharingGroup);
-
-            final Iterable<ExecutionSlotSharingGroup> sharedSlotToVertexAssignment =
-                    createExecutionSlotSharingGroups(vertexParallelism);
-
-            for (ExecutionSlotSharingGroup executionSlotSharingGroup :
-                    sharedSlotToVertexAssignment) {
-                final SlotInfo slotInfo = slotIterator.next();
-
-                assignments.add(
-                        new ExecutionSlotSharingGroupAndSlot(executionSlotSharingGroup, slotInfo));
-            }
-            allVertexParallelism.putAll(vertexParallelism);
+            final Map<JobVertexID, Integer> adjustedParallelism =
+                    adjustParallelism(containedJobVertices, slotsPerSlotSharingGroup);
+            final List<ExecutionSlotSharingGroup> sharedSlotToVertexAssignment =
+                    createExecutionSlotSharingGroups(adjustedParallelism);
+            final Set<? extends SlotInfo> groupSlots =
+                    slotsByGroupId.get(slotSharingGroup.getSlotSharingGroupId());
+            assignments.addAll(slotAssigner.assignSlots(groupSlots, sharedSlotToVertexAssignment));
+            allVertexParallelism.putAll(adjustedParallelism);
         }
 
+        System.out.println("==== <determine parallelism end> ====");
         return Optional.of(new VertexParallelismWithSlotSharing(allVertexParallelism, assignments));
     }
 
-    private static Map<JobVertexID, Integer> determineParallelism(
+    private static Map<JobVertexID, Integer> adjustParallelism(
             Collection<JobInformation.VertexInformation> containedJobVertices, int availableSlots) {
         final Map<JobVertexID, Integer> vertexParallelism = new HashMap<>();
         for (JobInformation.VertexInformation jobVertex : containedJobVertices) {
             final int parallelism = Math.min(jobVertex.getParallelism(), availableSlots);
-
             vertexParallelism.put(jobVertex.getJobVertexID(), parallelism);
         }
-
         return vertexParallelism;
     }
 
-    private static Iterable<ExecutionSlotSharingGroup> createExecutionSlotSharingGroups(
+    private static List<ExecutionSlotSharingGroup> createExecutionSlotSharingGroups(
             Map<JobVertexID, Integer> containedJobVertices) {
         final Map<Integer, Set<ExecutionVertexID>> sharedSlotToVertexAssignment = new HashMap<>();
-
-        for (Map.Entry<JobVertexID, Integer> jobVertex : containedJobVertices.entrySet()) {
-            for (int i = 0; i < jobVertex.getValue(); i++) {
-                sharedSlotToVertexAssignment
-                        .computeIfAbsent(i, ignored -> new HashSet<>())
-                        .add(new ExecutionVertexID(jobVertex.getKey(), i));
-            }
-        }
-
+        containedJobVertices.forEach(
+                (jobVertexId, parallelism) -> {
+                    for (int subtaskIdx = 0; subtaskIdx < parallelism; subtaskIdx++) {
+                        sharedSlotToVertexAssignment
+                                .computeIfAbsent(subtaskIdx, ignored -> new HashSet<>())
+                                .add(new ExecutionVertexID(jobVertexId, subtaskIdx));
+                    }
+                });
         return sharedSlotToVertexAssignment.values().stream()
                 .map(ExecutionSlotSharingGroup::new)
                 .collect(Collectors.toList());
@@ -231,16 +233,30 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                 new SlotRequestId(),
                 physicalSlot,
                 slotInfo.willBeOccupiedIndefinitely(),
-                () ->
-                        freeSlotFunction.freeSlot(
-                                slotInfo.getAllocationId(), null, System.currentTimeMillis()));
+                () -> {
+                    System.out.printf("[ASYNC] Freeing slot: %s%n", slotInfo.getAllocationId());
+                    freeSlotFunction.freeSlot(
+                            slotInfo.getAllocationId(), null, System.currentTimeMillis());
+                });
     }
 
     static class ExecutionSlotSharingGroup {
+
+        private final String id;
         private final Set<ExecutionVertexID> containedExecutionVertices;
 
         public ExecutionSlotSharingGroup(Set<ExecutionVertexID> containedExecutionVertices) {
+            this(containedExecutionVertices, UUID.randomUUID().toString());
+        }
+
+        public ExecutionSlotSharingGroup(
+                Set<ExecutionVertexID> containedExecutionVertices, String id) {
             this.containedExecutionVertices = containedExecutionVertices;
+            this.id = id;
+        }
+
+        public String getId() {
+            return id;
         }
 
         public Collection<ExecutionVertexID> getContainedExecutionVertices() {

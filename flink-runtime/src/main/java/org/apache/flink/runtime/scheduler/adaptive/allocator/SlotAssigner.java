@@ -17,35 +17,24 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.jobmaster.SlotInfo;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-/** Information about the job. */
-public interface JobInformation {
+/**
+ * Interface for assigning slots to slot sharing groups.
+ */
+public interface SlotAssigner {
 
-    /**
-     * Returns all slot-sharing groups of the job.
-     *
-     * <p>Attention: The returned slot sharing groups should never be modified (they are indeed
-     * mutable)!
-     *
-     * @return all slot-sharing groups of the job
-     */
-    Collection<SlotSharingGroup> getSlotSharingGroups();
+    Map<SlotSharingGroupId, Set<? extends SlotInfo>> splitSlotsBetweenSlotSharingGroups(
+            Collection<? extends SlotInfo> slots, Collection<SlotSharingGroup> groups);
 
-    VertexInformation getVertexInformation(JobVertexID jobVertexId);
-
-    /** Information about a single vertex. */
-    interface VertexInformation {
-
-        JobVertexID getJobVertexID();
-
-        int getParallelism();
-
-        int getMaxParallelism();
-
-        SlotSharingGroup getSlotSharingGroup();
-    }
+    List<SlotSharingSlotAllocator.ExecutionSlotSharingGroupAndSlot> assignSlots(
+            Collection<? extends SlotInfo> slots,
+            Collection<SlotSharingSlotAllocator.ExecutionSlotSharingGroup> groups);
 }

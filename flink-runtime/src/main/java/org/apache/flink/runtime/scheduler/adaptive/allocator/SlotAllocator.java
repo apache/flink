@@ -54,6 +54,13 @@ public interface SlotAllocator {
     Optional<? extends VertexParallelism> determineParallelism(
             JobInformation jobInformation, Collection<? extends SlotInfo> slots);
 
+    default Optional<? extends VertexParallelism> determineParallelismAndCalculateAssignment(
+            JobInformation jobInformation,
+            Collection<? extends SlotInfo> slots,
+            SlotAssigner slotAssigner) {
+        throw new UnsupportedOperationException();
+    }
+
     /**
      * Reserves slots according to the given assignment if possible. If the underlying set of
      * resources has changed and the reservation with respect to vertexParallelism is no longer

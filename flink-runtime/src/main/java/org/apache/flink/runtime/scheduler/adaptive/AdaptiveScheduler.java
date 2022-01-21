@@ -94,8 +94,10 @@ import org.apache.flink.runtime.scheduler.SchedulerUtils;
 import org.apache.flink.runtime.scheduler.UpdateSchedulerNgOnInternalFailuresListener;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.DefaultSlotAssigner;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.ReservedSlots;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.StateLocalitySlotAssigner;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ReactiveScaleUpController;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ScaleUpController;
@@ -326,9 +328,9 @@ public class AdaptiveScheduler
      * executing the graph we should respect what we are actually given.
      *
      * @param vertices The vertices to store parallelism information for
-     * @param adjustParallelism Whether to adjust the parallelism
      * @param defaultMaxParallelismFunc a function for computing a default max parallelism if none
      *     is specified on a given vertex
+     * @param adjustParallelism Whether to adjust the parallelism
      * @return The parallelism store.
      */
     @VisibleForTesting
@@ -756,16 +758,22 @@ public class AdaptiveScheduler
 
     @Override
     public boolean hasSufficientResources() {
+        System.out.println("--> Has sufficient resources");
         return slotAllocator
                 .determineParallelism(jobInformation, declarativeSlotPool.getAllSlotsInformation())
                 .isPresent();
     }
 
-    private VertexParallelism determineParallelism(SlotAllocator slotAllocator)
+    private VertexParallelism determineParallelism(
+            SlotAllocator slotAllocator, @Nullable ArchivedExecutionGraph archivedExecutionGraph)
             throws NoResourceAvailableException {
-
         return slotAllocator
-                .determineParallelism(jobInformation, declarativeSlotPool.getFreeSlotsInformation())
+                .determineParallelismAndCalculateAssignment(
+                        jobInformation,
+                        declarativeSlotPool.getFreeSlotsInformation(),
+                        archivedExecutionGraph == null
+                                ? new DefaultSlotAssigner()
+                                : new StateLocalitySlotAssigner(archivedExecutionGraph))
                 .orElseThrow(
                         () ->
                                 new NoResourceAvailableException(
@@ -844,12 +852,10 @@ public class AdaptiveScheduler
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Duration backoffTime,
             List<ExceptionHistoryEntry> failureCollection) {
-
         for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
             final int attemptNumber =
                     executionVertex.getCurrentExecutionAttempt().getAttemptNumber();
-
-            this.vertexAttemptNumberStore.setAttemptCount(
+            vertexAttemptNumberStore.setAttemptCount(
                     executionVertex.getJobvertexId(),
                     executionVertex.getParallelSubtaskIndex(),
                     attemptNumber + 1);
@@ -918,34 +924,36 @@ public class AdaptiveScheduler
 
     @Override
     public void goToCreatingExecutionGraph() {
+        final ArchivedExecutionGraph previousExecutionGraph =
+                getState()
+                        .as(StateWithExecutionGraph.class)
+                        .map(StateWithExecutionGraph::getJob)
+                        .orElse(null);
         final CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
                 executionGraphWithAvailableResourcesFuture =
-                        createExecutionGraphWithAvailableResourcesAsync();
-
+                        createExecutionGraphWithAvailableResourcesAsync(previousExecutionGraph);
         transitionToState(
                 new CreatingExecutionGraph.Factory(
                         this, executionGraphWithAvailableResourcesFuture, LOG));
     }
 
     private CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
-            createExecutionGraphWithAvailableResourcesAsync() {
+            createExecutionGraphWithAvailableResourcesAsync(
+                    @Nullable ArchivedExecutionGraph previousExecutionGraph) {
         final VertexParallelism vertexParallelism;
         final VertexParallelismStore adjustedParallelismStore;
 
         try {
-            vertexParallelism = determineParallelism(slotAllocator);
-            JobGraph adjustedJobGraph = jobInformation.copyJobGraph();
+            System.out.println("--> Create graph with available resources");
+            vertexParallelism = determineParallelism(slotAllocator, previousExecutionGraph);
+            final JobGraph adjustedJobGraph = jobInformation.copyJobGraph();
 
             for (JobVertex vertex : adjustedJobGraph.getVertices()) {
-                JobVertexID id = vertex.getID();
-
-                // use the determined "available parallelism" to use
-                // the resources we have access to
-                vertex.setParallelism(vertexParallelism.getParallelism(id));
+                // use the determined "available parallelism" to use the resources we have access to
+                vertex.setParallelism(vertexParallelism.getParallelism(vertex.getID()));
             }
 
-            // use the originally configured max parallelism
-            // as the default for consistent runs
+            // use the originally configured max parallelism as the default for consistent runs
             adjustedParallelismStore =
                     computeVertexParallelismStoreForExecution(
                             adjustedJobGraph,
@@ -1044,6 +1052,7 @@ public class AdaptiveScheduler
         int availableSlots = declarativeSlotPool.getFreeSlotsInformation().size();
 
         if (availableSlots > 0) {
+            System.out.println("--> Can scale up?");
             final Optional<? extends VertexParallelism> potentialNewParallelism =
                     slotAllocator.determineParallelism(
                             jobInformation, declarativeSlotPool.getAllSlotsInformation());
@@ -1123,7 +1132,7 @@ public class AdaptiveScheduler
 
     @Override
     public boolean isState(State expectedState) {
-        return expectedState == this.state;
+        return expectedState == state;
     }
 
     @Override
