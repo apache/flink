@@ -199,6 +199,7 @@ The following shows a cascading window aggregation where the first window aggreg
 ```sql
 -- tumbling 5 minutes for each supplier_id
 CREATE VIEW window1 AS
+-- under the Cascading Window Aggregation to avoid field ambiguity window_start and window_end need to be renamed
 SELECT window_start as window_5mintumble_start, window_end as window_5mintumble_end, window_time as rowtime, SUM(price) as partial_price
   FROM TABLE(
     TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES))
