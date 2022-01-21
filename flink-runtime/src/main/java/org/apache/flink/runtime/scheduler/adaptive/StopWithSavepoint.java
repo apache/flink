@@ -203,7 +203,13 @@ class StopWithSavepoint extends StateWithExecutionGraph {
         return operationFuture;
     }
 
-    interface Context extends StateWithExecutionGraph.Context {
+    interface Context
+            extends StateWithExecutionGraph.Context,
+                    StateTransitions.ToCancelling,
+                    StateTransitions.ToExecuting,
+                    StateTransitions.ToFailing,
+                    StateTransitions.ToRestarting {
+
         /**
          * Asks how to handle the failure.
          *
@@ -211,64 +217,6 @@ class StopWithSavepoint extends StateWithExecutionGraph {
          * @return {@link Executing.FailureResult} which describes how to handle the failure
          */
         Executing.FailureResult howToHandleFailure(Throwable failure);
-
-        /**
-         * Transitions into the {@link Canceling} state.
-         *
-         * @param executionGraph executionGraph to pass to the {@link Canceling} state
-         * @param executionGraphHandler executionGraphHandler to pass to the {@link Canceling} state
-         * @param operatorCoordinatorHandler operatorCoordinatorHandler to pass to the {@link
-         *     Canceling} state
-         */
-        void goToCanceling(
-                ExecutionGraph executionGraph,
-                ExecutionGraphHandler executionGraphHandler,
-                OperatorCoordinatorHandler operatorCoordinatorHandler);
-
-        /**
-         * Transitions into the {@link Restarting} state.
-         *
-         * @param executionGraph executionGraph to pass to the {@link Restarting} state
-         * @param executionGraphHandler executionGraphHandler to pass to the {@link Restarting}
-         *     state
-         * @param operatorCoordinatorHandler operatorCoordinatorHandler to pas to the {@link
-         *     Restarting} state
-         * @param backoffTime backoffTime to wait before transitioning to the {@link Restarting}
-         *     state
-         */
-        void goToRestarting(
-                ExecutionGraph executionGraph,
-                ExecutionGraphHandler executionGraphHandler,
-                OperatorCoordinatorHandler operatorCoordinatorHandler,
-                Duration backoffTime);
-
-        /**
-         * Transitions into the {@link Failing} state.
-         *
-         * @param executionGraph executionGraph to pass to the {@link Failing} state
-         * @param executionGraphHandler executionGraphHandler to pass to the {@link Failing} state
-         * @param operatorCoordinatorHandler operatorCoordinatorHandler to pass to the {@link
-         *     Failing} state
-         * @param failureCause failureCause describing why the job execution failed
-         */
-        void goToFailing(
-                ExecutionGraph executionGraph,
-                ExecutionGraphHandler executionGraphHandler,
-                OperatorCoordinatorHandler operatorCoordinatorHandler,
-                Throwable failureCause);
-
-        /**
-         * Transitions into the {@link Executing} state.
-         *
-         * @param executionGraph executionGraph to pass to the {@link Executing} state
-         * @param executionGraphHandler executionGraphHandler to pass to the {@link Executing} state
-         * @param operatorCoordinatorHandler operatorCoordinatorHandler to pass to the {@link
-         *     Executing} state
-         */
-        void goToExecuting(
-                ExecutionGraph executionGraph,
-                ExecutionGraphHandler executionGraphHandler,
-                OperatorCoordinatorHandler operatorCoordinatorHandler);
 
         /**
          * Runs the given action after the specified delay if the state is the expected state at

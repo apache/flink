@@ -28,6 +28,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -61,7 +62,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executor;
 
 /**
  * Abstract state class which contains an {@link ExecutionGraph} and the required handlers to
@@ -324,7 +324,7 @@ abstract class StateWithExecutionGraph implements State {
     abstract void onGloballyTerminalState(JobStatus globallyTerminalState);
 
     /** Context of the {@link StateWithExecutionGraph} state. */
-    interface Context {
+    interface Context extends StateTransitions.ToFinished {
 
         /**
          * Run the given action if the current state equals the expected state.
@@ -348,14 +348,6 @@ abstract class StateWithExecutionGraph implements State {
          *
          * @return the main thread executor
          */
-        Executor getMainThreadExecutor();
-
-        /**
-         * Transitions into the {@link Finished} state.
-         *
-         * @param archivedExecutionGraph archivedExecutionGraph which is passed to the {@link
-         *     Finished} state
-         */
-        void goToFinished(ArchivedExecutionGraph archivedExecutionGraph);
+        ComponentMainThreadExecutor getMainThreadExecutor();
     }
 }

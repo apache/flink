@@ -80,7 +80,6 @@ import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.scheduler.DefaultOperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismStore;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
@@ -794,26 +793,6 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public void goToExecuting(ExecutionGraph executionGraph) {
-        final ExecutionGraphHandler executionGraphHandler =
-                new ExecutionGraphHandler(
-                        executionGraph, LOG, ioExecutor, componentMainThreadExecutor);
-        final OperatorCoordinatorHandler operatorCoordinatorHandler =
-                new DefaultOperatorCoordinatorHandler(executionGraph, this::handleGlobalFailure);
-        operatorCoordinatorHandler.initializeOperatorCoordinators(componentMainThreadExecutor);
-        operatorCoordinatorHandler.startAllOperatorCoordinators();
-
-        transitionToState(
-                new Executing.Factory(
-                        executionGraph,
-                        executionGraphHandler,
-                        operatorCoordinatorHandler,
-                        LOG,
-                        this,
-                        userCodeClassLoader));
-    }
-
-    @Override
     public void goToExecuting(
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
@@ -1110,7 +1089,12 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public Executor getMainThreadExecutor() {
+    public Executor getIOExecutor() {
+        return ioExecutor;
+    }
+
+    @Override
+    public ComponentMainThreadExecutor getMainThreadExecutor() {
         return componentMainThreadExecutor;
     }
 
