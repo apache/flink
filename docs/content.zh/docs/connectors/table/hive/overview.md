@@ -109,6 +109,11 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 | 2.3.0 - 2.3.6     | `flink-sql-connector-hive-2.3.6` | {{< stable >}}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-2.3.6{{< scala_version >}}/{{< version >}}/flink-sql-connector-hive-2.3.6{{< scala_version >}}-{{< version >}}.jar) {{< /stable >}}{{< unstable >}} Only available for stable releases {{< /unstable >}} |
 | 3.0.0 - 3.1.2     | `flink-sql-connector-hive-3.1.2` | {{< stable >}}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-3.1.2{{< scala_version >}}/{{< version >}}/flink-sql-connector-hive-3.1.2{{< scala_version >}}-{{< version >}}.jar) {{< /stable >}}{{< unstable >}} Only available for stable releases {{< /unstable >}} |
 
+**注意**: 这些 Hive jar 也会打包对应版本的 `hive-exec.jar`, 比如, `flink-sql-connector-hive-2.3.6` 将会打包 `hive-exec-2.3.6.jar`。
+所以在使用这些 jar 的时候，可能会因为你的 Hive 版本和被打包的 `hive-exec.jar` 不一致而出现找不到类或者方法的问题。
+在这种情况下，你可以在创建 Hive Catalog 的时候强行指定 hive-version 为被打包进的 `hive-exec.jar` 的版本，比如 2.3.6。
+这样做通常都不会有问题，因为这些被打进来的包都具有一定的向后兼容性。
+
 #### 用户定义的依赖项
 
 您可以在下方找到不同Hive主版本所需要的依赖项。

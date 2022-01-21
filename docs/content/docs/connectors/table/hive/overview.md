@@ -110,6 +110,11 @@ The following tables list all available bundled hive jars. You can pick one to t
 | 2.3.0 - 2.3.6     | `flink-sql-connector-hive-2.3.6` | {{< stable >}}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-2.3.6{{< scala_version >}}/{{< version >}}/flink-sql-connector-hive-2.3.6{{< scala_version >}}-{{< version >}}.jar) {{< /stable >}}{{< unstable >}} Only available for stable releases {{< /unstable >}} |
 | 3.0.0 - 3.1.2     | `flink-sql-connector-hive-3.1.2` | {{< stable >}}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-3.1.2{{< scala_version >}}/{{< version >}}/flink-sql-connector-hive-3.1.2{{< scala_version >}}-{{< version >}}.jar) {{< /stable >}}{{< unstable >}} Only available for stable releases {{< /unstable >}} |
 
+**NOTE**: The bundled hive jars will also pack the corresponding `hive-exec.jar`, for example, `flink-sql-connector-hive-2.3.6` will pack `hive-exec-2.3.6.jar`.
+So it may throw class or method not found exception for your hive version isn't same to the version of `hive-exec.jar` packed.
+In that case, you are expected to specify hive-version to make it be same to the version of `hive-exec.jar` packed in the bundled jar while creating a hive catalog.
+It's always fine for the good backward compatibility of the packed jars`.
+
 #### User defined dependencies
 
 Please find the required dependencies for different Hive major versions below.
