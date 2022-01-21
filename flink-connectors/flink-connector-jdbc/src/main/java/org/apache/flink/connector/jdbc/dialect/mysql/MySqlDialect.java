@@ -126,4 +126,14 @@ public class MySqlDialect extends AbstractDialect {
                 LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE,
                 LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE);
     }
+
+    @Override
+    public String appendUrlSuffix(String url) {
+        String suffix = "rewriteBatchedStatements=true";
+        if (url.contains("?")) {
+            return url + "&" + suffix;
+        } else {
+            return url + "?" + suffix;
+        }
+    }
 }

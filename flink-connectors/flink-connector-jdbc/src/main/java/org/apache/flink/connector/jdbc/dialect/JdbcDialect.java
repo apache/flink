@@ -142,4 +142,14 @@ public interface JdbcDialect extends Serializable {
      */
     String getSelectFromStatement(
             String tableName, String[] selectFields, String[] conditionFields);
+
+    /**
+     * Some database need require additional JDBC options，such as MySQL require
+     * rewriteBatchedStatements=true to enable batch writing. Inspired by the Alibaba DataX.
+     *
+     * @return A JDBC url.
+     */
+    default String appendUrlSuffix(String url) {
+        return url;
+    }
 }
