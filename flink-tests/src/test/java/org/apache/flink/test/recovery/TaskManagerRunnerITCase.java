@@ -28,6 +28,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.test.recovery.utils.TaskExecutorProcessEntryPoint;
 import org.apache.flink.test.util.TestProcessBuilder;
 import org.apache.flink.util.TestLogger;
 
@@ -69,10 +70,7 @@ public class TaskManagerRunnerITCase extends TestLogger {
                         configuration, resourceId);
 
         final TestProcessBuilder.TestProcess taskManagerProcess =
-                new TestProcessBuilder(
-                                AbstractTaskManagerProcessFailureRecoveryTest
-                                        .TaskExecutorProcessEntryPoint.class
-                                        .getName())
+                new TestProcessBuilder(TaskExecutorProcessEntryPoint.class.getName())
                         .addConfigAsMainClassArgs(configuration)
                         .start();
 

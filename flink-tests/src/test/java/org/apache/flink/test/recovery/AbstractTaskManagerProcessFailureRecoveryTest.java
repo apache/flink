@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.recovery;
 
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -27,13 +26,10 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.plugin.PluginManager;
-import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint;
-import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
-import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
+import org.apache.flink.test.recovery.utils.TaskExecutorProcessEntryPoint;
 import org.apache.flink.test.util.TestProcessBuilder;
 import org.apache.flink.test.util.TestProcessBuilder.TestProcess;
 import org.apache.flink.util.TestLogger;
@@ -41,8 +37,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -325,25 +319,4 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 
     // --------------------------------------------------------------------------------------------
 
-    /** The entry point for the TaskExecutor JVM. Simply configures and runs a TaskExecutor. */
-    public static class TaskExecutorProcessEntryPoint {
-
-        private static final Logger LOG =
-                LoggerFactory.getLogger(TaskExecutorProcessEntryPoint.class);
-
-        public static void main(String[] args) {
-            try {
-                final ParameterTool parameterTool = ParameterTool.fromArgs(args);
-                Configuration cfg = parameterTool.getConfiguration();
-                final PluginManager pluginManager =
-                        PluginUtils.createPluginManagerFromRootFolder(cfg);
-                TaskExecutorResourceUtils.adjustForLocalExecution(cfg);
-
-                TaskManagerRunner.runTaskManager(cfg, pluginManager);
-            } catch (Throwable t) {
-                LOG.error("Failed to run the TaskManager process", t);
-                System.exit(1);
-            }
-        }
-    }
 }
