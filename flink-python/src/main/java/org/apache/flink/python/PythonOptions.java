@@ -233,6 +233,6 @@ public class PythonOptions {
                     .withDescription(
                             "Specify how to execute python functions parallel in Thread Mode. The optional values are `multi-thread` and `sub-interpreter`."
                                     + "The `multi-thread` means execution will still be affected by GIL performance."
-                                    + "The `sub-interpreter` means execution will largely overcome the effects of the GIL, but it maybe fail in some python"
+                                    + "The `sub-interpreter` means execution will largely overcome the effects of the GIL, but it maybe fail in some python "
                                     + "libraries including CPython extensions, such as numpy, tensorflow.");
 }
