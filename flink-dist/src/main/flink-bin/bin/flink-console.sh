@@ -111,4 +111,13 @@ echo $$ >> "$pid" 2>/dev/null
 # Evaluate user options for local variable expansion
 FLINK_ENV_JAVA_OPTS=$(eval echo ${FLINK_ENV_JAVA_OPTS})
 
-exec "$JAVA_RUN" $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}"
+echo "JAVA_RUN-> ${JAVA_RUN}"
+echo "JVM_ARGS-> ${JVM_ARGS}"
+echo "log_settings-> ${log_setting[*]}"
+echo "FLINK_ENV_JAVA_OPTS-> ${FLINK_ENV_JAVA_OPTS}"
+echo "FLINK_TM_CLASSPATH-> $FLINK_TM_CLASSPATH"
+echo "INTERNAL_HADOOP_CLASSPATHS-> ${INTERNAL_HADOOP_CLASSPATHS}"
+echo "CLASS_TO_RUN-> ${CLASS_TO_RUN}"
+echo "args-> ${ARGS[*]}"
+
+exec "$JAVA_RUN" $JVM_ARGS "${FLINK_ENV_JAVA_OPTS}" "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}"
