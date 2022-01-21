@@ -39,6 +39,7 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -55,8 +56,10 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTest
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.testJsonRoundTrip;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Tests for {@link ResolvedCatalogTable} serialization and deserialization. */
+@Execution(CONCURRENT)
 class ResolvedCatalogTableSerdeTest {
 
     private static final Map<String, String> OPTIONS = new HashMap<>();

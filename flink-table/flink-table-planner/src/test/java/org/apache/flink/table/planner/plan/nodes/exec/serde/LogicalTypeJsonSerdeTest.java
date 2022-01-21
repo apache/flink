@@ -69,10 +69,10 @@ import org.apache.flink.types.Row;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.runners.Parameterized.Parameters;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -91,8 +91,10 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTest
 import static org.apache.flink.table.utils.CatalogManagerMocks.preparedCatalogManager;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Tests for {@link LogicalType} serialization and deserialization. */
+@Execution(CONCURRENT)
 public class LogicalTypeJsonSerdeTest {
 
     @ParameterizedTest
@@ -193,7 +195,6 @@ public class LogicalTypeJsonSerdeTest {
                     .description("My original type with update description.")
                     .build();
 
-    @Parameters(name = "{0}")
     private static List<LogicalType> testLogicalTypeSerde() {
         final List<LogicalType> types =
                 Arrays.asList(

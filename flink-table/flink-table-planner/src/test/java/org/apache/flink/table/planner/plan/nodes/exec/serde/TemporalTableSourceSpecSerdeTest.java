@@ -43,6 +43,7 @@ import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -53,8 +54,10 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Tests for {@link TemporalTableSourceSpec} serialization and deserialization. */
+@Execution(CONCURRENT)
 public class TemporalTableSourceSpecSerdeTest {
     private static final FlinkTypeFactory FACTORY = FlinkTypeFactory.INSTANCE();
 
