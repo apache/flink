@@ -60,7 +60,9 @@ public interface SlotAllocator {
      * assignment of slots to execution slot sharing groups.
      */
     Optional<JobSchedulingPlan> determineParallelismAndCalculateAssignment(
-            JobInformation jobInformation, Collection<? extends SlotInfo> slots);
+            JobInformation jobInformation,
+            Collection<? extends SlotInfo> slots,
+            JobAllocationsInformation jobAllocationsInformation);
 
     /**
      * Reserves slots according to the given assignment if possible. If the underlying set of
