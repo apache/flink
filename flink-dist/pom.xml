@@ -110,6 +110,18 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-statebackend-changelog</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+        <dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-dstl-dfs</artifactId>
+			<version>${project.version}</version>
+        </dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-kubernetes</artifactId>
 			<version>${project.version}</version>
 		</dependency>
