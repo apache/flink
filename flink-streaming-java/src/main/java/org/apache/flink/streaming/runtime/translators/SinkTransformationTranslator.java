@@ -27,6 +27,7 @@ import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessageTypeInfo;
+import org.apache.flink.streaming.api.connector.sink2.StandardSinkTopologies;
 import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.WithPreCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.WithPreWriteTopology;
@@ -34,6 +35,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.operators.sink.CommitterOperatorFactory;
@@ -211,6 +213,15 @@ public class SinkTransformationTranslator<Input, Output>
             List<Transformation<?>> expandedTransformations =
                     transformations.subList(numTransformsBefore, transformations.size());
             for (Transformation<?> subTransformation : expandedTransformations) {
+                // Skip overwriting the parallelism for the global committer
+                if (subTransformation.getName() == null
+                        || !subTransformation
+                                .getName()
+                                .equals(
+                                        StandardSinkTopologies
+                                                .GLOBAL_COMMITTER_TRANSFORMATION_NAME)) {
+                    subTransformation.setParallelism(transformation.getParallelism());
+                }
                 concatUid(
                         subTransformation,
                         Transformation::getUid,
@@ -225,7 +236,6 @@ public class SinkTransformationTranslator<Input, Output>
                         subTransformation,
                         Transformation::getDescription,
                         Transformation::setDescription);
-
                 Optional<SlotSharingGroup> ssg = transformation.getSlotSharingGroup();
                 if (ssg.isPresent() && !subTransformation.getSlotSharingGroup().isPresent()) {
                     subTransformation.setSlotSharingGroup(ssg.get());
@@ -239,6 +249,12 @@ public class SinkTransformationTranslator<Input, Output>
                         && transformation.getMaxParallelism() > 0) {
                     subTransformation.setMaxParallelism(transformation.getMaxParallelism());
                 }
+                if (transformation.getChainingStrategy() == null
+                        || !(subTransformation instanceof PhysicalTransformation)) {
+                    continue;
+                }
+                ((PhysicalTransformation<?>) subTransformation)
+                        .setChainingStrategy(transformation.getChainingStrategy());
             }
             return result;
         }

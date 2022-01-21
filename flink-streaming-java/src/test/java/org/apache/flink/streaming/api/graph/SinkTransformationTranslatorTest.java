@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.io.SimpleVersionedSerializerTypeSerializerProxy;
@@ -28,13 +27,13 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.CommitterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -116,7 +115,6 @@ public class SinkTransformationTranslatorTest extends TestLogger {
                 -1);
     }
 
-    @Ignore("FLINK-25726")
     @Test
     public void generateWriterCommitterGlobalCommitterTopology() {
 
@@ -143,37 +141,42 @@ public class SinkTransformationTranslatorTest extends TestLogger {
         StreamNode lastNode;
         if (runtimeExecutionMode == RuntimeExecutionMode.STREAMING) {
             // in streaming writer and committer are merged into one operator
-            assertThat(streamGraph.getStreamNodes().size(), equalTo(3));
-            lastNode = writerNode;
+            assertThat(streamGraph.getStreamNodes().size(), equalTo(4));
         } else {
             assertThat(streamGraph.getStreamNodes().size(), equalTo(4));
             validateTopology(
                     writerNode,
-                    BytePrimitiveArraySerializer.class,
+                    SimpleVersionedSerializerTypeSerializerProxy.class,
                     committerNode,
                     CommitterOperatorFactory.class,
                     PARALLELISM,
                     -1);
-            lastNode = committerNode;
         }
+        lastNode = committerNode;
 
         final StreamNode globalCommitterNode = findGlobalCommitter(streamGraph);
         validateTopology(
                 lastNode,
-                BytePrimitiveArraySerializer.class,
+                SimpleVersionedSerializerTypeSerializerProxy.class,
                 globalCommitterNode,
-                CommitterOperatorFactory.class,
+                SimpleOperatorFactory.class,
                 1,
                 1);
     }
 
-    @Ignore("FLINK-25726")
+    /**
+     * It is not possible anymore with Sink V2 to have a topology consisting only of Sink Writer and
+     * a Global Committer. The SinkV1Adapter translates these topologies into a Sink Writer, an only
+     * forwarding committer and the Global Committer.
+     */
     @Test
     public void generateWriterGlobalCommitterTopology() {
         final StreamGraph streamGraph =
                 buildGraph(
                         TestSink.newBuilder()
                                 .setCommittableSerializer(
+                                        TestSink.StringCommittableSerializer.INSTANCE)
+                                .setGlobalCommittableSerializer(
                                         TestSink.StringCommittableSerializer.INSTANCE)
                                 .setDefaultGlobalCommitter()
                                 .build(),
@@ -190,13 +193,22 @@ public class SinkTransformationTranslatorTest extends TestLogger {
                 PARALLELISM,
                 -1);
 
+        final StreamNode committerNode = findCommitter(streamGraph);
         final StreamNode globalCommitterNode = findGlobalCommitter(streamGraph);
 
         validateTopology(
                 writerNode,
-                BytePrimitiveArraySerializer.class,
-                globalCommitterNode,
+                SimpleVersionedSerializerTypeSerializerProxy.class,
+                committerNode,
                 CommitterOperatorFactory.class,
+                PARALLELISM,
+                -1);
+
+        validateTopology(
+                committerNode,
+                SimpleVersionedSerializerTypeSerializerProxy.class,
+                globalCommitterNode,
+                SimpleOperatorFactory.class,
                 1,
                 1);
     }
@@ -227,7 +239,6 @@ public class SinkTransformationTranslatorTest extends TestLogger {
         env.getStreamGraph();
     }
 
-    @Ignore("FLINK-25726")
     @Test
     public void disableOperatorChain() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -249,7 +260,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
         assertThat(writer.getOperatorFactory().getChainingStrategy(), is(ChainingStrategy.NEVER));
         assertThat(
                 globalCommitter.getOperatorFactory().getChainingStrategy(),
-                is(ChainingStrategy.ALWAYS));
+                is(ChainingStrategy.NEVER));
     }
 
     private void validateTopology(

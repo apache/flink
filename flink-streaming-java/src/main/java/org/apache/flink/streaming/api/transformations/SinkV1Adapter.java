@@ -361,7 +361,11 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
 
         @Override
         public void addPostCommitTopology(DataStream<CommittableMessage<CommT>> committables) {
-            StandardSinkTopologies.addGlobalCommitter(committables, GlobalCommitterAdapter::new);
+
+            StandardSinkTopologies.addGlobalCommitter(
+                    committables,
+                    GlobalCommitterAdapter::new,
+                    () -> sink.getCommittableSerializer().get());
         }
     }
 
