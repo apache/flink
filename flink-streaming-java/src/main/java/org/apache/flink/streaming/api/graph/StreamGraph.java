@@ -678,7 +678,7 @@ public class StreamGraph implements Pipeline {
                         typeNumber,
                         partitioner,
                         outputTag,
-                    shuffleMode,
+                        shuffleMode,
                         uniqueId);
 
         getStreamNode(edge.getSourceId()).addOutEdge(edge);
