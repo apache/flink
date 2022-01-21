@@ -89,8 +89,12 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
         if (sink.getGlobalCommittableSerializer().isPresent()) {
             globalCommitter = true;
         }
-        if (sink.getCommittableSerializer().isPresent()) {
-            committer = true;
+        try {
+            if (sink.createCommitter().isPresent()) {
+                committer = true;
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to instantiate committer.", e);
         }
 
         if (globalCommitter && committer && stateful) {

@@ -128,6 +128,22 @@ class SinkV1AdapterTest {
         public Optional<SimpleVersionedSerializer<Integer>> getCommittableSerializer() {
             return Optional.of(new NoOpSerializer());
         }
+
+        @Override
+        public Optional<Committer<Integer>> createCommitter() throws IOException {
+            return Optional.of(
+                    new Committer<Integer>() {
+                        @Override
+                        public List<Integer> commit(List<Integer> committables) {
+                            throw new UnsupportedOperationException();
+                        }
+
+                        @Override
+                        public void close() {
+                            throw new UnsupportedOperationException();
+                        }
+                    });
+        }
     }
 
     private static class StatefulCommittingSinkV1 extends CommittingSinkV1 {
