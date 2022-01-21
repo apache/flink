@@ -315,7 +315,6 @@ public class PipelinedSubpartition extends ResultSubpartition
 
             if (buffers.isEmpty()) {
                 flushRequested = false;
-                dataAvailableIsNotified = false;
             }
 
             while (!buffers.isEmpty()) {
@@ -333,7 +332,6 @@ public class PipelinedSubpartition extends ResultSubpartition
                 if (buffers.size() == 1) {
                     // turn off flushRequested flag if we drained all of the available data
                     flushRequested = false;
-                    dataAvailableIsNotified = false;
                 }
 
                 if (bufferConsumer.isFinished()) {
@@ -361,6 +359,22 @@ public class PipelinedSubpartition extends ResultSubpartition
                 }
             }
 
+            // if data is unavailable then we should reset dataAvailableIsNotified = false,
+            // there are four case will be thought as data is unavailable:
+            //  case1: buffer == null means buffer is already drained
+            //  case2: buffer != null and buffers.isEmpty() means buffer is drained by this call
+            //  case3: buffer != null and no finished buffer left in buffers, which is replaced by
+            // isDataAvailableUnsafe()
+            //  case4: buffer != null and nextBufferType is not event and
+            // receiverExclusiveBuffersPerChannel == 0
+            if (buffer == null
+                    || buffers.isEmpty()
+                    || !isDataAvailableUnsafe()
+                    || (receiverExclusiveBuffersPerChannel == 0
+                            && !getNextBufferTypeUnsafe().isEvent())) {
+                dataAvailableIsNotified = false;
+            }
+
             if (buffer == null) {
                 return null;
             }
@@ -380,11 +394,6 @@ public class PipelinedSubpartition extends ResultSubpartition
                     buffer,
                     parent.getOwningTaskName(),
                     subpartitionInfo);
-
-            // if data unavailable, we should also reset dataAvailableIsNotified = false
-            if (!isDataAvailableUnsafe()) {
-                dataAvailableIsNotified = false;
-            }
 
             return new BufferAndBacklog(
                     buffer,
