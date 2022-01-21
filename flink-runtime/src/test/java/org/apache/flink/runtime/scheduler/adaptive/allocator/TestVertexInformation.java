@@ -20,32 +20,37 @@ package org.apache.flink.runtime.scheduler.adaptive.allocator;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 
-import java.util.Collection;
+class TestVertexInformation implements JobInformation.VertexInformation {
 
-/** Information about the job. */
-public interface JobInformation {
-    /**
-     * Returns all slot-sharing groups of the job.
-     *
-     * <p>Attention: The returned slot sharing groups should never be modified (they are indeed
-     * mutable)!
-     *
-     * @return all slot-sharing groups of the job
-     */
-    Collection<SlotSharingGroup> getSlotSharingGroups();
+    private final JobVertexID jobVertexId;
+    private final int parallelism;
+    private final SlotSharingGroup slotSharingGroup;
 
-    VertexInformation getVertexInformation(JobVertexID jobVertexId);
+    TestVertexInformation(
+            JobVertexID jobVertexId, int parallelism, SlotSharingGroup slotSharingGroup) {
+        this.jobVertexId = jobVertexId;
+        this.parallelism = parallelism;
+        this.slotSharingGroup = slotSharingGroup;
+        slotSharingGroup.addVertexToGroup(jobVertexId);
+    }
 
-    Iterable<VertexInformation> getVertices();
+    @Override
+    public JobVertexID getJobVertexID() {
+        return jobVertexId;
+    }
 
-    /** Information about a single vertex. */
-    interface VertexInformation {
-        JobVertexID getJobVertexID();
+    @Override
+    public int getParallelism() {
+        return parallelism;
+    }
 
-        int getParallelism();
+    @Override
+    public int getMaxParallelism() {
+        return 128;
+    }
 
-        int getMaxParallelism();
-
-        SlotSharingGroup getSlotSharingGroup();
+    @Override
+    public SlotSharingGroup getSlotSharingGroup() {
+        return slotSharingGroup;
     }
 }

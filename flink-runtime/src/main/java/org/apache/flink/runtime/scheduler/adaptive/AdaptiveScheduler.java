@@ -96,6 +96,7 @@ import org.apache.flink.runtime.scheduler.SchedulerUtils;
 import org.apache.flink.runtime.scheduler.UpdateSchedulerNgOnInternalFailuresListener;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.JobAllocationsInformation;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.ReservedSlots;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
@@ -760,12 +761,15 @@ public class AdaptiveScheduler
                 .isPresent();
     }
 
-    private JobSchedulingPlan determineParallelism(SlotAllocator slotAllocator)
+    private JobSchedulingPlan determineParallelism(
+            SlotAllocator slotAllocator, @Nullable ExecutionGraph previousExecutionGraph)
             throws NoResourceAvailableException {
 
         return slotAllocator
                 .determineParallelismAndCalculateAssignment(
-                        jobInformation, declarativeSlotPool.getFreeSlotsInformation())
+                        jobInformation,
+                        declarativeSlotPool.getFreeSlotsInformation(),
+                        JobAllocationsInformation.fromGraph(previousExecutionGraph))
                 .orElseThrow(
                         () ->
                                 new NoResourceAvailableException(
@@ -921,8 +925,7 @@ public class AdaptiveScheduler
     public void goToCreatingExecutionGraph(@Nullable ExecutionGraph previousExecutionGraph) {
         final CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
                 executionGraphWithAvailableResourcesFuture =
-                        createExecutionGraphWithAvailableResourcesAsync();
-
+                        createExecutionGraphWithAvailableResourcesAsync(previousExecutionGraph);
         transitionToState(
                 new CreatingExecutionGraph.Factory(
                         this,
@@ -932,12 +935,13 @@ public class AdaptiveScheduler
     }
 
     private CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
-            createExecutionGraphWithAvailableResourcesAsync() {
+            createExecutionGraphWithAvailableResourcesAsync(
+                    @Nullable ExecutionGraph previousExecutionGraph) {
         final JobSchedulingPlan schedulingPlan;
         final VertexParallelismStore adjustedParallelismStore;
 
         try {
-            schedulingPlan = determineParallelism(slotAllocator);
+            schedulingPlan = determineParallelism(slotAllocator, previousExecutionGraph);
             JobGraph adjustedJobGraph = jobInformation.copyJobGraph();
 
             for (JobVertex vertex : adjustedJobGraph.getVertices()) {
