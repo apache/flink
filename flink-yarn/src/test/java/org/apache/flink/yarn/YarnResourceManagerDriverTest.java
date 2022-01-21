@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
@@ -60,6 +61,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -68,9 +70,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_APP_ID;
@@ -208,59 +210,47 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     public void testTerminationWaitsOnContainerStopSuccess() throws Exception {
         new Context() {
             {
-                CountDownLatch waiter = new CountDownLatch(1);
+                final CompletableFuture<ContainerId> containerIdFuture = new CompletableFuture<>();
                 testingYarnNMClientAsyncBuilder.setStopContainerAsyncConsumer(
-                        (containerId, ignored, callbackHandler) -> {
-                            try {
-                                // simulate time needed by release process
-                                waiter.await();
-                            } catch (InterruptedException ex) {
-                                log.error("test was interrupted", ex);
-                                fail("test was interrupted");
-                            }
-                            callbackHandler.onContainerStopped(containerId);
-                            stopContainerAsyncFuture.complete(null);
-                        });
+                        (containerId, ignored, callbackHandler) ->
+                                containerIdFuture.complete(containerId));
+
                 resetYarnNodeManagerClientFactory();
 
                 runTest(
                         () -> {
                             // acquire a resource so we have something to release
-                            runInMainThread(
-                                    () -> {
-                                        YarnWorkerNode worker =
-                                                getDriver()
-                                                        .requestResource(
-                                                                testingTaskExecutorProcessSpec)
-                                                        .get();
+                            final CompletableFuture<YarnWorkerNode> yarnWorkerFuture =
+                                    runInMainThread(
+                                                    () ->
+                                                            getDriver()
+                                                                    .requestResource(
+                                                                            testingTaskExecutorProcessSpec))
+                                            .thenCompose(Function.identity());
 
-                                        // release the resource -- it will be blocked
-                                        CompletableFuture.runAsync(
-                                                () -> getDriver().releaseResource(worker));
-                                    });
+                            resourceManagerClientCallbackHandler.onContainersAllocated(
+                                    ImmutableList.of(testingContainer));
 
+                            final YarnWorkerNode worker = yarnWorkerFuture.get();
+
+                            // release the resource -- it will be blocked
                             // terminate driver this should wait on the callback
-                            CompletableFuture<Void> driverHasTerminatedFuture =
-                                    CompletableFuture.runAsync(
+                            final CompletableFuture<Void> driverHasTerminatedFuture =
+                                    runInMainThread(
                                             () -> {
-                                                try {
-                                                    runInMainThread(() -> getDriver().terminate());
-                                                } catch (Exception ex) {
-                                                    log.error("cannot terminate driver", ex);
-                                                    fail("termination of driver failed");
-                                                }
+                                                getDriver().releaseResource(worker);
+                                                getDriver().terminate();
                                             });
 
-                            assertFalse(driverHasTerminatedFuture.isDone());
+                            assertThat(
+                                    driverHasTerminatedFuture,
+                                    FlinkMatchers.willNotComplete(Duration.ofMillis(20L)));
 
-                            // continue release
-                            waiter.countDown();
-
-                            // wait for completion of release
-                            stopContainerAsyncFuture.get();
+                            nodeManagerClientCallbackHandler.onContainerStopped(
+                                    containerIdFuture.get());
 
                             // wait for completion of termination
-                            // ff this blocks forever, then our implementation is wrong
+                            // if this blocks forever, then our implementation is wrong
                             driverHasTerminatedFuture.get();
                         });
             }
@@ -271,59 +261,47 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     public void testTerminationWaitsOnContainerStopError() throws Exception {
         new Context() {
             {
-                CountDownLatch waiter = new CountDownLatch(1);
+                final CompletableFuture<ContainerId> containerIdFuture = new CompletableFuture<>();
                 testingYarnNMClientAsyncBuilder.setStopContainerAsyncConsumer(
-                        (containerId, ignored, callbackHandler) -> {
-                            try {
-                                // simulate time needed by release process
-                                waiter.await();
-                            } catch (InterruptedException ex) {
-                                log.error("test was interrupted", ex);
-                                fail("test was interrupted");
-                            }
-                            callbackHandler.onStopContainerError(containerId, null);
-                            stopContainerAsyncFuture.complete(null);
-                        });
+                        (containerId, ignored, callbackHandler) ->
+                                containerIdFuture.complete(containerId));
+
                 resetYarnNodeManagerClientFactory();
 
                 runTest(
                         () -> {
                             // acquire a resource so we have something to release
-                            runInMainThread(
-                                    () -> {
-                                        YarnWorkerNode worker =
-                                                getDriver()
-                                                        .requestResource(
-                                                                testingTaskExecutorProcessSpec)
-                                                        .get();
+                            final CompletableFuture<YarnWorkerNode> yarnWorkerFuture =
+                                    runInMainThread(
+                                                    () ->
+                                                            getDriver()
+                                                                    .requestResource(
+                                                                            testingTaskExecutorProcessSpec))
+                                            .thenCompose(Function.identity());
 
-                                        // release the resource -- it will be blocked
-                                        CompletableFuture.runAsync(
-                                                () -> getDriver().releaseResource(worker));
-                                    });
+                            resourceManagerClientCallbackHandler.onContainersAllocated(
+                                    ImmutableList.of(testingContainer));
 
+                            final YarnWorkerNode worker = yarnWorkerFuture.get();
+
+                            // release the resource -- it will be blocked
                             // terminate driver this should wait on the callback
-                            CompletableFuture<Void> driverHasTerminatedFuture =
-                                    CompletableFuture.runAsync(
+                            final CompletableFuture<Void> driverHasTerminatedFuture =
+                                    runInMainThread(
                                             () -> {
-                                                try {
-                                                    runInMainThread(() -> getDriver().terminate());
-                                                } catch (Exception ex) {
-                                                    log.error("cannot terminate driver", ex);
-                                                    fail("termination of driver failed");
-                                                }
+                                                getDriver().releaseResource(worker);
+                                                getDriver().terminate();
                                             });
 
-                            assertFalse(driverHasTerminatedFuture.isDone());
+                            assertThat(
+                                    driverHasTerminatedFuture,
+                                    FlinkMatchers.willNotComplete(Duration.ofMillis(20L)));
 
-                            // continue release
-                            waiter.countDown();
-
-                            // wait for completion of release
-                            stopContainerAsyncFuture.get();
+                            nodeManagerClientCallbackHandler.onStopContainerError(
+                                    containerIdFuture.get(), null);
 
                             // wait for completion of termination
-                            // ff this blocks forever, then our implementation is wrong
+                            // if this blocks forever, then our implementation is wrong
                             driverHasTerminatedFuture.get();
                         });
             }
