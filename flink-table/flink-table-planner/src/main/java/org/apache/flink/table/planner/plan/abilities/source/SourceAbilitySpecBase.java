@@ -30,6 +30,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotatio
 
 import javax.annotation.Nullable;
 
+import java.util.Objects;
 import java.util.Optional;
 
 /** Base class for {@link SourceAbilitySpec}. */
@@ -55,5 +56,22 @@ public abstract class SourceAbilitySpecBase implements SourceAbilitySpec {
     @Override
     public Optional<RowType> getProducedType() {
         return Optional.ofNullable(producedType);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        SourceAbilitySpecBase that = (SourceAbilitySpecBase) o;
+        return Objects.equals(producedType, that.producedType);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(producedType);
     }
 }
