@@ -18,11 +18,13 @@
 
 package org.apache.flink.connector.elasticsearch.source.split;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.SourceSplit;
 
 import java.util.Objects;
 
 /** A {@link SourceSplit} for an Elasticsearch 'slice'. */
+@PublicEvolving
 public class Elasticsearch7Split implements SourceSplit {
     private final String pitId;
     private final int sliceId;

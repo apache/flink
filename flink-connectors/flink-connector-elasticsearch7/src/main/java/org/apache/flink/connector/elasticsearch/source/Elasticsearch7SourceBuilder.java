@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.elasticsearch.source;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.elasticsearch.common.NetworkClientConfig;
 import org.apache.flink.connector.elasticsearch.source.reader.Elasticsearch7SearchHitDeserializationSchema;
@@ -64,6 +65,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>Check the Java docs of each individual methods to learn more about the settings to build a
  * ElasticsearchSource.
  */
+@PublicEvolving
 public class Elasticsearch7SourceBuilder<OUT> {
     private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch7SourceBuilder.class);
 
