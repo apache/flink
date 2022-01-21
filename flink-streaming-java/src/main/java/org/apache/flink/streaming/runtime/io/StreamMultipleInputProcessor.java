@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.streaming.api.operators.InputSelection;
@@ -27,8 +28,7 @@ import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-
-import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
+import java.util.function.Consumer;
 
 /** Input processor for {@link MultipleInputStreamOperator}. */
 @Internal
@@ -37,6 +37,8 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
     private final MultipleInputSelectionHandler inputSelectionHandler;
 
     private final StreamOneInputProcessor<?>[] inputProcessors;
+
+    private final MultipleInputAvailabilityHelper availabilityHelper;
     /** Always try to read from the first input. */
     private int lastReadInputIndex = 1;
 
@@ -47,6 +49,26 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
             StreamOneInputProcessor<?>[] inputProcessors) {
         this.inputSelectionHandler = inputSelectionHandler;
         this.inputProcessors = inputProcessors;
+        this.availabilityHelper =
+                MultipleInputAvailabilityHelper.newInstance(inputProcessors.length);
+        this.availabilityHelper.init();
+    }
+
+    @Override
+    public boolean isAvailable() {
+        if (inputSelectionHandler.isAnyInputAvailable()
+                || inputSelectionHandler.areAllInputsFinished()) {
+            return true;
+        } else {
+            boolean isAvailable = false;
+            for (int i = 0; i < inputProcessors.length; i++) {
+                isAvailable =
+                        !inputSelectionHandler.isInputFinished(i)
+                                && inputSelectionHandler.isInputSelected(i)
+                                && inputProcessors[i].isAvailable();
+            }
+            return isAvailable;
+        }
     }
 
     @Override
@@ -55,17 +77,24 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
                 || inputSelectionHandler.areAllInputsFinished()) {
             return AVAILABLE;
         }
-        final CompletableFuture<?> anyInputAvailable = new CompletableFuture<>();
         for (int i = 0; i < inputProcessors.length; i++) {
             if (!inputSelectionHandler.isInputFinished(i)
-                    && inputSelectionHandler.isInputSelected(i)) {
-                assertNoException(
-                        inputProcessors[i]
-                                .getAvailableFuture()
-                                .thenRun(() -> anyInputAvailable.complete(null)));
+                    && inputSelectionHandler.isInputSelected(i)
+                    && inputProcessors[i].getAvailableFuture() == AVAILABLE) {
+                return AVAILABLE;
             }
         }
-        return anyInputAvailable;
+        if (availabilityHelper.isInvalid()) {
+            availabilityHelper.resetToUnavailable();
+            for (int i = 0; i < inputProcessors.length; i++) {
+                if (!inputSelectionHandler.isInputFinished(i)
+                        && inputSelectionHandler.isInputSelected(i)) {
+                    CompletableFuture<?> future = inputProcessors[i].getAvailableFuture();
+                    availabilityHelper.anyOf(i, future);
+                }
+            }
+        }
+        return availabilityHelper.getAvailableFuture();
     }
 
     @Override
@@ -155,6 +184,68 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
             if (inputProcessor.isApproximatelyAvailable() || inputProcessor.isAvailable()) {
                 inputSelectionHandler.setAvailableInput(i);
             }
+        }
+    }
+
+    /** Visible for testing only. Do not use out side StreamMultipleInputProcessor. */
+    @VisibleForTesting
+    public static class MultipleInputAvailabilityHelper {
+        private final CompletableFuture<?>[] cachedAvailableFutures;
+        private final Consumer[] onCompletion;
+        private CompletableFuture<?> availableFuture;
+
+        public CompletableFuture<?> getAvailableFuture() {
+            return availableFuture;
+        }
+
+        public static MultipleInputAvailabilityHelper newInstance(int inputSize) {
+            MultipleInputAvailabilityHelper obj = new MultipleInputAvailabilityHelper(inputSize);
+            return obj;
+        }
+
+        private MultipleInputAvailabilityHelper(int inputSize) {
+            this.cachedAvailableFutures = new CompletableFuture[inputSize];
+            this.onCompletion = new Consumer[inputSize];
+        }
+
+        @VisibleForTesting
+        public void init() {
+            for (int i = 0; i < cachedAvailableFutures.length; i++) {
+                final int inputIdx = i;
+                onCompletion[i] = (Void) -> notifyCompletion(inputIdx);
+            }
+        }
+
+        public boolean isInvalid() {
+            return availableFuture == null || availableFuture.isDone();
+        }
+
+        public void resetToUnavailable() {
+            availableFuture = new CompletableFuture<>();
+        }
+
+        private void notifyCompletion(int idx) {
+            if (availableFuture != null && !availableFuture.isDone()) {
+                availableFuture.complete(null);
+            }
+            cachedAvailableFutures[idx] = AVAILABLE;
+        }
+
+        public void anyOf(final int idx, CompletableFuture<?> dep) {
+            if (dep != cachedAvailableFutures[idx]) {
+                dep.thenAccept(getCallback(idx));
+                cachedAvailableFutures[idx] = dep;
+            }
+        }
+
+        /**
+         * for mock testing.
+         *
+         * @param idx
+         * @return
+         */
+        private Consumer getCallback(int idx) {
+            return onCompletion[idx];
         }
     }
 }

@@ -101,10 +101,15 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
+import org.mockito.Mockito;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.rule.PowerMockRule;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -119,6 +124,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT_TERMINATE;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.processMailTillCheckpointSucceeds;
@@ -137,6 +143,10 @@ import static org.junit.Assert.assertTrue;
  */
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
+@PrepareForTest({
+    StreamMultipleInputProcessor.MultipleInputAvailabilityHelper.class,
+    StreamMultipleInputProcessor.class
+})
 public class MultipleInputStreamTaskTest {
 
     private static final List<String> LIFE_CYCLE_EVENTS = new ArrayList<>();
@@ -149,6 +159,8 @@ public class MultipleInputStreamTaskTest {
     @Parameter public boolean objectReuse;
 
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
+
+    @Rule public final PowerMockRule rule = new PowerMockRule();
 
     @Before
     public void setUp() {
@@ -1118,6 +1130,83 @@ public class MultipleInputStreamTaskTest {
             assertTrue(triggerResult.isDone());
             assertTrue(triggerResult.get());
             assertTrue(checkpointCompleted.isDone());
+        }
+    }
+
+    @Test
+    public void testCompletableFutureStackingIssue() throws Exception {
+        StreamMultipleInputProcessor.MultipleInputAvailabilityHelper spy =
+                PowerMockito.spy(
+                        StreamMultipleInputProcessor.MultipleInputAvailabilityHelper.newInstance(
+                                2));
+        spy.init();
+
+        PowerMockito.mockStatic(StreamMultipleInputProcessor.MultipleInputAvailabilityHelper.class);
+        PowerMockito.when(
+                        StreamMultipleInputProcessor.MultipleInputAvailabilityHelper.class,
+                        "newInstance",
+                        2)
+                .thenReturn(spy);
+
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new MapToStringMultipleInputOperatorFactory(2))
+                        .build()) {
+
+            testHarness.setAutoProcess(false);
+
+            assert testHarness.streamTask.inputProcessor != null;
+            StreamMultipleInputProcessor inputProcessor =
+                    (StreamMultipleInputProcessor) testHarness.streamTask.inputProcessor;
+
+            Mockito.reset(spy);
+
+            List<String> expectedOutputs = new ArrayList<>();
+
+            testHarness.processElement(new StreamRecord<>(0, System.currentTimeMillis()), 1);
+            expectedOutputs.add(Integer.valueOf(0).toString());
+            testHarness.processAll();
+
+            PowerMockito.verifyPrivate(spy).invoke("getCallback", 0);
+            PowerMockito.verifyPrivate(spy).invoke("getCallback", 1);
+
+            Mockito.reset(spy);
+            for (int i = 0; i < 1_000; i++) {
+                String element = "STR" + i;
+                testHarness.processElement(
+                        new StreamRecord<>(element, System.currentTimeMillis()), 0);
+                expectedOutputs.add(element);
+            }
+
+            testHarness.processAll();
+
+            PowerMockito.verifyPrivate(spy).invoke("getCallback", 0);
+            PowerMockito.verifyPrivate(spy, Mockito.never()).invoke("getCallback", 1);
+
+            Mockito.reset(spy);
+            testHarness.processElement(new StreamRecord<>(1, System.currentTimeMillis()), 1);
+            expectedOutputs.add(Integer.valueOf(1).toString());
+            testHarness.processAll();
+
+            PowerMockito.verifyPrivate(spy, Mockito.never()).invoke("getCallback", Mockito.eq(0));
+            PowerMockito.verifyPrivate(spy).invoke("getCallback", Mockito.eq(1));
+
+            Mockito.reset(spy);
+            testHarness.endInput();
+            testHarness.waitForTaskCompletion();
+
+            Collections.sort(expectedOutputs);
+
+            List<String> res =
+                    testHarness.getOutput().stream()
+                            .map(r -> ((StreamRecord) r).getValue().toString())
+                            .sorted()
+                            .collect(Collectors.toList());
+            Assertions.assertIterableEquals(res, expectedOutputs);
         }
     }
 
