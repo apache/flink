@@ -46,6 +46,7 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -70,8 +71,10 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTest
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toJson;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toObject;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Tests for {@link DynamicTableSinkSpec} serialization and deserialization. */
+@Execution(CONCURRENT)
 class DynamicTableSinkSpecSerdeTest {
 
     static Stream<DynamicTableSinkSpec> testDynamicTableSinkSpecSerde() {

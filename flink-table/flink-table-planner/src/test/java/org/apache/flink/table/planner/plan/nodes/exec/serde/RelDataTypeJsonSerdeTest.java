@@ -34,10 +34,10 @@ import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.runners.Parameterized.Parameters;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -48,8 +48,10 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTest
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toJson;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toObject;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Tests for {@link RelDataType} serialization and deserialization. */
+@Execution(CONCURRENT)
 public class RelDataTypeJsonSerdeTest {
 
     private static final FlinkTypeFactory FACTORY = FlinkTypeFactory.INSTANCE();
@@ -102,7 +104,6 @@ public class RelDataTypeJsonSerdeTest {
     // Test data
     // --------------------------------------------------------------------------------------------
 
-    @Parameters(name = "{0}")
     public static List<RelDataType> testRelDataTypeSerde() {
         // the values in the list do not care about nullable.
         final List<RelDataType> types =

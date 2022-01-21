@@ -60,6 +60,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -84,8 +85,10 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTest
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toJson;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toObject;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Tests for {@link DynamicTableSourceSpec} serialization and deserialization. */
+@Execution(CONCURRENT)
 public class DynamicTableSourceSpecSerdeTest {
 
     public static Stream<DynamicTableSourceSpec> testDynamicTableSinkSpecSerde() {
