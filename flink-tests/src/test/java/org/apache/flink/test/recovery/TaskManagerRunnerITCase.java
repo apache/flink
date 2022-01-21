@@ -94,7 +94,7 @@ public class TaskManagerRunnerITCase extends TestLogger {
     }
 
     @Test
-    public void testNondeterministicWorkingDirIsDeletedInCaseOfProcessFailure() throws Exception {
+    public void testNonDeterministicWorkingDirIsDeletedInCaseOfProcessFailure() throws Exception {
         final File workingDirBase = TEMPORARY_FOLDER.newFolder();
 
         final Configuration configuration = new Configuration();
@@ -104,10 +104,7 @@ public class TaskManagerRunnerITCase extends TestLogger {
         configuration.set(AkkaOptions.LOOKUP_TIMEOUT_DURATION, Duration.ZERO);
 
         final TestProcessBuilder.TestProcess taskManagerProcess =
-                new TestProcessBuilder(
-                                AbstractTaskManagerProcessFailureRecoveryTest
-                                        .TaskExecutorProcessEntryPoint.class
-                                        .getName())
+                new TestProcessBuilder(TaskExecutorProcessEntryPoint.class.getName())
                         .addConfigAsMainClassArgs(configuration)
                         .start();
 
