@@ -120,9 +120,9 @@ under the License.
 		<scala.version>2.12.7</scala.version>
 		<scala.binary.version>2.12</scala.binary.version>
 		<chill.version>0.7.6</chill.version>
-		<zookeeper.version>3.4.14</zookeeper.version>
-		<!-- Only the curator2 TestingServer works with ZK 3.4 -->
-		<curator.version>2.12.0</curator.version>
+		<!-- keep FlinkContainersBuilder#buildZookeeperContainer() in sync -->
+		<zookeeper.version>3.5.9</zookeeper.version>
+		<curator.version>5.2.0</curator.version>
 		<prometheus.version>0.8.1</prometheus.version>
 		<avro.version>1.10.0</avro.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
@@ -434,7 +434,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-zookeeper-3</artifactId>
-				<version>${zookeeper.version}-14.0</version>
+				<version>${zookeeper.version}-${flink.shaded.version}</version>
 			</dependency>
 
 			<!-- This manages the 'javax.annotation' annotations (JSR305) -->
@@ -724,10 +724,10 @@ under the License.
 						<groupId>org.slf4j</groupId>
 						<artifactId>slf4j-log4j12</artifactId>
 					</exclusion>
-					<!-- Netty is only needed for ZK servers, not clients -->
 					<exclusion>
+						<!-- Netty is an optional dependency, that we currently do not make use of. -->
 						<groupId>io.netty</groupId>
-						<artifactId>netty</artifactId>
+						<artifactId>*</artifactId>
 					</exclusion>
 					<!-- jline is optional for ZK console shell -->
 					<exclusion>

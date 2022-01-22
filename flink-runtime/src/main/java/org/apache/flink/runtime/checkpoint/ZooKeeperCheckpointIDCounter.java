@@ -23,10 +23,10 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.SharedCount;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.VersionedValue;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionState;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.shared.SharedCount;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.shared.VersionedValue;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionState;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
