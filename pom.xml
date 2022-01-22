@@ -295,8 +295,8 @@ under the License.
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
-				<artifactId>flink-shaded-asm-7</artifactId>
-				<version>7.1-14.0</version>
+				<artifactId>flink-shaded-asm-9</artifactId>
+				<version>9.2-${flink.shaded.version}</version>
 			</dependency>
 
 			<dependency>
