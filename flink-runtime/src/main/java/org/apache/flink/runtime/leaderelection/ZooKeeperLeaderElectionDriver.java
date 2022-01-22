@@ -23,13 +23,13 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.ChildData;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.TreeCache;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.leader.LeaderLatch;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.leader.LeaderLatchListener;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionState;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionStateListener;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.ChildData;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.TreeCache;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.leader.LeaderLatch;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.leader.LeaderLatchListener;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionState;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionStateListener;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

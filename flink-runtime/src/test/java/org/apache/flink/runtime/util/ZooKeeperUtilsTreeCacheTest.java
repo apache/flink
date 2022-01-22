@@ -25,10 +25,10 @@ import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithU
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.TreeCache;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.TreeCacheEvent;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.TreeCacheListener;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.TreeCache;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.TreeCacheEvent;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.TreeCacheListener;
 import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 
 import org.apache.curator.test.TestingServer;

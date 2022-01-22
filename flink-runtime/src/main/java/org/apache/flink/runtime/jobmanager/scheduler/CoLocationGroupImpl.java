@@ -23,7 +23,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.curator4.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.curator5.com.google.common.collect.ImmutableList;
 
 import java.util.ArrayList;
 import java.util.Collections;
