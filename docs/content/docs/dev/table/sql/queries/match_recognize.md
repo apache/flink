@@ -723,9 +723,7 @@ variable. This can be expressed with two corresponding functions:
   <tbody>
   <tr>
     <td>
-```text
-LAST(variable.field, n)
-```
+        <code>LAST(variable.field, n)</code>
     </td>
     <td>
       <p>Returns the value of the field from the event that was mapped to the <i>n</i>-th
@@ -734,9 +732,7 @@ LAST(variable.field, n)
   </tr>
   <tr>
     <td>
-```text
-FIRST(variable.field, n)
-```
+        <code>FIRST(variable.field, n)</code>
     </td>
     <td>
       <p>Returns the value of the field from the event that was mapped to the <i>n</i>-th element

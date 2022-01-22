@@ -632,9 +632,7 @@ _Logical offsets_ 在映射到指定模式变量的事件启用导航。这可�
   <tbody>
   <tr>
     <td>
-```text
-LAST(variable.field, n)
-```
+      <code>LAST(variable.field, n)</code>
     </td>
     <td>
       <p>返回映射到变量最后 n 个元素的事件中的字段值。计数从映射的最后一个元素开始。</p>
@@ -642,9 +640,7 @@ LAST(variable.field, n)
   </tr>
   <tr>
     <td>
-```text
-FIRST(variable.field, n)
-```
+      <code>FIRST(variable.field, n)</code>
     </td>
     <td>
       <p>返回映射到变量的第 <i>n</i> 个元素的事件中的字段值。计数从映射的第一个元素开始。</p>
