@@ -106,6 +106,7 @@ public class KinesisDataStreamsSinkBuilder<InputT>
     public KinesisDataStreamsSink<InputT> build() {
         return new KinesisDataStreamsSink<>(
                 getElementConverter(),
+                getFatalExceptionHandler(),
                 Optional.ofNullable(getMaxBatchSize()).orElse(DEFAULT_MAX_BATCH_SIZE),
                 Optional.ofNullable(getMaxInFlightRequests())
                         .orElse(DEFAULT_MAX_IN_FLIGHT_REQUESTS),

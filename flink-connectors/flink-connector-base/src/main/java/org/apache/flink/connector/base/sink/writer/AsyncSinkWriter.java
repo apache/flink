@@ -34,6 +34,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -134,7 +135,15 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * intermittent failures will recover, e.g. flaky network connections, in which case, some other
      * mechanism may be more appropriate.
      */
-    private final Consumer<Exception> fatalExceptionCons;
+    private final BiConsumer<List<RequestEntryT>, Exception> fatalExceptionCons;
+
+    /**
+     * The {@code handle} method of this FatalExceptionHandler is called by the {@code
+     * fatalExceptionCons} passing both the {@code requestEntries} and {@code exception}. If no
+     * {@code fatalExceptionHandler} is provided, the default implementation is {@link
+     * DefaultFatalExceptionHandler}
+     */
+    private final FatalExceptionHandler<RequestEntryT> fatalExceptionHandler;
 
     /**
      * This method specifies how to persist buffered request entries into the destination. It is
@@ -201,6 +210,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
     public AsyncSinkWriter(
             ElementConverter<InputT, RequestEntryT> elementConverter,
+            FatalExceptionHandler<RequestEntryT> fatalExceptionHandler,
             Sink.InitContext context,
             int maxBatchSize,
             int maxInFlightRequests,
@@ -209,6 +219,11 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
             long maxTimeInBufferMS,
             long maxRecordSizeInBytes) {
         this.elementConverter = elementConverter;
+        if (fatalExceptionHandler == null) {
+            this.fatalExceptionHandler = new DefaultFatalExceptionHandler();
+        } else {
+            this.fatalExceptionHandler = fatalExceptionHandler;
+        }
         this.mailboxExecutor = context.getMailboxExecutor();
         this.timeService = context.getProcessingTimeService();
 
@@ -243,10 +258,10 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
         this.numRecordsOutCounter = this.metrics.getIOMetricGroup().getNumRecordsOutCounter();
 
         this.fatalExceptionCons =
-                exception ->
+                (requestEntries, exception) ->
                         mailboxExecutor.execute(
                                 () -> {
-                                    throw exception;
+                                    fatalExceptionHandler.handle(requestEntries, exception);
                                 },
                                 "A fatal exception occurred in the sink that cannot be recovered from or should not be retried.");
     }
@@ -412,7 +427,15 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     @Override
     public void close() {}
 
-    protected Consumer<Exception> getFatalExceptionCons() {
+    protected BiConsumer<List<RequestEntryT>, Exception> getFatalExceptionCons() {
         return fatalExceptionCons;
+    }
+
+    private class DefaultFatalExceptionHandler implements FatalExceptionHandler<RequestEntryT> {
+        @Override
+        public void handle(List<RequestEntryT> failedRequestEntries, Exception fatalException)
+                throws Exception {
+            throw fatalException;
+        }
     }
 }

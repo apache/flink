@@ -19,6 +19,7 @@ package org.apache.flink.connector.base.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
+import org.apache.flink.connector.base.sink.writer.FatalExceptionHandler;
 
 import java.io.Serializable;
 
@@ -37,6 +38,7 @@ public abstract class AsyncSinkBaseBuilder<
         ConcreteBuilderT extends AsyncSinkBaseBuilder<?, ?, ?>> {
 
     private ElementConverter<InputT, RequestEntryT> elementConverter;
+    private FatalExceptionHandler<RequestEntryT> fatalExceptionHandler;
     private Integer maxBatchSize;
     private Integer maxInFlightRequests;
     private Integer maxBufferedRequests;
@@ -51,6 +53,16 @@ public abstract class AsyncSinkBaseBuilder<
     public ConcreteBuilderT setElementConverter(
             ElementConverter<InputT, RequestEntryT> elementConverter) {
         this.elementConverter = elementConverter;
+        return (ConcreteBuilderT) this;
+    }
+
+    /**
+     * @param fatalExceptionHandler the {@link FatalExceptionHandler} to be used for the sink
+     * @return {@link ConcreteBuilderT} itself
+     */
+    public ConcreteBuilderT setFatalExceptionHandler(
+            FatalExceptionHandler<RequestEntryT> fatalExceptionHandler) {
+        this.fatalExceptionHandler = fatalExceptionHandler;
         return (ConcreteBuilderT) this;
     }
 
@@ -129,6 +141,10 @@ public abstract class AsyncSinkBaseBuilder<
 
     protected ElementConverter<InputT, RequestEntryT> getElementConverter() {
         return elementConverter;
+    }
+
+    protected FatalExceptionHandler<RequestEntryT> getFatalExceptionHandler() {
+        return fatalExceptionHandler;
     }
 
     protected Integer getMaxBatchSize() {
