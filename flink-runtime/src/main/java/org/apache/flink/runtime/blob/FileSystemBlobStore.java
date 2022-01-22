@@ -158,7 +158,13 @@ public class FileSystemBlobStore implements BlobStoreService {
 
             Path path = new Path(blobPath);
 
-            boolean result = fileSystem.delete(path, true);
+            boolean result = true;
+            if (fileSystem.exists(path)) {
+                result = fileSystem.delete(path, true);
+            } else {
+                LOG.debug(
+                        "The given path {} is not present anymore. No deletion is required.", path);
+            }
 
             // send a call to delete the directory containing the file. This will
             // fail (and be ignored) when some files still exist.
