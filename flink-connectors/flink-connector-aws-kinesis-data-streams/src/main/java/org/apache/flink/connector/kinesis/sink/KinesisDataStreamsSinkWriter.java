@@ -21,6 +21,7 @@ import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
+import org.apache.flink.connector.base.sink.writer.FatalExceptionHandler;
 import org.apache.flink.connector.kinesis.util.AWSKinesisDataStreamsUtil;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
@@ -74,6 +75,7 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
 
     KinesisDataStreamsSinkWriter(
             ElementConverter<InputT, PutRecordsRequestEntry> elementConverter,
+            FatalExceptionHandler<PutRecordsRequestEntry> fatalExceptionHandler,
             Sink.InitContext context,
             int maxBatchSize,
             int maxInFlightRequests,
@@ -86,6 +88,7 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
             Properties kinesisClientProperties) {
         super(
                 elementConverter,
+                fatalExceptionHandler,
                 context,
                 maxBatchSize,
                 maxInFlightRequests,
@@ -145,7 +148,7 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
         LOG.warn("KDS Sink failed to persist {} entries to KDS", requestEntries.size(), err);
         numRecordsOutErrorsCounter.inc(requestEntries.size());
 
-        if (isRetryable(err)) {
+        if (isRetryable(requestEntries, err)) {
             requestResult.accept(requestEntries);
         }
     }
@@ -159,7 +162,9 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
 
         if (failOnError) {
             getFatalExceptionCons()
-                    .accept(new KinesisDataStreamsException.KinesisDataStreamsFailFastException());
+                    .accept(
+                            requestEntries,
+                            new KinesisDataStreamsException.KinesisDataStreamsFailFastException());
             return;
         }
         List<PutRecordsRequestEntry> failedRequestEntries =
@@ -175,11 +180,12 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
         requestResult.accept(failedRequestEntries);
     }
 
-    private boolean isRetryable(Throwable err) {
+    private boolean isRetryable(List<PutRecordsRequestEntry> requestEntries, Throwable err) {
         if (err instanceof CompletionException
                 && err.getCause() instanceof ResourceNotFoundException) {
             getFatalExceptionCons()
                     .accept(
+                            requestEntries,
                             new KinesisDataStreamsException(
                                     "Encountered non-recoverable exception", err));
             return false;
@@ -187,6 +193,7 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
         if (failOnError) {
             getFatalExceptionCons()
                     .accept(
+                            requestEntries,
                             new KinesisDataStreamsException.KinesisDataStreamsFailFastException(
                                     err));
             return false;

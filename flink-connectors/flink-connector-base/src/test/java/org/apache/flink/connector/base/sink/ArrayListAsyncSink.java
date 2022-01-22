@@ -43,6 +43,9 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
             long maxRecordSizeInBytes) {
         super(
                 (element, x) -> Integer.parseInt(element),
+                (requestEntries, exception) -> {
+                    throw exception;
+                },
                 maxBatchSize,
                 maxInFlightRequests,
                 maxBufferedRequests,
@@ -59,6 +62,7 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
          */
         return new AsyncSinkWriter<String, Integer>(
                 getElementConverter(),
+                getFatalExceptionHandler(),
                 context,
                 getMaxBatchSize(),
                 getMaxInFlightRequests(),
@@ -73,7 +77,7 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
                 try {
                     ArrayListDestination.putRecords(requestEntries);
                 } catch (RuntimeException e) {
-                    getFatalExceptionCons().accept(e);
+                    getFatalExceptionCons().accept(requestEntries, e);
                 }
                 requestResult.accept(Arrays.asList());
             }

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.base.sink.AsyncSinkBase;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
+import org.apache.flink.connector.base.sink.writer.FatalExceptionHandler;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
 
@@ -72,6 +73,7 @@ public class KinesisDataStreamsSink<InputT> extends AsyncSinkBase<InputT, PutRec
 
     KinesisDataStreamsSink(
             ElementConverter<InputT, PutRecordsRequestEntry> elementConverter,
+            FatalExceptionHandler<PutRecordsRequestEntry> fatalExceptionHandler,
             Integer maxBatchSize,
             Integer maxInFlightRequests,
             Integer maxBufferedRequests,
@@ -83,6 +85,7 @@ public class KinesisDataStreamsSink<InputT> extends AsyncSinkBase<InputT, PutRec
             Properties kinesisClientProperties) {
         super(
                 elementConverter,
+                fatalExceptionHandler,
                 maxBatchSize,
                 maxInFlightRequests,
                 maxBufferedRequests,
@@ -117,6 +120,7 @@ public class KinesisDataStreamsSink<InputT> extends AsyncSinkBase<InputT, PutRec
             InitContext context, List<Collection<PutRecordsRequestEntry>> states) {
         return new KinesisDataStreamsSinkWriter<>(
                 getElementConverter(),
+                getFatalExceptionHandler(),
                 context,
                 getMaxBatchSize(),
                 getMaxInFlightRequests(),

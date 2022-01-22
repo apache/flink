@@ -22,6 +22,7 @@ import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
+import org.apache.flink.connector.base.sink.writer.FatalExceptionHandler;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
 
@@ -52,6 +53,7 @@ public abstract class AsyncSinkBase<InputT, RequestEntryT extends Serializable>
         implements Sink<InputT, Void, Collection<RequestEntryT>, Void> {
 
     private final ElementConverter<InputT, RequestEntryT> elementConverter;
+    private final FatalExceptionHandler<RequestEntryT> fatalExceptionHandler;
     private final int maxBatchSize;
     private final int maxInFlightRequests;
     private final int maxBufferedRequests;
@@ -61,6 +63,7 @@ public abstract class AsyncSinkBase<InputT, RequestEntryT extends Serializable>
 
     protected AsyncSinkBase(
             ElementConverter<InputT, RequestEntryT> elementConverter,
+            FatalExceptionHandler<RequestEntryT> fatalExceptionHandler,
             int maxBatchSize,
             int maxInFlightRequests,
             int maxBufferedRequests,
@@ -71,6 +74,7 @@ public abstract class AsyncSinkBase<InputT, RequestEntryT extends Serializable>
                 Preconditions.checkNotNull(
                         elementConverter,
                         "ElementConverter must be not null when initilizing the AsyncSinkBase.");
+        this.fatalExceptionHandler = fatalExceptionHandler;
         this.maxBatchSize = maxBatchSize;
         this.maxInFlightRequests = maxInFlightRequests;
         this.maxBufferedRequests = maxBufferedRequests;
@@ -101,6 +105,10 @@ public abstract class AsyncSinkBase<InputT, RequestEntryT extends Serializable>
 
     protected ElementConverter<InputT, RequestEntryT> getElementConverter() {
         return elementConverter;
+    }
+
+    protected FatalExceptionHandler<RequestEntryT> getFatalExceptionHandler() {
+        return fatalExceptionHandler;
     }
 
     protected int getMaxBatchSize() {

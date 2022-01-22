@@ -686,6 +686,31 @@ public class AsyncSinkWriterTest {
         assertEquals(2, res.size());
     }
 
+    @Test
+    public void testFatalExceptionConsumerInvokesFatalExceptionHandler() throws Exception {
+        AsyncSinkWriterImpl sink =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(1)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(100)
+                        .maxBatchSizeInBytes(32)
+                        .maxTimeInBufferMS(1000)
+                        .maxRecordSizeInBytes(32)
+                        .simulateFailures(false)
+                        .simulateFatalException(true)
+                        .build();
+        sink.write("1");
+        RuntimeException runtimeException =
+                assertThrows(RuntimeException.class, () -> sink.prepareCommit(true));
+        assertEquals(
+                "Simulated Fatal Exception from FatalExceptionHandler",
+                runtimeException.getMessage());
+        Throwable cause = runtimeException.getCause();
+        assertEquals("Fatal Exception", cause.getMessage());
+        assertEquals(0, res.size());
+    }
+
     /**
      * This test considers what could happen if the timer elapses, triggering a flush, while a
      * long-running call to {@code submitRequestEntries} remains uncompleted for some time. We have
@@ -796,6 +821,7 @@ public class AsyncSinkWriterTest {
 
         private final Set<Integer> failedFirstAttempts = new HashSet<>();
         private final boolean simulateFailures;
+        private final boolean simulateFatalException;
         private final int delay;
 
         private AsyncSinkWriterImpl(
@@ -807,9 +833,14 @@ public class AsyncSinkWriterTest {
                 long maxTimeInBufferMS,
                 long maxRecordSizeInBytes,
                 boolean simulateFailures,
+                boolean simulateFatalException,
                 int delay) {
             super(
                     (elem, ctx) -> Integer.parseInt(elem),
+                    (requestEntries, exception) -> {
+                        throw new RuntimeException(
+                                "Simulated Fatal Exception from FatalExceptionHandler", exception);
+                    },
                     context,
                     maxBatchSize,
                     maxInFlightRequests,
@@ -818,6 +849,7 @@ public class AsyncSinkWriterTest {
                     maxTimeInBufferMS,
                     maxRecordSizeInBytes);
             this.simulateFailures = simulateFailures;
+            this.simulateFatalException = simulateFatalException;
             this.delay = delay;
         }
 
@@ -845,7 +877,9 @@ public class AsyncSinkWriterTest {
                 throw new RuntimeException(
                         "Deliberate runtime exception occurred in SinkWriterImplementation.");
             }
-            if (simulateFailures) {
+            if (simulateFatalException) {
+                getFatalExceptionCons().accept(requestEntries, new Exception("Fatal Exception"));
+            } else if (simulateFailures) {
                 List<Integer> successfulRetries =
                         failedFirstAttempts.stream()
                                 .filter(requestEntries::contains)
@@ -893,6 +927,7 @@ public class AsyncSinkWriterTest {
     private class AsyncSinkWriterImplBuilder {
 
         private Boolean simulateFailures;
+        private boolean simulateFatalException;
         private int delay = 0;
         private Sink.InitContext context;
         private Integer maxBatchSize;
@@ -947,6 +982,11 @@ public class AsyncSinkWriterTest {
             return this;
         }
 
+        private AsyncSinkWriterImplBuilder simulateFatalException(boolean simulateFatalException) {
+            this.simulateFatalException = simulateFatalException;
+            return this;
+        }
+
         private AsyncSinkWriterImpl build() {
             return new AsyncSinkWriterImpl(
                     context,
@@ -957,6 +997,7 @@ public class AsyncSinkWriterTest {
                     maxTimeInBufferMS,
                     maxRecordSizeInBytes,
                     simulateFailures,
+                    simulateFatalException,
                     delay);
         }
     }
@@ -1089,6 +1130,7 @@ public class AsyncSinkWriterTest {
                     maxBatchSizeInBytes,
                     maxTimeInBufferMS,
                     maxRecordSizeInBytes,
+                    false,
                     false,
                     0);
             this.blockedThreadLatch = blockedThreadLatch;
