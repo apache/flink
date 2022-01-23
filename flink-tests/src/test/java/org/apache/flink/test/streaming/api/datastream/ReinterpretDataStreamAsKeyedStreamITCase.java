@@ -373,5 +373,10 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
                 TimestampAssignerSupplier.Context context) {
             return (event, timestamp) -> System.currentTimeMillis();
         }
+
+        @Override
+        public boolean isEventTime() {
+            return true;
+        }
     }
 }

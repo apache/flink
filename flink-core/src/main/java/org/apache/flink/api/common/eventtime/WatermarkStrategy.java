@@ -51,12 +51,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>This interface is {@link Serializable} because watermark strategies may be shipped to workers
  * during distributed execution.
  */
+// TODO: Update docs in regards to methods to be implemented (isEventTime)
 @Public
 public interface WatermarkStrategy<T>
         extends TimestampAssignerSupplier<T>, WatermarkGeneratorSupplier<T> {
 
     // ------------------------------------------------------------------------
     //  Methods that implementors need to implement.
+
+    boolean isEventTime();
+
     // ------------------------------------------------------------------------
 
     /** Instantiates a WatermarkGenerator that generates watermarks according to this strategy. */
@@ -142,6 +146,9 @@ public interface WatermarkStrategy<T>
     //  Convenience methods for common watermark strategies
     // ------------------------------------------------------------------------
 
+    // TODO: Move anonymous interface instances in dedicated static classes in this class
+    //  or separate classes?
+
     /**
      * Creates a watermark strategy for situations with monotonously ascending timestamps.
      *
@@ -152,7 +159,17 @@ public interface WatermarkStrategy<T>
      * @see AscendingTimestampsWatermarks
      */
     static <T> WatermarkStrategy<T> forMonotonousTimestamps() {
-        return (ctx) -> new AscendingTimestampsWatermarks<>();
+        return new WatermarkStrategy<>() {
+            @Override
+            public boolean isEventTime() {
+                return true;
+            }
+
+            @Override
+            public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
+                return new AscendingTimestampsWatermarks<>();
+            }
+        };
     }
 
     /**
@@ -167,12 +184,35 @@ public interface WatermarkStrategy<T>
      * @see BoundedOutOfOrdernessWatermarks
      */
     static <T> WatermarkStrategy<T> forBoundedOutOfOrderness(Duration maxOutOfOrderness) {
-        return (ctx) -> new BoundedOutOfOrdernessWatermarks<>(maxOutOfOrderness);
+        return new WatermarkStrategy<T>() {
+            @Override
+            public boolean isEventTime() {
+                return true;
+            }
+
+            @Override
+            public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
+                return new BoundedOutOfOrdernessWatermarks<>(maxOutOfOrderness);
+            }
+        };
     }
 
     /** Creates a watermark strategy based on an existing {@link WatermarkGeneratorSupplier}. */
     static <T> WatermarkStrategy<T> forGenerator(WatermarkGeneratorSupplier<T> generatorSupplier) {
-        return generatorSupplier::createWatermarkGenerator;
+        return new WatermarkStrategy<T>() {
+            @Override
+            public boolean isEventTime() {
+                // TODO: I think this is wrong, seems like we would have to inspect
+                //       the generatorSupplier and return based on that one true/false
+                //       but then maybe is better to move isEventTime to WatermarkGeneratorSupplier?
+                return true;
+            }
+
+            @Override
+            public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
+                return generatorSupplier.createWatermarkGenerator(context);
+            }
+        };
     }
 
     /**
@@ -180,6 +220,16 @@ public interface WatermarkStrategy<T>
      * scenarios that do pure processing-time based stream processing.
      */
     static <T> WatermarkStrategy<T> noWatermarks() {
-        return (ctx) -> new NoWatermarksGenerator<>();
+        return new WatermarkStrategy<>() {
+            @Override
+            public boolean isEventTime() {
+                return false;
+            }
+
+            @Override
+            public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
+                return new NoWatermarksGenerator<>();
+            }
+        };
     }
 }

@@ -443,5 +443,10 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
                 TimestampAssignerSupplier.Context context) {
             return (event, timestamp) -> System.currentTimeMillis();
         }
+
+        @Override
+        public boolean isEventTime() {
+            return true;
+        }
     }
 }

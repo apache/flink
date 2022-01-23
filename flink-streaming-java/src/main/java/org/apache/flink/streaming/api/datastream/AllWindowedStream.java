@@ -44,6 +44,7 @@ import org.apache.flink.streaming.api.functions.windowing.ReduceApplyAllWindowFu
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyProcessAllWindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.BaseAlignedWindowAssigner;
+import org.apache.flink.streaming.api.windowing.assigners.EventTimeWindowPreconditions;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
@@ -113,6 +114,11 @@ public class AllWindowedStream<T, W extends Window> {
         this.input = input.keyBy(new NullByteKeySelector<T>());
         this.windowAssigner = windowAssigner;
         this.trigger = windowAssigner.getDefaultTrigger(input.getExecutionEnvironment());
+
+        if (this.windowAssigner.isEventTime()) {
+            EventTimeWindowPreconditions.hasInvalidPrecedingWatermarkGenerator(
+                    this.input.getTransformation().getInputs());
+        }
     }
 
     /** Sets the {@code Trigger} that should be used to trigger window emission. */

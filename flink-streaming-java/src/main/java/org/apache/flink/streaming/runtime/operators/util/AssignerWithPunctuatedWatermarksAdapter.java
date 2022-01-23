@@ -83,5 +83,10 @@ public final class AssignerWithPunctuatedWatermarksAdapter<T> implements Waterma
                 WatermarkGeneratorSupplier.Context context) {
             return new AssignerWithPunctuatedWatermarksAdapter<>(wms);
         }
+
+        @Override
+        public boolean isEventTime() {
+            return true;
+        }
     }
 }

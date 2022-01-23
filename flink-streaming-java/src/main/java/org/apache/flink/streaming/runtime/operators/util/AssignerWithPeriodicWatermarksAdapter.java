@@ -80,5 +80,10 @@ public final class AssignerWithPeriodicWatermarksAdapter<T> implements Watermark
                 WatermarkGeneratorSupplier.Context context) {
             return new AssignerWithPeriodicWatermarksAdapter<>(wms);
         }
+
+        @Override
+        public boolean isEventTime() {
+            return true;
+        }
     }
 }

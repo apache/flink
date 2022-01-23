@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunct
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.windowing.assigners.EventTimeWindowPreconditions;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -77,6 +78,10 @@ public class WindowedStream<T, K, W extends Window> {
 
     @PublicEvolving
     public WindowedStream(KeyedStream<T, K> input, WindowAssigner<? super T, W> windowAssigner) {
+        if (windowAssigner.isEventTime()) {
+            EventTimeWindowPreconditions.hasInvalidPrecedingWatermarkGenerator(
+                    input.getTransformation().getInputs());
+        }
 
         this.input = input;
 
