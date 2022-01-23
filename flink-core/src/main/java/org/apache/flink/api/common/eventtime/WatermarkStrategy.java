@@ -166,7 +166,8 @@ public interface WatermarkStrategy<T>
             }
 
             @Override
-            public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
+            public WatermarkGenerator<T> createWatermarkGenerator(
+                    WatermarkGeneratorSupplier.Context context) {
                 return new AscendingTimestampsWatermarks<>();
             }
         };
@@ -191,7 +192,8 @@ public interface WatermarkStrategy<T>
             }
 
             @Override
-            public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
+            public WatermarkGenerator<T> createWatermarkGenerator(
+                    WatermarkGeneratorSupplier.Context context) {
                 return new BoundedOutOfOrdernessWatermarks<>(maxOutOfOrderness);
             }
         };
@@ -209,7 +211,8 @@ public interface WatermarkStrategy<T>
             }
 
             @Override
-            public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
+            public WatermarkGenerator<T> createWatermarkGenerator(
+                    WatermarkGeneratorSupplier.Context context) {
                 return generatorSupplier.createWatermarkGenerator(context);
             }
         };
@@ -227,7 +230,8 @@ public interface WatermarkStrategy<T>
             }
 
             @Override
-            public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
+            public WatermarkGenerator<T> createWatermarkGenerator(
+                    WatermarkGeneratorSupplier.Context context) {
                 return new NoWatermarksGenerator<>();
             }
         };
