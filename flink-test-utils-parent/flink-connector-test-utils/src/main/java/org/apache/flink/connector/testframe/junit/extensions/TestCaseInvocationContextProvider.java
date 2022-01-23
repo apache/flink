@@ -77,7 +77,7 @@ public class TestCaseInvocationContextProvider implements TestTemplateInvocation
                         context.getStore(TEST_RESOURCE_NAMESPACE)
                                 .get(EXTERNAL_CONTEXT_FACTORIES_STORE_KEY);
 
-        // Create a invocation context for each external context factory
+        // Create an invocation context for each external context factory
         return externalContextFactories.stream()
                 .map(
                         factory ->

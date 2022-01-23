@@ -49,7 +49,7 @@ import static org.apache.pulsar.client.api.Schema.STRING;
  * source splits.
  */
 public abstract class MultipleTopicTemplateContext extends PulsarTestContext<String> {
-    private static final long serialVersionUID = 7333807392445848344L;
+    private static final long serialVersionUID = 1L;
 
     private int numTopics = 0;
 

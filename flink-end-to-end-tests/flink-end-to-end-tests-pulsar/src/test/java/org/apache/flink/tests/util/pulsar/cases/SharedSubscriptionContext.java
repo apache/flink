@@ -46,7 +46,7 @@ import static org.apache.pulsar.client.api.Schema.STRING;
 
 /** We would consuming from test splits by using {@link SubscriptionType#Shared} subscription. */
 public class SharedSubscriptionContext extends PulsarTestContext<String> {
-    private static final long serialVersionUID = -2798707923661295245L;
+    private static final long serialVersionUID = 1L;
 
     private int index = 0;
 

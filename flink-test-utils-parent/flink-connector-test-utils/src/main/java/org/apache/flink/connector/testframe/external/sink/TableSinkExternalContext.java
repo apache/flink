@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.testframe.external.sink;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.connector.testframe.external.ExternalContext;
 import org.apache.flink.connector.testframe.external.ExternalSystemDataReader;
 import org.apache.flink.table.data.RowData;
@@ -31,7 +32,9 @@ import java.util.Map;
  * <p>Comparing with {@link DataStreamSinkExternalContext}, the data type of this external context
  * is fixed as {@link RowData} to test functionality of table source.
  */
+@Experimental
 public interface TableSinkExternalContext extends ExternalContext {
+
     /** Get table options for building DDL of the connector sink table. */
     Map<String, String> getSinkTableOptions(TestingSinkSettings sinkSettings)
             throws UnsupportedOperationException;

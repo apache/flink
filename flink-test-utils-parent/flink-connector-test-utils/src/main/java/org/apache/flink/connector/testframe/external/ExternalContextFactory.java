@@ -18,7 +18,10 @@
 
 package org.apache.flink.connector.testframe.external;
 
+import org.apache.flink.annotation.Experimental;
+
 /** Factory for creating {@link ExternalContext}. */
+@Experimental
 public interface ExternalContextFactory<C extends ExternalContext> {
 
     /**

@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.testframe.external.source;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.connector.testframe.external.ExternalContext;
 import org.apache.flink.connector.testframe.external.ExternalSystemSplitDataWriter;
 import org.apache.flink.table.data.RowData;
@@ -31,7 +32,9 @@ import java.util.Map;
  * <p>Comparing with {@link DataStreamSourceExternalContext}, the data type of this external context
  * is fixed as {@link RowData} to test functionality of table source.
  */
+@Experimental
 public interface TableSourceExternalContext extends ExternalContext {
+
     /** Get table options for building DDL of the connector source table. */
     Map<String, String> getSourceTableOptions(TestingSourceSettings sourceSettings)
             throws UnsupportedOperationException;
