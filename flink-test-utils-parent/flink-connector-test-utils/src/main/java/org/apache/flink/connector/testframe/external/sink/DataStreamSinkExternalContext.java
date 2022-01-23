@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.testframe.external.sink;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.connector.testframe.external.ExternalContext;
@@ -30,6 +31,7 @@ import java.util.List;
  *
  * @param <T> Type of elements before serialization by sink
  */
+@Experimental
 public interface DataStreamSinkExternalContext<T> extends ExternalContext, ResultTypeQueryable<T> {
 
     /**

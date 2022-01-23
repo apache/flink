@@ -50,11 +50,9 @@ import static org.apache.flink.connector.pulsar.testutils.runtime.container.Puls
 import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_SERVICE_URL;
 import static org.apache.pulsar.client.api.Schema.STRING;
 
-/**
- * We would consuming from test splits by using {@link SubscriptionType#Key_Shared} subscription.
- */
+/** We would consume from test splits by using {@link SubscriptionType#Key_Shared} subscription. */
 public class KeySharedSubscriptionContext extends PulsarTestContext<String> {
-    private static final long serialVersionUID = 3246516520107893983L;
+    private static final long serialVersionUID = 1L;
 
     private int index = 0;
 

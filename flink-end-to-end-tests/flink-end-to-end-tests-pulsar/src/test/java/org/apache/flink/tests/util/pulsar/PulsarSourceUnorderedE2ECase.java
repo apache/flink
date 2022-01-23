@@ -46,10 +46,12 @@ public class PulsarSourceUnorderedE2ECase extends UnorderedSourceTestSuiteBase<S
             new PulsarTestEnvironment(container(flink.getFlinkContainers().getJobManager()));
 
     // Defines a set of external context Factories for different test cases.
+    @SuppressWarnings("unused")
     @TestContext
     PulsarTestContextFactory<String, SharedSubscriptionContext> shared =
             new PulsarTestContextFactory<>(pulsar, SharedSubscriptionContext::new);
 
+    @SuppressWarnings("unused")
     @TestContext
     PulsarTestContextFactory<String, KeySharedSubscriptionContext> keyShared =
             new PulsarTestContextFactory<>(pulsar, KeySharedSubscriptionContext::new);

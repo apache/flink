@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.testframe.external;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.source.Source;
 
@@ -31,6 +32,7 @@ import java.util.List;
  * external system, such as creating instance of {@link Source} and {@link Sink}, generating test
  * data, and creating data readers or writers for validating the correctness of test data.
  */
+@Experimental
 public interface ExternalContext extends AutoCloseable {
 
     /** Get URL of connector JARs that will be attached to job graphs when submitting Flink jobs. */

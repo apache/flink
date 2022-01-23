@@ -189,6 +189,11 @@ public class AvroBulkFormatITCase extends SourceTestSuiteBase<RowData> {
                 return new AvroBulkFormatExternalContext(blocksPerFile);
             }
         }
+
+        @Override
+        public String toString() {
+            return "AvroBulkFormatExternalContext{" + "blocksPerFile=" + blocksPerFile + '}';
+        }
     }
 
     private static class AvroBulkFormatExternalSystemSplitDataWriter
