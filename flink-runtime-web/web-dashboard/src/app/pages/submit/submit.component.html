@@ -39,7 +39,7 @@
         </tr>
       </thead>
       <tbody>
-        <ng-container *ngFor="let jar of listOfJar; trackBy: trackJarBy">
+        <ng-container *ngFor="let jar of listOfJar; trackBy: trackById">
           <tr (click)="expandJar(jar)" class="clickable">
             <td>{{ jar.name }}</td>
             <td>{{ jar.uploaded | date: 'yyyy-MM-dd, HH:mm:ss' }}</td>
@@ -47,9 +47,7 @@
               <div *ngFor="let entries of jar.entry">
                 {{ entries.name }}
               </div>
-              <div *ngIf="jar.entry.length === 0">
-                -
-              </div>
+              <div *ngIf="jar.entry.length === 0">-</div>
             </td>
             <td class="delete-jar">
               <a

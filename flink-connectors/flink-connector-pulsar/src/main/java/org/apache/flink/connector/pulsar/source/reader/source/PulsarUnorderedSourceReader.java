@@ -19,6 +19,7 @@
 package org.apache.flink.connector.pulsar.source.reader.source;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
@@ -56,7 +57,7 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
     private static final Logger LOG = LoggerFactory.getLogger(PulsarUnorderedSourceReader.class);
 
     @Nullable private final TransactionCoordinatorClient coordinatorClient;
-    private final SortedMap<Long, List<TxnID>> transactionsToCommit;
+    @VisibleForTesting final SortedMap<Long, List<TxnID>> transactionsToCommit;
     private final List<TxnID> transactionsOfFinishedSplits;
 
     public PulsarUnorderedSourceReader(

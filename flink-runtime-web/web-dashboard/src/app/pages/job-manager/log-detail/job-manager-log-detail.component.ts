@@ -16,11 +16,13 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { finalize } from 'rxjs/operators';
+import { Subject } from 'rxjs';
+import { finalize, takeUntil } from 'rxjs/operators';
 
-import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
+import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { flinkEditorOptions } from 'share/common/editor/editor-config';
 
 import { JobManagerService } from 'services';
 
@@ -33,20 +35,33 @@ import { JobManagerService } from 'services';
   },
   styleUrls: ['./job-manager-log-detail.component.less']
 })
-export class JobManagerLogDetailComponent implements OnInit {
-  logs = '';
-  logName = '';
-  downloadUrl = '';
-  isLoading = false;
-  isFullScreen = false;
-  @ViewChild(MonacoEditorComponent, { static: true }) monacoEditorComponent: MonacoEditorComponent;
+export class JobManagerLogDetailComponent implements OnInit, OnDestroy {
+  public logs = '';
+  public logName = '';
+  public downloadUrl = '';
+  public isLoading = false;
+  public isFullScreen = false;
+  public editorOptions: EditorOptions = flinkEditorOptions;
+
+  private readonly destroy$ = new Subject<void>();
+
   constructor(
-    private jobManagerService: JobManagerService,
-    private cdr: ChangeDetectorRef,
-    private activatedRoute: ActivatedRoute
+    private readonly jobManagerService: JobManagerService,
+    private readonly cdr: ChangeDetectorRef,
+    private readonly activatedRoute: ActivatedRoute
   ) {}
 
-  reload(): void {
+  public ngOnInit(): void {
+    this.logName = this.activatedRoute.snapshot.params.logName;
+    this.reload();
+  }
+
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  public reload(): void {
     this.isLoading = true;
     this.cdr.markForCheck();
     this.jobManagerService
@@ -54,9 +69,9 @@ export class JobManagerLogDetailComponent implements OnInit {
       .pipe(
         finalize(() => {
           this.isLoading = false;
-          this.layoutEditor();
           this.cdr.markForCheck();
-        })
+        }),
+        takeUntil(this.destroy$)
       )
       .subscribe(data => {
         this.logs = data.data;
@@ -64,17 +79,7 @@ export class JobManagerLogDetailComponent implements OnInit {
       });
   }
 
-  layoutEditor(): void {
-    setTimeout(() => this.monacoEditorComponent.layout());
-  }
-
-  toggleFullScreen(fullScreen: boolean): void {
+  public toggleFullScreen(fullScreen: boolean): void {
     this.isFullScreen = fullScreen;
-    this.layoutEditor();
-  }
-
-  ngOnInit(): void {
-    this.logName = this.activatedRoute.snapshot.params.logName;
-    this.reload();
   }
 }

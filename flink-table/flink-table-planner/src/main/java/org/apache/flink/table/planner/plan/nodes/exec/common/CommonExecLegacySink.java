@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.sinks.DataStreamTableSink;
 import org.apache.flink.table.planner.sinks.TableSinkUtils;
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
@@ -58,8 +59,8 @@ import java.util.List;
  *
  * @param <T> The return type of the {@link TableSink}.
  */
-public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object>
-        implements MultipleTransformationTranslator<Object> {
+public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
+        implements MultipleTransformationTranslator<T> {
     protected final TableSink<T> tableSink;
     protected final @Nullable String[] upsertKeys;
     protected final boolean needRetraction;
@@ -82,7 +83,7 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<Object> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<T> translateToPlanInternal(PlannerBase planner) {
         if (tableSink instanceof StreamTableSink) {
             final Transformation<T> transform;
             if (tableSink instanceof RetractStreamTableSink) {
@@ -121,8 +122,9 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object>
             }
 
             final DataStream<T> dataStream = new DataStream<T>(planner.getExecEnv(), transform);
-            final DataStreamSink<?> dsSink =
-                    ((StreamTableSink<T>) tableSink).consumeDataStream(dataStream);
+            final DataStreamSink<T> dsSink =
+                    (DataStreamSink<T>)
+                            ((StreamTableSink<T>) tableSink).consumeDataStream(dataStream);
             if (dsSink == null) {
                 throw new TableException(
                         String.format(
@@ -131,15 +133,14 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object>
                                         + "However, %s doesn't implement this method.",
                                 tableSink.getClass().getCanonicalName()));
             }
-            return dsSink.getTransformation();
+            return dsSink.getLegacyTransformation();
         } else if (tableSink instanceof DataStreamTableSink) {
             // In case of table to DataStream through
             // StreamTableEnvironment#toAppendStream/toRetractStream,
             // we insert a DataStreamTableSink that wraps the given DataStream as a LogicalSink. It
             // is no real table sink, so we just need translate its input to Transformation.
-            return (Transformation<Object>)
-                    translateToTransformation(
-                            planner, ((DataStreamTableSink<T>) tableSink).withChangeFlag());
+            return translateToTransformation(
+                    planner, ((DataStreamTableSink<T>) tableSink).withChangeFlag());
         } else {
             throw new TableException(
                     String.format(
@@ -195,9 +196,13 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object>
                             withChangeFlag,
                             "SinkConversion",
                             rowtimeIndex);
-            return new OneInputTransformation<>(
+            final Configuration config = planner.getTableConfig().getConfiguration();
+            final String description =
+                    "SinkConversion To " + resultDataType.getConversionClass().getSimpleName();
+            return ExecNodeUtil.createOneInputTransformation(
                     inputTransform,
-                    "SinkConversionTo" + resultDataType.getConversionClass().getSimpleName(),
+                    getFormattedOperatorName(description, "SinkConversion", config),
+                    getFormattedOperatorDescription(description, config),
                     converterOperator,
                     outputTypeInfo,
                     inputTransform.getParallelism());

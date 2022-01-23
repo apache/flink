@@ -28,6 +28,7 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.DispatcherOperationCaches;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
@@ -49,11 +50,11 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -121,7 +122,10 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                                         configuration)
                                 .toString());
         blobServer =
-                new BlobServer(configuration, BlobUtils.createBlobStoreFromConfig(configuration));
+                new BlobServer(
+                        configuration,
+                        temporaryFolder.newFolder(),
+                        BlobUtils.createBlobStoreFromConfig(configuration));
     }
 
     @After
@@ -166,9 +170,8 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                             fatalErrorHandler,
                             VoidHistoryServerArchivist.INSTANCE,
                             null,
-                            ForkJoinPool.commonPool());
-
-            final JobGraph jobGraph = createJobGraphWithBlobs();
+                            ForkJoinPool.commonPool(),
+                            new DispatcherOperationCaches());
 
             final DefaultDispatcherRunnerFactory defaultDispatcherRunnerFactory =
                     DefaultDispatcherRunnerFactory.createSessionRunner(
@@ -186,6 +189,7 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                 DispatcherGateway dispatcherGateway =
                         grantLeadership(dispatcherLeaderElectionService);
 
+                final JobGraph jobGraph = createJobGraphWithBlobs();
                 LOG.info("Initial job submission {}.", jobGraph.getJobID());
                 dispatcherGateway.submitJob(jobGraph, TESTING_TIMEOUT).get();
 

@@ -44,7 +44,6 @@ import org.apache.flink.streaming.examples.join.WindowJoinSampleData.SalarySourc
  * <p>The example uses a built-in sample data generator that generates the streams of pairs at a
  * configurable rate.
  */
-@SuppressWarnings("serial")
 public class WindowJoin {
 
     // *************************************************************************

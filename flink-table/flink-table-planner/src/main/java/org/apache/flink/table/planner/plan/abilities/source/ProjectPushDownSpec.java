@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.abilities.source;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
@@ -53,7 +54,8 @@ public class ProjectPushDownSpec extends SourceAbilitySpecBase {
     @Override
     public void apply(DynamicTableSource tableSource, SourceAbilityContext context) {
         if (tableSource instanceof SupportsProjectionPushDown) {
-            ((SupportsProjectionPushDown) tableSource).applyProjection(projectedFields);
+            ((SupportsProjectionPushDown) tableSource)
+                    .applyProjection(projectedFields, DataTypes.of(getProducedType().get()));
         } else {
             throw new TableException(
                     String.format(

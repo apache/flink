@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobmanager.NoOpJobGraphStoreWatcher;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHelper;
+import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.function.FunctionUtils;
@@ -63,6 +64,7 @@ import java.io.File;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -132,14 +134,25 @@ public class KubernetesUtils {
     }
 
     /**
-     * Get task manager labels for the current Flink cluster. They could be used to watch the pods
-     * status.
+     * Get task manager selectors for the current Flink cluster. They could be used to watch the
+     * pods status.
      *
      * @return Task manager labels.
      */
-    public static Map<String, String> getTaskManagerLabels(String clusterId) {
+    public static Map<String, String> getTaskManagerSelectors(String clusterId) {
         final Map<String, String> labels = getCommonLabels(clusterId);
         labels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_TASK_MANAGER);
+        return Collections.unmodifiableMap(labels);
+    }
+
+    /**
+     * Get job manager selectors for the current Flink cluster.
+     *
+     * @return JobManager selectors.
+     */
+    public static Map<String, String> getJobManagerSelectors(String clusterId) {
+        final Map<String, String> labels = getCommonLabels(clusterId);
+        labels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
         return Collections.unmodifiableMap(labels);
     }
 
@@ -281,7 +294,9 @@ public class KubernetesUtils {
             Executor executor,
             String configMapName,
             String lockIdentity,
-            int maxNumberOfCheckpointsToRetain)
+            int maxNumberOfCheckpointsToRetain,
+            SharedStateRegistryFactory sharedStateRegistryFactory,
+            Executor ioExecutor)
             throws Exception {
 
         final RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage =
@@ -296,12 +311,16 @@ public class KubernetesUtils {
                         stateStorage,
                         k -> k.startsWith(CHECKPOINT_ID_KEY_PREFIX),
                         lockIdentity);
+        Collection<CompletedCheckpoint> checkpoints =
+                DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
+                        stateHandleStore, KubernetesCheckpointStoreUtil.INSTANCE);
+
         return new DefaultCompletedCheckpointStore<>(
                 maxNumberOfCheckpointsToRetain,
                 stateHandleStore,
                 KubernetesCheckpointStoreUtil.INSTANCE,
-                DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
-                        stateHandleStore, KubernetesCheckpointStoreUtil.INSTANCE),
+                checkpoints,
+                sharedStateRegistryFactory.create(ioExecutor, checkpoints),
                 executor);
     }
 
@@ -310,7 +329,9 @@ public class KubernetesUtils {
      *
      * @param resourceRequirements resource requirements in pod template
      * @param mem Memory in mb.
+     * @param memoryLimitFactor limit factor for the memory, used to set the limit resources.
      * @param cpu cpu.
+     * @param cpuLimitFactor limit factor for the cpu, used to set the limit resources.
      * @param externalResources external resources
      * @param externalResourceConfigKeys config keys of external resources
      * @return KubernetesResource requirements.
@@ -318,18 +339,23 @@ public class KubernetesUtils {
     public static ResourceRequirements getResourceRequirements(
             ResourceRequirements resourceRequirements,
             int mem,
+            double memoryLimitFactor,
             double cpu,
+            double cpuLimitFactor,
             Map<String, ExternalResource> externalResources,
             Map<String, String> externalResourceConfigKeys) {
         final Quantity cpuQuantity = new Quantity(String.valueOf(cpu));
+        final Quantity cpuLimitQuantity = new Quantity(String.valueOf(cpu * cpuLimitFactor));
         final Quantity memQuantity = new Quantity(mem + Constants.RESOURCE_UNIT_MB);
+        final Quantity memQuantityLimit =
+                new Quantity(((int) (mem * memoryLimitFactor)) + Constants.RESOURCE_UNIT_MB);
 
         ResourceRequirementsBuilder resourceRequirementsBuilder =
                 new ResourceRequirementsBuilder(resourceRequirements)
                         .addToRequests(Constants.RESOURCE_NAME_MEMORY, memQuantity)
                         .addToRequests(Constants.RESOURCE_NAME_CPU, cpuQuantity)
-                        .addToLimits(Constants.RESOURCE_NAME_MEMORY, memQuantity)
-                        .addToLimits(Constants.RESOURCE_NAME_CPU, cpuQuantity);
+                        .addToLimits(Constants.RESOURCE_NAME_MEMORY, memQuantityLimit)
+                        .addToLimits(Constants.RESOURCE_NAME_CPU, cpuLimitQuantity);
 
         // Add the external resources to resource requirement.
         for (Map.Entry<String, ExternalResource> externalResource : externalResources.entrySet()) {

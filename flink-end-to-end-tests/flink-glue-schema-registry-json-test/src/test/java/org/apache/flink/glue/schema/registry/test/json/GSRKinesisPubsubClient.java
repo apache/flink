@@ -25,7 +25,7 @@ import com.amazonaws.services.schemaregistry.common.configs.GlueSchemaRegistryCo
 import com.amazonaws.services.schemaregistry.deserializers.GlueSchemaRegistryDeserializationFacade;
 import com.amazonaws.services.schemaregistry.serializers.GlueSchemaRegistrySerializationFacade;
 import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.services.glue.model.DataFormat;
 
 import java.nio.ByteBuffer;
@@ -41,37 +41,39 @@ import java.util.UUID;
  */
 public class GSRKinesisPubsubClient {
     private final KinesisPubsubClient client;
+    private final GlueSchemaRegistrySerializationFacade serializationFacade;
+    private final GlueSchemaRegistryDeserializationFacade deserializationFacade;
 
-    public GSRKinesisPubsubClient(Properties properties) {
+    public GSRKinesisPubsubClient(
+            Properties properties, AwsCredentialsProvider gsrCredentialsProvider) {
         this.client = new KinesisPubsubClient(properties);
+        this.serializationFacade = createSerializationFacade(gsrCredentialsProvider);
+        this.deserializationFacade = createDeserializationFacade(gsrCredentialsProvider);
     }
 
     public void sendMessage(String schema, String streamName, Object msg) {
         UUID schemaVersionId =
-                createSerializationFacade()
-                        .getOrRegisterSchemaVersion(
-                                AWSSerializerInput.builder()
-                                        .schemaDefinition(schema)
-                                        .dataFormat(DataFormat.JSON.name())
-                                        .schemaName(streamName)
-                                        .transportName(streamName)
-                                        .build());
+                serializationFacade.getOrRegisterSchemaVersion(
+                        AWSSerializerInput.builder()
+                                .schemaDefinition(schema)
+                                .dataFormat(DataFormat.JSON.name())
+                                .schemaName(streamName)
+                                .transportName(streamName)
+                                .build());
 
         client.sendMessage(
-                streamName,
-                createSerializationFacade().serialize(DataFormat.JSON, msg, schemaVersionId));
+                streamName, serializationFacade.serialize(DataFormat.JSON, msg, schemaVersionId));
     }
 
     public List<Object> readAllMessages(String streamName) throws Exception {
         return client.readAllMessages(
                 streamName,
                 bytes ->
-                        createDeserializationFacade()
-                                .deserialize(
-                                        AWSDeserializerInput.builder()
-                                                .buffer(ByteBuffer.wrap(bytes))
-                                                .transportName(streamName)
-                                                .build()));
+                        deserializationFacade.deserialize(
+                                AWSDeserializerInput.builder()
+                                        .buffer(ByteBuffer.wrap(bytes))
+                                        .transportName(streamName)
+                                        .build()));
     }
 
     public void createStream(String stream, int shards, Properties props) throws Exception {
@@ -79,24 +81,26 @@ public class GSRKinesisPubsubClient {
     }
 
     private Map<String, Object> getSerDeConfigs() {
-        Map<String, Object> configs = new HashMap();
+        Map<String, Object> configs = new HashMap<>();
         configs.put(AWSSchemaRegistryConstants.AWS_REGION, "ca-central-1");
         configs.put(AWSSchemaRegistryConstants.SCHEMA_AUTO_REGISTRATION_SETTING, true);
 
         return configs;
     }
 
-    private GlueSchemaRegistrySerializationFacade createSerializationFacade() {
+    private GlueSchemaRegistrySerializationFacade createSerializationFacade(
+            final AwsCredentialsProvider credentialsProvider) {
         return GlueSchemaRegistrySerializationFacade.builder()
-                .credentialProvider(DefaultCredentialsProvider.builder().build())
+                .credentialProvider(credentialsProvider)
                 .glueSchemaRegistryConfiguration(
                         new GlueSchemaRegistryConfiguration(getSerDeConfigs()))
                 .build();
     }
 
-    private GlueSchemaRegistryDeserializationFacade createDeserializationFacade() {
+    private GlueSchemaRegistryDeserializationFacade createDeserializationFacade(
+            final AwsCredentialsProvider credentialsProvider) {
         return GlueSchemaRegistryDeserializationFacade.builder()
-                .credentialProvider(DefaultCredentialsProvider.builder().build())
+                .credentialProvider(credentialsProvider)
                 .configs(getSerDeConfigs())
                 .build();
     }

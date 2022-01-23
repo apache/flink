@@ -85,6 +85,9 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
         for (JarOperation jarOperation : setup.getJarOperations()) {
             distribution.performJarOperation(jarOperation);
         }
+        for (JarAddition jarAddition : setup.getJarAdditions()) {
+            distribution.performJarAddition(jarAddition);
+        }
         if (setup.getConfig().isPresent()) {
             distribution.appendConfiguration(setup.getConfig().get());
         }

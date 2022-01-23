@@ -866,6 +866,29 @@ trait ImplicitExpressionConversions {
   }
 
   /**
+   * Builds a JSON object string by aggregating key-value expressions into a single JSON object.
+   *
+   * The key expression must return a non-nullable character string. Value expressions can be
+   * arbitrary, including other JSON functions. If a value is `NULL`, the [[JsonOnNull onNull]]
+   * behavior defines what to do.
+   *
+   * Note that keys must be unique. If a key occurs multiple times, an error will be thrown.
+   *
+   * This function is currently not supported in `OVER` windows.
+   *
+   * Examples:
+   * {{{
+   * // "{\"Apple\":2,\"Banana\":17,\"Orange\":0}"
+   * orders.select(jsonObjectAgg(JsonOnNull.NULL, $("product"), $("cnt")))
+   * }}}
+   *
+   * @see #jsonObject
+   */
+  def jsonObjectAgg(onNull: JsonOnNull, keyExpr: Expression, valueExpr: Expression): Expression = {
+    Expressions.jsonObjectAgg(onNull, keyExpr, valueExpr)
+  }
+
+  /**
    * Builds a JSON array string from a list of values.
    *
    * This function returns a JSON string. The values can be arbitrary expressions. The
@@ -898,5 +921,26 @@ trait ImplicitExpressionConversions {
    */
   def jsonArray(onNull: JsonOnNull, values: Expression*): Expression = {
     Expressions.jsonArray(onNull, values: _*)
+  }
+
+  /**
+   * Builds a JSON object string by aggregating items into an array.
+   *
+   * Item expressions can be arbitrary, including other JSON functions. If a value is `NULL`,
+   * [[JsonOnNull onNull]] behavior defines what to do.
+   *
+   * This function is currently not supported in `OVER` windows, unbounded session windows, or hop
+   * windows.
+   *
+   * Examples:
+   * {{{
+   * // "[\"Apple\",\"Banana\",\"Orange\"]"
+   * orders.select(jsonArrayAgg(JsonOnNull.NULL, $("product")))
+   * }}}
+   *
+   * @see #jsonObject
+   */
+  def jsonArrayAgg(onNull: JsonOnNull, itemExpr: Expression): Expression = {
+    Expressions.jsonArrayAgg(onNull, itemExpr)
   }
 }

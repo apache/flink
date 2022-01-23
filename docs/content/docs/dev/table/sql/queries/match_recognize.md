@@ -92,7 +92,7 @@ project.
 ```xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-cep{{< scala_version >}}</artifactId>
+  <artifactId>flink-cep</artifactId>
   <version>{{< version >}}</version>
 </dependency>
 ```
@@ -267,8 +267,8 @@ look at the [event stream navigation](#pattern-navigation) section.
 ### Aggregations
 
 Aggregations can be used in `DEFINE` and `MEASURES` clauses. Both
-[built-in]({{{{< ref "docs/dev/table/functions/systemFunctions" >}}) and custom
-[user defined]({{{{< ref "docs/dev/table/functions/udfs" >}}) functions are supported.
+[built-in]({{< ref "docs/dev/table/functions/systemfunctions" >}}) and custom
+[user defined]({{< ref "docs/dev/table/functions/udfs" >}}) functions are supported.
 
 Aggregate functions are applied to each subset of rows mapped to a match. In order to understand
 how those subsets are evaluated have a look at the [event stream navigation](#pattern-navigation)

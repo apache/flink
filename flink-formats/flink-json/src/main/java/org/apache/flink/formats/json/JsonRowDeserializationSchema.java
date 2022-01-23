@@ -77,8 +77,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Deserializes a <code>byte[]</code> message as a JSON object and reads the specified fields.
  *
  * <p>Failures during deserialization are forwarded as wrapped IOExceptions.
+ *
+ * @deprecated The format was developed for the Table API users and will not be maintained for
+ *     DataStream API users anymore. Either use Table API or switch to Data Stream, defining your
+ *     own {@link DeserializationSchema}.
  */
 @PublicEvolving
+@Deprecated
 public class JsonRowDeserializationSchema implements DeserializationSchema<Row> {
 
     private static final long serialVersionUID = -228294330688809195L;

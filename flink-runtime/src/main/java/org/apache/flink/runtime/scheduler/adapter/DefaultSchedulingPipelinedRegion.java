@@ -34,7 +34,6 @@ import java.util.Set;
 import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /** Default implementation of {@link SchedulingPipelinedRegion}. */
 public class DefaultSchedulingPipelinedRegion implements SchedulingPipelinedRegion {
@@ -83,10 +82,6 @@ public class DefaultSchedulingPipelinedRegion implements SchedulingPipelinedRegi
                     executionVertex.getConsumedPartitionGroups()) {
                 SchedulingResultPartition consumedPartition =
                         resultPartitionRetriever.apply(consumedPartitionGroup.getFirst());
-
-                checkState(
-                        consumedPartition.getConsumerVertexGroups().size() <= 1,
-                        "Currently there has to be exactly one consumer for each partition in real jobs.");
 
                 if (consumedPartition.getResultType().isBlocking()) {
                     consumedPartitionGroupSet.add(consumedPartitionGroup);

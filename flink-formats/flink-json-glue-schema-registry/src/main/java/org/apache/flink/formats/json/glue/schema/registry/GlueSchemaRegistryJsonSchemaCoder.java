@@ -20,6 +20,7 @@ package org.apache.flink.formats.json.glue.schema.registry;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 
 import com.amazonaws.services.schemaregistry.common.AWSDeserializerInput;
 import com.amazonaws.services.schemaregistry.common.AWSSerializerInput;
@@ -27,7 +28,7 @@ import com.amazonaws.services.schemaregistry.common.configs.GlueSchemaRegistryCo
 import com.amazonaws.services.schemaregistry.deserializers.GlueSchemaRegistryDeserializationFacade;
 import com.amazonaws.services.schemaregistry.serializers.GlueSchemaRegistrySerializationFacade;
 import com.amazonaws.services.schemaregistry.utils.GlueSchemaRegistryUtils;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.services.glue.model.DataFormat;
 
 import java.io.Serializable;
@@ -58,15 +59,18 @@ public class GlueSchemaRegistryJsonSchemaCoder implements Serializable {
             final String transportName, final Map<String, Object> configs) {
         this.transportName = transportName;
         this.configs = configs;
+
+        AwsCredentialsProvider credentialsProvider = AWSGeneralUtil.getCredentialsProvider(configs);
+
         this.glueSchemaRegistrySerializationFacade =
                 GlueSchemaRegistrySerializationFacade.builder()
-                        .credentialProvider(DefaultCredentialsProvider.builder().build())
+                        .credentialProvider(credentialsProvider)
                         .glueSchemaRegistryConfiguration(
                                 new GlueSchemaRegistryConfiguration(configs))
                         .build();
         this.glueSchemaRegistryDeserializationFacade =
                 GlueSchemaRegistryDeserializationFacade.builder()
-                        .credentialProvider(DefaultCredentialsProvider.builder().build())
+                        .credentialProvider(credentialsProvider)
                         .configs(configs)
                         .build();
     }

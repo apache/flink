@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.functions.sql;
 
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
@@ -51,6 +52,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.apache.calcite.util.Static.RESOURCE;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType;
 
 /**
  * Base class for a table-valued function that computes windows. Examples include {@code TUMBLE},
@@ -275,16 +277,25 @@ public class SqlWindowTableFunction extends SqlFunction implements SqlTableFunct
             SqlNameMatcher matcher = validator.getCatalogReader().nameMatcher();
             for (RelDataTypeField field : type.getFieldList()) {
                 if (matcher.matches(field.getName(), columnName)) {
-                    if (FlinkTypeFactory.isTimeIndicatorType(field.getType())) {
+                    RelDataType fieldType = field.getType();
+                    if (FlinkTypeFactory.isTimeIndicatorType(fieldType)) {
                         return Optional.empty();
                     } else {
-                        ValidationException exception =
-                                new ValidationException(
-                                        String.format(
-                                                "The window function %s requires the timecol is a time attribute type, but is %s.",
-                                                callBinding.getOperator().getAllowedSignatures(),
-                                                field.getType()));
-                        return Optional.of(exception);
+                        LogicalType timeAttributeType = FlinkTypeFactory.toLogicalType(fieldType);
+                        if (!canBeTimeAttributeType(timeAttributeType)) {
+                            ValidationException exception =
+                                    new ValidationException(
+                                            String.format(
+                                                    "The window function %s requires the timecol to be TIMESTAMP or TIMESTAMP_LTZ, but is %s.\n"
+                                                            + "Besides, the timecol must be a time attribute type in streaming mode.",
+                                                    callBinding
+                                                            .getOperator()
+                                                            .getAllowedSignatures(),
+                                                    field.getType()));
+                            return Optional.of(exception);
+                        } else {
+                            return Optional.empty();
+                        }
                     }
                 }
             }

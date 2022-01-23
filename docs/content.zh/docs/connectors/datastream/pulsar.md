@@ -33,7 +33,7 @@ Flink 当前只提供 [Apache Pulsar](https://pulsar.apache.org) 数据源，用
 
 如果想要了解更多关于 Pulsar API 兼容性设计，可以阅读文档 [PIP-72](https://github.com/apache/pulsar/wiki/PIP-72%3A-Introduce-Pulsar-Interface-Taxonomy%3A-Audience-and-Stability-Classification)。
 
-{{< artifact flink-connector-pulsar withScalaVersion >}}
+{{< artifact flink-connector-pulsar >}}
 
 Flink 的流连接器并不会放到发行文件里面一同发布，阅读[此文档]({{< ref "docs/dev/datastream/project-configuration" >}})，了解如何将连接器添加到集群实例内。
 

@@ -20,7 +20,8 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.ListAggWithRetractAggFunction.ListAggWithRetractAccumulator;
+import org.apache.flink.table.runtime.functions.aggregate.ListAggWithRetractAggFunction;
+import org.apache.flink.table.runtime.functions.aggregate.ListAggWithRetractAggFunction.ListAggWithRetractAccumulator;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;

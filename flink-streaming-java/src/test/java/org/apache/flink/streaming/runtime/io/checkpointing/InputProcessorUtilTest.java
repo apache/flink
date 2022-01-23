@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.MockChannelStateWriter;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -105,6 +106,7 @@ public class InputProcessorUtilTest {
                                     1,
                                     42,
                                     CheckpointOptions.unaligned(
+                                            CheckpointType.CHECKPOINT,
                                             CheckpointStorageLocationReference.getDefault())),
                             new InputChannelInfo(inputGate.getGateIndex(), channelId),
                             false);

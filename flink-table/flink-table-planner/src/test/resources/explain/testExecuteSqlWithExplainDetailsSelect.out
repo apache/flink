@@ -21,9 +21,9 @@ Calc(select=[a, b, c], where=[(a > 10)])
     "parallelism" : 1
   }, {
     "id" : ,
-    "type" : "SourceConversion(table=[default_catalog.default_database.MyTable, source: [CollectionTableSource(a, b, c)]], fields=[a, b, c])",
+    "type" : "SourceConversion[]",
     "pact" : "Operator",
-    "contents" : "SourceConversion(table=[default_catalog.default_database.MyTable, source: [CollectionTableSource(a, b, c)]], fields=[a, b, c])",
+    "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MyTable, source: [CollectionTableSource(a, b, c)]], fields=[a, b, c])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -32,9 +32,9 @@ Calc(select=[a, b, c], where=[(a > 10)])
     } ]
   }, {
     "id" : ,
-    "type" : "Calc(select=[a, b, c], where=[(a > 10)])",
+    "type" : "Calc[]",
     "pact" : "Operator",
-    "contents" : "Calc(select=[a, b, c], where=[(a > 10)])",
+    "contents" : "[]:Calc(select=[a, b, c], where=[(a > 10)])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

@@ -36,7 +36,7 @@ Apache Flink 集成了通用的 Kafka 连接器，它会尽力与 Kafka client �
 当前 Kafka client 向后兼容 0.10.0 或更高版本的 Kafka broker。
 有关 Kafka 兼容性的更多细节，请参考 [Kafka 官方文档](https://kafka.apache.org/protocol.html#protocol_compatibility)。
 
-{{< artifact flink-connector-kafka withScalaVersion >}}
+{{< artifact flink-connector-kafka >}}
 
 如果使用 Kafka source，```flink-connector-base``` 也需要包含在依赖中：
 
@@ -317,9 +317,9 @@ KafkaSink<String> sink = KafkaSink.<String>builder()
         .setRecordSerializer(KafkaRecordSerializationSchema.builder()
             .setTopic("topic-name")
             .setValueSerializationSchema(new SimpleStringSchema())
-            .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
             .build()
         )
+        .setDeliverGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
         .build();
         
 stream.sinkTo(sink);
@@ -419,7 +419,7 @@ Flink 通过 Kafka 连接器提供了一流的支持，可以对 Kerberos 配置
 - 将 `security.protocol` 设置为 `SASL_PLAINTEXT`（默认为 `NONE`）：用于与 Kafka broker 进行通信的协议。使用独立 Flink 部署时，也可以使用 `SASL_SSL`；请在[此处](https://kafka.apache.org/documentation/#security_configclients)查看如何为 SSL 配置 Kafka 客户端。
 - 将 `sasl.kerberos.service.name` 设置为 `kafka`（默认为 `kafka`）：此值应与用于 Kafka broker 配置的 `sasl.kerberos.service.name` 相匹配。客户端和服务器配置之间的服务名称不匹配将导致身份验证失败。
 
-有关 Kerberos 安全性 Flink 配置的更多信息，请参见[这里]({{< ref "docs/deployment/config" >}}})。你也可以在[这里]({{< ref "docs/deployment/security/security-kerberos" >}})进一步了解 Flink 如何在内部设置基于 kerberos 的安全性。
+有关 Kerberos 安全性 Flink 配置的更多信息，请参见[这里]({{< ref "docs/deployment/config" >}})。你也可以在[这里]({{< ref "docs/deployment/security/security-kerberos" >}})进一步了解 Flink 如何在内部设置基于 kerberos 的安全性。
 
 <a name="upgrading-to-the-latest-connector-version"></a>
 

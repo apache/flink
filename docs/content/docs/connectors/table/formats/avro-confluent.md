@@ -42,6 +42,8 @@ Dependencies
 
 {{< sql_download_table "avro-confluent" >}}
 
+For Maven, SBT, Gradle, or other build automation tools, please also ensure that Confluent's maven repository at `https://packages.confluent.io/maven/` is configured in your project's build files.
+
 How to create tables with Avro-Confluent format
 --------------
 

@@ -83,7 +83,7 @@ public class InMemoryChangelogStateHandle implements ChangelogStateHandle {
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry stateRegistry) {
+    public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
         // do nothing
     }
 

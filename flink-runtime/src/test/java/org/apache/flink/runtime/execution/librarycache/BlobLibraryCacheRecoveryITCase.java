@@ -66,8 +66,6 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
         Configuration config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
         config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-        config.setString(
                 HighAvailabilityOptions.HA_STORAGE_PATH,
                 temporaryFolder.newFolder().getAbsolutePath());
         config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 3_600L);
@@ -83,7 +81,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
                             true);
 
             for (int i = 0; i < server.length; i++) {
-                server[i] = new BlobServer(config, blobStoreService);
+                server[i] = new BlobServer(config, temporaryFolder.newFolder(), blobStoreService);
                 server[i].start();
                 serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
                 libServer[i] = new BlobLibraryCacheManager(server[i], classLoaderFactory);
@@ -103,7 +101,12 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
             keys.add(server[0].putPermanent(jobId, expected2)); // Request 2
 
             // The cache
-            cache = new PermanentBlobCache(config, blobStoreService, serverAddress[0]);
+            cache =
+                    new PermanentBlobCache(
+                            config,
+                            temporaryFolder.newFolder(),
+                            blobStoreService,
+                            serverAddress[0]);
 
             // Register uploaded libraries
             final LibraryCacheManager.ClassLoaderLease classLoaderLease =
@@ -125,7 +128,12 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
             // Shutdown cache and start with other server
             cache.close();
 
-            cache = new PermanentBlobCache(config, blobStoreService, serverAddress[1]);
+            cache =
+                    new PermanentBlobCache(
+                            config,
+                            temporaryFolder.newFolder(),
+                            blobStoreService,
+                            serverAddress[1]);
 
             // Verify key 1
             f = cache.getFile(jobId, keys.get(0));

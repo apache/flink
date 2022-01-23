@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, RelWindowProperties}
 import org.apache.flink.table.planner.plan.logical.{WindowAttachedWindowingStrategy, WindowingStrategy}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
@@ -29,6 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysical
 import org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalWindowAggregateRule.{WINDOW_END, WINDOW_START, WINDOW_TIME}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.WindowUtil
+import org.apache.flink.table.runtime.groupwindow._
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -74,10 +74,8 @@ class StreamPhysicalWindowAggregateRule
     val relWindowProperties = fmq.getRelWindowProperties(agg.getInput)
     val grouping = agg.getGroupSet
     // we have check there is only one start and end in groupingContainsWindowStartEnd()
-    val startColumns = relWindowProperties.getWindowStartColumns.intersect(grouping)
-    val endColumns = relWindowProperties.getWindowEndColumns.intersect(grouping)
-    val timeColumns = relWindowProperties.getWindowTimeColumns.intersect(grouping)
-    val newGrouping = grouping.except(startColumns).except(endColumns).except(timeColumns)
+    val (startColumns, endColumns, timeColumns, newGrouping) =
+      WindowUtil.groupingExcludeWindowStartEndTimeColumns(grouping, relWindowProperties)
 
     // step-1: build window aggregate node
     val windowAgg = buildWindowAggregateNode(
@@ -180,24 +178,24 @@ class StreamPhysicalWindowAggregateRule
       windowingStrategy: WindowingStrategy,
       startColumns: Array[Int],
       endColumns: Array[Int],
-      timeColumns: Array[Int]): Seq[PlannerNamedWindowProperty] = {
-    val windowProperties = ArrayBuffer[PlannerNamedWindowProperty]()
-    val windowRef = new PlannerWindowReference("w$", windowingStrategy.getTimeAttributeType)
+      timeColumns: Array[Int]): Seq[NamedWindowProperty] = {
+    val windowProperties = ArrayBuffer[NamedWindowProperty]()
+    val windowRef = new WindowReference("w$", windowingStrategy.getTimeAttributeType)
     if (!startColumns.isEmpty) {
       windowProperties +=
-        new PlannerNamedWindowProperty(WINDOW_START, new PlannerWindowStart(windowRef))
+        new NamedWindowProperty(WINDOW_START, new WindowStart(windowRef))
     }
     if (!endColumns.isEmpty) {
       windowProperties +=
-        new PlannerNamedWindowProperty(WINDOW_END, new PlannerWindowEnd(windowRef))
+        new NamedWindowProperty(WINDOW_END, new WindowEnd(windowRef))
     }
     if (!timeColumns.isEmpty) {
       val property = if (windowingStrategy.isRowtime) {
-        new PlannerRowtimeAttribute(windowRef)
+        new RowtimeAttribute(windowRef)
       } else {
-        new PlannerProctimeAttribute(windowRef)
+        new ProctimeAttribute(windowRef)
       }
-      windowProperties += new PlannerNamedWindowProperty(WINDOW_TIME, property)
+      windowProperties += new NamedWindowProperty(WINDOW_TIME, property)
     }
     windowProperties
   }
@@ -208,7 +206,7 @@ class StreamPhysicalWindowAggregateRule
       startColumns: Array[Int],
       endColumns: Array[Int],
       timeColumns: Array[Int],
-      windowProperties: Seq[PlannerNamedWindowProperty],
+      windowProperties: Seq[NamedWindowProperty],
       aggCount: Int): Array[Int] = {
     val (startPos, endPos, timePos) = windowPropertyPositions(
       windowProperties,
@@ -235,7 +233,7 @@ class StreamPhysicalWindowAggregateRule
   }
 
   private def windowPropertyPositions(
-      windowProperties: Seq[PlannerNamedWindowProperty],
+      windowProperties: Seq[NamedWindowProperty],
       newGrouping: Array[Int],
       aggCount: Int): (Int, Int, Int) = {
     val windowPropsIndexOffset = newGrouping.length + aggCount

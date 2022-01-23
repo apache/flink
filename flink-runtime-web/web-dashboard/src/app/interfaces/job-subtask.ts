@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-export interface JobSubTaskInterface {
+export interface JobSubTask {
   attempt: number;
   duration: number;
   'end-time': number;

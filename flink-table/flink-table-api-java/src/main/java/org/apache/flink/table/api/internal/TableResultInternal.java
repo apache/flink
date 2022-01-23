@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
@@ -42,4 +43,6 @@ public interface TableResultInternal extends TableResult {
 
     /** Returns an iterator that returns the iterator with the internal row data type. */
     CloseableIterator<RowData> collectInternal();
+
+    RowDataToStringConverter getRowDataToStringConverter();
 }

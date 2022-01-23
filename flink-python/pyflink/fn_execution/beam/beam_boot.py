@@ -29,7 +29,6 @@ harness of Apache Beam.
 """
 import argparse
 import os
-from subprocess import call
 
 import grpc
 import logging
@@ -114,5 +113,6 @@ if __name__ == "__main__":
             logging.info("Shut down Python harness due to FLINK_BOOT_TESTING is set.")
             exit(0)
 
-        call([python_exec, "-m", "pyflink.fn_execution.beam.beam_sdk_worker_main"],
-             stdout=sys.stdout, stderr=sys.stderr, env=env)
+        from pyflink.fn_execution.beam import beam_sdk_worker_main
+
+        beam_sdk_worker_main.main()

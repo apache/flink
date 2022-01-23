@@ -128,6 +128,13 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
         return options;
     }
 
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(DELIMITER);
+        return options;
+    }
+
     private static Map<String, DataType> convertToMetadataMap(
             Map<String, String> metadataOption, ClassLoader classLoader) {
         return metadataOption.keySet().stream()

@@ -47,9 +47,9 @@ import org.junit.Test;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.cep.operator.CepOperatorTestUtilities.getCepTestHarness;
 import static org.apache.flink.cep.operator.CepRuntimeContextTest.MockProcessFunctionAsserter.assertFunction;
 import static org.apache.flink.cep.utils.CepOperatorBuilder.createOperatorForNFA;
+import static org.apache.flink.cep.utils.CepOperatorTestUtilities.getCepTestHarness;
 import static org.apache.flink.cep.utils.EventBuilder.event;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;

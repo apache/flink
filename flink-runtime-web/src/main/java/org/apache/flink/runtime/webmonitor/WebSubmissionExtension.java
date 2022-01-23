@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.deployment.application.ApplicationRunner;
 import org.apache.flink.client.deployment.application.DetachedApplicationRunner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -36,6 +38,8 @@ import org.apache.flink.runtime.webmonitor.handlers.JarRunHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.JarUploadHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JarUploadHeaders;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.SeparateThreadExecutor;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
@@ -45,12 +49,17 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.Supplier;
 
 /** Container for the web submission handlers. */
 public class WebSubmissionExtension implements WebMonitorExtension {
 
     private final ArrayList<Tuple2<RestHandlerSpecification, ChannelInboundHandler>>
             webSubmissionHandlers;
+
+    // for easier access during testing
+    private final JarUploadHandler jarUploadHandler;
+    private final JarRunHandler jarRunHandler;
 
     public WebSubmissionExtension(
             Configuration configuration,
@@ -61,10 +70,38 @@ public class WebSubmissionExtension implements WebMonitorExtension {
             Executor executor,
             Time timeout)
             throws Exception {
+        this(
+                configuration,
+                leaderRetriever,
+                responseHeaders,
+                localAddressFuture,
+                jarDir,
+                executor,
+                timeout,
+                () -> new DetachedApplicationRunner(true));
+    }
+
+    @VisibleForTesting
+    WebSubmissionExtension(
+            Configuration configuration,
+            GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
+            Map<String, String> responseHeaders,
+            CompletableFuture<String> localAddressFuture,
+            Path jarDir,
+            Executor executor,
+            Time timeout,
+            Supplier<ApplicationRunner> applicationRunnerSupplier)
+            throws Exception {
 
         webSubmissionHandlers = new ArrayList<>();
 
-        final JarUploadHandler jarUploadHandler =
+        final Executor jarRunExecutor =
+                new SeparateThreadExecutor(
+                        new ExecutorThreadFactory.Builder()
+                                .setPoolName("flink-jar-runner")
+                                .build());
+
+        jarUploadHandler =
                 new JarUploadHandler(
                         leaderRetriever,
                         timeout,
@@ -84,7 +121,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
                         configuration,
                         executor);
 
-        final JarRunHandler jarRunHandler =
+        jarRunHandler =
                 new JarRunHandler(
                         leaderRetriever,
                         timeout,
@@ -92,8 +129,8 @@ public class WebSubmissionExtension implements WebMonitorExtension {
                         JarRunHeaders.getInstance(),
                         jarDir,
                         configuration,
-                        executor,
-                        () -> new DetachedApplicationRunner(true));
+                        jarRunExecutor,
+                        applicationRunnerSupplier);
 
         final JarDeleteHandler jarDeleteHandler =
                 new JarDeleteHandler(
@@ -112,7 +149,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
                         JarPlanGetHeaders.getInstance(),
                         jarDir,
                         configuration,
-                        executor);
+                        jarRunExecutor);
 
         final JarPlanHandler postJarPlanHandler =
                 new JarPlanHandler(
@@ -140,5 +177,15 @@ public class WebSubmissionExtension implements WebMonitorExtension {
     @Override
     public Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> getHandlers() {
         return webSubmissionHandlers;
+    }
+
+    @VisibleForTesting
+    JarUploadHandler getJarUploadHandler() {
+        return jarUploadHandler;
+    }
+
+    @VisibleForTesting
+    JarRunHandler getJarRunHandler() {
+        return jarRunHandler;
     }
 }

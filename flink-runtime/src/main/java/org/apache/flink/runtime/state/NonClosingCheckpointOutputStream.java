@@ -34,11 +34,10 @@ import java.io.OutputStream;
 public abstract class NonClosingCheckpointOutputStream<T extends StreamStateHandle>
         extends OutputStream {
 
-    protected final CheckpointStreamFactory.CheckpointStateOutputStream delegate;
+    protected final CheckpointStateOutputStream delegate;
     private final ResourceGuard resourceGuard = new ResourceGuard();
 
-    public NonClosingCheckpointOutputStream(
-            CheckpointStreamFactory.CheckpointStateOutputStream delegate) {
+    public NonClosingCheckpointOutputStream(CheckpointStateOutputStream delegate) {
         this.delegate = Preconditions.checkNotNull(delegate);
     }
 
@@ -79,7 +78,7 @@ public abstract class NonClosingCheckpointOutputStream<T extends StreamStateHand
     }
 
     /** This method should not be public so as to not expose internals to user code. */
-    CheckpointStreamFactory.CheckpointStateOutputStream getDelegate() {
+    CheckpointStateOutputStream getDelegate() {
         return delegate;
     }
 

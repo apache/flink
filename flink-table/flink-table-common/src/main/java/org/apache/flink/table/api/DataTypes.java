@@ -189,7 +189,7 @@ public final class DataTypes {
     public static UnresolvedDataType of(TypeInformation<?> typeInfo) {
         Preconditions.checkNotNull(typeInfo, "Type information must not be null.");
         return new UnresolvedDataType(
-                () -> String.format("'%s'", typeInfo.toString()),
+                () -> String.format("'%s'", typeInfo),
                 (factory) -> factory.createDataType(typeInfo));
     }
 
@@ -744,6 +744,11 @@ public final class DataTypes {
         return new FieldsDataType(new RowType(logicalFields), fieldDataTypes);
     }
 
+    /** @see #ROW(Field...) */
+    public static DataType ROW(List<Field> fields) {
+        return ROW(fields.toArray(new Field[0]));
+    }
+
     /**
      * Data type of a sequence of fields.
      *
@@ -1083,6 +1088,7 @@ public final class DataTypes {
      *
      * @see #INTERVAL(Resolution)
      */
+    @PublicEvolving
     public static final class Resolution {
 
         private static final int EMPTY_PRECISION = -1;
@@ -1232,6 +1238,7 @@ public final class DataTypes {
      * @see #FIELD(String, AbstractDataType)
      * @see #FIELD(String, AbstractDataType, String)
      */
+    @PublicEvolving
     public abstract static class AbstractField {
 
         protected final String name;
@@ -1289,6 +1296,7 @@ public final class DataTypes {
      * @see #FIELD(String, DataType)
      * @see #FIELD(String, DataType, String)
      */
+    @PublicEvolving
     public static final class Field extends AbstractField {
 
         private final DataType dataType;
@@ -1336,6 +1344,7 @@ public final class DataTypes {
      * @see #FIELD(String, AbstractDataType)
      * @see #FIELD(String, AbstractDataType, String)
      */
+    @PublicEvolving
     public static final class UnresolvedField extends AbstractField {
 
         private final AbstractDataType<?> dataType;

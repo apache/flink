@@ -19,22 +19,19 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.functions.aggfunctions.IncrSumAggFunction._
-import org.apache.flink.table.planner.functions.aggfunctions.IncrSumWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SingleValueAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.sql.{SqlFirstLastValueAggFunction, SqlListAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
-import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction
+import org.apache.flink.table.runtime.functions.aggregate.{BuiltInAggregateFunction, CollectAggFunction, FirstValueAggFunction, FirstValueWithRetractAggFunction, JsonArrayAggFunction, JsonObjectAggFunction, LagAggFunction, LastValueAggFunction, LastValueWithRetractAggFunction, ListAggWithRetractAggFunction, ListAggWsWithRetractAggFunction, MaxWithRetractAggFunction, MinWithRetractAggFunction}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.sql.fun._
-import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
+import org.apache.calcite.sql.{SqlAggFunction, SqlJsonConstructorNullClause, SqlKind, SqlRankFunction}
 
 import java.util
 
@@ -122,6 +119,14 @@ class AggFunctionFactory(
 
       case a: SqlAggFunction if a.getKind == SqlKind.COLLECT =>
         createCollectAggFunction(argTypes)
+
+      case fn: SqlAggFunction if fn.getKind == SqlKind.JSON_OBJECTAGG =>
+        val onNull = fn.asInstanceOf[SqlJsonObjectAggAggFunction].getNullClause
+        new JsonObjectAggFunction(argTypes, onNull == SqlJsonConstructorNullClause.ABSENT_ON_NULL)
+
+      case fn: SqlAggFunction if fn.getKind == SqlKind.JSON_ARRAYAGG =>
+        val onNull = fn.asInstanceOf[SqlJsonArrayAggAggFunction].getNullClause
+        new JsonArrayAggFunction(argTypes, onNull == SqlJsonConstructorNullClause.ABSENT_ON_NULL)
 
       case udagg: AggSqlFunction =>
         // Can not touch the literals, Calcite make them in previous RelNode.
@@ -230,54 +235,6 @@ class AggFunctionFactory(
       case t =>
         throw new TableException(s"Sum0 aggregate function does not support type: ''$t''.\n" +
           s"Please re-check the data type.")
-    }
-  }
-
-  private def createIncrSumAggFunction(
-      argTypes: Array[LogicalType],
-      index: Int): UserDefinedFunction = {
-    if (aggCallNeedRetractions(index)) {
-      argTypes(0).getTypeRoot match {
-        case TINYINT =>
-          new ByteIncrSumWithRetractAggFunction
-        case SMALLINT =>
-          new ShortIncrSumWithRetractAggFunction
-        case INTEGER =>
-          new IntIncrSumWithRetractAggFunction
-        case BIGINT =>
-          new LongIncrSumWithRetractAggFunction
-        case FLOAT =>
-          new FloatIncrSumWithRetractAggFunction
-        case DOUBLE =>
-          new DoubleIncrSumWithRetractAggFunction
-        case DECIMAL =>
-          val d = argTypes(0).asInstanceOf[DecimalType]
-          new DecimalIncrSumWithRetractAggFunction(d)
-        case t =>
-          throw new TableException(s"IncrSum with retract aggregate function does not " +
-            s"support type: ''$t''.\nPlease re-check the data type.")
-      }
-    } else {
-      argTypes(0).getTypeRoot match {
-        case TINYINT =>
-          new ByteIncrSumAggFunction
-        case SMALLINT =>
-          new ShortIncrSumAggFunction
-        case INTEGER =>
-          new IntIncrSumAggFunction
-        case BIGINT =>
-          new LongIncrSumAggFunction
-        case FLOAT =>
-          new FloatIncrSumAggFunction
-        case DOUBLE =>
-          new DoubleIncrSumAggFunction
-        case DECIMAL =>
-          val d = argTypes(0).asInstanceOf[DecimalType]
-          new DecimalIncrSumAggFunction(d)
-        case t =>
-          throw new TableException(s"IncrSum aggregate function does not support type: ''$t''.\n" +
-            s"Please re-check the data type.")
-      }
     }
   }
 

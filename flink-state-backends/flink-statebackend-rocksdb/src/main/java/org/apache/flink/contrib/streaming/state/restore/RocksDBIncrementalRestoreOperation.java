@@ -239,7 +239,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 backendUID);
 
         this.rocksHandle.openDB(
-                createlumnFamilyDescriptors(stateMetaInfoSnapshots, true),
+                createColumnFamilyDescriptors(stateMetaInfoSnapshots, true),
                 stateMetaInfoSnapshots,
                 restoreSourcePath);
     }
@@ -457,7 +457,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 serializationProxy.getStateMetaInfoSnapshots();
 
         List<ColumnFamilyDescriptor> columnFamilyDescriptors =
-                createlumnFamilyDescriptors(stateMetaInfoSnapshots, false);
+                createColumnFamilyDescriptors(stateMetaInfoSnapshots, false);
 
         List<ColumnFamilyHandle> columnFamilyHandles =
                 new ArrayList<>(stateMetaInfoSnapshots.size() + 1);
@@ -479,7 +479,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
      * This method recreates and registers all {@link ColumnFamilyDescriptor} from Flink's state
      * meta data snapshot.
      */
-    private List<ColumnFamilyDescriptor> createlumnFamilyDescriptors(
+    private List<ColumnFamilyDescriptor> createColumnFamilyDescriptors(
             List<StateMetaInfoSnapshot> stateMetaInfoSnapshots, boolean registerTtlCompactFilter) {
 
         List<ColumnFamilyDescriptor> columnFamilyDescriptors =

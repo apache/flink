@@ -38,7 +38,6 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
 
 /**
@@ -146,6 +145,8 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
     }
 
     // --------------------------------------------------------------------------------------------
+    // Utilities for Common Data Type Transformations
+    // --------------------------------------------------------------------------------------------
 
     /**
      * Returns the first-level field names for the provided {@link DataType}.
@@ -155,7 +156,7 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
      */
     public static List<String> getFieldNames(DataType dataType) {
         final LogicalType type = dataType.getLogicalType();
-        if (hasRoot(type, LogicalTypeRoot.DISTINCT_TYPE)) {
+        if (type.is(LogicalTypeRoot.DISTINCT_TYPE)) {
             return getFieldNames(dataType.getChildren().get(0));
         } else if (isCompositeType(type)) {
             return LogicalTypeChecks.getFieldNames(type);
@@ -171,7 +172,7 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
      */
     public static List<DataType> getFieldDataTypes(DataType dataType) {
         final LogicalType type = dataType.getLogicalType();
-        if (hasRoot(type, LogicalTypeRoot.DISTINCT_TYPE)) {
+        if (type.is(LogicalTypeRoot.DISTINCT_TYPE)) {
             return getFieldDataTypes(dataType.getChildren().get(0));
         } else if (isCompositeType(type)) {
             return dataType.getChildren();
@@ -187,33 +188,6 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
      */
     public static int getFieldCount(DataType dataType) {
         return getFieldDataTypes(dataType).size();
-    }
-
-    /**
-     * Projects a (possibly nested) row data type by returning a new data type that only includes
-     * fields of the given index paths.
-     *
-     * <p>Note: Index paths allow for arbitrary deep nesting. For example, {@code [[0, 2, 1], ...]}
-     * specifies to include the 2nd field of the 3rd field of the 1st field in the top-level row.
-     * Sometimes, name conflicts might occur when extracting fields from a row. Considering the path
-     * is unique to extract fields, it makes sense to use the path to the fields with delimiter `_`
-     * as the new name of the field. For example, the new name of the field `b` in the row `a` is
-     * `a_b` rather than `b`. However, name conflicts are still possible in some cases, e.g. if the
-     * field name is`a_b` in the top level row. In this case, the method will use a postfix in the
-     * format '_$%d' to resolve the name conflicts.
-     */
-    public static DataType projectFields(DataType dataType, int[][] indexPaths) {
-        return DataTypeUtils.projectRow(dataType, indexPaths);
-    }
-
-    /**
-     * Projects a (possibly nested) row data type by returning a new data type that only includes
-     * fields of the given indices.
-     *
-     * <p>Note: This method only projects (possibly nested) fields in the top-level row.
-     */
-    public static DataType projectFields(DataType dataType, int[] indexes) {
-        return DataTypeUtils.projectRow(dataType, indexes);
     }
 
     /**

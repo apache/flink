@@ -631,16 +631,14 @@ public final class FunctionCatalog {
         // In this situation the UDF have not been validated and cleaned, so we need to validate it
         // and clean its closure here.
         // If the input is instance of `ScalarFunctionDefinition`, `TableFunctionDefinition` and so
-        // on,
-        // it means it uses the old type inference. We assume that they have been validated before
-        // being
-        // wrapped.
-        if (function instanceof InlineCatalogFunction
-                && ((InlineCatalogFunction) function).getDefinition()
-                        instanceof UserDefinedFunction) {
-
+        // on, it means it uses the old type inference. We assume that they have been validated
+        // before being wrapped.
+        if (function instanceof InlineCatalogFunction) {
             FunctionDefinition definition = ((InlineCatalogFunction) function).getDefinition();
-            UserDefinedFunctionHelper.prepareInstance(config, (UserDefinedFunction) definition);
+            if (definition instanceof UserDefinedFunction) {
+                UserDefinedFunctionHelper.prepareInstance(config, (UserDefinedFunction) definition);
+            }
+            // Skip validation if it's not a UserDefinedFunction.
         } else if (function.getFunctionLanguage() == FunctionLanguage.JAVA) {
             ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
             UserDefinedFunctionHelper.validateClass(

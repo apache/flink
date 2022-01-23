@@ -31,12 +31,12 @@ LogicalProject(a1=[$0], b1=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a1, b1])
-+- Join(joinType=[InnerJoin], where=[(((a1 = 1) AND (b1 = 1)) OR ((a2 = 2:BIGINT) AND (b2 = 2:BIGINT)))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[(((a1 = 1) AND (b1 = 1)) OR ((a2 = 2) AND (b2 = 2)))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[single])
-   :  +- Calc(select=[a1, a2], where=[((a1 = 1) OR (a2 = 2:BIGINT))])
+   :  +- Calc(select=[a1, a2], where=[((a1 = 1) OR (a2 = 2))])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
    +- Exchange(distribution=[single])
-      +- Calc(select=[b1, b2], where=[((b1 = 1) OR (b2 = 2:BIGINT))])
+      +- Calc(select=[b1, b2], where=[((b1 = 1) OR (b2 = 2))])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3])
 ]]>
     </Resource>
@@ -55,12 +55,12 @@ LogicalProject(a=[$0], b=[$1], c=[$2], x=[$3], y=[$4], z=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[(((a = 1) AND (x = 1:BIGINT)) OR ((a = 2) AND y IS NULL))], select=[a, b, c, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(((a = 1) AND (x = 1)) OR ((a = 2) AND y IS NULL))], select=[a, b, c, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
 :  +- Calc(select=[a, b, c], where=[SEARCH(a, Sarg[1, 2])])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[single])
-   +- Calc(select=[x, y, z], where=[(y IS NULL OR (x = 1:BIGINT))])
+   +- Calc(select=[x, y, z], where=[(y IS NULL OR (x = 1))])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
@@ -80,9 +80,9 @@ LogicalProject(a1=[$0], b1=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a1, b1])
-+- Join(joinType=[InnerJoin], where=[(((a1 = 1) AND (b1 = 1)) OR SEARCH(a2, Sarg[2L:BIGINT]:BIGINT))], select=[a1, a2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[(((a1 = 1) AND (b1 = 1)) OR SEARCH(a2, Sarg[2]))], select=[a1, a2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[single])
-   :  +- Calc(select=[a1, a2], where=[((a1 = 1) OR SEARCH(a2, Sarg[2L:BIGINT]:BIGINT))])
+   :  +- Calc(select=[a1, a2], where=[((a1 = 1) OR SEARCH(a2, Sarg[2]))])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
    +- Exchange(distribution=[single])
       +- Calc(select=[b1])
@@ -537,6 +537,141 @@ Calc(select=[person, sum_votes, prize, age])
    :           +- TableSourceScan(table=[[default_catalog, default_database, award]], fields=[votes, prize])
    +- Exchange(distribution=[hash[person]])
       +- TableSourceScan(table=[[default_catalog, default_database, people]], fields=[person, age])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinOutputLostUpsertKeyWithSinkPk">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[city_name, customer_cnt])
++- LogicalProject(city_name=[$3], customer_cnt=[$1])
+   +- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+      :- LogicalAggregate(group=[{0}], customer_cnt=[COUNT()])
+      :  +- LogicalProject(city_id=[$1])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, source_customer]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, source_city]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[city_name, customer_cnt], changelogMode=[NONE])
++- Calc(select=[city_name, customer_cnt], changelogMode=[I,UB,UA,D])
+   +- Join(joinType=[InnerJoin], where=[=(city_id, id)], select=[city_id, customer_cnt, id, city_name], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UB,UA,D])
+      :- Exchange(distribution=[hash[city_id]], changelogMode=[I,UB,UA,D])
+      :  +- GroupAggregate(groupBy=[city_id], select=[city_id, COUNT_RETRACT(*) AS customer_cnt], changelogMode=[I,UB,UA,D])
+      :     +- Exchange(distribution=[hash[city_id]], changelogMode=[I,UB,UA,D])
+      :        +- Calc(select=[city_id], changelogMode=[I,UB,UA,D])
+      :           +- ChangelogNormalize(key=[customer_id], changelogMode=[I,UB,UA,D])
+      :              +- Exchange(distribution=[hash[customer_id]], changelogMode=[I,UA,D])
+      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id], metadata=[]]], fields=[city_id, customer_id], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
+         +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+            +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+               +- TableSourceScan(table=[[default_catalog, default_database, source_city]], fields=[id, city_name], changelogMode=[I,UA,D])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[city_name, customer_cnt], upsertMaterialize=[true])
++- Calc(select=[city_name, customer_cnt])
+   +- Join(joinType=[InnerJoin], where=[(city_id = id)], select=[city_id, customer_cnt, id, city_name], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+      :- Exchange(distribution=[hash[city_id]])
+      :  +- GroupAggregate(groupBy=[city_id], select=[city_id, COUNT_RETRACT(*) AS customer_cnt])
+      :     +- Exchange(distribution=[hash[city_id]])
+      :        +- Calc(select=[city_id])
+      :           +- ChangelogNormalize(key=[customer_id])
+      :              +- Exchange(distribution=[hash[customer_id]])
+      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id], metadata=[]]], fields=[city_id, customer_id])
+      +- Exchange(distribution=[hash[id]])
+         +- ChangelogNormalize(key=[id])
+            +- Exchange(distribution=[hash[id]])
+               +- TableSourceScan(table=[[default_catalog, default_database, source_city]], fields=[id, city_name])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinOutputUpsertKeyInSinkPk">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[city_id, city_name, customer_cnt])
++- LogicalProject(city_id=[$0], city_name=[$3], customer_cnt=[$1])
+   +- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+      :- LogicalAggregate(group=[{0}], customer_cnt=[COUNT()])
+      :  +- LogicalProject(city_id=[$1])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, source_customer]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, source_city]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[city_id, city_name, customer_cnt], changelogMode=[NONE])
++- Calc(select=[city_id, city_name, customer_cnt], changelogMode=[I,UB,UA,D])
+   +- Join(joinType=[InnerJoin], where=[=(city_id, id)], select=[city_id, customer_cnt, id, city_name], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UB,UA,D])
+      :- Exchange(distribution=[hash[city_id]], changelogMode=[I,UB,UA,D])
+      :  +- GroupAggregate(groupBy=[city_id], select=[city_id, COUNT_RETRACT(*) AS customer_cnt], changelogMode=[I,UB,UA,D])
+      :     +- Exchange(distribution=[hash[city_id]], changelogMode=[I,UB,UA,D])
+      :        +- Calc(select=[city_id], changelogMode=[I,UB,UA,D])
+      :           +- ChangelogNormalize(key=[customer_id], changelogMode=[I,UB,UA,D])
+      :              +- Exchange(distribution=[hash[customer_id]], changelogMode=[I,UA,D])
+      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id], metadata=[]]], fields=[city_id, customer_id], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
+         +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+            +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+               +- TableSourceScan(table=[[default_catalog, default_database, source_city]], fields=[id, city_name], changelogMode=[I,UA,D])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[city_id, city_name, customer_cnt])
++- Calc(select=[city_id, city_name, customer_cnt])
+   +- Join(joinType=[InnerJoin], where=[(city_id = id)], select=[city_id, customer_cnt, id, city_name], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+      :- Exchange(distribution=[hash[city_id]])
+      :  +- GroupAggregate(groupBy=[city_id], select=[city_id, COUNT_RETRACT(*) AS customer_cnt])
+      :     +- Exchange(distribution=[hash[city_id]])
+      :        +- Calc(select=[city_id])
+      :           +- ChangelogNormalize(key=[customer_id])
+      :              +- Exchange(distribution=[hash[customer_id]])
+      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id], metadata=[]]], fields=[city_id, customer_id])
+      +- Exchange(distribution=[hash[id]])
+         +- ChangelogNormalize(key=[id])
+            +- Exchange(distribution=[hash[id]])
+               +- TableSourceScan(table=[[default_catalog, default_database, source_city]], fields=[id, city_name])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinOutputUpsertKeyNotMatchSinkPk">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[city_id, city_name, customer_cnt])
++- LogicalProject(city_id=[$0], city_name=[$3], customer_cnt=[$1])
+   +- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+      :- LogicalAggregate(group=[{0}], customer_cnt=[COUNT()])
+      :  +- LogicalProject(city_id=[$1])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, source_customer]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, source_city]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[city_id, city_name, customer_cnt], changelogMode=[NONE])
++- Calc(select=[city_id, city_name, customer_cnt], changelogMode=[I,UB,UA,D])
+   +- Join(joinType=[InnerJoin], where=[=(city_id, id)], select=[city_id, customer_cnt, id, city_name], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UB,UA,D])
+      :- Exchange(distribution=[hash[city_id]], changelogMode=[I,UB,UA,D])
+      :  +- GroupAggregate(groupBy=[city_id], select=[city_id, COUNT_RETRACT(*) AS customer_cnt], changelogMode=[I,UB,UA,D])
+      :     +- Exchange(distribution=[hash[city_id]], changelogMode=[I,UB,UA,D])
+      :        +- Calc(select=[city_id], changelogMode=[I,UB,UA,D])
+      :           +- ChangelogNormalize(key=[customer_id], changelogMode=[I,UB,UA,D])
+      :              +- Exchange(distribution=[hash[customer_id]], changelogMode=[I,UA,D])
+      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id], metadata=[]]], fields=[city_id, customer_id], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
+         +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+            +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+               +- TableSourceScan(table=[[default_catalog, default_database, source_city]], fields=[id, city_name], changelogMode=[I,UA,D])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[city_id, city_name, customer_cnt], upsertMaterialize=[true])
++- Calc(select=[city_id, city_name, customer_cnt])
+   +- Join(joinType=[InnerJoin], where=[(city_id = id)], select=[city_id, customer_cnt, id, city_name], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+      :- Exchange(distribution=[hash[city_id]])
+      :  +- GroupAggregate(groupBy=[city_id], select=[city_id, COUNT_RETRACT(*) AS customer_cnt])
+      :     +- Exchange(distribution=[hash[city_id]])
+      :        +- Calc(select=[city_id])
+      :           +- ChangelogNormalize(key=[customer_id])
+      :              +- Exchange(distribution=[hash[customer_id]])
+      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id], metadata=[]]], fields=[city_id, customer_id])
+      +- Exchange(distribution=[hash[id]])
+         +- ChangelogNormalize(key=[id])
+            +- Exchange(distribution=[hash[id]])
+               +- TableSourceScan(table=[[default_catalog, default_database, source_city]], fields=[id, city_name])
 ]]>
     </Resource>
   </TestCase>
@@ -1216,7 +1351,7 @@ LogicalProject(key=[$0], v=[$1], key0=[$2], v0=[$3])
       <![CDATA[
 Join(joinType=[LeftOuterJoin], where=[=(key, key0)], select=[key, v, key0, v0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[key]], changelogMode=[I])
-:  +- Calc(select=[CAST(0:BIGINT) AS key, v], where=[=(key, 0:BIGINT)], changelogMode=[I])
+:  +- Calc(select=[CAST(0 AS BIGINT) AS key, v], where=[=(key, 0)], changelogMode=[I])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, src, source: [TestTableSource(key, v)]]], fields=[key, v], changelogMode=[I])
 +- Exchange(distribution=[hash[key]], changelogMode=[I])
    +- Values(tuples=[[]], changelogMode=[I])

@@ -36,15 +36,18 @@ under the License.
 		<module>flink-table-common</module>
 		<module>flink-table-api-java</module>
 		<module>flink-table-api-scala</module>
+		<module>flink-table-api-bridge-base</module>
 		<module>flink-table-api-java-bridge</module>
 		<module>flink-table-api-scala-bridge</module>
+		<module>flink-table-api-java-uber</module>
 		<module>flink-table-planner</module>
+		<module>flink-table-planner-loader</module>
 		<module>flink-table-runtime</module>
-		<module>flink-table-uber</module>
 		<module>flink-sql-client</module>
 		<module>flink-sql-parser</module>
 		<module>flink-sql-parser-hive</module>
 		<module>flink-table-code-splitter</module>
+		<module>flink-table-test-utils</module>
 	</modules>
 
 	<dependencyManagement>
@@ -71,9 +74,10 @@ under the License.
 	</dependencyManagement>
 
 	<properties>
-		<!-- When updating Janino, make sure that Calcite supports it as well. -->
-		<janino.version>3.0.11</janino.version>
 		<calcite.version>1.26.0</calcite.version>
+		<!-- Keep Janino in sync with calcite. -->
+		<janino.version>3.0.11</janino.version>
+		<jsonpath.version>2.6.0</jsonpath.version>
 		<guava.version>29.0-jre</guava.version>
 	</properties>
 </project>

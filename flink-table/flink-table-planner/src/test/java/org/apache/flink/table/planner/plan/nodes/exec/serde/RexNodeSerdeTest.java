@@ -35,9 +35,8 @@ import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.utils.EncodingUtils;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
 import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.avatica.util.TimeUnit;
@@ -60,7 +59,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
@@ -96,12 +94,12 @@ public class RexNodeSerdeTest {
         RexBuilder rexBuilder = new RexBuilder(FACTORY);
         RelDataType inputType =
                 FACTORY.createStructType(
-                        StructKind.PEEK_FIELDS,
+                        StructKind.PEEK_FIELDS_NO_EXPAND,
                         Arrays.asList(
                                 FACTORY.createSqlType(SqlTypeName.INTEGER),
                                 FACTORY.createSqlType(SqlTypeName.BIGINT),
                                 FACTORY.createStructType(
-                                        StructKind.PEEK_FIELDS,
+                                        StructKind.PEEK_FIELDS_NO_EXPAND,
                                         Arrays.asList(
                                                 FACTORY.createSqlType(SqlTypeName.VARCHAR),
                                                 FACTORY.createSqlType(SqlTypeName.VARCHAR)),
@@ -133,100 +131,34 @@ public class RexNodeSerdeTest {
                                 FACTORY.createSqlType(SqlTypeName.FLOAT)),
                         rexBuilder.makeExactLiteral(BigDecimal.valueOf(random.nextDouble())),
                         rexBuilder.makeIntervalLiteral(
-                                new SqlIntervalQualifier(
-                                        TimeUnit.YEAR, TimeUnit.YEAR, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
                                 BigDecimal.valueOf(100),
                                 new SqlIntervalQualifier(
-                                        TimeUnit.YEAR, TimeUnit.YEAR, SqlParserPos.ZERO)),
+                                        TimeUnit.YEAR,
+                                        4,
+                                        TimeUnit.YEAR,
+                                        RelDataType.PRECISION_NOT_SPECIFIED,
+                                        SqlParserPos.ZERO)),
                         rexBuilder.makeIntervalLiteral(
                                 BigDecimal.valueOf(3),
                                 new SqlIntervalQualifier(
-                                        TimeUnit.YEAR, TimeUnit.MONTH, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                new SqlIntervalQualifier(
-                                        TimeUnit.MONTH, TimeUnit.MONTH, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                BigDecimal.valueOf(3),
-                                new SqlIntervalQualifier(
-                                        TimeUnit.MONTH, TimeUnit.MONTH, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                new SqlIntervalQualifier(
-                                        TimeUnit.DAY, TimeUnit.DAY, SqlParserPos.ZERO)),
+                                        TimeUnit.YEAR,
+                                        2,
+                                        TimeUnit.MONTH,
+                                        RelDataType.PRECISION_NOT_SPECIFIED,
+                                        SqlParserPos.ZERO)),
                         rexBuilder.makeIntervalLiteral(
                                 BigDecimal.valueOf(3),
                                 new SqlIntervalQualifier(
-                                        TimeUnit.DAY, TimeUnit.DAY, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                new SqlIntervalQualifier(
-                                        TimeUnit.DAY, TimeUnit.HOUR, SqlParserPos.ZERO)),
+                                        TimeUnit.DAY, 2, TimeUnit.SECOND, 6, SqlParserPos.ZERO)),
                         rexBuilder.makeIntervalLiteral(
                                 BigDecimal.valueOf(3),
                                 new SqlIntervalQualifier(
-                                        TimeUnit.DAY, TimeUnit.HOUR, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                new SqlIntervalQualifier(
-                                        TimeUnit.DAY, TimeUnit.MINUTE, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                BigDecimal.valueOf(3),
-                                new SqlIntervalQualifier(
-                                        TimeUnit.DAY, TimeUnit.MINUTE, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                new SqlIntervalQualifier(
-                                        TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                BigDecimal.valueOf(3),
-                                new SqlIntervalQualifier(
-                                        TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                new SqlIntervalQualifier(
-                                        TimeUnit.HOUR, TimeUnit.HOUR, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                BigDecimal.valueOf(3),
-                                new SqlIntervalQualifier(
-                                        TimeUnit.HOUR, TimeUnit.HOUR, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                new SqlIntervalQualifier(
-                                        TimeUnit.HOUR, TimeUnit.MINUTE, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                BigDecimal.valueOf(3),
-                                new SqlIntervalQualifier(
-                                        TimeUnit.HOUR, TimeUnit.MINUTE, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                new SqlIntervalQualifier(
-                                        TimeUnit.HOUR, TimeUnit.SECOND, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                BigDecimal.valueOf(3),
-                                new SqlIntervalQualifier(
-                                        TimeUnit.HOUR, TimeUnit.SECOND, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                new SqlIntervalQualifier(
-                                        TimeUnit.MINUTE, TimeUnit.MINUTE, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                BigDecimal.valueOf(3),
-                                new SqlIntervalQualifier(
-                                        TimeUnit.MINUTE, TimeUnit.MINUTE, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                new SqlIntervalQualifier(
-                                        TimeUnit.MINUTE, TimeUnit.SECOND, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                BigDecimal.valueOf(3),
-                                new SqlIntervalQualifier(
-                                        TimeUnit.MINUTE, TimeUnit.SECOND, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                new SqlIntervalQualifier(
-                                        TimeUnit.SECOND, TimeUnit.SECOND, SqlParserPos.ZERO)),
-                        rexBuilder.makeIntervalLiteral(
-                                BigDecimal.valueOf(3),
-                                new SqlIntervalQualifier(
-                                        TimeUnit.SECOND, TimeUnit.SECOND, SqlParserPos.ZERO)),
+                                        TimeUnit.SECOND, 2, TimeUnit.SECOND, 6, SqlParserPos.ZERO)),
                         rexBuilder.makeDateLiteral(DateString.fromDaysSinceEpoch(10)),
                         rexBuilder.makeDateLiteral(new DateString("2000-12-12")),
                         rexBuilder.makeTimeLiteral(TimeString.fromMillisOfDay(1234), 3),
                         rexBuilder.makeTimeLiteral(TimeString.fromMillisOfDay(123456), 6),
                         rexBuilder.makeTimeLiteral(new TimeString("01:01:01.000000001"), 9),
-                        rexBuilder.makeTimeWithLocalTimeZoneLiteral(
-                                TimeString.fromMillisOfDay(1234), 3),
                         rexBuilder.makeTimestampLiteral(
                                 TimestampString.fromMillisSinceEpoch(1234), 3),
                         rexBuilder.makeTimestampLiteral(
@@ -245,6 +177,7 @@ public class RexNodeSerdeTest {
                         rexBuilder.makeLiteral(
                                 Arrays.<Object>asList(1, 2L),
                                 FACTORY.createStructType(
+                                        StructKind.PEEK_FIELDS_NO_EXPAND,
                                         Arrays.asList(
                                                 FACTORY.createSqlType(SqlTypeName.INTEGER),
                                                 FACTORY.createSqlType(SqlTypeName.BIGINT)),
@@ -370,20 +303,11 @@ public class RexNodeSerdeTest {
                         Thread.currentThread().getContextClassLoader(),
                         FACTORY,
                         FlinkSqlOperatorTable.instance());
-        ObjectMapper mapper = JsonSerdeUtil.createObjectMapper(serdeCtx);
-        SimpleModule module = new SimpleModule();
+        ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
+        ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
 
-        module.addSerializer(new RexNodeJsonSerializer());
-        module.addSerializer(new RelDataTypeJsonSerializer());
-        module.addDeserializer(RexNode.class, new RexNodeJsonDeserializer());
-        module.addDeserializer(RelDataType.class, new RelDataTypeJsonDeserializer());
-        mapper.registerModule(module);
-        StringWriter writer = new StringWriter(100);
-        try (JsonGenerator gen = mapper.getFactory().createGenerator(writer)) {
-            gen.writeObject(rexNode);
-        }
-        String json = writer.toString();
-        RexNode actual = mapper.readValue(json, RexNode.class);
+        String json = objectWriter.writeValueAsString(rexNode);
+        RexNode actual = objectReader.readValue(json, RexNode.class);
         assertEquals(rexNode, actual);
     }
 

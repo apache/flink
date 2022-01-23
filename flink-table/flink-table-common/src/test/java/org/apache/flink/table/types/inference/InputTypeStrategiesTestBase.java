@@ -27,9 +27,7 @@ import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -42,9 +40,9 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Base class for testing {@link InputTypeStrategy}. */
 @RunWith(Parameterized.class)
@@ -52,23 +50,20 @@ public abstract class InputTypeStrategiesTestBase {
 
     @Parameterized.Parameter public TestSpec testSpec;
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
     @Test
     public void testStrategy() {
         if (testSpec.expectedSignature != null) {
-            assertThat(generateSignature(), equalTo(testSpec.expectedSignature));
-        }
-        if (testSpec.expectedErrorMessage != null) {
-            thrown.expect(ValidationException.class);
-            thrown.expectCause(
-                    containsCause(new ValidationException(testSpec.expectedErrorMessage)));
+            assertThat(generateSignature()).isEqualTo(testSpec.expectedSignature);
         }
         for (List<DataType> actualArgumentTypes : testSpec.actualArgumentTypes) {
-            TypeInferenceUtil.Result result = runTypeInference(actualArgumentTypes);
-            if (testSpec.expectedArgumentTypes != null) {
-                assertThat(
-                        result.getExpectedArgumentTypes(), equalTo(testSpec.expectedArgumentTypes));
+            if (testSpec.expectedErrorMessage != null) {
+                assertThatThrownBy(() -> runTypeInference(actualArgumentTypes))
+                        .satisfies(
+                                anyCauseMatches(
+                                        ValidationException.class, testSpec.expectedErrorMessage));
+            } else if (testSpec.expectedArgumentTypes != null) {
+                assertThat(runTypeInference(actualArgumentTypes).getExpectedArgumentTypes())
+                        .isEqualTo(testSpec.expectedArgumentTypes);
             }
         }
     }

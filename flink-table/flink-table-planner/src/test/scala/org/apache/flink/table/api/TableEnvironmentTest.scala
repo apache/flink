@@ -18,12 +18,9 @@
 
 package org.apache.flink.table.api
 
-import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
@@ -33,11 +30,16 @@ import org.apache.flink.table.module.ModuleEntry
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory._
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
-import org.apache.flink.table.planner.utils.TableTestUtil.{replaceStageId, replaceStreamNodeId}
+import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
-import org.junit.Assert._
+
+import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.sql.SqlExplainLevel
+
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
@@ -108,6 +110,22 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testExplainWithExecuteInsert(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+
+    TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
+
+    TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink", -1)
+
+    val expected = TableTestUtil.readFromResource("/explain/testStreamTableEnvironmentExplain.out")
+    val actual = tEnv.explainSql("execute insert into MySink select first from MyTable")
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
+  }
+
+  @Test
   def testStreamTableEnvironmentExecutionExplainWithEnvParallelism(): Unit = {
     val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
     execEnv.setParallelism(4)
@@ -140,8 +158,8 @@ class TableEnvironmentTest {
     val actual = tEnv.explainSql("insert into MySink select first from MyTable",
       ExplainDetail.JSON_EXECUTION_PLAN)
 
-    assertEquals(TableTestUtil.replaceStreamNodeId(expected),
-      TableTestUtil.replaceStreamNodeId(actual))
+    assertEquals(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(expected)),
+      TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
   }
 
   @Test
@@ -160,14 +178,40 @@ class TableEnvironmentTest {
       TableTestUtil.readFromResource("/explain/testStatementSetExecutionExplain.out")
     val statementSet = tEnv.createStatementSet()
     statementSet.addInsertSql("insert into MySink select last from MyTable")
+    statementSet.addInsertSql("insert into MySink select first from MyTable")
     val actual = statementSet.explain(ExplainDetail.JSON_EXECUTION_PLAN)
 
-    assertEquals(TableTestUtil.replaceStreamNodeId(expected),
-      TableTestUtil.replaceStreamNodeId(actual))
+    assertThat(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
+      .isEqualTo(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(expected)))
   }
 
   @Test
-  def testAlterTableResetEmtpyOptionKey(): Unit = {
+  def testExecuteStatementSetExecutionExplain(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    execEnv.setParallelism(1)
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+
+    TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
+
+    TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink", -1)
+
+    val expected =
+      TableTestUtil.readFromResource("/explain/testStatementSetExecutionExplain.out")
+
+    val actual = tEnv.explainSql(
+      "execute statement set begin " +
+        "insert into MySink select last from MyTable; " +
+        "insert into MySink select first from MyTable; end",
+      ExplainDetail.JSON_EXECUTION_PLAN)
+
+    assertEquals(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(expected)),
+      TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
+  }
+
+  @Test
+  def testAlterTableResetEmptyOptionKey(): Unit = {
     val statement =
       """
         |CREATE TABLE MyTable (
@@ -200,17 +244,13 @@ class TableEnvironmentTest {
         |)
       """.stripMargin
     tableEnv.executeSql(statementWithTypo)
-    try {
-      tableEnv.executeSql("explain plan for select * from MyTable where a > 10")
-      fail("Expected an exception")
-    } catch {
-      case t: Throwable =>
-        assertThat(t,
-          containsMessage("Unable to create a source for reading table " +
-            "'default_catalog.default_database.MyTable'.\n\n" +
-            "Table options are:\n\n'connector'='datagen'\n" +
-            "'invalid-key'='invalid-value'" ))
-    }
+    assertThatThrownBy(
+        () => tableEnv.executeSql("explain plan for select * from MyTable where a > 10"))
+      .hasMessageContaining("Unable to create a source for reading table " +
+      "'default_catalog.default_database.MyTable'.\n\n" +
+      "Table options are:\n\n'connector'='datagen'\n" +
+      "'invalid-key'='invalid-value'" )
+
     // remove invalid key by RESET
     val alterTableResetStatement = "ALTER TABLE MyTable RESET ('invalid-key')"
     val tableResult = tableEnv.executeSql(alterTableResetStatement)
@@ -258,16 +298,18 @@ class TableEnvironmentTest {
         |  b int,
         |  c varchar
         |) WITH (
-        |  'connector' = 'COLLECTION'
+        |  'connector' = 'filesystem',
+        |  'format' = 'testcsv',
+        |  'path' = '_invalid'
         |)
       """.stripMargin
     tableEnv.executeSql(statement)
 
-    val alterTableResetStatement = "ALTER TABLE MyTable RESET ('connector')"
+    val alterTableResetStatement = "ALTER TABLE MyTable RESET ('format')"
     val tableResult = tableEnv.executeSql(alterTableResetStatement)
     assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
     assertEquals(
-      Map.empty.asJava,
+      Map("connector" -> "filesystem", "path" -> "_invalid").asJava,
       tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
         .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.MyTable")).getOptions)
     expectedException.expect(classOf[ValidationException])
@@ -275,6 +317,43 @@ class TableEnvironmentTest {
       "Unable to create a source for reading table 'default_catalog.default_database.MyTable'.")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT,
       tableEnv.executeSql("explain plan for select * from MyTable where a > 10").getResultKind)
+  }
+
+  @Test
+  def testAlterTableCompactOnNonManagedTable(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("ALTER TABLE COMPACT operation is not supported for " +
+          "non-managed table `default_catalog`.`default_database`.`MyTable`")
+    tableEnv.executeSql("alter table MyTable compact")
+  }
+
+  @Test
+  def testAlterTableCompactOnManagedTable(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |)
+      """.stripMargin
+      tableEnv.executeSql(statement)
+
+    assertEquals(ResultKind.SUCCESS,
+      tableEnv.executeSql("ALTER TABLE MyTable COMPACT").getResultKind)
   }
 
   @Test
@@ -685,15 +764,10 @@ class TableEnvironmentTest {
         |)
       """.stripMargin
 
-    try {
-      tableEnv.executeSql(statement1)
-      fail("Expected an exception")
-    } catch {
-      case t: Throwable =>
-        assertThat(t, containsMessage(
-          "Could not execute LOAD MODULE `Dummy` WITH ('dummy-version' = '1')."
-          + " Unable to create module 'Dummy'."))
-    }
+    assertThatThrownBy(() => tableEnv.executeSql(statement1))
+      .hasMessageContaining(
+        "Could not execute LOAD MODULE `Dummy` WITH ('dummy-version' = '1')."
+        + " Unable to create module 'Dummy'.")
 
     val statement2 =
       """
@@ -1258,6 +1332,9 @@ class TableEnvironmentTest {
 
     checkExplain("explain plan for insert into MySink select a, b from MyTable where a > 10",
       "/explain/testExecuteSqlWithExplainInsert.out")
+
+    checkExplain("explain plan for insert into MySink(d) select a from MyTable where a > 10",
+      "/explain/testExecuteSqlWithExplainInsertPartialColumn.out")
   }
 
   @Test
@@ -1303,6 +1380,28 @@ class TableEnvironmentTest {
 
     val actual = tableEnv.explainSql(
       "select * from MyTable where a > 10", ExplainDetail.CHANGELOG_MODE)
+    val expected = TableTestUtil.readFromResource("/explain/testExplainSqlWithSelect.out")
+    assertEquals(replaceStageId(expected), replaceStageId(actual))
+  }
+
+  @Test
+  def testExplainSqlWithExecuteSelect(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val actual = tableEnv.explainSql(
+      "execute select * from MyTable where a > 10", ExplainDetail.CHANGELOG_MODE)
     val expected = TableTestUtil.readFromResource("/explain/testExplainSqlWithSelect.out")
     assertEquals(replaceStageId(expected), replaceStageId(actual))
   }
@@ -1644,9 +1743,9 @@ class TableEnvironmentTest {
     assertTrue(it.hasNext)
     val row = it.next()
     assertEquals(1, row.getArity)
-    val actual = replaceStreamNodeId(row.getField(0).toString.trim)
-    val expected = replaceStreamNodeId(TableTestUtil
-      .readFromResource(resultPath).trim)
+    val actual = replaceNodeIdInOperator(replaceStreamNodeId(row.getField(0).toString.trim))
+    val expected = replaceNodeIdInOperator(
+        replaceStreamNodeId(TableTestUtil.readFromResource(resultPath).trim))
     assertEquals(replaceStageId(expected), replaceStageId(actual))
     assertFalse(it.hasNext)
   }

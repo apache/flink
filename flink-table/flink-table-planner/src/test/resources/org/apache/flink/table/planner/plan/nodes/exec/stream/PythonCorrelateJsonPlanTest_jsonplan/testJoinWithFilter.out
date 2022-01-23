@@ -22,24 +22,7 @@
       }
     },
     "id" : 1,
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "INT"
-      }, {
-        "b" : "INT"
-      }, {
-        "c" : "INT"
-      }, {
-        "d" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      } ]
-    },
+    "outputType" : "ROW<`a` INT, `b` INT, `c` INT, `d` TIMESTAMP(3)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
     "inputProperties" : [ ]
   }, {
@@ -47,32 +30,19 @@
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 3,
-      "type" : {
-        "typeName" : "TIMESTAMP",
-        "nullable" : true,
-        "precision" : 3
-      }
+      "type" : "TIMESTAMP(3)"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -83,22 +53,13 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 0,
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : true
-        }
+        "type" : "INT"
       }, {
         "kind" : "INPUT_REF",
         "inputIndex" : 0,
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : true
-        }
+        "type" : "INT"
       } ],
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     } ],
     "condition" : null,
     "id" : 2,
@@ -109,26 +70,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "INT"
-      }, {
-        "b" : "INT"
-      }, {
-        "c" : "INT"
-      }, {
-        "d" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      }, {
-        "f0" : "INT"
-      } ]
-    },
+    "outputType" : "ROW<`a` INT, `b` INT, `c` INT, `d` TIMESTAMP(3), `f0` INT>",
     "description" : "Calc(select=[a, b, c, d, (a * a) AS f0])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCorrelate",
@@ -143,10 +85,7 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 4,
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : true
-        }
+        "type" : "INT"
       }, {
         "kind" : "REX_CALL",
         "operator" : {
@@ -160,36 +99,15 @@
         "operands" : [ {
           "kind" : "INPUT_REF",
           "inputIndex" : 0,
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : true
-          }
+          "type" : "INT"
         }, {
           "kind" : "INPUT_REF",
           "inputIndex" : 1,
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : true
-          }
+          "type" : "INT"
         } ],
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : false
-        }
+        "type" : "INT NOT NULL"
       } ],
-      "type" : {
-        "structKind" : "FULLY_QUALIFIED",
-        "nullable" : false,
-        "fields" : [ {
-          "typeName" : "INTEGER",
-          "nullable" : true,
-          "fieldName" : "f0"
-        }, {
-          "typeName" : "INTEGER",
-          "nullable" : true,
-          "fieldName" : "f1"
-        } ]
-      }
+      "type" : "ROW<`f0` INT, `f1` INT> NOT NULL"
     },
     "id" : 3,
     "inputProperties" : [ {
@@ -199,47 +117,18 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "INT"
-      }, {
-        "b" : "INT"
-      }, {
-        "c" : "INT"
-      }, {
-        "d" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      }, {
-        "f0" : "INT"
-      }, {
-        "f00" : "INT"
-      }, {
-        "f1" : "INT"
-      } ]
-    },
+    "outputType" : "ROW<`a` INT, `b` INT, `c` INT, `d` TIMESTAMP(3), `f0` INT, `f00` INT, `f1` INT>",
     "description" : "PythonCorrelate(invocation=[TableFunc($4, pyFunc($0, $1))], correlate=[table(TableFunc(f0,pyFunc(a, b)))], select=[a,b,c,d,f0,f00,f1], rowType=[RecordType(INTEGER a, INTEGER b, INTEGER c, TIMESTAMP(3) d, INTEGER f0, INTEGER f00, INTEGER f1)], joinType=[INNER])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 5,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 6,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     } ],
     "condition" : {
       "kind" : "REX_CALL",
@@ -265,22 +154,13 @@
           "operands" : [ {
             "kind" : "INPUT_REF",
             "inputIndex" : 6,
-            "type" : {
-              "typeName" : "INTEGER",
-              "nullable" : true
-            }
+            "type" : "INT"
           }, {
             "kind" : "LITERAL",
             "value" : "1",
-            "type" : {
-              "typeName" : "INTEGER",
-              "nullable" : false
-            }
+            "type" : "INT NOT NULL"
           } ],
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : true
-          }
+          "type" : "INT"
         }, {
           "kind" : "REX_CALL",
           "operator" : {
@@ -291,27 +171,15 @@
           "operands" : [ {
             "kind" : "INPUT_REF",
             "inputIndex" : 6,
-            "type" : {
-              "typeName" : "INTEGER",
-              "nullable" : true
-            }
+            "type" : "INT"
           }, {
             "kind" : "INPUT_REF",
             "inputIndex" : 6,
-            "type" : {
-              "typeName" : "INTEGER",
-              "nullable" : true
-            }
+            "type" : "INT"
           } ],
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : true
-          }
+          "type" : "INT"
         } ],
-        "type" : {
-          "typeName" : "BOOLEAN",
-          "nullable" : true
-        }
+        "type" : "BOOLEAN"
       }, {
         "kind" : "REX_CALL",
         "operator" : {
@@ -322,27 +190,15 @@
         "operands" : [ {
           "kind" : "INPUT_REF",
           "inputIndex" : 5,
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : true
-          }
+          "type" : "INT"
         }, {
           "kind" : "INPUT_REF",
           "inputIndex" : 0,
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : true
-          }
+          "type" : "INT"
         } ],
-        "type" : {
-          "typeName" : "BOOLEAN",
-          "nullable" : true
-        }
+        "type" : "BOOLEAN"
       } ],
-      "type" : {
-        "typeName" : "BOOLEAN",
-        "nullable" : true
-      }
+      "type" : "BOOLEAN"
     },
     "id" : 4,
     "inputProperties" : [ {
@@ -352,15 +208,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "x" : "INT"
-      }, {
-        "y" : "INT"
-      } ]
-    },
+    "outputType" : "ROW<`x` INT, `y` INT>",
     "description" : "Calc(select=[f00 AS x, f1 AS y], where=[(((f1 + 1) = (f1 * f1)) AND (f00 = a))])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -388,15 +236,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "x" : "INT"
-      }, {
-        "y" : "INT"
-      } ]
-    },
+    "outputType" : "ROW<`x` INT, `y` INT>",
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[x, y])"
   } ],
   "edges" : [ {

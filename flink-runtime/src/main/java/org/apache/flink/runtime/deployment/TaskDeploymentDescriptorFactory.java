@@ -55,6 +55,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * Factory of {@link TaskDeploymentDescriptor} to deploy {@link
  * org.apache.flink.runtime.taskmanager.Task} from {@link Execution}.
@@ -126,10 +128,18 @@ public class TaskDeploymentDescriptorFactory {
             IntermediateResultPartition resultPartition =
                     resultPartitionRetriever.apply(consumedPartitionGroup.getFirst());
 
-            int numConsumers = resultPartition.getConsumerVertexGroups().get(0).size();
-
-            int queueToRequest = subtaskIndex % numConsumers;
+            int numConsumers = resultPartition.getConsumerVertexGroup().size();
             IntermediateResult consumedIntermediateResult = resultPartition.getIntermediateResult();
+            int consumerIndex = subtaskIndex % numConsumers;
+            int numSubpartitions = resultPartition.getNumberOfSubpartitions();
+            SubpartitionIndexRange consumedSubpartitionRange =
+                    computeConsumedSubpartitionRange(
+                            consumerIndex,
+                            numConsumers,
+                            numSubpartitions,
+                            consumedIntermediateResult.getProducer().getGraph().isDynamic(),
+                            consumedIntermediateResult.isBroadcast());
+
             IntermediateDataSetID resultId = consumedIntermediateResult.getId();
             ResultPartitionType partitionType = consumedIntermediateResult.getResultType();
 
@@ -137,12 +147,41 @@ public class TaskDeploymentDescriptorFactory {
                     new InputGateDeploymentDescriptor(
                             resultId,
                             partitionType,
-                            queueToRequest,
+                            consumedSubpartitionRange,
                             getConsumedPartitionShuffleDescriptors(
                                     consumedIntermediateResult, consumedPartitionGroup)));
         }
 
         return inputGates;
+    }
+
+    @VisibleForTesting
+    static SubpartitionIndexRange computeConsumedSubpartitionRange(
+            int consumerIndex,
+            int numConsumers,
+            int numSubpartitions,
+            boolean isDynamicGraph,
+            boolean isBroadcast) {
+
+        if (!isDynamicGraph) {
+            checkArgument(numConsumers == numSubpartitions);
+            return new SubpartitionIndexRange(consumerIndex, consumerIndex);
+        } else {
+            if (isBroadcast) {
+                // broadcast result should have only one subpartition, and be consumed multiple
+                // times.
+                checkArgument(numSubpartitions == 1);
+                return new SubpartitionIndexRange(0, 0);
+            } else {
+                checkArgument(consumerIndex < numConsumers);
+                checkArgument(numConsumers <= numSubpartitions);
+
+                int start = consumerIndex * numSubpartitions / numConsumers;
+                int nextStart = (consumerIndex + 1) * numSubpartitions / numConsumers;
+
+                return new SubpartitionIndexRange(start, nextStart - 1);
+            }
+        }
     }
 
     private MaybeOffloaded<ShuffleDescriptor[]> getConsumedPartitionShuffleDescriptors(

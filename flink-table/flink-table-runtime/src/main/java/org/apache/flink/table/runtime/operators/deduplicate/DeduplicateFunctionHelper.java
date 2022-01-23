@@ -26,7 +26,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 /** Utility for deduplicate function. */
-class DeduplicateFunctionHelper {
+public class DeduplicateFunctionHelper {
 
     /**
      * Processes element to deduplicate on keys with process time semantic, sends current element as
@@ -134,7 +134,7 @@ class DeduplicateFunctionHelper {
             // DELETE or UPDATER_BEFORE
             if (preRow != null) {
                 // always set to DELETE because this row has been removed
-                // even the the input is UPDATE_BEFORE, there may no UPDATE_AFTER after it.
+                // even the input is UPDATE_BEFORE, there may no UPDATE_AFTER after it.
                 preRow.setRowKind(RowKind.DELETE);
                 // output the preRow instead of currentRow,
                 // because preRow always contains the full content.
@@ -207,7 +207,7 @@ class DeduplicateFunctionHelper {
     }
 
     /** Returns current row is duplicate row or not compared to previous row. */
-    static boolean isDuplicate(
+    public static boolean isDuplicate(
             RowData preRow, RowData currentRow, int rowtimeIndex, boolean keepLastRow) {
         if (keepLastRow) {
             return preRow == null

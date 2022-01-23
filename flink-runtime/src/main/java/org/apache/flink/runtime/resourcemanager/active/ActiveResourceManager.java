@@ -220,6 +220,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         super.registerMetrics();
         resourceManagerMetricGroup.meter(
                 MetricNames.START_WORKER_FAILURE_RATE, startWorkerFailureRater);
+        resourceManagerMetricGroup.gauge(
+                MetricNames.NUM_PENDING_TASK_MANAGERS, pendingWorkerCounter::getTotalNum);
     }
 
     // ------------------------------------------------------------------------

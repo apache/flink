@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.table.types.logical._
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging
 
 import junit.framework.TestCase.{assertFalse, assertTrue}
@@ -43,7 +42,7 @@ class FlinkTypeFactoryTest {
           typeFactory.createFieldTypeFromLogicalType(t.copy(true)))
       )
 
-      if (!hasRoot(t, LogicalTypeRoot.NULL)) {
+      if (!t.is(LogicalTypeRoot.NULL)) {
         Assert.assertEquals(
           t.copy(false),
           FlinkTypeFactory.toLogicalType(
@@ -58,7 +57,7 @@ class FlinkTypeFactoryTest {
           typeFactory.createFieldTypeFromLogicalType(t.copy(true)))
       )
 
-      if (!hasRoot(t, LogicalTypeRoot.NULL)) {
+      if (!t.is(LogicalTypeRoot.NULL)) {
         Assert.assertEquals(
           t.copy(false),
           FlinkTypeFactory.toLogicalType(
@@ -70,7 +69,7 @@ class FlinkTypeFactoryTest {
     test(new NullType())
     test(new BooleanType())
     test(new TinyIntType())
-    test(new VarCharType(VarCharType.MAX_LENGTH))
+    test(VarCharType.STRING_TYPE)
     test(new DoubleType())
     test(new FloatType())
     test(new IntType())
@@ -83,8 +82,8 @@ class FlinkTypeFactoryTest {
     test(new LocalZonedTimestampType(3))
 
     test(new ArrayType(new DoubleType()))
-    test(new MapType(new DoubleType(), new VarCharType(VarCharType.MAX_LENGTH)))
-    test(RowType.of(new DoubleType(), new VarCharType(VarCharType.MAX_LENGTH)))
+    test(new MapType(new DoubleType(), VarCharType.STRING_TYPE))
+    test(RowType.of(new DoubleType(), VarCharType.STRING_TYPE))
     test(new RawType[DayOfWeek](
       classOf[DayOfWeek],
       new KryoSerializer[DayOfWeek](classOf[DayOfWeek], new ExecutionConfig)))

@@ -39,7 +39,6 @@ under the License.
 		<module>flink-hadoop-compatibility</module>
 		<module>flink-hcatalog</module>
 		<module>flink-connector-elasticsearch-base</module>
-		<module>flink-connector-elasticsearch5</module>
 		<module>flink-connector-elasticsearch6</module>
 		<module>flink-connector-elasticsearch7</module>
 		<module>flink-connector-hbase-base</module>
@@ -53,7 +52,9 @@ under the License.
 		<module>flink-connector-cassandra</module>
 		<module>flink-connector-kafka</module>
 		<module>flink-connector-gcp-pubsub</module>
+		<module>flink-connector-aws-base</module>
 		<module>flink-connector-kinesis</module>
+		<module>flink-connector-aws-kinesis-data-streams</module>
 		<module>flink-connector-base</module>
 		<module>flink-file-sink-common</module>
 		<module>flink-connector-files</module>

@@ -169,7 +169,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     /** The receiver which forwards the input elements to a remote environment for processing. */
     @VisibleForTesting protected transient FnDataReceiver<WindowedValue<byte[]>> mainInputReceiver;
 
-    /** The receiver which forwards the the timer data to a remote environment for processing. */
+    /** The receiver which forwards the timer data to a remote environment for processing. */
     private transient FnDataReceiver<Timer> timerInputReceiver;
 
     /** The shared resource among Python operators of the same slot. */

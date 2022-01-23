@@ -43,25 +43,35 @@ import java.util.Objects;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This strategy tries to reduce remote data exchanges. Execution vertices, which are connected and
  * belong to the same SlotSharingGroup, tend to be put in the same ExecutionSlotSharingGroup.
  * Co-location constraints will be respected.
  */
-class LocalInputPreferredSlotSharingStrategy implements SlotSharingStrategy {
+class LocalInputPreferredSlotSharingStrategy
+        implements SlotSharingStrategy, SchedulingTopologyListener {
 
     private final Map<ExecutionVertexID, ExecutionSlotSharingGroup> executionSlotSharingGroupMap;
+
+    private final Set<SlotSharingGroup> logicalSlotSharingGroups;
+
+    private final Set<CoLocationGroup> coLocationGroups;
 
     LocalInputPreferredSlotSharingStrategy(
             final SchedulingTopology topology,
             final Set<SlotSharingGroup> logicalSlotSharingGroups,
             final Set<CoLocationGroup> coLocationGroups) {
 
+        this.logicalSlotSharingGroups = checkNotNull(logicalSlotSharingGroups);
+        this.coLocationGroups = checkNotNull(coLocationGroups);
+
         this.executionSlotSharingGroupMap =
                 new ExecutionSlotSharingGroupBuilder(
                                 topology, logicalSlotSharingGroups, coLocationGroups)
                         .build();
+        topology.registerSchedulingTopologyListener(this);
     }
 
     @Override
@@ -73,6 +83,29 @@ class LocalInputPreferredSlotSharingStrategy implements SlotSharingStrategy {
     @Override
     public Set<ExecutionSlotSharingGroup> getExecutionSlotSharingGroups() {
         return new HashSet<>(executionSlotSharingGroupMap.values());
+    }
+
+    @Override
+    public void notifySchedulingTopologyUpdated(
+            SchedulingTopology schedulingTopology, List<ExecutionVertexID> newExecutionVertices) {
+
+        final Map<ExecutionVertexID, ExecutionSlotSharingGroup> newMap =
+                new LocalInputPreferredSlotSharingStrategy.ExecutionSlotSharingGroupBuilder(
+                                schedulingTopology, logicalSlotSharingGroups, coLocationGroups)
+                        .build();
+
+        for (ExecutionVertexID vertexId : newMap.keySet()) {
+            final ExecutionSlotSharingGroup newEssg = newMap.get(vertexId);
+            final ExecutionSlotSharingGroup oldEssg = executionSlotSharingGroupMap.get(vertexId);
+            if (oldEssg == null) {
+                executionSlotSharingGroupMap.put(vertexId, newEssg);
+            } else {
+                // ensures that existing slot sharing groups are not changed
+                checkState(
+                        oldEssg.getExecutionVertexIds().equals(newEssg.getExecutionVertexIds()),
+                        "Existing ExecutionSlotSharingGroups are changed after topology update");
+            }
+        }
     }
 
     static class Factory implements SlotSharingStrategy.Factory {

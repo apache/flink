@@ -40,7 +40,7 @@ Flink can dynamically allocate and de-allocate TaskManager resources depending o
 
 ### Preparation
 
-This *Getting Started* section assumes a functional YARN environment, starting from version 2.4.1. YARN environments are provided most conveniently through services such as Amazon EMR, Google Cloud DataProc or products like Cloudera. [Manually setting up a YARN environment locally](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/SingleCluster.html) or [on a cluster](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/ClusterSetup.html) is not recommended for following through this *Getting Started* tutorial. 
+This *Getting Started* section assumes a functional YARN environment, starting from version 2.8.5. YARN environments are provided most conveniently through services such as Amazon EMR, Google Cloud DataProc or products like Cloudera. [Manually setting up a YARN environment locally](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/SingleCluster.html) or [on a cluster](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/ClusterSetup.html) is not recommended for following through this *Getting Started* tutorial. 
 
 - Make sure your YARN cluster is ready for accepting Flink applications by running `yarn top`. It should show no error messages.
 - Download a recent Flink distribution from the [download page]({{< downloads >}}) and unpack it.
@@ -87,6 +87,10 @@ For production use, we recommend deploying Flink Applications in the [Per-job or
 
 ### Application Mode
 
+{{< hint info >}}
+For high-level intuition behind the application mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#application-mode" >}}).
+{{< /hint >}}
+
 Application Mode will launch a Flink cluster on YARN, where the main() method of the application jar gets executed on the JobManager in YARN.
 The cluster will shut down as soon as the application has finished. You can manually stop the cluster using `yarn application -kill <ApplicationId>` or by cancelling the Flink job.
 
@@ -120,7 +124,11 @@ The above will allow the job submission to be extra lightweight as the needed Fl
 are  going to be picked up by the specified remote locations rather than be shipped to the cluster by the 
 client.
 
-### Per-Job Cluster Mode
+### Per-Job Mode
+
+{{< hint info >}}
+For high-level intuition behind the per-job mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#per-job-mode" >}}).
+{{< /hint >}}
 
 The Per-job Cluster mode will launch a Flink cluster on YARN, then run the provided application jar locally and finally submit the JobGraph to the JobManager on YARN. If you pass the `--detached` argument, the client will stop once the submission is accepted.
 
@@ -143,6 +151,10 @@ Note that cancelling your job on an Per-Job Cluster will stop the cluster.
 
 
 ### Session Mode
+
+{{< hint info >}}
+For high-level intuition behind the session mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#session-mode" >}}).
+{{< /hint >}}
 
 We describe deployment with the Session Mode in the [Getting Started](#getting-started) guide at the top of the page.
 
@@ -219,7 +231,7 @@ Hadoop YARN 2.4.0 has a major bug (fixed in 2.5.0) preventing container restarts
 
 ### Supported Hadoop versions.
 
-Flink on YARN is compiled against Hadoop 2.4.1, and all Hadoop versions `>= 2.4.1` are supported, including Hadoop 3.x.
+Flink on YARN is compiled against Hadoop 2.8.5, and all Hadoop versions `>= 2.8.5` are supported, including Hadoop 3.x.
 
 For providing Flink with the required Hadoop dependencies, we recommend setting the `HADOOP_CLASSPATH` environment variable already introduced in the [Getting Started / Preparation](#preparation) section. 
 

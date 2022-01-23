@@ -48,7 +48,7 @@ The example below shows how to create an Elasticsearch sink table:
 ```sql
 CREATE TABLE myUserTable (
   user_id STRING,
-  user_name STRING
+  user_name STRING,
   uv BIGINT,
   pv BIGINT,
   PRIMARY KEY (user_id) NOT ENFORCED
@@ -81,7 +81,7 @@ Connector Options
       <td>Specify what connector to use, valid values are:
       <ul>
       <li><code>elasticsearch-6</code>: connect to Elasticsearch 6.x cluster.</li>
-      <li><code>elasticsearch-7</code>: connect to Elasticsearch 7.x and later versions cluster.</li>
+      <li><code>elasticsearch-7</code>: connect to Elasticsearch 7.x cluster.</li>
       </ul></td>
     </tr>
     <tr>
@@ -129,28 +129,11 @@ Connector Options
       <td>Password used to connect to Elasticsearch instance. If <code>username</code> is configured, this option must be configured with non-empty string as well.</td>
     </tr>
     <tr>
-      <td><h5>failure-handler</h5></td>
+      <td><h5>sink.delivery-guarantee</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">fail</td>
+      <td style="word-wrap: break-word;">NONE</td>
       <td>String</td>
-      <td>Failure handling strategy in case a request to Elasticsearch fails. Valid strategies are:
-      <ul>
-        <li><code>fail</code>: throws an exception if a request fails and thus causes a job failure.</li>
-        <li><code>ignore</code>: ignores failures and drops the request.</li>
-        <li><code>retry-rejected</code>: re-adds requests that have failed due to queue capacity saturation.</li>
-        <li>custom class name: for failure handling with a ActionRequestFailureHandler subclass.</li>
-      </ul>
-      </td>
-    </tr>
-    <tr>
-      <td><h5>sink.flush-on-checkpoint</h5></td>
-      <td>optional</td>
-      <td style="word-wrap: break-word;">true</td>
-      <td>Boolean</td>
-      <td>Flush on checkpoint or not. When disabled, a sink will not wait for all pending action requests
-       to be acknowledged by Elasticsearch on checkpoints. Thus, a sink does NOT provide any strong
-       guarantees for at-least-once delivery of action requests.
-      </td>
+      <td>Optional delivery guarantee when committing. Valid values are <code>NONE</code> or <code>AT_LEAST_ONCE</code>.</td>
     </tr>
     <tr>
       <td><h5>sink.bulk-flush.max-actions</h5></td>
@@ -183,11 +166,11 @@ Connector Options
     <tr>
       <td><h5>sink.bulk-flush.backoff.strategy</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">DISABLED</td>
+      <td style="word-wrap: break-word;">NONE</td>
       <td>String</td>
       <td>Specify how to perform retries if any flush actions failed due to a temporary request error. Valid strategies are:
       <ul>
-        <li><code>DISABLED</code>: no retry performed, i.e. fail after the first request error.</li>
+        <li><code>NONE</code>: no retry performed, i.e. fail after the first request error.</li>
         <li><code>CONSTANT</code>: wait for backoff delay between retries.</li>
         <li><code>EXPONENTIAL</code>: initially wait for backoff delay and increase exponentially between retries.</li>
       </ul>
@@ -196,23 +179,23 @@ Connector Options
     <tr>
       <td><h5>sink.bulk-flush.backoff.max-retries</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">8</td>
+      <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
       <td>Maximum number of backoff retries.</td>
     </tr>
     <tr>
       <td><h5>sink.bulk-flush.backoff.delay</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">50ms</td>
+      <td style="word-wrap: break-word;">(none)</td>
       <td>Duration</td>
       <td>Delay between each backoff attempt. For <code>CONSTANT</code> backoff, this is simply the delay between each retry. For <code>EXPONENTIAL</code> backoff, this is the initial base delay.</td>
     </tr>
     <tr>
-      <td><h5>connection.max-retry-timeout</h5></td>
+      <td><h5>sink.parallelism</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
-      <td>Duration</td>
-      <td>Maximum timeout between retries.</td>
+      <td>Integer</td>
+      <td>Defines the parallelism of the Elasticsearch sink operator. By default, the parallelism is determined by the framework using the same parallelism of the upstream chained operator.</td>
     </tr>
     <tr>
       <td><h5>connection.path-prefix</h5></td>
@@ -220,6 +203,37 @@ Connector Options
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>Prefix string to be added to every REST communication, e.g., <code>'/v1'</code>.</td>
+    </tr>
+    <tr>
+      <td><h5>connection.request-timeout</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>The timeout in milliseconds for requesting a connection from the connection manager.
+        The timeout must be larger than or equal to 0.
+        A timeout value of zero is interpreted as an infinite timeout.
+      </td>
+    </tr>
+    <tr>
+      <td><h5>connection.timeout</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>The timeout in milliseconds for establishing a connection.
+        The timeout must be larger than or equal to 0.
+        A timeout value of zero is interpreted as an infinite timeout.
+      </td>
+    </tr>
+    <tr>
+      <td><h5>socket.timeout</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>The socket timeout (SO_TIMEOUT) for waiting for data or, put differently,
+        a maximum period inactivity between two consecutive data packets.
+        The timeout must be larger than or equal to 0.
+        A timeout value of zero is interpreted as an infinite timeout.
+      </td>
     </tr>
     <tr>
       <td><h5>format</h5></td>
@@ -238,20 +252,20 @@ Features
 
 ### Key Handling
 
-Elasticsearch sink can work in either upsert mode or append mode, it depends on whether primary key is defined.
-If primary key is defined, Elasticsearch sink works in upsert mode which can consume queries containing UPDATE/DELETE messages.
-If primary key is not defined, Elasticsearch sink works in append mode which can only consume queries containing INSERT only messages.
+The Elasticsearch sink can work in either upsert mode or append mode, depending on whether a primary key is defined.
+If a primary key is defined, the Elasticsearch sink works in upsert mode which can consume queries containing UPDATE/DELETE messages.
+If a primary key is not defined, the Elasticsearch sink works in append mode which can only consume queries containing INSERT only messages.
 
-In Elasticsearch connector, the primary key is used to calculate the Elasticsearch document id, which is a string of up to 512 bytes. It cannot have whitespaces.
+In the Elasticsearch connector, the primary key is used to calculate the Elasticsearch document id, which is a string of up to 512 bytes. It cannot have whitespaces.
 The Elasticsearch connector generates a document ID string for every row by concatenating all primary key fields in the order defined in the DDL using a key delimiter specified by `document-id.key-delimiter`.
-Certain types are not allowed as primary key field as they do not have a good string representation, e.g. `BYTES`, `ROW`, `ARRAY`, `MAP`, etc.
+Certain types are not allowed as a primary key field as they do not have a good string representation, e.g. `BYTES`, `ROW`, `ARRAY`, `MAP`, etc.
 If no primary key is specified, Elasticsearch will generate a document id automatically.
 
-See [CREATE TABLE DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table) for more details about PRIMARY KEY syntax.
+See [CREATE TABLE DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table) for more details about the PRIMARY KEY syntax.
 
 ### Dynamic Index
 
-Elasticsearch sink supports both static index and dynamic index.
+The Elasticsearch sink supports both static index and dynamic index.
 
 If you want to have a static index, the `index` option value should be a plain string, e.g. `'myusers'`, all the records will be consistently written into "myusers" index.
 

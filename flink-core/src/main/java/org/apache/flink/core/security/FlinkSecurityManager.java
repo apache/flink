@@ -119,8 +119,8 @@ public class FlinkSecurityManager extends SecurityManager {
                                 ClusterOptions.INTERCEPT_USER_SYSTEM_EXIT.key(),
                                 ClusterOptions.INTERCEPT_USER_SYSTEM_EXIT.defaultValue(),
                                 ClusterOptions.HALT_ON_FATAL_ERROR.key(),
-                                ClusterOptions.HALT_ON_FATAL_ERROR.defaultValue(),
-                                e));
+                                ClusterOptions.HALT_ON_FATAL_ERROR.defaultValue()),
+                        e);
             }
         }
         FlinkSecurityManager.flinkSecurityManager = flinkSecurityManager;

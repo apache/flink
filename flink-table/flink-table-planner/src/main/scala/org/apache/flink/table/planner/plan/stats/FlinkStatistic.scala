@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.stats
 
-import org.apache.flink.table.catalog.{ResolvedSchema, UniqueConstraint}
+import org.apache.flink.table.catalog.{ContextResolvedTable, ResolvedSchema, UniqueConstraint}
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.plan.`trait`.{RelModifiedMonotonicity, RelWindowProperties}
 
@@ -143,9 +143,9 @@ class FlinkStatistic(
       builder.append(relWindowProperties.toString).append(", ")
     }
 
-    if (builder.nonEmpty && builder.length() > 2) {
+    if (builder.nonEmpty && builder.length > 2) {
       // delete `, ` if build is not empty
-      builder.delete(builder.length() - 2, builder.length())
+      builder.delete(builder.length - 2, builder.length)
     }
     builder.toString()
   }
@@ -230,4 +230,9 @@ object FlinkStatistic {
     * @return a new builder to build a [[FlinkStatistic]]
     */
   def builder(): Builder = new Builder
+
+  def unknown(resolvedSchema: ResolvedSchema): Builder =
+    // this is a temporary solution, FLINK-15123 will resolve this
+    new Builder()
+      .uniqueKeys(resolvedSchema.getPrimaryKey.orElse(null))
 }

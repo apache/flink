@@ -81,6 +81,11 @@ public class TableDescriptor {
         return descriptorBuilder;
     }
 
+    /** Creates a new {@link Builder} for a managed table. */
+    public static Builder forManaged() {
+        return new Builder();
+    }
+
     // ---------------------------------------------------------------------------------------------
 
     public Optional<Schema> getSchema() {
@@ -178,6 +183,7 @@ public class TableDescriptor {
     // ---------------------------------------------------------------------------------------------
 
     /** Builder for {@link TableDescriptor}. */
+    @PublicEvolving
     public static class Builder {
 
         private @Nullable Schema schema;

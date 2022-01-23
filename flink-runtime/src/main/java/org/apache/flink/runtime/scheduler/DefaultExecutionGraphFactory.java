@@ -20,9 +20,11 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
@@ -38,12 +40,14 @@ import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTrackerDeploymentListenerAdapter;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.util.function.CachingSupplier;
 
 import org.slf4j.Logger;
 
 import java.util.HashSet;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Supplier;
 
 /** Default {@link ExecutionGraphFactory} implementation. */
 public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
@@ -58,6 +62,8 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
     private final BlobWriter blobWriter;
     private final ShuffleMaster<?> shuffleMaster;
     private final JobMasterPartitionTracker jobMasterPartitionTracker;
+    private final Supplier<CheckpointStatsTracker> checkpointStatsTrackerFactory;
+    private final boolean isDynamicGraph;
 
     public DefaultExecutionGraphFactory(
             Configuration configuration,
@@ -70,6 +76,32 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
             BlobWriter blobWriter,
             ShuffleMaster<?> shuffleMaster,
             JobMasterPartitionTracker jobMasterPartitionTracker) {
+        this(
+                configuration,
+                userCodeClassLoader,
+                executionDeploymentTracker,
+                futureExecutor,
+                ioExecutor,
+                rpcTimeout,
+                jobManagerJobMetricGroup,
+                blobWriter,
+                shuffleMaster,
+                jobMasterPartitionTracker,
+                false);
+    }
+
+    public DefaultExecutionGraphFactory(
+            Configuration configuration,
+            ClassLoader userCodeClassLoader,
+            ExecutionDeploymentTracker executionDeploymentTracker,
+            ScheduledExecutorService futureExecutor,
+            Executor ioExecutor,
+            Time rpcTimeout,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup,
+            BlobWriter blobWriter,
+            ShuffleMaster<?> shuffleMaster,
+            JobMasterPartitionTracker jobMasterPartitionTracker,
+            boolean isDynamicGraph) {
         this.configuration = configuration;
         this.userCodeClassLoader = userCodeClassLoader;
         this.executionDeploymentTracker = executionDeploymentTracker;
@@ -80,6 +112,14 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
         this.blobWriter = blobWriter;
         this.shuffleMaster = shuffleMaster;
         this.jobMasterPartitionTracker = jobMasterPartitionTracker;
+        this.checkpointStatsTrackerFactory =
+                new CachingSupplier<>(
+                        () ->
+                                new CheckpointStatsTracker(
+                                        configuration.getInteger(
+                                                WebOptions.CHECKPOINTS_HISTORY_SIZE),
+                                        jobManagerJobMetricGroup));
+        this.isDynamicGraph = isDynamicGraph;
     }
 
     @Override
@@ -114,7 +154,6 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                         checkpointsCleaner,
                         checkpointIdCounter,
                         rpcTimeout,
-                        jobManagerJobMetricGroup,
                         blobWriter,
                         log,
                         shuffleMaster,
@@ -124,7 +163,9 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                         executionStateUpdateListener,
                         initializationTimestamp,
                         vertexAttemptNumberStore,
-                        vertexParallelismStore);
+                        vertexParallelismStore,
+                        checkpointStatsTrackerFactory,
+                        isDynamicGraph);
 
         final CheckpointCoordinator checkpointCoordinator =
                 newExecutionGraph.getCheckpointCoordinator();
@@ -161,8 +202,7 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                     executionGraphToRestore.getCheckpointCoordinator();
             if (checkpointCoordinator != null) {
                 checkpointCoordinator.restoreSavepoint(
-                        savepointRestoreSettings.getRestorePath(),
-                        savepointRestoreSettings.allowNonRestoredState(),
+                        savepointRestoreSettings,
                         executionGraphToRestore.getAllVertices(),
                         userCodeClassLoader);
             }

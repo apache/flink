@@ -20,11 +20,12 @@ package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, RankFactory}
-import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, WindowProperty}
+import org.apache.flink.table.planner.expressions.WindowProperty
 import org.apache.flink.table.planner.plan.QueryOperationConverter
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalTableAggregate, LogicalWatermarkAssigner, LogicalWindowAggregate, LogicalWindowTableAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 
 import com.google.common.collect.ImmutableList
@@ -60,7 +61,7 @@ class FlinkRelBuilder(
   require(context != null)
 
   private val toRelNodeConverter = {
-    new QueryOperationConverter(this)
+    new QueryOperationConverter(this, context.unwrap(classOf[FlinkContext]).isBatchMode)
   }
 
   private val expandFactory: ExpandFactory = {
@@ -139,7 +140,7 @@ class FlinkRelBuilder(
   def windowAggregate(
       window: LogicalWindow,
       groupKey: GroupKey,
-      namedProperties: List[PlannerNamedWindowProperty],
+      namedProperties: List[NamedWindowProperty],
       aggCalls: Iterable[AggCall]): RelBuilder = {
     // build logical aggregate
 

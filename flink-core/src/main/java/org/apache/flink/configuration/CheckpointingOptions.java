@@ -100,44 +100,6 @@ public class CheckpointingOptions {
                                             "Recognized shortcut names are 'jobmanager' and 'filesystem'.")
                                     .build());
 
-    /** Whether to enable state change log. */
-    @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS)
-    public static final ConfigOption<Boolean> ENABLE_STATE_CHANGE_LOG =
-            ConfigOptions.key("state.backend.changelog.enabled")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Whether to enable state backend to write state changes to StateChangelog. "
-                                    + "If this config is not set explicitly, it means no preference "
-                                    + "for enabling the change log, and the value in lower config "
-                                    + "level will take effect. The default value 'false' here means "
-                                    + "if no value set (job or cluster), the change log will not be "
-                                    + "enabled.");
-
-    /**
-     * Which storage to use to store state changelog.
-     *
-     * <p>Recognized shortcut name is 'memory' from {@code
-     * InMemoryStateChangelogStorageFactory.getIdentifier()}, which is also the default value.
-     */
-    @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS)
-    public static final ConfigOption<String> STATE_CHANGE_LOG_STORAGE =
-            ConfigOptions.key("state.backend.changelog.storage")
-                    .stringType()
-                    .defaultValue("memory")
-                    .withDescription(
-                            Description.builder()
-                                    .text("The storage to be used to store state changelog.")
-                                    .linebreak()
-                                    .text(
-                                            "The implementation can be specified via their"
-                                                    + " shortcut name.")
-                                    .linebreak()
-                                    .text(
-                                            "The list of recognized shortcut names currently includes"
-                                                    + " 'memory' and 'filesystem'.")
-                                    .build());
-
     /** The maximum number of completed checkpoints to retain. */
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
     public static final ConfigOption<Integer> MAX_RETAINED_CHECKPOINTS =
@@ -202,9 +164,18 @@ public class CheckpointingOptions {
             ConfigOptions.key("taskmanager.state.local.root-dirs")
                     .noDefaultValue()
                     .withDescription(
-                            "The config parameter defining the root directories for storing file-based state for local "
-                                    + "recovery. Local recovery currently only covers keyed state backends. Currently, MemoryStateBackend does "
-                                    + "not support local recovery and ignore this option");
+                            Description.builder()
+                                    .text(
+                                            "The config parameter defining the root directories for storing file-based "
+                                                    + "state for local recovery. Local recovery currently only covers keyed "
+                                                    + "state backends. Currently, MemoryStateBackend does not support local "
+                                                    + "recovery and ignores this option. If not configured it will default "
+                                                    + "to <WORKING_DIR>/localState. The <WORKING_DIR> can be configured via %s",
+                                            TextElement.code(
+                                                    ClusterOptions
+                                                            .TASK_MANAGER_PROCESS_WORKING_DIR_BASE
+                                                            .key()))
+                                    .build());
 
     // ------------------------------------------------------------------------
     //  Options specific to the file-system-based state backends

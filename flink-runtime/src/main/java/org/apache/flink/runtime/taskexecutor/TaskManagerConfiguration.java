@@ -70,6 +70,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
     private final String taskManagerExternalAddress;
 
+    private final File tmpWorkingDirectory;
+
     private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
 
     public TaskManagerConfiguration(
@@ -86,6 +88,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
             @Nullable String taskManagerStdoutPath,
             @Nullable String taskManagerLogDir,
             String taskManagerExternalAddress,
+            File tmpWorkingDirectory,
             RetryingRegistrationConfiguration retryingRegistrationConfiguration) {
 
         this.numberSlots = numberSlots;
@@ -102,6 +105,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
         this.taskManagerStdoutPath = taskManagerStdoutPath;
         this.taskManagerLogDir = taskManagerLogDir;
         this.taskManagerExternalAddress = taskManagerExternalAddress;
+        this.tmpWorkingDirectory = tmpWorkingDirectory;
         this.retryingRegistrationConfiguration = retryingRegistrationConfiguration;
     }
 
@@ -165,6 +169,11 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
         return taskManagerExternalAddress;
     }
 
+    @Override
+    public File getTmpWorkingDirectory() {
+        return tmpWorkingDirectory;
+    }
+
     public RetryingRegistrationConfiguration getRetryingRegistrationConfiguration() {
         return retryingRegistrationConfiguration;
     }
@@ -176,7 +185,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
     public static TaskManagerConfiguration fromConfiguration(
             Configuration configuration,
             TaskExecutorResourceSpec taskExecutorResourceSpec,
-            String externalAddress) {
+            String externalAddress,
+            File tmpWorkingDirectory) {
         int numberSlots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
 
         if (numberSlots == -1) {
@@ -247,6 +257,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
                 taskManagerStdoutPath,
                 taskManagerLogDir,
                 externalAddress,
+                tmpWorkingDirectory,
                 retryingRegistrationConfiguration);
     }
 }

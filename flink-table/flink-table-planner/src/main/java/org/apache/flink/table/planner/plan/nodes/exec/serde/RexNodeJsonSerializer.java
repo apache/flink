@@ -106,52 +106,63 @@ public class RexNodeJsonSerializer extends StdSerializer<RexNode> {
         switch (rexNode.getKind()) {
             case INPUT_REF:
             case TABLE_INPUT_REF:
-                serialize((RexInputRef) rexNode, jsonGenerator);
+                serialize((RexInputRef) rexNode, jsonGenerator, serializerProvider);
                 break;
             case LITERAL:
-                serialize((RexLiteral) rexNode, jsonGenerator);
+                serialize((RexLiteral) rexNode, jsonGenerator, serializerProvider);
                 break;
             case FIELD_ACCESS:
-                serialize((RexFieldAccess) rexNode, jsonGenerator);
+                serialize((RexFieldAccess) rexNode, jsonGenerator, serializerProvider);
                 break;
             case CORREL_VARIABLE:
-                serialize((RexCorrelVariable) rexNode, jsonGenerator);
+                serialize((RexCorrelVariable) rexNode, jsonGenerator, serializerProvider);
                 break;
             case PATTERN_INPUT_REF:
-                serialize((RexPatternFieldRef) rexNode, jsonGenerator);
+                serialize((RexPatternFieldRef) rexNode, jsonGenerator, serializerProvider);
                 break;
             default:
                 if (rexNode instanceof RexCall) {
-                    serialize((RexCall) rexNode, jsonGenerator);
+                    serialize((RexCall) rexNode, jsonGenerator, serializerProvider);
                 } else {
                     throw new TableException("Unknown RexNode: " + rexNode);
                 }
         }
     }
 
-    private void serialize(RexPatternFieldRef inputRef, JsonGenerator gen) throws IOException {
+    private void serialize(
+            RexPatternFieldRef inputRef, JsonGenerator gen, SerializerProvider serializerProvider)
+            throws IOException {
         gen.writeStartObject();
         gen.writeStringField(FIELD_NAME_KIND, SQL_KIND_PATTERN_INPUT_REF);
         gen.writeStringField(FIELD_NAME_ALPHA, inputRef.getAlpha());
         gen.writeNumberField(FIELD_NAME_INPUT_INDEX, inputRef.getIndex());
-        gen.writeObjectField(FIELD_NAME_TYPE, inputRef.getType());
+        serializerProvider.defaultSerializeField(FIELD_NAME_TYPE, inputRef.getType(), gen);
         gen.writeEndObject();
     }
 
-    private void serialize(RexInputRef inputRef, JsonGenerator gen) throws IOException {
+    private void serialize(
+            RexInputRef inputRef, JsonGenerator gen, SerializerProvider serializerProvider)
+            throws IOException {
         gen.writeStartObject();
         gen.writeStringField(FIELD_NAME_KIND, SQL_KIND_INPUT_REF);
         gen.writeNumberField(FIELD_NAME_INPUT_INDEX, inputRef.getIndex());
-        gen.writeObjectField(FIELD_NAME_TYPE, inputRef.getType());
+        serializerProvider.defaultSerializeField(FIELD_NAME_TYPE, inputRef.getType(), gen);
         gen.writeEndObject();
     }
 
-    private void serialize(RexLiteral literal, JsonGenerator gen) throws IOException {
+    private void serialize(
+            RexLiteral literal, JsonGenerator gen, SerializerProvider serializerProvider)
+            throws IOException {
         gen.writeStartObject();
         gen.writeStringField(FIELD_NAME_KIND, SQL_KIND_LITERAL);
         Comparable<?> value = literal.getValueAs(Comparable.class);
-        serialize(value, literal.getTypeName(), literal.getType().getSqlTypeName(), gen);
-        gen.writeObjectField(FIELD_NAME_TYPE, literal.getType());
+        serialize(
+                value,
+                literal.getTypeName(),
+                literal.getType().getSqlTypeName(),
+                gen,
+                serializerProvider);
+        serializerProvider.defaultSerializeField(FIELD_NAME_TYPE, literal.getType(), gen);
         gen.writeEndObject();
     }
 
@@ -160,7 +171,8 @@ public class RexNodeJsonSerializer extends StdSerializer<RexNode> {
             Comparable<?> value,
             SqlTypeName literalTypeName,
             SqlTypeName elementTypeName,
-            JsonGenerator gen)
+            JsonGenerator gen,
+            SerializerProvider serializerProvider)
             throws IOException {
         if (value == null) {
             gen.writeNullField(FIELD_NAME_VALUE);
@@ -229,14 +241,14 @@ public class RexNodeJsonSerializer extends StdSerializer<RexNode> {
                 gen.writeStringField(FIELD_NAME_CLASS, value.getClass().getName());
                 break;
             case SARG:
-                serialize((Sarg<?>) value, elementTypeName, gen);
+                serialize((Sarg<?>) value, elementTypeName, gen, serializerProvider);
                 break;
             case ROW:
             case MULTISET:
                 gen.writeFieldName(FIELD_NAME_VALUE);
                 gen.writeStartArray();
                 for (RexLiteral v : (FlatLists.ComparableList<RexLiteral>) value) {
-                    serialize(v, gen);
+                    serialize(v, gen, serializerProvider);
                 }
                 gen.writeEndArray();
                 break;
@@ -247,7 +259,11 @@ public class RexNodeJsonSerializer extends StdSerializer<RexNode> {
     }
 
     @SuppressWarnings("UnstableApiUsage")
-    private void serialize(Sarg<?> value, SqlTypeName sqlTypeName, JsonGenerator gen)
+    private void serialize(
+            Sarg<?> value,
+            SqlTypeName sqlTypeName,
+            JsonGenerator gen,
+            SerializerProvider serializerProvider)
             throws IOException {
         gen.writeFieldName(FIELD_NAME_SARG);
         gen.writeStartObject();
@@ -258,14 +274,14 @@ public class RexNodeJsonSerializer extends StdSerializer<RexNode> {
             if (range.hasLowerBound()) {
                 gen.writeFieldName(FIELD_NAME_BOUND_LOWER);
                 gen.writeStartObject();
-                serialize(range.lowerEndpoint(), sqlTypeName, sqlTypeName, gen);
+                serialize(range.lowerEndpoint(), sqlTypeName, sqlTypeName, gen, serializerProvider);
                 gen.writeStringField(FIELD_NAME_BOUND_TYPE, range.lowerBoundType().name());
                 gen.writeEndObject();
             }
             if (range.hasUpperBound()) {
                 gen.writeFieldName(FIELD_NAME_BOUND_UPPER);
                 gen.writeStartObject();
-                serialize(range.upperEndpoint(), sqlTypeName, sqlTypeName, gen);
+                serialize(range.upperEndpoint(), sqlTypeName, sqlTypeName, gen, serializerProvider);
                 gen.writeStringField(FIELD_NAME_BOUND_TYPE, range.upperBoundType().name());
                 gen.writeEndObject();
             }
@@ -276,23 +292,29 @@ public class RexNodeJsonSerializer extends StdSerializer<RexNode> {
         gen.writeEndObject();
     }
 
-    private void serialize(RexFieldAccess fieldAccess, JsonGenerator gen) throws IOException {
+    private void serialize(
+            RexFieldAccess fieldAccess, JsonGenerator gen, SerializerProvider serializerProvider)
+            throws IOException {
         gen.writeStartObject();
         gen.writeStringField(FIELD_NAME_KIND, SQL_KIND_FIELD_ACCESS);
         gen.writeStringField(FIELD_NAME_NAME, fieldAccess.getField().getName());
-        gen.writeObjectField(FIELD_NAME_EXPR, fieldAccess.getReferenceExpr());
+        serializerProvider.defaultSerializeField(
+                FIELD_NAME_EXPR, fieldAccess.getReferenceExpr(), gen);
         gen.writeEndObject();
     }
 
-    private void serialize(RexCorrelVariable variable, JsonGenerator gen) throws IOException {
+    private void serialize(
+            RexCorrelVariable variable, JsonGenerator gen, SerializerProvider serializerProvider)
+            throws IOException {
         gen.writeStartObject();
         gen.writeStringField(FIELD_NAME_KIND, SQL_KIND_CORREL_VARIABLE);
         gen.writeStringField(FIELD_NAME_CORREL, variable.getName());
-        gen.writeObjectField(FIELD_NAME_TYPE, variable.getType());
+        serializerProvider.defaultSerializeField(FIELD_NAME_TYPE, variable.getType(), gen);
         gen.writeEndObject();
     }
 
-    private void serialize(RexCall call, JsonGenerator gen) throws IOException {
+    private void serialize(RexCall call, JsonGenerator gen, SerializerProvider serializerProvider)
+            throws IOException {
         if (!call.getClass().isAssignableFrom(RexCall.class)) {
             throw new TableException("Unknown RexCall: " + call);
         }
@@ -302,10 +324,10 @@ public class RexNodeJsonSerializer extends StdSerializer<RexNode> {
         gen.writeFieldName(FIELD_NAME_OPERANDS);
         gen.writeStartArray();
         for (RexNode operand : call.getOperands()) {
-            gen.writeObject(operand);
+            serializerProvider.defaultSerializeValue(operand, gen);
         }
         gen.writeEndArray();
-        gen.writeObjectField(FIELD_NAME_TYPE, call.getType());
+        serializerProvider.defaultSerializeField(FIELD_NAME_TYPE, call.getType(), gen);
         gen.writeEndObject();
     }
 

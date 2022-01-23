@@ -19,7 +19,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
-import { flatMap, takeUntil } from 'rxjs/operators';
+import { mergeMap, takeUntil } from 'rxjs/operators';
 
 import { StatusService, TaskManagerService } from 'services';
 
@@ -30,21 +30,22 @@ import { StatusService, TaskManagerService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerComponent implements OnInit, OnDestroy {
-  destroy$ = new Subject();
-  isLoading = true;
+  public isLoading = true;
+
+  private readonly destroy$ = new Subject<void>();
 
   constructor(
-    private cdr: ChangeDetectorRef,
-    private activatedRoute: ActivatedRoute,
-    private taskManagerService: TaskManagerService,
-    private statusService: StatusService
+    private readonly cdr: ChangeDetectorRef,
+    private readonly activatedRoute: ActivatedRoute,
+    private readonly taskManagerService: TaskManagerService,
+    private readonly statusService: StatusService
   ) {}
 
-  ngOnInit(): void {
+  public ngOnInit(): void {
     this.statusService.refresh$
       .pipe(
         takeUntil(this.destroy$),
-        flatMap(() => this.taskManagerService.loadManager(this.activatedRoute.snapshot.params.taskManagerId))
+        mergeMap(() => this.taskManagerService.loadManager(this.activatedRoute.snapshot.params.taskManagerId))
       )
       .subscribe(
         data => {
@@ -59,7 +60,7 @@ export class TaskManagerComponent implements OnInit, OnDestroy {
       );
   }
 
-  ngOnDestroy(): void {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

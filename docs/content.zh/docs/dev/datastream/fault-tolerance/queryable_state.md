@@ -55,7 +55,7 @@ under the License.
 
 为了在 Flink 集群上使用 queryable state，需要进行以下操作：
 
- 1. 将 `flink-queryable-state-runtime{{< scala_version >}}-{{< version >}}.jar`
+ 1. 将 `flink-queryable-state-runtime-{{< version >}}.jar`
 从 [Flink distribution]({{< downloads >}} "Apache Flink: Downloads") 的 `opt/` 目录拷贝到 `lib/` 目录；
  2. 将参数 `queryable-state.enable` 设置为 `true`。详细信息以及其它配置可参考文档 [Configuration]({{< ref "docs/deployment/config" >}}#queryable-state)。
 

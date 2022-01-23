@@ -44,12 +44,6 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-files</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
 		<!-- Used for structured types extraction. -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -62,8 +56,6 @@ under the License.
 			<groupId>com.ibm.icu</groupId>
 			<artifactId>icu4j</artifactId>
 			<version>67.1</version>
-			<!-- set provided here, and will package it into planner jar -->
-			<scope>provided</scope>
 		</dependency>
 
 		<dependency>

@@ -22,8 +22,8 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
-import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
-import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, JoinUtil}
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil.{preferExpressionDetail, preferExpressionFormat}
+import org.apache.flink.table.planner.plan.utils.JoinUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -62,8 +62,12 @@ abstract class CommonPhysicalJoin(
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("left", getLeft).input("right", getRight)
       .item("joinType", joinSpec.getJoinType.toString)
-      .item("where", FlinkRexUtil.getExpressionString(
-        getCondition, inputRowType.getFieldNames.toList, None, preferExpressionFormat(pw)))
+      .item("where", getExpressionString(
+        getCondition,
+        inputRowType.getFieldNames.toList,
+        Option.empty[List[RexNode]],
+        preferExpressionFormat(pw),
+        preferExpressionDetail(pw)))
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 

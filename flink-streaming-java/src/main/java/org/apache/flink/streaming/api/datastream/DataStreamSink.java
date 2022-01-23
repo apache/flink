@@ -23,6 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
@@ -64,7 +65,12 @@ public class DataStreamSink<T> {
 
     /** Returns the transformation that contains the actual sink operator of this sink. */
     @Internal
-    public LegacySinkTransformation<T> getTransformation() {
+    public Transformation<T> getTransformation() {
+        return transformation;
+    }
+
+    @Internal
+    public LegacySinkTransformation<T> getLegacyTransformation() {
         if (transformation instanceof LegacySinkTransformation) {
             return (LegacySinkTransformation<T>) transformation;
         } else {
@@ -137,6 +143,24 @@ public class DataStreamSink<T> {
      */
     public DataStreamSink<T> setParallelism(int parallelism) {
         transformation.setParallelism(parallelism);
+        return this;
+    }
+
+    /**
+     * Sets the description for this sink.
+     *
+     * <p>Description is used in json plan and web ui, but not in logging and metrics where only
+     * name is available. Description is expected to provide detailed information about the sink,
+     * while name is expected to be more simple, providing summary information only, so that we can
+     * have more user-friendly logging messages and metric tags without losing useful messages for
+     * debugging.
+     *
+     * @param description The description for this sink.
+     * @return The sink with new description.
+     */
+    @PublicEvolving
+    public DataStreamSink<T> setDescription(String description) {
+        transformation.setDescription(description);
         return this;
     }
 

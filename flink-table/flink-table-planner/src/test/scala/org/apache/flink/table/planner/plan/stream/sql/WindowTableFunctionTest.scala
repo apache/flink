@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.core.testutils.FlinkMatchers.containsCause
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.utils.TableTestBase
+
 import org.junit.Test
 
 /**
@@ -75,7 +77,29 @@ class WindowTableFunctionTest extends TableTestBase {
   }
 
   @Test
+  def testHopTVFProctime(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(
+        | HOP(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
   def testCumulateTVF(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(
+        | CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCumulateTVFProctime(): Unit = {
     val sql =
       """
         |SELECT *
@@ -99,8 +123,10 @@ class WindowTableFunctionTest extends TableTestBase {
         |FROM TABLE(
         | TUMBLE(TABLE v1, DESCRIPTOR(cur_time), INTERVAL '15' MINUTE))
         |""".stripMargin
-    thrown.expectMessage("requires the timecol is a time attribute type, but is TIMESTAMP(3)")
-    thrown.expect(classOf[ValidationException])
+    thrown.expectCause(containsCause(
+      new ValidationException(
+        "The window function requires the timecol is a time attribute type, but is TIMESTAMP(3).")
+    ))
     util.verifyRelPlan(sql)
   }
 
@@ -122,25 +148,6 @@ class WindowTableFunctionTest extends TableTestBase {
     thrown.expectMessage("Column 'window_start' is ambiguous")
     thrown.expect(classOf[ValidationException])
     util.verifyRelPlan(sql)
-  }
-
-  @Test
-  def testUnsupported(): Unit = {
-    val sql =
-      """
-        |SELECT *
-        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
-        |""".stripMargin
-
-    thrown.expectMessage("Currently Flink doesn't support individual window " +
-      "table-valued function TUMBLE(time_col=[rowtime], size=[15 min]).\n " +
-      "Please use window table-valued function with the following computations:\n" +
-      "1. aggregate using window_start and window_end as group keys.\n" +
-      "2. topN using window_start and window_end as partition key.\n" +
-      "3. join with join condition contains window starts equality of input tables " +
-      "and window ends equality of input tables.\n")
-    thrown.expect(classOf[TableException])
-    util.verifyExplain(sql)
   }
 
   @Test

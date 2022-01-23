@@ -41,13 +41,12 @@ public class CatalogTableJsonDeserializer extends StdDeserializer<ResolvedCatalo
     @Override
     public ResolvedCatalogTable deserialize(JsonParser jsonParser, DeserializationContext ctx)
             throws IOException {
-        return deserialize(jsonParser, (FlinkDeserializationContext) ctx);
+        return deserialize(jsonParser, SerdeContext.get(ctx));
     }
 
-    private ResolvedCatalogTable deserialize(JsonParser jsonParser, FlinkDeserializationContext ctx)
+    private ResolvedCatalogTable deserialize(JsonParser jsonParser, SerdeContext ctx)
             throws IOException {
-        final CatalogManager catalogManager =
-                ctx.getSerdeContext().getFlinkContext().getCatalogManager();
+        final CatalogManager catalogManager = ctx.getFlinkContext().getCatalogManager();
 
         final Map<String, String> catalogProperties =
                 jsonParser.readValueAs(new TypeReference<Map<String, String>>() {});

@@ -111,7 +111,6 @@ public class DecimalDataTest {
         assertEquals(DecimalData.fromUnscaledLong(11, 5, 0), ceil(castFrom(10.5, 5, 1)));
         assertEquals("5.00", castToDecimal(castFrom(5.0, 10, 1), 10, 2).toString());
 
-        assertTrue(castToBoolean(castFrom(true, 5, 0)));
         assertEquals(5, castToIntegral(castFrom(5, 5, 0)));
         assertEquals(5, castToIntegral(castFrom("5", 5, 0)));
 

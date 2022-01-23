@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.changelog.fs.UnregisteredChangelogStorageMetricGroup.createUnregisteredChangelogStorageMetricGroup;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -163,7 +164,10 @@ public class RetryingExecutorTest {
             throws Exception {
         AtomicInteger attemptsMade = new AtomicInteger(0);
         CountDownLatch firstAttemptCompletedLatch = new CountDownLatch(1);
-        try (RetryingExecutor executor = new RetryingExecutor(scheduler)) {
+        try (RetryingExecutor executor =
+                new RetryingExecutor(
+                        scheduler,
+                        createUnregisteredChangelogStorageMetricGroup().getAttemptsPerUpload())) {
             executor.execute(
                     policy,
                     () -> {

@@ -30,8 +30,6 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
@@ -41,6 +39,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonDeserializer;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonSerializer;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy;
@@ -49,6 +48,8 @@ import org.apache.flink.table.runtime.generated.GeneratedClass;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceTableAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
+import org.apache.flink.table.runtime.groupwindow.WindowProperty;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.window.CountWindow;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
@@ -120,7 +121,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
     private final LogicalWindow window;
 
     @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
-    private final PlannerNamedWindowProperty[] namedWindowProperties;
+    private final NamedWindowProperty[] namedWindowProperties;
 
     @JsonProperty(FIELD_NAME_NEED_RETRACTION)
     private final boolean needRetraction;
@@ -129,7 +130,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             int[] grouping,
             AggregateCall[] aggCalls,
             LogicalWindow window,
-            PlannerNamedWindowProperty[] namedWindowProperties,
+            NamedWindowProperty[] namedWindowProperties,
             boolean needRetraction,
             InputProperty inputProperty,
             RowType outputType,
@@ -152,7 +153,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
             @JsonProperty(FIELD_NAME_WINDOW) LogicalWindow window,
             @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
-                    PlannerNamedWindowProperty[] namedWindowProperties,
+                    NamedWindowProperty[] namedWindowProperties,
             @JsonProperty(FIELD_NAME_NEED_RETRACTION) boolean needRetraction,
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
@@ -261,9 +262,10 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
                         inputCountIndex);
 
         final OneInputTransformation<RowData, RowData> transform =
-                new OneInputTransformation<>(
+                ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getDescription(),
+                        getOperatorName(planner.getTableConfig()),
+                        getOperatorDescription(planner.getTableConfig()),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
@@ -320,11 +322,11 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             generator.needRetract();
         }
 
-        final List<PlannerWindowProperty> windowProperties =
+        final List<WindowProperty> windowProperties =
                 Arrays.asList(
                         Arrays.stream(namedWindowProperties)
-                                .map(PlannerNamedWindowProperty::getProperty)
-                                .toArray(PlannerWindowProperty[]::new));
+                                .map(NamedWindowProperty::getProperty)
+                                .toArray(WindowProperty[]::new));
         final boolean isTableAggregate =
                 isTableAggregate(Arrays.asList(aggInfoList.getActualAggregateCalls()));
         if (isTableAggregate) {

@@ -18,16 +18,16 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.catalog.CatalogTable
+import org.apache.flink.table.catalog.{CatalogTable, ResolvedCatalogBaseTable, ResolvedCatalogTable}
 import org.apache.flink.table.planner._
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WatermarkAssigner, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RankUtil}
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts
 
@@ -45,7 +45,6 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{Bug, BuiltInMethod, ImmutableBitSet, Util}
 
 import java.util
-import java.util.Set
 
 import scala.collection.JavaConversions._
 
@@ -63,7 +62,8 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
   private def getTableUniqueKeys(relOptTable: RelOptTable): JSet[ImmutableBitSet] = {
     relOptTable match {
       case sourceTable: TableSourceTable =>
-        val catalogTable = sourceTable.catalogTable
+        val catalogTable =
+          sourceTable.contextResolvedTable.getResolvedTable[ResolvedCatalogBaseTable[_]]
         catalogTable match {
           case act: CatalogTable =>
             val builder = ImmutableSet.builder[ImmutableBitSet]()
@@ -415,7 +415,7 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
 
   def getUniqueKeysOnWindowAgg(
       fieldCount: Int,
-      namedProperties: Seq[PlannerNamedWindowProperty],
+      namedProperties: Seq[NamedWindowProperty],
       grouping: Array[Int]): util.Set[ImmutableBitSet] = {
     if (namedProperties.nonEmpty) {
       val begin = fieldCount - namedProperties.size

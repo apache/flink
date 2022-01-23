@@ -43,6 +43,9 @@ import java.util.Map;
  * @param <K> The data type that the key serializer serializes.
  */
 public class MockKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBuilder<K> {
+
+    private final boolean emptySnapshot;
+
     public MockKeyedStateBackendBuilder(
             TaskKvStateRegistry kvStateRegistry,
             TypeSerializer<K> keySerializer,
@@ -54,7 +57,8 @@ public class MockKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
             LatencyTrackingStateConfig latencyTrackingStateConfig,
             @Nonnull Collection<KeyedStateHandle> stateHandles,
             StreamCompressionDecorator keyGroupCompressionDecorator,
-            CloseableRegistry cancelStreamRegistry) {
+            CloseableRegistry cancelStreamRegistry,
+            boolean emptySnapshot) {
         super(
                 kvStateRegistry,
                 keySerializer,
@@ -67,6 +71,7 @@ public class MockKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
                 stateHandles,
                 keyGroupCompressionDecorator,
                 cancelStreamRegistry);
+        this.emptySnapshot = emptySnapshot;
     }
 
     @Override
@@ -86,6 +91,7 @@ public class MockKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
                 stateValues,
                 stateSnapshotFilters,
                 cancelStreamRegistry,
-                new InternalKeyContextImpl<>(keyGroupRange, numberOfKeyGroups));
+                new InternalKeyContextImpl<>(keyGroupRange, numberOfKeyGroups),
+                emptySnapshot);
     }
 }

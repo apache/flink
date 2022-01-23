@@ -29,8 +29,8 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction.{DoubleAvgAggFunction, LongAvgAggFunction}
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoList}
-import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
 import org.apache.flink.table.runtime.context.ExecutionContext
+import org.apache.flink.table.runtime.dataview.DataViewSpec
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
@@ -57,8 +57,8 @@ abstract class AggTestBase(isBatchMode: Boolean) {
   private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
   val inputNames = Array("f0", "f1", "f2", "f3", "f4")
   val inputTypes: Array[LogicalType] = Array(
-    new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(), new DoubleType(), new BigIntType(),
-    new VarCharType(VarCharType.MAX_LENGTH))
+    VarCharType.STRING_TYPE, new BigIntType(), new DoubleType(), new BigIntType(),
+    VarCharType.STRING_TYPE)
   val inputType: RowType = RowType.of(inputTypes, inputNames)
 
   val relBuilder: RelBuilder = planner.getRelBuilder.values(

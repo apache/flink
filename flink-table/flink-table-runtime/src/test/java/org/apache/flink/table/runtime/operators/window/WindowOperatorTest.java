@@ -123,13 +123,11 @@ public class WindowOperatorTest {
     private static AtomicInteger closeCalled = new AtomicInteger(0);
 
     private LogicalType[] inputFieldTypes =
-            new LogicalType[] {
-                new VarCharType(VarCharType.MAX_LENGTH), new IntType(), new BigIntType()
-            };
+            new LogicalType[] {VarCharType.STRING_TYPE, new IntType(), new BigIntType()};
 
     private InternalTypeInfo<RowData> outputType =
             InternalTypeInfo.ofFields(
-                    new VarCharType(VarCharType.MAX_LENGTH),
+                    VarCharType.STRING_TYPE,
                     new BigIntType(),
                     new BigIntType(),
                     new BigIntType(),
@@ -147,7 +145,7 @@ public class WindowOperatorTest {
     private RowDataHarnessAssertor assertor =
             new RowDataHarnessAssertor(
                     outputType.toRowFieldTypes(),
-                    new GenericRowRecordSortComparator(0, new VarCharType(VarCharType.MAX_LENGTH)));
+                    new GenericRowRecordSortComparator(0, VarCharType.STRING_TYPE));
 
     private ConcurrentLinkedQueue<Object> doubleRecord(
             boolean isDouble, StreamRecord<RowData> record) {
@@ -1543,8 +1541,7 @@ public class WindowOperatorTest {
         RowDataHarnessAssertor assertor =
                 new RowDataHarnessAssertor(
                         outputType.toRowFieldTypes(),
-                        new GenericRowRecordSortComparator(
-                                0, new VarCharType(VarCharType.MAX_LENGTH)));
+                        new GenericRowRecordSortComparator(0, VarCharType.STRING_TYPE));
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 

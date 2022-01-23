@@ -289,7 +289,7 @@ public class TaskManagerOptions {
     public static final ConfigOption<MemorySize> MIN_MEMORY_SEGMENT_SIZE =
             key("taskmanager.memory.min-segment-size")
                     .memoryType()
-                    .defaultValue(MemorySize.parse("1kb"))
+                    .defaultValue(MemorySize.parse("256"))
                     .withDescription(
                             "Minimum possible size of memory buffers used by the network stack and the memory manager. "
                                     + "ex. can be used for automatic buffer size adjustment.");
@@ -534,7 +534,7 @@ public class TaskManagerOptions {
     public static final ConfigOption<Duration> BUFFER_DEBLOAT_PERIOD =
             ConfigOptions.key("taskmanager.network.memory.buffer-debloat.period")
                     .durationType()
-                    .defaultValue(Duration.ofMillis(500))
+                    .defaultValue(Duration.ofMillis(200))
                     .withDescription(
                             "The minimum period of time after which the buffer size will be debloated if required. "
                                     + "The low value provides a fast reaction to the load fluctuation but can influence the performance.");
@@ -574,24 +574,24 @@ public class TaskManagerOptions {
     public static final ConfigOption<Integer> BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES =
             ConfigOptions.key("taskmanager.network.memory.buffer-debloat.threshold-percentages")
                     .intType()
-                    .defaultValue(50)
+                    .defaultValue(25)
                     .withDescription(
                             "The minimum difference in percentage between the newly calculated buffer size and the old one to announce the new value. "
                                     + "Can be used to avoid constant back and forth small adjustments.");
 
     /**
      * Size of direct memory used by blocking shuffle for shuffle data read (currently only used by
-     * sort-merge shuffle).
+     * sort-shuffle).
      */
     @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
     public static final ConfigOption<MemorySize> NETWORK_BATCH_SHUFFLE_READ_MEMORY =
             key("taskmanager.memory.framework.off-heap.batch-shuffle.size")
                     .memoryType()
-                    .defaultValue(MemorySize.parse("32m"))
+                    .defaultValue(MemorySize.parse("64m"))
                     .withDescription(
                             String.format(
                                     "Size of memory used by blocking shuffle for shuffle data read "
-                                            + "(currently only used by sort-merge shuffle). Notes: "
+                                            + "(currently only used by sort-shuffle). Notes: "
                                             + "1) The memory is cut from '%s' so must be smaller than"
                                             + " that, which means you may also need to increase '%s' "
                                             + "after you increase this config value; 2) This memory"

@@ -124,7 +124,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
     private enum StopWithSavepointTestBehavior {
         NO_FAILURE,
         FAIL_ON_CHECKPOINT,
-        FAIL_ON_STOP,
+        FAIL_ON_CHECKPOINT_COMPLETE,
         FAIL_ON_FIRST_CHECKPOINT_ONLY
     }
 
@@ -172,7 +172,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
     @Test
     public void testStopWithSavepointFailOnStop() throws Exception {
         StreamExecutionEnvironment env =
-                getEnvWithSource(StopWithSavepointTestBehavior.FAIL_ON_STOP);
+                getEnvWithSource(StopWithSavepointTestBehavior.FAIL_ON_CHECKPOINT_COMPLETE);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
 
         DummySource.resetForParallelism(PARALLELISM);
@@ -257,7 +257,6 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         private final StopWithSavepointTestBehavior behavior;
         private volatile boolean running = true;
         private static volatile CountDownLatch instancesRunning;
-        private volatile boolean checkpointComplete = false;
 
         public DummySource(StopWithSavepointTestBehavior behavior) {
             this.behavior = behavior;
@@ -288,9 +287,6 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         @Override
         public void cancel() {
             running = false;
-            if (checkpointComplete && behavior == StopWithSavepointTestBehavior.FAIL_ON_STOP) {
-                throw new RuntimeException(behavior.name());
-            }
         }
 
         @Override
@@ -309,7 +305,9 @@ public class AdaptiveSchedulerITCase extends TestLogger {
 
         @Override
         public void notifyCheckpointComplete(long checkpointId) throws Exception {
-            checkpointComplete = true;
+            if (behavior == StopWithSavepointTestBehavior.FAIL_ON_CHECKPOINT_COMPLETE) {
+                throw new RuntimeException(behavior.name());
+            }
         }
     }
 

@@ -21,7 +21,7 @@ package org.apache.flink.connector.file.src;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.connector.file.src.reader.TextLineFormat;
+import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -119,7 +119,8 @@ public class FileSourceTextLinesITCase extends TestLogger {
         writeHiddenJunkFiles(testDir);
 
         final FileSource<String> source =
-                FileSource.forRecordStreamFormat(new TextLineFormat(), Path.fromLocalFile(testDir))
+                FileSource.forRecordStreamFormat(
+                                new TextLineInputFormat(), Path.fromLocalFile(testDir))
                         .build();
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -184,7 +185,8 @@ public class FileSourceTextLinesITCase extends TestLogger {
         final File testDir = TMP_FOLDER.newFolder();
 
         final FileSource<String> source =
-                FileSource.forRecordStreamFormat(new TextLineFormat(), Path.fromLocalFile(testDir))
+                FileSource.forRecordStreamFormat(
+                                new TextLineInputFormat(), Path.fromLocalFile(testDir))
                         .monitorContinuously(Duration.ofMillis(5))
                         .build();
 

@@ -37,8 +37,9 @@ trigger:
 resources:
   containers:
   # Container with Maven 3.2.5, SSL to have the same environment everywhere.
+  # see https://github.com/flink-ci/flink-ci-docker
   - container: flink-build-container
-    image: rmetzger/flink-ci:ubuntu-amd64-02878c6
+    image: chesnay/flink-ci:java_8_11_17
     # On AZP provided machines, set this flag to allow writing coredumps in docker
     options: --privileged
 
@@ -50,7 +51,7 @@ variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
   E2E_CACHE_FOLDER: $(Pipeline.Workspace)/e2e_cache
   E2E_TARBALL_CACHE: $(Pipeline.Workspace)/e2e_artifact_cache
-  MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
+  MAVEN_ARGS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
   CACHE_KEY: maven | $(Agent.OS) | **/pom.xml, !**/target/**
   CACHE_FALLBACK_KEY: maven | $(Agent.OS)
   DOCKER_IMAGES_CACHE_KEY: docker-images-cache | $(Agent.OS) | **/cache_docker_images.sh | flink-test-utils-parent/**/DockerImageVersions.java
@@ -76,7 +77,7 @@ stages:
             vmImage: 'ubuntu-20.04'
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12"
+          environment: PROFILE="-Dhadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12 -Darchunit.freeze.default.allowStoreUpdate=false"
           run_end_to_end: false
           container: flink-build-container
           jdk: 8
@@ -93,5 +94,5 @@ stages:
       - template: tools/azure-pipelines/build-python-wheels.yml
         parameters:
           stage_name: cron_python_wheels
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12"
+          environment: PROFILE="-Dhadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12 -Darchunit.freeze.store.default.allowStoreUpdate=false"
           container: flink-build-container

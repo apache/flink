@@ -30,7 +30,6 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
@@ -59,7 +58,6 @@ import org.rocksdb.InfoLogLevel;
 import org.rocksdb.util.SizeUnit;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -77,7 +75,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /** Tests for configuring the RocksDB State Backend. */
 @SuppressWarnings("serial")
@@ -96,6 +93,19 @@ public class RocksDBStateBackendConfigTest {
 
         EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend();
         assertEquals(defaultIncremental, backend.isIncrementalCheckpointsEnabled());
+    }
+
+    @Test
+    public void testDefaultDbLogDir() throws Exception {
+        final EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend();
+        final File logFile = File.createTempFile(getClass().getSimpleName() + "-", ".log");
+        // set the environment variable 'log.file' with the Flink log file location
+        System.setProperty("log.file", logFile.getPath());
+        try (RocksDBResourceContainer container = backend.createOptionsAndResourceContainer()) {
+            assertEquals(logFile.getParent(), container.getDbOptions().dbLogDir());
+        } finally {
+            logFile.delete();
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -319,11 +329,10 @@ public class RocksDBStateBackendConfigTest {
         RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
 
         File dir1 = tempFolder.newFolder();
-        File dir2 = tempFolder.newFolder();
 
         assertNull(rocksDbBackend.getDbStoragePaths());
 
-        final MockEnvironment env = getMockEnvironment(dir1, dir2);
+        final MockEnvironment env = getMockEnvironment(dir1);
         RocksDBKeyedStateBackend<Integer> keyedBackend =
                 (RocksDBKeyedStateBackend<Integer>)
                         rocksDbBackend.createKeyedStateBackend(
@@ -341,9 +350,7 @@ public class RocksDBStateBackendConfigTest {
 
         try {
             File instanceBasePath = keyedBackend.getInstanceBasePath();
-            assertThat(
-                    instanceBasePath.getAbsolutePath(),
-                    anyOf(startsWith(dir1.getAbsolutePath()), startsWith(dir2.getAbsolutePath())));
+            assertThat(instanceBasePath.getAbsolutePath(), startsWith(dir1.getAbsolutePath()));
         } finally {
             IOUtils.closeQuietly(keyedBackend);
             keyedBackend.dispose();
@@ -464,63 +471,8 @@ public class RocksDBStateBackendConfigTest {
     }
 
     @Test
-    public void testSetConfigurableOptions() throws Exception {
-        DefaultConfigurableOptionsFactory customizedOptions =
-                new DefaultConfigurableOptionsFactory()
-                        .setMaxBackgroundThreads(4)
-                        .setMaxOpenFiles(-1)
-                        .setLogLevel(InfoLogLevel.DEBUG_LEVEL)
-                        .setLogDir("/tmp/rocksdb-logs/")
-                        .setLogFileNum(10)
-                        .setMaxLogFileSize("2MB")
-                        .setCompactionStyle(CompactionStyle.LEVEL)
-                        .setUseDynamicLevelSize(true)
-                        .setTargetFileSizeBase("4MB")
-                        .setMaxSizeLevelBase("128 mb")
-                        .setWriteBufferSize("128 MB")
-                        .setMaxWriteBufferNumber(4)
-                        .setMinWriteBufferNumberToMerge(3)
-                        .setBlockSize("64KB")
-                        .setMetadataBlockSize("16KB")
-                        .setBlockCacheSize("512mb")
-                        .setUseBloomFilter(true)
-                        .setBloomFilterBitsPerKey(12.0)
-                        .setBloomFilterBlockBasedMode(false);
-
-        try (RocksDBResourceContainer optionsContainer =
-                new RocksDBResourceContainer(PredefinedOptions.DEFAULT, customizedOptions)) {
-
-            DBOptions dbOptions = optionsContainer.getDbOptions();
-            assertEquals(-1, dbOptions.maxOpenFiles());
-
-            assertEquals(InfoLogLevel.DEBUG_LEVEL, dbOptions.infoLogLevel());
-            assertEquals("/tmp/rocksdb-logs/", dbOptions.dbLogDir());
-            assertEquals(10, dbOptions.keepLogFileNum());
-            assertEquals(2 * SizeUnit.MB, dbOptions.maxLogFileSize());
-
-            ColumnFamilyOptions columnOptions = optionsContainer.getColumnOptions();
-            assertEquals(CompactionStyle.LEVEL, columnOptions.compactionStyle());
-            assertTrue(columnOptions.levelCompactionDynamicLevelBytes());
-            assertEquals(4 * SizeUnit.MB, columnOptions.targetFileSizeBase());
-            assertEquals(128 * SizeUnit.MB, columnOptions.maxBytesForLevelBase());
-            assertEquals(4, columnOptions.maxWriteBufferNumber());
-            assertEquals(3, columnOptions.minWriteBufferNumberToMerge());
-
-            BlockBasedTableConfig tableConfig =
-                    (BlockBasedTableConfig) columnOptions.tableFormatConfig();
-            assertEquals(64 * SizeUnit.KB, tableConfig.blockSize());
-            assertEquals(16 * SizeUnit.KB, tableConfig.metadataBlockSize());
-            assertEquals(512 * SizeUnit.MB, tableConfig.blockCacheSize());
-            assertTrue(tableConfig.filterPolicy() instanceof BloomFilter);
-        }
-    }
-
-    @Test
     public void testConfigurableOptionsFromConfig() throws Exception {
         Configuration configuration = new Configuration();
-        DefaultConfigurableOptionsFactory defaultOptionsFactory =
-                new DefaultConfigurableOptionsFactory();
-        assertTrue(defaultOptionsFactory.configure(configuration).getConfiguredOptions().isEmpty());
 
         // verify illegal configuration
         {
@@ -570,12 +522,9 @@ public class RocksDBStateBackendConfigTest {
             configuration.setString(RocksDBConfigurableOptions.BLOCK_CACHE_SIZE.key(), "512 mb");
             configuration.setString(RocksDBConfigurableOptions.USE_BLOOM_FILTER.key(), "TRUE");
 
-            DefaultConfigurableOptionsFactory optionsFactory =
-                    new DefaultConfigurableOptionsFactory();
-            optionsFactory.configure(configuration);
-
             try (RocksDBResourceContainer optionsContainer =
-                    new RocksDBResourceContainer(PredefinedOptions.DEFAULT, optionsFactory)) {
+                    new RocksDBResourceContainer(
+                            configuration, PredefinedOptions.DEFAULT, null, null)) {
 
                 DBOptions dbOptions = optionsContainer.getDbOptions();
                 assertEquals(-1, dbOptions.maxOpenFiles());
@@ -649,6 +598,32 @@ public class RocksDBStateBackendConfigTest {
     }
 
     @Test
+    public void testPredefinedAndConfigurableOptions() throws Exception {
+        Configuration configuration = new Configuration();
+        configuration.set(RocksDBConfigurableOptions.COMPACTION_STYLE, CompactionStyle.UNIVERSAL);
+        try (final RocksDBResourceContainer optionsContainer =
+                new RocksDBResourceContainer(
+                        configuration, PredefinedOptions.SPINNING_DISK_OPTIMIZED, null, null)) {
+
+            final ColumnFamilyOptions columnFamilyOptions = optionsContainer.getColumnOptions();
+            assertNotNull(columnFamilyOptions);
+            assertEquals(CompactionStyle.UNIVERSAL, columnFamilyOptions.compactionStyle());
+        }
+
+        try (final RocksDBResourceContainer optionsContainer =
+                new RocksDBResourceContainer(
+                        new Configuration(),
+                        PredefinedOptions.SPINNING_DISK_OPTIMIZED,
+                        null,
+                        null)) {
+
+            final ColumnFamilyOptions columnFamilyOptions = optionsContainer.getColumnOptions();
+            assertNotNull(columnFamilyOptions);
+            assertEquals(CompactionStyle.LEVEL, columnFamilyOptions.compactionStyle());
+        }
+    }
+
+    @Test
     public void testPredefinedAndOptionsFactory() throws Exception {
         final RocksDBOptionsFactory optionsFactory =
                 new RocksDBOptionsFactory() {
@@ -674,18 +649,6 @@ public class RocksDBStateBackendConfigTest {
             assertNotNull(columnFamilyOptions);
             assertEquals(CompactionStyle.UNIVERSAL, columnFamilyOptions.compactionStyle());
         }
-    }
-
-    @Test
-    public void testPredefinedOptionsEnum() {
-        ArrayList<AutoCloseable> handlesToClose = new ArrayList<>();
-        for (PredefinedOptions o : PredefinedOptions.values()) {
-            try (DBOptions opt = o.createDBOptions(handlesToClose)) {
-                assertNotNull(opt);
-            }
-        }
-        handlesToClose.forEach(IOUtils::closeQuietly);
-        handlesToClose.clear();
     }
 
     // ------------------------------------------------------------------------
@@ -825,20 +788,11 @@ public class RocksDBStateBackendConfigTest {
     //  Utilities
     // ------------------------------------------------------------------------
 
-    static MockEnvironment getMockEnvironment(File... tempDirs) {
-        final String[] tempDirStrings = new String[tempDirs.length];
-        for (int i = 0; i < tempDirs.length; i++) {
-            tempDirStrings[i] = tempDirs[i].getAbsolutePath();
-        }
-
-        IOManager ioMan = mock(IOManager.class);
-        when(ioMan.getSpillingDirectories()).thenReturn(tempDirs);
-
+    static MockEnvironment getMockEnvironment(File tempDir) {
         return MockEnvironment.builder()
                 .setUserCodeClassLoader(RocksDBStateBackendConfigTest.class.getClassLoader())
                 .setTaskManagerRuntimeInfo(
-                        new TestingTaskManagerRuntimeInfo(new Configuration(), tempDirStrings))
-                .setIOManager(ioMan)
+                        new TestingTaskManagerRuntimeInfo(new Configuration(), tempDir))
                 .build();
     }
 
@@ -846,9 +800,9 @@ public class RocksDBStateBackendConfigTest {
         Configuration configuration = new Configuration();
         configuration.setString(configOption.key(), configValue);
 
-        DefaultConfigurableOptionsFactory optionsFactory = new DefaultConfigurableOptionsFactory();
+        EmbeddedRocksDBStateBackend stateBackend = new EmbeddedRocksDBStateBackend();
         try {
-            optionsFactory.configure(configuration);
+            stateBackend.configure(configuration, null);
             fail("Not throwing expected IllegalArgumentException.");
         } catch (IllegalArgumentException e) {
             // ignored

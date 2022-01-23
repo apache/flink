@@ -19,13 +19,16 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject } from 'rxjs';
-import { flatMap, takeUntil } from 'rxjs/operators';
+import { mergeMap, takeUntil } from 'rxjs/operators';
 
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
-import { TaskmanagersItemInterface } from 'interfaces';
+import { TaskmanagersItem } from 'interfaces';
 import { StatusService, TaskManagerService } from 'services';
-import { deepFind } from 'utils';
+
+function createSortFn(selector: (item: TaskmanagersItem) => number): NzTableSortFn<TaskmanagersItem> {
+  return (pre, next) => (selector(pre) > selector(next) ? 1 : -1);
+}
 
 @Component({
   selector: 'flink-task-manager-list',
@@ -34,47 +37,41 @@ import { deepFind } from 'utils';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerListComponent implements OnInit, OnDestroy {
-  listOfTaskManager: TaskmanagersItemInterface[] = [];
-  isLoading = true;
-  destroy$ = new Subject();
-  sortName: string;
-  sortValue: string;
+  public readonly trackById = (_: number, node: TaskmanagersItem): string => node.id;
 
-  sortDataPortFn = this.sortFn('dataPort');
-  sortHeartBeatFn = this.sortFn('timeSinceLastHeartbeat');
-  sortSlotsNumberFn = this.sortFn('slotsNumber');
-  sortFreeSlotsFn = this.sortFn('freeSlots');
-  sortCpuCoresFn = this.sortFn('hardware.cpuCores');
-  sortPhysicalMemoryFn = this.sortFn('hardware.physicalMemory');
-  sortFreeMemoryFn = this.sortFn('hardware.freeMemory');
-  sortManagedMemoryFn = this.sortFn('hardware.managedMemory');
+  public readonly sortDataPortFn = createSortFn(item => item.dataPort);
+  public readonly sortHeartBeatFn = createSortFn(item => item.timeSinceLastHeartbeat);
+  public readonly sortSlotsNumberFn = createSortFn(item => item.slotsNumber);
+  public readonly sortFreeSlotsFn = createSortFn(item => item.freeSlots);
+  public readonly sortCpuCoresFn = createSortFn(item => item.hardware?.cpuCores);
+  public readonly sortPhysicalMemoryFn = createSortFn(item => item.hardware?.physicalMemory);
+  public readonly sortFreeMemoryFn = createSortFn(item => item.hardware?.freeMemory);
+  public readonly sortManagedMemoryFn = createSortFn(item => item.hardware?.managedMemory);
 
-  sortFn(path: string): NzTableSortFn<TaskmanagersItemInterface> {
-    return (pre: TaskmanagersItemInterface, next: TaskmanagersItemInterface) =>
-      deepFind(pre, path) > deepFind(next, path) ? 1 : -1;
-  }
+  public listOfTaskManager: TaskmanagersItem[] = [];
+  public isLoading = true;
+  public sortName: string;
+  public sortValue: string;
 
-  trackManagerBy(_: number, node: TaskmanagersItemInterface): string {
-    return node.id;
-  }
+  private readonly destroy$ = new Subject<void>();
 
-  navigateTo(taskManager: TaskmanagersItemInterface): void {
+  public navigateTo(taskManager: TaskmanagersItem): void {
     this.router.navigate([taskManager.id, 'metrics'], { relativeTo: this.activatedRoute }).then();
   }
 
   constructor(
-    private cdr: ChangeDetectorRef,
-    private statusService: StatusService,
-    private taskManagerService: TaskManagerService,
-    private router: Router,
-    private activatedRoute: ActivatedRoute
+    private readonly cdr: ChangeDetectorRef,
+    private readonly statusService: StatusService,
+    private readonly taskManagerService: TaskManagerService,
+    private readonly router: Router,
+    private readonly activatedRoute: ActivatedRoute
   ) {}
 
-  ngOnInit(): void {
+  public ngOnInit(): void {
     this.statusService.refresh$
       .pipe(
         takeUntil(this.destroy$),
-        flatMap(() => this.taskManagerService.loadManagers())
+        mergeMap(() => this.taskManagerService.loadManagers())
       )
       .subscribe(
         data => {
@@ -89,7 +86,7 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
       );
   }
 
-  ngOnDestroy(): void {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

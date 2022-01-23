@@ -16,14 +16,12 @@
  * limitations under the License.
  */
 
-import { SafeAny } from 'interfaces';
-
 declare module 'd3-flame-graph' {
-  type ColorMapper = (node: SafeAny, originalColor: string) => string;
+  type ColorMapper = (node: unknown, originalColor: string) => string;
 
   export function flamegraph(): FlameGraph;
   export const offCpuColorMapper: ColorMapper;
-  export function defaultFlamegraphTooltip(): SafeAny;
+  export function defaultFlamegraphTooltip(): unknown;
 
   export interface StackFrame {
     name: string;
@@ -31,14 +29,14 @@ declare module 'd3-flame-graph' {
     children: StackFrame[];
   }
 
-  type LabelHandler = (node: SafeAny) => string;
-  type ClickHandler = (node: SafeAny) => void;
-  type DetailsHandler = (node: SafeAny) => void;
-  type SearchHandler = (results: SafeAny, sum: SafeAny, totalValue: SafeAny) => void;
-  type SearchMatch = (node: SafeAny, term: string) => boolean;
+  type LabelHandler = (node: unknown) => string;
+  type ClickHandler = (node: unknown) => void;
+  type DetailsHandler = (node: unknown) => void;
+  type SearchHandler = (results: unknown, sum: unknown, totalValue: unknown) => void;
+  type SearchMatch = (node: unknown, term: string) => boolean;
 
   interface FlameGraph {
-    (selection: SafeAny): SafeAny;
+    (selection: unknown): unknown;
 
     selfValue(val: boolean): FlameGraph;
     selfValue(): boolean;
@@ -54,7 +52,7 @@ declare module 'd3-flame-graph' {
     title(): string;
     tooltip(val: boolean): FlameGraph;
     tooltip(): boolean;
-    tooltip(any: tip): boolean;
+    tooltip(tip: unknown): boolean;
     transitionDuration(val: number): FlameGraph;
     transitionDuration(): number;
     transitionEase(val: string): FlameGraph;

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{AtomicType => AtomicTypeInfo}
-import org.apache.flink.api.java.typeutils.GenericTypeInfo
+import org.apache.flink.table.api.{JsonExistsOnError, JsonQueryOnEmptyOrError, JsonQueryWrapper}
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.utils.JoinedRowData
@@ -30,13 +30,14 @@ import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, 
 import org.apache.flink.table.planner.codegen.calls.CurrentTimePointCallGen
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
 import org.apache.flink.table.planner.plan.utils.SortUtil
+import org.apache.flink.table.planner.utils.TimestampStringUtils.toLocalDateTime
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isReference, isTemporal}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getFieldTypes}
-import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
 
 import org.apache.calcite.avatica.util.ByteString
+import org.apache.calcite.sql.{SqlJsonExistsErrorBehavior, SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior}
 import org.apache.calcite.util.TimestampString
 import org.apache.commons.lang3.StringEscapeUtils
 
@@ -140,22 +141,6 @@ object GenerateUtils {
     }
   }
 
-
-  /**
-    * Generates a string result call with auxiliary statements and result expression.
-    * This will convert the String result to BinaryStringData.
-    */
-  def generateStringResultCallWithStmtIfArgsNotNull(
-      ctx: CodeGeneratorContext,
-      operands: Seq[GeneratedExpression],
-      returnType: LogicalType)
-      (call: Seq[String] => (String, String)): GeneratedExpression = {
-    generateCallWithStmtIfArgsNotNull(ctx, returnType, operands) {
-      args =>
-        val (stmt, result) = call(args)
-        (stmt, s"$BINARY_STRING.fromString($result)")
-    }
-  }
 
   /**
     * Generates a call with the nullable args.
@@ -451,27 +436,42 @@ object GenerateUtils {
       case DISTINCT_TYPE =>
         generateLiteral(ctx, literalType.asInstanceOf[DistinctType].getSourceType, literalValue)
 
-      // Symbol type for special flags e.g. TRIM's BOTH, LEADING, TRAILING
-      case RAW if literalType.asInstanceOf[TypeInformationRawType[_]]
-          .getTypeInformation.getTypeClass.isAssignableFrom(classOf[Enum[_]]) =>
-        generateSymbol(literalValue.asInstanceOf[Enum[_]])
-
       case SYMBOL =>
-        throw new UnsupportedOperationException() // TODO support symbol?
+        generateSymbol(literalValue.asInstanceOf[Enum[_]])
 
       case ARRAY | MULTISET | MAP | ROW | STRUCTURED_TYPE | NULL | UNRESOLVED =>
         throw new CodeGenException(s"Type not supported: $literalType")
     }
   }
 
-  def generateSymbol(enum: Enum[_]): GeneratedExpression = {
+  def generateSymbol(value: Enum[_]): GeneratedExpression = {
+    // Make sure to convert calcite enum types to flink types
+    val convertedValue = value match {
+      case tu: org.apache.calcite.avatica.util.TimeUnit =>
+        org.apache.flink.table.utils.DateTimeUtils.TimeUnit.valueOf(tu.name())
+      case tur: org.apache.calcite.avatica.util.TimeUnitRange =>
+        org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange.valueOf(tur.name())
+      case jeeb: SqlJsonExistsErrorBehavior =>
+        JsonExistsOnError.valueOf(jeeb.name())
+      case jqeeb: SqlJsonQueryEmptyOrErrorBehavior =>
+        JsonQueryOnEmptyOrError.valueOf(jqeeb.name())
+      case jqwb: SqlJsonQueryWrapperBehavior => jqwb match {
+        case SqlJsonQueryWrapperBehavior.WITHOUT_ARRAY =>
+          JsonQueryWrapper.WITHOUT_ARRAY
+        case SqlJsonQueryWrapperBehavior.WITH_CONDITIONAL_ARRAY =>
+          JsonQueryWrapper.CONDITIONAL_ARRAY
+        case SqlJsonQueryWrapperBehavior.WITH_UNCONDITIONAL_ARRAY =>
+          JsonQueryWrapper.UNCONDITIONAL_ARRAY
+      }
+      case _ => value
+    }
+
     GeneratedExpression(
-      qualifyEnum(enum),
+      qualifyEnum(convertedValue),
       NEVER_NULL,
       NO_CODE,
-      new TypeInformationRawType[AnyRef](new GenericTypeInfo[AnyRef](
-        enum.getDeclaringClass.asInstanceOf[Class[AnyRef]])),
-      literalValue = Some(enum))
+      new SymbolType(false),
+      literalValue = Some(convertedValue))
   }
 
   /**
@@ -714,7 +714,7 @@ object GenerateUtils {
         val fieldType = getFieldTypes(inputType).get(index)
         val resultTypeTerm = primitiveTypeTermForType(fieldType)
         val defaultValue = primitiveDefaultValue(fieldType)
-        val readCode = rowFieldReadAccess(ctx, index.toString, inputTerm, fieldType)
+        val readCode = rowFieldReadAccess(index.toString, inputTerm, fieldType)
         val Seq(fieldTerm, nullTerm) = ctx.addReusableLocalVariables(
           (resultTypeTerm, "field"),
           ("boolean", "isNull"))
@@ -876,8 +876,8 @@ object GenerateUtils {
           } else if ($isNullB) {
             return ${-nullIsLastRet};
           } else {
-            $typeTerm $fieldA = ${rowFieldReadAccess(ctx, i, leftTerm, elementType)};
-            $typeTerm $fieldB = ${rowFieldReadAccess(ctx, i, rightTerm, elementType)};
+            $typeTerm $fieldA = ${rowFieldReadAccess(i, leftTerm, elementType)};
+            $typeTerm $fieldB = ${rowFieldReadAccess(i, rightTerm, elementType)};
             int $comp = ${generateCompare(ctx, elementType, nullsIsLast, fieldA, fieldB)};
             if ($comp != 0) {
               return $comp;
@@ -929,8 +929,8 @@ object GenerateUtils {
            |} else if ($isNullB) {
            |  return ${-nullIsLastRet};
            |} else {
-           |  $typeTerm $fieldA = ${rowFieldReadAccess(ctx, index, leftTerm, t)};
-           |  $typeTerm $fieldB = ${rowFieldReadAccess(ctx, index, rightTerm, t)};
+           |  $typeTerm $fieldA = ${rowFieldReadAccess(index, leftTerm, t)};
+           |  $typeTerm $fieldB = ${rowFieldReadAccess(index, rightTerm, t)};
            |  int $comp = ${generateCompare(ctx, t, fieldSpec.getNullIsLast, fieldA, fieldB)};
            |  if ($comp != 0) {
            |    return $symbol$comp;

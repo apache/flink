@@ -273,7 +273,7 @@ under the License.
 		<dependency>
 			<groupId>com.facebook.presto.hadoop</groupId>
 			<artifactId>hadoop-apache2</artifactId>
-			<version>2.7.3-1</version>
+			<version>2.7.4-9</version>
 		</dependency>
 
 		<dependency>
@@ -460,7 +460,6 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes>
 									<include>*:*</include>

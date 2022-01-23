@@ -426,7 +426,7 @@ public final class PulsarSourceBuilder<OUT> {
             if (rangeGenerator == null) {
                 LOG.warn(
                         "No range generator provided for key_shared subscription,"
-                                + " we would use the DivideRangeGenerator as the default range generator.");
+                                + " we would use the UniformRangeGenerator as the default range generator.");
                 this.rangeGenerator = new UniformRangeGenerator();
             }
         } else {

@@ -24,14 +24,13 @@ import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.{Table, TableEnvironment}
-import org.apache.flink.table.expressions.ExpressionParser
+import org.apache.flink.table.delegation.ExpressionParser
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.TableTestUtil
 
 import _root_.java.util.UUID
-
 import _root_.scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
@@ -222,7 +221,8 @@ object BatchTableEnvUtil {
       fieldNames: Option[Array[String]],
       fieldNullables: Option[Array[Boolean]],
       statistic: Option[FlinkStatistic]): Unit = {
-    val fields = fieldNames.map((f: Array[String]) => f.map(ExpressionParser.parseExpression))
+    val fields = fieldNames.map((f: Array[String]) =>
+      f.map(ExpressionParser.INSTANCE.parseExpression))
     // for tests we know that this stream is definitely bounded
     ExecNodeUtil.makeLegacySourceTransformationsBounded(boundedStream.getTransformation)
     TableTestUtil.createTemporaryView(

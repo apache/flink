@@ -47,6 +47,7 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -69,15 +70,23 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
         super.setUp();
         haServices.setCheckpointRecoveryFactory(
                 new PerJobCheckpointRecoveryFactory<EmbeddedCompletedCheckpointStore>(
-                        (maxCheckpoints, previous) -> {
+                        (maxCheckpoints, previous, sharedStateRegistryFactory, ioExecutor) -> {
                             if (previous != null) {
-                                // First job attempt failed before cleaning up the checkpoint store.
+                                // First job attempt failed before cleaning up the checkpoint
+                                // store.
                                 assertFalse(previous.getShutdownStatus().isPresent());
                                 assertFalse(previous.getAllCheckpoints().isEmpty());
                                 return new EmbeddedCompletedCheckpointStore(
-                                        maxCheckpoints, previous.getAllCheckpoints());
+                                        maxCheckpoints,
+                                        previous.getAllCheckpoints(),
+                                        sharedStateRegistryFactory.create(
+                                                ioExecutor, previous.getAllCheckpoints()));
                             }
-                            return new EmbeddedCompletedCheckpointStore(maxCheckpoints);
+                            return new EmbeddedCompletedCheckpointStore(
+                                    maxCheckpoints,
+                                    Collections.emptyList(),
+                                    sharedStateRegistryFactory.create(
+                                            ioExecutor, Collections.emptyList()));
                         }));
     }
 

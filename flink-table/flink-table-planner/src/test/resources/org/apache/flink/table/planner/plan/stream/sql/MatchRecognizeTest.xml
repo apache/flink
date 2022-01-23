@@ -72,7 +72,7 @@ Match(partitionBy=[symbol], orderBy=[matchRowtime ASC], measures=[FINAL(A.price)
    +- Calc(select=[symbol, matchRowtime, price, w$start AS startTime])
       +- GroupWindowAggregate(groupBy=[symbol, price, matchRowtime], window=[TumblingGroupWindow('w$, matchRowtime0, 3000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[symbol, price, matchRowtime, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
          +- Exchange(distribution=[hash[symbol, price, matchRowtime]])
-            +- Calc(select=[symbol, price, tax, CAST(matchRowtime) AS matchRowtime])
+            +- Calc(select=[symbol, price, tax, CAST(matchRowtime AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS matchRowtime])
                +- Match(partitionBy=[symbol], orderBy=[ts_ltz ASC], measures=[FINAL(A.price) AS price, FINAL(A.tax) AS tax, FINAL(MATCH_ROWTIME(*.ts_ltz)) AS matchRowtime], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[_UTF-16LE'A'], define=[{A=>(PREV(A.$2, 0), 0)}])
                   +- Exchange(distribution=[hash[symbol]])
                      +- WatermarkAssigner(rowtime=[ts_ltz], watermark=[-(ts_ltz, 1000:INTERVAL SECOND)])
@@ -116,7 +116,7 @@ LogicalProject(symbol=[$0], price=[$2], rowTime=[TUMBLE_ROWTIME($1)], startTime=
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[symbol, price, CAST(w$rowtime) AS rowTime, w$start AS startTime])
+Calc(select=[symbol, price, CAST(w$rowtime AS TIMESTAMP(3) *ROWTIME*) AS rowTime, w$start AS startTime])
 +- GroupWindowAggregate(groupBy=[symbol], window=[TumblingGroupWindow('w$, matchRowtime, 3000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[symbol, SUM(price) AS price, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[symbol]])
       +- Calc(select=[symbol, matchRowtime, price])
@@ -150,7 +150,7 @@ LogicalProject(symbol=[$0], price=[$1], tax=[$2], matchRowtime=[$3], price_sum=[
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[symbol, price, tax, matchRowtime, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:INTEGER) AS price_sum]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, INTEGER price_sum)]
+Calc(select=[symbol, price, tax, matchRowtime, CASE(>(w0$o0, 0), w0$o1, null:INTEGER) AS price_sum]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, INTEGER price_sum)]
 +- OverAggregate(partitionBy=[symbol], orderBy=[matchRowtime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[symbol, price, tax, matchRowtime, COUNT(price) AS w0$o0, $SUM0(price) AS w0$o1]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, BIGINT w0$o0, INTEGER w0$o1)]
    +- Exchange(distribution=[hash[symbol]]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime)]
       +- Match(partitionBy=[symbol], orderBy=[ts_ltz ASC], measures=[FINAL(A.price) AS price, FINAL(A.tax) AS tax, FINAL(MATCH_ROWTIME(*.ts_ltz)) AS matchRowtime], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[_UTF-16LE'A'], define=[{A=>(PREV(A.$2, 0), 0)}]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime)]

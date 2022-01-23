@@ -18,13 +18,10 @@
 
 @import "theme";
 
-flink-monaco-editor {
-  height: calc(~"100vh - 205px");
-}
-
 :host {
-  display: block;
-  height: 100%;
+  display: flex;
+  flex: 1;
+  flex-flow: column nowrap;
 
   &.full-screen {
     position: fixed;
@@ -34,23 +31,34 @@ flink-monaco-editor {
     left: 0;
     z-index: 99;
     background: @component-background;
+  }
 
-    flink-monaco-editor {
-      height: calc(~"100vh - 46px");
+  .editor-container {
+    position: relative;
+    flex: 1;
+
+    nz-code-editor {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
     }
   }
-}
 
-.breadcrumb {
-  position: relative;
-  padding: 12px 24px;
-  border-bottom: 1px solid @border-color-split;
-  background: @component-background;
-}
+  .breadcrumb {
+    position: relative;
+    display: flex;
+    flex-flow: row nowrap;
+    padding: 12px 24px;
+    border-bottom: 1px solid @border-color-split;
+    background: @component-background;
 
-flink-refresh-download {
-  position: absolute;
-  top: 0;
-  right: 12px;
-  line-height: 47px;
+    flink-refresh-download {
+      position: absolute;
+      top: 0;
+      right: 12px;
+      line-height: 47px;
+    }
+  }
 }

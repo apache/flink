@@ -25,22 +25,7 @@
       }
     },
     "id" : 1,
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "amount" : "INT"
-      }, {
-        "currency" : "VARCHAR(2147483647)"
-      }, {
-        "rowtime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      } ]
-    },
+    "outputType" : "ROW<`amount` INT, `currency` VARCHAR(2147483647), `rowtime` TIMESTAMP(3)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])",
     "inputProperties" : [ ]
   }, {
@@ -48,11 +33,7 @@
     "watermarkExpr" : {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
-      "type" : {
-        "typeName" : "TIMESTAMP",
-        "nullable" : true,
-        "precision" : 3
-      }
+      "type" : "TIMESTAMP(3)"
     },
     "rowtimeFieldIndex" : 2,
     "id" : 2,
@@ -65,15 +46,16 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "amount" : "INT"
+        "name" : "amount",
+        "fieldType" : "INT"
       }, {
-        "currency" : "VARCHAR(2147483647)"
+        "name" : "currency",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
-        "rowtime" : {
+        "name" : "rowtime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
@@ -93,15 +75,16 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "amount" : "INT"
+        "name" : "amount",
+        "fieldType" : "INT"
       }, {
-        "currency" : "VARCHAR(2147483647)"
+        "name" : "currency",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
-        "rowtime" : {
+        "name" : "rowtime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
@@ -132,22 +115,7 @@
       }
     },
     "id" : 4,
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "currency" : "VARCHAR(2147483647) NOT NULL"
-      }, {
-        "rate" : "INT"
-      }, {
-        "rowtime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      } ]
-    },
+    "outputType" : "ROW<`currency` VARCHAR(2147483647) NOT NULL, `rate` INT, `rowtime` TIMESTAMP(3)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])",
     "inputProperties" : [ ]
   }, {
@@ -155,11 +123,7 @@
     "watermarkExpr" : {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
-      "type" : {
-        "typeName" : "TIMESTAMP",
-        "nullable" : true,
-        "precision" : 3
-      }
+      "type" : "TIMESTAMP(3)"
     },
     "rowtimeFieldIndex" : 2,
     "id" : 5,
@@ -172,15 +136,16 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "currency" : "VARCHAR(2147483647) NOT NULL"
+        "name" : "currency",
+        "fieldType" : "VARCHAR(2147483647) NOT NULL"
       }, {
-        "rate" : "INT"
+        "name" : "rate",
+        "fieldType" : "INT"
       }, {
-        "rowtime" : {
+        "name" : "rowtime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
@@ -200,15 +165,16 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "currency" : "VARCHAR(2147483647) NOT NULL"
+        "name" : "currency",
+        "fieldType" : "VARCHAR(2147483647) NOT NULL"
       }, {
-        "rate" : "INT"
+        "name" : "rate",
+        "fieldType" : "INT"
       }, {
-        "rowtime" : {
+        "name" : "rowtime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
@@ -243,26 +209,29 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "amount" : "INT"
+        "name" : "amount",
+        "fieldType" : "INT"
       }, {
-        "currency" : "VARCHAR(2147483647)"
+        "name" : "currency",
+        "fieldType" : "VARCHAR(2147483647)"
       }, {
-        "rowtime" : {
+        "name" : "rowtime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
       }, {
-        "currency0" : "VARCHAR(2147483647) NOT NULL"
+        "name" : "currency0",
+        "fieldType" : "VARCHAR(2147483647) NOT NULL"
       }, {
-        "rate" : "INT"
+        "name" : "rate",
+        "fieldType" : "INT"
       }, {
-        "rowtime0" : {
+        "name" : "rowtime0",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
@@ -281,22 +250,13 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 0,
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : true
-        }
+        "type" : "INT"
       }, {
         "kind" : "INPUT_REF",
         "inputIndex" : 4,
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : true
-        }
+        "type" : "INT"
       } ],
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     } ],
     "condition" : null,
     "id" : 8,
@@ -307,13 +267,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "EXPR$0" : "INT"
-      } ]
-    },
+    "outputType" : "ROW<`EXPR$0` INT>",
     "description" : "Calc(select=[(amount * rate) AS EXPR$0])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -339,13 +293,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "EXPR$0" : "INT"
-      } ]
-    },
+    "outputType" : "ROW<`EXPR$0` INT>",
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[EXPR$0])"
   } ],
   "edges" : [ {

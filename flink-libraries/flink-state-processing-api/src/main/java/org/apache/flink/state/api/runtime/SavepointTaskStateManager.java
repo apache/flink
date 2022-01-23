@@ -103,7 +103,7 @@ final class SavepointTaskStateManager implements TaskStateManager {
     @Nullable
     @Override
     public StateChangelogStorage<?> getStateChangelogStorage() {
-        throw new UnsupportedOperationException(MSG);
+        return null;
     }
 
     @Override

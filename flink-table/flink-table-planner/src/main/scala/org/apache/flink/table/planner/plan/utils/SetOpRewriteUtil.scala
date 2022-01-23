@@ -18,29 +18,23 @@
 
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.functions.FunctionIdentifier
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalRowType
-import org.apache.flink.table.planner.functions.tablefunctions.ReplicateRows
-import org.apache.flink.table.planner.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
-import org.apache.flink.table.planner.plan.schema.TypedFlinkTableFunction
-import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
-import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.runtime.functions.table.ReplicateRowsFunction
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{JoinRelType, SetOp}
-import org.apache.calcite.rel.logical.LogicalTableFunctionScan
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.Util
 
 import java.util
-
-import scala.collection.JavaConversions._
+import java.util.Collections
 
 /**
   * Util class that rewrite [[SetOp]].
@@ -75,47 +69,24 @@ object SetOpRewriteUtil {
     * and the rest are the row fields.
     */
   def replicateRows(
-      builder: RelBuilder, outputType: RelDataType, fields: util.List[Integer]): RelNode = {
-    // construct LogicalTableFunctionScan
-    val logicalType = toLogicalRowType(outputType)
-    val fieldNames = outputType.getFieldNames.toSeq.toArray
-    val fieldTypes = logicalType.getChildren.map(fromLogicalTypeToTypeInfo).toArray
-    val tf = new ReplicateRows(fieldTypes)
-    val resultType = fromLegacyInfoToDataType(new RowTypeInfo(fieldTypes, fieldNames))
-    val function = new TypedFlinkTableFunction(tf, fieldNames, resultType)
-    val typeFactory = builder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val sqlFunction = new TableSqlFunction(
-      FunctionIdentifier.of(tf.functionIdentifier),
-      tf.toString,
-      tf,
-      resultType,
-      typeFactory,
-      function)
+      relBuilder: RelBuilder,
+      outputRelDataType: RelDataType,
+      fields: util.List[Integer]): RelNode = {
+    val cluster = relBuilder.getCluster
 
-    val cluster = builder.peek().getCluster
-    // TODO use relBuilder.functionScan() once we remove TableSqlFunction
-    val scan = LogicalTableFunctionScan.create(
-      cluster,
-      new util.ArrayList[RelNode](),
-      builder.getRexBuilder
-        .makeCall(
-          function.getRowType(typeFactory),
-          sqlFunction,
-          builder.fields(Util.range(fields.size() + 1))),
-      function.getElementType(null),
-      UserDefinedFunctionUtils.buildRelDataType(
-        builder.getTypeFactory,
-        logicalType,
-        fieldNames,
-        fieldNames.indices.toArray),
-      null)
-    builder.push(scan)
+    val sqlFunction = BridgingSqlFunction.of(
+      relBuilder.getCluster,
+      BuiltInFunctionDefinitions.INTERNAL_REPLICATE_ROWS)
+
+    relBuilder
+      .functionScan(sqlFunction, 0, relBuilder.fields(Util.range(fields.size() + 1)))
+      .rename(outputRelDataType.getFieldNames)
 
     // correlated join
-    val corSet = Set(cluster.createCorrel())
-    val output = builder
-        .join(JoinRelType.INNER, builder.literal(true), corSet)
-        .project(builder.fields(Util.range(fields.size() + 1, fields.size() * 2 + 1)))
+    val corSet = Collections.singleton(cluster.createCorrel())
+    val output = relBuilder
+        .join(JoinRelType.INNER, relBuilder.literal(true), corSet)
+        .project(relBuilder.fields(Util.range(fields.size() + 1, fields.size() * 2 + 1)))
         .build()
     output
   }

@@ -85,7 +85,7 @@ public class SavepointSnapshotStrategy<K>
     static CheckpointStreamWithResultProvider createSimpleStream(
             @Nonnull CheckpointStreamFactory primaryStreamFactory) throws IOException {
 
-        CheckpointStreamFactory.CheckpointStateOutputStream primaryOut =
+        CheckpointStateOutputStream primaryOut =
                 primaryStreamFactory.createCheckpointStateOutputStream(
                         CheckpointedStateScope.EXCLUSIVE);
 

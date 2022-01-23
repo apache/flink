@@ -17,25 +17,23 @@
  */
 
 import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   ElementRef,
   OnDestroy,
-  ChangeDetectionStrategy,
-  ViewChild,
-  ChangeDetectorRef,
-  AfterViewInit
+  ViewChild
 } from '@angular/core';
 import { Subject } from 'rxjs';
 import { distinctUntilChanged, filter, takeUntil } from 'rxjs/operators';
 
-import { Chart } from '@antv/g2';
 import * as G2 from '@antv/g2';
+import { Chart } from '@antv/g2';
 
-import { COLOR_MAP } from 'config';
-import { JobDetailCorrectInterface, SafeAny, VerticesItemRangeInterface } from 'interfaces';
+import { COLOR_MAP, ColorKey } from 'config';
+import { JobDetailCorrect, VerticesItemRange } from 'interfaces';
 import { JobService } from 'services';
-
-/// <reference path="../../../../../node_modules/@antv/g2/src/index.d.ts" />
 
 @Component({
   selector: 'flink-job-timeline',
@@ -44,18 +42,66 @@ import { JobService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobTimelineComponent implements AfterViewInit, OnDestroy {
-  destroy$ = new Subject();
-  listOfVertex: VerticesItemRangeInterface[] = [];
-  listOfSubTaskTimeLine: Array<{ name: string; status: string; range: [number, number] }> = [];
-  mainChartInstance: Chart;
-  subTaskChartInstance: Chart;
-  jobDetail: JobDetailCorrectInterface;
-  selectedName: string;
-  isShowSubTaskTimeLine = false;
-  @ViewChild('mainTimeLine', { static: true }) mainTimeLine: ElementRef;
-  @ViewChild('subTaskTimeLine', { static: true }) subTaskTimeLine: ElementRef;
+  public listOfVertex: VerticesItemRange[] = [];
+  public listOfSubTaskTimeLine: Array<{ name: string; status: string; range: [number, number] }> = [];
+  public mainChartInstance: Chart;
+  public subTaskChartInstance: Chart;
+  public jobDetail: JobDetailCorrect;
+  public selectedName: string;
+  public isShowSubTaskTimeLine = false;
 
-  updateSubTaskChart(vertexId: string): void {
+  @ViewChild('mainTimeLine', { static: true }) private readonly mainTimeLine: ElementRef;
+  @ViewChild('subTaskTimeLine', { static: true }) private readonly subTaskTimeLine: ElementRef;
+
+  private readonly destroy$ = new Subject<void>();
+
+  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
+
+  public ngAfterViewInit(): void {
+    this.setUpMainChart();
+    this.setUpSubTaskChart();
+    this.jobService.jobDetail$
+      .pipe(
+        filter(() => !!this.mainChartInstance),
+        distinctUntilChanged((pre, next) => pre.jid === next.jid),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(data => {
+        this.jobDetail = data;
+        this.listOfVertex = data.vertices
+          .filter(v => v['start-time'] > -1)
+          .map(vertex => {
+            const endTime = vertex['end-time'] > -1 ? vertex['end-time'] : vertex['start-time'] + vertex.duration;
+            return {
+              ...vertex,
+              range: [vertex['start-time'], endTime]
+            };
+          });
+        this.listOfVertex = this.listOfVertex.sort((a, b) => a.range[0] - b.range[0]);
+        this.mainChartInstance.changeSize(
+          this.mainChartInstance.width,
+          Math.max(this.listOfVertex.length * 50 + 100, 150)
+        );
+        this.mainChartInstance.data(this.listOfVertex);
+        this.mainChartInstance.scale({
+          range: {
+            alias: 'Time',
+            type: 'time',
+            mask: 'HH:mm:ss',
+            nice: false
+          }
+        });
+        this.mainChartInstance.render();
+        this.cdr.markForCheck();
+      });
+  }
+
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  public updateSubTaskChart(vertexId: string): void {
     this.listOfSubTaskTimeLine = [];
     this.jobService.loadSubTaskTimes(this.jobDetail.jid, vertexId).subscribe(data => {
       data.subtasks.forEach(task => {
@@ -87,8 +133,12 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
           }
         });
       });
-      this.subTaskChartInstance.changeHeight(Math.max(data.subtasks.length * 50 + 100, 150));
-      this.subTaskChartInstance.source(this.listOfSubTaskTimeLine, {
+      this.subTaskChartInstance.changeSize(
+        this.subTaskChartInstance.width,
+        Math.max(data.subtasks.length * 50 + 100, 150)
+      );
+      this.subTaskChartInstance.data(this.listOfSubTaskTimeLine);
+      this.subTaskChartInstance.scale({
         range: {
           alias: 'Time',
           type: 'time',
@@ -101,115 +151,75 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
       this.cdr.markForCheck();
       setTimeout(() => {
         try {
-          (document.getElementById('subtask') as SafeAny).scrollIntoViewIfNeeded();
+          // FIXME scrollIntoViewIfNeeded is a non-standard extension and will not work everywhere
+          (
+            document.getElementById('subtask') as unknown as {
+              scrollIntoViewIfNeeded: () => void;
+            }
+          ).scrollIntoViewIfNeeded();
         } catch (e) {}
       });
     });
   }
 
-  setUpMainChart(): void {
+  public setUpMainChart(): void {
     this.mainChartInstance = new G2.Chart({
       container: this.mainTimeLine.nativeElement,
-      forceFit: true,
-      animate: false,
+      autoFit: true,
       height: 500,
       padding: [50, 50, 50, 50]
     });
+    this.mainChartInstance.animate(false);
     this.mainChartInstance.axis('id', false);
-    this.mainChartInstance
-      .coord('rect')
-      .transpose()
-      .scale(1, -1);
+    this.mainChartInstance.coordinate('rect').transpose().scale(1, -1);
     this.mainChartInstance
       .interval()
       .position('id*range')
-      // @ts-ignore
-      .color('status', (type: SafeAny) => COLOR_MAP[type])
+      .color('status', (type: string) => COLOR_MAP[type as ColorKey])
       .label('name', {
         offset: -20,
-        formatter: (text: string) => {
-          if (text.length <= 120) {
-            return text;
-          } else {
-            return `${text.slice(0, 120)}...`;
-          }
-        },
-        textStyle: {
+        position: 'right',
+        style: {
           fill: '#ffffff',
           textAlign: 'right',
           fontWeight: 'bold'
+        },
+        content: data => {
+          if (data.name.length <= 120) {
+            return data.name;
+          } else {
+            return `${data.name.slice(0, 120)}...`;
+          }
         }
       });
     this.mainChartInstance.tooltip({
       title: 'name'
     });
-    this.mainChartInstance.on('click', (e: SafeAny) => {
+    this.mainChartInstance.on('click', (e: { x: number; y: number }) => {
       if (this.mainChartInstance.getSnapRecords(e).length) {
-        const data = (this.mainChartInstance.getSnapRecords(e)[0] as SafeAny)._origin;
+        const data = (
+          this.mainChartInstance.getSnapRecords(e)[0] as unknown as {
+            _origin: { name: string; id: string };
+          }
+        )._origin;
         this.selectedName = data.name;
         this.updateSubTaskChart(data.id);
       }
     });
   }
 
-  setUpSubTaskChart(): void {
+  public setUpSubTaskChart(): void {
     this.subTaskChartInstance = new G2.Chart({
       container: this.subTaskTimeLine.nativeElement,
-      forceFit: true,
+      autoFit: true,
       height: 10,
-      animate: false,
       padding: [50, 50, 50, 300]
     });
-    this.subTaskChartInstance
-      .coord('rect')
-      .transpose()
-      .scale(1, -1);
+    this.subTaskChartInstance.animate(false);
+    this.subTaskChartInstance.coordinate('rect').transpose().scale(1, -1);
     this.subTaskChartInstance
       .interval()
       .position('name*range')
-      // @ts-ignore
-      .color('status', (type: SafeAny) => COLOR_MAP[type]);
-  }
-
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
-
-  ngAfterViewInit(): void {
-    this.setUpMainChart();
-    this.setUpSubTaskChart();
-    this.jobService.jobDetail$
-      .pipe(
-        filter(() => !!this.mainChartInstance),
-        distinctUntilChanged((pre, next) => pre.jid === next.jid),
-        takeUntil(this.destroy$)
-      )
-      .subscribe(data => {
-        this.jobDetail = data;
-        this.listOfVertex = data.vertices
-          .filter(v => v['start-time'] > -1)
-          .map(vertex => {
-            const endTime = vertex['end-time'] > -1 ? vertex['end-time'] : vertex['start-time'] + vertex.duration;
-            return {
-              ...vertex,
-              range: [vertex['start-time'], endTime]
-            };
-          });
-        this.listOfVertex = this.listOfVertex.sort((a, b) => a.range[0] - b.range[0]);
-        this.mainChartInstance.changeHeight(Math.max(this.listOfVertex.length * 50 + 100, 150));
-        this.mainChartInstance.source(this.listOfVertex, {
-          range: {
-            alias: 'Time',
-            type: 'time',
-            mask: 'HH:mm:ss',
-            nice: false
-          }
-        });
-        this.mainChartInstance.render();
-        this.cdr.markForCheck();
-      });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+      .color('status', (type: string) => COLOR_MAP[type as ColorKey]);
   }
 }

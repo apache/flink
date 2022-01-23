@@ -16,23 +16,22 @@
  * limitations under the License.
  */
 
-import { HttpClient, HttpRequest, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpEvent, HttpParams, HttpRequest } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import { BASE_URL } from 'config';
-import { JarListInterface, NodesItemCorrectInterface, PlanInterface, SafeAny, VerticesLinkInterface } from 'interfaces';
+import { JarList, NodesItemCorrect, Plan, VerticesLink } from 'interfaces';
 
 @Injectable({
   providedIn: 'root'
 })
 export class JarService {
-  /**
-   * Get uploaded jar list
-   */
-  loadJarList(): Observable<JarListInterface> {
-    return this.httpClient.get<JarListInterface>(`${BASE_URL}/jars`).pipe(
+  constructor(private readonly httpClient: HttpClient) {}
+
+  public loadJarList(): Observable<JarList> {
+    return this.httpClient.get<JarList>(`${BASE_URL}/jars`).pipe(
       catchError(() => {
         return of({
           address: '',
@@ -43,12 +42,7 @@ export class JarService {
     );
   }
 
-  /**
-   * Upload jar
-   *
-   * @param fd
-   */
-  uploadJar(fd: File): Observable<SafeAny> {
+  public uploadJar(fd: File): Observable<HttpEvent<unknown>> {
     const formData = new FormData();
     formData.append('jarfile', fd, fd.name);
     const req = new HttpRequest('POST', `${BASE_URL}/jars/upload`, formData, {
@@ -57,26 +51,11 @@ export class JarService {
     return this.httpClient.request(req);
   }
 
-  /**
-   * Delete jar
-   *
-   * @param jarId
-   */
-  deleteJar(jarId: string): Observable<SafeAny> {
-    return this.httpClient.delete(`${BASE_URL}/jars/${jarId}`);
+  public deleteJar(jarId: string): Observable<void> {
+    return this.httpClient.delete<void>(`${BASE_URL}/jars/${jarId}`);
   }
 
-  /**
-   * Run job
-   *
-   * @param jarId
-   * @param entryClass
-   * @param parallelism
-   * @param programArgs
-   * @param savepointPath
-   * @param allowNonRestoredState
-   */
-  runJob(
+  public runJob(
     jarId: string,
     entryClass: string,
     parallelism: string,
@@ -104,20 +83,12 @@ export class JarService {
     return this.httpClient.post<{ jobid: string }>(`${BASE_URL}/jars/${jarId}/run`, requestParam, { params });
   }
 
-  /**
-   * Get plan json from jar
-   *
-   * @param jarId
-   * @param entryClass
-   * @param parallelism
-   * @param programArgs
-   */
-  getPlan(
+  public getPlan(
     jarId: string,
     entryClass: string,
     parallelism: string,
     programArgs: string
-  ): Observable<{ nodes: NodesItemCorrectInterface[]; links: VerticesLinkInterface[] }> {
+  ): Observable<{ nodes: NodesItemCorrect[]; links: VerticesLink[] }> {
     let params = new HttpParams();
     if (entryClass) {
       params = params.append('entry-class', entryClass);
@@ -128,31 +99,27 @@ export class JarService {
     if (programArgs) {
       params = params.append('program-args', programArgs);
     }
-    return this.httpClient
-      .get<PlanInterface>(`${BASE_URL}/jars/${jarId}/plan`, { params })
-      .pipe(
-        map(data => {
-          const links: VerticesLinkInterface[] = [];
-          let nodes: NodesItemCorrectInterface[] = [];
-          if (data.plan.nodes.length) {
-            nodes = data.plan.nodes.map(node => {
-              return {
-                ...node,
-                detail: undefined
-              };
-            });
-            nodes.forEach(node => {
-              if (node.inputs && node.inputs.length) {
-                node.inputs.forEach(input => {
-                  links.push({ ...input, source: input.id, target: node.id, id: `${input.id}-${node.id}` });
-                });
-              }
-            });
-          }
-          return { nodes, links };
-        })
-      );
+    return this.httpClient.get<Plan>(`${BASE_URL}/jars/${jarId}/plan`, { params }).pipe(
+      map(data => {
+        const links: VerticesLink[] = [];
+        let nodes: NodesItemCorrect[] = [];
+        if (data.plan.nodes.length) {
+          nodes = data.plan.nodes.map(node => {
+            return {
+              ...node,
+              detail: undefined
+            };
+          });
+          nodes.forEach(node => {
+            if (node.inputs && node.inputs.length) {
+              node.inputs.forEach(input => {
+                links.push({ ...input, source: input.id, target: node.id, id: `${input.id}-${node.id}` });
+              });
+            }
+          });
+        }
+        return { nodes, links };
+      })
+    );
   }
-
-  constructor(private httpClient: HttpClient) {}
 }

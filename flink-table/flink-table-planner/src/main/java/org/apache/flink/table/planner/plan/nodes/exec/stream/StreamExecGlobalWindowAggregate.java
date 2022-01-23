@@ -27,8 +27,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -41,6 +39,8 @@ import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
+import org.apache.flink.table.runtime.groupwindow.WindowProperty;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.window.SlicingWindowAggOperatorBuilder;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
@@ -82,7 +82,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
     private final WindowingStrategy windowing;
 
     @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
-    private final PlannerNamedWindowProperty[] namedWindowProperties;
+    private final NamedWindowProperty[] namedWindowProperties;
 
     /** The input row type of this node's local agg. */
     @JsonProperty(FIELD_NAME_LOCAL_AGG_INPUT_ROW_TYPE)
@@ -94,7 +94,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
             int[] grouping,
             AggregateCall[] aggCalls,
             WindowingStrategy windowing,
-            PlannerNamedWindowProperty[] namedWindowProperties,
+            NamedWindowProperty[] namedWindowProperties,
             InputProperty inputProperty,
             RowType localAggInputRowType,
             RowType outputType,
@@ -117,7 +117,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
             @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
             @JsonProperty(FIELD_NAME_WINDOWING) WindowingStrategy windowing,
             @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
-                    PlannerNamedWindowProperty[] namedWindowProperties,
+                    NamedWindowProperty[] namedWindowProperties,
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_LOCAL_AGG_INPUT_ROW_TYPE) RowType localAggInputRowType,
@@ -222,7 +222,8 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getDescription(),
+                        getOperatorName(planner.getTableConfig()),
+                        getOperatorDescription(planner.getTableConfig()),
                         SimpleOperatorFactory.of(windowOperator),
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism(),
@@ -253,11 +254,11 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                         .needAccumulate()
                         .needMerge(mergedAccOffset, mergedAccIsOnHeap, mergedAccExternalTypes);
 
-        final List<PlannerWindowProperty> windowProperties =
+        final List<WindowProperty> windowProperties =
                 Arrays.asList(
                         Arrays.stream(namedWindowProperties)
-                                .map(PlannerNamedWindowProperty::getProperty)
-                                .toArray(PlannerWindowProperty[]::new));
+                                .map(NamedWindowProperty::getProperty)
+                                .toArray(WindowProperty[]::new));
 
         return generator.generateNamespaceAggsHandler(
                 name,

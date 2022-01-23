@@ -53,6 +53,9 @@ public interface KubernetesParameters {
     /** A collection of labels that are attached to the JobManager and TaskManager Pod(s). */
     Map<String, String> getLabels();
 
+    /** A stable subset of labels attached to the resource to select the related resources. */
+    Map<String, String> getSelectors();
+
     /**
      * A collection of node selector to constrain a pod to only be able to run on particular
      * node(s).
@@ -79,7 +82,7 @@ public interface KubernetesParameters {
     String getFlinkConfDirInPod();
 
     /** Directory in Pod that saves the log files. */
-    String getFlinkLogDirInPod();
+    Optional<String> getFlinkLogDirInPod();
 
     /** The docker entrypoint that starts processes in the container. */
     String getContainerEntrypoint();

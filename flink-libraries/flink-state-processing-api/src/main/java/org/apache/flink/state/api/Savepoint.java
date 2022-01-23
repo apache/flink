@@ -38,8 +38,14 @@ import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.UPPER_BOUND
  *
  * @see ExistingSavepoint
  * @see NewSavepoint
+ * @see SavepointReader
+ * @see SavepointWriter
+ * @deprecated For creating a new savepoint, use {@link SavepointWriter} and the data stream api
+ *     under batch execution. For reading a savepoint, use {@link SavepointReader} and the data
+ *     stream api under batch execution.
  */
 @PublicEvolving
+@Deprecated
 public final class Savepoint {
 
     private Savepoint() {}

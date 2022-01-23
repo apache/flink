@@ -18,7 +18,7 @@
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input } from '@angular/core';
 
-import { NodesItemCorrectInterface } from 'interfaces';
+import { NodesItemCorrect } from 'interfaces';
 
 @Component({
   selector: '[flink-node]',
@@ -52,8 +52,11 @@ export class NodeComponent {
   }
 
   @Input()
-  set node(value: NodesItemCorrectInterface) {
-    const description = this.decodeHTML(value.description);
+  set node(value: NodesItemCorrect) {
+    let description = this.decodeHTML(value.description);
+    if (value.detail) {
+      description = this.decodeHTML(value.detail.name);
+    }
     this.operator = this.decodeHTML(value.operator);
     this.operatorStrategy = this.decodeHTML(value.operator_strategy);
     this.parallelism = value.parallelism;
@@ -132,7 +135,7 @@ export class NodeComponent {
    *
    * @param node
    */
-  update(node: NodesItemCorrectInterface): void {
+  update(node: NodesItemCorrect): void {
     this.node = node;
     this.backgroundColor = this.backgroundDefaultColor;
     this.borderColor = this.borderDefaultColor;

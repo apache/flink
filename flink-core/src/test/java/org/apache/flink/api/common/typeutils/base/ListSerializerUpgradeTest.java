@@ -18,11 +18,11 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.hamcrest.Matcher;
 import org.junit.runner.RunWith;
@@ -50,11 +50,11 @@ public class ListSerializerUpgradeTest
     public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             SPEC_NAME,
-                            migrationVersion,
+                            flinkVersion,
                             ListSerializerSetup.class,
                             ListSerializerVerifier.class));
         }
@@ -107,7 +107,7 @@ public class ListSerializerUpgradeTest
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<List<String>>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }

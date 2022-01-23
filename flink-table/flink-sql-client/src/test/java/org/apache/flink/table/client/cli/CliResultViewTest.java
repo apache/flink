@@ -35,6 +35,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 
 import org.jline.reader.MaskingCallback;
 import org.jline.terminal.Terminal;
@@ -99,12 +100,15 @@ public class CliResultViewTest {
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLE);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
         String sessionId = executor.openSession("test-session");
+        ResolvedSchema schema =
+                ResolvedSchema.of(Column.physical("Null Field", DataTypes.STRING()));
         final ResultDescriptor descriptor =
                 new ResultDescriptor(
                         "result-id",
-                        ResolvedSchema.of(Column.physical("Null Field", DataTypes.STRING())),
+                        schema,
                         false,
-                        testConfig);
+                        testConfig,
+                        new RowDataToStringConverterImpl(schema.toPhysicalRowDataType()));
 
         try (CliClient cli =
                 new TestingCliClient(

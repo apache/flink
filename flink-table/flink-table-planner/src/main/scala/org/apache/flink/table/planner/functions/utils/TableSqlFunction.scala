@@ -19,7 +19,8 @@
 package org.apache.flink.table.planner.functions.utils
 
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.functions.{FunctionIdentifier, TableFunction}
+import org.apache.flink.table.functions.UserDefinedFunctionHelper.generateInlineFunctionName
+import org.apache.flink.table.functions.{FunctionIdentifier, TableFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction._
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
@@ -58,7 +59,7 @@ class TableSqlFunction(
     operandMetadata: Option[SqlOperandMetadata] = None)
   extends SqlUserDefinedTableFunction(
     Option(identifier).map(id => new SqlIdentifier(id.toList, SqlParserPos.ZERO))
-      .getOrElse(new SqlIdentifier(udtf.functionIdentifier(), SqlParserPos.ZERO)),
+      .getOrElse(new SqlIdentifier(generateInlineFunctionName(udtf), SqlParserPos.ZERO)),
     SqlKind.OTHER_FUNCTION,
     ReturnTypes.CURSOR,
     // type inference has the UNKNOWN operand types.

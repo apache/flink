@@ -42,7 +42,7 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let taskManager of table.data; trackBy: trackTaskManagerBy">
+    <tr *ngFor="let taskManager of table.data; trackBy: trackByHost">
       <td nzLeft="0px">{{ taskManager.host }}</td>
       <td nzLeft="160px">
         <span

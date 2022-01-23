@@ -73,7 +73,7 @@ import { NzLayoutModule } from 'ng-zorro-antd/layout';
 import { NzMenuModule } from 'ng-zorro-antd/menu';
 import { NzNotificationModule } from 'ng-zorro-antd/notification';
 
-import { ConfigurationInterface } from 'interfaces';
+import { Configuration } from 'interfaces';
 import { StatusService } from 'services';
 
 import { AppRoutingModule } from './app-routing.module';
@@ -82,10 +82,7 @@ import { AppInterceptor } from './app.interceptor';
 
 registerLocaleData(en);
 
-export function AppInitServiceFactory(
-  statusService: StatusService,
-  injector: Injector
-): () => Promise<ConfigurationInterface> {
+export function AppInitServiceFactory(statusService: StatusService, injector: Injector): () => Promise<Configuration> {
   return () => {
     return statusService.boot(injector.get<Router>(Router));
   };

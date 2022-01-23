@@ -24,11 +24,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.VoidPermanentBlobService;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
+import org.apache.flink.runtime.testutils.WorkingDirectoryResource;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
@@ -45,7 +47,9 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private static final int TOTAL_FLINK_MEMORY_MB = 1024;
+    @ClassRule
+    public static final WorkingDirectoryResource WORKING_DIRECTORY_RESOURCE =
+            new WorkingDirectoryResource();
 
     /**
      * This tests that the creation of {@link TaskManagerServices} correctly creates the local state
@@ -70,7 +74,9 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
         config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
 
         TaskManagerServices taskManagerServices =
-                createTaskManagerServices(createTaskManagerServiceConfiguration(config));
+                createTaskManagerServices(
+                        createTaskManagerServiceConfiguration(
+                                config, WORKING_DIRECTORY_RESOURCE.createNewWorkingDirectory()));
 
         try {
             TaskExecutorLocalStateStoresManager taskStateManager =
@@ -106,8 +112,10 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
         final Configuration config = new Configuration();
 
+        final WorkingDirectory workingDirectory =
+                WORKING_DIRECTORY_RESOURCE.createNewWorkingDirectory();
         TaskManagerServicesConfiguration taskManagerServicesConfiguration =
-                createTaskManagerServiceConfiguration(config);
+                createTaskManagerServiceConfiguration(config, workingDirectory);
 
         TaskManagerServices taskManagerServices =
                 createTaskManagerServices(taskManagerServicesConfiguration);
@@ -116,13 +124,13 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
             TaskExecutorLocalStateStoresManager taskStateManager =
                     taskManagerServices.getTaskManagerStateStore();
 
-            String[] tmpDirPaths = taskManagerServicesConfiguration.getTmpDirPaths();
             File[] localStateRootDirectories = taskStateManager.getLocalStateRootDirectories();
 
-            for (int i = 0; i < tmpDirPaths.length; ++i) {
+            for (int i = 0; i < localStateRootDirectories.length; ++i) {
                 Assert.assertEquals(
                         new File(
-                                tmpDirPaths[i], TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT),
+                                workingDirectory.getLocalStateDirectory(),
+                                TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT),
                         localStateRootDirectories[i]);
             }
 
@@ -231,13 +239,14 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
     }
 
     private TaskManagerServicesConfiguration createTaskManagerServiceConfiguration(
-            Configuration config) throws Exception {
+            Configuration config, WorkingDirectory workingDirectory) throws Exception {
         return TaskManagerServicesConfiguration.fromConfiguration(
                 config,
                 ResourceID.generate(),
                 InetAddress.getLocalHost().getHostName(),
                 true,
-                TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(config));
+                TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(config),
+                workingDirectory);
     }
 
     private TaskManagerServices createTaskManagerServices(TaskManagerServicesConfiguration config)

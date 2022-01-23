@@ -29,10 +29,10 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.data.ArrayData;
-import org.apache.flink.table.data.ColumnarArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinarySegmentUtils;
+import org.apache.flink.table.data.columnar.ColumnarArrayData;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.data.writer.BinaryWriter;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -125,7 +125,9 @@ public class ArrayDataSerializer extends TypeSerializer<ArrayData> {
                                     LogicalTypeUtils.toInternalConversionClass(eleType),
                                     array.size());
             for (int i = 0; i < array.size(); i++) {
-                newArray[i] = eleSer.copy(objectArray[i]);
+                if (objectArray[i] != null) {
+                    newArray[i] = eleSer.copy(objectArray[i]);
+                }
             }
             return new GenericArrayData(newArray);
         }

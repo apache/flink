@@ -34,21 +34,23 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WindowGroupedTable;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.delegation.ExpressionParser;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ExpressionParser;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.resolver.LookupCallResolver;
 import org.apache.flink.table.functions.TemporalTableFunction;
 import org.apache.flink.table.functions.TemporalTableFunctionImpl;
-import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils.CategorizedExpressions;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
@@ -120,7 +122,8 @@ public class TableImpl implements Table {
 
     @Override
     public Table select(String fields) {
-        return select(ExpressionParser.parseExpressionList(fields).toArray(new Expression[0]));
+        return select(
+                ExpressionParser.INSTANCE.parseExpressionList(fields).toArray(new Expression[0]));
     }
 
     @Override
@@ -151,8 +154,8 @@ public class TableImpl implements Table {
     public TemporalTableFunction createTemporalTableFunction(
             String timeAttribute, String primaryKey) {
         return createTemporalTableFunction(
-                ExpressionParser.parseExpression(timeAttribute),
-                ExpressionParser.parseExpression(primaryKey));
+                ExpressionParser.INSTANCE.parseExpression(timeAttribute),
+                ExpressionParser.INSTANCE.parseExpression(primaryKey));
     }
 
     @Override
@@ -171,7 +174,7 @@ public class TableImpl implements Table {
     public Table as(String field, String... fields) {
         final List<Expression> fieldsExprs;
         if (fields.length == 0 && operationTree.getResolvedSchema().getColumnCount() > 1) {
-            fieldsExprs = ExpressionParser.parseExpressionList(field);
+            fieldsExprs = ExpressionParser.INSTANCE.parseExpressionList(field);
         } else {
             fieldsExprs = new ArrayList<>();
             fieldsExprs.add(lit(field));
@@ -189,7 +192,7 @@ public class TableImpl implements Table {
 
     @Override
     public Table filter(String predicate) {
-        return filter(ExpressionParser.parseExpression(predicate));
+        return filter(ExpressionParser.INSTANCE.parseExpression(predicate));
     }
 
     @Override
@@ -210,7 +213,7 @@ public class TableImpl implements Table {
 
     @Override
     public GroupedTable groupBy(String fields) {
-        return new GroupedTableImpl(this, ExpressionParser.parseExpressionList(fields));
+        return new GroupedTableImpl(this, ExpressionParser.INSTANCE.parseExpressionList(fields));
     }
 
     @Override
@@ -230,7 +233,7 @@ public class TableImpl implements Table {
 
     @Override
     public Table join(Table right, String joinPredicate) {
-        return join(right, ExpressionParser.parseExpression(joinPredicate));
+        return join(right, ExpressionParser.INSTANCE.parseExpression(joinPredicate));
     }
 
     @Override
@@ -245,7 +248,7 @@ public class TableImpl implements Table {
 
     @Override
     public Table leftOuterJoin(Table right, String joinPredicate) {
-        return leftOuterJoin(right, ExpressionParser.parseExpression(joinPredicate));
+        return leftOuterJoin(right, ExpressionParser.INSTANCE.parseExpression(joinPredicate));
     }
 
     @Override
@@ -255,7 +258,7 @@ public class TableImpl implements Table {
 
     @Override
     public Table rightOuterJoin(Table right, String joinPredicate) {
-        return rightOuterJoin(right, ExpressionParser.parseExpression(joinPredicate));
+        return rightOuterJoin(right, ExpressionParser.INSTANCE.parseExpression(joinPredicate));
     }
 
     @Override
@@ -265,7 +268,7 @@ public class TableImpl implements Table {
 
     @Override
     public Table fullOuterJoin(Table right, String joinPredicate) {
-        return fullOuterJoin(right, ExpressionParser.parseExpression(joinPredicate));
+        return fullOuterJoin(right, ExpressionParser.INSTANCE.parseExpression(joinPredicate));
     }
 
     @Override
@@ -297,7 +300,7 @@ public class TableImpl implements Table {
 
     @Override
     public Table joinLateral(String tableFunctionCall) {
-        return joinLateral(ExpressionParser.parseExpression(tableFunctionCall));
+        return joinLateral(ExpressionParser.INSTANCE.parseExpression(tableFunctionCall));
     }
 
     @Override
@@ -308,8 +311,8 @@ public class TableImpl implements Table {
     @Override
     public Table joinLateral(String tableFunctionCall, String joinPredicate) {
         return joinLateral(
-                ExpressionParser.parseExpression(tableFunctionCall),
-                ExpressionParser.parseExpression(joinPredicate));
+                ExpressionParser.INSTANCE.parseExpression(tableFunctionCall),
+                ExpressionParser.INSTANCE.parseExpression(joinPredicate));
     }
 
     @Override
@@ -319,7 +322,7 @@ public class TableImpl implements Table {
 
     @Override
     public Table leftOuterJoinLateral(String tableFunctionCall) {
-        return leftOuterJoinLateral(ExpressionParser.parseExpression(tableFunctionCall));
+        return leftOuterJoinLateral(ExpressionParser.INSTANCE.parseExpression(tableFunctionCall));
     }
 
     @Override
@@ -330,8 +333,8 @@ public class TableImpl implements Table {
     @Override
     public Table leftOuterJoinLateral(String tableFunctionCall, String joinPredicate) {
         return leftOuterJoinLateral(
-                ExpressionParser.parseExpression(tableFunctionCall),
-                ExpressionParser.parseExpression(joinPredicate));
+                ExpressionParser.INSTANCE.parseExpression(tableFunctionCall),
+                ExpressionParser.INSTANCE.parseExpression(joinPredicate));
     }
 
     @Override
@@ -406,7 +409,7 @@ public class TableImpl implements Table {
     public Table orderBy(String fields) {
         return createTable(
                 operationTreeBuilder.sort(
-                        ExpressionParser.parseExpressionList(fields), operationTree));
+                        ExpressionParser.INSTANCE.parseExpressionList(fields), operationTree));
     }
 
     @Override
@@ -449,7 +452,7 @@ public class TableImpl implements Table {
 
     @Override
     public Table addColumns(String fields) {
-        return addColumnsOperation(false, ExpressionParser.parseExpressionList(fields));
+        return addColumnsOperation(false, ExpressionParser.INSTANCE.parseExpressionList(fields));
     }
 
     @Override
@@ -459,7 +462,7 @@ public class TableImpl implements Table {
 
     @Override
     public Table addOrReplaceColumns(String fields) {
-        return addColumnsOperation(true, ExpressionParser.parseExpressionList(fields));
+        return addColumnsOperation(true, ExpressionParser.INSTANCE.parseExpressionList(fields));
     }
 
     @Override
@@ -490,7 +493,7 @@ public class TableImpl implements Table {
     public Table renameColumns(String fields) {
         return createTable(
                 operationTreeBuilder.renameColumns(
-                        ExpressionParser.parseExpressionList(fields), operationTree));
+                        ExpressionParser.INSTANCE.parseExpressionList(fields), operationTree));
     }
 
     @Override
@@ -503,7 +506,7 @@ public class TableImpl implements Table {
     public Table dropColumns(String fields) {
         return createTable(
                 operationTreeBuilder.dropColumns(
-                        ExpressionParser.parseExpressionList(fields), operationTree));
+                        ExpressionParser.INSTANCE.parseExpressionList(fields), operationTree));
     }
 
     @Override
@@ -513,7 +516,7 @@ public class TableImpl implements Table {
 
     @Override
     public Table map(String mapFunction) {
-        return map(ExpressionParser.parseExpression(mapFunction));
+        return map(ExpressionParser.INSTANCE.parseExpression(mapFunction));
     }
 
     @Override
@@ -523,7 +526,7 @@ public class TableImpl implements Table {
 
     @Override
     public Table flatMap(String tableFunction) {
-        return flatMap(ExpressionParser.parseExpression(tableFunction));
+        return flatMap(ExpressionParser.INSTANCE.parseExpression(tableFunction));
     }
 
     @Override
@@ -533,7 +536,7 @@ public class TableImpl implements Table {
 
     @Override
     public AggregatedTable aggregate(String aggregateFunction) {
-        return aggregate(ExpressionParser.parseExpression(aggregateFunction));
+        return aggregate(ExpressionParser.INSTANCE.parseExpression(aggregateFunction));
     }
 
     @Override
@@ -562,16 +565,10 @@ public class TableImpl implements Table {
                 tableEnvironment.getParser().parseIdentifier(tablePath);
         ObjectIdentifier objectIdentifier =
                 tableEnvironment.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
+        ContextResolvedTable contextResolvedTable =
+                tableEnvironment.getCatalogManager().getTableOrError(objectIdentifier);
 
-        ModifyOperation operation =
-                new CatalogSinkModifyOperation(
-                        objectIdentifier,
-                        getQueryOperation(),
-                        Collections.emptyMap(),
-                        overwrite,
-                        Collections.emptyMap());
-
-        return tableEnvironment.executeInternal(Collections.singletonList(operation));
+        return executeInsert(contextResolvedTable, overwrite);
     }
 
     @Override
@@ -581,8 +578,6 @@ public class TableImpl implements Table {
 
     @Override
     public TableResult executeInsert(TableDescriptor descriptor, boolean overwrite) {
-        final String path = TableDescriptorUtil.getUniqueAnonymousPath();
-
         final SchemaTranslator.ConsumingResult schemaTranslationResult =
                 SchemaTranslator.createConsumingResult(
                         tableEnvironment.getCatalogManager().getDataTypeFactory(),
@@ -592,8 +587,25 @@ public class TableImpl implements Table {
         final TableDescriptor updatedDescriptor =
                 descriptor.toBuilder().schema(schemaTranslationResult.getSchema()).build();
 
-        tableEnvironment.createTemporaryTable(path, updatedDescriptor);
-        return executeInsert(path, overwrite);
+        final ResolvedCatalogTable resolvedCatalogBaseTable =
+                tableEnvironment
+                        .getCatalogManager()
+                        .resolveCatalogTable(updatedDescriptor.toCatalogTable());
+
+        return executeInsert(ContextResolvedTable.anonymous(resolvedCatalogBaseTable), overwrite);
+    }
+
+    private TableResultInternal executeInsert(
+            ContextResolvedTable contextResolvedTable, boolean overwrite) {
+        ModifyOperation operation =
+                new SinkModifyOperation(
+                        contextResolvedTable,
+                        getQueryOperation(),
+                        Collections.emptyMap(),
+                        overwrite,
+                        Collections.emptyMap());
+
+        return tableEnvironment.executeInternal(Collections.singletonList(operation));
     }
 
     @Override
@@ -642,7 +654,10 @@ public class TableImpl implements Table {
 
         @Override
         public Table select(String fields) {
-            return select(ExpressionParser.parseExpressionList(fields).toArray(new Expression[0]));
+            return select(
+                    ExpressionParser.INSTANCE
+                            .parseExpressionList(fields)
+                            .toArray(new Expression[0]));
         }
 
         @Override
@@ -666,7 +681,7 @@ public class TableImpl implements Table {
 
         @Override
         public AggregatedTable aggregate(String aggregateFunction) {
-            return aggregate(ExpressionParser.parseExpression(aggregateFunction));
+            return aggregate(ExpressionParser.INSTANCE.parseExpression(aggregateFunction));
         }
 
         @Override
@@ -676,7 +691,7 @@ public class TableImpl implements Table {
 
         @Override
         public FlatAggregateTable flatAggregate(String tableAggFunction) {
-            return flatAggregate(ExpressionParser.parseExpression(tableAggFunction));
+            return flatAggregate(ExpressionParser.INSTANCE.parseExpression(tableAggFunction));
         }
 
         @Override
@@ -699,7 +714,10 @@ public class TableImpl implements Table {
 
         @Override
         public Table select(String fields) {
-            return select(ExpressionParser.parseExpressionList(fields).toArray(new Expression[0]));
+            return select(
+                    ExpressionParser.INSTANCE
+                            .parseExpressionList(fields)
+                            .toArray(new Expression[0]));
         }
 
         @Override
@@ -729,7 +747,7 @@ public class TableImpl implements Table {
         public Table select(String fields) {
             return table.createTable(
                     table.operationTreeBuilder.project(
-                            ExpressionParser.parseExpressionList(fields),
+                            ExpressionParser.INSTANCE.parseExpressionList(fields),
                             table.operationTreeBuilder.tableAggregate(
                                     groupKey,
                                     tableAggregateFunction.accept(table.lookupResolver),
@@ -759,7 +777,10 @@ public class TableImpl implements Table {
 
         @Override
         public WindowGroupedTable groupBy(String fields) {
-            return groupBy(ExpressionParser.parseExpressionList(fields).toArray(new Expression[0]));
+            return groupBy(
+                    ExpressionParser.INSTANCE
+                            .parseExpressionList(fields)
+                            .toArray(new Expression[0]));
         }
 
         @Override
@@ -791,7 +812,10 @@ public class TableImpl implements Table {
 
         @Override
         public Table select(String fields) {
-            return select(ExpressionParser.parseExpressionList(fields).toArray(new Expression[0]));
+            return select(
+                    ExpressionParser.INSTANCE
+                            .parseExpressionList(fields)
+                            .toArray(new Expression[0]));
         }
 
         @Override
@@ -816,7 +840,7 @@ public class TableImpl implements Table {
 
         @Override
         public AggregatedTable aggregate(String aggregateFunction) {
-            return aggregate(ExpressionParser.parseExpression(aggregateFunction));
+            return aggregate(ExpressionParser.INSTANCE.parseExpression(aggregateFunction));
         }
 
         @Override
@@ -826,7 +850,7 @@ public class TableImpl implements Table {
 
         @Override
         public FlatAggregateTable flatAggregate(String tableAggregateFunction) {
-            return flatAggregate(ExpressionParser.parseExpression(tableAggregateFunction));
+            return flatAggregate(ExpressionParser.INSTANCE.parseExpression(tableAggregateFunction));
         }
 
         @Override
@@ -855,7 +879,10 @@ public class TableImpl implements Table {
 
         @Override
         public Table select(String fields) {
-            return select(ExpressionParser.parseExpressionList(fields).toArray(new Expression[0]));
+            return select(
+                    ExpressionParser.INSTANCE
+                            .parseExpressionList(fields)
+                            .toArray(new Expression[0]));
         }
 
         @Override
@@ -914,7 +941,10 @@ public class TableImpl implements Table {
 
         @Override
         public Table select(String fields) {
-            return select(ExpressionParser.parseExpressionList(fields).toArray(new Expression[0]));
+            return select(
+                    ExpressionParser.INSTANCE
+                            .parseExpressionList(fields)
+                            .toArray(new Expression[0]));
         }
 
         @Override
@@ -969,7 +999,7 @@ public class TableImpl implements Table {
         public Table select(String fields) {
             return table.createTable(
                     table.operationTreeBuilder.project(
-                            ExpressionParser.parseExpressionList(fields),
+                            ExpressionParser.INSTANCE.parseExpressionList(fields),
                             table.operationTree,
                             overWindows));
         }

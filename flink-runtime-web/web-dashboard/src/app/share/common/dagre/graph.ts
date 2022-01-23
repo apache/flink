@@ -20,11 +20,11 @@ import { curveLinear, line } from 'd3';
 import * as dagre from 'dagre';
 import { GraphEdge, graphlib } from 'dagre';
 
-import { NodesItemCorrectInterface, NodesItemLinkInterface, SafeAny } from 'interfaces';
+import { NodesItemCorrect, NodesItemLink } from 'interfaces';
 
 import Graph = graphlib.Graph;
 
-export interface LayoutNode extends NodesItemCorrectInterface {
+export interface LayoutNode extends NodesItemCorrect {
   x: number;
   y: number;
   width: number;
@@ -40,10 +40,10 @@ export interface LayoutNodeOptions {
   focused: boolean;
 }
 
-export interface LayoutLink extends NodesItemLinkInterface {
-  [key: string]: SafeAny;
+export interface LayoutLink extends NodesItemLink {
+  [key: string]: unknown;
 
-  detail: SafeAny;
+  detail: Record<string, unknown>;
   options: LayoutLinkOptions;
   points: Array<{ x: number; y: number }>;
 }
@@ -96,7 +96,7 @@ export class NzGraph {
     this.graph.setGraph({
       rankdir: 'LR',
       ...this.config
-    } as SafeAny);
+    });
     this.graph.setDefaultEdgeLabel(() => ({}));
   }
 
@@ -105,11 +105,11 @@ export class NzGraph {
    *
    * @param nodes
    */
-  setNodes(nodes: NodesItemCorrectInterface[]): void {
+  setNodes(nodes: NodesItemCorrect[]): void {
     nodes.forEach(n => {
       n.width = n.width || 48;
       n.height = n.height || 48;
-      this.graph.setNode(n.id, n as SafeAny);
+      this.graph.setNode(n.id, n);
     });
   }
 
@@ -118,7 +118,7 @@ export class NzGraph {
    *
    * @param links
    */
-  setEdge(links: NodesItemLinkInterface[]): void {
+  setEdge(links: NodesItemLink[]): void {
     links.forEach(l => {
       let length = 0;
       if (l.local_strategy) {
@@ -128,7 +128,7 @@ export class NzGraph {
         length += l.ship_strategy.length;
       }
       l.width = (length || 1) * 3;
-      this.graph.setEdge(l.source, l.target, l as SafeAny);
+      this.graph.setEdge(l.source, l.target, l);
     });
   }
 
@@ -146,8 +146,8 @@ export class NzGraph {
     this.copyLayoutLinks = [];
 
     dagre.layout(this.graph);
-    const generatedGraph = this.graph.graph() as SafeAny;
-    if (generatedGraph.width < generatedGraph.height) {
+    const generatedGraph = this.graph.graph();
+    if (generatedGraph.width! < generatedGraph.height!) {
       this.graph.setGraph({
         rankdir: 'TB',
         ...this.config
@@ -161,7 +161,7 @@ export class NzGraph {
     }
 
     this.graph.nodes().forEach(id => {
-      const node: LayoutNode = this.graph.node(id) as SafeAny;
+      const node = this.graph.node(id) as LayoutNode;
       const transform = `translate(${node.x - node.width / 2 || 0}, ${node.y - 1 / 2 || 0})`;
       node.options = {
         transform,
@@ -216,7 +216,9 @@ export class NzGraph {
    *
    * @param opt
    */
-  zoomFocusLayout(opt: ZoomFocusLayoutOpt): Promise<SafeAny> {
+  zoomFocusLayout(
+    opt: ZoomFocusLayoutOpt
+  ): Promise<{ transform: { x: number; y: number; k: number }; focusedLinkIds: string[]; circularNodeIds: string[] }> {
     if (!this.graph.hasNode(opt.nodeId)) {
       console.warn(`node ${opt.nodeId} not exist`);
       return Promise.reject();
@@ -322,11 +324,11 @@ export class NzGraph {
    * @param points
    */
   generateLine(points: Array<{ x: number; y: number }>): string | null {
-    const transformPoints = points as SafeAny;
+    const transformPoints = points;
     const lineFunction = line()
-      .x((d: SafeAny) => d.x)
-      .y((d: SafeAny) => d.y)
+      .x(d => (d as unknown as { x: number }).x)
+      .y(d => (d as unknown as { y: number }).y)
       .curve(curveLinear);
-    return lineFunction(transformPoints);
+    return lineFunction(transformPoints as unknown as Array<[number, number]>);
   }
 }

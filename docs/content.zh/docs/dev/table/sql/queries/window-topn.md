@@ -23,7 +23,7 @@ under the License.
 -->
 
 # Window Top-N
-{{< label Streaming >}}
+{{< label Batch >}} {{< label Streaming >}}
 
 Window Top-N is a special [Top-N]({{< ref "docs/dev/table/sql/queries/topn" >}}) which returns the N smallest or largest values for each window and other partitioned keys.
 

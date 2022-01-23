@@ -19,11 +19,15 @@
 package org.apache.flink.runtime.rest.messages.job.savepoints.stop;
 
 import org.apache.flink.runtime.rest.messages.RequestBody;
+import org.apache.flink.runtime.rest.messages.TriggerId;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import javax.annotation.Nullable;
+
+import java.util.Optional;
 
 /** {@link RequestBody} for stopping a job with a savepoint. */
 public class StopWithSavepointRequestBody implements RequestBody {
@@ -32,6 +36,8 @@ public class StopWithSavepointRequestBody implements RequestBody {
 
     private static final String FIELD_NAME_DRAIN = "drain";
 
+    private static final String FIELD_NAME_TRIGGER_ID = "triggerId";
+
     @JsonProperty(FIELD_NAME_TARGET_DIRECTORY)
     @Nullable
     private final String targetDirectory;
@@ -39,20 +45,31 @@ public class StopWithSavepointRequestBody implements RequestBody {
     @JsonProperty(FIELD_NAME_DRAIN)
     private final boolean drain;
 
+    @JsonProperty(FIELD_NAME_TRIGGER_ID)
+    @Nullable
+    private final TriggerId triggerId;
+
     @JsonCreator
     public StopWithSavepointRequestBody(
             @Nullable @JsonProperty(FIELD_NAME_TARGET_DIRECTORY) final String targetDirectory,
-            @Nullable @JsonProperty(FIELD_NAME_DRAIN) final Boolean drain) {
+            @Nullable @JsonProperty(FIELD_NAME_DRAIN) final Boolean drain,
+            @Nullable @JsonProperty(FIELD_NAME_TRIGGER_ID) TriggerId triggerId) {
         this.targetDirectory = targetDirectory;
         this.drain = drain != null ? drain : false;
+        this.triggerId = triggerId;
     }
 
-    @Nullable
-    public String getTargetDirectory() {
-        return targetDirectory;
+    @JsonIgnore
+    public Optional<String> getTargetDirectory() {
+        return Optional.ofNullable(targetDirectory);
     }
 
     public boolean shouldDrain() {
         return drain;
+    }
+
+    @JsonIgnore
+    public Optional<TriggerId> getTriggerId() {
+        return Optional.ofNullable(triggerId);
     }
 }

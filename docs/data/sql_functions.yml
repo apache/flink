@@ -357,8 +357,10 @@ string:
     description: Returns the reversed string. Returns NULL if string is NULL.
   - sql: SPLIT_INDEX(string1, string2, integer1)
     description: Splits string1 by the delimiter string2, returns the integerth (zero-based) string of the split strings. Returns NULL if integer is negative. Returns NULL if any of arguments is NULL.
-  - sql: STR_TO_MAP(string1[, string2, string3]])
-    description: Returns a map after splitting the string1 into key/value pairs using delimiters. string2 is the pair delimiter, default is ','. And string3 is the key-value delimiter, default is '='.
+  - sql: STR_TO_MAP(string1[, string2, string3])
+    description: |
+      Returns a map after splitting the string1 into key/value pairs using delimiters. string2 is the pair delimiter, default is ','. And string3 is the key-value delimiter, default is '='.
+      Both pair delimiter and key-value delimiter are treated as regular expressions. So special characters (e.g. `<([{\^-=$!|]})?*+.>`) need to be properly escaped before using as a delimiter literally.
   - sql: SUBSTR(string[, integer1[, integer2]])
     description: Returns a substring of string starting from position integer1 with length integer2 (to the end by default).
 
@@ -644,6 +646,27 @@ json:
       SELECT JSON_EXISTS('{"a": true}',
         'strict $.b' FALSE ON ERROR);
       ```
+  - sql: JSON_STRING(value)
+    table: jsonString(value)
+    description: |
+      Serializes a value into JSON.
+
+      This function returns a JSON string containing the serialized value. If the value is `NULL`,
+      the function returns `NULL`.
+
+      ```
+      -- NULL
+      JSON_STRING(CAST(NULL AS INT))
+
+      -- '1'
+      JSON_STRING(1)
+      -- 'true'
+      JSON_STRING(TRUE)
+      -- '"Hello, World!"'
+      JSON_STRING('Hello, World!')
+      -- '[1,2]'
+      JSON_STRING(ARRAY[1, 2])
+      ```
   - sql: JSON_VALUE(jsonValue, path [RETURNING <dataType>] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON EMPTY ] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON ERROR ])
     table: STRING.jsonValue(STRING path [, returnType, onEmpty, defaultOnEmpty, onError, defaultOnError])
     description: |
@@ -766,26 +789,24 @@ json:
         )
       )
       ```
-  - sql: JSON_STRING(value)
-    table: jsonString(value)
+  - sql: JSON_OBJECTAGG([KEY] key VALUE value [ { NULL | ABSENT } ON NULL ])
+    table: jsonObjectAgg(JsonOnNull, keyExpression, valueExpression)
     description: |
-      Serializes a value into JSON.
+      Builds a JSON object string by aggregating key-value expressions into a single JSON object.
 
-      This function returns a JSON string containing the serialized value. If the value is `NULL`,
-      the function returns `NULL`.
+      The key expression must return a non-nullable character string. Value expressions can be
+      arbitrary, including other JSON functions. If a value is `NULL`, the `ON NULL` behavior
+      defines what to do. If omitted, `NULL ON NULL` is assumed by default.
+
+      Note that keys must be unique. If a key occurs multiple times, an error will be thrown.
+
+      This function is currently not supported in `OVER` windows.
 
       ```
-      -- NULL
-      JSON_STRING(CAST(NULL AS INT))
-
-      -- '1'
-      JSON_STRING(1)
-      -- 'true'
-      JSON_STRING(TRUE)
-      -- '"Hello, World!"'
-      JSON_STRING('Hello, World!')
-      -- '[1,2]'
-      JSON_STRING(ARRAY[1, 2])
+      -- '{"Apple":2,"Banana":17,"Orange":0}'
+      SELECT
+        JSON_OBJECTAGG(KEY product VALUE cnt)
+      FROM orders
       ```
   - sql: JSON_ARRAY([value]* [ { NULL | ABSENT } ON NULL ])
     table: jsonArray(JsonOnNull, values...)
@@ -815,6 +836,23 @@ json:
 
       -- '[[1]]'
       JSON_ARRAY(JSON_ARRAY(1))
+      ```
+  - sql: JSON_ARRAYAGG(items [ { NULL | ABSENT } ON NULL ])
+    table: jsonArrayAgg(JsonOnNull, itemExpression)
+    description: |
+      Builds a JSON object string by aggregating items into an array.
+
+      Item expressions can be arbitrary, including other JSON functions. If a value is `NULL`, the
+      `ON NULL` behavior defines what to do. If omitted, `ABSENT ON NULL` is assumed by default.
+
+      This function is currently not supported in `OVER` windows, unbounded session windows, or hop
+      windows.
+
+      ```
+      -- '["Apple","Banana","Orange"]'
+      SELECT
+        JSON_ARRAYAGG(product)
+      FROM orders
       ```
 
 valueconstruction:

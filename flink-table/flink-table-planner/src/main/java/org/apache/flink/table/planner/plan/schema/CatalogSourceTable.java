@@ -22,7 +22,9 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
@@ -33,8 +35,9 @@ import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
 import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
-import org.apache.flink.util.OptionalUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptSchema;
@@ -48,7 +51,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.util.OptionalUtils.firstPresent;
-import static org.apache.flink.util.OptionalUtils.stream;
 
 /**
  * A {@link FlinkPreparingTableBase} implementation which defines the interfaces required to
@@ -62,17 +64,39 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
 
     private final CatalogSchemaTable schemaTable;
 
-    private final ResolvedCatalogTable catalogTable;
-
     public CatalogSourceTable(
             RelOptSchema relOptSchema,
             List<String> names,
             RelDataType rowType,
-            CatalogSchemaTable schemaTable,
-            ResolvedCatalogTable catalogTable) {
+            CatalogSchemaTable schemaTable) {
         super(relOptSchema, rowType, names, schemaTable.getStatistic());
         this.schemaTable = schemaTable;
-        this.catalogTable = catalogTable;
+    }
+
+    /**
+     * Create a {@link CatalogSourceTable} from an anonymous {@link ContextResolvedTable}. This is
+     * required to manually create a preparing table skipping the calcite catalog resolution.
+     */
+    public static CatalogSourceTable createAnonymous(
+            FlinkRelBuilder relBuilder,
+            ContextResolvedTable contextResolvedTable,
+            boolean isBatchMode) {
+        Preconditions.checkArgument(
+                contextResolvedTable.isAnonymous(), "ContextResolvedTable must be anonymous");
+
+        // Statistics are unknown for anonymous tables
+        // Look at DatabaseCalciteSchema#getStatistic for more details
+        FlinkStatistic flinkStatistic =
+                FlinkStatistic.unknown(contextResolvedTable.getResolvedSchema()).build();
+
+        CatalogSchemaTable catalogSchemaTable =
+                new CatalogSchemaTable(contextResolvedTable, flinkStatistic, !isBatchMode);
+
+        return new CatalogSourceTable(
+                relBuilder.getRelOptSchema(),
+                contextResolvedTable.getIdentifier().toList(),
+                catalogSchemaTable.getRowType(relBuilder.getTypeFactory()),
+                catalogSchemaTable);
     }
 
     @Override
@@ -82,29 +106,31 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
         final FlinkContext context = ShortcutUtils.unwrapContext(cluster);
         final FlinkRelBuilder relBuilder = FlinkRelBuilder.of(cluster, relOptSchema);
 
-        // finalize catalog table
+        // finalize catalog table with option hints
         final Map<String, String> hintedOptions = FlinkHints.getHintedOptions(hints);
-        final ResolvedCatalogTable catalogTable = createFinalCatalogTable(context, hintedOptions);
+        final ContextResolvedTable catalogTable =
+                computeContextResolvedTable(context, hintedOptions);
 
         // create table source
-        final DynamicTableSource tableSource = createDynamicTableSource(context, catalogTable);
+        final DynamicTableSource tableSource =
+                createDynamicTableSource(context, catalogTable.getResolvedTable());
 
         // prepare table source and convert to RelNode
         return DynamicSourceUtils.convertSourceToRel(
                 !schemaTable.isStreamingMode(),
                 context.getTableConfig().getConfiguration(),
                 relBuilder,
-                schemaTable.getTableIdentifier(),
-                catalogTable,
+                schemaTable.getContextResolvedTable(),
                 schemaTable.getStatistic(),
                 hints,
                 tableSource);
     }
 
-    private ResolvedCatalogTable createFinalCatalogTable(
+    private ContextResolvedTable computeContextResolvedTable(
             FlinkContext context, Map<String, String> hintedOptions) {
+        ContextResolvedTable contextResolvedTable = schemaTable.getContextResolvedTable();
         if (hintedOptions.isEmpty()) {
-            return catalogTable;
+            return contextResolvedTable;
         }
         final ReadableConfig config = context.getTableConfig().getConfiguration();
         if (!config.get(TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED)) {
@@ -114,8 +140,16 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
                             FlinkHints.HINT_NAME_OPTIONS,
                             TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED.key()));
         }
-        return catalogTable.copy(
-                FlinkHints.mergeTableOptions(hintedOptions, catalogTable.getOptions()));
+        if (contextResolvedTable.getResolvedTable().getTableKind() == TableKind.VIEW) {
+            throw new ValidationException(
+                    String.format(
+                            "View '%s' cannot be enriched with new options. "
+                                    + "Hints can only be applied to tables.",
+                            contextResolvedTable.getIdentifier()));
+        }
+        return contextResolvedTable.copy(
+                FlinkHints.mergeTableOptions(
+                        hintedOptions, contextResolvedTable.getResolvedTable().getOptions()));
     }
 
     private DynamicTableSource createDynamicTableSource(
@@ -123,15 +157,15 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
         final ReadableConfig config = context.getTableConfig().getConfiguration();
 
         final Optional<DynamicTableSourceFactory> factoryFromCatalog =
-                stream(schemaTable.getCatalog())
-                        .map(Catalog::getFactory)
-                        .flatMap(OptionalUtils::stream)
+                schemaTable
+                        .getContextResolvedTable()
+                        .getCatalog()
+                        .flatMap(Catalog::getFactory)
                         .map(
                                 f ->
                                         f instanceof DynamicTableSourceFactory
                                                 ? (DynamicTableSourceFactory) f
-                                                : null)
-                        .findFirst();
+                                                : null);
 
         final Optional<DynamicTableSourceFactory> factoryFromModule =
                 context.getModuleManager().getFactory(Module::getTableSourceFactory);
@@ -143,7 +177,7 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
 
         return FactoryUtil.createDynamicTableSource(
                 factory,
-                schemaTable.getTableIdentifier(),
+                schemaTable.getContextResolvedTable().getIdentifier(),
                 catalogTable,
                 config,
                 Thread.currentThread().getContextClassLoader(),
@@ -151,6 +185,6 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
     }
 
     public CatalogTable getCatalogTable() {
-        return catalogTable;
+        return schemaTable.getContextResolvedTable().getResolvedTable();
     }
 }

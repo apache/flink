@@ -463,7 +463,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                 sendRequest(
                         stopWithSavepointTriggerHeaders,
                         stopWithSavepointTriggerMessageParameters,
-                        new StopWithSavepointRequestBody(savepointDirectory, advanceToEndOfTime));
+                        new StopWithSavepointRequestBody(
+                                savepointDirectory, advanceToEndOfTime, null));
 
         return responseFuture
                 .thenCompose(
@@ -536,7 +537,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                 sendRequest(
                         savepointTriggerHeaders,
                         savepointTriggerMessageParameters,
-                        new SavepointTriggerRequestBody(savepointDirectory, cancelJob));
+                        new SavepointTriggerRequestBody(savepointDirectory, cancelJob, null));
 
         return responseFuture
                 .thenCompose(

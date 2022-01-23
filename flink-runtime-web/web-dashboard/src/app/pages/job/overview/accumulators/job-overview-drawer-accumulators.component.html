@@ -34,7 +34,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let accumulator of listOfAccumulator; trackBy: trackAccumulatorBy">
+        <tr *ngFor="let accumulator of listOfAccumulator; trackBy: trackByName">
           <td>{{ accumulator.name }}</td>
           <td>{{ accumulator.type }}</td>
           <td>{{ (accumulator.value | number: '1.0-3') || accumulator.value }}</td>
@@ -60,7 +60,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let data of listOfSubTaskAccumulator; trackBy: trackAccumulatorBy">
+        <tr *ngFor="let data of listOfSubTaskAccumulator; trackBy: trackByName">
           <td nzLeft="0px">
             ({{ data.subtask }}) {{ data.host }}, attempt:
             {{ data.attempt + 1 }}

@@ -96,8 +96,8 @@ public class MockIndexedInputGate extends IndexedInputGate {
     }
 
     @Override
-    public boolean hasReceivedEndOfData() {
-        return false;
+    public EndOfDataStatus hasReceivedEndOfData() {
+        return EndOfDataStatus.NOT_END_OF_DATA;
     }
 
     @Override
@@ -127,10 +127,5 @@ public class MockIndexedInputGate extends IndexedInputGate {
     }
 
     @Override
-    public int getBuffersInUseCount() {
-        return 0;
-    }
-
-    @Override
-    public void announceBufferSize(int bufferSize) {}
+    public void triggerDebloating() {}
 }

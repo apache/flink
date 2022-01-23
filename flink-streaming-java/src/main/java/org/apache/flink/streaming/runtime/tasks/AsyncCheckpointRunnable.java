@@ -26,6 +26,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
+import org.apache.flink.runtime.taskmanager.AsynchronousException;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.util.ExceptionUtils;
@@ -117,10 +119,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 
             SnapshotsFinalizeResult snapshotsFinalizeResult =
                     isTaskDeployedAsFinished
-                            ? new SnapshotsFinalizeResult(
-                                    TaskStateSnapshot.FINISHED_ON_RESTORE,
-                                    TaskStateSnapshot.FINISHED_ON_RESTORE,
-                                    0L)
+                            ? finalizedFinishedSnapshots()
                             : finalizeNonFinishedSnapshots();
 
             final long asyncEndNanos = System.nanoTime();
@@ -158,6 +157,20 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
             unregisterConsumer.accept(this);
             FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
         }
+    }
+
+    private SnapshotsFinalizeResult finalizedFinishedSnapshots() throws Exception {
+        for (Map.Entry<OperatorID, OperatorSnapshotFutures> entry :
+                operatorSnapshotsInProgress.entrySet()) {
+            OperatorSnapshotFutures snapshotInProgress = entry.getValue();
+            // We should wait for the channels states get completed before continuing,
+            // otherwise the alignment of barriers might have not finished yet.
+            snapshotInProgress.getInputChannelStateFuture().get();
+            snapshotInProgress.getResultSubpartitionStateFuture().get();
+        }
+
+        return new SnapshotsFinalizeResult(
+                TaskStateSnapshot.FINISHED_ON_RESTORE, TaskStateSnapshot.FINISHED_ON_RESTORE, 0L);
     }
 
     private SnapshotsFinalizeResult finalizeNonFinishedSnapshots() throws Exception {

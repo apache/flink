@@ -95,7 +95,7 @@ LogicalFilter(condition=[=(CONCAT($2, $3), _UTF-16LE'a')])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[int, long, string1, string2], where=[(CONCAT(string1, string2) = _UTF-16LE'a')])
+Calc(select=[int, long, string1, string2], where=[(CONCAT(string1, string2) = 'a')])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string1, string2)]]], fields=[int, long, string1, string2])
 ]]>
     </Resource>
@@ -153,12 +153,12 @@ Join(joinType=[InnerJoin], where=[(int1 = int2)], select=[int1, long1, string1, 
       <![CDATA[
 LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
 :- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string)]]])
-+- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9f62966fe13c1b76114d2c7b3a5240fa($2)], rowType=[RecordType(VARCHAR(2147483647) name, INTEGER age)], elementType=[class [Ljava.lang.Object;])
++- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc0*($2)], rowType=[RecordType(VARCHAR(2147483647) name, INTEGER age)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9f62966fe13c1b76114d2c7b3a5240fa($2)], correlate=[table(TableFunc0(string))], select=[int,long,string,name,age], rowType=[RecordType(DOUBLE int, BIGINT long, VARCHAR(2147483647) string, VARCHAR(2147483647) name, INTEGER age)], joinType=[INNER])
+Correlate(invocation=[*org.apache.flink.table.planner.utils.TableFunc0*($2)], correlate=[table(TableFunc0(string))], select=[int,long,string,name,age], rowType=[RecordType(DOUBLE int, BIGINT long, VARCHAR(2147483647) string, VARCHAR(2147483647) name, INTEGER age)], joinType=[INNER])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string)]]], fields=[int, long, string])
 ]]>
     </Resource>
@@ -175,7 +175,7 @@ LogicalProject(c=[$2], mycount=[AS(countFun($1) OVER (PARTITION BY $2 ORDER BY $
 Calc(select=[c, w0$o0 AS mycount, w0$o1 AS wAvg, w0$o2 AS countDist])
 +- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, $4, CountAggFunction(b) AS w0$o0, weightAvgFun(a, $4) AS w0$o1, CountDistinct(a) AS w0$o2])
    +- Exchange(distribution=[hash[c]])
-      +- Calc(select=[a, b, c, proctime, CAST(b) AS $4])
+      +- Calc(select=[a, b, c, proctime, CAST(b AS BIGINT) AS $4])
          +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, proctime])
 ]]>
     </Resource>
@@ -222,7 +222,7 @@ LogicalProject(a=[$0], b=[$1], c=[AS($2, _UTF-16LE'c')])
 Calc(select=[a, b, EXPR$0 AS c])
 +- GroupWindowAggregate(groupBy=[a, b], window=[SlidingGroupWindow('w, b, 3, 10)], select=[a, b, COUNT(c) AS EXPR$0])
    +- Exchange(distribution=[hash[a, b]])
-      +- Calc(select=[a, CAST(rowtime) AS b, c, d])
+      +- Calc(select=[a, CAST(rowtime AS TIMESTAMP(3)) AS b, c, d])
          +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, rowtime, c, d])
 ]]>
     </Resource>

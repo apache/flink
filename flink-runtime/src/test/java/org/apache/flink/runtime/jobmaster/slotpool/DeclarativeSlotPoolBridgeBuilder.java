@@ -25,7 +25,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
-import org.apache.flink.runtime.testutils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 
@@ -44,6 +44,9 @@ public class DeclarativeSlotPoolBridgeBuilder {
 
     @Nullable
     private ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+
+    private RequestSlotMatchingStrategy requestSlotMatchingStrategy =
+            SimpleRequestSlotMatchingStrategy.INSTANCE;
 
     public DeclarativeSlotPoolBridgeBuilder setResourceManagerGateway(
             @Nullable ResourceManagerGateway resourceManagerGateway) {
@@ -71,6 +74,12 @@ public class DeclarativeSlotPoolBridgeBuilder {
         return this;
     }
 
+    public DeclarativeSlotPoolBridgeBuilder setRequestSlotMatchingStrategy(
+            RequestSlotMatchingStrategy requestSlotMatchingStrategy) {
+        this.requestSlotMatchingStrategy = requestSlotMatchingStrategy;
+        return this;
+    }
+
     public DeclarativeSlotPoolBridge build() {
         return new DeclarativeSlotPoolBridge(
                 jobId,
@@ -78,7 +87,8 @@ public class DeclarativeSlotPoolBridgeBuilder {
                 clock,
                 TestingUtils.infiniteTime(),
                 idleSlotTimeout,
-                batchSlotTimeout);
+                batchSlotTimeout,
+                requestSlotMatchingStrategy);
     }
 
     public DeclarativeSlotPoolBridge buildAndStart(

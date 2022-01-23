@@ -396,42 +396,46 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      */
     @Test
     public void testRemotePartitionNotFound() throws Exception {
-        final int dataPort = NetUtils.getAvailablePort();
-        Configuration config = new Configuration();
-        config.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, dataPort);
-        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
-        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+            final int dataPort = port.getPort();
 
-        // Remote location (on the same TM though) for the partition
-        NettyShuffleDescriptor sdd =
-                NettyShuffleDescriptorBuilder.newBuilder().setDataPort(dataPort).buildRemote();
-        TaskDeploymentDescriptor tdd = createReceiver(sdd);
-        ExecutionAttemptID eid = tdd.getExecutionAttemptId();
+            Configuration config = new Configuration();
+            config.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, dataPort);
+            config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+            config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
 
-        final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
-        final CompletableFuture<Void> taskFailedFuture = new CompletableFuture<>();
+            // Remote location (on the same TM though) for the partition
+            NettyShuffleDescriptor sdd =
+                    NettyShuffleDescriptorBuilder.newBuilder().setDataPort(dataPort).buildRemote();
+            TaskDeploymentDescriptor tdd = createReceiver(sdd);
+            ExecutionAttemptID eid = tdd.getExecutionAttemptId();
 
-        try (TaskSubmissionTestEnvironment env =
-                new TaskSubmissionTestEnvironment.Builder(jobId)
-                        .setSlotSize(2)
-                        .addTaskManagerActionListener(
-                                eid, ExecutionState.RUNNING, taskRunningFuture)
-                        .addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
-                        .setConfiguration(config)
-                        .setLocalCommunication(false)
-                        .useRealNonMockShuffleEnvironment()
-                        .build()) {
-            TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-            TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
+            final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
+            final CompletableFuture<Void> taskFailedFuture = new CompletableFuture<>();
 
-            taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
-            tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
-            taskRunningFuture.get();
+            try (TaskSubmissionTestEnvironment env =
+                    new TaskSubmissionTestEnvironment.Builder(jobId)
+                            .setSlotSize(2)
+                            .addTaskManagerActionListener(
+                                    eid, ExecutionState.RUNNING, taskRunningFuture)
+                            .addTaskManagerActionListener(
+                                    eid, ExecutionState.FAILED, taskFailedFuture)
+                            .setConfiguration(config)
+                            .setLocalCommunication(false)
+                            .useRealNonMockShuffleEnvironment()
+                            .build()) {
+                TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
+                TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
-            taskFailedFuture.get();
-            assertThat(
-                    taskSlotTable.getTask(eid).getFailureCause(),
-                    instanceOf(PartitionNotFoundException.class));
+                taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
+                tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
+                taskRunningFuture.get();
+
+                taskFailedFuture.get();
+                assertThat(
+                        taskSlotTable.getTask(eid).getFailureCause(),
+                        instanceOf(PartitionNotFoundException.class));
+            }
         }
     }
 

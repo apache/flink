@@ -35,7 +35,7 @@
 
 	<modelVersion>4.0.0</modelVersion>
 
-	<artifactId>flink-parent-child-classloading-test-lib-package_${scala.binary.version}</artifactId>
+	<artifactId>flink-parent-child-classloading-test-lib-package</artifactId>
 	<name>Flink : E2E Tests : Parent Child classloading lib-package</name>
 	<packaging>jar</packaging>
 

@@ -596,6 +596,7 @@ public class JobMasterTest extends TestLogger {
         public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
                 @Nonnull SlotRequestId slotRequestId,
                 @Nonnull ResourceProfile resourceProfile,
+                @Nonnull Collection<AllocationID> preferredAllocations,
                 @Nullable Time timeout) {
             return new CompletableFuture<>();
         }
@@ -603,7 +604,9 @@ public class JobMasterTest extends TestLogger {
         @Nonnull
         @Override
         public CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
-                @Nonnull SlotRequestId slotRequestId, @Nonnull ResourceProfile resourceProfile) {
+                @Nonnull SlotRequestId slotRequestId,
+                @Nonnull ResourceProfile resourceProfile,
+                @Nonnull Collection<AllocationID> preferredAllocations) {
             return new CompletableFuture<>();
         }
 
@@ -869,7 +872,7 @@ public class JobMasterTest extends TestLogger {
 
         final StandaloneCompletedCheckpointStore completedCheckpointStore =
                 new StandaloneCompletedCheckpointStore(1);
-        completedCheckpointStore.addCheckpoint(
+        completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
                 completedCheckpoint, new CheckpointsCleaner(), () -> {});
         final CheckpointRecoveryFactory testingCheckpointRecoveryFactory =
                 PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(

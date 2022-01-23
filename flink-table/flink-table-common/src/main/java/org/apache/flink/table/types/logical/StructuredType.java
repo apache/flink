@@ -90,6 +90,7 @@ public final class StructuredType extends UserDefinedType {
     private static final Class<?> FALLBACK_CONVERSION = Row.class;
 
     /** Defines an attribute of a {@link StructuredType}. */
+    @PublicEvolving
     public static final class StructuredAttribute implements Serializable {
         private static final long serialVersionUID = 1L;
 
@@ -170,6 +171,7 @@ public final class StructuredType extends UserDefinedType {
     }
 
     /** Defines equality properties for scalar evaluation. */
+    @PublicEvolving
     public enum StructuredComparison {
         EQUALS(true, false),
         FULL(true, true),
@@ -192,6 +194,7 @@ public final class StructuredType extends UserDefinedType {
     }
 
     /** A builder for a {@link StructuredType}. Intended for future extensibility. */
+    @PublicEvolving
     public static final class Builder {
 
         private final @Nullable ObjectIdentifier objectIdentifier;

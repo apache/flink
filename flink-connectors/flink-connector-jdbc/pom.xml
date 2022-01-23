@@ -30,14 +30,15 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-jdbc_${scala.binary.version}</artifactId>
+	<artifactId>flink-connector-jdbc</artifactId>
 	<name>Flink : Connectors : JDBC</name>
 
 	<packaging>jar</packaging>
 
 	<properties>
 		<postgres.version>42.2.10</postgres.version>
-		<otj-pg-embedded.version>0.13.3</otj-pg-embedded.version>
+		<oracle.version>19.3.0.0</oracle.version>
+		<otj-pg-embedded.version>0.13.4</otj-pg-embedded.version>
 	</properties>
 
 	<dependencies>
@@ -46,7 +47,7 @@ under the License.
 		<!-- Projects depending on this project won't depend on flink-table-*. -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-api-java-bridge</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 			<optional>true</optional>
@@ -61,11 +62,19 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- Oracle -->
+		<dependency>
+			<groupId>com.oracle.database.jdbc</groupId>
+			<artifactId>ojdbc8</artifactId>
+			<version>${oracle.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- Tests -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -80,7 +89,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -102,6 +111,12 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
@@ -130,19 +145,19 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 		<!-- ch.vorburger.mariaDB4j:mariaDB4j has a dependency of mariadb-java-client:2.3.0,
-		 but we want to bump mariadb-java-client to 2.5.4 which fix a few notable bugs,
+		 but we want to bump mariadb-java-client to >= 2.5.4 which fix a few notable bugs,
 		 see: https://mariadb.com/kb/en/mariadb-connector-j-release-notes/
 		 and the lower version may cause the test stability issue FLINK-18082.-->
 		<dependency>
 			<groupId>org.mariadb.jdbc</groupId>
 			<artifactId>mariadb-java-client</artifactId>
-			<version>2.5.4</version>
+			<version>2.7.4</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>mysql</groupId>
 			<artifactId>mysql-connector-java</artifactId>
-			<version>8.0.20</version>
+			<version>8.0.27</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -154,24 +169,33 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Oracle tests -->
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>oracle-xe</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- H2 tests -->
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
-			<version>1.4.200</version>
-        </dependency>
+			<version>2.0.206</version>
+			<scope>test</scope>
+		</dependency>
 
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>postgresql</artifactId>
-            <scope>test</scope>
-        </dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>test</scope>
+		</dependency>
 
-        <dependency>
+		<dependency>
 			<groupId>org.testcontainers</groupId>
 			<artifactId>mysql</artifactId>
 			<scope>test</scope>
 		</dependency>
+
 	</dependencies>
 
 	<build>
@@ -183,6 +207,18 @@ under the License.
 					<!-- Disable jvm process reuse to test driver class loading issues -->
 					<reuseForks>false</reuseForks>
 				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

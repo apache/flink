@@ -21,11 +21,11 @@ package org.apache.flink.formats.csv;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.file.table.factories.FileSystemFormatFactory;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.PartitionPathUtils;
@@ -142,9 +142,6 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
                 .ifPresent(csvBuilder::setQuoteChar);
 
         options.getOptional(ALLOW_COMMENTS).ifPresent(csvBuilder::setAllowComments);
-
-        options.getOptional(ARRAY_ELEMENT_DELIMITER)
-                .ifPresent(csvBuilder::setArrayElementSeparator);
 
         options.getOptional(ARRAY_ELEMENT_DELIMITER)
                 .ifPresent(csvBuilder::setArrayElementSeparator);

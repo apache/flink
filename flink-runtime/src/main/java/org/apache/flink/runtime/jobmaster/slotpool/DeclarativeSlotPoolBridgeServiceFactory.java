@@ -27,12 +27,16 @@ import javax.annotation.Nonnull;
 /** Factory for {@link DeclarativeSlotPoolBridge}. */
 public class DeclarativeSlotPoolBridgeServiceFactory extends AbstractSlotPoolServiceFactory {
 
+    private final RequestSlotMatchingStrategy requestSlotMatchingStrategy;
+
     public DeclarativeSlotPoolBridgeServiceFactory(
             @Nonnull Clock clock,
             @Nonnull Time rpcTimeout,
             @Nonnull Time slotIdleTimeout,
-            @Nonnull Time batchSlotTimeout) {
+            @Nonnull Time batchSlotTimeout,
+            @Nonnull RequestSlotMatchingStrategy requestSlotMatchingStrategy) {
         super(clock, rpcTimeout, slotIdleTimeout, batchSlotTimeout);
+        this.requestSlotMatchingStrategy = requestSlotMatchingStrategy;
     }
 
     @Nonnull
@@ -44,6 +48,7 @@ public class DeclarativeSlotPoolBridgeServiceFactory extends AbstractSlotPoolSer
                 clock,
                 rpcTimeout,
                 slotIdleTimeout,
-                batchSlotTimeout);
+                batchSlotTimeout,
+                requestSlotMatchingStrategy);
     }
 }

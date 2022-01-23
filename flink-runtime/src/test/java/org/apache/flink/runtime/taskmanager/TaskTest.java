@@ -1430,20 +1430,24 @@ public class TaskTest extends TestLogger {
 
         @Override
         public void invoke() {
-            awaitLatch.trigger();
-
-            // make sure that the interrupt call does not
-            // grab us out of the lock early
-            while (true) {
-                try {
-                    triggerLatch.await();
-                    break;
-                } catch (InterruptedException e) {
-                    // fall through the loop
-                }
-            }
+            awaitTriggerLatch();
 
             throw new RuntimeException("test");
+        }
+    }
+
+    private static void awaitTriggerLatch() {
+        awaitLatch.trigger();
+
+        // make sure that the interrupt call does not
+        // grab us out of the lock early
+        while (true) {
+            try {
+                triggerLatch.await();
+                break;
+            } catch (InterruptedException e) {
+                // fall through the loop
+            }
         }
     }
 
@@ -1455,12 +1459,7 @@ public class TaskTest extends TestLogger {
 
         @Override
         public void invoke() {
-            awaitLatch.trigger();
-
-            try {
-                triggerLatch.await();
-            } catch (Throwable ignored) {
-            }
+            awaitTriggerLatch();
 
             throw new CancelTaskException();
         }

@@ -23,7 +23,6 @@ import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 
 import org.junit.Test;
 
@@ -37,11 +36,7 @@ public class ChangelogModeJsonSerdeTest {
 
     @Test
     public void testChangelogModeSerde() throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        SimpleModule module = new SimpleModule();
-        module.addSerializer(new ChangelogModeJsonSerializer());
-        module.addDeserializer(ChangelogMode.class, new ChangelogModeJsonDeserializer());
-        mapper.registerModule(module);
+        ObjectMapper mapper = JsonSerdeUtil.getObjectMapper();
 
         ChangelogMode changelogMode =
                 ChangelogMode.newBuilder()

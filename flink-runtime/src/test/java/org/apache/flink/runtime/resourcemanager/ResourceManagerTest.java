@@ -49,8 +49,8 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
-import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -272,7 +272,7 @@ public class ResourceManagerTest extends TestLogger {
         final ResourceManagerGateway resourceManagerGateway =
                 resourceManager.getSelfGateway(ResourceManagerGateway.class);
         resourceManagerGateway
-                .registerJobManager(
+                .registerJobMaster(
                         jobMasterGateway.getFencingToken(),
                         ResourceID.generate(),
                         jobMasterGateway.getAddress(),
@@ -327,7 +327,7 @@ public class ResourceManagerTest extends TestLogger {
                 (ignore) -> {},
                 resourceManagerGateway -> {
                     final CompletableFuture<RegistrationResponse> registrationFuture =
-                            resourceManagerGateway.registerJobManager(
+                            resourceManagerGateway.registerJobMaster(
                                     jobMasterGateway.getFencingToken(),
                                     jobMasterResourceId,
                                     jobMasterGateway.getAddress(),
@@ -383,7 +383,7 @@ public class ResourceManagerTest extends TestLogger {
                 (ignore) -> {},
                 resourceManagerGateway -> {
                     final CompletableFuture<RegistrationResponse> registrationFuture =
-                            resourceManagerGateway.registerJobManager(
+                            resourceManagerGateway.registerJobMaster(
                                     jobMasterGateway.getFencingToken(),
                                     jobMasterResourceId,
                                     jobMasterGateway.getAddress(),
@@ -541,7 +541,7 @@ public class ResourceManagerTest extends TestLogger {
         final JobID jobId = JobID.generate();
         final ResourceManagerGateway resourceManagerGateway =
                 resourceManager.getSelfGateway(ResourceManagerGateway.class);
-        resourceManagerGateway.registerJobManager(
+        resourceManagerGateway.registerJobMaster(
                 jobMasterGateway.getFencingToken(),
                 ResourceID.generate(),
                 jobMasterGateway.getAddress(),

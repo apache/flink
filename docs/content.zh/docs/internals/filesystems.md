@@ -47,7 +47,6 @@ Other file system types are accessed by an implementation that bridges to the su
   - `hdfs`: Hadoop Distributed File System
   - `s3`, `s3n`, and `s3a`: Amazon S3 file system
   - `gcs`: Google Cloud Storage
-  - `maprfs`: The MapR distributed file system
   - ...
 
 Flink loads Hadoop's file systems transparently if it finds the Hadoop File System classes in the class path and finds a valid

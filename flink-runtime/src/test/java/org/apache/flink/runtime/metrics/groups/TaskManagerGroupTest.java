@@ -40,6 +40,7 @@ import java.io.IOException;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link TaskManagerMetricGroup}. */
@@ -88,11 +89,13 @@ public class TaskManagerGroupTest extends TestLogger {
         final ExecutionAttemptID execution21 = new ExecutionAttemptID();
 
         TaskMetricGroup tmGroup11 =
-                group.addTaskForJob(jid1, jobName1, vertex11, execution11, "test", 17, 0);
+                group.addJob(jid1, jobName1).addTask(vertex11, execution11, "test", 17, 0);
+
         TaskMetricGroup tmGroup12 =
-                group.addTaskForJob(jid1, jobName1, vertex12, execution12, "test", 13, 1);
+                group.addJob(jid1, jobName1).addTask(vertex12, execution12, "test", 13, 1);
+
         TaskMetricGroup tmGroup21 =
-                group.addTaskForJob(jid2, jobName2, vertex21, execution21, "test", 7, 2);
+                group.addJob(jid2, jobName2).addTask(vertex21, execution21, "test", 7, 2);
 
         assertEquals(2, group.numRegisteredJobMetricGroups());
         assertFalse(tmGroup11.parent().isClosed());
@@ -108,20 +111,20 @@ public class TaskManagerGroupTest extends TestLogger {
         // job 2 should be removed, job should still be there
         assertFalse(tmGroup11.parent().isClosed());
         assertFalse(tmGroup12.parent().isClosed());
-        assertTrue(tmGroup21.parent().isClosed());
-        assertEquals(1, group.numRegisteredJobMetricGroups());
+
+        // should keep TaskManagerJobMetricGroup open - slot isn't released yet
+        assertFalse(tmGroup21.parent().isClosed());
+        assertEquals(2, group.numRegisteredJobMetricGroups());
 
         // add one more to job one
+
         TaskMetricGroup tmGroup13 =
-                group.addTaskForJob(jid1, jobName1, vertex13, execution13, "test", 0, 0);
+                group.addJob(jid1, jobName1).addTask(vertex13, execution13, "test", 0, 0);
+        assertSame(
+                tmGroup11.parent(),
+                tmGroup13.parent()); // should use the same TaskManagerJobMetricGroup
         tmGroup12.close();
         tmGroup13.close();
-
-        assertTrue(tmGroup11.parent().isClosed());
-        assertTrue(tmGroup12.parent().isClosed());
-        assertTrue(tmGroup13.parent().isClosed());
-
-        assertEquals(0, group.numRegisteredJobMetricGroups());
     }
 
     @Test
@@ -145,11 +148,13 @@ public class TaskManagerGroupTest extends TestLogger {
         final ExecutionAttemptID execution21 = new ExecutionAttemptID();
 
         TaskMetricGroup tmGroup11 =
-                group.addTaskForJob(jid1, jobName1, vertex11, execution11, "test", 17, 0);
+                group.addJob(jid1, jobName1).addTask(vertex11, execution11, "test", 17, 0);
+
         TaskMetricGroup tmGroup12 =
-                group.addTaskForJob(jid1, jobName1, vertex12, execution12, "test", 13, 1);
+                group.addJob(jid1, jobName1).addTask(vertex12, execution12, "test", 13, 1);
+
         TaskMetricGroup tmGroup21 =
-                group.addTaskForJob(jid2, jobName2, vertex21, execution21, "test", 7, 1);
+                group.addJob(jid2, jobName2).addTask(vertex21, execution21, "test", 7, 1);
 
         group.close();
 

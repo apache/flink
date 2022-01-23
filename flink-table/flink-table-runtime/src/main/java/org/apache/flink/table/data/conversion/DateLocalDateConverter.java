@@ -19,8 +19,8 @@
 package org.apache.flink.table.data.conversion;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.utils.DateTimeUtils;
 
 /** Converter for {@link DateType} of {@link java.time.LocalDate} external type. */
 @Internal
@@ -31,11 +31,11 @@ public class DateLocalDateConverter
 
     @Override
     public Integer toInternal(java.time.LocalDate external) {
-        return SqlDateTimeUtils.localDateToUnixDate(external);
+        return DateTimeUtils.toInternal(external);
     }
 
     @Override
     public java.time.LocalDate toExternal(Integer internal) {
-        return SqlDateTimeUtils.unixDateToLocalDate(internal);
+        return DateTimeUtils.toLocalDate(internal);
     }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
@@ -275,8 +276,8 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
         if (!buffer2Recycled) {
             Assert.fail("buffer 2 not recycled");
         }
-        assertEquals(2, partition.getTotalNumberOfBuffers());
-        assertEquals(0, partition.getTotalNumberOfBytes()); // buffer data is never consumed
+        assertEquals(2, partition.getTotalNumberOfBuffersUnsafe());
+        assertEquals(0, partition.getTotalNumberOfBytesUnsafe()); // buffer data is never consumed
     }
 
     @Test
@@ -336,6 +337,18 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
         assertEquals(-1, subpartition.add(createFilledFinishedBufferConsumer(4)));
     }
 
+    @Test
+    public void testProducerFailedException() {
+        PipelinedSubpartition subpartition =
+                new FailurePipelinedSubpartition(0, 2, PartitionTestUtils.createPartition());
+
+        ResultSubpartitionView view =
+                subpartition.createReadView(new NoOpBufferAvailablityListener());
+
+        assertNotNull(view.getFailureCause());
+        assertTrue(view.getFailureCause() instanceof CancelTaskException);
+    }
+
     private void verifyViewReleasedAfterParentRelease(ResultSubpartition partition)
             throws Exception {
         // Add a bufferConsumer
@@ -368,5 +381,18 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
     public static PipelinedSubpartition createPipelinedSubpartition(ResultPartition parent) {
         return new PipelinedSubpartition(0, 2, parent);
+    }
+
+    private static class FailurePipelinedSubpartition extends PipelinedSubpartition {
+
+        FailurePipelinedSubpartition(
+                int index, int receiverExclusiveBuffersPerChannel, ResultPartition parent) {
+            super(index, receiverExclusiveBuffersPerChannel, parent);
+        }
+
+        @Override
+        Throwable getFailureCause() {
+            return new RuntimeException("Expected test exception");
+        }
     }
 }

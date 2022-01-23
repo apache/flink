@@ -22,9 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
-
-import java.io.Serializable;
-import java.util.function.Function;
+import org.apache.flink.util.function.SerializableFunction;
 
 /** Utility for mapping the output of a {@link DataGenerator}. */
 @Internal
@@ -55,7 +53,4 @@ public class DataGeneratorMapper<A, B> implements DataGenerator<B> {
     public B next() {
         return mapper.apply(generator.next());
     }
-
-    /** A simple serializable function. */
-    public interface SerializableFunction<A, B> extends Function<A, B>, Serializable {}
 }

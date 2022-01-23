@@ -19,16 +19,14 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.FileUtils;
-import org.hamcrest.CoreMatchers;
-import org.junit.Rule;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nullable;
@@ -44,9 +42,7 @@ import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.get;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.Matchers.hasProperty;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -57,9 +53,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class BlobCacheCorruptionTest extends TestLogger {
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-    @Rule public final ExpectedException exception = ExpectedException.none();
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
     @Test
     public void testGetFailsFromCorruptFile1() throws IOException {
@@ -98,9 +92,7 @@ public class BlobCacheCorruptionTest extends TestLogger {
         final Configuration config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
         config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-        config.setString(
-                HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
+                HighAvailabilityOptions.HA_STORAGE_PATH, TEMPORARY_FOLDER.newFolder().getPath());
 
         BlobStoreService blobStoreService = null;
 
@@ -108,7 +100,12 @@ public class BlobCacheCorruptionTest extends TestLogger {
             blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
             testGetFailsFromCorruptFile(
-                    jobId, blobType, corruptOnHAStore, config, blobStoreService, exception);
+                    jobId,
+                    blobType,
+                    corruptOnHAStore,
+                    config,
+                    blobStoreService,
+                    TEMPORARY_FOLDER.newFolder());
         } finally {
             if (blobStoreService != null) {
                 blobStoreService.closeAndCleanupAllData();
@@ -125,17 +122,12 @@ public class BlobCacheCorruptionTest extends TestLogger {
      *     HighAvailabilityOptions#HA_STORAGE_PATH} and {@link
      *     HighAvailabilityOptions#HA_CLUSTER_ID}) used to set up <tt>blobStore</tt>
      * @param blobStore shared HA blob store to use
-     * @param expectedException expected exception rule to use
      */
     public static void testGetFailsFromCorruptFile(
-            JobID jobId,
-            Configuration config,
-            BlobStore blobStore,
-            ExpectedException expectedException)
+            JobID jobId, Configuration config, BlobStore blobStore, File blobStorage)
             throws IOException {
 
-        testGetFailsFromCorruptFile(
-                jobId, PERMANENT_BLOB, true, config, blobStore, expectedException);
+        testGetFailsFromCorruptFile(jobId, PERMANENT_BLOB, true, config, blobStore, blobStorage);
     }
 
     /**
@@ -151,7 +143,6 @@ public class BlobCacheCorruptionTest extends TestLogger {
      *     HighAvailabilityOptions#HA_STORAGE_PATH} and {@link
      *     HighAvailabilityOptions#HA_CLUSTER_ID}) used to set up <tt>blobStore</tt>
      * @param blobStore shared HA blob store to use
-     * @param expectedException expected exception rule to use
      */
     private static void testGetFailsFromCorruptFile(
             @Nullable JobID jobId,
@@ -159,7 +150,7 @@ public class BlobCacheCorruptionTest extends TestLogger {
             boolean corruptOnHAStore,
             Configuration config,
             BlobStore blobStore,
-            ExpectedException expectedException)
+            File blobStorage)
             throws IOException {
 
         assertTrue(
@@ -168,10 +159,12 @@ public class BlobCacheCorruptionTest extends TestLogger {
 
         Random rnd = new Random();
 
-        try (BlobServer server = new BlobServer(config, blobStore);
+        try (BlobServer server =
+                        new BlobServer(config, new File(blobStorage, "server"), blobStore);
                 BlobCacheService cache =
                         new BlobCacheService(
                                 config,
+                                new File(blobStorage, "cache"),
                                 corruptOnHAStore ? blobStore : new VoidBlobStore(),
                                 new InetSocketAddress("localhost", server.getPort()))) {
 
@@ -208,13 +201,9 @@ public class BlobCacheCorruptionTest extends TestLogger {
             }
 
             // issue a GET request that fails
-            expectedException.expect(IOException.class);
-            expectedException.expectCause(
-                    CoreMatchers.allOf(
-                            instanceOf(IOException.class),
-                            hasProperty("message", containsString("data corruption"))));
-
-            get(cache, jobId, key);
+            assertThatThrownBy(() -> get(cache, jobId, key))
+                    .satisfies(
+                            FlinkAssertions.anyCauseMatches(IOException.class, "data corruption"));
         }
     }
 }

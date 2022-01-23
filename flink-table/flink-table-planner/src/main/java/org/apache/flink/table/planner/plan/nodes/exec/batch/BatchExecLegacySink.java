@@ -37,8 +37,7 @@ import java.lang.reflect.Modifier;
  *
  * @param <T> The return type of the {@link TableSink}.
  */
-public class BatchExecLegacySink<T> extends CommonExecLegacySink<T>
-        implements BatchExecNode<Object> {
+public class BatchExecLegacySink<T> extends CommonExecLegacySink<T> implements BatchExecNode<T> {
 
     public BatchExecLegacySink(
             TableSink<T> tableSink,

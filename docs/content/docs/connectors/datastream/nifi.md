@@ -30,7 +30,7 @@ This connector provides a Source and Sink that can read from and write to
 [Apache NiFi](https://nifi.apache.org/). To use this connector, add the
 following dependency to your project:
 
-{{< artifact flink-connector-nifi withScalaVersion >}}
+{{< artifact flink-connector-nifi >}}
 
 Note that the streaming connectors are currently not part of the binary
 distribution. See

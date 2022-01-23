@@ -49,6 +49,7 @@ import java.util.Map;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.TABLE_AGGREGATE;
+import static org.apache.flink.table.functions.UserDefinedFunctionHelper.generateInlineFunctionName;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /** The class to get {@link SqlAggFunctionVisitor} of CallExpression. */
@@ -76,6 +77,18 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
                 BuiltInFunctionDefinitions.VAR_SAMP, FlinkSqlOperatorTable.VAR_SAMP);
         AGG_DEF_SQL_OPERATOR_MAPPING.put(
                 BuiltInFunctionDefinitions.COLLECT, FlinkSqlOperatorTable.COLLECT);
+        AGG_DEF_SQL_OPERATOR_MAPPING.put(
+                BuiltInFunctionDefinitions.JSON_OBJECTAGG_NULL_ON_NULL,
+                FlinkSqlOperatorTable.JSON_OBJECTAGG_NULL_ON_NULL);
+        AGG_DEF_SQL_OPERATOR_MAPPING.put(
+                BuiltInFunctionDefinitions.JSON_OBJECTAGG_ABSENT_ON_NULL,
+                FlinkSqlOperatorTable.JSON_OBJECTAGG_ABSENT_ON_NULL);
+        AGG_DEF_SQL_OPERATOR_MAPPING.put(
+                BuiltInFunctionDefinitions.JSON_ARRAYAGG_NULL_ON_NULL,
+                FlinkSqlOperatorTable.JSON_ARRAYAGG_NULL_ON_NULL);
+        AGG_DEF_SQL_OPERATOR_MAPPING.put(
+                BuiltInFunctionDefinitions.JSON_ARRAYAGG_ABSENT_ON_NULL,
+                FlinkSqlOperatorTable.JSON_ARRAYAGG_ABSENT_ON_NULL);
     }
 
     private final RelBuilder relBuilder;
@@ -134,7 +147,7 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
         if (identifier != null) {
             adjustedIdentifier = identifier;
         } else {
-            adjustedIdentifier = FunctionIdentifier.of(aggFunc.functionIdentifier());
+            adjustedIdentifier = FunctionIdentifier.of(generateInlineFunctionName(aggFunc));
         }
         return new AggSqlFunction(
                 adjustedIdentifier,
@@ -154,7 +167,7 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
         if (identifier != null) {
             adjustedIdentifier = identifier;
         } else {
-            adjustedIdentifier = FunctionIdentifier.of(aggFunc.functionIdentifier());
+            adjustedIdentifier = FunctionIdentifier.of(generateInlineFunctionName(aggFunc));
         }
         return new AggSqlFunction(
                 adjustedIdentifier,

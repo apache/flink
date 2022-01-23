@@ -79,4 +79,11 @@ public interface Executor {
      * @throws Exception which occurs during job execution.
      */
     JobClient executeAsync(Pipeline pipeline) throws Exception;
+
+    /**
+     * Checks whether checkpointing is enabled.
+     *
+     * @return True if checkpointing is enables, false otherwise.
+     */
+    boolean isCheckpointingEnabled();
 }

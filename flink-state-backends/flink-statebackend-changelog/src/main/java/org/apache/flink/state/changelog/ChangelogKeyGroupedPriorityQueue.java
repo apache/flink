@@ -137,4 +137,9 @@ public class ChangelogKeyGroupedPriorityQueue<T>
     public StateChangeApplier getChangeApplier(ChangelogApplierFactory factory) {
         return factory.forPriorityQueue(delegatedPriorityQueue, serializer);
     }
+
+    @Override
+    public void resetWritingMetaFlag() {
+        logger.resetWritingMetaFlag();
+    }
 }

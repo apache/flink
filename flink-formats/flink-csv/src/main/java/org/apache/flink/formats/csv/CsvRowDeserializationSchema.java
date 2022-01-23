@@ -57,8 +57,13 @@ import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOC
  * Row}.
  *
  * <p>Failure during deserialization are forwarded as wrapped {@link IOException}s.
+ *
+ * @deprecated The format was developed for the Table API users and will not be maintained for
+ *     DataStream API users anymore. Either use Table API or switch to Data Stream, defining your
+ *     own {@link DeserializationSchema}.
  */
 @PublicEvolving
+@Deprecated
 public final class CsvRowDeserializationSchema implements DeserializationSchema<Row> {
 
     private static final long serialVersionUID = 2135553495874539201L;

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
@@ -78,10 +79,8 @@ public class SortMergeResultPartition extends ResultPartition {
     private PartitionedFile resultFile;
 
     /** Buffers cut from the network buffer pool for data writing. */
-    @GuardedBy("lock")
     private final List<MemorySegment> writeSegments = new ArrayList<>();
 
-    @GuardedBy("lock")
     private boolean hasNotifiedEndOfUserRecords;
 
     /** Size of network buffer and write buffer. */
@@ -173,16 +172,14 @@ public class SortMergeResultPartition extends ResultPartition {
         }
         numBuffersForSort = numRequiredBuffer - numWriteBuffers;
 
-        synchronized (lock) {
-            try {
-                for (int i = 0; i < numWriteBuffers; ++i) {
-                    MemorySegment segment = bufferPool.requestMemorySegmentBlocking();
-                    writeSegments.add(segment);
-                }
-            } catch (InterruptedException exception) {
-                // the setup method does not allow InterruptedException
-                throw new IOException(exception);
+        try {
+            for (int i = 0; i < numWriteBuffers; ++i) {
+                MemorySegment segment = bufferPool.requestMemorySegmentBlocking();
+                writeSegments.add(segment);
             }
+        } catch (InterruptedException exception) {
+            // the setup method does not allow InterruptedException
+            throw new IOException(exception);
         }
 
         LOG.info(
@@ -276,7 +273,6 @@ public class SortMergeResultPartition extends ResultPartition {
 
         unicastSortBuffer =
                 new PartitionSortedBuffer(
-                        lock,
                         bufferPool,
                         numSubpartitions,
                         networkBufferSize,
@@ -294,7 +290,6 @@ public class SortMergeResultPartition extends ResultPartition {
 
         broadcastSortBuffer =
                 new PartitionSortedBuffer(
-                        lock,
                         bufferPool,
                         numSubpartitions,
                         networkBufferSize,
@@ -343,10 +338,8 @@ public class SortMergeResultPartition extends ResultPartition {
     }
 
     private Queue<MemorySegment> getWriteSegments() {
-        synchronized (lock) {
-            checkState(!writeSegments.isEmpty(), "Task has been canceled.");
-            return new ArrayDeque<>(writeSegments);
-        }
+        checkState(!writeSegments.isEmpty(), "Task has been canceled.");
+        return new ArrayDeque<>(writeSegments);
     }
 
     private BufferWithChannel compressBufferIfPossible(BufferWithChannel bufferWithChannel) {
@@ -362,6 +355,7 @@ public class SortMergeResultPartition extends ResultPartition {
     private void updateStatistics(Buffer buffer, boolean isBroadcast) {
         numBuffersOut.inc(isBroadcast ? numSubpartitions : 1);
         long readableBytes = buffer.readableBytes();
+        numBytesProduced.inc(readableBytes);
         numBytesOut.inc(isBroadcast ? readableBytes * numSubpartitions : readableBytes);
     }
 
@@ -397,12 +391,10 @@ public class SortMergeResultPartition extends ResultPartition {
     }
 
     @Override
-    public void notifyEndOfData() throws IOException {
-        synchronized (lock) {
-            if (!hasNotifiedEndOfUserRecords) {
-                broadcastEvent(EndOfData.INSTANCE, false);
-                hasNotifiedEndOfUserRecords = true;
-            }
+    public void notifyEndOfData(StopMode mode) throws IOException {
+        if (!hasNotifiedEndOfUserRecords) {
+            broadcastEvent(new EndOfData(mode), false);
+            hasNotifiedEndOfUserRecords = true;
         }
     }
 
@@ -425,13 +417,11 @@ public class SortMergeResultPartition extends ResultPartition {
     }
 
     private void releaseWriteBuffers() {
-        synchronized (lock) {
-            if (bufferPool != null) {
-                for (MemorySegment segment : writeSegments) {
-                    bufferPool.recycle(segment);
-                }
-                writeSegments.clear();
+        if (bufferPool != null) {
+            for (MemorySegment segment : writeSegments) {
+                bufferPool.recycle(segment);
             }
+            writeSegments.clear();
         }
     }
 
@@ -456,7 +446,7 @@ public class SortMergeResultPartition extends ResultPartition {
             checkState(!isReleased(), "Partition released.");
             checkState(isFinished(), "Trying to read unfinished blocking partition.");
 
-            return readScheduler.crateSubpartitionReader(
+            return readScheduler.createSubpartitionReader(
                     availabilityListener, subpartitionIndex, resultFile);
         }
     }
@@ -488,6 +478,11 @@ public class SortMergeResultPartition extends ResultPartition {
 
     @Override
     public int getNumberOfQueuedBuffers() {
+        return 0;
+    }
+
+    @Override
+    public long getSizeOfQueuedBuffersUnsafe() {
         return 0;
     }
 

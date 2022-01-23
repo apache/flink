@@ -48,6 +48,10 @@ public class BlockingShuffleITCase {
     public void testBoundedBlockingShuffle() throws Exception {
         JobGraph jobGraph = createJobGraph(1000000);
         Configuration configuration = new Configuration();
+        configuration.setInteger(
+                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM,
+                Integer.MAX_VALUE);
+
         JobGraphRunningUtil.execute(
                 jobGraph, configuration, numTaskManagers, numSlotsPerTaskManager);
     }
@@ -56,6 +60,10 @@ public class BlockingShuffleITCase {
     public void testBoundedBlockingShuffleWithoutData() throws Exception {
         JobGraph jobGraph = createJobGraph(0);
         Configuration configuration = new Configuration();
+        configuration.setInteger(
+                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM,
+                Integer.MAX_VALUE);
+
         JobGraphRunningUtil.execute(
                 jobGraph, configuration, numTaskManagers, numSlotsPerTaskManager);
     }
@@ -64,7 +72,7 @@ public class BlockingShuffleITCase {
     public void testSortMergeBlockingShuffle() throws Exception {
         Configuration configuration = new Configuration();
         configuration.setInteger(
-                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM, 1);
+                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 64);
 
         JobGraph jobGraph = createJobGraph(1000000);
         JobGraphRunningUtil.execute(
@@ -75,7 +83,7 @@ public class BlockingShuffleITCase {
     public void testSortMergeBlockingShuffleWithoutData() throws Exception {
         Configuration configuration = new Configuration();
         configuration.setInteger(
-                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM, 1);
+                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 64);
 
         JobGraph jobGraph = createJobGraph(0);
         JobGraphRunningUtil.execute(

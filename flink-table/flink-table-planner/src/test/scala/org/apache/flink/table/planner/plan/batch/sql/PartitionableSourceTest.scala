@@ -39,9 +39,9 @@ class PartitionableSourceTest(
 
   @Before
   def setup() : Unit = {
-    val ddlTemp =
+    val partitionableTable =
       """
-        |CREATE TABLE MyTable (
+        |CREATE TABLE PartitionableTable (
         |  id int,
         |  name string,
         |  part1 string,
@@ -55,17 +55,39 @@ class PartitionableSourceTest(
         |)
         |""".stripMargin
 
+    // test when PushDownFilter can consume all filters including fields partitionKeys
+    val partitionableAndFilterableTable =
+      """
+        |CREATE TABLE PartitionableAndFilterableTable (
+        |  id int,
+        |  name string,
+        |  part1 string,
+        |  part2 int,
+        |  virtualField as part2 + 1)
+        |  partitioned by (part1, part2)
+        |  with (
+        |    'connector' = 'values',
+        |    'bounded' = 'true',
+        |    'partition-list' = '%s',
+        |    'filterable-fields' = 'id;part1;part2'
+        |)
+        |""".stripMargin
+
     if (sourceFetchPartitions) {
       val partitions = "part1:A,part2:1;part1:A,part2:2;part1:B,part2:3;part1:C,part2:1"
-      util.tableEnv.executeSql(String.format(ddlTemp, partitions))
+      util.tableEnv.executeSql(String.format(partitionableTable, partitions))
+      util.tableEnv.executeSql(String.format(partitionableAndFilterableTable, partitions))
     } else {
       val catalog =
         new TestValuesCatalog("test_catalog", "test_database", useCatalogFilter)
       util.tableEnv.registerCatalog("test_catalog", catalog)
       util.tableEnv.useCatalog("test_catalog")
       // register table without partitions
-      util.tableEnv.executeSql(String.format(ddlTemp, ""))
-      val mytablePath = ObjectPath.fromString("test_database.MyTable")
+      util.tableEnv.executeSql(String.format(partitionableTable, ""))
+      util.tableEnv.executeSql(String.format(partitionableAndFilterableTable, ""))
+      val partitionableTablePath = ObjectPath.fromString("test_database.PartitionableTable")
+      val partitionableAndFilterableTablePath =
+        ObjectPath.fromString("test_database.PartitionableAndFilterableTable")
       // partition map
       val partitions = Seq(
         Map("part1"->"A", "part2"->"1"),
@@ -76,30 +98,48 @@ class PartitionableSourceTest(
         val catalogPartitionSpec = new CatalogPartitionSpec(partition)
         val catalogPartition = new CatalogPartitionImpl(
           new java.util.HashMap[String, String](), "")
-        catalog.createPartition(mytablePath, catalogPartitionSpec, catalogPartition, true)
+        catalog.createPartition(
+          partitionableTablePath, catalogPartitionSpec, catalogPartition, true)
+        catalog.createPartition(
+          partitionableAndFilterableTablePath, catalogPartitionSpec, catalogPartition, true)
       })
     }
   }
 
   @Test
   def testSimplePartitionFieldPredicate1(): Unit = {
-    util.verifyExecPlan("SELECT * FROM MyTable WHERE part1 = 'A'")
+    util.verifyExecPlan("SELECT * FROM PartitionableTable WHERE part1 = 'A'")
   }
 
   @Test
   def testPartialPartitionFieldPredicatePushDown(): Unit = {
-    util.verifyExecPlan("SELECT * FROM MyTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1")
+    util.verifyExecPlan(
+      "SELECT * FROM PartitionableTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1")
   }
 
   @Test
   def testWithUdfAndVirtualColumn(): Unit = {
     util.addFunction("MyUdf", Func1)
-    util.verifyExecPlan("SELECT * FROM MyTable WHERE id > 2 AND MyUdf(part2) < 3")
+    util.verifyExecPlan("SELECT * FROM PartitionableTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 
   @Test
   def testUnconvertedExpression(): Unit = {
-    util.verifyExecPlan("select * from MyTable where trim(part1) = 'A' and part2 > 1")
+    util.verifyExecPlan("select * from PartitionableTable where trim(part1) = 'A' and part2 > 1")
+  }
+
+  @Test
+  def testPushDownPartitionAndFiltersContainPartitionKeys(): Unit = {
+    util.verifyExecPlan(
+      "select * from PartitionableAndFilterableTable " +
+        "where part1 = 'A' and part2 > 1 and id > 1")
+  }
+
+  @Test
+  def testPushDownPartitionAndFiltersContainPartitionKeysWithSingleProjection(): Unit = {
+    util.verifyExecPlan(
+      "select name from PartitionableAndFilterableTable " +
+        "where part1 = 'A' and part2 > 1 and id > 1")
   }
 }
 

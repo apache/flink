@@ -36,6 +36,8 @@ public class AlterTableDropConstraintOperation extends AlterTableOperation {
 
     @Override
     public String asSummaryString() {
-        return String.format("ALTER TABLE %s DROP CONSTRAINT %s", tableIdentifier, constraintName);
+        return String.format(
+                "ALTER TABLE %s DROP CONSTRAINT %s",
+                tableIdentifier.asSummaryString(), constraintName);
     }
 }

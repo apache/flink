@@ -42,7 +42,6 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     /** NOTE: order is important as it reflects the order of changes. */
     private final List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets;
 
-    private transient SharedStateRegistry stateRegistry;
     private final long size;
 
     public ChangelogStateHandleStreamImpl(
@@ -55,12 +54,11 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry stateRegistry) {
-        this.stateRegistry = stateRegistry;
+    public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
         handlesAndOffsets.forEach(
                 handleAndOffset ->
                         stateRegistry.registerReference(
-                                getKey(handleAndOffset.f0), handleAndOffset.f0));
+                                getKey(handleAndOffset.f0), handleAndOffset.f0, checkpointID));
     }
 
     @Override
@@ -79,16 +77,14 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     }
 
     @Override
-    public void discardState() {
-        if (stateRegistry == null) {
-            // todo: discard private state (FLINK-23139)
-            // discarding the state here will fail some tests
-            // by invalidating checkpoints on abortion
-        } else {
-            handlesAndOffsets.forEach(
-                    handleAndOffset ->
-                            stateRegistry.unregisterReference(getKey(handleAndOffset.f0)));
-        }
+    public void discardState() throws Exception {
+        // Do nothing: state will be discarded by SharedStateRegistry once JM receives it and a
+        // newer checkpoint completes without using it. JM might not receive the handle in the
+        // following cases:
+        // 1. hard TM failure
+        // 2. job termination
+        // 3. materialization of changes written pre-emptively
+        // The above cases will be addressed by FLINK-23139 and/or FLINK-24852
     }
 
     @Override

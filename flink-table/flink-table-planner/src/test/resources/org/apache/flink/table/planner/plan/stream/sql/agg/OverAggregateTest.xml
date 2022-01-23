@@ -35,7 +35,7 @@ LogicalProject(c=[$2], cnt1=[COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS sum1])
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS sum1])
 +- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(DISTINCT a) AS w0$o0, $SUM0(DISTINCT a) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, proctime])
@@ -66,7 +66,7 @@ LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS F
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[b, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS sum1, w0$o2 AS cnt2, CASE((w0$o3 > 0:BIGINT), w0$o4, null:BIGINT) AS sum2])
+Calc(select=[b, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS sum1, w0$o2 AS cnt2, CASE((w0$o3 > 0), w0$o4, null:BIGINT) AS sum2])
 +- OverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1, COUNT(DISTINCT a) AS w0$o2, COUNT(DISTINCT c) AS w0$o3, $SUM0(DISTINCT c) AS w0$o4])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b, c, proctime])
@@ -140,7 +140,7 @@ LogicalProject(a=[$0], avgA=[/(CASE(>(COUNT($2) OVER (PARTITION BY $0 ORDER BY $
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, (CASE((w0$o0 > 0:BIGINT), w0$o1, null:BIGINT) / w0$o0) AS avgA])
+Calc(select=[a, (CASE((w0$o0 > 0), w0$o1, null:BIGINT) / w0$o0) AS avgA])
 +- OverAggregate(partitionBy=[a], orderBy=[proctime ASC], window=[ RANG BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(c) AS w0$o0, $SUM0(c) AS w0$o1])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, c, proctime])
@@ -167,7 +167,7 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS F
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS sum1])
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS sum1])
 +- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, proctime])
@@ -187,7 +187,7 @@ LogicalProject(a=[$0], EXPR$1=[CASE(>(COUNT($2) OVER (PARTITION BY $0 ORDER BY P
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, CASE((w0$o0 > 0:BIGINT), w0$o1, null:BIGINT) AS EXPR$1, w0$o2 AS EXPR$2])
+Calc(select=[a, CASE((w0$o0 > 0), w0$o1, null:BIGINT) AS EXPR$1, w0$o2 AS EXPR$2])
 +- OverAggregate(partitionBy=[a], orderBy=[$2 ASC], window=[ ROWS BETWEEN 4 PRECEDING AND CURRENT ROW], select=[a, c, $2, COUNT(c) AS w0$o0, $SUM0(c) AS w0$o1, MIN(c) AS w0$o2])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, c, PROCTIME() AS $2])
@@ -212,7 +212,7 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $3 NULLS FIRST)], cnt2=[CA
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
 +- OverAggregate(orderBy=[proctime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, proctime])
@@ -260,7 +260,7 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS F
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
 +- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, proctime])
@@ -408,7 +408,7 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST)], cnt2=[CA
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
 +- OverAggregate(orderBy=[rowtime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, rowtime])
@@ -433,7 +433,7 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS UNBOUN
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
 +- OverAggregate(orderBy=[rowtime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, rowtime])
@@ -458,7 +458,7 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS F
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
 +- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, rowtime])
@@ -483,7 +483,7 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS F
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
 +- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, rowtime])

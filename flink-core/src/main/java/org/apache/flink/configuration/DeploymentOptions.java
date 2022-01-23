@@ -76,4 +76,12 @@ public class DeploymentOptions {
                     .withDescription(
                             "Custom JobListeners to be registered with the execution environment."
                                     + " The registered listeners cannot have constructors with arguments.");
+
+    public static final ConfigOption<Boolean> SHUTDOWN_ON_APPLICATION_FINISH =
+            ConfigOptions.key("execution.shutdown-on-application-finish")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Whether a Flink Application cluster should shut down automatically after its application finishes"
+                                    + " (either successfully or as result of a failure). Has no effect for other deployment modes.");
 }

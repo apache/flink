@@ -19,13 +19,12 @@
 package org.apache.flink.streaming.kinesis.test;
 
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.streaming.connectors.kinesis.testutils.KinesaliteContainer;
+import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisPubsubClient;
 import org.apache.flink.streaming.kinesis.test.model.Order;
 import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.tests.util.categories.TravisGroup1;
-import org.apache.flink.tests.util.flink.FlinkContainer;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
+import org.apache.flink.tests.util.flink.container.FlinkContainers;
 import org.apache.flink.util.DockerImageVersions;
 import org.apache.flink.util.TestLogger;
 
@@ -34,13 +33,18 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hamcrest.Matchers;
+import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.Timeout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
+import software.amazon.awssdk.core.SdkSystemSetting;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,8 +58,10 @@ import java.util.stream.Collectors;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /** End-to-end test for Kinesis Table API using Kinesalite. */
-@Category(value = {TravisGroup1.class})
 public class KinesisTableApiITCase extends TestLogger {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(KinesisTableApiITCase.class);
+
     private static final String ORDERS_STREAM = "orders";
     private static final String LARGE_ORDERS_STREAM = "large_orders";
     private static final String INTER_CONTAINER_KINESALITE_ALIAS = "kinesalite";
@@ -73,18 +79,28 @@ public class KinesisTableApiITCase extends TestLogger {
 
     private KinesisPubsubClient kinesisClient;
 
-    @ClassRule
-    public static final FlinkContainer FLINK =
-            FlinkContainer.builder()
-                    .build()
-                    .withEnv("AWS_ACCESS_KEY_ID", KINESALITE.getAccessKey())
-                    .withEnv("AWS_SECRET_KEY", KINESALITE.getSecretKey())
-                    .withEnv("AWS_CBOR_DISABLE", "1")
-                    .withEnv(
+    public static final FlinkContainers FLINK =
+            FlinkContainers.builder()
+                    .setEnvironmentVariable("AWS_ACCESS_KEY_ID", KINESALITE.getAccessKey())
+                    .setEnvironmentVariable("AWS_SECRET_KEY", KINESALITE.getSecretKey())
+                    .setEnvironmentVariable("AWS_CBOR_DISABLE", "1")
+                    .setEnvironmentVariable(
                             "FLINK_ENV_JAVA_OPTS",
                             "-Dorg.apache.flink.kinesis.shaded.com.amazonaws.sdk.disableCertChecking")
-                    .withNetwork(network)
-                    .dependsOn(KINESALITE);
+                    .setNetwork(network)
+                    .setLogger(LOGGER)
+                    .dependsOn(KINESALITE)
+                    .build();
+
+    @BeforeClass
+    public static void setupFlink() throws Exception {
+        FLINK.start();
+    }
+
+    @AfterClass
+    public static void stopFlink() {
+        FLINK.stop();
+    }
 
     @Before
     public void setUp() throws Exception {
@@ -93,6 +109,13 @@ public class KinesisTableApiITCase extends TestLogger {
         kinesisClient = new KinesisPubsubClient(properties);
         kinesisClient.createTopic(ORDERS_STREAM, 1, properties);
         kinesisClient.createTopic(LARGE_ORDERS_STREAM, 1, properties);
+
+        System.setProperty(SdkSystemSetting.CBOR_ENABLED.property(), "false");
+    }
+
+    @After
+    public void teardown() {
+        System.clearProperty(SdkSystemSetting.CBOR_ENABLED.property());
     }
 
     @Test

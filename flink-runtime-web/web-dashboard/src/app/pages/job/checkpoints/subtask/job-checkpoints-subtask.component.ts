@@ -29,9 +29,24 @@ import { first } from 'rxjs/operators';
 
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
-import { CheckPointSubTaskInterface, JobDetailCorrectInterface, VerticesItemInterface } from 'interfaces';
+import {
+  CheckpointSubTask,
+  CompletedSubTaskCheckpointStatistics,
+  JobDetailCorrect,
+  SubTaskCheckpointStatisticsItem,
+  VerticesItem
+} from 'interfaces';
 import { JobService } from 'services';
-import { deepFind } from 'utils';
+
+function createSortFn(
+  selector: (item: CompletedSubTaskCheckpointStatistics) => number | boolean
+): NzTableSortFn<SubTaskCheckpointStatisticsItem> {
+  // FIXME This type-asserts that pre / next are a specific subtype.
+  return (pre, next) =>
+    selector(pre as CompletedSubTaskCheckpointStatistics) > selector(next as CompletedSubTaskCheckpointStatistics)
+      ? 1
+      : -1;
+}
 
 @Component({
   selector: 'flink-job-checkpoints-subtask',
@@ -40,31 +55,42 @@ import { deepFind } from 'utils';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
-  @Input() vertex: VerticesItemInterface;
-  @Input() checkPointId: number;
-  jobDetail: JobDetailCorrectInterface;
-  subTaskCheckPoint: CheckPointSubTaskInterface;
-  listOfSubTaskCheckPoint: Array<{ index: number; status: string }> = [];
-  isLoading = true;
-  sortName: string;
-  sortValue: string;
+  @Input() public vertex: VerticesItem;
+  @Input() public checkPointId: number;
 
-  sortAckTimestampFn = this.sortFn('ack_timestamp');
-  sortEndToEndDurationFn = this.sortFn('end_to_end_duration');
-  sortStateSizeFn = this.sortFn('state_size');
-  sortCpSyncFn = this.sortFn('checkpoint.sync');
-  sortCpAsyncFn = this.sortFn('checkpoint.async');
-  sortAlignmentProcessedFn = this.sortFn('alignment.processed');
-  sortAlignmentDurationFn = this.sortFn('alignment.duration');
-  sortStartDelayFn = this.sortFn('start_delay');
-  sortUnalignedCpFn = this.sortFn('unaligned_checkpoint');
+  public jobDetail: JobDetailCorrect;
+  public subTaskCheckPoint: CheckpointSubTask;
+  public listOfSubTaskCheckPoint: SubTaskCheckpointStatisticsItem[] = [];
+  public isLoading = true;
+  public sortName: string;
+  public sortValue: string;
 
-  sortFn(path: string): NzTableSortFn<{ index: number; status: string }> {
-    return (pre: { index: number; status: string }, next: { index: number; status: string }) =>
-      deepFind(pre, path) > deepFind(next, path) ? 1 : -1;
+  public readonly sortAckTimestampFn = createSortFn(item => item.ack_timestamp);
+  public readonly sortEndToEndDurationFn = createSortFn(item => item.end_to_end_duration);
+  public readonly sortStateSizeFn = createSortFn(item => item.state_size);
+  public readonly sortCpSyncFn = createSortFn(item => item.checkpoint?.sync);
+  public readonly sortCpAsyncFn = createSortFn(item => item.checkpoint?.async);
+  public readonly sortAlignmentProcessedFn = createSortFn(item => item.alignment?.processed);
+  public readonly sortAlignmentDurationFn = createSortFn(item => item.alignment?.duration);
+  public readonly sortStartDelayFn = createSortFn(item => item.start_delay);
+  public readonly sortUnalignedCpFn = createSortFn(item => item.unaligned_checkpoint);
+
+  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
+
+  public ngOnInit(): void {
+    this.jobService.jobDetail$.pipe(first()).subscribe(job => {
+      this.jobDetail = job;
+      this.refresh();
+    });
   }
 
-  refresh(): void {
+  public ngOnChanges(changes: SimpleChanges): void {
+    if (changes.checkPointId) {
+      this.refresh();
+    }
+  }
+
+  public refresh(): void {
     if (this.jobDetail && this.jobDetail.jid) {
       this.jobService.loadCheckpointSubtaskDetails(this.jobDetail.jid, this.checkPointId, this.vertex.id).subscribe(
         data => {
@@ -78,21 +104,6 @@ export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
           this.cdr.markForCheck();
         }
       );
-    }
-  }
-
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
-
-  ngOnInit(): void {
-    this.jobService.jobDetail$.pipe(first()).subscribe(job => {
-      this.jobDetail = job;
-      this.refresh();
-    });
-  }
-
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes.checkPointId) {
-      this.refresh();
     }
   }
 }

@@ -18,13 +18,18 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.dataview.ListView;
-import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanRestore;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.planner.typeutils.DataViewUtils;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.dataview.NullSerializer;
+import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.extraction.ExtractionUtils;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
@@ -36,59 +41,62 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
+import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
 import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
-import org.apache.flink.table.types.utils.DataTypeUtils;
-import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
-import org.apache.flink.table.utils.EncodingUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_ATTRIBUTES;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_ATTRIBUTE_DESCRIPTION;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_ATTRIBUTE_NAME;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_ATTRIBUTE_TYPE;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_CLASS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_COMPARISON;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_DATA_VIEW_CLASS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_DESCRIPTION;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_ELEMENT_TYPE;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_EXTERNAL_DATA_TYPE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_FIELDS;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_FIELD_DESCRIPTION;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_FIELD_NAME;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_FIELD_TYPE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_FINAL;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_IDENTIFIER;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_IMPLEMENTATION_CLASS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_INSTANTIABLE;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_IS_INTERNAL_TYPE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_KEY_TYPE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_LENGTH;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_LOGICAL_TYPE;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_NAME;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_NULLABLE;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_OBJECT_IDENTIFIER;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_PRECISION;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_SOURCE_TYPE;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_SUPPER_TYPE;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_SYMBOL_CLASS;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_SPECIAL_SERIALIZER;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_SUPER_TYPE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_TIMESTAMP_KIND;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_TYPE_INFO;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_TYPE_NAME;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_VALUE_TYPE;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_VALUE_EXTERNAL_SERIALIZER_NULL;
 
 /**
- * JSON deserializer for {@link LogicalType}. refer to {@link LogicalTypeJsonSerializer} for
- * serializer.
+ * JSON deserializer for {@link LogicalType}.
+ *
+ * @see LogicalTypeJsonSerializer for the reverse operation
  */
+@Internal
 public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
     private static final long serialVersionUID = 1L;
 
@@ -98,316 +106,331 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
 
     @Override
     public LogicalType deserialize(JsonParser jsonParser, DeserializationContext ctx)
-            throws IOException, JsonProcessingException {
+            throws IOException {
         final JsonNode logicalTypeNode = jsonParser.readValueAsTree();
-        SerdeContext serdeCtx = ((FlinkDeserializationContext) ctx).getSerdeContext();
-        return deserialize(logicalTypeNode, serdeCtx);
+        final SerdeContext serdeContext = SerdeContext.get(ctx);
+        return deserialize(logicalTypeNode, serdeContext);
     }
 
-    public LogicalType deserialize(JsonNode logicalTypeNode, SerdeContext serdeCtx) {
-        if (logicalTypeNode.get(FIELD_NAME_TYPE_NAME) != null) {
-            String typeName = logicalTypeNode.get(FIELD_NAME_TYPE_NAME).asText().toUpperCase();
-            LogicalTypeRoot root = LogicalTypeRoot.valueOf(typeName);
-            switch (root) {
-                case CHAR:
-                    // Zero-length character strings have no serializable string representation.
-                    return deserializeCharType(logicalTypeNode);
-                case VARCHAR:
-                    // Zero-length character strings have no serializable string representation.
-                    return deserializeVarCharType(logicalTypeNode);
-                case BINARY:
-                    // Zero-length binary strings have no serializable string representation.
-                    return deserializeBinaryType(logicalTypeNode);
-                case VARBINARY:
-                    // Zero-length binary strings have no serializable string representation.
-                    return deserializeVarBinaryType(logicalTypeNode);
-                case DISTINCT_TYPE:
-                    return deserializeDistinctType(logicalTypeNode, serdeCtx);
-                case STRUCTURED_TYPE:
-                    return deserializeStructuredType(logicalTypeNode, serdeCtx);
-                case TIMESTAMP_WITHOUT_TIME_ZONE:
-                    return deserializeTimestampType(logicalTypeNode);
-                case TIMESTAMP_WITH_TIME_ZONE:
-                    return deserializeZonedTimestampType(logicalTypeNode);
-                case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-                    return deserializeLocalZonedTimestampType(logicalTypeNode);
-                case ROW:
-                    return deserializeRowType(logicalTypeNode, serdeCtx);
-                case MAP:
-                    return deserializeMapType(logicalTypeNode, serdeCtx);
-                case ARRAY:
-                    return deserializeArrayType(logicalTypeNode, serdeCtx);
-                case MULTISET:
-                    return deserializeMultisetType(logicalTypeNode, serdeCtx);
-                case RAW:
-                    // This method only deserializes the LogicalType with `type='RAW'`,
-                    // otherwise it will fallback to
-                    // `LogicalTypeParser.parse(logicalTypeNode.asText())`
-                    return deserializeRawType(logicalTypeNode, serdeCtx);
-                default:
-                    throw new TableException("Unsupported type name:" + typeName);
-            }
-        } else if (logicalTypeNode.get(FIELD_NAME_SYMBOL_CLASS) != null) {
-            return deserializeSymbolType(logicalTypeNode);
-        } else if (logicalTypeNode.get(FIELD_NAME_TYPE_INFO) != null) {
-            return deserializeTypeInformationRawType(logicalTypeNode, serdeCtx);
+    public static LogicalType deserialize(JsonNode logicalTypeNode, SerdeContext serdeContext) {
+        if (logicalTypeNode.isTextual()) {
+            return deserializeWithCompactSerialization(logicalTypeNode.asText(), serdeContext);
         } else {
-            return LogicalTypeParser.parse(logicalTypeNode.asText());
+            return deserializeWithGenericSerialization(logicalTypeNode, serdeContext);
         }
     }
 
-    private RowType deserializeRowType(JsonNode logicalTypeNode, SerdeContext serdeCtx) {
-        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
-        List<RowType.RowField> rowFields = new ArrayList<>();
-        Iterator<JsonNode> elements = logicalTypeNode.get(FIELD_NAME_FIELDS).elements();
-        while (elements.hasNext()) {
-            JsonNode node = elements.next();
-            String filedName = node.fieldNames().next();
-            LogicalType fieldType = deserialize(node.get(filedName), serdeCtx);
-            if (node.has(FIELD_NAME_DESCRIPTION)) {
-                rowFields.add(
-                        new RowType.RowField(
-                                filedName, fieldType, node.get(FIELD_NAME_DESCRIPTION).asText()));
+    private static LogicalType deserializeWithCompactSerialization(
+            String serializableString, SerdeContext serdeContext) {
+        final DataTypeFactory dataTypeFactory =
+                serdeContext.getFlinkContext().getCatalogManager().getDataTypeFactory();
+        return dataTypeFactory.createLogicalType(serializableString);
+    }
+
+    private static LogicalType deserializeWithGenericSerialization(
+            JsonNode logicalTypeNode, SerdeContext serdeContext) {
+        final LogicalType logicalType = deserializeFromRoot(logicalTypeNode, serdeContext);
+        if (logicalTypeNode.has(FIELD_NAME_NULLABLE)) {
+            final boolean isNullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
+            return logicalType.copy(isNullable);
+        }
+        return logicalType.copy(true);
+    }
+
+    private static LogicalType deserializeFromRoot(
+            JsonNode logicalTypeNode, SerdeContext serdeContext) {
+        final LogicalTypeRoot typeRoot =
+                LogicalTypeRoot.valueOf(logicalTypeNode.get(FIELD_NAME_TYPE_NAME).asText());
+        switch (typeRoot) {
+            case CHAR:
+            case VARCHAR:
+            case BINARY:
+            case VARBINARY:
+                return deserializeZeroLengthString(typeRoot, logicalTypeNode);
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+            case TIMESTAMP_WITH_TIME_ZONE:
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                return deserializeTimestamp(typeRoot, logicalTypeNode);
+            case ARRAY:
+            case MULTISET:
+                return deserializeCollection(typeRoot, logicalTypeNode, serdeContext);
+            case MAP:
+                return deserializeMap(logicalTypeNode, serdeContext);
+            case ROW:
+                return deserializeRow(logicalTypeNode, serdeContext);
+            case DISTINCT_TYPE:
+                return deserializeDistinctType(logicalTypeNode, serdeContext);
+            case STRUCTURED_TYPE:
+                return deserializeStructuredType(logicalTypeNode, serdeContext);
+            case SYMBOL:
+                return new SymbolType<>();
+            case RAW:
+                return deserializeSpecializedRaw(logicalTypeNode, serdeContext);
+            default:
+                throw new TableException("Unsupported type root: " + typeRoot);
+        }
+    }
+
+    private static LogicalType deserializeZeroLengthString(
+            LogicalTypeRoot typeRoot, JsonNode logicalTypeNode) {
+        final int length = logicalTypeNode.get(FIELD_NAME_LENGTH).asInt();
+        if (length != 0) {
+            throw new TableException("String length should be 0.");
+        }
+        switch (typeRoot) {
+            case CHAR:
+                return CharType.ofEmptyLiteral();
+            case VARCHAR:
+                return VarCharType.ofEmptyLiteral();
+            case BINARY:
+                return BinaryType.ofEmptyLiteral();
+            case VARBINARY:
+                return VarBinaryType.ofEmptyLiteral();
+            default:
+                throw new TableException("String type root expected.");
+        }
+    }
+
+    private static LogicalType deserializeTimestamp(
+            LogicalTypeRoot typeRoot, JsonNode logicalTypeNode) {
+        final int precision = logicalTypeNode.get(FIELD_NAME_PRECISION).asInt();
+        final TimestampKind kind =
+                TimestampKind.valueOf(logicalTypeNode.get(FIELD_NAME_TIMESTAMP_KIND).asText());
+        switch (typeRoot) {
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+                return new TimestampType(true, kind, precision);
+            case TIMESTAMP_WITH_TIME_ZONE:
+                return new ZonedTimestampType(true, kind, precision);
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                return new LocalZonedTimestampType(true, kind, precision);
+            default:
+                throw new TableException("Timestamp type root expected.");
+        }
+    }
+
+    private static LogicalType deserializeCollection(
+            LogicalTypeRoot typeRoot, JsonNode logicalTypeNode, SerdeContext serdeContext) {
+        final JsonNode elementNode = logicalTypeNode.get(FIELD_NAME_ELEMENT_TYPE);
+        final LogicalType elementType = deserialize(elementNode, serdeContext);
+        switch (typeRoot) {
+            case ARRAY:
+                return new ArrayType(elementType);
+            case MULTISET:
+                return new MultisetType(elementType);
+            default:
+                throw new TableException("Collection type root expected.");
+        }
+    }
+
+    private static LogicalType deserializeMap(JsonNode logicalTypeNode, SerdeContext serdeContext) {
+        final JsonNode keyNode = logicalTypeNode.get(FIELD_NAME_KEY_TYPE);
+        final LogicalType keyType = deserialize(keyNode, serdeContext);
+        final JsonNode valueNode = logicalTypeNode.get(FIELD_NAME_VALUE_TYPE);
+        final LogicalType valueType = deserialize(valueNode, serdeContext);
+        return new MapType(keyType, valueType);
+    }
+
+    private static LogicalType deserializeRow(JsonNode logicalTypeNode, SerdeContext serdeContext) {
+        final ArrayNode fieldNodes = (ArrayNode) logicalTypeNode.get(FIELD_NAME_FIELDS);
+        final List<RowField> fields = new ArrayList<>();
+        for (JsonNode fieldNode : fieldNodes) {
+            final String fieldName = fieldNode.get(FIELD_NAME_FIELD_NAME).asText();
+            final LogicalType fieldType =
+                    deserialize(fieldNode.get(FIELD_NAME_FIELD_TYPE), serdeContext);
+            final String fieldDescription;
+            if (fieldNode.has(FIELD_NAME_FIELD_DESCRIPTION)) {
+                fieldDescription = fieldNode.get(FIELD_NAME_FIELD_DESCRIPTION).asText();
             } else {
-                rowFields.add(new RowType.RowField(filedName, fieldType));
+                fieldDescription = null;
             }
+            fields.add(new RowField(fieldName, fieldType, fieldDescription));
         }
-        return new RowType(nullable, rowFields);
+        return new RowType(fields);
     }
 
-    private MapType deserializeMapType(JsonNode logicalTypeNode, SerdeContext serdeCtx) {
-        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
-        LogicalType keyLogicalType =
-                deserialize(logicalTypeNode.get(FIELD_NAME_KEY_TYPE), serdeCtx);
-        LogicalType valueLogicalType =
-                deserialize(logicalTypeNode.get(FIELD_NAME_VALUE_TYPE), serdeCtx);
-        return new MapType(nullable, keyLogicalType, valueLogicalType);
-    }
-
-    private ArrayType deserializeArrayType(JsonNode logicalTypeNode, SerdeContext serdeCtx) {
-        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
-        LogicalType elementType =
-                deserialize(logicalTypeNode.get(FIELD_NAME_ELEMENT_TYPE), serdeCtx);
-        return new ArrayType(nullable, elementType);
-    }
-
-    private MultisetType deserializeMultisetType(JsonNode logicalTypeNode, SerdeContext serdeCtx) {
-        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
-        LogicalType elementType =
-                deserialize(logicalTypeNode.get(FIELD_NAME_ELEMENT_TYPE), serdeCtx);
-        return new MultisetType(nullable, elementType);
-    }
-
-    private CharType deserializeCharType(JsonNode logicalTypeNode) {
-        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
-        int length = logicalTypeNode.get(FIELD_NAME_LENGTH).asInt();
-        if (length == CharType.EMPTY_LITERAL_LENGTH) {
-            return (CharType) CharType.ofEmptyLiteral().copy(nullable);
-        } else {
-            return new CharType(nullable, length);
+    private static LogicalType deserializeDistinctType(
+            JsonNode logicalTypeNode, SerdeContext serdeContext) {
+        final ObjectIdentifier identifier =
+                ObjectIdentifierJsonDeserializer.deserialize(
+                        logicalTypeNode.get(FIELD_NAME_OBJECT_IDENTIFIER));
+        final CatalogPlanRestore restoreStrategy =
+                serdeContext
+                        .getConfiguration()
+                        .get(TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS);
+        switch (restoreStrategy) {
+            case ALL:
+                if (logicalTypeNode.has(FIELD_NAME_SOURCE_TYPE)) {
+                    return deserializeDistinctTypeFromPlan(
+                            identifier, logicalTypeNode, serdeContext);
+                }
+                return deserializeUserDefinedTypeFromCatalog(identifier, serdeContext);
+            case ALL_ENFORCED:
+                return deserializeDistinctTypeFromPlan(identifier, logicalTypeNode, serdeContext);
+            case IDENTIFIER:
+                return deserializeUserDefinedTypeFromCatalog(identifier, serdeContext);
+            default:
+                throw new TableException("Unsupported catalog restore strategy.");
         }
     }
 
-    private VarCharType deserializeVarCharType(JsonNode logicalTypeNode) {
-        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
-        int length = logicalTypeNode.get(FIELD_NAME_LENGTH).asInt();
-        if (length == VarCharType.EMPTY_LITERAL_LENGTH) {
-            return (VarCharType) VarCharType.ofEmptyLiteral().copy(nullable);
-        } else {
-            return new VarCharType(nullable, length);
+    private static LogicalType deserializeDistinctTypeFromPlan(
+            ObjectIdentifier identifier, JsonNode logicalTypeNode, SerdeContext serdeContext) {
+        final LogicalType sourceType =
+                deserialize(logicalTypeNode.get(FIELD_NAME_SOURCE_TYPE), serdeContext);
+        final DistinctType.Builder builder = DistinctType.newBuilder(identifier, sourceType);
+        if (logicalTypeNode.has(FIELD_NAME_FIELD_DESCRIPTION)) {
+            builder.description(logicalTypeNode.get(FIELD_NAME_FIELD_DESCRIPTION).asText());
+        }
+        return builder.build();
+    }
+
+    private static LogicalType deserializeStructuredType(
+            JsonNode logicalTypeNode, SerdeContext serdeContext) {
+        // inline structured types have no object identifier
+        if (!logicalTypeNode.has(FIELD_NAME_OBJECT_IDENTIFIER)) {
+            return deserializeStructuredTypeFromPlan(logicalTypeNode, serdeContext);
+        }
+
+        // for catalog structured types
+        final ObjectIdentifier identifier =
+                ObjectIdentifierJsonDeserializer.deserialize(
+                        logicalTypeNode.get(FIELD_NAME_OBJECT_IDENTIFIER));
+        final CatalogPlanRestore restoreStrategy =
+                serdeContext
+                        .getConfiguration()
+                        .get(TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS);
+        switch (restoreStrategy) {
+            case ALL:
+                if (logicalTypeNode.has(FIELD_NAME_ATTRIBUTES)) {
+                    return deserializeStructuredTypeFromPlan(logicalTypeNode, serdeContext);
+                }
+                return deserializeUserDefinedTypeFromCatalog(identifier, serdeContext);
+            case ALL_ENFORCED:
+                return deserializeStructuredTypeFromPlan(logicalTypeNode, serdeContext);
+            case IDENTIFIER:
+                return deserializeUserDefinedTypeFromCatalog(identifier, serdeContext);
+            default:
+                throw new TableException("Unsupported catalog restore strategy.");
         }
     }
 
-    private BinaryType deserializeBinaryType(JsonNode logicalTypeNode) {
-        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
-        int length = logicalTypeNode.get(FIELD_NAME_LENGTH).asInt();
-        if (length == BinaryType.EMPTY_LITERAL_LENGTH) {
-            return (BinaryType) BinaryType.ofEmptyLiteral().copy(nullable);
-        } else {
-            return new BinaryType(nullable, length);
-        }
+    private static LogicalType deserializeUserDefinedTypeFromCatalog(
+            ObjectIdentifier identifier, SerdeContext serdeContext) {
+        final DataTypeFactory dataTypeFactory =
+                serdeContext.getFlinkContext().getCatalogManager().getDataTypeFactory();
+        return dataTypeFactory.createLogicalType(UnresolvedIdentifier.of(identifier));
     }
 
-    private VarBinaryType deserializeVarBinaryType(JsonNode logicalTypeNode) {
-        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
-        int length = logicalTypeNode.get(FIELD_NAME_LENGTH).asInt();
-        if (length == VarBinaryType.EMPTY_LITERAL_LENGTH) {
-            return (VarBinaryType) VarBinaryType.ofEmptyLiteral().copy(nullable);
-        } else {
-            return new VarBinaryType(nullable, length);
-        }
-    }
-
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    private SymbolType<?> deserializeSymbolType(JsonNode logicalTypeNode) {
-        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
-        String className = logicalTypeNode.get(FIELD_NAME_SYMBOL_CLASS).asText();
-        try {
-            Class<?> clazz = Class.forName(className);
-            return new SymbolType(nullable, clazz);
-        } catch (ClassNotFoundException e) {
-            throw new TableException("Failed to deserialize symbol type", e);
-        }
-    }
-
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    private TypeInformationRawType<?> deserializeTypeInformationRawType(
-            JsonNode logicalTypeNode, SerdeContext serdeCtx) {
-        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
-        String typeInfoString = logicalTypeNode.get(FIELD_NAME_TYPE_INFO).asText();
-        final TypeInformation typeInfo =
-                EncodingUtils.decodeStringToObject(
-                        typeInfoString, TypeInformation.class, serdeCtx.getClassLoader());
-        return new TypeInformationRawType(nullable, typeInfo);
-    }
-
-    private StructuredType deserializeStructuredType(
-            JsonNode logicalTypeNode, SerdeContext serdeCtx) {
-        StructuredType.Builder builder;
+    private static LogicalType deserializeStructuredTypeFromPlan(
+            JsonNode logicalTypeNode, SerdeContext serdeContext) {
         final ObjectIdentifier identifier;
-        if (logicalTypeNode.get(FIELD_NAME_IDENTIFIER) != null) {
-            JsonNode identifierNode = logicalTypeNode.get(FIELD_NAME_IDENTIFIER);
-            identifier = ObjectIdentifierJsonDeserializer.deserialize(identifierNode);
+        if (logicalTypeNode.has(FIELD_NAME_OBJECT_IDENTIFIER)) {
+            identifier =
+                    ObjectIdentifierJsonDeserializer.deserialize(
+                            logicalTypeNode.get(FIELD_NAME_OBJECT_IDENTIFIER));
         } else {
             identifier = null;
         }
+
         final Class<?> implementationClass;
-        if (logicalTypeNode.get(FIELD_NAME_IMPLEMENTATION_CLASS) != null) {
-            String classString = logicalTypeNode.get(FIELD_NAME_IMPLEMENTATION_CLASS).asText();
-            try {
-                implementationClass = Class.forName(classString, true, serdeCtx.getClassLoader());
-            } catch (ClassNotFoundException e) {
-                throw new TableException(classString + " is not found.");
-            }
+        if (logicalTypeNode.has(FIELD_NAME_IMPLEMENTATION_CLASS)) {
+            implementationClass =
+                    loadClass(
+                            logicalTypeNode.get(FIELD_NAME_IMPLEMENTATION_CLASS).asText(),
+                            serdeContext,
+                            "structured type");
         } else {
             implementationClass = null;
         }
+
+        final StructuredType.Builder builder;
         if (identifier != null && implementationClass != null) {
             builder = StructuredType.newBuilder(identifier, implementationClass);
         } else if (identifier != null) {
             builder = StructuredType.newBuilder(identifier);
-        } else if (implementationClass != null) {
-            builder = StructuredType.newBuilder(implementationClass);
         } else {
-            throw new TableException("This should not happen.");
+            builder = StructuredType.newBuilder(implementationClass);
         }
 
-        List<StructuredType.StructuredAttribute> attributes = new ArrayList<>();
-        for (JsonNode attributeNode : logicalTypeNode.get(FIELD_NAME_ATTRIBUTES)) {
-            String name = attributeNode.get(FIELD_NAME_NAME).asText();
-            LogicalType logicalType =
-                    deserialize(attributeNode.get(FIELD_NAME_LOGICAL_TYPE), serdeCtx);
-            final String description;
-            if (attributeNode.get(FIELD_NAME_DESCRIPTION) != null) {
-                description = attributeNode.get(FIELD_NAME_DESCRIPTION).asText();
+        if (logicalTypeNode.has(FIELD_NAME_DESCRIPTION)) {
+            builder.description(logicalTypeNode.get(FIELD_NAME_FIELD_DESCRIPTION).asText());
+        }
+
+        final ArrayNode attributeNodes = (ArrayNode) logicalTypeNode.get(FIELD_NAME_ATTRIBUTES);
+        final List<StructuredAttribute> attributes = new ArrayList<>();
+        for (JsonNode attributeNode : attributeNodes) {
+            final String attributeName = attributeNode.get(FIELD_NAME_ATTRIBUTE_NAME).asText();
+            final LogicalType attributeType =
+                    deserialize(attributeNode.get(FIELD_NAME_ATTRIBUTE_TYPE), serdeContext);
+            final String attributeDescription;
+            if (attributeNode.has(FIELD_NAME_ATTRIBUTE_DESCRIPTION)) {
+                attributeDescription = attributeNode.get(FIELD_NAME_ATTRIBUTE_DESCRIPTION).asText();
             } else {
-                description = null;
+                attributeDescription = null;
             }
-            attributes.add(new StructuredType.StructuredAttribute(name, logicalType, description));
+            attributes.add(
+                    new StructuredAttribute(attributeName, attributeType, attributeDescription));
         }
         builder.attributes(attributes);
 
-        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
-        builder.setNullable(nullable);
-
-        boolean isFinal = logicalTypeNode.get(FIELD_NAME_FINAL).asBoolean();
-        builder.setFinal(isFinal);
-
-        boolean isInstantiable = logicalTypeNode.get(FIELD_NAME_INSTANTIABLE).asBoolean();
-        builder.setInstantiable(isInstantiable);
-
-        StructuredType.StructuredComparison comparison =
-                StructuredType.StructuredComparison.valueOf(
-                        logicalTypeNode.get(FIELD_NAME_COMPARISON).asText().toUpperCase());
-        builder.comparison(comparison);
-
-        if (logicalTypeNode.get(FIELD_NAME_SUPPER_TYPE) != null) {
-            StructuredType supperType =
-                    deserializeStructuredType(
-                            logicalTypeNode.get(FIELD_NAME_SUPPER_TYPE), serdeCtx);
-            builder.superType(supperType);
+        if (logicalTypeNode.has(FIELD_NAME_FINAL)) {
+            builder.setFinal(logicalTypeNode.get(FIELD_NAME_FINAL).asBoolean());
         }
-        if (logicalTypeNode.get(FIELD_NAME_DESCRIPTION) != null) {
-            String description = logicalTypeNode.get(FIELD_NAME_DESCRIPTION).asText();
-            builder.description(description);
+
+        if (logicalTypeNode.has(FIELD_NAME_INSTANTIABLE)) {
+            builder.setInstantiable(logicalTypeNode.get(FIELD_NAME_INSTANTIABLE).asBoolean());
         }
+
+        if (logicalTypeNode.has(FIELD_NAME_COMPARISON)) {
+            builder.comparison(
+                    StructuredComparison.valueOf(
+                            logicalTypeNode.get(FIELD_NAME_COMPARISON).asText()));
+        }
+
+        if (logicalTypeNode.has(FIELD_NAME_SUPER_TYPE)) {
+            final StructuredType superType =
+                    (StructuredType)
+                            deserialize(logicalTypeNode.get(FIELD_NAME_SUPER_TYPE), serdeContext);
+            builder.superType(superType);
+        }
+
         return builder.build();
     }
 
-    private DistinctType deserializeDistinctType(JsonNode logicalTypeNode, SerdeContext serdeCtx) {
-        JsonNode identifierNode = logicalTypeNode.get(FIELD_NAME_IDENTIFIER);
-        ObjectIdentifier identifier = ObjectIdentifierJsonDeserializer.deserialize(identifierNode);
-        LogicalType sourceType = deserialize(logicalTypeNode.get(FIELD_NAME_SOURCE_TYPE), serdeCtx);
-        DistinctType.Builder builder = DistinctType.newBuilder(identifier, sourceType);
-        if (logicalTypeNode.get(FIELD_NAME_DESCRIPTION) != null) {
-            String description = logicalTypeNode.get(FIELD_NAME_DESCRIPTION).asText();
-            builder.description(description);
-        }
-        return builder.build();
-    }
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static LogicalType deserializeSpecializedRaw(
+            JsonNode logicalTypeNode, SerdeContext serdeContext) {
+        final Class<?> clazz =
+                loadClass(logicalTypeNode.get(FIELD_NAME_CLASS).asText(), serdeContext, "RAW type");
 
-    private TimestampType deserializeTimestampType(JsonNode logicalTypeNode) {
-        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
-        int precision = logicalTypeNode.get(FIELD_NAME_PRECISION).asInt();
-        TimestampKind timestampKind =
-                TimestampKind.valueOf(logicalTypeNode.get(FIELD_NAME_TIMESTAMP_KIND).asText());
-        return new TimestampType(nullable, timestampKind, precision);
-    }
-
-    private ZonedTimestampType deserializeZonedTimestampType(JsonNode logicalTypeNode) {
-        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
-        int precision = logicalTypeNode.get(FIELD_NAME_PRECISION).asInt();
-        TimestampKind timestampKind =
-                TimestampKind.valueOf(logicalTypeNode.get(FIELD_NAME_TIMESTAMP_KIND).asText());
-        return new ZonedTimestampType(nullable, timestampKind, precision);
-    }
-
-    private LocalZonedTimestampType deserializeLocalZonedTimestampType(JsonNode logicalTypeNode) {
-        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
-        int precision = logicalTypeNode.get(FIELD_NAME_PRECISION).asInt();
-        TimestampKind timestampKind =
-                TimestampKind.valueOf(logicalTypeNode.get(FIELD_NAME_TIMESTAMP_KIND).asText());
-        return new LocalZonedTimestampType(nullable, timestampKind, precision);
-    }
-
-    private RawType<?> deserializeRawType(JsonNode logicalTypeNode, SerdeContext serdeCtx) {
-        if (!logicalTypeNode.has(FIELD_NAME_DATA_VIEW_CLASS)) {
-            throw new TableException("Only RowType for DataView class is supported now");
-        }
-        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
-        String dataViewClass = logicalTypeNode.get(FIELD_NAME_DATA_VIEW_CLASS).asText();
-        final DataType dataViewDataType;
-        if (MapView.class.getName().equals(dataViewClass)) {
-            DataType keyDataType =
-                    deserializeDataTypeForDataView(logicalTypeNode, FIELD_NAME_KEY_TYPE, serdeCtx);
-            DataType valueDataType =
-                    deserializeDataTypeForDataView(
-                            logicalTypeNode, FIELD_NAME_VALUE_TYPE, serdeCtx);
-            dataViewDataType = MapView.newMapViewDataType(keyDataType, valueDataType);
-        } else if (ListView.class.getName().equals(dataViewClass)) {
-            DataType elementDataType =
-                    deserializeDataTypeForDataView(
-                            logicalTypeNode, FIELD_NAME_ELEMENT_TYPE, serdeCtx);
-            dataViewDataType = ListView.newListViewDataType(elementDataType);
+        final TypeSerializer<?> serializer;
+        if (logicalTypeNode.has(FIELD_NAME_SPECIAL_SERIALIZER)) {
+            final String specialSerializer =
+                    logicalTypeNode.get(FIELD_NAME_SPECIAL_SERIALIZER).asText();
+            if (FIELD_VALUE_EXTERNAL_SERIALIZER_NULL.equals(specialSerializer)) {
+                serializer = NullSerializer.INSTANCE;
+            } else {
+                throw new TableException("Unknown external serializer: " + specialSerializer);
+            }
+        } else if (logicalTypeNode.has(FIELD_NAME_EXTERNAL_DATA_TYPE)) {
+            final DataType dataType =
+                    DataTypeJsonDeserializer.deserialize(
+                            logicalTypeNode.get(FIELD_NAME_EXTERNAL_DATA_TYPE), serdeContext);
+            serializer = ExternalSerializer.of(dataType);
         } else {
-            throw new TableException("Only MapView and ListView are supported now");
+            throw new TableException("Invalid RAW type.");
         }
-        // we only Use DataViewUtils.adjustDataViews method to create the DataType for DataView,
-        // so the hasStateBackedDataViews is always false
-        DataType dataType = DataViewUtils.adjustDataViews(dataViewDataType, false);
-        RawType<?> rawType = (RawType<?>) LogicalTypeDataTypeConverter.toLogicalType(dataType);
-        return (RawType<?>) rawType.copy(nullable);
+
+        return new RawType(clazz, serializer);
     }
 
-    private DataType deserializeDataTypeForDataView(
-            JsonNode logicalTypeNode, String key, SerdeContext serdeCtx) {
-        JsonNode jsonNode = logicalTypeNode.get(key);
-        LogicalType logicalType = deserialize(jsonNode.get(FIELD_NAME_TYPE_NAME), serdeCtx);
-        DataType dataType = LogicalTypeDataTypeConverter.toDataType(logicalType);
-        boolean isInternalType = jsonNode.get(FIELD_NAME_IS_INTERNAL_TYPE).asBoolean();
-        if (isInternalType) {
-            dataType = DataTypeUtils.toInternalDataType(dataType);
+    private static Class<?> loadClass(
+            String className, SerdeContext serdeContext, String explanation) {
+        try {
+            return ExtractionUtils.classForName(className, true, serdeContext.getClassLoader());
+        } catch (ClassNotFoundException e) {
+            throw new TableException(
+                    String.format("Could not load class '%s' for %s.", className, explanation), e);
         }
-        return dataType;
     }
 }

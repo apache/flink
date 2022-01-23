@@ -18,7 +18,10 @@
 
 package org.apache.flink.metrics;
 
+import org.apache.flink.annotation.Public;
+
 /** A Counter is a {@link Metric} that measures a count. */
+@Public
 public interface Counter extends Metric {
 
     /** Increment the current count by 1. */

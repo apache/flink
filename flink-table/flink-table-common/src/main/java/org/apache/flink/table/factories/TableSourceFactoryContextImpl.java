@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Implementation of {@link TableSourceFactory.Context}. */
+@Deprecated
 @Internal
 public class TableSourceFactoryContextImpl implements TableSourceFactory.Context {
 

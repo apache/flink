@@ -18,9 +18,11 @@
 
 import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
 import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
 import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
 import { NzGridModule } from 'ng-zorro-antd/grid';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzProgressModule } from 'ng-zorro-antd/progress';
@@ -36,6 +38,7 @@ import { JobManagerLogListComponent } from './log-list/job-manager-log-list.comp
 import { JobManagerLogsComponent } from './logs/job-manager-logs.component';
 import { JobManagerMetricsComponent } from './metrics/job-manager-metrics.component';
 import { JobManagerStdoutComponent } from './stdout/job-manager-stdout.component';
+import { JobManagerThreadDumpComponent } from './thread-dump/job-manager-thread-dump.component';
 
 @NgModule({
   imports: [
@@ -48,7 +51,9 @@ import { JobManagerStdoutComponent } from './stdout/job-manager-stdout.component
     NzGridModule,
     NzIconModule,
     NzToolTipModule,
-    NzBreadCrumbModule
+    NzBreadCrumbModule,
+    NzCodeEditorModule,
+    FormsModule
   ],
   declarations: [
     JobManagerComponent,
@@ -57,7 +62,8 @@ import { JobManagerStdoutComponent } from './stdout/job-manager-stdout.component
     JobManagerLogListComponent,
     JobManagerLogDetailComponent,
     JobManagerLogsComponent,
-    JobManagerStdoutComponent
+    JobManagerStdoutComponent,
+    JobManagerThreadDumpComponent
   ]
 })
 export class JobManagerModule {}

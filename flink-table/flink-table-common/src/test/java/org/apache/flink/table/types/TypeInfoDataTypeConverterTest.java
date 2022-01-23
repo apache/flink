@@ -40,8 +40,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.table.types.utils.DataTypeFactoryMock.dummyRaw;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TypeInfoDataTypeConverter}. */
 @RunWith(Parameterized.class)
@@ -123,9 +122,8 @@ public class TypeInfoDataTypeConverterTest {
 
     @Test
     public void testConversion() {
-        final DataType dataType =
-                TypeInfoDataTypeConverter.toDataType(testSpec.typeFactory, testSpec.typeInfo);
-        assertThat(dataType, equalTo(testSpec.expectedDataType));
+        assertThat(TypeInfoDataTypeConverter.toDataType(testSpec.typeFactory, testSpec.typeInfo))
+                .isEqualTo(testSpec.expectedDataType);
     }
 
     // --------------------------------------------------------------------------------------------
