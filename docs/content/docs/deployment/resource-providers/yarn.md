@@ -1,4 +1,4 @@
----
+\---
 title: YARN
 weight: 5
 type: docs
@@ -253,7 +253,14 @@ The configuration parameter for specifying the REST endpoint port is [rest.bind-
 
 ### User jars & Classpath
 
-By default Flink will include the user jars into the system classpath when running a single job. This behavior can be controlled with the [yarn.per-job-cluster.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-per-job-cluster-include-user-jar) parameter.
+**Session Mode**
+
+When deploying Flink with Session Mode on Yarn, only the JAR file specified in startup command will be recognized as user-jars and included into user classpath.
+
+**PerJob Mode & Application Mode**
+
+When deploying Flink with PerJob/Application Mode on Yarn, the JAR file specified in startup command and all JAR files in Flink's `usrlib` folder will be recognized as user-jars.
+By default Flink will include the user-jars into the system classpath. This behavior can be controlled with the [yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar) parameter.
 
 When setting this to `DISABLED` Flink will include the jar in the user classpath instead.
 
@@ -262,5 +269,7 @@ The user-jars position in the classpath can be controlled by setting the paramet
 - `ORDER`: (default) Adds the jar to the system classpath based on the lexicographic order.
 - `FIRST`: Adds the jar to the beginning of the system classpath.
 - `LAST`: Adds the jar to the end of the system classpath.
+
+Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/debugging_classloading" >}}#overview-of-classloading-in-flink) for details.
 
 {{< top >}}
