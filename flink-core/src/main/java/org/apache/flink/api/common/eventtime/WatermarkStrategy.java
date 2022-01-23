@@ -159,7 +159,7 @@ public interface WatermarkStrategy<T>
      * @see AscendingTimestampsWatermarks
      */
     static <T> WatermarkStrategy<T> forMonotonousTimestamps() {
-        return new WatermarkStrategy<>() {
+        return new WatermarkStrategy<T>() {
             @Override
             public boolean isEventTime() {
                 return true;
@@ -223,7 +223,7 @@ public interface WatermarkStrategy<T>
      * scenarios that do pure processing-time based stream processing.
      */
     static <T> WatermarkStrategy<T> noWatermarks() {
-        return new WatermarkStrategy<>() {
+        return new WatermarkStrategy<T>() {
             @Override
             public boolean isEventTime() {
                 return false;
