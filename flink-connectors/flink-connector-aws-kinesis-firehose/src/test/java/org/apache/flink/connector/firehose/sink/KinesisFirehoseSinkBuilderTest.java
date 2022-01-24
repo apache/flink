@@ -17,19 +17,17 @@
 
 package org.apache.flink.connector.firehose.sink;
 
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.connector.base.sink.writer.ElementConverter;
 
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
-import software.amazon.awssdk.services.firehose.model.Record;
 
 /** Covers construction, defaults and sanity checking of {@link KinesisFirehoseSinkBuilder}. */
 public class KinesisFirehoseSinkBuilderTest {
-    private static final ElementConverter<String, Record> ELEMENT_CONVERTER_PLACEHOLDER =
-            KinesisFirehoseSinkElementConverter.<String>builder()
-                    .setSerializationSchema(new SimpleStringSchema())
-                    .build();
+
+    private static final SerializationSchema<String> SERIALIZATION_SCHEMA =
+            new SimpleStringSchema();
 
     @Test
     public void elementConverterOfSinkMustBeSetWhenBuilt() {
@@ -40,7 +38,7 @@ public class KinesisFirehoseSinkBuilderTest {
                                         .setDeliveryStreamName("deliveryStream")
                                         .build())
                 .withMessageContaining(
-                        "ElementConverter must be not null when initializing the AsyncSinkBase.");
+                        "No SerializationSchema was supplied to the KinesisFirehoseSink builder.");
     }
 
     @Test
@@ -49,7 +47,7 @@ public class KinesisFirehoseSinkBuilderTest {
                 .isThrownBy(
                         () ->
                                 KinesisFirehoseSink.<String>builder()
-                                        .setElementConverter(ELEMENT_CONVERTER_PLACEHOLDER)
+                                        .setSerializationSchema(SERIALIZATION_SCHEMA)
                                         .build())
                 .withMessageContaining(
                         "The delivery stream name must not be null when initializing the KDF Sink.");
@@ -62,7 +60,7 @@ public class KinesisFirehoseSinkBuilderTest {
                         () ->
                                 KinesisFirehoseSink.<String>builder()
                                         .setDeliveryStreamName("")
-                                        .setElementConverter(ELEMENT_CONVERTER_PLACEHOLDER)
+                                        .setSerializationSchema(SERIALIZATION_SCHEMA)
                                         .build())
                 .withMessageContaining(
                         "The delivery stream name must be set when initializing the KDF Sink.");

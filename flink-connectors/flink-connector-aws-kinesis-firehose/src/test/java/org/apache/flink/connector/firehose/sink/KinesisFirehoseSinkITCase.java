@@ -19,7 +19,6 @@ package org.apache.flink.connector.firehose.sink;
 
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.aws.testutils.LocalstackContainer;
-import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.DockerImageVersions;
@@ -35,12 +34,12 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.core.SdkSystemSetting;
 import software.amazon.awssdk.services.firehose.FirehoseAsyncClient;
-import software.amazon.awssdk.services.firehose.model.Record;
 import software.amazon.awssdk.services.iam.IamAsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.utils.ImmutableMap;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.createBucket;
@@ -49,6 +48,7 @@ import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.getC
 import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.getIamClient;
 import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.getS3Client;
 import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.listBucketObjects;
+import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.readObjectsFromS3Bucket;
 import static org.apache.flink.connector.firehose.sink.testutils.KinesisFirehoseTestUtils.createDeliveryStream;
 import static org.apache.flink.connector.firehose.sink.testutils.KinesisFirehoseTestUtils.getFirehoseClient;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,21 +56,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Integration test suite for the {@code KinesisFirehoseSink} using a localstack container. */
 public class KinesisFirehoseSinkITCase {
 
-    private static final ElementConverter<String, Record> elementConverter =
-            KinesisFirehoseSinkElementConverter.<String>builder()
-                    .setSerializationSchema(new SimpleStringSchema())
-                    .build();
-
     private static final Logger LOG = LoggerFactory.getLogger(KinesisFirehoseSinkITCase.class);
-    private S3AsyncClient s3AsyncClient;
-    private FirehoseAsyncClient firehoseAsyncClient;
-    private IamAsyncClient iamAsyncClient;
-
     private static final String ROLE_NAME = "super-role";
     private static final String ROLE_ARN = "arn:aws:iam::000000000000:role/" + ROLE_NAME;
     private static final String BUCKET_NAME = "s3-firehose";
     private static final String STREAM_NAME = "s3-stream";
     private static final int NUMBER_OF_ELEMENTS = 92;
+
+    private S3AsyncClient s3AsyncClient;
+    private FirehoseAsyncClient firehoseAsyncClient;
+    private IamAsyncClient iamAsyncClient;
 
     @ClassRule
     public static LocalstackContainer mockFirehoseContainer =
@@ -106,10 +101,15 @@ public class KinesisFirehoseSinkITCase {
                         .map(Object::toString)
                         .returns(String.class)
                         .map(data -> mapper.writeValueAsString(ImmutableMap.of("data", data)));
+        List<String> expectedElements = new ArrayList<>();
+        for (int i = 1; i < NUMBER_OF_ELEMENTS; i++) {
+            expectedElements.add(
+                    mapper.writeValueAsString(ImmutableMap.of("data", String.valueOf(i))));
+        }
 
         KinesisFirehoseSink<String> kdsSink =
                 KinesisFirehoseSink.<String>builder()
-                        .setElementConverter(elementConverter)
+                        .setSerializationSchema(new SimpleStringSchema())
                         .setDeliveryStreamName(STREAM_NAME)
                         .setMaxBatchSize(1)
                         .setFirehoseClientProperties(getConfig(mockFirehoseContainer.getEndpoint()))
@@ -120,5 +120,12 @@ public class KinesisFirehoseSinkITCase {
 
         List<S3Object> objects = listBucketObjects(s3AsyncClient, BUCKET_NAME);
         assertThat(objects.size()).isEqualTo(NUMBER_OF_ELEMENTS);
+        assertThat(
+                        readObjectsFromS3Bucket(
+                                s3AsyncClient,
+                                objects,
+                                BUCKET_NAME,
+                                response -> new String(response.asByteArrayUnsafe())))
+                .containsAll(expectedElements);
     }
 }

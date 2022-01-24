@@ -35,7 +35,7 @@ public class KinesisFirehoseSinkElementConverterTest {
         Assertions.assertThatExceptionOfType(NullPointerException.class)
                 .isThrownBy(() -> KinesisFirehoseSinkElementConverter.<String>builder().build())
                 .withMessageContaining(
-                        "No SerializationSchema was supplied to the KinesisFirehoseSinkElementConverter builder.");
+                        "No SerializationSchema was supplied to the KinesisFirehoseSink builder.");
     }
 
     @Test

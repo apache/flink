@@ -37,7 +37,6 @@ import software.amazon.awssdk.services.firehose.model.Record;
 import software.amazon.awssdk.services.firehose.model.ResourceNotFoundException;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -116,7 +115,7 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
 
     @Override
     protected void submitRequestEntries(
-            List<Record> requestEntries, Consumer<Collection<Record>> requestResult) {
+            List<Record> requestEntries, Consumer<List<Record>> requestResult) {
 
         PutRecordBatchRequest batchRequest =
                 PutRecordBatchRequest.builder()
@@ -146,9 +145,7 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
     }
 
     private void handleFullyFailedRequest(
-            Throwable err,
-            List<Record> requestEntries,
-            Consumer<Collection<Record>> requestResult) {
+            Throwable err, List<Record> requestEntries, Consumer<List<Record>> requestResult) {
         LOG.warn(
                 "KDF Sink failed to persist {} entries to KDF first request was {}",
                 requestEntries.size(),
@@ -164,7 +161,7 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
     private void handlePartiallyFailedRequest(
             PutRecordBatchResponse response,
             List<Record> requestEntries,
-            Consumer<Collection<Record>> requestResult) {
+            Consumer<List<Record>> requestResult) {
         LOG.warn(
                 "KDF Sink failed to persist {} entries to KDF first request was {}",
                 requestEntries.size(),
