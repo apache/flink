@@ -100,7 +100,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *     .setSubscriptionName("flink-source-1")
  *     .setTopics(Arrays.asList(TOPIC1, TOPIC2))
  *     .setDeserializationSchema(PulsarDeserializationSchema.flinkSchema(new SimpleStringSchema()))
- *     .setUnbounded(StopCursor.atEventTime(System.currentTimeMillis()))
+ *     .setBoundedStopCursor(StopCursor.atEventTime(System.currentTimeMillis()))
  *     .build();
  * }</pre>
  *

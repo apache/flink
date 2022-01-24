@@ -57,7 +57,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
  *     .setAdminUrl(getAdminUrl())
  *     .setSubscriptionName("test")
  *     .setDeserializationSchema(PulsarDeserializationSchema.flinkSchema(new SimpleStringSchema()))
- *     .setBounded(StopCursor::defaultStopCursor)
+ *     .setBoundedStopCursor(StopCursor::defaultStopCursor)
  *     .build();
  * }</pre>
  *
