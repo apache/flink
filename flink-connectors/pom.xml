@@ -53,6 +53,7 @@ under the License.
 		<module>flink-file-sink-common</module>
 		<module>flink-connector-files</module>
 		<module>flink-connector-pulsar</module>
+		<module>flink-connector-opensearch</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
@@ -99,6 +100,7 @@ under the License.
 				<module>flink-sql-connector-kinesis</module>
 				<module>flink-sql-connector-pulsar</module>
 				<module>flink-sql-connector-rabbitmq</module>
+				<module>flink-sql-connector-opensearch</module>
 			</modules>
 		</profile>
 	</profiles>

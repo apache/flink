@@ -127,6 +127,8 @@ flink-connectors,\
 flink-connectors/flink-connector-files,\
 flink-connectors/flink-connector-jdbc,\
 flink-connectors/flink-connector-cassandra,\
+flink-connectors/flink-connector-opensearch,\
+flink-connectors/flink-sql-connector-opensearch,\
 flink-metrics/flink-metrics-dropwizard,\
 flink-metrics/flink-metrics-graphite,\
 flink-metrics/flink-metrics-jmx,\

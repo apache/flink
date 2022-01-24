@@ -27,6 +27,7 @@ package org.apache.flink.util;
  * cache_docker_images.sh#DOCKER_IMAGE_CACHE_PATTERN}.
  */
 public class DockerImageVersions {
+    public static final String OPENSEARCH_1 = "opensearchproject/opensearch:1.2.4";
 
     public static final String KAFKA = "confluentinc/cp-kafka:7.2.2";
 

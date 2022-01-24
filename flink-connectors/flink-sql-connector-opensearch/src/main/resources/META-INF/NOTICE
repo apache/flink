@@ -1,0 +1,50 @@
+flink-sql-connector-opensearch
+Copyright 2014-2021 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.carrotsearch:hppc:0.8.1
+- com.fasterxml.jackson.core:jackson-annotations:2.13.4
+- com.fasterxml.jackson.core:jackson-core:2.13.4
+- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.13.4
+- com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.13.4
+- com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.4
+- com.github.spullara.mustache.java:compiler:0.9.10
+- commons-codec:commons-codec:1.15
+- commons-logging:commons-logging:1.1.3
+- org.apache.commons:commons-compress:1.21
+- org.apache.httpcomponents:httpasyncclient:4.1.4
+- org.apache.httpcomponents:httpclient:4.5.13
+- org.apache.httpcomponents:httpcore:4.4.14
+- org.apache.httpcomponents:httpcore-nio:4.4.12
+- org.apache.lucene:lucene-analyzers-common:8.10.1
+- org.apache.lucene:lucene-backward-codecs:8.10.1
+- org.apache.lucene:lucene-core:8.10.1
+- org.apache.lucene:lucene-grouping:8.10.1
+- org.apache.lucene:lucene-highlighter:8.10.1
+- org.apache.lucene:lucene-join:8.10.1
+- org.apache.lucene:lucene-memory:8.10.1
+- org.apache.lucene:lucene-misc:8.10.1
+- org.apache.lucene:lucene-queries:8.10.1
+- org.apache.lucene:lucene-queryparser:8.10.1
+- org.apache.lucene:lucene-sandbox:8.10.1
+- org.apache.lucene:lucene-spatial3d:8.10.1
+- org.apache.lucene:lucene-spatial-extras:8.10.1
+- org.apache.lucene:lucene-suggest:8.10.1
+- org.opensearch.client:opensearch-rest-client:1.3.0
+- org.opensearch.client:opensearch-rest-high-level-client:1.3.0
+- org.opensearch:opensearch-cli:1.3.0
+- org.opensearch:opensearch-core:1.3.0
+- org.opensearch:opensearch-geo:1.3.0
+- org.opensearch:opensearch:1.3.0
+- org.opensearch:opensearch-secure-sm:1.3.0
+- org.opensearch:opensearch-x-content:1.3.0
+- org.opensearch.plugin:aggs-matrix-stats-client:1.3.0
+- org.opensearch.plugin:lang-mustache-client:1.3.0
+- org.opensearch.plugin:mapper-extras-client:1.3.0
+- org.opensearch.plugin:parent-join-client:1.3.0
+- org.opensearch.plugin:rank-eval-client:1.3.0
+- net.java.dev.jna:jna:5.5.0
