@@ -305,7 +305,7 @@ public class NetworkBufferPoolTest extends TestLogger {
             MatcherAssert.assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
 
             closeableRegistry.registerCloseable(
-                    (globalPool.createBufferPool(10, Integer.MAX_VALUE))::lazyDestroy);
+                    (globalPool.createBufferPool(5, Integer.MAX_VALUE))::lazyDestroy);
 
             assertEquals(30, globalPool.getNumberOfRequestedMemorySegments());
             assertEquals(60, globalPool.getRequestedSegmentsUsage());
