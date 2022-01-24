@@ -17,28 +17,25 @@
 
 package org.apache.flink.connector.kinesis.sink;
 
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.connector.base.sink.writer.ElementConverter;
 
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
-import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 
 /** Covers construction, defaults and sanity checking of KinesisDataStreamsSinkBuilder. */
 public class KinesisDataStreamsSinkBuilderTest {
-    private static final ElementConverter<String, PutRecordsRequestEntry>
-            ELEMENT_CONVERTER_PLACEHOLDER =
-                    KinesisDataStreamsSinkElementConverter.<String>builder()
-                            .setSerializationSchema(new SimpleStringSchema())
-                            .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))
-                            .build();
+    private static final SerializationSchema<String> SERIALIZATION_SCHEMA =
+            new SimpleStringSchema();
+    private static final PartitionKeyGenerator<String> PARTITION_KEY_GENERATOR =
+            element -> String.valueOf(element.hashCode());
 
     @Test
     public void elementConverterOfSinkMustBeSetWhenBuilt() {
         Assertions.assertThatExceptionOfType(NullPointerException.class)
                 .isThrownBy(() -> KinesisDataStreamsSink.builder().setStreamName("stream").build())
                 .withMessageContaining(
-                        "ElementConverter must be not null when initilizing the AsyncSinkBase.");
+                        "No SerializationSchema was supplied to the KinesisDataStreamsSinkElementConverter builder.");
     }
 
     @Test
@@ -47,7 +44,8 @@ public class KinesisDataStreamsSinkBuilderTest {
                 .isThrownBy(
                         () ->
                                 KinesisDataStreamsSink.<String>builder()
-                                        .setElementConverter(ELEMENT_CONVERTER_PLACEHOLDER)
+                                        .setPartitionKeyGenerator(PARTITION_KEY_GENERATOR)
+                                        .setSerializationSchema(SERIALIZATION_SCHEMA)
                                         .build())
                 .withMessageContaining(
                         "The stream name must not be null when initializing the KDS Sink.");
@@ -60,9 +58,36 @@ public class KinesisDataStreamsSinkBuilderTest {
                         () ->
                                 KinesisDataStreamsSink.<String>builder()
                                         .setStreamName("")
-                                        .setElementConverter(ELEMENT_CONVERTER_PLACEHOLDER)
+                                        .setPartitionKeyGenerator(PARTITION_KEY_GENERATOR)
+                                        .setSerializationSchema(SERIALIZATION_SCHEMA)
                                         .build())
                 .withMessageContaining(
                         "The stream name must be set when initializing the KDS Sink.");
+    }
+
+    @Test
+    public void serializationSchemaMustBeSetWhenSinkIsBuilt() {
+        Assertions.assertThatExceptionOfType(NullPointerException.class)
+                .isThrownBy(
+                        () ->
+                                KinesisDataStreamsSink.<String>builder()
+                                        .setStreamName("stream")
+                                        .setPartitionKeyGenerator(PARTITION_KEY_GENERATOR)
+                                        .build())
+                .withMessageContaining(
+                        "No SerializationSchema was supplied to the KinesisDataStreamsSinkElementConverter builder.");
+    }
+
+    @Test
+    public void partitionKeyGeneratorMustBeSetWhenSinkIsBuilt() {
+        Assertions.assertThatExceptionOfType(NullPointerException.class)
+                .isThrownBy(
+                        () ->
+                                KinesisDataStreamsSink.<String>builder()
+                                        .setStreamName("stream")
+                                        .setSerializationSchema(SERIALIZATION_SCHEMA)
+                                        .build())
+                .withMessageContaining(
+                        "No PartitionKeyGenerator lambda was supplied to the KinesisDataStreamsSinkElementConverter builder.");
     }
 }

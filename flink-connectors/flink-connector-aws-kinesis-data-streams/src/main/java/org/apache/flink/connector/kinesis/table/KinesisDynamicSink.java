@@ -20,13 +20,11 @@ package org.apache.flink.connector.kinesis.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.connector.base.table.sink.AsyncDynamicTableSink;
 import org.apache.flink.connector.base.table.sink.AsyncDynamicTableSinkBuilder;
 import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSink;
 import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSinkBuilder;
-import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSinkElementConverter;
-import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSinkElementConverter.PartitionKeyGenerator;
+import org.apache.flink.connector.kinesis.sink.PartitionKeyGenerator;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -106,15 +104,11 @@ public class KinesisDynamicSink extends AsyncDynamicTableSink<PutRecordsRequestE
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
         SerializationSchema<RowData> serializationSchema =
                 encodingFormat.createRuntimeEncoder(context, consumedDataType);
-        ElementConverter<RowData, PutRecordsRequestEntry> elementConverter =
-                KinesisDataStreamsSinkElementConverter.<RowData>builder()
-                        .setSerializationSchema(serializationSchema)
-                        .setPartitionKeyGenerator(partitioner)
-                        .build();
 
         KinesisDataStreamsSinkBuilder<RowData> builder =
                 KinesisDataStreamsSink.<RowData>builder()
-                        .setElementConverter(elementConverter)
+                        .setSerializationSchema(serializationSchema)
+                        .setPartitionKeyGenerator(partitioner)
                         .setKinesisClientProperties(kinesisClientProperties)
                         .setStreamName(stream);
 

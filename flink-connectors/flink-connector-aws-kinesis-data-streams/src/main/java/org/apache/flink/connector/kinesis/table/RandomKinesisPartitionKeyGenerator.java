@@ -19,7 +19,7 @@
 package org.apache.flink.connector.kinesis.table;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSinkElementConverter.PartitionKeyGenerator;
+import org.apache.flink.connector.kinesis.sink.PartitionKeyGenerator;
 
 import java.util.UUID;
 

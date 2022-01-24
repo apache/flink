@@ -23,7 +23,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.base.table.AsyncDynamicTableSinkFactory;
-import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSinkElementConverter;
+import org.apache.flink.connector.kinesis.sink.PartitionKeyGenerator;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -89,8 +89,7 @@ public class KinesisDynamicTableSinkFactory extends AsyncDynamicTableSinkFactory
                 .setEncodingFormat(encodingFormat)
                 .setConsumedDataType(physicalDataType)
                 .setPartitioner(
-                        (KinesisDataStreamsSinkElementConverter.PartitionKeyGenerator<RowData>)
-                                properties.get(SINK_PARTITIONER.key()));
+                        (PartitionKeyGenerator<RowData>) properties.get(SINK_PARTITIONER.key()));
         addAsyncOptionsToBuilder(properties, builder);
         Optional.ofNullable((Boolean) properties.get(SINK_FAIL_ON_ERROR.key()))
                 .ifPresent(builder::setFailOnError);

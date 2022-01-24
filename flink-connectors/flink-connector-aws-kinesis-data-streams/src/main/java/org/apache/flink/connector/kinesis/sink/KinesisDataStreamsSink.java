@@ -17,7 +17,7 @@
 
 package org.apache.flink.connector.kinesis.sink;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.base.sink.AsyncSinkBase;
@@ -111,7 +111,7 @@ public class KinesisDataStreamsSink<InputT> extends AsyncSinkBase<InputT, PutRec
         return new KinesisDataStreamsSinkBuilder<>();
     }
 
-    @Experimental
+    @Internal
     @Override
     public SinkWriter<InputT, Void, Collection<PutRecordsRequestEntry>> createWriter(
             InitContext context, List<Collection<PutRecordsRequestEntry>> states) {
@@ -129,7 +129,7 @@ public class KinesisDataStreamsSink<InputT> extends AsyncSinkBase<InputT, PutRec
                 kinesisClientProperties);
     }
 
-    @Experimental
+    @Internal
     @Override
     public Optional<SimpleVersionedSerializer<Collection<PutRecordsRequestEntry>>>
             getWriterStateSerializer() {
