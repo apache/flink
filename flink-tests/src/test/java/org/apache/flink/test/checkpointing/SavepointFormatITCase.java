@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SavepointKeyedStateHandle;
@@ -69,8 +70,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for taking savepoint in different {@link SavepointFormatType format types}. */
 public class SavepointFormatITCase {
-
-    @TempDir Path checkpointDir;
+    @TempDir Path checkpointsDir;
     @TempDir Path originalSavepointDir;
     @TempDir Path renamedSavepointDir;
 
@@ -111,13 +111,34 @@ public class SavepointFormatITCase {
                                 keyedState ->
                                         assertThat(
                                                 keyedState,
-                                                instanceOf(KeyGroupsStateHandle.class))));
+                                                instanceOf(KeyGroupsStateHandle.class))),
+                Arguments.of(
+                        SavepointFormatType.CANONICAL,
+                        ROCKSDB_INCREMENTAL_SNAPSHOTS,
+                        (Consumer<KeyedStateHandle>)
+                                keyedState ->
+                                        assertThat(
+                                                keyedState,
+                                                instanceOf(SavepointKeyedStateHandle.class))),
+                Arguments.of(
+                        SavepointFormatType.NATIVE,
+                        ROCKSDB_INCREMENTAL_SNAPSHOTS,
+                        (Consumer<KeyedStateHandle>)
+                                keyedState ->
+                                        assertThat(
+                                                keyedState,
+                                                instanceOf(
+                                                        IncrementalRemoteKeyedStateHandle.class))));
     }
 
     private abstract static class StateBackendConfig {
         public abstract String getName();
 
         public abstract Configuration getConfiguration();
+
+        public int getCheckpointsBeforeSavepoint() {
+            return 0;
+        }
 
         @Override
         public final String toString() {
@@ -160,6 +181,29 @@ public class SavepointFormatITCase {
                 }
             };
 
+    private static final StateBackendConfig ROCKSDB_INCREMENTAL_SNAPSHOTS =
+            new StateBackendConfig() {
+                @Override
+                public String getName() {
+                    return "ROCKSDB_INCREMENTAL_SNAPSHOTS";
+                }
+
+                @Override
+                public int getCheckpointsBeforeSavepoint() {
+                    return 1;
+                }
+
+                @Override
+                public Configuration getConfiguration() {
+                    Configuration stateBackendConfig = new Configuration();
+                    stateBackendConfig.setString(StateBackendOptions.STATE_BACKEND, "rocksdb");
+                    stateBackendConfig.set(
+                            CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.ZERO);
+                    stateBackendConfig.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
+                    return stateBackendConfig;
+                }
+            };
+
     @ParameterizedTest(name = "[{index}] {0}, {1}")
     @MethodSource("parameters")
     public void testTriggerSavepointAndResumeWithFileBasedCheckpointsAndRelocateBasePath(
@@ -171,7 +215,7 @@ public class SavepointFormatITCase {
         final int numSlotsPerTaskManager = 2;
 
         final Configuration config = stateBackendConfig.getConfiguration();
-        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toUri().toString());
+        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointsDir.toUri().toString());
         final MiniClusterWithClientResource miniClusterResource =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -183,7 +227,11 @@ public class SavepointFormatITCase {
         miniClusterResource.before();
         try {
 
-            final String savepointPath = submitJobAndTakeSavepoint(miniClusterResource, formatType);
+            final String savepointPath =
+                    submitJobAndTakeSavepoint(
+                            miniClusterResource,
+                            formatType,
+                            stateBackendConfig.getCheckpointsBeforeSavepoint());
             final CheckpointMetadata metadata = loadCheckpointMetadata(savepointPath);
 
             final OperatorState operatorState =
@@ -243,7 +291,9 @@ public class SavepointFormatITCase {
     }
 
     private String submitJobAndTakeSavepoint(
-            MiniClusterWithClientResource cluster, SavepointFormatType formatType)
+            MiniClusterWithClientResource cluster,
+            SavepointFormatType formatType,
+            int checkpointBeforeSavepoint)
             throws Exception {
         final JobGraph jobGraph = createJobGraph();
 
@@ -252,8 +302,12 @@ public class SavepointFormatITCase {
         client.submitJob(jobGraph).get();
         waitForAllTaskRunning(cluster.getMiniCluster(), jobId, false);
 
-        return client.cancelWithSavepoint(
-                        jobId, originalSavepointDir.toUri().toString(), formatType)
+        for (int i = 0; i < checkpointBeforeSavepoint; i++) {
+            cluster.getMiniCluster().triggerCheckpoint(jobId).get();
+        }
+
+        return client.stopWithSavepoint(
+                        jobId, false, originalSavepointDir.toUri().toString(), formatType)
                 .get();
     }
 
