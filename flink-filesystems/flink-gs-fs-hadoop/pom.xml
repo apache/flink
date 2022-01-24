@@ -124,6 +124,11 @@ under the License.
 					<groupId>org.codehaus.mojo</groupId>
 					<artifactId>animal-sniffer-annotations</artifactId>
 				</exclusion>
+				<!-- exclude dependency because of its GPLv2 license, see https://github.com/apache/flink/pull/15599#issuecomment-850241316 -->
+				<exclusion>
+					<groupId>javax.annotation</groupId>
+					<artifactId>javax.annotation-api</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -214,8 +219,6 @@ under the License.
 										<exclude>META-INF/*.SF</exclude>
 										<exclude>META-INF/*.DSA</exclude>
 										<exclude>META-INF/*.RSA</exclude>
-										<!-- exclude javax.annotation because of GPLv2 license, see https://github.com/apache/flink/pull/15599#issuecomment-850241316 -->
-										<exclude>javax/annotation/**</exclude>
 									</excludes>
 								</filter>
 							</filters>
