@@ -142,31 +142,7 @@ under the License.
 					<groupId>commons-codec</groupId>
 					<artifactId>commons-codec</artifactId>
 				</exclusion>
-				<exclusion>
-					<!-- Override arrow netty dependency -->
-					<groupId>io.netty</groupId>
-					<artifactId>netty-buffer</artifactId>
-				</exclusion>
-				<exclusion>
-					<!-- Override arrow netty dependency -->
-					<groupId>io.netty</groupId>
-					<artifactId>netty-common</artifactId>
-				</exclusion>
 			</exclusions>
-		</dependency>
-
-		<dependency>
-			<!-- Bump arrow netty dependency -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-buffer</artifactId>
-			<version>4.1.46.Final</version>
-		</dependency>
-
-		<dependency>
-			<!-- Bump arrow netty dependency -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-common</artifactId>
-			<version>4.1.46.Final</version>
 		</dependency>
 
 		<!-- test dependencies -->
