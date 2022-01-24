@@ -63,6 +63,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class NetworkBufferPool
         implements BufferPoolFactory, MemorySegmentProvider, AvailabilityProvider {
 
+    public static final int UNBOUNDED_POOL_SIZE = Integer.MAX_VALUE;
+
     private static final int USAGE_WARNING_THRESHOLD = 100;
 
     private static final Logger LOG = LoggerFactory.getLogger(NetworkBufferPool.class);
@@ -366,20 +368,7 @@ public class NetworkBufferPool
         long requestedSegments = 0;
         synchronized (factoryLock) {
             for (LocalBufferPool bufferPool : allBufferPools) {
-                int maxNumberOfMemorySegments = bufferPool.getMaxNumberOfMemorySegments();
-                /**
-                 * As defined in {@link
-                 * org.apache.flink.runtime.shuffle.NettyShuffleUtils#getMinMaxNetworkBuffersPerResultPartition(int,
-                 * int, int, int, int,
-                 * org.apache.flink.runtime.io.network.partition.ResultPartitionType)}. Unbounded
-                 * subpartitions have {@link maxNumberOfMemorySegments} set to {@code
-                 * Integer.MAX_VALUE}. In this case let's use number of required segments instead.
-                 */
-                if (maxNumberOfMemorySegments < Integer.MAX_VALUE) {
-                    requestedSegments += maxNumberOfMemorySegments;
-                } else {
-                    requestedSegments += bufferPool.getNumberOfRequiredMemorySegments();
-                }
+                requestedSegments += bufferPool.getNumberOfRequestedMemorySegments();
             }
         }
         return requestedSegments;
