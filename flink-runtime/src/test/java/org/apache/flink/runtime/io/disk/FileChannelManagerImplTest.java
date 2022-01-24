@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.disk;
 
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -32,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -53,6 +55,42 @@ public class FileChannelManagerImplTest extends TestLogger {
     private static final Duration TEST_TIMEOUT = Duration.ofSeconds(10);
 
     @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+    @Test
+    public void testFairness() throws Exception {
+        String directory1 = temporaryFolder.newFolder().getAbsoluteFile().getAbsolutePath();
+        String directory2 = temporaryFolder.newFolder().getAbsoluteFile().getAbsolutePath();
+        FileChannelManager fileChannelManager =
+                new FileChannelManagerImpl(new String[] {directory1, directory2}, "test");
+
+        int numChannelIDs = 100000;
+        AtomicInteger counter1 = new AtomicInteger();
+        AtomicInteger counter2 = new AtomicInteger();
+
+        int numThreads = 10;
+        Thread[] threads = new Thread[numThreads];
+        for (int i = 0; i < numThreads; ++i) {
+            threads[i] =
+                    new Thread(
+                            () -> {
+                                for (int j = 0; j < numChannelIDs; ++j) {
+                                    FileIOChannel.ID channelID = fileChannelManager.createChannel();
+                                    if (channelID.getPath().startsWith(directory1)) {
+                                        counter1.incrementAndGet();
+                                    } else {
+                                        counter2.incrementAndGet();
+                                    }
+                                }
+                            });
+            threads[i].start();
+        }
+
+        for (int i = 0; i < numThreads; ++i) {
+            threads[i].join();
+        }
+
+        assertEquals(counter1.get(), counter2.get());
+    }
 
     @Test
     public void testDirectoriesCleanupOnKillWithoutCallerHook() throws Exception {
