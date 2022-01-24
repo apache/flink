@@ -41,6 +41,7 @@ import org.apache.flink.util.Preconditions;
 
 import com.google.auth.Credentials;
 import com.google.cloud.pubsub.v1.Subscriber;
+import com.google.cloud.pubsub.v1.stub.SubscriberStubSettings;
 import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.ReceivedMessage;
@@ -245,6 +246,7 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 
         private PubSubSubscriberFactory pubSubSubscriberFactory;
         private Credentials credentials;
+        private String endpoint = SubscriberStubSettings.getDefaultEndpoint();
         private int messagePerSecondRateLimit = 100000;
 
         private PubSubSourceBuilder(DeserializationSchema<OUT> deserializationSchema) {
@@ -297,6 +299,20 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
         }
 
         /**
+         * Set endpoint if you want to read from specific pubsub region. Default value is global
+         * endpoint {@link SubscriberStubSettings#getDefaultEndpoint}
+         *
+         * @see <a href="https://cloud.google.com/pubsub/docs/reference/service_apis_overview">
+         *     Pubsub apis endpoint </a>
+         * @param endpoint pubsub endpoint
+         * @return The current PubSubSourceBuilder instance
+         */
+        public PubSubSourceBuilder<OUT> withEndpoint(String endpoint) {
+            this.endpoint = endpoint;
+            return this;
+        }
+
+        /**
          * There is a default PubSubSubscriber factory that uses gRPC to pull in PubSub messages.
          * This method can be used to tune this default factory. Note this will not work in
          * combination with a custom PubSubSubscriber factory.
@@ -313,7 +329,8 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
                             ProjectSubscriptionName.format(projectName, subscriptionName),
                             retries,
                             perRequestTimeout,
-                            maxMessagesPerPull);
+                            maxMessagesPerPull,
+                            endpoint);
             return this;
         }
 
@@ -346,7 +363,8 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
                                 ProjectSubscriptionName.format(projectName, subscriptionName),
                                 3,
                                 Duration.ofSeconds(15),
-                                100);
+                                100,
+                                endpoint);
             }
 
             return new PubSubSource<>(

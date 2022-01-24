@@ -22,7 +22,6 @@ import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriber;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
 
 import com.google.auth.Credentials;
-import com.google.cloud.pubsub.v1.stub.SubscriberStubSettings;
 import com.google.pubsub.v1.PullRequest;
 import com.google.pubsub.v1.SubscriberGrpc;
 import io.grpc.ManagedChannel;
@@ -39,22 +38,25 @@ class DefaultPubSubSubscriberFactory implements PubSubSubscriberFactory {
     private final Duration timeout;
     private final int maxMessagesPerPull;
     private final String projectSubscriptionName;
+    private final String endpoint;
 
     DefaultPubSubSubscriberFactory(
             String projectSubscriptionName,
             int retries,
             Duration pullTimeout,
-            int maxMessagesPerPull) {
+            int maxMessagesPerPull,
+            String endpoint) {
         this.retries = retries;
         this.timeout = pullTimeout;
         this.maxMessagesPerPull = maxMessagesPerPull;
         this.projectSubscriptionName = projectSubscriptionName;
+        this.endpoint = endpoint;
     }
 
     @Override
     public PubSubSubscriber getSubscriber(Credentials credentials) throws IOException {
         ManagedChannel channel =
-                NettyChannelBuilder.forTarget(SubscriberStubSettings.getDefaultEndpoint())
+                NettyChannelBuilder.forTarget(endpoint)
                         .negotiationType(NegotiationType.TLS)
                         .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
                         .build();
