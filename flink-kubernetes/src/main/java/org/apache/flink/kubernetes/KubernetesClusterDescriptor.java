@@ -125,15 +125,16 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 
     private String getWebMonitorAddress(Configuration configuration) throws Exception {
         AddressResolution resolution = AddressResolution.TRY_ADDRESS_RESOLUTION;
-        if (configuration.get(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE)
-                == KubernetesConfigOptions.ServiceExposedType.ClusterIP) {
+        final KubernetesConfigOptions.ServiceExposedType serviceType =
+                configuration.get(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
+        if (serviceType.isClusterIP()) {
             resolution = AddressResolution.NO_ADDRESS_RESOLUTION;
             LOG.warn(
                     "Please note that Flink client operations(e.g. cancel, list, stop,"
                             + " savepoint, etc.) won't work from outside the Kubernetes cluster"
                             + " since '{}' has been set to {}.",
                     KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE.key(),
-                    KubernetesConfigOptions.ServiceExposedType.ClusterIP);
+                    serviceType);
         }
         return HighAvailabilityServicesUtils.getWebMonitorAddress(configuration, resolution);
     }

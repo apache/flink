@@ -30,6 +30,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPodsWatcher;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
+import org.apache.flink.kubernetes.kubeclient.services.ServiceType;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
@@ -177,10 +178,10 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
         final int restPort = getRestPortFromExternalService(service);
 
         final KubernetesConfigOptions.ServiceExposedType serviceExposedType =
-                KubernetesConfigOptions.ServiceExposedType.valueOf(service.getSpec().getType());
+                ServiceType.classify(service);
 
         // Return the external service.namespace directly when using ClusterIP.
-        if (serviceExposedType == KubernetesConfigOptions.ServiceExposedType.ClusterIP) {
+        if (serviceExposedType.isClusterIP()) {
             return Optional.of(
                     new Endpoint(
                             ExternalServiceDecorator.getNamespacedExternalServiceName(
