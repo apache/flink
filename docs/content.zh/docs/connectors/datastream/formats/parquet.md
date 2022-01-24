@@ -28,8 +28,8 @@ under the License.
 
 # Parquet format
 
-Flink supports reading [Parquet](https://parquet.apache.org/) files and producing [Flink rows](https://nightlies.apache.org/flink/flink-docs-master/api/java/org/apache/flink/types/Row.html).
-To use the format you need to add the Flink Parquet dependency to your project:
+Flink 支持读取 [Parquet](https://parquet.apache.org/) 文件并生成 [Flink rows](https://nightlies.apache.org/flink/flink-docs-master/api/java/org/apache/flink/types/Row.html)。
+要使用 Parquet format，你需要将 Flink Parquet 依赖项添加到项目中：
 
 ```xml
 <dependency>
@@ -39,17 +39,16 @@ To use the format you need to add the Flink Parquet dependency to your project:
 </dependency>
 ```
  
-This format is compatible with the new Source that can be used in both batch and streaming modes.
-Thus, you can use this format in two ways:
-- Bounded read for batch mode
-- Continuous read for streaming mode: monitors a directory for new files that appear 
+此格式与新 Source 兼容，可以在批处理和流模式下使用。
+因此，你可以通过两种方式使用此格式：
+- 批处理模式的有界读取
+- 流模式的连续读取：监视目录中出现的新文件
 
-**Bounded read example**:
-
-In this example we create a DataStream containing Parquet records as Flink Rows. We project the schema to read only certain fields ("f7", "f4" and "f99").  
-We read records in batches of 500 records. The first boolean parameter specifies if timestamp columns need to be interpreted as UTC. 
-The second boolean instructs the application if the projected Parquet fields names are to be interpreted in a case sensitive way.
-There is no need for a watermark strategy as records do not contain event timestamps.
+**有界读取示例**:
+在这个例子中，我们创建了一个包含 Parquet 记录作为 Flink Rows 的 DataStream。我们将模式投影为仅读的取某些字段（“f7”、“f4” 和 “f99”）。
+我们分批读取 500 条记录。第一个布尔参数指定是否需要将时间戳列处理为 UTC。
+第二个布尔值指定应用程序是否要以区分大小写的方式处理投影的 Parquet 字段名称。
+不需要水印策略，因为记录不包含事件时间戳。
 
 ```java
 final LogicalType[] fieldTypes =
@@ -71,14 +70,13 @@ final DataStream<RowData> stream =
   env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
 ```
 
-**Continuous read example**:
+**连续读取示例**:
 
-In this example we create a DataStream containing Parquet records as Flink Rows that will 
-infinitely grow as new files are added to the directory. We monitor for new files each second.
-We project the schema to read only certain fields ("f7", "f4" and "f99").  
-We read records in batches of 500 records. The first boolean parameter specifies if timestamp columns need to be interpreted as UTC.
-The second boolean instructs the application if the projected Parquet fields names are to be interpreted in a case sensitive way.
-There is no need for a watermark strategy as records do not contain event timestamps.
+在这个例子中，我们创建了一个包含 Parquet 记录的 DataStream，作为 Flink Rows，随着新文件添加到目录中，它将无限增长。每秒进行新文件监控。
+我们将模式投影为仅读取某些字段（“f7”、“f4” 和 “f99”）。
+分批读取 500 条记录。第一个布尔参数指定是否需要将时间戳列处理为 UTC。
+第二个布尔值指示应用程序是否要以区分大小写的方式处理投影的 Parquet 字段名称。
+不需要水印策略，因为记录不包含事件时间戳。
 
 ```java
 final LogicalType[] fieldTypes =
