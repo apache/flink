@@ -92,7 +92,9 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
                         dataBytes);
         bufferPool = new BatchShuffleReadBufferPool(totalBytes, bufferSize);
         executor = Executors.newFixedThreadPool(numThreads);
-        readScheduler = new SortMergeResultPartitionReadScheduler(bufferPool, executor, this);
+        readScheduler =
+                new SortMergeResultPartitionReadScheduler(
+                        numSubpartitions, bufferPool, executor, this);
     }
 
     @After
@@ -209,7 +211,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
         List<MemorySegment> buffers = bufferPool.requestBuffers();
         SortMergeResultPartitionReadScheduler readScheduler =
                 new SortMergeResultPartitionReadScheduler(
-                        bufferPool, executor, this, bufferRequestTimeout);
+                        numSubpartitions, bufferPool, executor, this, bufferRequestTimeout);
 
         SortMergeSubpartitionReader subpartitionReader =
                 readScheduler.createSubpartitionReader(
@@ -237,7 +239,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
                 new FakeBatchShuffleReadBufferPool(bufferSize * 3, bufferSize);
         SortMergeResultPartitionReadScheduler readScheduler =
                 new SortMergeResultPartitionReadScheduler(
-                        bufferPool, executor, this, bufferRequestTimeout);
+                        numSubpartitions, bufferPool, executor, this, bufferRequestTimeout);
 
         FileChannel dataFileChannel = openFileChannel(partitionedFile.getDataFilePath());
         FileChannel indexFileChannel = openFileChannel(partitionedFile.getIndexFilePath());
