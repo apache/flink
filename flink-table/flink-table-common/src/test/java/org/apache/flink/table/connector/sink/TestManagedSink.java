@@ -22,7 +22,9 @@ import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.data.RowData;
 
 import java.io.IOException;
@@ -32,24 +34,32 @@ import java.util.List;
 import java.util.Optional;
 
 /** Managed {@link Sink} for testing compaction. */
-public class TestManagedSink implements Sink<RowData, Void, Void, Void> {
+public class TestManagedSink implements Sink<RowData, TestManagedCommittable, Void, Void> {
 
     private static final long serialVersionUID = 1L;
 
-    @Override
-    public SinkWriter<RowData, Void, Void> createWriter(InitContext context, List<Void> states)
-            throws IOException {
-        throw new UnsupportedOperationException();
+    private final ObjectIdentifier tableIdentifier;
+    private final Path basePath;
+
+    public TestManagedSink(ObjectIdentifier tableIdentifier, Path basePath) {
+        this.tableIdentifier = tableIdentifier;
+        this.basePath = basePath;
     }
 
     @Override
-    public Optional<Committer<Void>> createCommitter() {
-        return Optional.empty();
+    public SinkWriter<RowData, TestManagedCommittable, Void> createWriter(
+            InitContext context, List<Void> states) throws IOException {
+        return new TestManagedSinkWriter();
     }
 
     @Override
-    public Optional<SimpleVersionedSerializer<Void>> getCommittableSerializer() {
-        return Optional.empty();
+    public Optional<Committer<TestManagedCommittable>> createCommitter() {
+        return Optional.of(new TestManagedSinkCommitter(tableIdentifier, basePath));
+    }
+
+    @Override
+    public Optional<SimpleVersionedSerializer<TestManagedCommittable>> getCommittableSerializer() {
+        return Optional.of(new TestManagedSinkCommittableSerializer());
     }
 
     @Override
@@ -58,7 +68,7 @@ public class TestManagedSink implements Sink<RowData, Void, Void, Void> {
     }
 
     @Override
-    public Optional<GlobalCommitter<Void, Void>> createGlobalCommitter() {
+    public Optional<GlobalCommitter<TestManagedCommittable, Void>> createGlobalCommitter() {
         return Optional.empty();
     }
 

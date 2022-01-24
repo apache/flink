@@ -22,15 +22,25 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.utils.PartitionPathUtils;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /** Managed {@link Source} for testing. */
-public class TestManagedSource implements Source<RowData, SourceSplit, Void> {
+public class TestManagedSource implements Source<RowData, TestManagedIterableSourceSplit, Void> {
     private static final long serialVersionUID = 1L;
+
+    private final CompactPartitions partitions;
+
+    public TestManagedSource(CompactPartitions partitions) {
+        this.partitions = partitions;
+    }
 
     @Override
     public Boundedness getBoundedness() {
@@ -38,25 +48,42 @@ public class TestManagedSource implements Source<RowData, SourceSplit, Void> {
     }
 
     @Override
-    public SourceReader<RowData, SourceSplit> createReader(SourceReaderContext readerContext) {
+    public SourceReader<RowData, TestManagedIterableSourceSplit> createReader(
+            SourceReaderContext readerContext) {
+        return new TestManagedFileSourceReader(readerContext);
+    }
+
+    @Override
+    public SplitEnumerator<TestManagedIterableSourceSplit, Void> createEnumerator(
+            SplitEnumeratorContext<TestManagedIterableSourceSplit> enumContext) {
+        List<TestManagedIterableSourceSplit> splits = new ArrayList<>();
+        partitions
+                .getCompactPartitions()
+                .forEach(
+                        partition ->
+                                partition
+                                        .getFileEntries()
+                                        .forEach(
+                                                fileEntry ->
+                                                        splits.add(
+                                                                new TestManagedIterableSourceSplit(
+                                                                        PartitionPathUtils
+                                                                                .generatePartitionPath(
+                                                                                        partition
+                                                                                                .getResolvedPartitionSpec()),
+                                                                        new Path(fileEntry)))));
+        return new TestManagedFileSourceSplitEnumerator(enumContext, splits);
+    }
+
+    @Override
+    public SplitEnumerator<TestManagedIterableSourceSplit, Void> restoreEnumerator(
+            SplitEnumeratorContext<TestManagedIterableSourceSplit> enumContext, Void checkpoint) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public SplitEnumerator<SourceSplit, Void> createEnumerator(
-            SplitEnumeratorContext<SourceSplit> enumContext) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public SplitEnumerator<SourceSplit, Void> restoreEnumerator(
-            SplitEnumeratorContext<SourceSplit> enumContext, Void checkpoint) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public SimpleVersionedSerializer<SourceSplit> getSplitSerializer() {
-        throw new UnsupportedOperationException();
+    public SimpleVersionedSerializer<TestManagedIterableSourceSplit> getSplitSerializer() {
+        return new TestManagedFileSourceSplitSerializer();
     }
 
     @Override

@@ -46,7 +46,7 @@ public class TestManagedTableSource implements ScanTableSource {
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-        return SourceProvider.of(new TestManagedSource());
+        return SourceProvider.of(new TestManagedSource(partitions));
     }
 
     @Override
