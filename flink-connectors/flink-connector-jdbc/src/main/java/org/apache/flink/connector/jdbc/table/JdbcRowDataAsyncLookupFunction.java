@@ -225,13 +225,15 @@ public class JdbcRowDataAsyncLookupFunction extends AsyncTableFunction<RowData> 
                             }
                         }
                         return rows;
-                    } catch (SQLException | InterruptedException e) {
+                    } catch (SQLException | InterruptedException | ClassNotFoundException e) {
                         try {
                             connectionEntry =
                                     jdbcConnectionPoolManager.checkAndCreateConnection(
                                             connectionEntry);
                         } catch (SQLException | ClassNotFoundException | InterruptedException ex) {
-                            ex.printStackTrace();
+                            LOG.error(
+                                    "JDBC connection is not valid, and reestablish connection failed",
+                                    ex);
                         }
                         throw new RuntimeException(e.getMessage());
                     } finally {
