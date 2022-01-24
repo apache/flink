@@ -70,15 +70,12 @@ public class JdbcConnectionPoolManager implements Serializable {
         connectionEntries.put(createConnectionEntry());
     }
 
-    public FieldNamedPreparedStatement getStatement()
-            throws InterruptedException, SQLException, ClassNotFoundException {
+    public FieldNamedPreparedStatement getStatement() throws InterruptedException {
         return getConnectionEntry().getStatement();
     }
 
-    public JdbcConnectionEntry getConnectionEntry()
-            throws InterruptedException, SQLException, ClassNotFoundException {
-        JdbcConnectionEntry entry = connectionEntries.take();
-        return checkAndCreateConnection(entry);
+    public JdbcConnectionEntry getConnectionEntry() throws InterruptedException {
+        return connectionEntries.take();
     }
 
     public void returnConnectionEntry(JdbcConnectionEntry entry) throws InterruptedException {
