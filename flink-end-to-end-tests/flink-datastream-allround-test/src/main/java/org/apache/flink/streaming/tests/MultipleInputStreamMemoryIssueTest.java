@@ -51,7 +51,11 @@ import java.util.stream.Collectors;
  */
 public class MultipleInputStreamMemoryIssueTest {
 
-    public static class ListAgg<IN> implements AggregateFunction<IN, List<IN>, List<IN>> {
+    /**
+     * List Aggregation.
+     * @param <IN>
+     */
+    static class ListAgg<IN> implements AggregateFunction<IN, List<IN>, List<IN>> {
 
         @Override
         public List<IN> createAccumulator() {
