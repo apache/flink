@@ -119,7 +119,7 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 /flink-{{< version >}}
    /lib
 
-       // Flink's Hive connector.Contains flink-hadoop-compatibility and flink-orc jars
+        // Flink's Hive connector
        flink-connector-hive{{< scala_version >}}-{{< version >}}.jar
 
        // Hive dependencies
@@ -206,6 +206,10 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 
        // Hive dependencies
        hive-exec-2.0.0.jar
+       
+       // Orc dependencies -- required by the ORC vectorized optimizations
+       orc-core-1.4.3.jar
+       aircompressor-0.8.jar // transitive dependency of orc-core
 
        // add antlr-runtime if you need to use hive dialect
        antlr-runtime-3.5.2.jar
@@ -222,6 +226,10 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 
        // Hive dependencies
        hive-exec-2.1.0.jar
+       
+       // Orc dependencies -- required by the ORC vectorized optimizations
+       orc-core-1.4.3.jar
+       aircompressor-0.8.jar // transitive dependency of orc-core
 
        // add antlr-runtime if you need to use hive dialect
        antlr-runtime-3.5.2.jar
