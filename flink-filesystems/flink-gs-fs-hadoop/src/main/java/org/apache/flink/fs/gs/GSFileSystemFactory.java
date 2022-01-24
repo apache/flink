@@ -19,20 +19,26 @@
 package org.apache.flink.fs.gs;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
 import org.apache.flink.util.Preconditions;
 
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.net.URI;
 import java.util.Collections;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Implementation of the Flink {@link org.apache.flink.core.fs.FileSystemFactory} interface for
@@ -53,22 +59,13 @@ public class GSFileSystemFactory implements FileSystemFactory {
 
     private static final String FLINK_SHADING_PREFIX = "";
 
-    private final HadoopConfigLoader hadoopConfigLoader;
-
     @Nullable private Configuration flinkConfig;
+
+    @Nullable private org.apache.hadoop.conf.Configuration hadoopConfig;
 
     /** Constructs the Google Storage file system factory. */
     public GSFileSystemFactory() {
         LOGGER.info("Creating GSFileSystemFactory");
-
-        this.hadoopConfigLoader =
-                new HadoopConfigLoader(
-                        FLINK_CONFIG_PREFIXES,
-                        MIRRORED_CONFIG_KEYS,
-                        HADOOP_CONFIG_PREFIX,
-                        Collections.emptySet(),
-                        Collections.emptySet(),
-                        FLINK_SHADING_PREFIX);
     }
 
     @Override
@@ -76,7 +73,9 @@ public class GSFileSystemFactory implements FileSystemFactory {
         LOGGER.info("Configuring GSFileSystemFactory with Flink configuration {}", flinkConfig);
 
         this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
-        hadoopConfigLoader.setFlinkConfig(flinkConfig);
+        this.hadoopConfig = getHadoopConfiguration(flinkConfig);
+
+        LOGGER.info("Using Hadoop configuration {}", serializeHadoopConfig(hadoopConfig));
     }
 
     @Override
@@ -90,20 +89,81 @@ public class GSFileSystemFactory implements FileSystemFactory {
 
         Preconditions.checkNotNull(fsUri);
 
-        // create and configure the Google Hadoop file system
-        org.apache.hadoop.conf.Configuration hadoopConfig =
-                hadoopConfigLoader.getOrLoadHadoopConfig();
-        LOGGER.info(
-                "Creating GoogleHadoopFileSystem for uri {} with Hadoop config {}",
-                fsUri,
-                hadoopConfig);
+        // initialize the Google Hadoop filesystem
         GoogleHadoopFileSystem googleHadoopFileSystem = new GoogleHadoopFileSystem();
-        googleHadoopFileSystem.initialize(fsUri, hadoopConfig);
+        try {
+            googleHadoopFileSystem.initialize(fsUri, hadoopConfig);
+        } catch (IOException ex) {
+            throw new IOException("Failed to initialize GoogleHadoopFileSystem", ex);
+        }
 
         // construct the file system options
         GSFileSystemOptions options = new GSFileSystemOptions(flinkConfig);
 
         // create the file system wrapper
         return new GSFileSystem(googleHadoopFileSystem, options);
+    }
+
+    /**
+     * Loads the hadoop configuration, in two steps.
+     *
+     * <p>1) Find a hadoop conf dir using CoreOptions.FLINK_HADOOP_CONF_DIR or the HADOOP_CONF_DIR
+     * environment variable, and load core-default.xml and core-site.xml from that location
+     *
+     * <p>2) Load hadoop conf from the Flink config, with translations defined above
+     *
+     * <p>... then merge together, such that keys from the second overwrite the first.
+     *
+     * @return The Hadoop configuration.
+     */
+    private static org.apache.hadoop.conf.Configuration getHadoopConfiguration(
+            Configuration flinkConfig) {
+
+        // create an empty hadoop configuration
+        org.apache.hadoop.conf.Configuration hadoopConfig =
+                new org.apache.hadoop.conf.Configuration();
+
+        // look for a hadoop configuration directory and load configuration from core-default.xml
+        // and core-site.xml
+        Optional<String> hadoopConfigDir =
+                Optional.ofNullable(flinkConfig.get(CoreOptions.FLINK_HADOOP_CONF_DIR));
+        if (!hadoopConfigDir.isPresent()) {
+            hadoopConfigDir = Optional.ofNullable(System.getenv("HADOOP_CONF_DIR"));
+        }
+        hadoopConfigDir.ifPresent(
+                configDir -> {
+                    LOGGER.info("Loading system Hadoop config from {}", configDir);
+                    hadoopConfig.addResource(new Path(configDir, "core-default.xml"));
+                    hadoopConfig.addResource(new Path(configDir, "core-site.xml"));
+                    hadoopConfig.reloadConfiguration();
+                });
+
+        // now, load hadoop config from flink and copy key/value pairs into the base config
+        HadoopConfigLoader hadoopConfigLoader =
+                new HadoopConfigLoader(
+                        FLINK_CONFIG_PREFIXES,
+                        MIRRORED_CONFIG_KEYS,
+                        HADOOP_CONFIG_PREFIX,
+                        Collections.emptySet(),
+                        Collections.emptySet(),
+                        FLINK_SHADING_PREFIX);
+        hadoopConfigLoader.setFlinkConfig(flinkConfig);
+        org.apache.hadoop.conf.Configuration flinkHadoopConfig =
+                hadoopConfigLoader.getOrLoadHadoopConfig();
+        for (Map.Entry<String, String> entry : flinkHadoopConfig) {
+            hadoopConfig.set(entry.getKey(), entry.getValue());
+        }
+
+        return hadoopConfig;
+    }
+
+    private String serializeHadoopConfig(org.apache.hadoop.conf.Configuration hadoopConfig)
+            throws RuntimeException {
+        try (Writer writer = new StringWriter()) {
+            org.apache.hadoop.conf.Configuration.dumpConfiguration(hadoopConfig, writer);
+            return writer.toString();
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 }
