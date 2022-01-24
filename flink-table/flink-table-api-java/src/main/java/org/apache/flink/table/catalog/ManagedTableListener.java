@@ -19,8 +19,11 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FactoryUtil;
@@ -78,6 +81,26 @@ public class ManagedTableListener {
                                     identifier, (ResolvedCatalogTable) table, isTemporary),
                             ignoreIfNotExists);
         }
+    }
+
+    /** Notify compaction for managed table. */
+    public Map<String, String> notifyTableCompaction(
+            @Nullable Catalog catalog,
+            ObjectIdentifier identifier,
+            ResolvedCatalogBaseTable<?> table,
+            CatalogPartitionSpec partitionSpec,
+            boolean isTemporary) {
+        if (isManagedTable(catalog, table)) {
+            if (RuntimeExecutionMode.STREAMING.equals(config.get(ExecutionOptions.RUNTIME_MODE))) {
+                throw new ValidationException("Compact managed table only works under batch mode.");
+            }
+            return discoverManagedTableFactory(classLoader)
+                    .onCompactTable(
+                            createTableFactoryContext(
+                                    identifier, (ResolvedCatalogTable) table, isTemporary),
+                            partitionSpec);
+        }
+        throw new ValidationException("Only managed table supports compaction");
     }
 
     /** Check a resolved catalog table is Flink's managed table or not. */

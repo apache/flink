@@ -23,6 +23,8 @@ import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,9 +41,17 @@ import java.util.Map;
 public class SourceQueryOperation implements QueryOperation {
 
     private final ContextResolvedTable contextResolvedTable;
+    private final @Nullable Map<String, String> dynamicOptions;
 
     public SourceQueryOperation(ContextResolvedTable contextResolvedTable) {
+        this(contextResolvedTable, null);
+    }
+
+    public SourceQueryOperation(
+            ContextResolvedTable contextResolvedTable,
+            @Nullable Map<String, String> dynamicOptions) {
         this.contextResolvedTable = contextResolvedTable;
+        this.dynamicOptions = dynamicOptions;
     }
 
     public ContextResolvedTable getContextResolvedTable() {
@@ -58,6 +68,9 @@ public class SourceQueryOperation implements QueryOperation {
         Map<String, Object> args = new LinkedHashMap<>();
         args.put("identifier", getContextResolvedTable().getIdentifier().asSummaryString());
         args.put("fields", getResolvedSchema().getColumnNames());
+        if (dynamicOptions != null) {
+            args.put("options", dynamicOptions);
+        }
 
         return OperationUtils.formatWithChildren(
                 "CatalogTable", args, getChildren(), Operation::asSummaryString);
@@ -71,5 +84,9 @@ public class SourceQueryOperation implements QueryOperation {
     @Override
     public <T> T accept(QueryOperationVisitor<T> visitor) {
         return visitor.visit(this);
+    }
+
+    public @Nullable Map<String, String> getDynamicOptions() {
+        return dynamicOptions;
     }
 }

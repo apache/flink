@@ -702,6 +702,22 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
+   * Verify the explain result for the given sql clause which represents a [[ModifyOperation]].
+   */
+  def verifyExplainSql(sql: String): Unit = {
+    val operations = getTableEnv.asInstanceOf[TableEnvironmentImpl].getParser.parse(sql)
+    val relNode = TableTestUtil.toRelNode(
+      getTableEnv,
+      operations.get(0).asInstanceOf[ModifyOperation])
+    assertPlanEquals(
+      Array(relNode),
+      Array.empty[ExplainDetail],
+      withRowType = false,
+      Array(PlanKind.AST, PlanKind.OPT_REL),
+      () => assertEqualsOrExpand("sql", sql))
+  }
+
+  /**
    * Verify the explain result for the given [[Table]]. See more about [[Table#explain()]].
    */
   def verifyExplain(table: Table): Unit = {
@@ -1623,13 +1639,23 @@ object TableTestUtil {
   val BATCH_SETTING: EnvironmentSettings = EnvironmentSettings.newInstance().inBatchMode().build()
 
   /**
-   * Converts operation tree in the given table to a RelNode tree.
+   * Convert operation tree in the given table to a RelNode tree.
    */
   def toRelNode(table: Table): RelNode = {
     table.asInstanceOf[TableImpl]
       .getTableEnvironment.asInstanceOf[TableEnvironmentImpl]
       .getPlanner.asInstanceOf[PlannerBase]
       .getRelBuilder.queryOperation(table.getQueryOperation).build()
+  }
+
+  /**
+   * Convert modify operation to a RelNode tree.
+   */
+  def toRelNode(
+      tEnv: TableEnvironment,
+      modifyOperation: ModifyOperation): RelNode = {
+    val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+    planner.translateToRel(modifyOperation)
   }
 
   def createTemporaryView[T](

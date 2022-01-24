@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.planner.operations;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.dql.SqlRichExplain;
 import org.apache.flink.table.api.DataTypes;
@@ -37,6 +40,7 @@ import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -46,6 +50,7 @@ import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.factories.TestManagedTableFactory;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
@@ -57,6 +62,7 @@ import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
 import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
+import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
@@ -69,7 +75,6 @@ import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
-import org.apache.flink.table.operations.ddl.AlterTableCompactOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
@@ -106,6 +111,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -125,7 +131,14 @@ public class SqlToOperationConverterTest {
     private final TableConfig tableConfig = new TableConfig();
     private final Catalog catalog = new GenericInMemoryCatalog("MockCatalog", "default");
     private final CatalogManager catalogManager =
-            CatalogManagerMocks.preparedCatalogManager().defaultCatalog("builtin", catalog).build();
+            CatalogManagerMocks.preparedCatalogManager()
+                    .defaultCatalog("builtin", catalog)
+                    .config(
+                            Configuration.fromMap(
+                                    Collections.singletonMap(
+                                            ExecutionOptions.RUNTIME_MODE.key(),
+                                            RuntimeExecutionMode.BATCH.name())))
+                    .build();
     private final ModuleManager moduleManager = new ModuleManager();
     private final FunctionCatalog functionCatalog =
             new FunctionCatalog(tableConfig, catalogManager, moduleManager);
@@ -137,7 +150,7 @@ public class SqlToOperationConverterTest {
                                     catalogManager.getCurrentDatabase());
     private final PlannerContext plannerContext =
             new PlannerContext(
-                    false,
+                    true,
                     tableConfig,
                     moduleManager,
                     functionCatalog,
@@ -1318,14 +1331,8 @@ public class SqlToOperationConverterTest {
     }
 
     @Test
-    public void testAlterTableCompact() throws Exception {
+    public void testAlterTableCompactOnManagedNonPartitionedTable() throws Exception {
         prepareManagedTable(false);
-        Operation operation = parse("alter table tb1 compact", SqlDialect.DEFAULT);
-        assertThat(operation).isInstanceOf(AlterTableCompactOperation.class);
-        AlterTableCompactOperation compactOperation = (AlterTableCompactOperation) operation;
-
-        assertThat(compactOperation.asSummaryString())
-                .isEqualTo("ALTER TABLE cat1.db1.tb1 COMPACT");
 
         // specify partition on a non-partitioned table
         assertThatThrownBy(
@@ -1341,39 +1348,14 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table tb2 compact", SqlDialect.DEFAULT))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage("Table `cat1`.`db1`.`tb2` doesn't exist or is a temporary table.");
+
+        checkAlterTableCompact(
+                parse("alter table tb1 compact", SqlDialect.DEFAULT), Collections.emptyMap());
     }
 
     @Test
-    public void testAlterTableCompactPartition() throws Exception {
+    public void testAlterTableCompactOnManagedPartitionedTable() throws Exception {
         prepareManagedTable(true);
-
-        // compact partitioned table without partition_spec
-        assertThat(parse("alter table tb1 compact", SqlDialect.DEFAULT).asSummaryString())
-                .isEqualTo("ALTER TABLE cat1.db1.tb1 COMPACT");
-
-        // compact partitioned table without full partition_spec
-        assertThat(
-                        parse("alter table tb1 partition (b=1) compact", SqlDialect.DEFAULT)
-                                .asSummaryString())
-                .isEqualTo("ALTER TABLE cat1.db1.tb1 PARTITION (b=1) COMPACT");
-
-        assertThat(
-                        parse("alter table tb1 partition (c=2) compact", SqlDialect.DEFAULT)
-                                .asSummaryString())
-                .isEqualTo("ALTER TABLE cat1.db1.tb1 PARTITION (c=2) COMPACT");
-
-        // compact partitioned table with full partition_spec
-        assertThat(
-                        parse("alter table tb1 partition (b=1,c=2) compact", SqlDialect.DEFAULT)
-                                .asSummaryString())
-                .isEqualTo("ALTER TABLE cat1.db1.tb1 PARTITION (b=1, c=2) COMPACT");
-
-        // compact partitioned table with disordered partition_spec
-        assertThat(
-                        parse("alter table tb1 partition (c=2,b=1) compact", SqlDialect.DEFAULT)
-                                .asSummaryString())
-                .isEqualTo("ALTER TABLE cat1.db1.tb1 PARTITION (c=2, b=1) COMPACT");
-
         // compact partitioned table with a non-existed partition_spec
         assertThatThrownBy(
                         () ->
@@ -1383,6 +1365,31 @@ public class SqlToOperationConverterTest {
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
                         "Partition column 'dt' not defined in the table schema. Available ordered partition columns: ['b', 'c']");
+
+        // compact partitioned table with full partition spec
+        Map<String, String> staticPartitions = new HashMap<>();
+        staticPartitions.put("b", "0");
+        staticPartitions.put("c", "flink");
+        checkAlterTableCompact(
+                parse("alter table tb1 partition (b = 0, c = 'flink') compact", SqlDialect.DEFAULT),
+                staticPartitions);
+
+        // compact partitioned table with subordinate partition spec
+        staticPartitions = Collections.singletonMap("b", "0");
+        checkAlterTableCompact(
+                parse("alter table tb1 partition (b = 0) compact", SqlDialect.DEFAULT),
+                staticPartitions);
+
+        // compact partitioned table with secondary partition spec
+        staticPartitions = Collections.singletonMap("c", "flink");
+        checkAlterTableCompact(
+                parse("alter table tb1 partition (c = 'flink') compact", SqlDialect.DEFAULT),
+                staticPartitions);
+
+        // compact partitioned table without partition spec
+        staticPartitions = Collections.emptyMap();
+        checkAlterTableCompact(
+                parse("alter table tb1 compact", SqlDialect.DEFAULT), staticPartitions);
     }
 
     @Test
@@ -1716,6 +1723,8 @@ public class SqlToOperationConverterTest {
     }
 
     private void prepareManagedTable(boolean hasPartition) throws Exception {
+        TestManagedTableFactory.MANAGED_TABLES.put(
+                ObjectIdentifier.of("cat1", "db1", "tb1"), new AtomicReference<>());
         prepareTable(true, hasPartition, false);
     }
 
@@ -1744,8 +1753,8 @@ public class SqlToOperationConverterTest {
                         Collections.unmodifiableMap(options));
         catalogManager.setCurrentCatalog("cat1");
         catalogManager.setCurrentDatabase("db1");
-        ObjectPath tablePath = new ObjectPath("db1", "tb1");
-        catalog.createTable(tablePath, catalogTable, true);
+        ObjectIdentifier tableIdentifier = ObjectIdentifier.of("cat1", "db1", "tb1");
+        catalogManager.createTable(catalogTable, tableIdentifier, true);
     }
 
     private FlinkPlannerImpl getPlannerBySqlDialect(SqlDialect sqlDialect) {
@@ -1757,6 +1766,29 @@ public class SqlToOperationConverterTest {
     private CalciteParser getParserBySqlDialect(SqlDialect sqlDialect) {
         tableConfig.setSqlDialect(sqlDialect);
         return plannerContext.createCalciteParser();
+    }
+
+    private void checkAlterTableCompact(Operation operation, Map<String, String> staticPartitions) {
+        assertThat(operation).isInstanceOf(SinkModifyOperation.class);
+        SinkModifyOperation modifyOperation = (SinkModifyOperation) operation;
+        assertThat(modifyOperation.getStaticPartitions())
+                .containsExactlyInAnyOrderEntriesOf(staticPartitions);
+        assertThat(modifyOperation.isOverwrite()).isFalse();
+        assertThat(modifyOperation.getDynamicOptions())
+                .containsEntry(
+                        TestManagedTableFactory.ENRICHED_KEY,
+                        TestManagedTableFactory.ENRICHED_VALUE);
+        ContextResolvedTable contextResolvedTable = modifyOperation.getContextResolvedTable();
+        assertThat(contextResolvedTable.getIdentifier())
+                .isEqualTo(ObjectIdentifier.of("cat1", "db1", "tb1"));
+        assertThat(modifyOperation.getChild()).isInstanceOf(SourceQueryOperation.class);
+        SourceQueryOperation child = (SourceQueryOperation) modifyOperation.getChild();
+        assertThat(child.getChildren()).isEmpty();
+        assertThat(child.getDynamicOptions()).containsEntry("k", "v");
+        assertThat(child.getDynamicOptions())
+                .containsEntry(
+                        TestManagedTableFactory.ENRICHED_KEY,
+                        TestManagedTableFactory.ENRICHED_VALUE);
     }
 
     // ~ Inner Classes ----------------------------------------------------------
