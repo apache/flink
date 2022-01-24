@@ -34,19 +34,31 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase, _load_specific_flin
 from pyflink.util.java_utils import load_java_class, get_field_value
 
 
-class FlinkKafkaTest(PyFlinkTestCase):
+class ConnectorTestBase(PyFlinkTestCase):
 
     def setUp(self) -> None:
         self.env = StreamExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(2)
         # Cache current ContextClassLoader, we will replace it with a temporary URLClassLoader to
         # load specific connector jars with given module path to do dependency isolation. And We
         # will change the ClassLoader back to the cached ContextClassLoader after the test case
         # finished.
         self._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
+        _load_specific_flink_module_jars(self._jars_relative_path)
+
+    def tearDown(self):
+        # Change the ClassLoader back to the cached ContextClassLoader after the test case finished.
+        if self._cxt_clz_loader is not None:
+            get_gateway().jvm.Thread.currentThread().setContextClassLoader(self._cxt_clz_loader)
+
+
+class FlinkKafkaTest(ConnectorTestBase):
+
+    def setUp(self) -> None:
+        self._jars_relative_path = '/flink-connectors/flink-sql-connector-kafka'
+        super().setUp()
+        self.env.set_parallelism(2)
 
     def test_kafka_connector_universal(self):
-        _load_specific_flink_module_jars('/flink-connectors/flink-sql-connector-kafka')
         self.kafka_connector_assertion(FlinkKafkaConsumer, FlinkKafkaProducer)
 
     def kafka_connector_assertion(self, flink_kafka_consumer_clz, flink_kafka_producer_clz):
@@ -95,18 +107,12 @@ class FlinkKafkaTest(PyFlinkTestCase):
         self.assertFalse(get_field_value(flink_kafka_producer.get_java_function(),
                                          'writeTimestampToKafka'))
 
-    def tearDown(self):
-        # Change the ClassLoader back to the cached ContextClassLoader after the test case finished.
-        if self._cxt_clz_loader is not None:
-            get_gateway().jvm.Thread.currentThread().setContextClassLoader(self._cxt_clz_loader)
 
-
-class FlinkJdbcSinkTest(PyFlinkTestCase):
+class FlinkJdbcSinkTest(ConnectorTestBase):
 
     def setUp(self) -> None:
-        self.env = StreamExecutionEnvironment.get_execution_environment()
-        self._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
-        _load_specific_flink_module_jars('/flink-connectors/flink-connector-jdbc')
+        self._jars_relative_path = '/flink-connectors/flink-connector-jdbc'
+        super().setUp()
 
     def test_jdbc_sink(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
@@ -145,26 +151,12 @@ class FlinkJdbcSinkTest(PyFlinkTestCase):
         self.assertEqual(jdbc_execution_options.get_max_retries(),
                          exec_options.get_max_retries())
 
-    def tearDown(self):
-        if self._cxt_clz_loader is not None:
-            get_gateway().jvm.Thread.currentThread().setContextClassLoader(self._cxt_clz_loader)
 
-
-class FlinkPulsarTest(PyFlinkTestCase):
+class FlinkPulsarTest(ConnectorTestBase):
 
     def setUp(self) -> None:
-        self.env = StreamExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(2)
-        # Cache current ContextClassLoader, we will replace it with a temporary URLClassLoader to
-        # load specific connector jars with given module path to do dependency isolation. And We
-        # will change the ClassLoader back to the cached ContextClassLoader after the test case
-        # finished.
-        self._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
-        _load_specific_flink_module_jars('/flink-connectors/flink-sql-connector-pulsar')
-
-    def tearDown(self):
-        if self._cxt_clz_loader is not None:
-            get_gateway().jvm.Thread.currentThread().setContextClassLoader(self._cxt_clz_loader)
+        self._jars_relative_path = '/flink-connectors/flink-sql-connector-pulsar'
+        super().setUp()
 
     def test_pulsar_source(self):
         test_option = ConfigOptions.key('pulsar.source.enableAutoAcknowledgeMessage') \
@@ -223,15 +215,32 @@ class FlinkPulsarTest(PyFlinkTestCase):
                 .long_type()
                 .no_default_value()._j_config_option), 1000)
 
+    def test_set_topics_with_list(self):
+        PulsarSource.builder() \
+            .set_service_url('pulsar://localhost:6650') \
+            .set_admin_url('http://localhost:8080') \
+            .set_topics(['ada', 'beta']) \
+            .set_subscription_name('ff') \
+            .set_deserialization_schema(
+                PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \
+            .build()
 
-class RMQTest(PyFlinkTestCase):
+    def test_set_topics_pattern(self):
+        PulsarSource.builder() \
+            .set_service_url('pulsar://localhost:6650') \
+            .set_admin_url('http://localhost:8080') \
+            .set_topics_pattern('ada.*') \
+            .set_subscription_name('ff') \
+            .set_deserialization_schema(
+                PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \
+            .build()
+
+
+class RMQTest(ConnectorTestBase):
+
     def setUp(self):
-        self._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
-        _load_specific_flink_module_jars('/flink-connectors/flink-sql-connector-rabbitmq')
-
-    def tearDown(self):
-        if self._cxt_clz_loader is not None:
-            get_gateway().jvm.Thread.currentThread().setContextClassLoader(self._cxt_clz_loader)
+        self._jars_relative_path = '/flink-connectors/flink-sql-connector-rabbitmq'
+        super().setUp()
 
     def test_rabbitmq_connectors(self):
         connection_config = RMQConnectionConfig.Builder() \

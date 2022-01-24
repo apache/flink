@@ -1165,7 +1165,7 @@ class SubscriptionType(Enum):
 
 class StartCursor(object):
     """
-    A interface for users to specify the start position of a pulsar subscription.
+    A factory class for users to specify the start position of a pulsar subscription.
     Since it would be serialized into split.
     The implementation for this interface should be well considered.
     I don't recommend adding extra internal state for this implementation.
@@ -1201,9 +1201,9 @@ class StartCursor(object):
 
 class StopCursor(object):
     """
-    A interface for users to specify the stop position of a pulsar subscription. Since it would be
-    serialized into split. The implementation for this interface should be well considered. I don't
-    recommend adding extra internal state for this implementation.
+    A factory class for users to specify the stop position of a pulsar subscription. Since it would
+    be serialized into split. The implementation for this interface should be well considered. I
+    don't recommend adding extra internal state for this implementation.
     """
 
     def __init__(self, _j_stop_cursor):
@@ -1235,7 +1235,24 @@ class StopCursor(object):
 class PulsarSource(Source):
     """
     The Source implementation of Pulsar. Please use a PulsarSourceBuilder to construct a
-    PulsarSource.
+    PulsarSource. The following example shows how to create a PulsarSource emitting records of
+    String type.
+
+    Example:
+    ::
+
+        >>> source = PulsarSource() \\
+        ...     .builder() \\
+        ...     .set_topics(TOPIC1, TOPIC2) \\
+        ...     .set_service_url(get_service_url()) \\
+        ...     .set_admin_url(get_admin_url()) \\
+        ...     .set_subscription_name("test") \\
+        ...     .set_deserialization_schema(
+        ...         PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \\
+        ...     .set_bounded_stop_cursor(StopCursor.default_stop_cursor()) \\
+        ...     .build()
+
+    See PulsarSourceBuilder for more details.
     """
 
     def __init__(self, j_pulsar_source):
@@ -1253,6 +1270,22 @@ class PulsarSourceBuilder(object):
     """
     The builder class for PulsarSource to make it easier for the users to construct a PulsarSource.
 
+    The following example shows the minimum setup to create a PulsarSource that reads the String
+    values from a Pulsar topic.
+
+    Example:
+    ::
+
+        >>> source = PulsarSource() \\
+        ...     .builder() \\
+        ...     .set_service_url(PULSAR_BROKER_URL) \\
+        ...     .set_admin_url(PULSAR_BROKER_HTTP_URL) \\
+        ...     .set_subscription_name("flink-source-1") \\
+        ...     .set_topics([TOPIC1, TOPIC2]) \\
+        ...     .set_deserialization_schema(
+        ...         PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \\
+        ...     .build()
+
     The service url, admin url, subscription name, topics to consume, and the record deserializer
     are required fields that must be set.
 
@@ -1262,6 +1295,23 @@ class PulsarSourceBuilder(object):
     until the Flink job is canceled or fails. To let the PulsarSource run in
     Boundedness.CONTINUOUS_UNBOUNDED but stops at some given offsets, one can call
     set_unbounded_stop_cursor(StopCursor).
+
+    For example the following PulsarSource stops after it consumes up to a event time when the
+    Flink started.
+
+    Example:
+    ::
+
+        >>> source = PulsarSource() \\
+        ...     .builder() \\
+        ...     .set_service_url(PULSAR_BROKER_URL) \\
+        ...     .set_admin_url(PULSAR_BROKER_HTTP_URL) \\
+        ...     .set_subscription_name("flink-source-1") \\
+        ...     .set_topics([TOPIC1, TOPIC2]) \\
+        ...     .set_deserialization_schema(
+        ...         PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \\
+        ...     .set_bounded_stop_cursor(StopCursor.at_event_time(int(time.time() * 1000)))
+        ...     .build()
     """
 
     def __init__(self):
