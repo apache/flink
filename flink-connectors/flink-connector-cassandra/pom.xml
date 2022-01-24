@@ -131,12 +131,6 @@ under the License.
 			</exclusions>
 		</dependency>
 		<dependency>
-			<!-- Bump cassandra netty dependency -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-handler</artifactId>
-			<version>4.1.46.Final</version>
-		</dependency>
-		<dependency>
 			<groupId>com.datastax.cassandra</groupId>
 			<artifactId>cassandra-driver-mapping</artifactId>
 			<version>${driver.version}</version>
