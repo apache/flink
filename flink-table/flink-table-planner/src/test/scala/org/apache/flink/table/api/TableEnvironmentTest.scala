@@ -30,7 +30,9 @@ import org.apache.flink.table.module.ModuleEntry
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory._
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
-import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
+import org.apache.flink.table.planner.utils.TableTestUtil.replaceNodeIdInOperator
+import org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId
+import org.apache.flink.table.planner.utils.TableTestUtil.replaceStreamNodeId
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
@@ -341,7 +343,7 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testAlterTableCompactOnManagedTable(): Unit = {
+  def testAlterTableCompactOnManagedTableUnderStreamingMode(): Unit = {
     val statement =
       """
         |CREATE TABLE MyTable (
@@ -352,8 +354,10 @@ class TableEnvironmentTest {
       """.stripMargin
       tableEnv.executeSql(statement)
 
-    assertEquals(ResultKind.SUCCESS,
-      tableEnv.executeSql("ALTER TABLE MyTable COMPACT").getResultKind)
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Compact managed table only works under batch mode.")
+    tableEnv.executeSql("alter table MyTable compact")
   }
 
   @Test

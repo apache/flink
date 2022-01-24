@@ -707,6 +707,26 @@ public final class CatalogManager {
     }
 
     /**
+     * Resolve dynamic options for compact operation on a Flink's managed table.
+     *
+     * @param origin The resolved managed table with enriched options.
+     * @param tableIdentifier The fully qualified path of the managed table.
+     * @param partitionSpec User-specified unresolved partition spec.
+     * @return dynamic options which describe the metadata of compaction
+     */
+    public Map<String, String> resolveCompactManagedTableOptions(
+            ResolvedCatalogTable origin,
+            ObjectIdentifier tableIdentifier,
+            CatalogPartitionSpec partitionSpec) {
+        return managedTableListener.notifyTableCompaction(
+                catalogs.getOrDefault(tableIdentifier.getCatalogName(), null),
+                tableIdentifier,
+                origin,
+                partitionSpec,
+                false);
+    }
+
+    /**
      * Drop a temporary table in a given fully qualified path.
      *
      * @param objectIdentifier The fully qualified path of the table to drop.

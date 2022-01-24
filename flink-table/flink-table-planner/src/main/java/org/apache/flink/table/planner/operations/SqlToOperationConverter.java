@@ -109,6 +109,7 @@ import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
 import org.apache.flink.table.operations.ShowColumnsOperation;
 import org.apache.flink.table.operations.ShowCreateTableOperation;
@@ -123,6 +124,7 @@ import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
+import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
@@ -138,7 +140,6 @@ import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
-import org.apache.flink.table.operations.ddl.AlterTableCompactOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
@@ -507,10 +508,10 @@ public class SqlToOperationConverter {
             }
             return new DropPartitionsOperation(tableIdentifier, dropPartitions.ifExists(), specs);
         } else if (sqlAlterTable instanceof SqlAlterTableCompact) {
-            ResolvedCatalogTable resolvedCatalogTable =
-                    optionalCatalogTable.get().getResolvedTable();
             return convertAlterTableCompact(
-                    tableIdentifier, resolvedCatalogTable, (SqlAlterTableCompact) sqlAlterTable);
+                    tableIdentifier,
+                    optionalCatalogTable.get(),
+                    (SqlAlterTableCompact) sqlAlterTable);
         } else {
             throw new ValidationException(
                     String.format(
@@ -572,23 +573,29 @@ public class SqlToOperationConverter {
         return new AlterTableOptionsOperation(tableIdentifier, oldTable.copy(newOptions));
     }
 
-    private Operation convertAlterTableCompact(
+    /**
+     * Convert `ALTER TABLE ... COMPACT` operation to {@link ModifyOperation} for Flink's managed
+     * table to trigger a compaction batch job.
+     */
+    private ModifyOperation convertAlterTableCompact(
             ObjectIdentifier tableIdentifier,
-            ResolvedCatalogTable resolvedCatalogTable,
+            ContextResolvedTable contextResolvedTable,
             SqlAlterTableCompact alterTableCompact) {
         Catalog catalog = catalogManager.getCatalog(tableIdentifier.getCatalogName()).orElse(null);
+        ResolvedCatalogTable resolvedCatalogTable = contextResolvedTable.getResolvedTable();
+
         if (ManagedTableListener.isManagedTable(catalog, resolvedCatalogTable)) {
-            LinkedHashMap<String, String> partitionKVs = alterTableCompact.getPartitionKVs();
-            CatalogPartitionSpec partitionSpec = null;
+            Map<String, String> partitionKVs = alterTableCompact.getPartitionKVs();
+            CatalogPartitionSpec partitionSpec = new CatalogPartitionSpec(Collections.emptyMap());
             if (partitionKVs != null) {
-                List<String> orderedPartitionKeys = resolvedCatalogTable.getPartitionKeys();
-                Set<String> validPartitionKeySet = new HashSet<>(orderedPartitionKeys);
+                List<String> partitionKeys = resolvedCatalogTable.getPartitionKeys();
+                Set<String> validPartitionKeySet = new HashSet<>(partitionKeys);
                 String exMsg =
-                        orderedPartitionKeys.isEmpty()
+                        partitionKeys.isEmpty()
                                 ? String.format("Table %s is not partitioned.", tableIdentifier)
                                 : String.format(
                                         "Available ordered partition columns: [%s]",
-                                        orderedPartitionKeys.stream()
+                                        partitionKeys.stream()
                                                 .collect(Collectors.joining("', '", "'", "'")));
                 partitionKVs.forEach(
                         (partitionKey, partitionValue) -> {
@@ -601,7 +608,16 @@ public class SqlToOperationConverter {
                         });
                 partitionSpec = new CatalogPartitionSpec(partitionKVs);
             }
-            return new AlterTableCompactOperation(tableIdentifier, partitionSpec);
+            Map<String, String> compactOptions =
+                    catalogManager.resolveCompactManagedTableOptions(
+                            resolvedCatalogTable, tableIdentifier, partitionSpec);
+            QueryOperation child = new SourceQueryOperation(contextResolvedTable, compactOptions);
+            return new SinkModifyOperation(
+                    contextResolvedTable,
+                    child,
+                    partitionSpec.getPartitionSpec(),
+                    false,
+                    compactOptions);
         }
         throw new ValidationException(
                 String.format(

@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.TestManagedTableSource;
 import org.apache.flink.table.factories.TestDynamicTableFactory.DynamicTableSinkMock;
 import org.apache.flink.table.factories.TestDynamicTableFactory.DynamicTableSourceMock;
 import org.apache.flink.table.factories.TestFormatFactory.DecodingFormatMock;
@@ -63,8 +64,7 @@ public class FactoryUtilTest {
         final Map<String, String> options = createAllOptions();
         options.remove("connector");
         final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
-        assertThat(actualSource)
-                .isExactlyInstanceOf(TestManagedTableFactory.TestManagedTableSource.class);
+        assertThat(actualSource).isExactlyInstanceOf(TestManagedTableSource.class);
     }
 
     @Test
