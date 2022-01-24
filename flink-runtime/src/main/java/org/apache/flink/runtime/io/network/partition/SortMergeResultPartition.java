@@ -141,7 +141,8 @@ public class SortMergeResultPartition extends ResultPartition {
         // input balance of the downstream tasks
         this.subpartitionOrder = getRandomSubpartitionOrder(numSubpartitions);
         this.readScheduler =
-                new SortMergeResultPartitionReadScheduler(readBufferPool, readIOExecutor, lock);
+                new SortMergeResultPartitionReadScheduler(
+                        numSubpartitions, readBufferPool, readIOExecutor, lock);
 
         PartitionedFileWriter fileWriter = null;
         try {
