@@ -30,7 +30,10 @@ import org.apache.flink.connector.kafka.source.KafkaSourceTestUtils;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
-import org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv;
+import org.apache.flink.connector.kafka.testutils.annotations.Kafka;
+import org.apache.flink.connector.kafka.testutils.annotations.KafkaKit;
+import org.apache.flink.connector.kafka.testutils.annotations.Topic;
+import org.apache.flink.connector.kafka.testutils.extension.KafkaClientKit;
 import org.apache.flink.connector.testutils.source.reader.SourceReaderTestBase;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderOutput;
@@ -40,9 +43,8 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.testutils.MetricListener;
 import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -52,9 +54,9 @@ import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -78,48 +80,43 @@ import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderM
 import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.KAFKA_SOURCE_READER_METRIC_GROUP;
 import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.PARTITION_GROUP;
 import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.TOPIC_GROUP;
-import static org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv.NUM_PARTITIONS;
 import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link KafkaSourceReader}. */
-public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSplit> {
-    private static final String TOPIC = "KafkaSourceReaderTest";
+@ExtendWith(TestLoggerExtension.class)
+@Kafka
+class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSplit> {
+
+    @Topic private static final String TOPIC = "KafkaSourceReaderTest";
+
+    @KafkaKit static KafkaClientKit kafkaClientKit;
 
     @BeforeAll
-    public static void setup() throws Throwable {
-        KafkaSourceTestEnv.setup();
-        try (AdminClient adminClient = KafkaSourceTestEnv.getAdminClient()) {
-            adminClient.createTopics(
-                    Collections.singleton(new NewTopic(TOPIC, NUM_PARTITIONS, (short) 1)));
-            // Use the admin client to trigger the creation of internal __consumer_offsets topic.
-            // This makes sure that we won't see unavailable coordinator in the tests.
-            waitUtil(
-                    () -> {
-                        try {
-                            adminClient
-                                    .listConsumerGroupOffsets("AnyGroup")
-                                    .partitionsToOffsetAndMetadata()
-                                    .get();
-                        } catch (Exception e) {
-                            return false;
-                        }
-                        return true;
-                    },
-                    Duration.ofSeconds(60),
-                    "Waiting for offsets topic creation failed.");
-        }
-        KafkaSourceTestEnv.produceToKafka(
+    static void setup() throws Throwable {
+        // Use the admin client to trigger the creation of internal __consumer_offsets topic.
+        // This makes sure that we won't see unavailable coordinator in the tests.
+        waitUtil(
+                () -> {
+                    try {
+                        kafkaClientKit
+                                .getAdminClient()
+                                .listConsumerGroupOffsets("AnyGroup")
+                                .partitionsToOffsetAndMetadata()
+                                .get();
+                    } catch (Exception e) {
+                        return false;
+                    }
+                    return true;
+                },
+                Duration.ofSeconds(60),
+                "Waiting for offsets topic creation failed.");
+        kafkaClientKit.produceToKafka(
                 getRecords(), StringSerializer.class, IntegerSerializer.class);
     }
 
-    @AfterAll
-    public static void tearDown() throws Exception {
-        KafkaSourceTestEnv.tearDown();
-    }
-
     protected int getNumSplits() {
-        return NUM_PARTITIONS;
+        return KafkaClientKit.DEFAULT_NUM_PARTITIONS;
     }
 
     // -----------------------------------------
@@ -162,17 +159,16 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                     "The offset commit did not finish before timeout.");
         }
         // Verify the committed offsets.
-        try (AdminClient adminClient = KafkaSourceTestEnv.getAdminClient()) {
-            Map<TopicPartition, OffsetAndMetadata> committedOffsets =
-                    adminClient
-                            .listConsumerGroupOffsets(groupId)
-                            .partitionsToOffsetAndMetadata()
-                            .get();
-            assertThat(committedOffsets).hasSize(1);
-            assertThat(committedOffsets.values())
-                    .extracting(OffsetAndMetadata::offset)
-                    .allMatch(offset -> offset == NUM_RECORDS_PER_SPLIT);
-        }
+        Map<TopicPartition, OffsetAndMetadata> committedOffsets =
+                kafkaClientKit
+                        .getAdminClient()
+                        .listConsumerGroupOffsets(groupId)
+                        .partitionsToOffsetAndMetadata()
+                        .get();
+        assertThat(committedOffsets).hasSize(1);
+        assertThat(committedOffsets.values())
+                .extracting(OffsetAndMetadata::offset)
+                .allMatch(offset -> offset == NUM_RECORDS_PER_SPLIT);
     }
 
     @Test
@@ -185,14 +181,13 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
             reader.notifyCheckpointComplete(100L);
         }
         // Verify the committed offsets.
-        try (AdminClient adminClient = KafkaSourceTestEnv.getAdminClient()) {
-            Map<TopicPartition, OffsetAndMetadata> committedOffsets =
-                    adminClient
-                            .listConsumerGroupOffsets(groupId)
-                            .partitionsToOffsetAndMetadata()
-                            .get();
-            assertThat(committedOffsets).isEmpty();
-        }
+        Map<TopicPartition, OffsetAndMetadata> committedOffsets =
+                kafkaClientKit
+                        .getAdminClient()
+                        .listConsumerGroupOffsets(groupId)
+                        .partitionsToOffsetAndMetadata()
+                        .get();
+        assertThat(committedOffsets).isEmpty();
     }
 
     @Test
@@ -212,7 +207,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                 reader.snapshotState(checkpointId);
             } while (output.count() < totalNumRecords);
 
-            // The completion of the last checkpoint should subsume all the previous checkpoitns.
+            // The completion of the last checkpoint should subsume all the previous checkpoints.
             assertThat(reader.getOffsetsToCommit()).hasSize((int) checkpointId);
 
             long lastCheckpointId = checkpointId;
@@ -233,17 +228,16 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
         }
 
         // Verify the committed offsets.
-        try (AdminClient adminClient = KafkaSourceTestEnv.getAdminClient()) {
-            Map<TopicPartition, OffsetAndMetadata> committedOffsets =
-                    adminClient
-                            .listConsumerGroupOffsets(groupId)
-                            .partitionsToOffsetAndMetadata()
-                            .get();
-            assertThat(committedOffsets).hasSize(numSplits);
-            assertThat(committedOffsets.values())
-                    .extracting(OffsetAndMetadata::offset)
-                    .allMatch(offset -> offset == NUM_RECORDS_PER_SPLIT);
-        }
+        Map<TopicPartition, OffsetAndMetadata> committedOffsets =
+                kafkaClientKit
+                        .getAdminClient()
+                        .listConsumerGroupOffsets(groupId)
+                        .partitionsToOffsetAndMetadata()
+                        .get();
+        assertThat(committedOffsets).hasSize(numSplits);
+        assertThat(committedOffsets.values())
+                .extracting(OffsetAndMetadata::offset)
+                .allMatch(offset -> offset == NUM_RECORDS_PER_SPLIT);
     }
 
     @Test
@@ -477,7 +471,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                         .setPartitions(Collections.singleton(new TopicPartition("AnyTopic", 0)))
                         .setProperty(
                                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                                KafkaSourceTestEnv.brokerConnectionStrings)
+                                kafkaClientKit.getBootstrapServers())
                         .setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
                         .setProperties(props);
         if (boundedness == Boundedness.BOUNDED) {
@@ -547,7 +541,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 
     private static List<ProducerRecord<String, Integer>> getRecords() {
         List<ProducerRecord<String, Integer>> records = new ArrayList<>();
-        for (int part = 0; part < NUM_PARTITIONS; part++) {
+        for (int part = 0; part < KafkaClientKit.DEFAULT_NUM_PARTITIONS; part++) {
             for (int i = 0; i < NUM_RECORDS_PER_SPLIT; i++) {
                 records.add(
                         new ProducerRecord<>(

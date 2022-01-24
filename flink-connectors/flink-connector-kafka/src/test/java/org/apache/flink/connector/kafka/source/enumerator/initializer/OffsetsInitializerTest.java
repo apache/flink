@@ -20,50 +20,80 @@ package org.apache.flink.connector.kafka.source.enumerator.initializer;
 
 import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumerator;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
-import org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv;
+import org.apache.flink.connector.kafka.testutils.annotations.Kafka;
+import org.apache.flink.connector.kafka.testutils.annotations.KafkaKit;
+import org.apache.flink.connector.kafka.testutils.annotations.Topic;
+import org.apache.flink.connector.kafka.testutils.extension.KafkaClientKit;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.TopicPartition;
-import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 
+import static org.apache.flink.connector.kafka.testutils.KafkaSourceTestRecordGenerator.KEY_SERIALIZER;
+import static org.apache.flink.connector.kafka.testutils.KafkaSourceTestRecordGenerator.VALUE_SERIALIZER;
+import static org.apache.flink.connector.kafka.testutils.KafkaSourceTestRecordGenerator.getRecordsForTopic;
+import static org.apache.flink.connector.kafka.testutils.extension.KafkaClientKit.DEFAULT_NUM_PARTITIONS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /** Unit tests for {@link OffsetsInitializer}. */
-public class OffsetsInitializerTest {
-    private static final String TOPIC = "topic";
-    private static final String TOPIC2 = "topic2";
+@ExtendWith(TestLoggerExtension.class)
+@Kafka
+class OffsetsInitializerTest {
+
+    @KafkaKit static KafkaClientKit kafkaClientKit;
+
+    @Topic private static final String TOPIC = "topic";
+    @Topic private static final String TOPIC2 = "topic2";
+
+    private static final Function<TopicPartition, Long> EARLIEST_OFFSETS_SETTER =
+            (tp) -> (long) (tp.partition());
+    private static final Function<TopicPartition, Long> COMMITTED_OFFSETS_SETTER =
+            (tp) -> (long) (tp.partition() + 2);
+    private static final String GROUP_ID = "offsets-initializer-test";
     private static KafkaSourceEnumerator.PartitionOffsetsRetrieverImpl retriever;
 
-    @BeforeClass
-    public static void setup() throws Throwable {
-        KafkaSourceTestEnv.setup();
-        KafkaSourceTestEnv.setupTopic(TOPIC, true, true, KafkaSourceTestEnv::getRecordsForTopic);
-        KafkaSourceTestEnv.setupTopic(TOPIC2, false, false, KafkaSourceTestEnv::getRecordsForTopic);
+    @BeforeAll
+    static void setup() throws Throwable {
+        kafkaClientKit.produceToKafka(
+                getRecordsForTopic(TOPIC, DEFAULT_NUM_PARTITIONS, true),
+                KEY_SERIALIZER,
+                VALUE_SERIALIZER);
+        kafkaClientKit.setEarliestOffsets(TOPIC, EARLIEST_OFFSETS_SETTER);
+        kafkaClientKit.setCommittedOffsets(TOPIC, GROUP_ID, COMMITTED_OFFSETS_SETTER);
+
+        kafkaClientKit.produceToKafka(
+                getRecordsForTopic(TOPIC2, DEFAULT_NUM_PARTITIONS, true),
+                KEY_SERIALIZER,
+                VALUE_SERIALIZER);
+
         retriever =
                 new KafkaSourceEnumerator.PartitionOffsetsRetrieverImpl(
-                        KafkaSourceTestEnv.getAdminClient(), KafkaSourceTestEnv.GROUP_ID);
+                        kafkaClientKit.getAdminClient(), "partition-offsets-retriever");
     }
 
-    @AfterClass
-    public static void tearDown() throws Exception {
+    @AfterAll
+    static void tearDown() throws Exception {
         retriever.close();
-        KafkaSourceTestEnv.tearDown();
     }
 
     @Test
-    public void testEarliestOffsetsInitializer() {
+    public void testEarliestOffsetsInitializer() throws Exception {
         OffsetsInitializer initializer = OffsetsInitializer.earliest();
-        List<TopicPartition> partitions = KafkaSourceTestEnv.getPartitionsForTopic(TOPIC);
+        Set<TopicPartition> partitions = kafkaClientKit.getPartitionsForTopics(TOPIC);
         Map<TopicPartition, Long> offsets = initializer.getPartitionOffsets(partitions, retriever);
         assertEquals(partitions.size(), offsets.size());
         assertTrue(offsets.keySet().containsAll(partitions));
@@ -74,9 +104,9 @@ public class OffsetsInitializerTest {
     }
 
     @Test
-    public void testLatestOffsetsInitializer() {
+    public void testLatestOffsetsInitializer() throws Exception {
         OffsetsInitializer initializer = OffsetsInitializer.latest();
-        List<TopicPartition> partitions = KafkaSourceTestEnv.getPartitionsForTopic(TOPIC);
+        Set<TopicPartition> partitions = kafkaClientKit.getPartitionsForTopics(TOPIC);
         Map<TopicPartition, Long> offsets = initializer.getPartitionOffsets(partitions, retriever);
         assertEquals(partitions.size(), offsets.size());
         assertTrue(offsets.keySet().containsAll(partitions));
@@ -87,9 +117,9 @@ public class OffsetsInitializerTest {
     }
 
     @Test
-    public void testCommittedGroupOffsetsInitializer() {
+    public void testCommittedGroupOffsetsInitializer() throws Exception {
         OffsetsInitializer initializer = OffsetsInitializer.committedOffsets();
-        List<TopicPartition> partitions = KafkaSourceTestEnv.getPartitionsForTopic(TOPIC);
+        Set<TopicPartition> partitions = kafkaClientKit.getPartitionsForTopics(TOPIC);
         Map<TopicPartition, Long> offsets = initializer.getPartitionOffsets(partitions, retriever);
         assertEquals(partitions.size(), offsets.size());
         offsets.forEach(
@@ -98,9 +128,9 @@ public class OffsetsInitializerTest {
     }
 
     @Test
-    public void testTimestampOffsetsInitializer() {
+    public void testTimestampOffsetsInitializer() throws Exception {
         OffsetsInitializer initializer = OffsetsInitializer.timestamp(2001);
-        List<TopicPartition> partitions = KafkaSourceTestEnv.getPartitionsForTopic(TOPIC);
+        Set<TopicPartition> partitions = kafkaClientKit.getPartitionsForTopics(TOPIC);
         Map<TopicPartition, Long> offsets = initializer.getPartitionOffsets(partitions, retriever);
         offsets.forEach(
                 (tp, offset) -> {
@@ -111,12 +141,16 @@ public class OffsetsInitializerTest {
     }
 
     @Test
-    public void testSpecificOffsetsInitializer() {
+    public void testSpecificOffsetsInitializer() throws Exception {
         Map<TopicPartition, Long> specifiedOffsets = new HashMap<>();
-        List<TopicPartition> partitions = KafkaSourceTestEnv.getPartitionsForTopic(TOPIC);
-        Map<TopicPartition, OffsetAndMetadata> committedOffsets =
-                KafkaSourceTestEnv.getCommittedOffsets(partitions);
-        partitions.forEach(tp -> specifiedOffsets.put(tp, (long) tp.partition()));
+        Map<TopicPartition, OffsetAndMetadata> committedOffsets = new HashMap<>();
+        Set<TopicPartition> partitions = kafkaClientKit.getPartitionsForTopics(TOPIC);
+        partitions.forEach(
+                tp -> {
+                    specifiedOffsets.put(tp, (long) tp.partition());
+                    committedOffsets.put(
+                            tp, new OffsetAndMetadata(COMMITTED_OFFSETS_SETTER.apply(tp)));
+                });
         // Remove the specified offsets for partition 0.
         TopicPartition partitionSetToCommitted = new TopicPartition(TOPIC, 0);
         specifiedOffsets.remove(partitionSetToCommitted);
@@ -143,10 +177,14 @@ public class OffsetsInitializerTest {
         }
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testSpecifiedOffsetsInitializerWithoutOffsetResetStrategy() {
+    @Test
+    void testSpecifiedOffsetsInitializerWithoutOffsetResetStrategy() {
         OffsetsInitializer initializer =
                 OffsetsInitializer.offsets(Collections.emptyMap(), OffsetResetStrategy.NONE);
-        initializer.getPartitionOffsets(KafkaSourceTestEnv.getPartitionsForTopic(TOPIC), retriever);
+        Assertions.assertThrows(
+                IllegalStateException.class,
+                () ->
+                        initializer.getPartitionOffsets(
+                                kafkaClientKit.getPartitionsForTopics(TOPIC), retriever));
     }
 }

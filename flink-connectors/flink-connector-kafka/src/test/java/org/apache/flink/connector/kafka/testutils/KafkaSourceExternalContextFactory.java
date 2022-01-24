@@ -20,40 +20,30 @@ package org.apache.flink.connector.kafka.testutils;
 
 import org.apache.flink.connector.testframe.external.ExternalContextFactory;
 
-import org.testcontainers.containers.KafkaContainer;
-
 import java.net.URL;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.function.Supplier;
 
 /** Factory of {@link KafkaSourceExternalContext}. */
 public class KafkaSourceExternalContextFactory
         implements ExternalContextFactory<KafkaSourceExternalContext> {
 
-    private final KafkaContainer kafkaContainer;
+    private final Supplier<String> bootstrapServerSupplier;
     private final List<URL> connectorJars;
     private final KafkaSourceExternalContext.SplitMappingMode splitMappingMode;
 
     public KafkaSourceExternalContextFactory(
-            KafkaContainer kafkaContainer,
+            Supplier<String> bootstrapServerSupplier,
             List<URL> connectorJars,
             KafkaSourceExternalContext.SplitMappingMode splitMappingMode) {
-        this.kafkaContainer = kafkaContainer;
+        this.bootstrapServerSupplier = bootstrapServerSupplier;
         this.connectorJars = connectorJars;
         this.splitMappingMode = splitMappingMode;
-    }
-
-    protected String getBootstrapServer() {
-        final String internalEndpoints =
-                kafkaContainer.getNetworkAliases().stream()
-                        .map(host -> String.join(":", host, Integer.toString(9092)))
-                        .collect(Collectors.joining(","));
-        return String.join(",", kafkaContainer.getBootstrapServers(), internalEndpoints);
     }
 
     @Override
     public KafkaSourceExternalContext createExternalContext(String testName) {
         return new KafkaSourceExternalContext(
-                getBootstrapServer(), this.splitMappingMode, this.connectorJars);
+                bootstrapServerSupplier.get(), splitMappingMode, connectorJars);
     }
 }

@@ -22,9 +22,11 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.testutils.MetricListener;
 import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.kafka.common.TopicPartition;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Optional;
 
@@ -35,7 +37,8 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 /** Unit test for {@link KafkaSourceReaderMetrics}. */
-public class KafkaSourceReaderMetricsTest {
+@ExtendWith(TestLoggerExtension.class)
+class KafkaSourceReaderMetricsTest {
 
     private static final TopicPartition FOO_0 = new TopicPartition("foo", 0);
     private static final TopicPartition FOO_1 = new TopicPartition("foo", 1);

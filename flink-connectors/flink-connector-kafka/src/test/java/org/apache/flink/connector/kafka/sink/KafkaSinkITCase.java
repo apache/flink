@@ -32,6 +32,10 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.testutils.KafkaUtil;
+import org.apache.flink.connector.kafka.testutils.annotations.Kafka;
+import org.apache.flink.connector.kafka.testutils.annotations.KafkaKit;
+import org.apache.flink.connector.kafka.testutils.annotations.Topic;
+import org.apache.flink.connector.kafka.testutils.extension.KafkaClientKit;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
@@ -46,57 +50,37 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.TestUtils;
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Joiner;
 
-import org.apache.kafka.clients.CommonClientConfigs;
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.CreateTopicsResult;
-import org.apache.kafka.clients.admin.DeleteTopicsResult;
-import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.containers.Network;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Collections;
-import java.util.HashMap;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
-import static org.apache.flink.connector.kafka.testutils.KafkaUtil.createKafkaContainer;
-import static org.apache.flink.util.DockerImageVersions.KAFKA;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -106,59 +90,32 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for using KafkaSink writing to a Kafka cluster. */
-public class KafkaSinkITCase extends TestLogger {
-
+@ExtendWith(TestLoggerExtension.class)
+@Kafka
+class KafkaSinkITCase {
     private static final Logger LOG = LoggerFactory.getLogger(KafkaSinkITCase.class);
-    private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
-    private static final Network NETWORK = Network.newNetwork();
     private static final int ZK_TIMEOUT_MILLIS = 30000;
-    private static final short TOPIC_REPLICATION_FACTOR = 1;
-    private static AdminClient admin;
 
+    @RegisterExtension final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
+
+    @KafkaKit static KafkaClientKit kafkaClientKit;
+
+    @TempDir Path temp;
+
+    @Topic(replicationFactor = 1)
     private String topic;
+
     private SharedReference<AtomicLong> emittedRecordsCount;
     private SharedReference<AtomicLong> emittedRecordsWithCheckpoint;
     private SharedReference<AtomicBoolean> failed;
     private SharedReference<AtomicLong> lastCheckpointedRecord;
 
-    @ClassRule
-    public static final KafkaContainer KAFKA_CONTAINER =
-            createKafkaContainer(KAFKA, LOG)
-                    .withEmbeddedZookeeper()
-                    .withNetwork(NETWORK)
-                    .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
-
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
-
-    @Rule public final TemporaryFolder temp = new TemporaryFolder();
-
-    @BeforeClass
-    public static void setupAdmin() {
-        Map<String, Object> properties = new HashMap<>();
-        properties.put(
-                CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG,
-                KAFKA_CONTAINER.getBootstrapServers());
-        admin = AdminClient.create(properties);
-    }
-
-    @AfterClass
-    public static void teardownAdmin() {
-        admin.close();
-    }
-
-    @Before
-    public void setUp() throws ExecutionException, InterruptedException, TimeoutException {
+    @BeforeEach
+    public void setUp() throws Exception {
         emittedRecordsCount = sharedObjects.add(new AtomicLong());
         emittedRecordsWithCheckpoint = sharedObjects.add(new AtomicLong());
         failed = sharedObjects.add(new AtomicBoolean(false));
         lastCheckpointedRecord = sharedObjects.add(new AtomicLong(0));
-        topic = UUID.randomUUID().toString();
-        createTestTopic(topic, 1, TOPIC_REPLICATION_FACTOR);
-    }
-
-    @After
-    public void tearDown() throws ExecutionException, InterruptedException, TimeoutException {
-        deleteTestTopic(topic);
     }
 
     @Test
@@ -219,7 +176,7 @@ public class KafkaSinkITCase extends TestLogger {
         // lingering transactions
         final Configuration config = new Configuration();
         config.setString(StateBackendOptions.STATE_BACKEND, "filesystem");
-        final File checkpointDir = temp.newFolder();
+        final File checkpointDir = temp.toFile();
         config.setString(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
         config.set(
@@ -294,7 +251,7 @@ public class KafkaSinkITCase extends TestLogger {
         final KafkaSinkBuilder<Long> builder =
                 new KafkaSinkBuilder<Long>()
                         .setDeliverGuarantee(DeliveryGuarantee.EXACTLY_ONCE)
-                        .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
+                        .setBootstrapServers(kafkaClientKit.getBootstrapServers())
                         .setRecordSerializer(
                                 KafkaRecordSerializationSchema.builder()
                                         .setTopic(topic)
@@ -324,7 +281,7 @@ public class KafkaSinkITCase extends TestLogger {
         stream.sinkTo(
                 new KafkaSinkBuilder<Long>()
                         .setDeliverGuarantee(guarantee)
-                        .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
+                        .setBootstrapServers(kafkaClientKit.getBootstrapServers())
                         .setRecordSerializer(
                                 KafkaRecordSerializationSchema.builder()
                                         .setTopic(topic)
@@ -351,7 +308,7 @@ public class KafkaSinkITCase extends TestLogger {
                                 emittedRecordsCount, emittedRecordsWithCheckpoint));
         source.sinkTo(
                 new KafkaSinkBuilder<Long>()
-                        .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
+                        .setBootstrapServers(kafkaClientKit.getBootstrapServers())
                         .setDeliverGuarantee(deliveryGuarantee)
                         .setRecordSerializer(
                                 KafkaRecordSerializationSchema.builder()
@@ -388,7 +345,7 @@ public class KafkaSinkITCase extends TestLogger {
 
     private static Properties getKafkaClientConfiguration() {
         final Properties standardProps = new Properties();
-        standardProps.put("bootstrap.servers", KAFKA_CONTAINER.getBootstrapServers());
+        standardProps.put("bootstrap.servers", kafkaClientKit.getBootstrapServers());
         standardProps.put("group.id", UUID.randomUUID().toString());
         standardProps.put("enable.auto.commit", false);
         standardProps.put("auto.offset.reset", "earliest");
@@ -396,33 +353,6 @@ public class KafkaSinkITCase extends TestLogger {
         standardProps.put("zookeeper.session.timeout.ms", ZK_TIMEOUT_MILLIS);
         standardProps.put("zookeeper.connection.timeout.ms", ZK_TIMEOUT_MILLIS);
         return standardProps;
-    }
-
-    private static Consumer<byte[], byte[]> createTestConsumer(
-            String topic, Properties properties) {
-        final Properties consumerConfig = new Properties();
-        consumerConfig.putAll(properties);
-        consumerConfig.put("key.deserializer", ByteArrayDeserializer.class.getName());
-        consumerConfig.put("value.deserializer", ByteArrayDeserializer.class.getName());
-        consumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
-        final KafkaConsumer<byte[], byte[]> kafkaConsumer = new KafkaConsumer<>(consumerConfig);
-        kafkaConsumer.subscribe(Collections.singletonList(topic));
-        return kafkaConsumer;
-    }
-
-    private void createTestTopic(String topic, int numPartitions, short replicationFactor)
-            throws ExecutionException, InterruptedException, TimeoutException {
-        final CreateTopicsResult result =
-                admin.createTopics(
-                        Collections.singletonList(
-                                new NewTopic(topic, numPartitions, replicationFactor)));
-        result.all().get(1, TimeUnit.MINUTES);
-    }
-
-    private void deleteTestTopic(String topic)
-            throws ExecutionException, InterruptedException, TimeoutException {
-        final DeleteTopicsResult result = admin.deleteTopics(Collections.singletonList(topic));
-        result.all().get(1, TimeUnit.MINUTES);
     }
 
     private List<ConsumerRecord<byte[], byte[]>> drainAllRecordsFromTopic(

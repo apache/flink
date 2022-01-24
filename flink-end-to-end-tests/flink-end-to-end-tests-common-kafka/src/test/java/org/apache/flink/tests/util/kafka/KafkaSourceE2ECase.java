@@ -19,39 +19,38 @@
 package org.apache.flink.tests.util.kafka;
 
 import org.apache.flink.connector.kafka.testutils.KafkaSourceExternalContextFactory;
-import org.apache.flink.connector.testframe.external.DefaultContainerizedExternalSystem;
+import org.apache.flink.connector.kafka.testutils.cluster.KafkaContainers;
+import org.apache.flink.connector.kafka.testutils.extension.KafkaExtension;
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
-import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
 import org.apache.flink.connector.testframe.testsuites.SourceTestSuiteBase;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.flink.FlinkContainerTestEnvironment;
-import org.apache.flink.util.DockerImageVersions;
 
-import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.utility.DockerImageName;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Arrays;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.kafka.testutils.KafkaSourceExternalContext.SplitMappingMode.PARTITION;
 import static org.apache.flink.connector.kafka.testutils.KafkaSourceExternalContext.SplitMappingMode.TOPIC;
 
 /** Kafka E2E test based on connector testing framework. */
 public class KafkaSourceE2ECase extends SourceTestSuiteBase<String> {
-    private static final String KAFKA_HOSTNAME = "kafka";
+    private static final String KAFKA_HOSTNAME_PREFIX = "kafka";
+    private static final int KAFKA_INTERNAL_PORT = 9092;
 
     // Defines TestEnvironment
-    @TestEnv FlinkContainerTestEnvironment flink = new FlinkContainerTestEnvironment(1, 6);
+    @TestEnv
+    static final FlinkContainerTestEnvironment FLINK = new FlinkContainerTestEnvironment(1, 6);
 
-    // Defines ConnectorExternalSystem
-    @TestExternalSystem
-    DefaultContainerizedExternalSystem<KafkaContainer> kafka =
-            DefaultContainerizedExternalSystem.builder()
-                    .fromContainer(
-                            new KafkaContainer(DockerImageName.parse(DockerImageVersions.KAFKA))
-                                    .withNetworkAliases(KAFKA_HOSTNAME))
-                    .bindWithFlinkContainer(flink.getFlinkContainers().getJobManager())
-                    .build();
+    @RegisterExtension
+    static final KafkaExtension KAFKA =
+            new KafkaExtension(
+                    KafkaContainers.builder()
+                            .setNetwork(FLINK.getFlinkContainers().getJobManager().getNetwork())
+                            .setNetworkAliasPrefix(KAFKA_HOSTNAME_PREFIX)
+                            .build());
 
     // Defines 2 External context Factories, so test cases will be invoked twice using these two
     // kinds of external contexts.
@@ -59,7 +58,7 @@ public class KafkaSourceE2ECase extends SourceTestSuiteBase<String> {
     @TestContext
     KafkaSourceExternalContextFactory singleTopic =
             new KafkaSourceExternalContextFactory(
-                    kafka.getContainer(),
+                    this::getBootstrapServer,
                     Arrays.asList(
                             TestUtils.getResource("kafka-connector.jar").toUri().toURL(),
                             TestUtils.getResource("kafka-clients.jar").toUri().toURL()),
@@ -69,11 +68,23 @@ public class KafkaSourceE2ECase extends SourceTestSuiteBase<String> {
     @TestContext
     KafkaSourceExternalContextFactory multipleTopic =
             new KafkaSourceExternalContextFactory(
-                    kafka.getContainer(),
+                    KAFKA::getBootstrapServers,
                     Arrays.asList(
                             TestUtils.getResource("kafka-connector.jar").toUri().toURL(),
                             TestUtils.getResource("kafka-clients.jar").toUri().toURL()),
                     TOPIC);
+
+    private String getBootstrapServer() {
+        // Internal endpoint for connecting from FlinkContainers
+        String internalBootstrapServers =
+                KAFKA.getKafkaContainers().getKafkaContainer(0).getNetworkAliases().stream()
+                        .map(host -> host + ":" + KAFKA_INTERNAL_PORT)
+                        .collect(Collectors.joining(","));
+        // Endpoint on host for connecting from external context
+        String hostBootstrapServers = KAFKA.getBootstrapServers();
+        // Combine two endpoints as the final bootstrap server string
+        return internalBootstrapServers + "," + hostBootstrapServers;
+    }
 
     public KafkaSourceE2ECase() throws Exception {}
 }

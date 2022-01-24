@@ -24,7 +24,11 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
-import org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv;
+import org.apache.flink.connector.kafka.testutils.KafkaSourceTestRecordGenerator;
+import org.apache.flink.connector.kafka.testutils.annotations.Kafka;
+import org.apache.flink.connector.kafka.testutils.annotations.KafkaKit;
+import org.apache.flink.connector.kafka.testutils.annotations.Topic;
+import org.apache.flink.connector.kafka.testutils.extension.KafkaClientKit;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -35,6 +39,7 @@ import org.apache.flink.metrics.testutils.MetricListener;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -45,10 +50,10 @@ import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EmptySource;
@@ -67,8 +72,13 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
-import static org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv.NUM_RECORDS_PER_PARTITION;
+import static org.apache.flink.connector.kafka.testutils.KafkaSourceTestRecordGenerator.KEY_SERIALIZER;
+import static org.apache.flink.connector.kafka.testutils.KafkaSourceTestRecordGenerator.NUM_RECORDS_PER_PARTITION;
+import static org.apache.flink.connector.kafka.testutils.KafkaSourceTestRecordGenerator.VALUE_SERIALIZER;
+import static org.apache.flink.connector.kafka.testutils.KafkaSourceTestRecordGenerator.getRecordsForTopic;
+import static org.apache.flink.connector.kafka.testutils.extension.KafkaClientKit.DEFAULT_NUM_PARTITIONS;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -77,31 +87,36 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit tests for {@link KafkaPartitionSplitReader}. */
-public class KafkaPartitionSplitReaderTest {
+@ExtendWith(TestLoggerExtension.class)
+@Kafka
+class KafkaPartitionSplitReaderTest {
+
+    @KafkaKit static KafkaClientKit kafkaClientKit;
+    @Topic private static final String TOPIC1 = "topic1";
+    @Topic private static final String TOPIC2 = "topic2";
+
     private static final int NUM_SUBTASKS = 3;
-    private static final String TOPIC1 = "topic1";
-    private static final String TOPIC2 = "topic2";
+    private static final Function<TopicPartition, Long> EARLIEST_OFFSETS_SETTER =
+            (tp) -> (long) (tp.partition());
+    private static final Function<TopicPartition, Long> COMMITTED_OFFSETS_SETTER =
+            (tp) -> (long) (tp.partition() + 2);
+    private static final String GROUP_ID = "partition-split-reader-test";
+    private static final Map<TopicPartition, Long> EARLIEST_OFFSETS = new HashMap<>();
 
     private static Map<Integer, Map<String, KafkaPartitionSplit>> splitsByOwners;
-    private static Map<TopicPartition, Long> earliestOffsets;
 
     private final IntegerDeserializer deserializer = new IntegerDeserializer();
 
     @BeforeAll
-    public static void setup() throws Throwable {
-        KafkaSourceTestEnv.setup();
-        KafkaSourceTestEnv.setupTopic(TOPIC1, true, true, KafkaSourceTestEnv::getRecordsForTopic);
-        KafkaSourceTestEnv.setupTopic(TOPIC2, true, true, KafkaSourceTestEnv::getRecordsForTopic);
+    static void setup() throws Throwable {
+        setupTopic(TOPIC1);
+        setupTopic(TOPIC2);
         splitsByOwners =
-                KafkaSourceTestEnv.getSplitsByOwners(Arrays.asList(TOPIC1, TOPIC2), NUM_SUBTASKS);
-        earliestOffsets =
-                KafkaSourceTestEnv.getEarliestOffsets(
-                        KafkaSourceTestEnv.getPartitionsForTopics(Arrays.asList(TOPIC1, TOPIC2)));
-    }
-
-    @AfterAll
-    public static void tearDown() throws Exception {
-        KafkaSourceTestEnv.tearDown();
+                KafkaSourceTestRecordGenerator.getSplitsByOwners(
+                        kafkaClientKit.getPartitionsForTopics(TOPIC1, TOPIC2), NUM_SUBTASKS);
+        kafkaClientKit
+                .getPartitionsForTopics(Arrays.asList(TOPIC1, TOPIC2))
+                .forEach((tp) -> EARLIEST_OFFSETS.put(tp, EARLIEST_OFFSETS_SETTER.apply(tp)));
     }
 
     @Test
@@ -177,10 +192,10 @@ public class KafkaPartitionSplitReaderTest {
         final String topic1Name = TOPIC1 + topicSuffix;
         final String topic2Name = TOPIC2 + topicSuffix;
         if (!topicSuffix.isEmpty()) {
-            KafkaSourceTestEnv.setupTopic(
-                    topic1Name, true, true, KafkaSourceTestEnv::getRecordsForTopic);
-            KafkaSourceTestEnv.setupTopic(
-                    topic2Name, true, true, KafkaSourceTestEnv::getRecordsForTopic);
+            kafkaClientKit.createTopic(topic1Name);
+            kafkaClientKit.createTopic(topic2Name);
+            setupTopic(topic1Name);
+            setupTopic(topic2Name);
         }
         MetricListener metricListener = new MetricListener();
         final Properties props = new Properties();
@@ -323,7 +338,7 @@ public class KafkaPartitionSplitReaderTest {
 
                 // Compute the expected next offset for the split.
                 TopicPartition tp = splits.get(splitId).getTopicPartition();
-                long earliestOffset = earliestOffsets.get(tp);
+                long earliestOffset = EARLIEST_OFFSETS.get(tp);
                 int numConsumedRecordsForSplit = numConsumedRecords.getOrDefault(splitId, 0);
                 long expectedStartingOffset = earliestOffset + numConsumedRecordsForSplit;
 
@@ -345,7 +360,7 @@ public class KafkaPartitionSplitReaderTest {
         numConsumedRecords.forEach(
                 (splitId, recordCount) -> {
                     TopicPartition tp = splits.get(splitId).getTopicPartition();
-                    long earliestOffset = earliestOffsets.get(tp);
+                    long earliestOffset = EARLIEST_OFFSETS.get(tp);
                     long expectedRecordCount = NUM_RECORDS_PER_PARTITION - earliestOffset;
                     assertEquals(
                             expectedRecordCount,
@@ -358,6 +373,15 @@ public class KafkaPartitionSplitReaderTest {
 
     // ------------------
 
+    private static void setupTopic(String topicName) throws Exception {
+        kafkaClientKit.produceToKafka(
+                getRecordsForTopic(topicName, DEFAULT_NUM_PARTITIONS, true),
+                KEY_SERIALIZER,
+                VALUE_SERIALIZER);
+        kafkaClientKit.setEarliestOffsets(topicName, EARLIEST_OFFSETS_SETTER);
+        kafkaClientKit.setCommittedOffsets(topicName, GROUP_ID, COMMITTED_OFFSETS_SETTER);
+    }
+
     private KafkaPartitionSplitReader createReader() {
         return createReader(
                 new Properties(), UnregisteredMetricsGroup.createSourceReaderMetricGroup());
@@ -366,7 +390,9 @@ public class KafkaPartitionSplitReaderTest {
     private KafkaPartitionSplitReader createReader(
             Properties additionalProperties, SourceReaderMetricGroup sourceReaderMetricGroup) {
         Properties props = new Properties();
-        props.putAll(KafkaSourceTestEnv.getConsumerProperties(ByteArrayDeserializer.class));
+        props.putAll(
+                kafkaClientKit.createConsumerProps(
+                        GROUP_ID, ByteArrayDeserializer.class, ByteArrayDeserializer.class));
         props.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none");
         if (!additionalProperties.isEmpty()) {
             props.putAll(additionalProperties);

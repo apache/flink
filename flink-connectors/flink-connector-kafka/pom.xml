@@ -239,7 +239,7 @@ under the License.
 						<configuration>
 							<includes>
 								<include>**/KafkaTestEnvironment*</include>
-								<include>**/testutils/*</include>
+								<include>**/testutils/**</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
@@ -263,7 +263,7 @@ under the License.
 							</archive>
 							<includes>
 								<include>**/KafkaTestEnvironment*</include>
-								<include>**/testutils/*</include>
+								<include>**/testutils/**</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>

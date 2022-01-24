@@ -23,6 +23,9 @@ import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.connector.kafka.testutils.annotations.Kafka;
+import org.apache.flink.connector.kafka.testutils.annotations.KafkaKit;
+import org.apache.flink.connector.kafka.testutils.extension.KafkaClientKit;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
@@ -32,7 +35,7 @@ import org.apache.flink.metrics.testutils.MetricListener;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
@@ -40,18 +43,15 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.containers.Network;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -63,9 +63,7 @@ import java.util.PriorityQueue;
 import java.util.Properties;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.connector.kafka.testutils.KafkaUtil.createKafkaContainer;
 import static org.apache.flink.connector.kafka.testutils.KafkaUtil.drainAllRecordsFromTopic;
-import static org.apache.flink.util.DockerImageVersions.KAFKA;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -76,33 +74,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the standalone KafkaWriter. */
-public class KafkaWriterITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+@Kafka
+class KafkaWriterITCase {
+
+    @KafkaKit static KafkaClientKit client;
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaWriterITCase.class);
-    private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
-    private static final Network NETWORK = Network.newNetwork();
     private static final String KAFKA_METRIC_WITH_GROUP_NAME = "KafkaProducer.incoming-byte-total";
     private static final SinkWriter.Context SINK_WRITER_CONTEXT = new DummySinkWriterContext();
-    private String topic;
 
+    private String topic;
     private MetricListener metricListener;
     private TriggerTimeService timeService;
-
-    private static final KafkaContainer KAFKA_CONTAINER =
-            createKafkaContainer(KAFKA, LOG)
-                    .withEmbeddedZookeeper()
-                    .withNetwork(NETWORK)
-                    .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
-
-    @BeforeAll
-    public static void beforeAll() {
-        KAFKA_CONTAINER.start();
-    }
-
-    @AfterAll
-    public static void afterAll() {
-        KAFKA_CONTAINER.stop();
-    }
 
     @BeforeEach
     public void setUp(TestInfo testInfo) {
@@ -340,7 +324,7 @@ public class KafkaWriterITCase extends TestLogger {
 
     private static Properties getKafkaClientConfiguration() {
         final Properties standardProps = new Properties();
-        standardProps.put("bootstrap.servers", KAFKA_CONTAINER.getBootstrapServers());
+        standardProps.put("bootstrap.servers", client.getBootstrapServers());
         standardProps.put("group.id", "kafkaWriter-tests");
         standardProps.put("enable.auto.commit", false);
         standardProps.put("key.serializer", ByteArraySerializer.class.getName());

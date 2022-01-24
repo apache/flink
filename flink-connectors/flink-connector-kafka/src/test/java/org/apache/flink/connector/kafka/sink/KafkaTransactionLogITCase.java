@@ -18,7 +18,10 @@
 package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.connector.kafka.sink.KafkaTransactionLog.TransactionRecord;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.connector.kafka.testutils.annotations.Kafka;
+import org.apache.flink.connector.kafka.testutils.annotations.KafkaKit;
+import org.apache.flink.connector.kafka.testutils.extension.KafkaClientKit;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -26,12 +29,9 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
-import org.junit.After;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.KafkaContainer;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,25 +44,22 @@ import static org.apache.flink.connector.kafka.sink.KafkaTransactionLog.Transact
 import static org.apache.flink.connector.kafka.sink.KafkaTransactionLog.TransactionState.Ongoing;
 import static org.apache.flink.connector.kafka.sink.KafkaTransactionLog.TransactionState.PrepareAbort;
 import static org.apache.flink.connector.kafka.sink.KafkaTransactionLog.TransactionState.PrepareCommit;
-import static org.apache.flink.connector.kafka.testutils.KafkaUtil.createKafkaContainer;
-import static org.apache.flink.util.DockerImageVersions.KAFKA;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
 /** Tests for {@link KafkaTransactionLog} to retrieve abortable Kafka transactions. */
-public class KafkaTransactionLogITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+@Kafka
+class KafkaTransactionLogITCase {
 
-    private static final Logger LOG = LoggerFactory.getLogger(KafkaSinkITCase.class);
     private static final String TOPIC_NAME = "kafkaTransactionLogTest";
     private static final String TRANSACTIONAL_ID_PREFIX = "kafka-log";
 
-    @ClassRule
-    public static final KafkaContainer KAFKA_CONTAINER =
-            createKafkaContainer(KAFKA, LOG).withEmbeddedZookeeper();
-
     private final List<Producer<byte[], Integer>> openProducers = new ArrayList<>();
 
-    @After
+    @KafkaKit static KafkaClientKit kafkaClientKit;
+
+    @AfterEach
     public void tearDown() {
         openProducers.forEach(Producer::close);
     }
@@ -154,7 +151,7 @@ public class KafkaTransactionLogITCase extends TestLogger {
 
     private static Properties getKafkaClientConfiguration() {
         final Properties standardProps = new Properties();
-        standardProps.put("bootstrap.servers", KAFKA_CONTAINER.getBootstrapServers());
+        standardProps.put("bootstrap.servers", kafkaClientKit.getBootstrapServers());
         standardProps.put("group.id", "flink-tests");
         standardProps.put("enable.auto.commit", false);
         standardProps.put("auto.id.reset", "earliest");

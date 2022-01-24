@@ -26,17 +26,22 @@ import org.apache.flink.connector.kafka.source.enumerator.initializer.NoStopping
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriber;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
-import org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv;
+import org.apache.flink.connector.kafka.testutils.KafkaSourceTestRecordGenerator;
+import org.apache.flink.connector.kafka.testutils.annotations.Kafka;
+import org.apache.flink.connector.kafka.testutils.annotations.KafkaKit;
+import org.apache.flink.connector.kafka.testutils.annotations.Topic;
+import org.apache.flink.connector.kafka.testutils.extension.KafkaClientKit;
 import org.apache.flink.mock.Whitebox;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -56,13 +61,18 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /** Unit tests for {@link KafkaSourceEnumerator}. */
-public class KafkaEnumeratorTest {
+@ExtendWith(TestLoggerExtension.class)
+@Kafka
+class KafkaEnumeratorTest {
+
+    @KafkaKit static KafkaClientKit kafkaClientKit;
+
     private static final int NUM_SUBTASKS = 3;
     private static final String DYNAMIC_TOPIC_NAME = "dynamic_topic";
     private static final int NUM_PARTITIONS_DYNAMIC_TOPIC = 4;
 
-    private static final String TOPIC1 = "topic";
-    private static final String TOPIC2 = "pattern-topic";
+    @Topic private static final String TOPIC1 = "topic";
+    @Topic private static final String TOPIC2 = "pattern-topic";
 
     private static final int READER0 = 0;
     private static final int READER1 = 1;
@@ -74,16 +84,18 @@ public class KafkaEnumeratorTest {
     private static final boolean INCLUDE_DYNAMIC_TOPIC = true;
     private static final boolean EXCLUDE_DYNAMIC_TOPIC = false;
 
-    @BeforeClass
-    public static void setup() throws Throwable {
-        KafkaSourceTestEnv.setup();
-        KafkaSourceTestEnv.setupTopic(TOPIC1, true, true, KafkaSourceTestEnv::getRecordsForTopic);
-        KafkaSourceTestEnv.setupTopic(TOPIC2, true, true, KafkaSourceTestEnv::getRecordsForTopic);
-    }
-
-    @AfterClass
-    public static void tearDown() throws Exception {
-        KafkaSourceTestEnv.tearDown();
+    @BeforeAll
+    static void setup() throws Exception {
+        kafkaClientKit.produceToKafka(
+                KafkaSourceTestRecordGenerator.getRecordsForTopic(
+                        TOPIC1, KafkaClientKit.DEFAULT_NUM_PARTITIONS, false),
+                KafkaSourceTestRecordGenerator.KEY_SERIALIZER,
+                KafkaSourceTestRecordGenerator.VALUE_SERIALIZER);
+        kafkaClientKit.produceToKafka(
+                KafkaSourceTestRecordGenerator.getRecordsForTopic(
+                        TOPIC2, KafkaClientKit.DEFAULT_NUM_PARTITIONS, false),
+                KafkaSourceTestRecordGenerator.KEY_SERIALIZER,
+                KafkaSourceTestRecordGenerator.VALUE_SERIALIZER);
     }
 
     @Test
@@ -170,16 +182,16 @@ public class KafkaEnumeratorTest {
         }
     }
 
-    @Test(timeout = 30000L)
-    public void testDiscoverPartitionsPeriodically() throws Throwable {
+    @Test
+    @Timeout(30)
+    void testDiscoverPartitionsPeriodically() throws Throwable {
         try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
                         new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
                 KafkaSourceEnumerator enumerator =
                         createEnumerator(
                                 context,
                                 ENABLE_PERIODIC_PARTITION_DISCOVERY,
-                                INCLUDE_DYNAMIC_TOPIC);
-                AdminClient adminClient = KafkaSourceTestEnv.getAdminClient()) {
+                                INCLUDE_DYNAMIC_TOPIC)) {
 
             startEnumeratorAndRegisterReaders(context, enumerator);
 
@@ -191,15 +203,11 @@ public class KafkaEnumeratorTest {
                     context.getSplitsAssignmentSequence().size());
 
             // create the dynamic topic.
-            adminClient
-                    .createTopics(
-                            Collections.singleton(
-                                    new NewTopic(
-                                            DYNAMIC_TOPIC_NAME,
-                                            NUM_PARTITIONS_DYNAMIC_TOPIC,
-                                            (short) 1)))
-                    .all()
-                    .get();
+            kafkaClientKit.createTopic(
+                    DYNAMIC_TOPIC_NAME,
+                    NUM_PARTITIONS_DYNAMIC_TOPIC,
+                    (short) 1,
+                    KafkaClientKit.DEFAULT_TIMEOUT);
 
             // invoke partition discovery callable again.
             while (true) {
@@ -216,11 +224,11 @@ public class KafkaEnumeratorTest {
                     Collections.singleton(DYNAMIC_TOPIC_NAME),
                     3);
         } finally {
-            try (AdminClient adminClient = KafkaSourceTestEnv.getAdminClient()) {
-                adminClient.deleteTopics(Collections.singleton(DYNAMIC_TOPIC_NAME)).all().get();
-            } catch (Exception e) {
-                // Let it go.
-            }
+            kafkaClientKit
+                    .getAdminClient()
+                    .deleteTopics(Collections.singleton(DYNAMIC_TOPIC_NAME))
+                    .all()
+                    .get();
         }
     }
 
@@ -368,7 +376,7 @@ public class KafkaEnumeratorTest {
             // All existing topics are not in the fetchedPartitions, so they should be marked as
             // removed
             Set<TopicPartition> expectedRemovedPartitions = new HashSet<>();
-            for (int i = 0; i < KafkaSourceTestEnv.NUM_PARTITIONS; i++) {
+            for (int i = 0; i < KafkaClientKit.DEFAULT_NUM_PARTITIONS; i++) {
                 expectedRemovedPartitions.add(new TopicPartition(TOPIC1, i));
                 expectedRemovedPartitions.add(new TopicPartition(TOPIC2, i));
             }
@@ -449,7 +457,11 @@ public class KafkaEnumeratorTest {
         OffsetsInitializer stoppingOffsetsInitializer = new NoStoppingOffsetsInitializer();
 
         Properties props =
-                new Properties(KafkaSourceTestEnv.getConsumerProperties(StringDeserializer.class));
+                new Properties(
+                        kafkaClientKit.createConsumerProps(
+                                "KafkaEnumeratorTest",
+                                StringDeserializer.class,
+                                StringDeserializer.class));
         KafkaSourceEnumerator.deepCopyProperties(overrideProperties, props);
         String partitionDiscoverInterval = enablePeriodicPartitionDiscovery ? "1" : "-1";
         props.setProperty(
@@ -480,7 +492,8 @@ public class KafkaEnumeratorTest {
             MockSplitEnumeratorContext<KafkaPartitionSplit> context,
             Collection<Integer> readers,
             Set<String> topics,
-            int expectedAssignmentSeqSize) {
+            int expectedAssignmentSeqSize)
+            throws Exception {
         verifyAssignments(
                 getExpectedAssignments(new HashSet<>(readers), topics),
                 context.getSplitsAssignmentSequence()
@@ -505,7 +518,7 @@ public class KafkaEnumeratorTest {
     }
 
     private Map<Integer, Set<TopicPartition>> getExpectedAssignments(
-            Set<Integer> readers, Set<String> topics) {
+            Set<Integer> readers, Set<String> topics) throws Exception {
         Map<Integer, Set<TopicPartition>> expectedAssignments = new HashMap<>();
         Set<TopicPartition> allPartitions = new HashSet<>();
 
@@ -515,7 +528,7 @@ public class KafkaEnumeratorTest {
             }
         }
 
-        for (TopicPartition tp : KafkaSourceTestEnv.getPartitionsForTopics(PRE_EXISTING_TOPICS)) {
+        for (TopicPartition tp : kafkaClientKit.getPartitionsForTopics(PRE_EXISTING_TOPICS)) {
             if (topics.contains(tp.topic())) {
                 allPartitions.add(tp);
             }
@@ -565,25 +578,6 @@ public class KafkaEnumeratorTest {
         // Initialize offsets for discovered partitions
         if (!context.getOneTimeCallables().isEmpty()) {
             context.runNextOneTimeCallable();
-        }
-    }
-
-    // -------------- private class ----------------
-
-    private static class BlockingClosingContext
-            extends MockSplitEnumeratorContext<KafkaPartitionSplit> {
-
-        public BlockingClosingContext(int parallelism) {
-            super(parallelism);
-        }
-
-        @Override
-        public void close() {
-            try {
-                Thread.sleep(Long.MAX_VALUE);
-            } catch (InterruptedException e) {
-                // let it go.
-            }
         }
     }
 }

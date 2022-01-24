@@ -21,9 +21,11 @@ package org.apache.flink.connector.kafka.source.enumerator;
 import org.apache.flink.connector.base.source.utils.SerdeUtils;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplitSerializer;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.kafka.common.TopicPartition;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -35,7 +37,8 @@ import java.util.Set;
 import static org.junit.Assert.assertEquals;
 
 /** Test for {@link KafkaSourceEnumStateSerializer}. */
-public class KafkaSourceEnumStateSerializerTest {
+@ExtendWith(TestLoggerExtension.class)
+class KafkaSourceEnumStateSerializerTest {
 
     private static final int NUM_READERS = 10;
     private static final String TOPIC_PREFIX = "topic-";

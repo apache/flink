@@ -18,15 +18,18 @@
 
 package org.apache.flink.connector.kafka.source.enumerator.subscriber;
 
-import org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv;
+import org.apache.flink.connector.kafka.testutils.annotations.Kafka;
+import org.apache.flink.connector.kafka.testutils.annotations.KafkaKit;
+import org.apache.flink.connector.kafka.testutils.annotations.Topic;
+import org.apache.flink.connector.kafka.testutils.extension.KafkaClientKit;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -35,41 +38,29 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Unit tests for {@link KafkaSubscriber}. */
-public class KafkaSubscriberTest {
-    private static final String TOPIC1 = "topic1";
-    private static final String TOPIC2 = "pattern-topic";
+@ExtendWith(TestLoggerExtension.class)
+@Kafka
+class KafkaSubscriberTest {
+    @Topic private static final String TOPIC1 = "topic1";
+    @Topic private static final String TOPIC2 = "pattern-topic";
     private static final TopicPartition NON_EXISTING_TOPIC = new TopicPartition("removed", 0);
-    private static AdminClient adminClient;
 
-    @BeforeClass
-    public static void setup() throws Throwable {
-        KafkaSourceTestEnv.setup();
-        KafkaSourceTestEnv.createTestTopic(TOPIC1);
-        KafkaSourceTestEnv.createTestTopic(TOPIC2);
-        adminClient = KafkaSourceTestEnv.getAdminClient();
-    }
-
-    @AfterClass
-    public static void tearDown() throws Exception {
-        adminClient.close();
-        KafkaSourceTestEnv.tearDown();
-    }
+    @KafkaKit KafkaClientKit kafkaClientKit;
 
     @Test
-    public void testTopicListSubscriber() {
+    public void testTopicListSubscriber() throws Exception {
         List<String> topics = Arrays.asList(TOPIC1, TOPIC2);
         KafkaSubscriber subscriber =
                 KafkaSubscriber.getTopicListSubscriber(Arrays.asList(TOPIC1, TOPIC2));
         final Set<TopicPartition> subscribedPartitions =
-                subscriber.getSubscribedTopicPartitions(adminClient);
+                subscriber.getSubscribedTopicPartitions(kafkaClientKit.getAdminClient());
 
         final Set<TopicPartition> expectedSubscribedPartitions =
-                new HashSet<>(KafkaSourceTestEnv.getPartitionsForTopics(topics));
+                new HashSet<>(kafkaClientKit.getPartitionsForTopics(topics));
 
         assertEquals(expectedSubscribedPartitions, subscribedPartitions);
     }
@@ -83,39 +74,39 @@ public class KafkaSubscriberTest {
         Throwable t =
                 assertThrows(
                         RuntimeException.class,
-                        () -> subscriber.getSubscribedTopicPartitions(adminClient));
+                        () ->
+                                subscriber.getSubscribedTopicPartitions(
+                                        kafkaClientKit.getAdminClient()));
 
-        assertTrue(
-                "Exception should be caused by UnknownTopicOrPartitionException",
-                ExceptionUtils.findThrowable(t, UnknownTopicOrPartitionException.class)
-                        .isPresent());
+        Assertions.assertTrue(
+                ExceptionUtils.findThrowable(t, UnknownTopicOrPartitionException.class).isPresent(),
+                "Exception should be caused by UnknownTopicOrPartitionException");
     }
 
     @Test
-    public void testTopicPatternSubscriber() {
+    public void testTopicPatternSubscriber() throws Exception {
         KafkaSubscriber subscriber =
                 KafkaSubscriber.getTopicPatternSubscriber(Pattern.compile("pattern.*"));
         final Set<TopicPartition> subscribedPartitions =
-                subscriber.getSubscribedTopicPartitions(adminClient);
+                subscriber.getSubscribedTopicPartitions(kafkaClientKit.getAdminClient());
 
         final Set<TopicPartition> expectedSubscribedPartitions =
-                new HashSet<>(
-                        KafkaSourceTestEnv.getPartitionsForTopics(Collections.singleton(TOPIC2)));
+                new HashSet<>(kafkaClientKit.getPartitionsForTopics(Collections.singleton(TOPIC2)));
 
         assertEquals(expectedSubscribedPartitions, subscribedPartitions);
     }
 
     @Test
-    public void testPartitionSetSubscriber() {
+    void testPartitionSetSubscriber() throws Exception {
         List<String> topics = Arrays.asList(TOPIC1, TOPIC2);
         Set<TopicPartition> partitions =
-                new HashSet<>(KafkaSourceTestEnv.getPartitionsForTopics(topics));
+                new HashSet<>(kafkaClientKit.getPartitionsForTopics(topics));
         partitions.remove(new TopicPartition(TOPIC1, 1));
 
         KafkaSubscriber subscriber = KafkaSubscriber.getPartitionSetSubscriber(partitions);
 
         final Set<TopicPartition> subscribedPartitions =
-                subscriber.getSubscribedTopicPartitions(adminClient);
+                subscriber.getSubscribedTopicPartitions(kafkaClientKit.getAdminClient());
 
         assertEquals(partitions, subscribedPartitions);
     }
@@ -130,7 +121,9 @@ public class KafkaSubscriberTest {
         Throwable t =
                 assertThrows(
                         RuntimeException.class,
-                        () -> subscriber.getSubscribedTopicPartitions(adminClient));
+                        () ->
+                                subscriber.getSubscribedTopicPartitions(
+                                        kafkaClientKit.getAdminClient()));
 
         assertEquals(
                 String.format(

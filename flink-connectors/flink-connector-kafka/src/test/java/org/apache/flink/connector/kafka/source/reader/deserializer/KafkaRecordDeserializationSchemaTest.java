@@ -22,6 +22,7 @@ import org.apache.flink.connector.testutils.source.deserialization.TestingDeseri
 import org.apache.flink.formats.json.JsonNodeDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.JSONKeyValueDeserializationSchema;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
@@ -32,9 +33,10 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.Configurable;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.junit.Before;
-import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -48,13 +50,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit tests for KafkaRecordDeserializationSchema. */
-public class KafkaRecordDeserializationSchemaTest {
+@ExtendWith(TestLoggerExtension.class)
+class KafkaRecordDeserializationSchemaTest {
 
     private static Map<String, ?> configurableConfiguration;
     private static Map<String, ?> configuration;
     private static boolean isKeyDeserializer;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         configurableConfiguration = new HashMap<>(1);
         configuration = new HashMap<>(1);

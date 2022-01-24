@@ -21,6 +21,7 @@ package org.apache.flink.tests.util.kafka;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.connector.kafka.testutils.KafkaUtil;
+import org.apache.flink.connector.kafka.testutils.cluster.KafkaContainers;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.flink.JobSubmission;
@@ -49,9 +50,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
-import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.nio.ByteBuffer;
@@ -63,8 +62,6 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.connector.kafka.testutils.KafkaUtil.createKafkaContainer;
-import static org.apache.flink.util.DockerImageVersions.KAFKA;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** smoke test for the kafka connectors. */
@@ -78,19 +75,19 @@ public class SmokeKafkaITCase {
     private static final Network NETWORK = Network.newNetwork();
     private static final String EXAMPLE_JAR_MATCHER = "flink-streaming-kafka-test.*";
 
-    @Container
-    public static final KafkaContainer KAFKA_CONTAINER =
-            createKafkaContainer(KAFKA, LOG)
-                    .withEmbeddedZookeeper()
-                    .withNetwork(NETWORK)
-                    .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
+    @RegisterExtension
+    public static final KafkaContainers KAFKA_CONTAINER =
+            KafkaContainers.builder()
+                    .setNetwork(NETWORK)
+                    .setNetworkAliasPrefix(INTER_CONTAINER_KAFKA_ALIAS)
+                    .build();
 
     @RegisterExtension
     public static final FlinkContainers FLINK =
             FlinkContainers.builder()
                     .setConfiguration(getConfiguration())
                     .setLogger(LOG)
-                    .dependsOn(KAFKA_CONTAINER)
+                    .dependsOn(KAFKA_CONTAINER.getKafkaContainer(0))
                     .build();
 
     private static AdminClient admin;
@@ -155,7 +152,8 @@ public class SmokeKafkaITCase {
                                 String.join(
                                         ",",
                                         KAFKA_CONTAINER.getBootstrapServers(),
-                                        KAFKA_CONTAINER.getNetworkAliases().stream()
+                                        KAFKA_CONTAINER.getKafkaContainer(0).getNetworkAliases()
+                                                .stream()
                                                 .map(
                                                         host ->
                                                                 String.join(

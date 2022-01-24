@@ -26,13 +26,15 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
+import org.apache.flink.connector.kafka.testutils.KafkaSourceExternalContext;
 import org.apache.flink.connector.kafka.testutils.KafkaSourceExternalContextFactory;
-import org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv;
+import org.apache.flink.connector.kafka.testutils.annotations.Topic;
+import org.apache.flink.connector.kafka.testutils.extension.KafkaClientKit;
+import org.apache.flink.connector.kafka.testutils.extension.KafkaExtension;
 import org.apache.flink.connector.testframe.environment.MiniClusterTestEnvironment;
-import org.apache.flink.connector.testframe.external.DefaultContainerizedExternalSystem;
+import org.apache.flink.connector.testframe.environment.TestEnvironmentSettings;
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
-import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
 import org.apache.flink.connector.testframe.testsuites.SourceTestSuiteBase;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -42,23 +44,19 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.DockerImageVersions;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
-import org.junit.jupiter.api.AfterAll;
+import org.apache.kafka.common.serialization.IntegerSerializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -71,225 +69,224 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.apache.flink.connector.kafka.testutils.KafkaSourceExternalContext.SplitMappingMode.PARTITION;
-import static org.apache.flink.connector.kafka.testutils.KafkaSourceExternalContext.SplitMappingMode.TOPIC;
+import static org.apache.flink.connector.kafka.testutils.KafkaSourceTestRecordGenerator.KEY_SERIALIZER;
+import static org.apache.flink.connector.kafka.testutils.KafkaSourceTestRecordGenerator.VALUE_SERIALIZER;
+import static org.apache.flink.connector.kafka.testutils.KafkaSourceTestRecordGenerator.getRecordsForTopic;
+import static org.apache.flink.connector.kafka.testutils.extension.KafkaClientKit.DEFAULT_NUM_PARTITIONS;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/** Unite test class for {@link KafkaSource}. */
-public class KafkaSourceITCase {
-    private static final String TOPIC1 = "topic1";
-    private static final String TOPIC2 = "topic2";
+/** Integration tests for {@link KafkaSource}. */
+class KafkaSourceITCase extends SourceTestSuiteBase<String> {
 
-    @Nested
-    @TestInstance(Lifecycle.PER_CLASS)
-    class KafkaSpecificTests {
-        @BeforeAll
-        public void setup() throws Throwable {
-            KafkaSourceTestEnv.setup();
-            KafkaSourceTestEnv.setupTopic(
-                    TOPIC1, true, true, KafkaSourceTestEnv::getRecordsForTopicWithoutTimestamp);
-            KafkaSourceTestEnv.setupTopic(
-                    TOPIC2, true, true, KafkaSourceTestEnv::getRecordsForTopicWithoutTimestamp);
-        }
+    // Kafka cluster
+    @RegisterExtension static final KafkaExtension KAFKA = new KafkaExtension();
 
-        @AfterAll
-        public void tearDown() throws Exception {
-            KafkaSourceTestEnv.tearDown();
-        }
+    // Defines test environment on Flink MiniCluster
+    @TestEnv static final MiniClusterTestEnvironment FLINK = new MiniClusterTestEnvironment();
 
-        @ParameterizedTest(name = "Object reuse in deserializer = {arguments}")
-        @ValueSource(booleans = {false, true})
-        public void testTimestamp(boolean enableObjectReuse) throws Throwable {
-            final String topic =
-                    "testTimestamp-" + ThreadLocalRandom.current().nextLong(0, Long.MAX_VALUE);
-            final long currentTimestamp = System.currentTimeMillis();
-            KafkaSourceTestEnv.createTestTopic(topic, 1, 1);
-            KafkaSourceTestEnv.produceToKafka(
-                    Arrays.asList(
-                            new ProducerRecord<>(topic, 0, currentTimestamp + 1L, "key0", 0),
-                            new ProducerRecord<>(topic, 0, currentTimestamp + 2L, "key1", 1),
-                            new ProducerRecord<>(topic, 0, currentTimestamp + 3L, "key2", 2)));
+    // Defines 2 External context Factories, so test cases will be invoked twice using these two
+    // kinds of external contexts.
+    @SuppressWarnings("unused")
+    @TestContext
+    KafkaSourceExternalContextFactory singleTopic =
+            new KafkaSourceExternalContextFactory(
+                    KafkaSourceITCase.KAFKA::getBootstrapServers,
+                    Collections.emptyList(),
+                    KafkaSourceExternalContext.SplitMappingMode.PARTITION);
 
-            KafkaSource<PartitionAndValue> source =
-                    KafkaSource.<PartitionAndValue>builder()
-                            .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
-                            .setGroupId("testTimestampAndWatermark")
-                            .setTopics(topic)
-                            .setDeserializer(
-                                    new TestingKafkaRecordDeserializationSchema(enableObjectReuse))
-                            .setStartingOffsets(OffsetsInitializer.earliest())
-                            .setBounded(OffsetsInitializer.latest())
-                            .build();
+    @SuppressWarnings("unused")
+    @TestContext
+    KafkaSourceExternalContextFactory multipleTopic =
+            new KafkaSourceExternalContextFactory(
+                    KafkaSourceITCase.KAFKA::getBootstrapServers,
+                    Collections.emptyList(),
+                    KafkaSourceExternalContext.SplitMappingMode.TOPIC);
 
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(1);
-            DataStream<PartitionAndValue> stream =
-                    env.fromSource(source, WatermarkStrategy.noWatermarks(), "testTimestamp");
+    @Topic private static final String TOPIC1 = "topic1";
+    @Topic private static final String TOPIC2 = "topic2";
 
-            // Verify that the timestamp and watermark are working fine.
-            stream.transform(
-                    "timestampVerifier",
-                    TypeInformation.of(PartitionAndValue.class),
-                    new WatermarkVerifyingOperator(v -> v));
-            stream.addSink(new DiscardingSink<>());
-            JobExecutionResult result = env.execute();
-
-            assertEquals(
-                    Arrays.asList(
-                            currentTimestamp + 1L, currentTimestamp + 2L, currentTimestamp + 3L),
-                    result.getAccumulatorResult("timestamp"));
-        }
-
-        @ParameterizedTest(name = "Object reuse in deserializer = {arguments}")
-        @ValueSource(booleans = {false, true})
-        public void testBasicRead(boolean enableObjectReuse) throws Exception {
-            KafkaSource<PartitionAndValue> source =
-                    KafkaSource.<PartitionAndValue>builder()
-                            .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
-                            .setGroupId("testBasicRead")
-                            .setTopics(Arrays.asList(TOPIC1, TOPIC2))
-                            .setDeserializer(
-                                    new TestingKafkaRecordDeserializationSchema(enableObjectReuse))
-                            .setStartingOffsets(OffsetsInitializer.earliest())
-                            .setBounded(OffsetsInitializer.latest())
-                            .build();
-
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(1);
-            DataStream<PartitionAndValue> stream =
-                    env.fromSource(source, WatermarkStrategy.noWatermarks(), "testBasicRead");
-            executeAndVerify(env, stream);
-        }
-
-        @Test
-        public void testValueOnlyDeserializer() throws Exception {
-            KafkaSource<Integer> source =
-                    KafkaSource.<Integer>builder()
-                            .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
-                            .setGroupId("testValueOnlyDeserializer")
-                            .setTopics(Arrays.asList(TOPIC1, TOPIC2))
-                            .setDeserializer(
-                                    KafkaRecordDeserializationSchema.valueOnly(
-                                            IntegerDeserializer.class))
-                            .setStartingOffsets(OffsetsInitializer.earliest())
-                            .setBounded(OffsetsInitializer.latest())
-                            .build();
-
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(1);
-            final CloseableIterator<Integer> resultIterator =
-                    env.fromSource(
-                                    source,
-                                    WatermarkStrategy.noWatermarks(),
-                                    "testValueOnlyDeserializer")
-                            .executeAndCollect();
-
-            AtomicInteger actualSum = new AtomicInteger();
-            resultIterator.forEachRemaining(actualSum::addAndGet);
-
-            // Calculate the actual sum of values
-            // Values in a partition should start from partition ID, and end with
-            // (NUM_RECORDS_PER_PARTITION - 1)
-            // e.g. Values in partition 5 should be {5, 6, 7, 8, 9}
-            int expectedSum = 0;
-            for (int partition = 0; partition < KafkaSourceTestEnv.NUM_PARTITIONS; partition++) {
-                for (int value = partition;
-                        value < KafkaSourceTestEnv.NUM_RECORDS_PER_PARTITION;
-                        value++) {
-                    expectedSum += value;
-                }
-            }
-
-            // Since we have two topics, the expected sum value should be doubled
-            expectedSum *= 2;
-
-            assertEquals(expectedSum, actualSum.get());
-        }
-
-        @ParameterizedTest(name = "Object reuse in deserializer = {arguments}")
-        @ValueSource(booleans = {false, true})
-        public void testRedundantParallelism(boolean enableObjectReuse) throws Exception {
-            KafkaSource<PartitionAndValue> source =
-                    KafkaSource.<PartitionAndValue>builder()
-                            .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
-                            .setGroupId("testRedundantParallelism")
-                            .setTopics(Collections.singletonList(TOPIC1))
-                            .setDeserializer(
-                                    new TestingKafkaRecordDeserializationSchema(enableObjectReuse))
-                            .setStartingOffsets(OffsetsInitializer.earliest())
-                            .setBounded(OffsetsInitializer.latest())
-                            .build();
-
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-            // Here we use (NUM_PARTITION + 1) as the parallelism, so one SourceReader will not be
-            // assigned with any splits. The redundant SourceReader should also be signaled with a
-            // NoMoreSplitsEvent and eventually spins to FINISHED state.
-            env.setParallelism(KafkaSourceTestEnv.NUM_PARTITIONS + 1);
-            DataStream<PartitionAndValue> stream =
-                    env.fromSource(
-                            source, WatermarkStrategy.noWatermarks(), "testRedundantParallelism");
-            executeAndVerify(env, stream);
-        }
-
-        @ParameterizedTest(name = "Object reuse in deserializer = {arguments}")
-        @ValueSource(booleans = {false, true})
-        public void testBasicReadWithoutGroupId(boolean enableObjectReuse) throws Exception {
-            KafkaSource<PartitionAndValue> source =
-                    KafkaSource.<PartitionAndValue>builder()
-                            .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
-                            .setTopics(Arrays.asList(TOPIC1, TOPIC2))
-                            .setDeserializer(
-                                    new TestingKafkaRecordDeserializationSchema(enableObjectReuse))
-                            .setStartingOffsets(OffsetsInitializer.earliest())
-                            .setBounded(OffsetsInitializer.latest())
-                            .build();
-
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(1);
-            DataStream<PartitionAndValue> stream =
-                    env.fromSource(
-                            source,
-                            WatermarkStrategy.noWatermarks(),
-                            "testBasicReadWithoutGroupId");
-            executeAndVerify(env, stream);
-        }
+    @BeforeAll
+    void setup(KafkaClientKit kafkaClientKit) throws Throwable {
+        // Setup TOPIC1
+        String groupId = "committed-offset-setter";
+        kafkaClientKit.produceToKafka(
+                getRecordsForTopic(TOPIC1, DEFAULT_NUM_PARTITIONS, false),
+                KEY_SERIALIZER,
+                VALUE_SERIALIZER);
+        kafkaClientKit.setEarliestOffsets(TOPIC1, tp -> (long) tp.partition());
+        kafkaClientKit.setCommittedOffsets(TOPIC1, groupId, tp -> (long) (tp.partition() + 2));
+        // Setup TOPIC2
+        kafkaClientKit.produceToKafka(
+                getRecordsForTopic(TOPIC2, DEFAULT_NUM_PARTITIONS, false),
+                KEY_SERIALIZER,
+                VALUE_SERIALIZER);
+        kafkaClientKit.setEarliestOffsets(TOPIC2, tp -> (long) tp.partition());
+        kafkaClientKit.setCommittedOffsets(TOPIC2, groupId, tp -> (long) (tp.partition() + 2));
     }
 
-    /** Integration test based on connector testing framework. */
-    @Nested
-    class IntegrationTests extends SourceTestSuiteBase<String> {
+    @ParameterizedTest(name = "Object reuse in deserializer = {arguments}")
+    @ValueSource(booleans = {false, true})
+    void testTimestamp(boolean enableObjectReuse, KafkaClientKit context) throws Throwable {
+        final String topic =
+                "testTimestamp-" + ThreadLocalRandom.current().nextLong(0, Long.MAX_VALUE);
+        final long currentTimestamp = System.currentTimeMillis();
+        context.createTopic(topic, 1, (short) 1);
+        context.produceToKafka(
+                Arrays.asList(
+                        new ProducerRecord<>(topic, 0, currentTimestamp + 1L, "key0", 0),
+                        new ProducerRecord<>(topic, 0, currentTimestamp + 2L, "key1", 1),
+                        new ProducerRecord<>(topic, 0, currentTimestamp + 3L, "key2", 2)),
+                StringSerializer.class,
+                IntegerSerializer.class);
 
-        // Defines test environment on Flink MiniCluster
-        @SuppressWarnings("unused")
-        @TestEnv
-        MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
-
-        // Defines external system
-        @TestExternalSystem
-        DefaultContainerizedExternalSystem<KafkaContainer> kafka =
-                DefaultContainerizedExternalSystem.builder()
-                        .fromContainer(
-                                new KafkaContainer(
-                                        DockerImageName.parse(DockerImageVersions.KAFKA)))
+        KafkaSource<PartitionAndValue> source =
+                KafkaSource.<PartitionAndValue>builder()
+                        .setBootstrapServers(KAFKA.getBootstrapServers())
+                        .setGroupId("testTimestampAndWatermark")
+                        .setTopics(topic)
+                        .setDeserializer(
+                                new TestingKafkaRecordDeserializationSchema(enableObjectReuse))
+                        .setStartingOffsets(OffsetsInitializer.earliest())
+                        .setBounded(OffsetsInitializer.latest())
                         .build();
 
-        // Defines 2 External context Factories, so test cases will be invoked twice using these two
-        // kinds of external contexts.
-        @SuppressWarnings("unused")
-        @TestContext
-        KafkaSourceExternalContextFactory singleTopic =
-                new KafkaSourceExternalContextFactory(
-                        kafka.getContainer(), Collections.emptyList(), PARTITION);
+        StreamExecutionEnvironment env =
+                FLINK.createExecutionEnvironment(TestEnvironmentSettings.builder().build());
+        env.setParallelism(1);
+        DataStream<PartitionAndValue> stream =
+                env.fromSource(source, WatermarkStrategy.noWatermarks(), "testTimestamp");
 
-        @SuppressWarnings("unused")
-        @TestContext
-        KafkaSourceExternalContextFactory multipleTopic =
-                new KafkaSourceExternalContextFactory(
-                        kafka.getContainer(), Collections.emptyList(), TOPIC);
+        // Verify that the timestamp and watermark are working fine.
+        stream.transform(
+                "timestampVerifier",
+                TypeInformation.of(PartitionAndValue.class),
+                new WatermarkVerifyingOperator(v -> v));
+        stream.addSink(new DiscardingSink<>());
+        JobExecutionResult result = env.execute();
+        assertThat(result.<List<Long>>getAccumulatorResult("timestamp"))
+                .isEqualTo(
+                        Arrays.asList(
+                                currentTimestamp + 1L,
+                                currentTimestamp + 2L,
+                                currentTimestamp + 3L));
     }
 
-    // -----------------
+    @ParameterizedTest(name = "Object reuse in deserializer = {arguments}")
+    @ValueSource(booleans = {false, true})
+    void testBasicRead(boolean enableObjectReuse) throws Exception {
+        KafkaSource<PartitionAndValue> source =
+                KafkaSource.<PartitionAndValue>builder()
+                        .setBootstrapServers(KAFKA.getBootstrapServers())
+                        .setGroupId("testBasicRead")
+                        .setTopics(Arrays.asList(TOPIC1, TOPIC2))
+                        .setDeserializer(
+                                new TestingKafkaRecordDeserializationSchema(enableObjectReuse))
+                        .setStartingOffsets(OffsetsInitializer.earliest())
+                        .setBounded(OffsetsInitializer.latest())
+                        .build();
+
+        StreamExecutionEnvironment env =
+                FLINK.createExecutionEnvironment(TestEnvironmentSettings.builder().build());
+        env.setParallelism(1);
+        DataStream<PartitionAndValue> stream =
+                env.fromSource(source, WatermarkStrategy.noWatermarks(), "testBasicRead");
+        executeAndVerify(env, stream);
+    }
+
+    @Test
+    void testValueOnlyDeserializer() throws Exception {
+        KafkaSource<Integer> source =
+                KafkaSource.<Integer>builder()
+                        .setBootstrapServers(KAFKA.getBootstrapServers())
+                        .setGroupId("testValueOnlyDeserializer")
+                        .setTopics(Arrays.asList(TOPIC1, TOPIC2))
+                        .setDeserializer(
+                                KafkaRecordDeserializationSchema.valueOnly(
+                                        IntegerDeserializer.class))
+                        .setStartingOffsets(OffsetsInitializer.earliest())
+                        .setBounded(OffsetsInitializer.latest())
+                        .build();
+
+        StreamExecutionEnvironment env =
+                FLINK.createExecutionEnvironment(TestEnvironmentSettings.builder().build());
+        env.setParallelism(1);
+        final CloseableIterator<Integer> resultIterator =
+                env.fromSource(
+                                source,
+                                WatermarkStrategy.noWatermarks(),
+                                "testValueOnlyDeserializer")
+                        .executeAndCollect();
+
+        AtomicInteger actualSum = new AtomicInteger();
+        resultIterator.forEachRemaining(actualSum::addAndGet);
+
+        // Calculate the actual sum of values
+        // Values in a partition should start from partition ID, and end with
+        // (NUM_RECORDS_PER_PARTITION - 1)
+        // e.g. Values in partition 5 should be {5, 6, 7, 8, 9}
+        int expectedSum = 0;
+        for (int partition = 0; partition < DEFAULT_NUM_PARTITIONS; partition++) {
+            for (int value = partition; value < DEFAULT_NUM_PARTITIONS; value++) {
+                expectedSum += value;
+            }
+        }
+
+        // Since we have two topics, the expected sum value should be doubled
+        expectedSum *= 2;
+
+        assertThat(actualSum.get()).isEqualTo(expectedSum);
+    }
+
+    @ParameterizedTest(name = "Object reuse in deserializer = {arguments}")
+    @ValueSource(booleans = {false, true})
+    void testRedundantParallelism(boolean enableObjectReuse) throws Exception {
+        KafkaSource<PartitionAndValue> source =
+                KafkaSource.<PartitionAndValue>builder()
+                        .setBootstrapServers(KAFKA.getBootstrapServers())
+                        .setGroupId("testRedundantParallelism")
+                        .setTopics(Collections.singletonList(TOPIC1))
+                        .setDeserializer(
+                                new TestingKafkaRecordDeserializationSchema(enableObjectReuse))
+                        .setStartingOffsets(OffsetsInitializer.earliest())
+                        .setBounded(OffsetsInitializer.latest())
+                        .build();
+
+        // Here we use (NUM_PARTITION + 1) as the parallelism, so one SourceReader will not be
+        // assigned with any splits. The redundant SourceReader should also be signaled with a
+        // NoMoreSplitsEvent and eventually spins to FINISHED state.
+        StreamExecutionEnvironment env =
+                FLINK.createExecutionEnvironment(TestEnvironmentSettings.builder().build());
+        env.setParallelism(DEFAULT_NUM_PARTITIONS + 1);
+        DataStream<PartitionAndValue> stream =
+                env.fromSource(
+                        source, WatermarkStrategy.noWatermarks(), "testRedundantParallelism");
+        executeAndVerify(env, stream);
+    }
+
+    @ParameterizedTest(name = "Object reuse in deserializer = {arguments}")
+    @ValueSource(booleans = {false, true})
+    void testBasicReadWithoutGroupId(boolean enableObjectReuse) throws Exception {
+        KafkaSource<PartitionAndValue> source =
+                KafkaSource.<PartitionAndValue>builder()
+                        .setBootstrapServers(KAFKA.getBootstrapServers())
+                        .setTopics(Arrays.asList(TOPIC1, TOPIC2))
+                        .setDeserializer(
+                                new TestingKafkaRecordDeserializationSchema(enableObjectReuse))
+                        .setStartingOffsets(OffsetsInitializer.earliest())
+                        .setBounded(OffsetsInitializer.latest())
+                        .build();
+
+        StreamExecutionEnvironment env =
+                FLINK.createExecutionEnvironment(TestEnvironmentSettings.builder().build());
+        env.setParallelism(1);
+        DataStream<PartitionAndValue> stream =
+                env.fromSource(
+                        source, WatermarkStrategy.noWatermarks(), "testBasicReadWithoutGroupId");
+        executeAndVerify(env, stream);
+    }
+
+    // ------------------------- Helper Functions ------------------------
 
     private static class PartitionAndValue implements Serializable {
         private static final long serialVersionUID = 4813439951036021779L;
