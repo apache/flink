@@ -54,6 +54,7 @@ public class PubSubConsumingTest {
                 new TestPubSubSubscriber(
                         receivedMessage("1", pubSubMessage("A")),
                         receivedMessage("2", pubSubMessage("B")));
+        // Pubsub source without endpoint
         PubSubSource<String> pubSubSource =
                 PubSubSource.newBuilder()
                         .withDeserializationSchema(new SimpleStringSchema())
@@ -89,6 +90,8 @@ public class PubSubConsumingTest {
                         receivedMessage("2", pubSubMessage("B")),
                         receivedMessage("3", pubSubMessage("C")),
                         receivedMessage("4", pubSubMessage("D")));
+
+        // Pubsub source with endpoint
         PubSubSource<String> pubSubSource =
                 PubSubSource.newBuilder()
                         .withDeserializationSchema(
@@ -102,6 +105,7 @@ public class PubSubConsumingTest {
                         .withSubscriptionName("fakeSubscription")
                         .withPubSubSubscriberFactory(credentials -> testPubSubSubscriber)
                         .withCredentials(mock(Credentials.class))
+                        .withEndpoint("us-central1-pubsub.googleapis.com:443")
                         .build();
 
         Object lock = new Object();

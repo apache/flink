@@ -39,6 +39,7 @@ import com.google.api.gax.rpc.FixedTransportChannelProvider;
 import com.google.api.gax.rpc.TransportChannel;
 import com.google.auth.Credentials;
 import com.google.cloud.pubsub.v1.Publisher;
+import com.google.cloud.pubsub.v1.stub.PublisherStubSettings;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.TopicName;
@@ -73,7 +74,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
     private final String projectName;
     private final String topicName;
     private final String hostAndPortForEmulator;
-
+    private final String endpoint;
     private transient Publisher publisher;
     private volatile boolean isRunning;
 
@@ -82,7 +83,8 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
             SerializationSchema<IN> serializationSchema,
             String projectName,
             String topicName,
-            String hostAndPortForEmulator) {
+            String hostAndPortForEmulator,
+            String endpoint) {
         this.exceptionAtomicReference = new AtomicReference<>();
         this.failureHandler = new FailureHandler();
         this.numPendingFutures = new AtomicInteger(0);
@@ -91,6 +93,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
         this.projectName = projectName;
         this.topicName = topicName;
         this.hostAndPortForEmulator = hostAndPortForEmulator;
+        this.endpoint = endpoint;
     }
 
     private transient ManagedChannel managedChannel = null;
@@ -104,7 +107,8 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 
         Publisher.Builder builder =
                 Publisher.newBuilder(TopicName.of(projectName, topicName))
-                        .setCredentialsProvider(FixedCredentialsProvider.create(credentials));
+                        .setCredentialsProvider(FixedCredentialsProvider.create(credentials))
+                        .setEndpoint(endpoint);
 
         // Having the host and port for the emulator means we are in a testing scenario.
         if (hostAndPortForEmulator != null) {
@@ -246,6 +250,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 
         private Credentials credentials;
         private String hostAndPort;
+        private String endpoint = PublisherStubSettings.getDefaultEndpoint();
 
         private PubSubSinkBuilder(SerializationSchema<IN> serializationSchema) {
             this.serializationSchema = serializationSchema;
@@ -290,6 +295,20 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
         }
 
         /**
+         * Set endpoint if you want to write to specific pubsub region. Default value is global
+         * endpoint {@link PublisherStubSettings#getDefaultEndpoint}
+         *
+         * @see <a href="https://cloud.google.com/pubsub/docs/reference/service_apis_overview">
+         *     Pubsub apis endpoint </a>
+         * @param endpoint pubsub endpoint
+         * @return
+         */
+        public PubSubSinkBuilder<IN> withEndpoint(String endpoint) {
+            this.endpoint = endpoint;
+            return this;
+        }
+
+        /**
          * Actually builder the desired instance of the PubSubSink.
          *
          * @return a brand new PubSubSink
@@ -307,7 +326,12 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
                 }
             }
             return new PubSubSink<>(
-                    credentials, serializationSchema, projectName, topicName, hostAndPort);
+                    credentials,
+                    serializationSchema,
+                    projectName,
+                    topicName,
+                    hostAndPort,
+                    endpoint);
         }
     }
 
