@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -201,9 +202,9 @@ public class RocksIncrementalSnapshotStrategy<K>
                 previousSnapshot = snapshotResources.previousSnapshot;
                 break;
             case FORWARD:
+            case NO_SHARING:
                 previousSnapshot = EMPTY_PREVIOUS_SNAPSHOT;
                 break;
-            case NO_SHARING:
             default:
                 throw new IllegalArgumentException(
                         "Unsupported sharing files strategy: " + sharingFilesStrategy);
@@ -214,6 +215,7 @@ public class RocksIncrementalSnapshotStrategy<K>
                 checkpointStreamFactory,
                 snapshotResources.snapshotDirectory,
                 previousSnapshot,
+                sharingFilesStrategy,
                 snapshotResources.stateMetaInfoSnapshots);
     }
 
@@ -360,11 +362,14 @@ public class RocksIncrementalSnapshotStrategy<K>
         /** All sst files that were part of the last previously completed checkpoint. */
         @Nonnull private final PreviousSnapshot previousSnapshot;
 
+        @Nonnull private final SnapshotType.SharingFilesStrategy sharingFilesStrategy;
+
         private RocksDBIncrementalSnapshotOperation(
                 long checkpointId,
                 @Nonnull CheckpointStreamFactory checkpointStreamFactory,
                 @Nonnull SnapshotDirectory localBackupDirectory,
                 @Nonnull PreviousSnapshot previousSnapshot,
+                @Nonnull SnapshotType.SharingFilesStrategy sharingFilesStrategy,
                 @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots) {
 
             this.checkpointStreamFactory = checkpointStreamFactory;
@@ -372,6 +377,7 @@ public class RocksIncrementalSnapshotStrategy<K>
             this.checkpointId = checkpointId;
             this.localBackupDirectory = localBackupDirectory;
             this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
+            this.sharingFilesStrategy = sharingFilesStrategy;
         }
 
         @Override
@@ -493,21 +499,43 @@ public class RocksIncrementalSnapshotStrategy<K>
             if (files != null) {
                 createUploadFilePaths(files, sstFiles, sstFilePaths, miscFilePaths);
 
+                final CheckpointedStateScope stateScope =
+                        sharingFilesStrategy == SnapshotType.SharingFilesStrategy.NO_SHARING
+                                ? CheckpointedStateScope.EXCLUSIVE
+                                : CheckpointedStateScope.SHARED;
                 sstFiles.putAll(
                         stateUploader.uploadFilesToCheckpointFs(
-                                sstFilePaths, checkpointStreamFactory, snapshotCloseableRegistry));
+                                sstFilePaths,
+                                checkpointStreamFactory,
+                                stateScope,
+                                snapshotCloseableRegistry));
                 miscFiles.putAll(
                         stateUploader.uploadFilesToCheckpointFs(
-                                miscFilePaths, checkpointStreamFactory, snapshotCloseableRegistry));
+                                miscFilePaths,
+                                checkpointStreamFactory,
+                                stateScope,
+                                snapshotCloseableRegistry));
 
                 synchronized (uploadedStateIDs) {
-                    uploadedStateIDs.put(
-                            checkpointId,
-                            sstFiles.entrySet().stream()
-                                    .collect(
-                                            Collectors.toMap(
-                                                    Map.Entry::getKey,
-                                                    t -> t.getValue().getStateSize())));
+                    switch (sharingFilesStrategy) {
+                        case FORWARD_BACKWARD:
+                        case FORWARD:
+                            uploadedStateIDs.put(
+                                    checkpointId,
+                                    sstFiles.entrySet().stream()
+                                            .collect(
+                                                    Collectors.toMap(
+                                                            Map.Entry::getKey,
+                                                            t -> t.getValue().getStateSize())));
+                            break;
+                        case NO_SHARING:
+                            break;
+                        default:
+                            // This is just a safety precaution. It is checked before creating the
+                            // RocksDBIncrementalSnapshotOperation
+                            throw new IllegalArgumentException(
+                                    "Unsupported sharing files strategy: " + sharingFilesStrategy);
+                    }
                 }
             }
         }
