@@ -140,7 +140,8 @@ class FlinkPlannerImpl(
         || sqlNode.isInstanceOf[SqlBeginStatementSet]
         || sqlNode.isInstanceOf[SqlEndStatementSet]
         || sqlNode.isInstanceOf[SqlSet]
-        || sqlNode.isInstanceOf[SqlReset]) {
+        || sqlNode.isInstanceOf[SqlReset]
+        || sqlNode.isInstanceOf[SqlShowConnectors]) {
         return sqlNode
       }
       sqlNode match {

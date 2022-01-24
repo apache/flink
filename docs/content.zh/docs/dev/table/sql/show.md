@@ -196,6 +196,17 @@ tEnv.executeSql("SHOW FULL MODULES").print();
 // |        hive | false |
 // +-------------+-------+
 
+// show connectors
+tEnv.executeSql("SHOW CONNECTORS").print();
+// +----------------+
+// | connector name |
+// +----------------+
+// |     filesystem |
+// |        datagen |
+// |      blackhole |
+// |          print |
+// +----------------+
+
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -298,6 +309,17 @@ tEnv.executeSql("SHOW FULL MODULES").print()
 // |        core |  true |
 // |        hive | false |
 // +-------------+-------+
+
+// show connectors
+tEnv.executeSql("SHOW CONNECTORS").print()
+// +----------------+
+// | connector name |
+// +----------------+
+// |     filesystem |
+// |        datagen |
+// |      blackhole |
+// |          print |
+// +----------------+
 
 ```
 {{< /tab >}}
@@ -478,6 +500,18 @@ Flink SQL> SHOW FULL MODULES;
 Flink SQL> SHOW JARS;
 /path/to/addedJar.jar
 
+
+
+Flink SQL> SHOW CONNECTORS;
++----------------+
+| connector name |
++----------------+
+|     filesystem |
+|        datagen |
+|      blackhole |
+|          print |
++----------------+
+5 rows in set
 
 ```
 {{< /tab >}}
@@ -670,5 +704,11 @@ SHOW JARS
 展示所有通过 [`ADD JAR`]({{< ref "docs/dev/table/sql/jar" >}}#add-jar) 语句加入到 session classloader 中的 jar。
 
 <span class="label label-danger">Attention</span> 当前 SHOW JARS 命令只能在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中使用。
+
+## SHOW CONNECTORS
+
+```sql
+SHOW CONNECTORS;
+```
 
 {{< top >}}

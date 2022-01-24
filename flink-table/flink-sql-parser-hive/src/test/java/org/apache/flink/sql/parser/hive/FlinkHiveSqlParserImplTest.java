@@ -480,6 +480,11 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testShowConnectors() {
+        sql("show connectors").ok("SHOW CONNECTORS");
+    }
+
+    @Test
     public void testLoadModule() {
         sql("load module hive").ok("LOAD MODULE `HIVE`");
 

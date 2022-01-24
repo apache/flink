@@ -1522,6 +1522,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testShowConnectors() {
+        sql("show connectors").ok("SHOW CONNECTORS");
+    }
+
+    @Test
     public void testSetReset() {
         sql("SET").ok("SET");
         sql("SET 'test-key' = 'test-value'").ok("SET 'test-key' = 'test-value'");

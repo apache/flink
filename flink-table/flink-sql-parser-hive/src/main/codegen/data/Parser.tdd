@@ -83,6 +83,7 @@
     "org.apache.flink.sql.parser.dql.SqlDescribeDatabase"
     "org.apache.flink.sql.parser.dql.SqlLoadModule"
     "org.apache.flink.sql.parser.dql.SqlShowCatalogs"
+    "org.apache.flink.sql.parser.dql.SqlShowConnectors"
     "org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog"
     "org.apache.flink.sql.parser.dql.SqlShowDatabases"
     "org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase"
@@ -116,6 +117,7 @@
     "CHANGE"
     "COLLECTION"
     "COLUMNS"
+    "CONNECTORS"
     "COMMENT"
     "DATABASES"
     "DBPROPERTIES"
@@ -208,6 +210,7 @@
     "CONDITION_NUMBER"
     "CONNECTION"
     "CONNECTION_NAME"
+    "CONNECTORS"
     "CONSTRAINT_CATALOG"
     "CONSTRAINT_NAME"
     "CONSTRAINTS"
@@ -551,6 +554,7 @@
     "SqlAddJar()"
     "SqlRemoveJar()"
     "SqlShowJars()"
+    "SqlShowConnectors()"
   ]
 
   # List of methods for parsing custom literals.

@@ -793,7 +793,7 @@ public final class FactoryUtil {
         return (T) foundFactories.get(0);
     }
 
-    static List<Factory> discoverFactories(ClassLoader classLoader) {
+    public static List<Factory> discoverFactories(ClassLoader classLoader) {
         final List<Factory> result = new LinkedList<>();
         ServiceLoaderUtil.load(Factory.class, classLoader)
                 .forEach(

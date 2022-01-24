@@ -23,6 +23,24 @@ SHOW JARS;
 $VAR_UDF_JAR_PATH
 !ok
 
+SHOW CONNECTORS;
++----------------+
+| connector name |
++----------------+
+| test-connector |
+|        datagen |
+|      blackhole |
+|          print |
+|     filesystem |
+|         values |
+|      test-file |
+|        harness |
+|    test_source |
+|      test-lock |
++----------------+
+10 rows in set
+!ok
+
 # this also tests user classloader because the LowerUDF is in user jar
 create function func1 as 'LowerUDF' LANGUAGE JAVA;
 [INFO] Execute statement succeed.

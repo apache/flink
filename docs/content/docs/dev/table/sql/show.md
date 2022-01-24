@@ -43,6 +43,7 @@ Flink SQL supports the following SHOW statements for now:
 - SHOW FUNCTIONS
 - SHOW MODULES
 - SHOW JARS
+- SHOW CONNECTORS
 
 ## Run a SHOW statement
 
@@ -196,6 +197,17 @@ tEnv.executeSql("SHOW FULL MODULES").print();
 // |        hive | false |
 // +-------------+-------+
 
+// show connectors
+tEnv.executeSql("SHOW CONNECTORS").print();
+// +----------------+
+// | connector name |
+// +----------------+
+// |     filesystem |
+// |        datagen |
+// |      blackhole |
+// |          print |
+// +----------------+
+
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -298,6 +310,17 @@ tEnv.executeSql("SHOW FULL MODULES").print()
 // |        core |  true |
 // |        hive | false |
 // +-------------+-------+
+
+// show connectors
+tEnv.executeSql("SHOW CONNECTORS").print()
+// +----------------+
+// | connector name |
+// +----------------+
+// |     filesystem |
+// |        datagen |
+// |      blackhole |
+// |          print |
+// +----------------+
 
 ```
 {{< /tab >}}
@@ -478,6 +501,17 @@ Flink SQL> SHOW FULL MODULES;
 Flink SQL> SHOW JARS;
 /path/to/addedJar.jar
 
+
+Flink SQL> SHOW CONNECTORS;
++----------------+
+| connector name |
++----------------+
+|     filesystem |
+|        datagen |
+|      blackhole |
+|          print |
++----------------+
+5 rows in set
 
 ```
 {{< /tab >}}
@@ -670,5 +704,13 @@ SHOW JARS
 Show all added jars in the session classloader which are added by [`ADD JAR`]({{< ref "docs/dev/table/sql/jar" >}}#add-jar) statements.
 
 <span class="label label-danger">Attention</span> Currently `SHOW JARS` only works in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+
+## SHOW CONNECTORS
+
+```sql
+SHOW CONNECTORS;
+```
+
+Show all available connectors the session classloader.
 
 {{< top >}}

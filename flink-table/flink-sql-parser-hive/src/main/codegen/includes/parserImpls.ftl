@@ -1675,3 +1675,17 @@ SqlShowJars SqlShowJars() :
         return new SqlShowJars(getPos());
     }
 }
+
+/**
+* Parses a show connectors statement.
+* SHOW CONNECTORS;
+*/
+SqlShowConnectors SqlShowConnectors() :
+{
+}
+{
+    <SHOW> <CONNECTORS>
+    {
+        return new SqlShowConnectors(getPos());
+    }
+}

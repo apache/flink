@@ -73,6 +73,9 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.factories.DynamicTableSinkFactory;
+import org.apache.flink.table.factories.DynamicTableSourceFactory;
+import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -92,6 +95,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
 import org.apache.flink.table.operations.ShowColumnsOperation;
+import org.apache.flink.table.operations.ShowConnectorsOperation;
 import org.apache.flink.table.operations.ShowCreateTableOperation;
 import org.apache.flink.table.operations.ShowCreateViewOperation;
 import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
@@ -1320,6 +1324,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return executeInternal(createTableASOperation.toSinkModifyOperation(catalogManager));
         } else if (operation instanceof NopOperation) {
             return TableResultImpl.TABLE_RESULT_OK;
+        } else if (operation instanceof ShowConnectorsOperation) {
+            return buildShowResult("connector name", showConnectors());
         } else {
             throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
         }
@@ -1898,5 +1904,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             sinkIdentifierNames.add("sink" + i);
         }
         return executeInternal(transformations, sinkIdentifierNames);
+    }
+
+    public String[] showConnectors() {
+        return FactoryUtil.discoverFactories(userClassLoader).stream()
+                .filter(
+                        t ->
+                                t instanceof DynamicTableSourceFactory
+                                        || t instanceof DynamicTableSinkFactory)
+                .map(Factory::factoryIdentifier)
+                .toArray(String[]::new);
     }
 }

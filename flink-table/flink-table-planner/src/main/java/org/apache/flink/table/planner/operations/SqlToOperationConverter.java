@@ -64,6 +64,7 @@ import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
 import org.apache.flink.sql.parser.dql.SqlRichExplain;
 import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
 import org.apache.flink.sql.parser.dql.SqlShowColumns;
+import org.apache.flink.sql.parser.dql.SqlShowConnectors;
 import org.apache.flink.sql.parser.dql.SqlShowCreateTable;
 import org.apache.flink.sql.parser.dql.SqlShowCreateView;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog;
@@ -111,6 +112,7 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
 import org.apache.flink.table.operations.ShowColumnsOperation;
+import org.apache.flink.table.operations.ShowConnectorsOperation;
 import org.apache.flink.table.operations.ShowCreateTableOperation;
 import org.apache.flink.table.operations.ShowCreateViewOperation;
 import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
@@ -313,6 +315,8 @@ public class SqlToOperationConverter {
             return Optional.of(converter.convertShowJars((SqlShowJars) validated));
         } else if (validated instanceof RichSqlInsert) {
             return Optional.of(converter.convertSqlInsert((RichSqlInsert) validated));
+        } else if (validated instanceof SqlShowConnectors) {
+            return Optional.of(converter.convertShowConnectors((SqlShowConnectors) validated));
         } else if (validated instanceof SqlBeginStatementSet) {
             return Optional.of(
                     converter.convertBeginStatementSet((SqlBeginStatementSet) validated));
@@ -1093,6 +1097,10 @@ public class SqlToOperationConverter {
 
     private Operation convertShowJars(SqlShowJars sqlShowJars) {
         return new ShowJarsOperation();
+    }
+
+    private Operation convertShowConnectors(SqlShowConnectors sqlShowConnectors) {
+        return new ShowConnectorsOperation();
     }
 
     /** Convert UNLOAD MODULE statement. */

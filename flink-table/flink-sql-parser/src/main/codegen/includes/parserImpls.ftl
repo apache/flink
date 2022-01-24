@@ -1904,3 +1904,17 @@ SqlNode SqlReset() :
         return new SqlReset(span.end(this), key);
     }
 }
+
+/**
+* Parses a show connectors statement.
+* SHOW CONNECTORS;
+*/
+SqlShowConnectors SqlShowConnectors() :
+{
+}
+{
+    <SHOW> <CONNECTORS>
+    {
+        return new SqlShowConnectors(getPos());
+    }
+}
