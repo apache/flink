@@ -18,8 +18,42 @@
 
 package org.apache.flink.fs.gs;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /** Constants for testing purposes. */
 public class TestUtils {
 
     public static final long RANDOM_SEED = 27;
+
+    /**
+     * Helper to create a hadoop configuration from a map.
+     *
+     * @param values Map of values
+     * @return Hadoop config
+     */
+    public static org.apache.hadoop.conf.Configuration hadoopConfigFromMap(
+            Map<String, String> values) {
+        org.apache.hadoop.conf.Configuration hadoopConfig =
+                new org.apache.hadoop.conf.Configuration();
+        for (Map.Entry<String, String> entry : values.entrySet()) {
+            hadoopConfig.set(entry.getKey(), entry.getValue());
+        }
+        return hadoopConfig;
+    }
+
+    /**
+     * Helper to translate Hadoop config to a map.
+     *
+     * @param hadoopConfig The Hadoop config
+     * @return The map of keys/values
+     */
+    public static Map<String, String> hadoopConfigToMap(
+            org.apache.hadoop.conf.Configuration hadoopConfig) {
+        HashMap<String, String> map = new HashMap<>();
+        for (Map.Entry<String, String> entry : hadoopConfig) {
+            map.put(entry.getKey(), entry.getValue());
+        }
+        return map;
+    }
 }
