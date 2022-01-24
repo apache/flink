@@ -76,8 +76,7 @@ public class ConnectorTestingExtension implements BeforeAllCallback, AfterAllCal
 
         // Setup test environment and store
         final List<TestEnvironment> testEnvironments =
-                AnnotationSupport.findAnnotatedFieldValues(
-                        context.getRequiredTestInstance(), TestEnv.class, TestEnvironment.class);
+                findAnnotatedFieldValues(context, TestEnv.class, TestEnvironment.class);
         checkExactlyOneAnnotatedField(testEnvironments, TestEnv.class);
         testEnvironment = testEnvironments.get(0);
         testEnvironment.startUp();
@@ -95,10 +94,7 @@ public class ConnectorTestingExtension implements BeforeAllCallback, AfterAllCal
 
         // Search external context factories
         final List<ExternalContextFactory> externalContextFactories =
-                AnnotationSupport.findAnnotatedFieldValues(
-                        context.getRequiredTestInstance(),
-                        TestContext.class,
-                        ExternalContextFactory.class);
+                findAnnotatedFieldValues(context, TestContext.class, ExternalContextFactory.class);
         checkAtLeastOneAnnotationField(externalContextFactories, TestContext.class);
         context.getStore(TEST_RESOURCE_NAMESPACE)
                 .put(EXTERNAL_CONTEXT_FACTORIES_STORE_KEY, externalContextFactories);
