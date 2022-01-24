@@ -38,6 +38,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 /** Configuration object for the network stack. */
@@ -282,6 +284,10 @@ public class NettyShuffleEnvironmentConfiguration {
                 configuration.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_DETAILED_METRICS);
 
         String[] tempDirs = ConfigurationUtils.parseTempDirectories(configuration);
+        // Shuffle the data directories to make it fairer for directory selection between different
+        // TaskManagers, which is good for load balance especially when there are multiple disks.
+        List<String> shuffleDirs = Arrays.asList(tempDirs);
+        Collections.shuffle(shuffleDirs);
 
         Duration requestSegmentsTimeout =
                 Duration.ofMillis(
@@ -313,7 +319,7 @@ public class NettyShuffleEnvironmentConfiguration {
                 requestSegmentsTimeout,
                 isNetworkDetailedMetrics,
                 nettyConfig,
-                tempDirs,
+                shuffleDirs.toArray(tempDirs),
                 blockingSubpartitionType,
                 blockingShuffleCompressionEnabled,
                 compressionCodec,
