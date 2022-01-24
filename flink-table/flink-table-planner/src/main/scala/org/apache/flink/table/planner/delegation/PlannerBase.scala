@@ -226,7 +226,7 @@ abstract class PlannerBase(
           input,
           collectModifyOperation,
           getTableConfig.getConfiguration,
-          getClassLoader
+          getFlinkContext.getClassLoader
         )
 
       case catalogSink: SinkModifyOperation =>
@@ -424,7 +424,7 @@ abstract class PlannerBase(
             tableToFind,
             Collections.emptyMap(),
             getTableConfig.getConfiguration,
-            getClassLoader,
+            getFlinkContext.getClassLoader,
             isTemporary)
           Option(resolvedTable, tableSink)
         }
@@ -495,14 +495,10 @@ abstract class PlannerBase(
     new SerdeContext(
       getParser,
       planner.config.getContext.asInstanceOf[FlinkContext],
-      getClassLoader,
+      getFlinkContext.getClassLoader,
       plannerContext.getTypeFactory,
       planner.operatorTable
     )
-  }
-
-  private def getClassLoader: ClassLoader = {
-    Thread.currentThread().getContextClassLoader
   }
 
   /**
