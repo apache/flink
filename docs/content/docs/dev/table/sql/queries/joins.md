@@ -153,7 +153,7 @@ CREATE TABLE orders (
 CREATE TABLE currency_rates (
     currency STRING,
     conversion_rate DECIMAL(32, 2),
-    update_time TIMESTAMP(3) METADATA FROM `values.source.timestamp` VIRTUAL,
+    update_time TIMESTAMP(3) METADATA FROM `value.source.timestamp` VIRTUAL,
     WATERMARK FOR update_time AS update_time,
     PRIMARY KEY(currency) NOT ENFORCED
 ) WITH (
