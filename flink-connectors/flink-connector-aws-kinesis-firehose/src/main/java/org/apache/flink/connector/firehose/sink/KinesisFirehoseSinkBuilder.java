@@ -18,6 +18,7 @@
 package org.apache.flink.connector.firehose.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.connector.base.sink.AsyncSinkBaseBuilder;
 
 import software.amazon.awssdk.http.Protocol;
@@ -36,11 +37,6 @@ import static software.amazon.awssdk.http.Protocol.HTTP1_1;
  * writes String values to a Kinesis Data Firehose delivery stream named delivery-stream-name.
  *
  * <pre>{@code
- * private static final KinesisFirehoseSinkElementConverter<String> elementConverter =
- *         KinesisFirehoseSinkElementConverter.<String>builder()
- *                 .setSerializationSchema(new SimpleStringSchema())
- *                 .build();
- *
  * Properties sinkProperties = new Properties();
  * sinkProperties.put(AWSConfigConstants.AWS_REGION, "eu-west-1");
  *
@@ -50,6 +46,7 @@ import static software.amazon.awssdk.http.Protocol.HTTP1_1;
  *                 .setDeliveryStreamName("delivery-stream-name")
  *                 .setMaxBatchSize(20)
  *                 .setFirehoseClientProperties(sinkProperties)
+ *                 .setSerializationSchema(new SimpleStringSchema())
  *                 .build();
  * }</pre>
  *
@@ -73,7 +70,7 @@ public class KinesisFirehoseSinkBuilder<InputT>
 
     private static final int DEFAULT_MAX_BATCH_SIZE = 500;
     private static final int DEFAULT_MAX_IN_FLIGHT_REQUESTS = 50;
-    private static final int DEFAULT_MAX_BUFFERED_REQUESTS = 10000;
+    private static final int DEFAULT_MAX_BUFFERED_REQUESTS = 10_000;
     private static final long DEFAULT_MAX_BATCH_SIZE_IN_B = 4 * 1024 * 1024;
     private static final long DEFAULT_MAX_TIME_IN_BUFFER_MS = 5000;
     private static final long DEFAULT_MAX_RECORD_SIZE_IN_B = 1000 * 1024;
@@ -83,6 +80,7 @@ public class KinesisFirehoseSinkBuilder<InputT>
     private Boolean failOnError;
     private String deliveryStreamName;
     private Properties firehoseClientProperties;
+    private SerializationSchema<InputT> serializationSchema;
 
     KinesisFirehoseSinkBuilder() {}
 
@@ -96,6 +94,19 @@ public class KinesisFirehoseSinkBuilder<InputT>
      */
     public KinesisFirehoseSinkBuilder<InputT> setDeliveryStreamName(String deliveryStreamName) {
         this.deliveryStreamName = deliveryStreamName;
+        return this;
+    }
+
+    /**
+     * Allows the user to specify a serialization schema to serialize each record to persist to
+     * Firehose.
+     *
+     * @param serializationSchema serialization schema to use
+     * @return {@link KinesisFirehoseSinkBuilder} itself
+     */
+    public KinesisFirehoseSinkBuilder<InputT> setSerializationSchema(
+            SerializationSchema<InputT> serializationSchema) {
+        this.serializationSchema = serializationSchema;
         return this;
     }
 
@@ -134,7 +145,9 @@ public class KinesisFirehoseSinkBuilder<InputT>
     @Override
     public KinesisFirehoseSink<InputT> build() {
         return new KinesisFirehoseSink<>(
-                getElementConverter(),
+                KinesisFirehoseSinkElementConverter.<InputT>builder()
+                        .setSerializationSchema(serializationSchema)
+                        .build(),
                 Optional.ofNullable(getMaxBatchSize()).orElse(DEFAULT_MAX_BATCH_SIZE),
                 Optional.ofNullable(getMaxInFlightRequests())
                         .orElse(DEFAULT_MAX_IN_FLIGHT_REQUESTS),

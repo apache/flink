@@ -17,7 +17,7 @@
 
 package org.apache.flink.connector.firehose.sink;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
@@ -31,7 +31,7 @@ import software.amazon.awssdk.services.firehose.model.Record;
  * needs to provide a {@link SerializationSchema} of the {@code InputT} to transform it into a
  * {@link Record} that may be persisted.
  */
-@PublicEvolving
+@Internal
 public class KinesisFirehoseSinkElementConverter<InputT>
         implements ElementConverter<InputT, Record> {
 
@@ -54,7 +54,6 @@ public class KinesisFirehoseSinkElementConverter<InputT>
     }
 
     /** A builder for the KinesisFirehoseSinkElementConverter. */
-    @PublicEvolving
     public static class Builder<InputT> {
 
         private SerializationSchema<InputT> serializationSchema;
@@ -68,8 +67,7 @@ public class KinesisFirehoseSinkElementConverter<InputT>
         public KinesisFirehoseSinkElementConverter<InputT> build() {
             Preconditions.checkNotNull(
                     serializationSchema,
-                    "No SerializationSchema was supplied to the "
-                            + "KinesisFirehoseSinkElementConverter builder.");
+                    "No SerializationSchema was supplied to the " + "KinesisFirehoseSink builder.");
             return new KinesisFirehoseSinkElementConverter<>(serializationSchema);
         }
     }

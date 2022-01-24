@@ -38,11 +38,6 @@ The `KinesisFirehoseSink` uses [AWS v2 SDK for Java](https://docs.aws.amazon.com
 {{< tabs "42vs28vdth5-nm76-6dz1-5m7s-5y345bu56se5u66je" >}}
 {{< tab "Java" >}}
 ```java
-KinesisFirehoseSinkElementConverter<String> elementConverter =
-    KinesisFirehoseSinkElementConverter.<String>builder()
-        .setSerializationSchema(new SimpleStringSchema())
-        .build();
-
 Properties sinkProperties = new Properties();
 // Required
 sinkProperties.put(AWSConfigConstants.AWS_REGION, "eu-west-1");
@@ -52,16 +47,16 @@ sinkProperties.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_
 
 KinesisFirehoseSink<String> kdfSink =
     KinesisFirehoseSink.<String>builder()
-        .setFirehoseClientProperties(sinkProperties)    // Required
-        .setElementConverter(elementConverter)         // Required
-        .setDeliveryStreamName("your-stream-name")     // Required
-        .setFailOnError(false)                         // Optional
-        .setMaxBatchSize(500)                          // Optional
-        .setMaxInFlightRequests(50)                    // Optional
-        .setMaxBufferedRequests(10_000)                // Optional
-        .setMaxBatchSizeInBytes(4 * 1024 * 1024)       // Optional
-        .setMaxTimeInBufferMS(5000)                    // Optional
-        .setMaxRecordSizeInBytes(1000 * 1024)      // Optional
+        .setFirehoseClientProperties(sinkProperties)      // Required
+        .setSerializationSchema(new SimpleStringSchema()) // Required
+        .setDeliveryStreamName("your-stream-name")        // Required
+        .setFailOnError(false)                            // Optional
+        .setMaxBatchSize(500)                             // Optional
+        .setMaxInFlightRequests(50)                       // Optional
+        .setMaxBufferedRequests(10_000)                   // Optional
+        .setMaxBatchSizeInBytes(4 * 1024 * 1024)          // Optional
+        .setMaxTimeInBufferMS(5000)                       // Optional
+        .setMaxRecordSizeInBytes(1000 * 1024)             // Optional
         .build();
 
 flinkStream.sinkTo(kdfSink);
@@ -69,11 +64,6 @@ flinkStream.sinkTo(kdfSink);
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val elementConverter =
-    KinesisFirehoseSinkElementConverter.<String>builder()
-        .setSerializationSchema(new SimpleStringSchema())
-        .build()
-
 Properties sinkProperties = new Properties()
 // Required
 sinkProperties.put(AWSConfigConstants.AWS_REGION, "eu-west-1")
@@ -83,16 +73,16 @@ sinkProperties.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_
 
 val kdfSink =
     KinesisFirehoseSink.<String>builder()
-        .setFirehoseClientProperties(sinkProperties)    // Required
-        .setElementConverter(elementConverter)         // Required
-        .setDeliveryStreamName("your-stream-name")     // Required
-        .setFailOnError(false)                         // Optional
-        .setMaxBatchSize(500)                          // Optional
-        .setMaxInFlightRequests(50)                    // Optional
-        .setMaxBufferedRequests(10_000)                // Optional
-        .setMaxBatchSizeInBytes(4 * 1024 * 1024)       // Optional
-        .setMaxTimeInBufferMS(5000)                    // Optional
-        .setMaxRecordSizeInBytes(1000 * 1024)      // Optional
+        .setFirehoseClientProperties(sinkProperties)      // Required
+        .setSerializationSchema(new SimpleStringSchema()) // Required
+        .setDeliveryStreamName("your-stream-name")        // Required
+        .setFailOnError(false)                            // Optional
+        .setMaxBatchSize(500)                             // Optional
+        .setMaxInFlightRequests(50)                       // Optional
+        .setMaxBufferedRequests(10_000)                   // Optional
+        .setMaxBatchSizeInBytes(4 * 1024 * 1024)          // Optional
+        .setMaxTimeInBufferMS(5000)                       // Optional
+        .setMaxRecordSizeInBytes(1000 * 1024)             // Optional
         .build()
 
 flinkStream.sinkTo(kdfSink)
@@ -102,14 +92,14 @@ flinkStream.sinkTo(kdfSink)
 
 ## Configurations
 
-Flink's Firehose sink is created by using the static builder `KinesisFirehoseSink.<String>builder()`.
+Flink's Firehose sink is created by using the static builder `KinesisFirehoseSink.<InputType>builder()`.
 
 1. __setFirehoseClientProperties(Properties sinkProperties)__
     * Required.
     * Supplies credentials, region and other parameters to the Firehose client.
-2. __setElementConverter(KinesisFirehoseSinkElementConverter elementConverter)__
+2. __setSerializationSchema(SerializationSchema<InputType> serializationSchema)__
     * Required.
-    * Supplies a serialization schema to the output. May be built using the following builder `KinesisFirehoseSinkElementConverter.<String>builder()` as per the example.
+    * Supplies a serialization schema to the Sink. This schema is used to serialize elements before sending to Firehose.
 3. __setDeliveryStreamName(String deliveryStreamName)__
     * Required.
     * Name of the delivery stream to sink to.
