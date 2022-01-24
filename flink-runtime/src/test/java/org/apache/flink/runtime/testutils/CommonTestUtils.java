@@ -44,6 +44,7 @@ import java.lang.management.RuntimeMXBean;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -226,6 +227,31 @@ public class CommonTestUtils {
                                                             .allMatch(subtaskPredicate));
                 },
                 timeout);
+    }
+
+    public static void waitForAllTaskRunning(
+            SupplierWithException<JobDetailsInfo, Exception> jobDetailsSupplier, Deadline timeout)
+            throws Exception {
+        waitUntilCondition(
+                () -> {
+                    final JobDetailsInfo jobDetailsInfo = jobDetailsSupplier.get();
+                    final Collection<JobDetailsInfo.JobVertexDetailsInfo> vertexInfos =
+                            jobDetailsInfo.getJobVertexInfos();
+                    if (vertexInfos.size() == 0) {
+                        return false;
+                    }
+                    for (JobDetailsInfo.JobVertexDetailsInfo vertexInfo : vertexInfos) {
+                        final Integer numRunningTasks =
+                                vertexInfo.getTasksPerState().get(ExecutionState.RUNNING);
+                        if (numRunningTasks == null
+                                || numRunningTasks != vertexInfo.getParallelism()) {
+                            return false;
+                        }
+                    }
+                    return true;
+                },
+                timeout,
+                "Some tasks are not running until timeout");
     }
 
     public static void waitForNoTaskRunning(
