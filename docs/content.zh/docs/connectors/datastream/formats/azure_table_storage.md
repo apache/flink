@@ -27,10 +27,10 @@ under the License.
 
 # Azure Table Storage
 
-This example is using the `HadoopInputFormat` wrapper to use an existing Hadoop input format implementation for accessing [Azure's Table Storage](https://docs.microsoft.com/en-us/azure/storage/tables/table-storage-overview).
+本例使用 `HadoopInputFormat` 包装器来使用现有的 Hadoop input format 实现访问 [Azure's Table Storage](https://docs.microsoft.com/en-us/azure/storage/tables/table-storage-overview).
 
-1. Download and compile the `azure-tables-hadoop` project. The input format developed by the project is not yet available in Maven Central, therefore, we have to build the project ourselves.
-   Execute the following commands:
+1. 下载并编译 `azure-tables-hadoop` 项目。该项目开发的 input format 在 Maven 中心尚不存在，因此，我们必须自己构建该项目。 
+   执行如下命令：
 
 ```bash
 git clone https://github.com/mooso/azure-tables-hadoop.git
@@ -38,13 +38,13 @@ cd azure-tables-hadoop
 mvn clean install
 ```
 
-2. Setup a new Flink project using the quickstarts:
+2. 使用 quickstarts 创建一个新的 Flink 项目：
 
 ```bash
 curl https://flink.apache.org/q/quickstart.sh | bash
 ```
 
-3. Add the following dependencies (in the `<dependencies>` section) to your `pom.xml` file:
+3. 在你的 `pom.xml` 文件 `<dependencies>` 部分添加如下依赖：
 
 ```xml
 <dependency>
@@ -59,13 +59,13 @@ curl https://flink.apache.org/q/quickstart.sh | bash
 </dependency>
 ```
 
-`flink-hadoop-compatibility` is a Flink package that provides the Hadoop input format wrappers.
-`microsoft-hadoop-azure` is adding the project we've build before to our project.
+`flink-hadoop-compatibility` 是一个提供 Hadoop input format 包装器的 Flink 包。
+`microsoft-hadoop-azure` 可以将之前构建的部分添加到项目中。
 
-The project is now ready for starting to code. We recommend to import the project into an IDE, such as IntelliJ. You should import it as a Maven project.
-Browse to the file `Job.java`. This is an empty skeleton for a Flink job.
+现在可以开始进行项目的编码。我们建议将项目导入 IDE，例如 IntelliJ。你应该将其作为 Maven 项目导入。
+跳转到文件 `Job.java`。这是 Flink 作业的初始框架。
 
-Paste the following code:
+粘贴如下代码：
 
 ```java
 import java.util.Map;
@@ -84,22 +84,22 @@ import com.microsoft.windowsazure.storage.table.EntityProperty;
 public class AzureTableExample {
 
   public static void main(String[] args) throws Exception {
-    // set up the execution environment
+    // 安装 execution environment
     final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
     env.setRuntimeMode(RuntimeExecutionMode.BATCH);
-    // create a  AzureTableInputFormat, using a Hadoop input format wrapper
+    // 使用 Hadoop input format 包装器创建 AzureTableInputFormat
     HadoopInputFormat<Text, WritableEntity> hdIf = new HadoopInputFormat<Text, WritableEntity>(new AzureTableInputFormat(), Text.class, WritableEntity.class, new Job());
 
-    // set the Account URI, something like: https://apacheflink.table.core.windows.net
+    // 设置 Account URI，如 https://apacheflink.table.core.windows.net
     hdIf.getConfiguration().set(azuretableconfiguration.Keys.ACCOUNT_URI.getKey(), "TODO");
-    // set the secret storage key here
+    // 设置存储密钥
     hdIf.getConfiguration().set(AzureTableConfiguration.Keys.STORAGE_KEY.getKey(), "TODO");
-    // set the table name here
+    // 在此处设置表名
     hdIf.getConfiguration().set(AzureTableConfiguration.Keys.TABLE_NAME.getKey(), "TODO");
 
     DataStream<Tuple2<Text, WritableEntity>> input = env.createInput(hdIf);
-    // a little example how to use the data in a mapper.
+    // 如何在 map 中使用数据的简单示例。
     DataStream<String> fin = input.map(new MapFunction<Tuple2<Text,WritableEntity>, String>() {
       @Override
       public String map(Tuple2<Text, WritableEntity> arg0) throws Exception {
@@ -114,15 +114,14 @@ public class AzureTableExample {
       }
     });
 
-    // emit result (this works only locally)
+    // 发送结果（这仅在本地模式有效）
     fin.print();
 
-    // execute program
+    // 执行程序
     env.execute("Azure Example");
   }
 }
 ```
-
-The example shows how to access an Azure table and turn data into Flink's `DataStream` (more specifically, the type of the set is `DataStream<Tuple2<Text, WritableEntity>>`). With the `DataStream`, you can apply all known transformations to the DataStream.
+该示例展示了如何访问 Azure 表和如何将数据转换为 Flink 的 `DataStream`（更具体地说，集合的类型是 `DataStream<Tuple2<Text, WritableEntity>>`）。你可以将所有已知的 transformations 应用到 DataStream 实例。
 
 {{< top >}}
