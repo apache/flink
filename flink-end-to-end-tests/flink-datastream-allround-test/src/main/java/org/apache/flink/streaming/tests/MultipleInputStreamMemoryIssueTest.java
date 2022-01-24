@@ -46,13 +46,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * MultipleInputStreamTask Memory issue test.
- */
+/** MultipleInputStreamTask Memory issue test. */
 public class MultipleInputStreamMemoryIssueTest {
 
     /**
      * List Aggregation.
+     *
      * @param <IN>
      */
     static class ListAgg<IN> implements AggregateFunction<IN, List<IN>, List<IN>> {
@@ -161,9 +160,11 @@ public class MultipleInputStreamMemoryIssueTest {
                                                 acc += 1;
                                             } else if (ct
                                                     > (Duration.ofSeconds(10).toMillis() / 100)) {
-                                                //recover from idle
-//                                                ct = 0;
-//                                                isIdle = false;
+                                                // recover from idle
+                                                //                                                ct
+                                                // = 0;
+                                                //
+                                                // isIdle = false;
                                             } else if (!isIdle) {
                                                 isIdle = true;
                                                 ctx.markAsTemporarilyIdle();
