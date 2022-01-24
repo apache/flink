@@ -27,6 +27,12 @@
             <td>Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.network.max-num-tcp-connections</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The maximum number of tpc connections between taskmanagers for data communication.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.network.memory.buffer-debloat.enabled</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
@@ -55,12 +61,6 @@
             <td style="word-wrap: break-word;">25</td>
             <td>Integer</td>
             <td>The minimum difference in percentage between the newly calculated buffer size and the old one to announce the new value. Can be used to avoid constant back and forth small adjustments.</td>
-        </tr>
-        <tr>
-            <td><h5>taskmanager.network.max-num-tcp-connections</h5></td>
-            <td style="word-wrap: break-word;">1</td>
-            <td>Integer</td>
-            <td>The maximum number of tpc connections between taskmanagers for data communication.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.memory.buffers-per-channel</h5></td>
