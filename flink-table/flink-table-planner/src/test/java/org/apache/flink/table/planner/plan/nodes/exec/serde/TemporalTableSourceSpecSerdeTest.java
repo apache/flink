@@ -32,7 +32,6 @@ import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
@@ -69,14 +68,7 @@ public class TemporalTableSourceSpecSerdeTest {
 
     @Test
     public void testTemporalTableSourceSpecSerde() throws IOException {
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        SerdeContext serdeCtx =
-                new SerdeContext(
-                        null,
-                        FLINK_CONTEXT,
-                        classLoader,
-                        FlinkTypeFactory.INSTANCE(),
-                        FlinkSqlOperatorTable.instance());
+        SerdeContext serdeCtx = JsonSerdeTestUtil.configuredSerdeContext();
         ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
         ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
 
