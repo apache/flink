@@ -66,7 +66,6 @@ import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.types.Row;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -86,9 +85,9 @@ import java.util.Optional;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanCompilation.ALL;
 import static org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanCompilation.IDENTIFIER;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeMocks.configuredSerdeContext;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeMocks.toJson;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeMocks.toObject;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.configuredSerdeContext;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toJson;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toObject;
 import static org.apache.flink.table.utils.CatalogManagerMocks.preparedCatalogManager;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -108,7 +107,7 @@ public class LogicalTypeJsonSerdeTest {
     }
 
     @Test
-    public void testIdentifierSerde() throws JsonProcessingException {
+    public void testIdentifierSerde() throws IOException {
         final DataTypeFactoryMock dataTypeFactoryMock = new DataTypeFactoryMock();
         final TableConfig tableConfig = TableConfig.getDefault();
         final Configuration config = tableConfig.getConfiguration();
