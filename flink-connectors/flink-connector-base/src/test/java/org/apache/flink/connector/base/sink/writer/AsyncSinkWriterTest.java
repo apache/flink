@@ -338,7 +338,7 @@ public class AsyncSinkWriterTest {
         sink.prepareCommit(true);
 
         // Everything is saved
-        assertEquals(Arrays.asList(25, 55, 965, 75, 95, 45, 550, 955, 35, 535), res);
+        assertEquals(Arrays.asList(25, 55, 965, 75, 95, 45, 955, 550, 35, 535), res);
         assertEquals(0, sink.snapshotState().get(0).size());
     }
 
@@ -538,6 +538,37 @@ public class AsyncSinkWriterTest {
         // inflight request is processed, buffer: [225, 3, 4, 5, 6, 325]
         assertEquals(Arrays.asList(1, 2, 225, 3, 4), res);
         // Buffer: [5, 6, 325]; 0 inflight
+    }
+
+    @Test
+    public void testThatIntermittentlyFailingEntriesAreEnqueuedOnToTheBufferWithCorrectOrder()
+            throws IOException, InterruptedException {
+        AsyncSinkWriterImpl sink =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(10)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(100)
+                        .maxBatchSizeInBytes(210)
+                        .maxTimeInBufferMS(1000)
+                        .maxRecordSizeInBytes(110)
+                        .simulateFailures(true)
+                        .build();
+
+        sink.write(String.valueOf(228)); // Buffer: 100/210B; 1/10 elements; 0 inflight
+        sink.write(String.valueOf(225)); // Buffer: 200/210B; 2/10 elements; 0 inflight
+        sink.write(String.valueOf(1)); //   Buffer: 204/210B; 3/10 elements; 0 inflight
+        sink.write(String.valueOf(2)); //   Buffer: 208/210B; 4/10 elements; 0 inflight
+        sink.write(String.valueOf(3)); //   Buffer: 212/210B; 5/10 elements; 0 inflight -- flushing
+        assertEquals(2, res.size()); // Request was [228, 225, 1, 2], element 228, 225 failed
+        sink.write(String.valueOf(4)); //   Buffer:   8/210B; 2/10 elements; 2 inflight
+        sink.write(String.valueOf(5)); //   Buffer:  12/210B; 3/10 elements; 2 inflight
+        sink.write(String.valueOf(6)); //   Buffer:  16/210B; 4/10 elements; 2 inflight
+        sink.write(String.valueOf(328)); // Buffer: 116/210B; 5/10 elements; 2 inflight
+        sink.write(String.valueOf(325)); // Buffer: 216/210B; 6/10 elements; 2 inflight -- flushing
+        // inflight request is processed, buffer: [228, 225, 3, 4, 5, 6, 328, 325]
+        assertEquals(Arrays.asList(1, 2, 228, 225, 3, 4), res);
+        // Buffer: [5, 6, 328, 325]; 0 inflight
     }
 
     @Test

@@ -348,7 +348,9 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
         lastSendTimestamp = requestStartTime;
         ackTime = System.currentTimeMillis();
         inFlightRequestsCount--;
-        failedRequestEntries.forEach(failedEntry -> addEntryToBuffer(failedEntry, true));
+        List<RequestEntryT> requestsList = new ArrayList<>(failedRequestEntries);
+        Collections.reverse(requestsList);
+        requestsList.forEach(failedEntry -> addEntryToBuffer(failedEntry, true));
     }
 
     private void addEntryToBuffer(RequestEntryT entry, boolean insertAtHead) {
