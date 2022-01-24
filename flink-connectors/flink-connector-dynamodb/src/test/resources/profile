@@ -1,7 +1,0 @@
-[default]
-aws_access_key_id=11111111111111111111
-aws_secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCY1111111111
-
-[foo]
-aws_access_key_id=22222222222222222222
-aws_secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCY2222222222

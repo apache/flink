@@ -32,13 +32,20 @@ under the License.
 	<artifactId>flink-connector-aws-dynamodb</artifactId>
 	<name>Flink : Connectors : Amazon Dynamo DB</name>
 	<properties>
-		<aws.sdk.version>2.17.52</aws.sdk.version>
+		<aws.sdk.version>2.17.116</aws.sdk.version>
 		<commons-lang3.version>3.11</commons-lang3.version>
+		<testcontainers.version>1.16.2</testcontainers.version>
 	</properties>
 
 	<packaging>jar</packaging>
 
 	<dependencies>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-aws-base</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- Amazon AWS SDK v2.x dependencies -->
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
@@ -118,6 +125,13 @@ under the License.
 		</dependency>
 
 		<!-- Test dependencies -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-aws-base</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -150,6 +164,19 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers</artifactId>
+			<version>${testcontainers.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>localstack</artifactId>
+			<version>${testcontainers.version}</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>

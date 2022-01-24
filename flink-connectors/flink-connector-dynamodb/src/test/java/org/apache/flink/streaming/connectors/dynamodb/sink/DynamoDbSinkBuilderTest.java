@@ -16,17 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodb;
+package org.apache.flink.streaming.connectors.dynamodb.sink;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.assertj.core.api.Assertions;
+import org.junit.Test;
 
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-
-import java.io.Serializable;
-
-/** This class is used to configure and pass a {@link DynamoDbClient}. */
-@PublicEvolving
-@FunctionalInterface
-public interface DynamoDbClientProvider extends Serializable {
-    DynamoDbClient get();
+/** Tests for {@link DynamoDbSinkBuilder}. */
+public class DynamoDbSinkBuilderTest {
+    @Test
+    public void elementConverterOfSinkMustBeSetWhenBuilt() {
+        Assertions.assertThatExceptionOfType(NullPointerException.class)
+                .isThrownBy(() -> DynamoDbSink.builder().setFailOnError(true).build())
+                .withMessageContaining(
+                        "ElementConverter must be not null when initializing the AsyncSinkBase.");
+    }
 }

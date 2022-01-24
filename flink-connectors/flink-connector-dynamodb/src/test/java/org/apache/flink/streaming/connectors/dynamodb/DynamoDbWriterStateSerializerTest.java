@@ -20,6 +20,8 @@ package org.apache.flink.streaming.connectors.dynamodb;
 
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.RequestEntryWrapper;
+import org.apache.flink.streaming.connectors.dynamodb.sink.DynamoDbWriteRequest;
+import org.apache.flink.streaming.connectors.dynamodb.sink.DynamoDbWriterStateSerializer;
 
 import org.assertj.core.api.Assertions;
 import org.junit.Test;

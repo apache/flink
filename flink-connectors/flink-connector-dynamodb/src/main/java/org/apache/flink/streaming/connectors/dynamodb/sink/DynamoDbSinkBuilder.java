@@ -16,12 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodb;
+package org.apache.flink.streaming.connectors.dynamodb.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.base.sink.AsyncSinkBaseBuilder;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
+
+import java.util.Optional;
+import java.util.Properties;
 
 /**
  * Builder to construct {@link DynamoDbSink}.
@@ -32,18 +35,22 @@ import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfi
 public class DynamoDbSinkBuilder<InputT>
         extends AsyncSinkBaseBuilder<InputT, DynamoDbWriteRequest, DynamoDbSinkBuilder<InputT>> {
 
-    private DynamoDbClientProvider dynamoDbClientProvider;
+    private static final int DEFAULT_MAX_BATCH_SIZE = 25;
+    private static final int DEFAULT_MAX_IN_FLIGHT_REQUESTS = 10;
+    private static final int DEFAULT_MAX_BUFFERED_REQUESTS = 10000;
+    private static final long DEFAULT_MAX_BATCH_SIZE_IN_B = 16 * 1000 * 1000;
+    private static final long DEFAULT_MAX_TIME_IN_BUFFER_MS = 5000;
+    private static final long DEFAULT_MAX_RECORD_SIZE_IN_B = 400 * 1000;
+    private static final boolean DEFAULT_FAIL_ON_ERROR = false;
+
+    private boolean failOnError;
     private DynamoDbTablesConfig dynamoDbTablesConfig;
+    private Properties dynamodbClientProperties;
 
     private ElementConverter<InputT, DynamoDbWriteRequest> elementConverter;
 
-    /**
-     * @param dynamoDbClientProvider the {@link DynamoDbClientProvider} to be used for the sink
-     * @return DynamoDbSinkBuilder itself
-     */
-    public DynamoDbSinkBuilder<InputT> setDynamoDbClientProvider(
-            DynamoDbClientProvider dynamoDbClientProvider) {
-        this.dynamoDbClientProvider = dynamoDbClientProvider;
+    public DynamoDbSinkBuilder<InputT> setDynamoDbProperties(Properties properties) {
+        this.dynamodbClientProperties = properties;
         return this;
     }
 
@@ -71,17 +78,24 @@ public class DynamoDbSinkBuilder<InputT>
         return this;
     }
 
+    public DynamoDbSinkBuilder<InputT> setFailOnError(boolean failOnError) {
+        this.failOnError = failOnError;
+        return this;
+    }
+
     @Override
     public DynamoDbSink<InputT> build() {
         return new DynamoDbSink<>(
-                dynamoDbClientProvider,
                 getElementConverter(),
-                dynamoDbTablesConfig,
-                getMaxBatchSize(),
-                getMaxInFlightRequests(),
-                getMaxBufferedRequests(),
-                getMaxBatchSizeInBytes(),
-                getMaxTimeInBufferMS(),
-                getMaxRecordSizeInBytes());
+                Optional.ofNullable(getMaxBatchSize()).orElse(DEFAULT_MAX_BATCH_SIZE),
+                Optional.ofNullable(getMaxInFlightRequests())
+                        .orElse(DEFAULT_MAX_IN_FLIGHT_REQUESTS),
+                Optional.ofNullable(getMaxBufferedRequests()).orElse(DEFAULT_MAX_BUFFERED_REQUESTS),
+                Optional.ofNullable(getMaxBatchSizeInBytes()).orElse(DEFAULT_MAX_BATCH_SIZE_IN_B),
+                Optional.ofNullable(getMaxTimeInBufferMS()).orElse(DEFAULT_MAX_TIME_IN_BUFFER_MS),
+                Optional.ofNullable(getMaxRecordSizeInBytes()).orElse(DEFAULT_MAX_RECORD_SIZE_IN_B),
+                Optional.of(failOnError).orElse(DEFAULT_FAIL_ON_ERROR),
+                Optional.ofNullable(dynamoDbTablesConfig).orElse(new DynamoDbTablesConfig()),
+                Optional.ofNullable(dynamodbClientProperties).orElse(new Properties()));
     }
 }

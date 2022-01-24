@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodb;
+package org.apache.flink.streaming.connectors.dynamodb.sink;
 
 import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 

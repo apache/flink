@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodb;
+package org.apache.flink.streaming.connectors.dynamodb.sink;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
@@ -28,29 +28,35 @@ import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfi
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Properties;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Flink Sink to produce data into a single or multiple DynamoDb tables.
  *
  * @param <InputT> type of incoming records
- * @see DynamoDbSinkBuilder on how to construct a KafkaSink
+ * @see DynamoDbSinkBuilder on how to construct a DynamoDb sink
  */
 @PublicEvolving
 public class DynamoDbSink<InputT> extends AsyncSinkBase<InputT, DynamoDbWriteRequest> {
 
-    private DynamoDbClientProvider dynamoDbClientProvider;
-    private DynamoDbTablesConfig dynamoDbTablesConfig;
+    private final Properties dynamoDbClientProperties;
+    private final DynamoDbTablesConfig dynamoDbTablesConfig;
+    private final boolean failOnError;
 
     protected DynamoDbSink(
-            DynamoDbClientProvider dynamoDbClientProvider,
             ElementConverter<InputT, DynamoDbWriteRequest> elementConverter,
-            DynamoDbTablesConfig dynamoDbTablesConfig,
             int maxBatchSize,
             int maxInFlightRequests,
             int maxBufferedRequests,
             long maxBatchSizeInBytes,
             long maxTimeInBufferMS,
-            long maxRecordSizeInBytes) {
+            long maxRecordSizeInBytes,
+            boolean failOnError,
+            DynamoDbTablesConfig dynamoDbTablesConfig,
+            Properties dynamoDbClientProperties) {
         super(
                 elementConverter,
                 maxBatchSize,
@@ -59,17 +65,20 @@ public class DynamoDbSink<InputT> extends AsyncSinkBase<InputT, DynamoDbWriteReq
                 maxBatchSizeInBytes,
                 maxTimeInBufferMS,
                 maxRecordSizeInBytes);
-        this.dynamoDbClientProvider = dynamoDbClientProvider;
+        checkNotNull(dynamoDbTablesConfig, "Missing dynamoDbTablesConfig");
+        checkNotNull(dynamoDbClientProperties, "Missing dynamoDbClientProperties");
+        this.failOnError = failOnError;
         this.dynamoDbTablesConfig = dynamoDbTablesConfig;
+        this.dynamoDbClientProperties = dynamoDbClientProperties;
     }
 
     /**
      * Create a {@link DynamoDbSinkBuilder} to construct a new {@link DynamoDbSink}.
      *
-     * @param <IN> type of incoming records
+     * @param <InputT> type of incoming records
      * @return {@link DynamoDbSinkBuilder}
      */
-    public static <IN> DynamoDbSinkBuilder<IN> builder() {
+    public static <InputT> DynamoDbSinkBuilder<InputT> builder() {
         return new DynamoDbSinkBuilder<>();
     }
 
@@ -77,7 +86,19 @@ public class DynamoDbSink<InputT> extends AsyncSinkBase<InputT, DynamoDbWriteReq
     @Override
     public StatefulSinkWriter<InputT, BufferedRequestState<DynamoDbWriteRequest>> createWriter(
             InitContext context) throws IOException {
-        return null;
+        return new DynamoDbSinkWriter<>(
+                getElementConverter(),
+                context,
+                getMaxBatchSize(),
+                getMaxInFlightRequests(),
+                getMaxBufferedRequests(),
+                getMaxBatchSizeInBytes(),
+                getMaxTimeInBufferMS(),
+                getMaxRecordSizeInBytes(),
+                failOnError,
+                dynamoDbTablesConfig,
+                dynamoDbClientProperties,
+                Collections.emptyList());
     }
 
     @Internal
@@ -86,7 +107,19 @@ public class DynamoDbSink<InputT> extends AsyncSinkBase<InputT, DynamoDbWriteReq
             InitContext context,
             Collection<BufferedRequestState<DynamoDbWriteRequest>> recoveredState)
             throws IOException {
-        return null;
+        return new DynamoDbSinkWriter<>(
+                getElementConverter(),
+                context,
+                getMaxBatchSize(),
+                getMaxInFlightRequests(),
+                getMaxBufferedRequests(),
+                getMaxBatchSizeInBytes(),
+                getMaxTimeInBufferMS(),
+                getMaxRecordSizeInBytes(),
+                failOnError,
+                dynamoDbTablesConfig,
+                dynamoDbClientProperties,
+                recoveredState);
     }
 
     @Internal
