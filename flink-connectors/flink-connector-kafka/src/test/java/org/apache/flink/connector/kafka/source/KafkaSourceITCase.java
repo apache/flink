@@ -74,7 +74,6 @@ import static org.apache.flink.connector.kafka.testutils.KafkaSourceTestRecordGe
 import static org.apache.flink.connector.kafka.testutils.KafkaSourceTestRecordGenerator.getRecordsForTopic;
 import static org.apache.flink.connector.kafka.testutils.extension.KafkaClientKit.DEFAULT_NUM_PARTITIONS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Integration tests for {@link KafkaSource}. */
 class KafkaSourceITCase extends SourceTestSuiteBase<String> {
@@ -385,11 +384,12 @@ class KafkaSourceITCase extends SourceTestSuiteBase<String> {
                 (tp, values) -> {
                     int firstExpectedValue = Integer.parseInt(tp.substring(tp.indexOf('-') + 1));
                     for (int i = 0; i < values.size(); i++) {
-                        assertEquals(
-                                firstExpectedValue + i,
-                                (int) values.get(i),
-                                String.format(
-                                        "The %d-th value for partition %s should be %d", i, tp, i));
+                        assertThat((int) values.get(i))
+                                .as(
+                                        String.format(
+                                                "The %d-th value for partition %s should be %d",
+                                                i, tp, i))
+                                .isEqualTo(firstExpectedValue + i);
                     }
                 });
     }

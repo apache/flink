@@ -34,7 +34,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link KafkaSourceEnumStateSerializer}. */
 @ExtendWith(TestLoggerExtension.class)
@@ -46,7 +46,7 @@ class KafkaSourceEnumStateSerializerTest {
     private static final long STARTING_OFFSET = KafkaPartitionSplit.EARLIEST_OFFSET;
 
     @Test
-    public void testEnumStateSerde() throws IOException {
+    void testEnumStateSerde() throws IOException {
         final KafkaSourceEnumState state = new KafkaSourceEnumState(constructTopicPartitions());
         final KafkaSourceEnumStateSerializer serializer = new KafkaSourceEnumStateSerializer();
 
@@ -55,11 +55,11 @@ class KafkaSourceEnumStateSerializerTest {
         final KafkaSourceEnumState restoredState =
                 serializer.deserialize(serializer.getVersion(), bytes);
 
-        assertEquals(state.assignedPartitions(), restoredState.assignedPartitions());
+        assertThat(restoredState.assignedPartitions()).isEqualTo(state.assignedPartitions());
     }
 
     @Test
-    public void testBackwardCompatibility() throws IOException {
+    void testBackwardCompatibility() throws IOException {
 
         final Set<TopicPartition> topicPartitions = constructTopicPartitions();
         final Map<Integer, Set<KafkaPartitionSplit>> splitAssignments =
@@ -75,7 +75,7 @@ class KafkaSourceEnumStateSerializerTest {
         final KafkaSourceEnumState kafkaSourceEnumState =
                 new KafkaSourceEnumStateSerializer().deserialize(0, bytes);
 
-        assertEquals(topicPartitions, kafkaSourceEnumState.assignedPartitions());
+        assertThat(kafkaSourceEnumState.assignedPartitions()).isEqualTo(topicPartitions);
     }
 
     private Set<TopicPartition> constructTopicPartitions() {

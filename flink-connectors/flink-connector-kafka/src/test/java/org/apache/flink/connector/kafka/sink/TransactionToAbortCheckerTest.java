@@ -27,8 +27,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TransactionsToAbortChecker}. */
 @ExtendWith(TestLoggerExtension.class)
@@ -49,12 +48,12 @@ class TransactionToAbortCheckerTest {
                         3, ImmutableMap.of(3L, "keep", 4L, "keep"));
 
         final List<String> transactionsToAbort = checker.getTransactionsToAbort(openTransactions);
-        assertEquals(4, transactionsToAbort.size());
+        assertThat(transactionsToAbort).hasSize(4);
         assertThatAbortCorrectTransaction(transactionsToAbort);
     }
 
     @Test
-    public void testMustAbortTransactionsIfLowestCheckpointOffsetIsMinimumOffset() {
+    void testMustAbortTransactionsIfLowestCheckpointOffsetIsMinimumOffset() {
         final TransactionsToAbortChecker checker =
                 new TransactionsToAbortChecker(2, ImmutableMap.of(0, 1L), 0);
 
@@ -68,11 +67,11 @@ class TransactionToAbortCheckerTest {
                         5, ImmutableMap.of(1L, "keep"));
 
         final List<String> transactionsToAbort = checker.getTransactionsToAbort(openTransactions);
-        assertEquals(4, transactionsToAbort.size());
+        assertThat(transactionsToAbort).hasSize(4);
         assertThatAbortCorrectTransaction(transactionsToAbort);
     }
 
     private static void assertThatAbortCorrectTransaction(List<String> abortedTransactions) {
-        assertTrue(abortedTransactions.stream().allMatch(t -> t.equals(ABORT)));
+        assertThat(abortedTransactions.stream().allMatch(t -> t.equals(ABORT))).isTrue();
     }
 }

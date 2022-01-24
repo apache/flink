@@ -65,7 +65,7 @@ class KafkaTransactionLogITCase {
     }
 
     @Test
-    public void testGetTransactions() {
+    void testGetTransactions() {
         committedTransaction(1);
         abortedTransaction(2);
         lingeringTransaction(3);

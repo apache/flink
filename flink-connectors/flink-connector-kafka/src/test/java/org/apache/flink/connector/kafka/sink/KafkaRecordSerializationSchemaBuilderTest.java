@@ -43,12 +43,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link KafkaRecordSerializationSchemaBuilder}. */
 @ExtendWith(TestLoggerExtension.class)
@@ -68,49 +64,48 @@ class KafkaRecordSerializationSchemaBuilderTest {
     }
 
     @Test
-    public void testDoNotAllowMultipleKeySerializer() {
+    void testDoNotAllowMultipleKeySerializer() {
         assertOnlyOneSerializerAllowed(keySerializationSetter());
     }
 
     @Test
-    public void testDoNotAllowMultipleValueSerializer() {
+    void testDoNotAllowMultipleValueSerializer() {
         assertOnlyOneSerializerAllowed(valueSerializationSetter());
     }
 
     @Test
-    public void testDoNotAllowMultipleTopicSelector() {
-        assertThrows(
-                IllegalStateException.class,
-                () ->
+    void testDoNotAllowMultipleTopicSelector() {
+        assertThatThrownBy(
+                        () ->
+                                KafkaRecordSerializationSchema.builder()
+                                        .setTopicSelector(e -> DEFAULT_TOPIC)
+                                        .setTopic(DEFAULT_TOPIC))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(
+                        () ->
+                                KafkaRecordSerializationSchema.builder()
+                                        .setTopic(DEFAULT_TOPIC)
+                                        .setTopicSelector(e -> DEFAULT_TOPIC))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testExpectTopicSelector() {
+        assertThatThrownBy(
                         KafkaRecordSerializationSchema.builder()
-                                .setTopicSelector(e -> DEFAULT_TOPIC)
-                                .setTopic(DEFAULT_TOPIC));
-        assertThrows(
-                IllegalStateException.class,
-                () ->
-                        KafkaRecordSerializationSchema.builder()
-                                .setTopic(DEFAULT_TOPIC)
-                                .setTopicSelector(e -> DEFAULT_TOPIC));
+                                        .setValueSerializationSchema(new SimpleStringSchema())
+                                ::build)
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void testExpectTopicSelector() {
-        assertThrows(
-                IllegalStateException.class,
-                KafkaRecordSerializationSchema.builder()
-                                .setValueSerializationSchema(new SimpleStringSchema())
-                        ::build);
+    void testExpectValueSerializer() {
+        assertThatThrownBy(KafkaRecordSerializationSchema.builder().setTopic(DEFAULT_TOPIC)::build)
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void testExpectValueSerializer() {
-        assertThrows(
-                IllegalStateException.class,
-                KafkaRecordSerializationSchema.builder().setTopic(DEFAULT_TOPIC)::build);
-    }
-
-    @Test
-    public void testSerializeRecordWithTopicSelector() {
+    void testSerializeRecordWithTopicSelector() {
         final TopicSelector<String> topicSelector =
                 (e) -> {
                     if (e.equals("a")) {
@@ -124,18 +119,18 @@ class KafkaRecordSerializationSchemaBuilderTest {
         final KafkaRecordSerializationSchema<String> schema =
                 builder.setValueSerializationSchema(serializationSchema).build();
         final ProducerRecord<byte[], byte[]> record = schema.serialize("a", null, null);
-        assertEquals("topic-a", record.topic());
-        assertNull(record.key());
-        assertArrayEquals(serializationSchema.serialize("a"), record.value());
+        assertThat(record.topic()).isEqualTo("topic-a");
+        assertThat(record.key()).isNull();
+        assertThat(record.value()).isEqualTo(serializationSchema.serialize("a"));
 
         final ProducerRecord<byte[], byte[]> record2 = schema.serialize("b", null, null);
-        assertEquals("topic-b", record2.topic());
-        assertNull(record2.key());
-        assertArrayEquals(serializationSchema.serialize("b"), record2.value());
+        assertThat(record2.topic()).isEqualTo("topic-b");
+        assertThat(record2.key()).isNull();
+        assertThat(record2.value()).isEqualTo(serializationSchema.serialize("b"));
     }
 
     @Test
-    public void testSerializeRecordWithPartitioner() throws Exception {
+    void testSerializeRecordWithPartitioner() throws Exception {
         AtomicBoolean opened = new AtomicBoolean(false);
         final int partition = 5;
         final FlinkKafkaPartitioner<Object> partitioner =
@@ -149,12 +144,12 @@ class KafkaRecordSerializationSchemaBuilderTest {
         final KafkaRecordSerializationSchema.KafkaSinkContext sinkContext = new TestSinkContext();
         schema.open(null, sinkContext);
         final ProducerRecord<byte[], byte[]> record = schema.serialize("a", sinkContext, null);
-        assertEquals(partition, record.partition());
-        assertTrue(opened.get());
+        assertThat(record.partition()).isEqualTo(partition);
+        assertThat(opened.get()).isTrue();
     }
 
     @Test
-    public void testSerializeRecordWithKey() {
+    void testSerializeRecordWithKey() {
         final SerializationSchema<String> serializationSchema = new SimpleStringSchema();
         final KafkaRecordSerializationSchema<String> schema =
                 KafkaRecordSerializationSchema.builder()
@@ -163,8 +158,8 @@ class KafkaRecordSerializationSchemaBuilderTest {
                         .setKeySerializationSchema(serializationSchema)
                         .build();
         final ProducerRecord<byte[], byte[]> record = schema.serialize("a", null, null);
-        assertArrayEquals(record.key(), serializationSchema.serialize("a"));
-        assertArrayEquals(record.value(), serializationSchema.serialize("a"));
+        assertThat(serializationSchema.serialize("a")).isEqualTo(record.key());
+        assertThat(serializationSchema.serialize("a")).isEqualTo(record.value());
     }
 
     @Test
@@ -179,9 +174,9 @@ class KafkaRecordSerializationSchemaBuilderTest {
                         .setKafkaKeySerializer(SimpleStringSerializer.class, config)
                         .build();
         open(schema);
-        assertEquals(configuration, config);
-        assertTrue(isKeySerializer);
-        assertTrue(configurableConfiguration.isEmpty());
+        assertThat(config).isEqualTo(configuration);
+        assertThat(isKeySerializer).isTrue();
+        assertThat(configurableConfiguration).isEmpty();
     }
 
     @Test
@@ -193,13 +188,13 @@ class KafkaRecordSerializationSchemaBuilderTest {
                         .setKafkaValueSerializer(SimpleStringSerializer.class, config)
                         .build();
         open(schema);
-        assertEquals(configuration, config);
-        assertFalse(isKeySerializer);
-        assertTrue(configurableConfiguration.isEmpty());
+        assertThat(config).isEqualTo(configuration);
+        assertThat(isKeySerializer).isFalse();
+        assertThat(configurableConfiguration).isEmpty();
     }
 
     @Test
-    public void testSerializeRecordWithKafkaSerializer() throws Exception {
+    void testSerializeRecordWithKafkaSerializer() throws Exception {
         final Map<String, String> config = ImmutableMap.of("configKey", "configValue");
         final KafkaRecordSerializationSchema<String> schema =
                 KafkaRecordSerializationSchema.builder()
@@ -207,15 +202,15 @@ class KafkaRecordSerializationSchemaBuilderTest {
                         .setKafkaValueSerializer(ConfigurableStringSerializer.class, config)
                         .build();
         open(schema);
-        assertEquals(configurableConfiguration, config);
-        assertTrue(configuration.isEmpty());
+        assertThat(config).isEqualTo(configurableConfiguration);
+        assertThat(configuration).isEmpty();
         final Deserializer<String> deserializer = new StringDeserializer();
         final ProducerRecord<byte[], byte[]> record = schema.serialize("a", null, null);
-        assertEquals("a", deserializer.deserialize(DEFAULT_TOPIC, record.value()));
+        assertThat(deserializer.deserialize(DEFAULT_TOPIC, record.value())).isEqualTo("a");
     }
 
     @Test
-    public void testSerializeRecordWithTimestamp() {
+    void testSerializeRecordWithTimestamp() {
         final SerializationSchema<String> serializationSchema = new SimpleStringSchema();
         final KafkaRecordSerializationSchema<String> schema =
                 KafkaRecordSerializationSchema.builder()
@@ -225,19 +220,19 @@ class KafkaRecordSerializationSchemaBuilderTest {
                         .build();
         final ProducerRecord<byte[], byte[]> recordWithTimestamp =
                 schema.serialize("a", null, 100L);
-        assertEquals(100L, (long) recordWithTimestamp.timestamp());
+        assertThat((long) recordWithTimestamp.timestamp()).isEqualTo(100L);
 
         final ProducerRecord<byte[], byte[]> recordWithTimestampZero =
                 schema.serialize("a", null, 0L);
-        assertEquals(0L, (long) recordWithTimestampZero.timestamp());
+        assertThat((long) recordWithTimestampZero.timestamp()).isEqualTo(0L);
 
         final ProducerRecord<byte[], byte[]> recordWithoutTimestamp =
                 schema.serialize("a", null, null);
-        assertNull(recordWithoutTimestamp.timestamp());
+        assertThat(recordWithoutTimestamp.timestamp()).isNull();
 
         final ProducerRecord<byte[], byte[]> recordWithInvalidTimestamp =
                 schema.serialize("a", null, -100L);
-        assertNull(recordWithInvalidTimestamp.timestamp());
+        assertThat(recordWithInvalidTimestamp.timestamp()).isNull();
     }
 
     private static void assertOnlyOneSerializerAllowed(
@@ -257,7 +252,8 @@ class KafkaRecordSerializationSchemaBuilderTest {
                             KafkaRecordSerializationSchemaBuilder<String>,
                             KafkaRecordSerializationSchemaBuilder<String>>
                     updater : serializers) {
-                assertThrows(IllegalStateException.class, () -> updater.apply(builder));
+                assertThatThrownBy(() -> updater.apply(builder))
+                        .isInstanceOf(IllegalStateException.class);
             }
         }
     }

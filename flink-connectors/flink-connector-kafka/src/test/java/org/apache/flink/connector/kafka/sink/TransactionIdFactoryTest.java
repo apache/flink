@@ -22,7 +22,7 @@ import org.apache.flink.util.TestLoggerExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TransactionalIdFactory}. */
 @ExtendWith(TestLoggerExtension.class)
@@ -31,6 +31,7 @@ class TransactionIdFactoryTest {
     @Test
     public void testBuildTransactionalId() {
         final String expected = "prefix-0-2";
-        assertEquals(expected, TransactionalIdFactory.buildTransactionalId("prefix", 0, 2L));
+        assertThat(TransactionalIdFactory.buildTransactionalId("prefix", 0, 2L))
+                .isEqualTo(expected);
     }
 }
