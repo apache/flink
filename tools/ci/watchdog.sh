@@ -74,6 +74,15 @@ watchdog () {
 
 		time_diff=$((`the_time` - `mod_time`))
 
+		# Checks the memory
+		jps
+		pids=`jps | grep surefire` | awk '{print $1}' | tr '\n' ',' | sed -e "s/,$//g"
+		echo "pids: ", ${pids}
+		if [ "$pids" != "" ];then
+		  top -b -n 1 -p ${pids}
+		fi
+		free -m
+
 		if [ $time_diff -ge $MAX_NO_OUTPUT ]; then
 			echo "=============================================================================="
 			echo "Process produced no output for ${MAX_NO_OUTPUT} seconds."
