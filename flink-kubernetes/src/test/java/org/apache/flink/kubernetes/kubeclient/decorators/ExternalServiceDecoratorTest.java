@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
+import org.apache.flink.kubernetes.kubeclient.services.HeadlessClusterIPService;
 import org.apache.flink.kubernetes.utils.Constants;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
@@ -118,5 +119,21 @@ public class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
         assertEquals(
                 KubernetesConfigOptions.ServiceExposedType.ClusterIP.name(),
                 ((Service) servicesWithClusterIP.get(0)).getSpec().getType());
+    }
+
+    @Test
+    public void testSetServiceExposedTypeWithHeadless() throws IOException {
+
+        this.flinkConfig.set(
+                KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE,
+                KubernetesConfigOptions.ServiceExposedType.Headless_ClusterIP);
+        final List<HasMetadata> servicesWithHeadlessClusterIP =
+                this.externalServiceDecorator.buildAccompanyingKubernetesResources();
+        assertThat(
+                ((Service) servicesWithHeadlessClusterIP.get(0)).getSpec().getType(),
+                is(KubernetesConfigOptions.ServiceExposedType.ClusterIP.name()));
+        assertThat(
+                ((Service) servicesWithHeadlessClusterIP.get(0)).getSpec().getClusterIP(),
+                is(HeadlessClusterIPService.HEADLESS_CLUSTER_IP));
     }
 }

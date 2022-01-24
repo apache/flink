@@ -24,6 +24,11 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.kubernetes.kubeclient.services.ClusterIPService;
+import org.apache.flink.kubernetes.kubeclient.services.HeadlessClusterIPService;
+import org.apache.flink.kubernetes.kubeclient.services.LoadBalancerService;
+import org.apache.flink.kubernetes.kubeclient.services.NodePortService;
+import org.apache.flink.kubernetes.kubeclient.services.ServiceType;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
@@ -511,9 +516,25 @@ public class KubernetesConfigOptions {
 
     /** The flink rest service exposed type. */
     public enum ServiceExposedType {
-        ClusterIP,
-        NodePort,
-        LoadBalancer
+        ClusterIP(ClusterIPService.INSTANCE),
+        NodePort(NodePortService.INSTANCE),
+        LoadBalancer(LoadBalancerService.INSTANCE),
+        Headless_ClusterIP(HeadlessClusterIPService.INSTANCE);
+
+        private final ServiceType serviceType;
+
+        ServiceExposedType(ServiceType serviceType) {
+            this.serviceType = serviceType;
+        }
+
+        public ServiceType serviceType() {
+            return serviceType;
+        }
+
+        /** Check whether it is ClusterIP type. */
+        public boolean isClusterIP() {
+            return this == ClusterIP || this == Headless_ClusterIP;
+        }
     }
 
     /** The flink rest service exposed type. */
