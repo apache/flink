@@ -19,7 +19,7 @@
 package org.apache.flink.connector.kinesis.table;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSinkElementConverter.PartitionKeyGenerator;
+import org.apache.flink.connector.kinesis.sink.PartitionKeyGenerator;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;

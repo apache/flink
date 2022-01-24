@@ -70,7 +70,7 @@ public abstract class AsyncSinkBase<InputT, RequestEntryT extends Serializable>
         this.elementConverter =
                 Preconditions.checkNotNull(
                         elementConverter,
-                        "ElementConverter must be not null when initilizing the AsyncSinkBase.");
+                        "ElementConverter must be not null when initializing the AsyncSinkBase.");
         this.maxBatchSize = maxBatchSize;
         this.maxInFlightRequests = maxInFlightRequests;
         this.maxBufferedRequests = maxBufferedRequests;

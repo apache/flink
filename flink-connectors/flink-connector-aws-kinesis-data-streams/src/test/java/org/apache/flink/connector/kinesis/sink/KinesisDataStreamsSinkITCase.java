@@ -17,9 +17,9 @@
 
 package org.apache.flink.connector.kinesis.sink;
 
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -44,7 +44,6 @@ import software.amazon.awssdk.services.kinesis.model.CreateStreamRequest;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
 import software.amazon.awssdk.services.kinesis.model.GetRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.GetShardIteratorRequest;
-import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 import software.amazon.awssdk.services.kinesis.model.StreamStatus;
 
@@ -64,18 +63,10 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
 
     private static final String DEFAULT_FIRST_SHARD_NAME = "shardId-000000000000";
 
-    private final ElementConverter<String, PutRecordsRequestEntry> elementConverter =
-            KinesisDataStreamsSinkElementConverter.<String>builder()
-                    .setSerializationSchema(new SimpleStringSchema())
-                    .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))
-                    .build();
-
-    private final ElementConverter<String, PutRecordsRequestEntry>
-            partitionKeyTooLongElementConverter =
-                    KinesisDataStreamsSinkElementConverter.<String>builder()
-                            .setSerializationSchema(new SimpleStringSchema())
-                            .setPartitionKeyGenerator(element -> element)
-                            .build();
+    private final SerializationSchema<String> serializationSchema = new SimpleStringSchema();
+    private final PartitionKeyGenerator<String> partitionKeyGenerator =
+            element -> String.valueOf(element.hashCode());
+    private final PartitionKeyGenerator<String> longPartitionKeyGenerator = element -> element;
 
     @ClassRule
     public static final KinesaliteContainer KINESALITE =
@@ -174,7 +165,8 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                                         .withExpectedElements(5)
                                         .withKinesaliteStreamName("test-stream-name-7")
                                         .withSinkConnectionStreamName("test-stream-name-7")
-                                        .withElementConverter(partitionKeyTooLongElementConverter)
+                                        .withSerializationSchema(serializationSchema)
+                                        .withPartitionKeyGenerator(longPartitionKeyGenerator)
                                         .runScenario())
                 .havingCause()
                 .havingCause()
@@ -192,8 +184,10 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         private boolean failOnError = false;
         private String kinesaliteStreamName;
         private String sinkConnectionStreamName;
-        private ElementConverter<String, PutRecordsRequestEntry> elementConverter =
-                KinesisDataStreamsSinkITCase.this.elementConverter;
+        private SerializationSchema<String> serializationSchema =
+                KinesisDataStreamsSinkITCase.this.serializationSchema;
+        private PartitionKeyGenerator<String> partitionKeyGenerator =
+                KinesisDataStreamsSinkITCase.this.partitionKeyGenerator;
 
         public void runScenario() throws Exception {
             prepareStream(kinesaliteStreamName);
@@ -216,7 +210,8 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
 
             KinesisDataStreamsSink<String> kdsSink =
                     KinesisDataStreamsSink.<String>builder()
-                            .setElementConverter(elementConverter)
+                            .setSerializationSchema(serializationSchema)
+                            .setPartitionKeyGenerator(partitionKeyGenerator)
                             .setMaxTimeInBufferMS(bufferMaxTimeMS)
                             .setMaxInFlightRequests(maxInflightReqs)
                             .setMaxBatchSize(maxBatchSize)
@@ -299,9 +294,14 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
             return this;
         }
 
-        public Scenario withElementConverter(
-                ElementConverter<String, PutRecordsRequestEntry> elementConverter) {
-            this.elementConverter = elementConverter;
+        public Scenario withSerializationSchema(SerializationSchema<String> serializationSchema) {
+            this.serializationSchema = serializationSchema;
+            return this;
+        }
+
+        public Scenario withPartitionKeyGenerator(
+                PartitionKeyGenerator<String> partitionKeyGenerator) {
+            this.partitionKeyGenerator = partitionKeyGenerator;
             return this;
         }
 

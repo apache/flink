@@ -19,16 +19,13 @@ package org.apache.flink.connector.kinesis.sink.examples;
 
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
-import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSink;
-import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSinkElementConverter;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
-import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 import software.amazon.awssdk.utils.ImmutableMap;
 
 import java.util.Properties;
@@ -42,12 +39,6 @@ import java.util.Properties;
  * environment variables etc.
  */
 public class SinkIntoKinesis {
-
-    private static final ElementConverter<String, PutRecordsRequestEntry> elementConverter =
-            KinesisDataStreamsSinkElementConverter.<String>builder()
-                    .setSerializationSchema(new SimpleStringSchema())
-                    .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))
-                    .build();
 
     public static void main(String[] args) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
@@ -65,7 +56,8 @@ public class SinkIntoKinesis {
 
         KinesisDataStreamsSink<String> kdsSink =
                 KinesisDataStreamsSink.<String>builder()
-                        .setElementConverter(elementConverter)
+                        .setSerializationSchema(new SimpleStringSchema())
+                        .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))
                         .setStreamName("your-stream-name")
                         .setMaxBatchSize(20)
                         .setKinesisClientProperties(sinkProperties)

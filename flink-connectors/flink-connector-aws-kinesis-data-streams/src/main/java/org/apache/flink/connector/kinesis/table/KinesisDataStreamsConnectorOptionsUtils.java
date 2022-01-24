@@ -26,7 +26,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.connector.aws.table.util.AWSOptionUtils;
 import org.apache.flink.connector.base.table.sink.options.AsyncSinkConfigurationValidator;
-import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSinkElementConverter;
+import org.apache.flink.connector.kinesis.sink.PartitionKeyGenerator;
 import org.apache.flink.connector.kinesis.table.util.KinesisAsyncClientOptionsUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
@@ -65,7 +65,7 @@ public class KinesisDataStreamsConnectorOptionsUtils {
     private final AsyncSinkConfigurationValidator asyncSinkconfigurationValidator;
     private final Map<String, String> resolvedOptions;
     private final ReadableConfig tableOptions;
-    private final KinesisDataStreamsSinkElementConverter.PartitionKeyGenerator<RowData> partitioner;
+    private final PartitionKeyGenerator<RowData> partitioner;
 
     /**
      * Prefixes of properties that are validated by downstream components and should not be

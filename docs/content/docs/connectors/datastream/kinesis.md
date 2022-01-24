@@ -589,12 +589,6 @@ For the monitoring to work, the user accessing the stream needs access to the Cl
 {{< tabs "6df3b696-c2ca-4f44-bea0-96cf8275d61c" >}}
 {{< tab "Java" >}}
 ```java
-ElementConverter<String, PutRecordsRequestEntry> elementConverter =
-    KinesisDataStreamsSinkElementConverter.<String>builder()
-        .setSerializationSchema(new SimpleStringSchema())
-        .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))
-        .build();
-
 Properties sinkProperties = new Properties();
 // Required
 sinkProperties.put(AWSConfigConstants.AWS_REGION, "us-east-1");
@@ -605,16 +599,17 @@ sinkProperties.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_
 
 KinesisDataStreamsSink<String> kdsSink =
     KinesisDataStreamsSink.<String>builder()
-        .setKinesisClientProperties(sinkProperties)    // Required
-        .setElementConverter(elementConverter)         // Required
-        .setStreamName("your-stream-name")             // Required
-        .setFailOnError(false)                         // Optional
-        .setMaxBatchSize(500)                          // Optional
-        .setMaxInFlightRequests(16)                    // Optional
-        .setMaxBufferedRequests(10_000)                // Optional
-        .setMaxBatchSizeInBytes(5 * 1024 * 1024)       // Optional
-        .setMaxTimeInBufferMS(5000)                    // Optional
-        .setMaxRecordSizeInBytes(1 * 1024 * 1024)      // Optional
+        .setKinesisClientProperties(sinkProperties)                               // Required
+        .setSerializationSchema(new SimpleStringSchema())                         // Required
+        .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))  // Required
+        .setStreamName("your-stream-name")                                        // Required
+        .setFailOnError(false)                                                    // Optional
+        .setMaxBatchSize(500)                                                     // Optional
+        .setMaxInFlightRequests(16)                                               // Optional
+        .setMaxBufferedRequests(10_000)                                           // Optional
+        .setMaxBatchSizeInBytes(5 * 1024 * 1024)                                  // Optional
+        .setMaxTimeInBufferMS(5000)                                               // Optional
+        .setMaxRecordSizeInBytes(1 * 1024 * 1024)                                 // Optional
         .build();
 
 DataStream<String> simpleStringStream = ...;
@@ -623,12 +618,6 @@ simpleStringStream.sinkTo(kdsSink);
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val elementConverter =
-    KinesisDataStreamsSinkElementConverter.<String>builder()
-        .setSerializationSchema(new SimpleStringSchema())
-        .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))
-        .build()
-
 val sinkProperties = new Properties()
 // Required
 sinkProperties.put(AWSConfigConstants.AWS_REGION, "us-east-1")
@@ -638,16 +627,17 @@ sinkProperties.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
 sinkProperties.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
 
 val kdsSink = KinesisDataStreamsSink.<String>builder()
-    .setKinesisClientProperties(sinkProperties)  // Required
-    .setElementConverter(elementConverter)       // Required
-    .setStreamName("your-stream-name")           // Required
-    .setFailOnError(false)                       // Optional
-    .setMaxBatchSize(500)                        // Optional
-    .setMaxInFlightRequests(16)                  // Optional
-    .setMaxBufferedRequests(10000)               // Optional
-    .setMaxBatchSizeInBytes(5 * 1024 * 1024)     // Optional
-    .setMaxTimeInBufferMS(5000)                  // Optional
-    .setMaxRecordSizeInBytes(1 * 1024 * 1024)    // Optional
+    .setKinesisClientProperties(sinkProperties)                               // Required
+    .setSerializationSchema(new SimpleStringSchema())                         // Required
+    .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))  // Required
+    .setStreamName("your-stream-name")                                        // Required
+    .setFailOnError(false)                                                    // Optional
+    .setMaxBatchSize(500)                                                     // Optional
+    .setMaxInFlightRequests(16)                                               // Optional
+    .setMaxBufferedRequests(10000)                                            // Optional
+    .setMaxBatchSizeInBytes(5 * 1024 * 1024)                                  // Optional
+    .setMaxTimeInBufferMS(5000)                                               // Optional
+    .setMaxRecordSizeInBytes(1 * 1024 * 1024)                                 // Optional
     .build()
 
 val simpleStringStream = ...

@@ -17,8 +17,7 @@
 
 package org.apache.flink.connector.kinesis.sink;
 
-import org.apache.flink.annotation.Experimental;
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
@@ -27,15 +26,12 @@ import org.apache.flink.util.Preconditions;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 
-import java.io.Serializable;
-import java.util.function.Function;
-
 /**
  * An implementation of the {@link ElementConverter} that uses the AWS Kinesis SDK v2. The user only
  * needs to provide a {@link SerializationSchema} of the {@code InputT} and a {@link
  * PartitionKeyGenerator} lambda to transform the input element into a String.
  */
-@PublicEvolving
+@Internal
 public class KinesisDataStreamsSinkElementConverter<InputT>
         implements ElementConverter<InputT, PutRecordsRequestEntry> {
 
@@ -54,7 +50,6 @@ public class KinesisDataStreamsSinkElementConverter<InputT>
         this.partitionKeyGenerator = partitionKeyGenerator;
     }
 
-    @Experimental
     @Override
     public PutRecordsRequestEntry apply(InputT element, SinkWriter.Context context) {
         return PutRecordsRequestEntry.builder()
@@ -63,20 +58,11 @@ public class KinesisDataStreamsSinkElementConverter<InputT>
                 .build();
     }
 
-    /**
-     * This is a serializable function whose {@code accept()} method specifies how to convert from
-     * an input element to the partition key, a string.
-     */
-    @PublicEvolving
-    @FunctionalInterface
-    public interface PartitionKeyGenerator<InputT> extends Function<InputT, String>, Serializable {}
-
     public static <InputT> Builder<InputT> builder() {
         return new Builder<>();
     }
 
     /** A builder for the KinesisDataStreamsSinkElementConverter. */
-    @PublicEvolving
     public static class Builder<InputT> {
 
         private SerializationSchema<InputT> serializationSchema;
@@ -94,7 +80,6 @@ public class KinesisDataStreamsSinkElementConverter<InputT>
             return this;
         }
 
-        @Experimental
         public KinesisDataStreamsSinkElementConverter<InputT> build() {
             Preconditions.checkNotNull(
                     serializationSchema,
