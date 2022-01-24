@@ -664,7 +664,7 @@ under the License.
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
 									<artifactId>flink-shaded-zookeeper-3</artifactId>
-									<version>${zookeeper.optional.version}-${flink.shaded.version}</version>
+									<version>${zookeeper.optional.version}-14.0</version>
 									<type>jar</type>
 									<overWrite>true</overWrite>
 								</artifactItem>

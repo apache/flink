@@ -48,7 +48,7 @@ under the License.
 			<outputDirectory>lib</outputDirectory>
 			<unpack>false</unpack>
 			<includes>
-				<include>org.apache.flink:flink-shaded-zookeeper-3:jar:${zookeeper.version}-${flink.shaded.version}</include>
+				<include>org.apache.flink:flink-shaded-zookeeper-3:jar:${zookeeper.version}-14.0</include>
 			</includes>
 			<outputFileNameMapping>flink-shaded-zookeeper-${zookeeper.version}.jar</outputFileNameMapping>
 		</dependencySet>

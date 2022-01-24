@@ -126,7 +126,7 @@
 		</file>
 
 		<file>
-			<source>target/temporary/flink-shaded-zookeeper-3-${zookeeper.optional.version}-${flink.shaded.version}.jar</source>
+			<source>target/temporary/flink-shaded-zookeeper-3-${zookeeper.optional.version}-14.0.jar</source>
 			<outputDirectory>opt</outputDirectory>
 			<destName>flink-shaded-zookeeper-${zookeeper.optional.version}.jar</destName>
 			<fileMode>0644</fileMode>
