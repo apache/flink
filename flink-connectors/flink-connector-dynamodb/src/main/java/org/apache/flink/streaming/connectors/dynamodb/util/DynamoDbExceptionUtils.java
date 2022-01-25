@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.util;
 
+import org.apache.flink.annotation.Internal;
+
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.exception.ApiCallAttemptTimeoutException;
 import software.amazon.awssdk.core.exception.SdkClientException;
@@ -26,6 +28,7 @@ import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
 import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 
 /** A collection of utility functions to simplify work with DynamoDB service exceptions. */
+@Internal
 public class DynamoDbExceptionUtils {
 
     public static boolean isServiceException(Throwable e) {

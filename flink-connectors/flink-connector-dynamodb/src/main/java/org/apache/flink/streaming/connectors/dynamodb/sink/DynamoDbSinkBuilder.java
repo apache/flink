@@ -29,7 +29,44 @@ import java.util.Properties;
 /**
  * Builder to construct {@link DynamoDbSink}.
  *
- * @param <InputT> input records to the sink
+ * <p>The following example shows the minimum setup to create a {@link DynamoDbSink} that writes
+ * records into DynamoDb
+ *
+ * <pre>{@code
+ * private static class DummyElementConverter
+ *         implements ElementConverter<String, DynamoDbWriteRequest> {
+ *
+ *     @Override
+ *     public DynamoDbWriteRequest apply(String element, SinkWriter.Context context) {
+ *         final Map<String, AttributeValue> map = new HashMap<>();
+ *         map.put("your-key", AttributeValue.builder().s(element).build());
+ *         return new DynamoDbWriteRequest(
+ *                 "your-table-name",
+ *                 WriteRequest.builder()
+ *                         .putRequest(PutRequest.builder().item(map).build())
+ *                         .build());
+ *      }
+ * }
+ * DynamoDbSink<String> dynamoDbSink = DynamoDbSink.<String>builder()
+ *                                          .setElementConverter(new DummyElementConverter())
+ *                                       .build();
+ * }</pre>
+ *
+ * <p>If the following parameters are not set in this builder, the following defaults will be used:
+ *
+ * <ul>
+ *   <li>{@code maxBatchSize} will be 25
+ *   <li>{@code maxInFlightRequests} will be 10
+ *   <li>{@code maxBufferedRequests} will be 10000
+ *   <li>{@code maxBatchSizeInBytes} will be 16 MB i.e. {@code 16 * 1000 * 1000}
+ *   <li>{@code maxTimeInBufferMS} will be 5000ms
+ *   <li>{@code maxRecordSizeInBytes} will be 400 KB i.e. {@code 400 * 1000 * 1000}
+ *   <li>{@code failOnError} will be false
+ *   <li>{@code dynamoDbTablesConfig} will be empty meaning no records deduplication will be
+ *       performed by the sink
+ * </ul>
+ *
+ * @param <InputT> type of elements that should be persisted in the destination
  */
 @PublicEvolving
 public class DynamoDbSinkBuilder<InputT>
@@ -69,8 +106,10 @@ public class DynamoDbSinkBuilder<InputT>
     }
 
     /**
-     * @param dynamoDbTablesConfig the {@link DynamoDbTablesConfig} to be used for the sink
-     * @return
+     * @param dynamoDbTablesConfig the {@link DynamoDbTablesConfig} if provided for the table, the
+     *     DynamoDb sink will attempt to deduplicate records with the same primary and/or secondary
+     *     keys in the same batch request. Only the latest record with the same combination of key
+     *     attributes is preserved in the request.
      */
     public DynamoDbSinkBuilder<InputT> setDynamoDbTablesConfig(
             DynamoDbTablesConfig dynamoDbTablesConfig) {

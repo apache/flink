@@ -32,8 +32,9 @@ import java.util.Map;
 
 /**
  * Container to accumulate requests in batches per table. De-duplicates batch request entities as
- * per PrimaryKey definition as DynamoDB batch API doesn't allow writing entities with the same
- * primary key in one batch request.
+ * per PrimaryKey definition. DynamoDB Batch API rejects the whole batch request if the request
+ * contains at least two items with identical hash and range keys (which essentially is two put
+ * operations).
  */
 class TableRequestsContainer {
 

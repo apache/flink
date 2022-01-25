@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
@@ -42,6 +43,7 @@ import java.util.Optional;
 import java.util.Properties;
 
 /** Some utilities specific to Amazon Web Service. */
+@Internal
 public class AWSDynamoDbUtil extends AWSGeneralUtil {
 
     public static DynamoDbAsyncClient createClient(final Properties properties) {

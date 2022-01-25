@@ -24,7 +24,7 @@ import java.io.Serializable;
 import java.util.Objects;
 
 /**
- * represents a single DynamoDb {@link WriteRequest}. contains the name of the DynamoDb table name
+ * Represents a single DynamoDb {@link WriteRequest}. Contains the name of the DynamoDb table name
  * to write to as well as the {@link WriteRequest}
  */
 public class DynamoDbWriteRequest implements Serializable {
