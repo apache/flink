@@ -45,6 +45,7 @@ final class BulkPartWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter
 
     @Override
     public void write(IN element, long currentTime) throws IOException {
+        ensureWriteType(Type.RECORD_WISE);
         writer.addElement(element);
         markWrite(currentTime);
     }
