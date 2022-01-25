@@ -22,7 +22,6 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCallBinding;
-import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -38,7 +37,7 @@ import java.util.List;
  * rowtime attribute. If there is no operand, the function will return rowtime attribute with
  * TIMESTAMP type. Otherwise, the return type will be same with the operand type.
  */
-public class MatchRowTimeFunction extends SqlFunction {
+public class MatchRowTimeFunction extends BuiltInSqlFunction {
 
     public MatchRowTimeFunction() {
         super(
