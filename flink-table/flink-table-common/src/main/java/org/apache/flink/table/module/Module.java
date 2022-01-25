@@ -36,7 +36,7 @@ import java.util.Set;
 public interface Module {
 
     /**
-     * List names of all functions in this module.
+     * List names of all functions in this module. It excludes internal functions.
      *
      * @return a set of function names
      */
@@ -45,7 +45,22 @@ public interface Module {
     }
 
     /**
+     * List names of all functions in this module.
+     *
+     * <p>A module can decide to hide certain functions. For example, internal functions that can be
+     * resolved via {@link #getFunctionDefinition(String)} but should not be listed by default.
+     *
+     * @param includeHiddenFunctions whether to list hidden functions or not
+     * @return a set of function names
+     */
+    default Set<String> listFunctions(boolean includeHiddenFunctions) {
+        return listFunctions();
+    }
+
+    /**
      * Get an optional of {@link FunctionDefinition} by a given name.
+     *
+     * <p>It includes hidden functions even though not listed in {@link #listFunctions()}.
      *
      * @param name name of the {@link FunctionDefinition}.
      * @return an optional function definition
