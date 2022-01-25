@@ -1074,9 +1074,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(INTERVAL(DAY()), Duration.ofHours(36), "+1 12:00:00.000")
                         .fromCase(ARRAY(INT().nullable()), new Integer[] {null, 456}, "[NULL, 456]")
                         .fromCase(
-                                MAP(STRING(), INTERVAL(MONTH()).nullable()),
-                                map(entry("a", -123), entry("b", null)),
-                                "{a=-10-03, b=NULL}")
+                                MAP(STRING(), INTERVAL(MONTH())),
+                                map(entry("a", -123)),
+                                "{a=-10-03}")
                         .fromCase(
                                 ROW(FIELD("f0", INT().nullable()), FIELD("f1", STRING())),
                                 Row.of(null, "abc"),
