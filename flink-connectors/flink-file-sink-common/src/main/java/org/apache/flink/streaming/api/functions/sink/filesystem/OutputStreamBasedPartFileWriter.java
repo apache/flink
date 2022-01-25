@@ -30,6 +30,8 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.IOUtils;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Objects;
 
 /**
  * The base class for all the part file writer that use {@link
@@ -39,9 +41,12 @@ import java.io.IOException;
  * @param <BucketID> the bucket type
  */
 public abstract class OutputStreamBasedPartFileWriter<IN, BucketID>
-        extends AbstractPartFileWriter<IN, BucketID> {
+        extends AbstractPartFileWriter<IN, BucketID>
+        implements OutputStreamBasedCompactingFileWriter {
 
     final RecoverableFsDataOutputStream currentPartStream;
+
+    private CompactingFileWriter.Type writeType = null;
 
     OutputStreamBasedPartFileWriter(
             final BucketID bucketID,
@@ -74,6 +79,27 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID>
         return currentPartStream.getPos();
     }
 
+    @Override
+    public OutputStream asOutputStream() throws IOException {
+        ensureWriteType(Type.OUTPUT_STREAM);
+        return currentPartStream;
+    }
+
+    protected void ensureWriteType(Type type) {
+        if (type != this.writeType) {
+            if (this.writeType == null) {
+                this.writeType = type;
+            } else {
+                throw new IllegalStateException(
+                        "Writer has already been opened as "
+                                + writeType
+                                + " type, but trying to reopen it as "
+                                + type
+                                + " type.");
+            }
+        }
+    }
+
     abstract static class OutputStreamBasedBucketWriter<IN, BucketID>
             implements BucketWriter<IN, BucketID> {
 
@@ -88,6 +114,14 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID>
                 final BucketID bucketID, final Path path, final long creationTime)
                 throws IOException {
             return openNew(bucketID, recoverableWriter.open(path), path, creationTime);
+        }
+
+        @Override
+        public CompactingFileWriter openNewCompactingFile(
+                CompactingFileWriter.Type type, BucketID bucketID, Path path, long creationTime)
+                throws IOException {
+            // Both types are supported, overwrite to avoid UnsupportedOperationException.
+            return openNewInProgressFile(bucketID, path, creationTime);
         }
 
         @Override

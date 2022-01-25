@@ -27,14 +27,15 @@ import java.io.IOException;
 
 /**
  * A {@link InProgressFileWriter} for row-wise formats that use an {@link Encoder}. This also
- * implements the {@link PartFileInfo}.
+ * implements the {@link PartFileInfo} and the {@link OutputStreamBasedCompactingFileWriter}.
  */
 @Internal
-final class RowWisePartWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter<IN, BucketID> {
+public final class RowWisePartWriter<IN, BucketID>
+        extends OutputStreamBasedPartFileWriter<IN, BucketID> {
 
     private final Encoder<IN> encoder;
 
-    RowWisePartWriter(
+    public RowWisePartWriter(
             final BucketID bucketId,
             final RecoverableFsDataOutputStream currentPartStream,
             final Encoder<IN> encoder,
@@ -45,6 +46,7 @@ final class RowWisePartWriter<IN, BucketID> extends OutputStreamBasedPartFileWri
 
     @Override
     public void write(final IN element, final long currentTime) throws IOException {
+        ensureWriteType(Type.RECORD_WISE);
         encoder.encode(element, currentPartStream);
         markWrite(currentTime);
     }
