@@ -3,22 +3,53 @@
   "nodes" : [ {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
     "scanTableSource" : {
-      "identifier" : "`default_catalog`.`default_database`.`srcValuesTable`",
-      "catalogTable" : {
-        "disable-lookup" : "true",
-        "schema.4.expr" : "PROCTIME()",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "product",
-        "schema.1.name" : "user",
-        "bounded" : "false",
-        "schema.4.name" : "proctime",
-        "schema.1.data-type" : "VARCHAR(2147483647)",
-        "schema.3.data-type" : "TIMESTAMP(3)",
-        "schema.2.data-type" : "VARCHAR(2147483647)",
-        "schema.3.name" : "order_time",
-        "connector" : "values",
-        "schema.4.data-type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL",
-        "schema.0.name" : "order_id"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`srcValuesTable`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "order_id",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "user",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "product",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "order_time",
+              "dataType" : "TIMESTAMP(3)"
+            }, {
+              "name" : "proctime",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "REX_CALL",
+                  "operator" : {
+                    "name" : "PROCTIME",
+                    "kind" : "OTHER_FUNCTION",
+                    "syntax" : "FUNCTION"
+                  },
+                  "operands" : [ ],
+                  "type" : {
+                    "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                    "nullable" : false,
+                    "precision" : 3,
+                    "kind" : "PROCTIME"
+                  }
+                },
+                "serializableString" : "PROCTIME()"
+              }
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "disable-lookup" : "true",
+            "connector" : "values",
+            "bounded" : "false"
+          }
+        }
       }
     },
     "id" : 1,
@@ -200,18 +231,31 @@
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {
-      "identifier" : "`default_catalog`.`default_database`.`sink`",
-      "catalogTable" : {
-        "schema.3.data-type" : "TIMESTAMP(3)",
-        "table-sink-class" : "DEFAULT",
-        "schema.2.data-type" : "VARCHAR(2147483647)",
-        "schema.3.name" : "order_time",
-        "connector" : "values",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "product",
-        "schema.1.name" : "user",
-        "schema.0.name" : "order_id",
-        "schema.1.data-type" : "VARCHAR(2147483647)"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "order_id",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "user",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "product",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "order_time",
+              "dataType" : "TIMESTAMP(3)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "table-sink-class" : "DEFAULT"
+          }
+        }
       }
     },
     "inputChangelogMode" : [ "INSERT" ],

@@ -3,18 +3,31 @@
   "nodes" : [ {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
     "scanTableSource" : {
-      "identifier" : "`default_catalog`.`default_database`.`MyTable`",
-      "catalogTable" : {
-        "schema.3.data-type" : "BIGINT",
-        "schema.2.data-type" : "VARCHAR(2147483647)",
-        "schema.3.name" : "d",
-        "connector" : "values",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "c",
-        "schema.1.name" : "b",
-        "bounded" : "false",
-        "schema.0.name" : "a",
-        "schema.1.data-type" : "INT NOT NULL"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MyTable`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "c",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "d",
+              "dataType" : "BIGINT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "bounded" : "false"
+          }
+        }
       }
     },
     "id" : 1,
@@ -531,25 +544,41 @@
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {
-      "identifier" : "`default_catalog`.`default_database`.`MySink`",
-      "catalogTable" : {
-        "schema.5.name" : "avg_b",
-        "sink-insert-only" : "false",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "cnt_a2",
-        "schema.1.name" : "cnt_a1",
-        "schema.6.data-type" : "BIGINT",
-        "schema.4.name" : "sum_b",
-        "schema.1.data-type" : "BIGINT",
-        "schema.3.data-type" : "BIGINT",
-        "table-sink-class" : "DEFAULT",
-        "schema.2.data-type" : "BIGINT",
-        "schema.3.name" : "sum_a",
-        "connector" : "values",
-        "schema.6.name" : "cnt_c",
-        "schema.5.data-type" : "DOUBLE",
-        "schema.4.data-type" : "INT",
-        "schema.0.name" : "d"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "d",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "cnt_a1",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "cnt_a2",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "sum_a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "sum_b",
+              "dataType" : "INT"
+            }, {
+              "name" : "avg_b",
+              "dataType" : "DOUBLE"
+            }, {
+              "name" : "cnt_c",
+              "dataType" : "BIGINT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "sink-insert-only" : "false",
+            "table-sink-class" : "DEFAULT",
+            "connector" : "values"
+          }
+        }
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER" ],
