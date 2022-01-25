@@ -28,7 +28,7 @@ import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.DefaultMultipleComponentLeaderElectionService;
@@ -83,7 +83,7 @@ public class KubernetesMultipleComponentLeaderElectionHaServices extends Abstrac
             BlobStoreService blobStoreService,
             FatalErrorHandler fatalErrorHandler) {
 
-        super(config, executor, blobStoreService);
+        super(config, executor, blobStoreService, new EmbeddedJobResultStore());
         this.kubeClient = checkNotNull(kubeClient);
         this.clusterId = checkNotNull(config.get(KubernetesConfigOptions.CLUSTER_ID));
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
@@ -165,11 +165,6 @@ public class KubernetesMultipleComponentLeaderElectionHaServices extends Abstrac
 
     private String getClusterConfigMap() {
         return clusterId + NAME_SEPARATOR + "cluster-config-map";
-    }
-
-    @Override
-    protected RunningJobsRegistry createRunningJobsRegistry() {
-        return new KubernetesRunningJobsRegistry(kubeClient, getClusterConfigMap(), lockIdentity);
     }
 
     @Override

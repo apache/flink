@@ -643,7 +643,7 @@ public class ApplicationDispatcherBootstrapTest {
      * In this scenario, job result is no longer present in the {@link
      * org.apache.flink.runtime.dispatcher.Dispatcher dispatcher} (job has terminated and job
      * manager failed over), but we know that job has already terminated from {@link
-     * org.apache.flink.runtime.highavailability.RunningJobsRegistry running jobs registry}.
+     * org.apache.flink.runtime.highavailability.JobResultStore}.
      */
     @Test
     public void testDuplicateJobSubmissionWithTerminatedJobIdWithUnknownResult() throws Throwable {
@@ -677,7 +677,7 @@ public class ApplicationDispatcherBootstrapTest {
      * In this scenario, job result is no longer present in the {@link
      * org.apache.flink.runtime.dispatcher.Dispatcher dispatcher} (job has terminated and job
      * manager failed over), but we know that job has already terminated from {@link
-     * org.apache.flink.runtime.highavailability.RunningJobsRegistry running jobs registry}.
+     * org.apache.flink.runtime.highavailability.JobResultStore}.
      */
     @Test
     public void testDuplicateJobSubmissionWithTerminatedJobIdWithUnknownResultAttached()

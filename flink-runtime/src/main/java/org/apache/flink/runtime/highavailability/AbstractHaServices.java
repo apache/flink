@@ -47,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * resources.
  *
  * <p>The abstract class is also responsible for determining which component service should be
- * reused. For example, {@link #runningJobsRegistry} is created once and could be reused many times.
+ * reused. For example, {@link #jobResultStore} is created once and could be reused many times.
  */
 public abstract class AbstractHaServices implements HighAvailabilityServices {
 
@@ -62,15 +62,18 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     /** Store for arbitrary blobs. */
     private final BlobStoreService blobStoreService;
 
-    /** The distributed storage based running jobs registry. */
-    private RunningJobsRegistry runningJobsRegistry;
+    private final JobResultStore jobResultStore;
 
-    public AbstractHaServices(
-            Configuration config, Executor ioExecutor, BlobStoreService blobStoreService) {
+    protected AbstractHaServices(
+            Configuration config,
+            Executor ioExecutor,
+            BlobStoreService blobStoreService,
+            JobResultStore jobResultStore) {
 
         this.configuration = checkNotNull(config);
         this.ioExecutor = checkNotNull(ioExecutor);
         this.blobStoreService = checkNotNull(blobStoreService);
+        this.jobResultStore = checkNotNull(jobResultStore);
     }
 
     @Override
@@ -130,11 +133,8 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     }
 
     @Override
-    public RunningJobsRegistry getRunningJobsRegistry() {
-        if (runningJobsRegistry == null) {
-            this.runningJobsRegistry = createRunningJobsRegistry();
-        }
-        return runningJobsRegistry;
+    public JobResultStore getJobResultStore() throws Exception {
+        return jobResultStore;
     }
 
     @Override
@@ -242,13 +242,6 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
      * @throws Exception if the submitted job graph store could not be created
      */
     protected abstract JobGraphStore createJobGraphStore() throws Exception;
-
-    /**
-     * Create the registry that holds information about whether jobs are currently running.
-     *
-     * @return Running job registry to retrieve running jobs
-     */
-    protected abstract RunningJobsRegistry createRunningJobsRegistry();
 
     /**
      * Closes the components which is used for external operations(e.g. Zookeeper Client, Kubernetes

@@ -169,11 +169,12 @@ public interface HighAvailabilityServices extends ClientHighAvailabilityServices
     JobGraphStore getJobGraphStore() throws Exception;
 
     /**
-     * Gets the registry that holds information about whether jobs are currently running.
+     * Gets the store that holds information about the state of finished jobs.
      *
-     * @return Running job registry to retrieve running jobs
+     * @return Store of finished job results
+     * @throws Exception if job result store could not be created
      */
-    RunningJobsRegistry getRunningJobsRegistry() throws Exception;
+    JobResultStore getJobResultStore() throws Exception;
 
     /**
      * Creates the BLOB store in which BLOBs are stored in a highly-available fashion.

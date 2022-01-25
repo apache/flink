@@ -24,7 +24,7 @@ import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 
@@ -46,7 +46,7 @@ public abstract class AbstractZooKeeperHaServices extends AbstractHaServices {
             Executor executor,
             Configuration configuration,
             BlobStoreService blobStoreService) {
-        super(configuration, executor, blobStoreService);
+        super(configuration, executor, blobStoreService, new EmbeddedJobResultStore());
         this.curatorFrameworkWrapper = checkNotNull(curatorFrameworkWrapper);
     }
 
@@ -66,12 +66,6 @@ public abstract class AbstractZooKeeperHaServices extends AbstractHaServices {
     @Override
     public JobGraphStore createJobGraphStore() throws Exception {
         return ZooKeeperUtils.createJobGraphs(
-                curatorFrameworkWrapper.asCuratorFramework(), configuration);
-    }
-
-    @Override
-    public RunningJobsRegistry createRunningJobsRegistry() {
-        return new ZooKeeperRunningJobsRegistry(
                 curatorFrameworkWrapper.asCuratorFramework(), configuration);
     }
 
