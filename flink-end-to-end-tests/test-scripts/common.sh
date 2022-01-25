@@ -51,6 +51,19 @@ cd $TEST_ROOT
 
 source "${TEST_INFRA_DIR}/common_utils.sh"
 
+echo "***************** Debug Hostname Resolve *****************"
+echo "\$NODENAME is ${NODENAME}"
+echo "hostname -f returns $(hostname -f)"
+echo "/etc/hosts:"
+cat /etc/hosts
+ORIGIN_NODENAME=${NODENAME:-`hostname -f`}
+echo "ORIGIN_NODENAME is ${ORIGIN_NODENAME}"
+if command -v nslookup;then
+  for i in {0..4};do
+    nslookup ${ORIGIN_NODENAME}
+  done
+fi
+echo "**********************************************************"
 NODENAME=${NODENAME:-`hostname -f`}
 
 # REST_PROTOCOL and CURL_SSL_ARGS can be modified in common_ssl.sh if SSL is activated
