@@ -37,7 +37,7 @@ import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ConfigurationException;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -51,14 +51,13 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 import org.apache.flink.shaded.netty4.io.netty.util.Attribute;
 import org.apache.flink.shaded.netty4.io.netty.util.AttributeKey;
 
-import org.hamcrest.core.StringContains;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nonnull;
 
+import java.io.File;
 import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -67,16 +66,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link AbstractHandler}. */
-public class AbstractHandlerTest extends TestLogger {
-
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+@ExtendWith(TestLoggerExtension.class)
+class AbstractHandlerTest {
 
     private static final RestfulGateway mockRestfulGateway =
             TestingDispatcherGateway.newBuilder().build();
@@ -105,7 +103,7 @@ public class AbstractHandlerTest extends TestLogger {
     }
 
     @Test
-    public void testOOMErrorMessageEnrichment() throws Exception {
+    void testOOMErrorMessageEnrichment() throws Exception {
         final TestMessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters>
                 messageHeaders =
                         TestMessageHeaders.emptyBuilder()
@@ -134,22 +132,19 @@ public class AbstractHandlerTest extends TestLogger {
                             messageHeaders,
                             EmptyMessageParameters.getInstance(),
                             EmptyRequestBody.getInstance());
-            try {
-                response.get();
-                fail(
-                        "An ExecutionException was expected here being caused by the OutOfMemoryError.");
-            } catch (ExecutionException e) {
-                assertThat(
-                        e.getMessage(),
-                        StringContains.containsString(
-                                "Metaspace. The metaspace out-of-memory error has occurred. "));
-            }
+
+            assertThatThrownBy(response::get)
+                    .as(
+                            "An ExecutionException was expected here being caused by the OutOfMemoryError.")
+                    .isInstanceOf(ExecutionException.class)
+                    .hasMessageContaining(
+                            "Metaspace. The metaspace out-of-memory error has occurred. ");
         }
     }
 
     @Test
-    public void testFileCleanup() throws Exception {
-        final Path dir = temporaryFolder.newFolder().toPath();
+    void testFileCleanup(@TempDir File temporaryFolder) throws Exception {
+        final Path dir = temporaryFolder.toPath();
         final Path file = dir.resolve("file");
         Files.createFile(file);
 
@@ -183,9 +178,9 @@ public class AbstractHandlerTest extends TestLogger {
         handler.respondAsLeader(context, routerRequest, mockRestfulGateway);
 
         // the (asynchronous) request processing is not yet complete so the files should still exist
-        Assert.assertTrue(Files.exists(file));
+        assertThat(Files.exists(file)).isTrue();
         requestProcessingCompleteFuture.complete(null);
-        Assert.assertFalse(Files.exists(file));
+        assertThat(Files.exists(file)).isFalse();
     }
 
     private static class SimpleAttribute implements Attribute<FileUploads> {
