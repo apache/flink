@@ -30,7 +30,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
+import org.apache.flink.runtime.rpc.exceptions.EndpointNotStartedException;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.rpc.exceptions.RpcException;
@@ -135,9 +135,9 @@ class AkkaRpcActorTest {
 
         DummyRpcGateway rpcGateway = rpcEndpoint.getSelfGateway(DummyRpcGateway.class);
 
-        // this message should be discarded and completed with an AkkaRpcException
+        // this message should be discarded and complete with an exception
         assertThatThrownBy(() -> rpcGateway.foobar().get(timeout.getSize(), timeout.getUnit()))
-                .hasCauseInstanceOf(AkkaRpcException.class);
+                .hasCauseInstanceOf(EndpointNotStartedException.class);
 
         // set a new value which we expect to be returned
         rpcEndpoint.setFoobar(expectedValue);

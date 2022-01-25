@@ -48,6 +48,7 @@ import org.apache.flink.runtime.rest.util.TestRestHandler;
 import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.rpc.RpcUtils;
+import org.apache.flink.runtime.rpc.exceptions.EndpointNotStartedException;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -97,6 +98,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -106,6 +108,7 @@ import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -246,6 +249,7 @@ public class RestServerEndpointITCase extends TestLogger {
                         .withHandler(
                                 WebContentHandlerSpecification.getInstance(),
                                 staticFileServerHandler)
+                        .withHandler(new TestUnavailableHandler(mockGatewayRetriever))
                         .buildAndStart();
         restClient = new RestClient(config, EXECUTOR_RESOURCE.getExecutor());
 
@@ -701,6 +705,21 @@ public class RestServerEndpointITCase extends TestLogger {
                         return null;
                     }
                 });
+    }
+
+    @Test
+    public void testOnUnavailableRpcEndpointReturns503() throws IOException {
+        CompletableFuture<EmptyResponseBody> response =
+                restClient.sendRequest(
+                        serverAddress.getHostName(),
+                        serverAddress.getPort(),
+                        TestUnavailableHeaders.INSTANCE);
+
+        assertThatThrownBy(response::get)
+                .extracting(x -> ExceptionUtils.findThrowable(x, RestClientException.class))
+                .extracting(Optional::get)
+                .extracting(RestClientException::getHttpResponseStatus)
+                .isEqualTo(HttpResponseStatus.SERVICE_UNAVAILABLE);
     }
 
     private static File getTestResource(final String fileName) {
@@ -1161,6 +1180,59 @@ public class RestServerEndpointITCase extends TestLogger {
         @Override
         public boolean acceptsFileUploads() {
             return true;
+        }
+    }
+
+    private enum TestUnavailableHeaders
+            implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+        INSTANCE;
+
+        @Override
+        public HttpMethodWrapper getHttpMethod() {
+            return HttpMethodWrapper.GET;
+        }
+
+        @Override
+        public String getTargetRestEndpointURL() {
+            return "/unavailable";
+        }
+
+        @Override
+        public Class<EmptyRequestBody> getRequestClass() {
+            return EmptyRequestBody.class;
+        }
+
+        @Override
+        public Class<EmptyResponseBody> getResponseClass() {
+            return EmptyResponseBody.class;
+        }
+
+        @Override
+        public HttpResponseStatus getResponseStatusCode() {
+            return HttpResponseStatus.OK;
+        }
+
+        @Override
+        public String getDescription() {
+            return "";
+        }
+
+        @Override
+        public EmptyMessageParameters getUnresolvedMessageParameters() {
+            return EmptyMessageParameters.getInstance();
+        }
+    }
+
+    private static class TestUnavailableHandler
+            extends TestRestHandler<
+                    RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+
+        protected TestUnavailableHandler(GatewayRetriever<RestfulGateway> leaderRetriever) {
+            super(
+                    leaderRetriever,
+                    TestUnavailableHeaders.INSTANCE,
+                    FutureUtils.completedExceptionally(
+                            new EndpointNotStartedException("test exception")));
         }
     }
 }
