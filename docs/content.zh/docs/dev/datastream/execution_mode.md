@@ -201,11 +201,11 @@ Checkpointing 用于故障恢复的特点之一是，在发生故障时，Flink 
 
 `批`模式下的行为变化：
 
-* “滚动"操作，如 [reduce()]({{< ref "docs/dev/datastream/operators/overview" >}}#reduce) 或 [sum()]({{< ref "docs/dev/datastream/operators/overview" >}}#aggregations)，会对`流`模式下每一条新记录发出增量更新。在`批`模式下，这些操作不是"滚动”。它们只发出最终结果。
+* “滚动"操作，如 [reduce()]({{< ref "docs/dev/datastream/operators/overview" >}}#reduce) 或 sum()，会对`流`模式下每一条新记录发出增量更新。在`批`模式下，这些操作不是"滚动”。它们只发出最终结果。
 
 `批`模式下不支持的:
 
-* [Checkpointing]({{< ref "docs/concepts/stateful-stream-processing" >}}#stateful-stream-processing) 和任何依赖于 checkpointing 的操作都不支持。
+* [Checkpointing]({{< ref "docs/concepts/stateful-stream-processing" >}}#checkpointing) 和任何依赖于 checkpointing 的操作都不支持。
 * [迭代（Iterations）]({{< ref "docs/dev/datastream/operators/overview" >}}#iterate)
 
 自定义算子应谨慎执行，否则可能会有不恰当的行为。更多细节请参见下面的补充说明。
