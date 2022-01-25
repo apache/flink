@@ -25,6 +25,7 @@ import org.apache.flink.runtime.rpc.akka.exceptions.AkkaHandshakeException;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcInvalidStateException;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaUnknownMessageException;
+import org.apache.flink.runtime.rpc.exceptions.EndpointNotStartedException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.rpc.messages.CallAsync;
 import org.apache.flink.runtime.rpc.messages.HandshakeSuccessMessage;
@@ -171,7 +172,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
                     message);
 
             sendErrorIfSender(
-                    new AkkaRpcException(
+                    new EndpointNotStartedException(
                             String.format(
                                     "Discard message %s, because the rpc endpoint %s has not been started yet.",
                                     message, rpcEndpoint.getAddress())));
