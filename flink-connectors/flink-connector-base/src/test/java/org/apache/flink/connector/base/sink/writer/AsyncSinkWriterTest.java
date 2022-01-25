@@ -40,7 +40,6 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -886,7 +885,7 @@ public class AsyncSinkWriterTest {
          */
         @Override
         protected void submitRequestEntries(
-                List<Integer> requestEntries, Consumer<Collection<Integer>> requestResult) {
+                List<Integer> requestEntries, Consumer<List<Integer>> requestResult) {
             maybeDelay();
 
             if (requestEntries.stream().anyMatch(val -> val > 100 && val <= 200)) {
@@ -1146,7 +1145,7 @@ public class AsyncSinkWriterTest {
 
         @Override
         protected void submitRequestEntries(
-                List<Integer> requestEntries, Consumer<Collection<Integer>> requestResult) {
+                List<Integer> requestEntries, Consumer<List<Integer>> requestResult) {
             if (requestEntries.size() == 3) {
                 try {
                     delayedStartLatch.countDown();

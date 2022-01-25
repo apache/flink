@@ -36,7 +36,6 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 import software.amazon.awssdk.services.kinesis.model.ResourceNotFoundException;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -112,7 +111,7 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
     @Override
     protected void submitRequestEntries(
             List<PutRecordsRequestEntry> requestEntries,
-            Consumer<Collection<PutRecordsRequestEntry>> requestResult) {
+            Consumer<List<PutRecordsRequestEntry>> requestResult) {
 
         PutRecordsRequest batchRequest =
                 PutRecordsRequest.builder().records(requestEntries).streamName(streamName).build();
@@ -141,7 +140,7 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
     private void handleFullyFailedRequest(
             Throwable err,
             List<PutRecordsRequestEntry> requestEntries,
-            Consumer<Collection<PutRecordsRequestEntry>> requestResult) {
+            Consumer<List<PutRecordsRequestEntry>> requestResult) {
         LOG.warn("KDS Sink failed to persist {} entries to KDS", requestEntries.size(), err);
         numRecordsOutErrorsCounter.inc(requestEntries.size());
 
@@ -153,7 +152,7 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
     private void handlePartiallyFailedRequest(
             PutRecordsResponse response,
             List<PutRecordsRequestEntry> requestEntries,
-            Consumer<Collection<PutRecordsRequestEntry>> requestResult) {
+            Consumer<List<PutRecordsRequestEntry>> requestResult) {
         LOG.warn("KDS Sink failed to persist {} entries to KDS", response.failedRecordCount());
         numRecordsOutErrorsCounter.inc(response.failedRecordCount());
 
