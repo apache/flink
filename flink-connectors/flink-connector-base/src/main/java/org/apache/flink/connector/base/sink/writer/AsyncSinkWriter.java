@@ -34,6 +34,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -186,7 +187,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      *     method. All other elements are assumed to have been successfully persisted.
      */
     protected abstract void submitRequestEntries(
-            List<RequestEntryT> requestEntries, Consumer<Collection<RequestEntryT>> requestResult);
+            List<RequestEntryT> requestEntries, Consumer<List<RequestEntryT>> requestResult);
 
     /**
      * This method allows the getting of the size of a {@code RequestEntryT} in bytes. The size in
@@ -300,7 +301,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
         }
 
         long timestampOfRequest = System.currentTimeMillis();
-        Consumer<Collection<RequestEntryT>> requestResult =
+        Consumer<List<RequestEntryT>> requestResult =
                 failedRequestEntries ->
                         mailboxExecutor.execute(
                                 () -> completeRequest(failedRequestEntries, timestampOfRequest),
@@ -343,14 +344,15 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      *
      * @param failedRequestEntries requestEntries that need to be retried
      */
-    private void completeRequest(
-            Collection<RequestEntryT> failedRequestEntries, long requestStartTime) {
+    private void completeRequest(List<RequestEntryT> failedRequestEntries, long requestStartTime) {
         lastSendTimestamp = requestStartTime;
         ackTime = System.currentTimeMillis();
         inFlightRequestsCount--;
-        List<RequestEntryT> requestsList = new ArrayList<>(failedRequestEntries);
-        Collections.reverse(requestsList);
-        requestsList.forEach(failedEntry -> addEntryToBuffer(failedEntry, true));
+        ListIterator<RequestEntryT> iterator =
+                failedRequestEntries.listIterator(failedRequestEntries.size());
+        while (iterator.hasPrevious()) {
+            addEntryToBuffer(iterator.previous(), true);
+        }
     }
 
     private void addEntryToBuffer(RequestEntryT entry, boolean insertAtHead) {
