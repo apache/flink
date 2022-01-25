@@ -499,7 +499,8 @@ under the License.
 								<include>**/*ITCase.*</include>
 							</includes>
 							<!-- override reuseForks to true to reduce testing time -->
-							<reuseForks>true</reuseForks>
+							<!-- temporarily set to false because the test consume too many resources -->
+							<reuseForks>false</reuseForks>
 						</configuration>
 					</execution>
 				</executions>
