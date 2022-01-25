@@ -29,11 +29,11 @@ import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 import java.util.Map;
 
 /** DynamoDB element converter test implementation. */
-public class DynamoDbElementConverter
+public class TestDynamoDbElementConverter
         implements ElementConverter<Map<String, AttributeValue>, DynamoDbWriteRequest> {
     private final String tableName;
 
-    public DynamoDbElementConverter(String tableName) {
+    public TestDynamoDbElementConverter(String tableName) {
         this.tableName = tableName;
     }
 
