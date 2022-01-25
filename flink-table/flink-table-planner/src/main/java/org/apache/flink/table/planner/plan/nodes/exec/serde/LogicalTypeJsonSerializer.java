@@ -411,8 +411,9 @@ public final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> 
                         "Asymmetric external serializers are currently not supported. "
                                 + "The input must not be internal if the output is external.");
             }
-            serializerProvider.defaultSerializeField(
-                    FIELD_NAME_EXTERNAL_DATA_TYPE, externalSerializer.getDataType(), jsonGenerator);
+            jsonGenerator.writeFieldName(FIELD_NAME_EXTERNAL_DATA_TYPE);
+            DataTypeJsonSerializer.serializeWithExtendedSerialization(
+                    externalSerializer.getDataType(), jsonGenerator, serializerProvider);
         } else {
             throw new TableException("Unsupported special case for RAW type.");
         }

@@ -31,6 +31,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -60,9 +61,9 @@ public final class DataTypeJsonSerializer extends StdSerializer<DataType> {
            ]
          }
 
-     Example generated JSON for a data type with only internal conversion classes:
+     Example generated JSON for a data type with only default conversion classes:
 
-        DataTypes.ROW(DataTypes.STRING(), DataTypes.TIMESTAMP_LTZ()).toInternal()
+        DataTypes.ROW(DataTypes.STRING(), DataTypes.TIMESTAMP_LTZ())
 
         "ROW<`f0` VARCHAR(2147483647), `f1` TIMESTAMP(6) WITH LOCAL TIME ZONE>"
      */
@@ -91,15 +92,21 @@ public final class DataTypeJsonSerializer extends StdSerializer<DataType> {
     public void serialize(
             DataType dataType, JsonGenerator jsonGenerator, SerializerProvider serializerProvider)
             throws IOException {
-        if (DataTypeUtils.isInternal(dataType, false)) {
+        if (isDefaultConversionClass(dataType)) {
             serializerProvider.defaultSerializeValue(dataType.getLogicalType(), jsonGenerator);
         } else {
-            jsonGenerator.writeStartObject();
-            serializerProvider.defaultSerializeField(
-                    FIELD_NAME_TYPE, dataType.getLogicalType(), jsonGenerator);
-            serializeClass(dataType, jsonGenerator);
-            jsonGenerator.writeEndObject();
+            serializeWithExtendedSerialization(dataType, jsonGenerator, serializerProvider);
         }
+    }
+
+    static void serializeWithExtendedSerialization(
+            DataType dataType, JsonGenerator jsonGenerator, SerializerProvider serializerProvider)
+            throws IOException {
+        jsonGenerator.writeStartObject();
+        serializerProvider.defaultSerializeField(
+                FIELD_NAME_TYPE, dataType.getLogicalType(), jsonGenerator);
+        serializeClass(dataType, jsonGenerator);
+        jsonGenerator.writeEndObject();
     }
 
     private static void serializeClass(DataType dataType, JsonGenerator jsonGenerator)
@@ -167,5 +174,13 @@ public final class DataTypeJsonSerializer extends StdSerializer<DataType> {
             serializeClass(dataType, jsonGenerator);
             jsonGenerator.writeEndObject();
         }
+    }
+
+    private static boolean isDefaultConversionClass(DataType dataType) {
+        return Objects.equals(
+                        dataType.getConversionClass(),
+                        dataType.getLogicalType().getDefaultConversion())
+                && dataType.getChildren().stream()
+                        .allMatch(DataTypeJsonSerializer::isDefaultConversionClass);
     }
 }
