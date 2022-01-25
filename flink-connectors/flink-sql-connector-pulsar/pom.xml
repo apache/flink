@@ -60,7 +60,14 @@ under the License.
 								<includes>
 									<include>org.apache.flink:flink-connector-base</include>
 									<include>org.apache.flink:flink-connector-pulsar</include>
-									<include>org.apache.pulsar:*</include>
+									<include>org.apache.pulsar:bouncy-castle-bc</include>
+									<include>org.apache.pulsar:pulsar-client-admin-api</include>
+									<include>org.apache.pulsar:pulsar-client-all</include>
+									<include>org.apache.pulsar:pulsar-client-api</include>
+									<include>org.bouncycastle:bcpkix-jdk15on</include>
+									<include>org.bouncycastle:bcprov-ext-jdk15on</include>
+									<include>org.bouncycastle:bcprov-jdk15on</include>
+									<include>org.bouncycastle:bcutil-jdk15on</include>
 									<include>org.slf4j:jul-to-slf4j</include>
 								</includes>
 							</artifactSet>
