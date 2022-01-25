@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.functions.sql.StreamRecordTimestampSqlFunction;
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
@@ -140,7 +140,7 @@ public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
             }
             return Optional.of(
                     relBuilder.cast(
-                            relBuilder.call(new StreamRecordTimestampSqlFunction()),
+                            relBuilder.call(FlinkSqlOperatorTable.STREAMRECORD_TIMESTAMP),
                             relBuilder
                                     .getTypeFactory()
                                     .createFieldTypeFromLogicalType(
