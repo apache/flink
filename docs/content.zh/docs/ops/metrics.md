@@ -583,8 +583,8 @@ Thus, in order to infer the metric identifier:
   </thead>
   <tbody>
     <tr>
-      <th rowspan="2"><strong>Job-/TaskManager</strong></th>
-      <td rowspan="2">Status.JVM.CPU</td>
+      <th rowspan="3"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="3">Status.JVM.CPU</td>
       <td>Load</td>
       <td>The recent CPU usage of the JVM.</td>
       <td>Gauge</td>
@@ -592,6 +592,11 @@ Thus, in order to infer the metric identifier:
     <tr>
       <td>Time</td>
       <td>The CPU time used by the JVM.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>Processor</td>
+      <td>The the number of processors available to  the JVM.</td>
       <td>Gauge</td>
     </tr>
   </tbody>
