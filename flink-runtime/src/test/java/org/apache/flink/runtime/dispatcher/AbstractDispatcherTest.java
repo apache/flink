@@ -28,6 +28,7 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.jobmanager.StandaloneJobGraphStore;
@@ -106,6 +107,7 @@ public class AbstractDispatcherTest extends TestLogger {
         haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
         haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
         haServices.setJobGraphStore(new StandaloneJobGraphStore());
+        haServices.setJobResultStore(new EmbeddedJobResultStore());
 
         configuration = new Configuration();
         blobServer =

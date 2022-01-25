@@ -28,6 +28,7 @@ import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 
 /** {@link Dispatcher} implementation used for testing purposes. */
@@ -65,7 +66,14 @@ class TestingDispatcher extends Dispatcher {
     }
 
     void completeJobExecution(ExecutionGraphInfo executionGraphInfo) {
-        runAsync(() -> jobReachedTerminalState(executionGraphInfo));
+        runAsync(
+                () -> {
+                    try {
+                        jobReachedTerminalState(executionGraphInfo);
+                    } catch (Exception e) {
+                        throw new CompletionException(e);
+                    }
+                });
     }
 
     CompletableFuture<Void> getJobTerminationFuture(@Nonnull JobID jobId, @Nonnull Time timeout) {
