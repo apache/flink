@@ -143,11 +143,12 @@ public final class BuiltInFunctionDefinitions {
 
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("$REPLICATE_ROWS")
+                    .name("$REPLICATE_ROWS$1")
                     .kind(TABLE)
                     .outputTypeStrategy(SpecificTypeStrategies.INTERNAL_REPLICATE_ROWS)
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.table.ReplicateRowsFunction")
+                    .internal()
                     .build();
 
     // --------------------------------------------------------------------------------------------
