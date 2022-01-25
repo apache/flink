@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
@@ -54,14 +55,19 @@ class JsonSerdeTestUtil {
 
     static SerdeContext configuredSerdeContext(
             CatalogManager catalogManager, TableConfig tableConfig) {
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
-        PlannerContext plannerContext =
+        final ModuleManager moduleManager = new ModuleManager();
+
+        final FunctionCatalog functionCatalog =
+                new FunctionCatalog(tableConfig, catalogManager, moduleManager);
+
+        final PlannerContext plannerContext =
                 new PlannerContext(
                         false,
                         tableConfig,
-                        new ModuleManager(),
-                        null,
+                        moduleManager,
+                        functionCatalog,
                         catalogManager,
                         asRootSchema(new CatalogManagerCalciteSchema(catalogManager, true)),
                         Collections.emptyList());
