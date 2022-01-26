@@ -167,7 +167,7 @@ public class ClusterOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Working directory for Flink processes. "
+                                            "Local working directory for Flink processes. "
                                                     + "The working directory can be used to store information that can be used upon process recovery. "
                                                     + "If not configured, then it will default to a randomly picked temporary directory defined via %s.",
                                             TextElement.code(CoreOptions.TMP_DIRS.key()))

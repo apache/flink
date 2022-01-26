@@ -62,8 +62,7 @@ public class HistoryServerOptions {
             key("historyserver.web.tmpdir")
                     .noDefaultValue()
                     .withDescription(
-                            "This configuration parameter allows defining the Flink web directory to be used by the"
-                                    + " history server web interface. The web interface will copy its static files into the directory.");
+                            "Local directory that is used by the history server REST API for temporary files.");
 
     /** The address under which the HistoryServer web-frontend is accessible. */
     public static final ConfigOption<String> HISTORY_SERVER_WEB_ADDRESS =

@@ -20,8 +20,10 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.code;
 
 /** Configuration options for the WebMonitorEndpoint. */
 @PublicEvolving
@@ -77,7 +79,8 @@ public class WebOptions {
             key("web.tmpdir")
                     .defaultValue(System.getProperty("java.io.tmpdir"))
                     .withDeprecatedKeys("jobmanager.web.tmpdir")
-                    .withDescription("Flink web directory which is used by the webmonitor.");
+                    .withDescription(
+                            "Local directory that is used by the REST API for temporary files.");
 
     /**
      * The config parameter defining the directory for uploading the job jars. If not specified a
@@ -88,8 +91,12 @@ public class WebOptions {
                     .noDefaultValue()
                     .withDeprecatedKeys("jobmanager.web.upload.dir")
                     .withDescription(
-                            "Directory for uploading the job jars. If not specified a dynamic directory will be used"
-                                    + " under the directory specified by JOB_MANAGER_WEB_TMPDIR_KEY.");
+                            Description.builder()
+                                    .text(
+                                            "Local directory that is used by the REST API for storing uploaded jars. If not specified a dynamic directory will be created"
+                                                    + " under %s.",
+                                            code(TMP_DIR.key()))
+                                    .build());
 
     /** The config parameter defining the number of archived jobs for the JobManager. */
     public static final ConfigOption<Integer> ARCHIVE_COUNT =
