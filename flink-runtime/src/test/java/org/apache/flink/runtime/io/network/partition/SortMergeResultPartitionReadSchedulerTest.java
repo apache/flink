@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.util.TestLogger;
@@ -29,7 +31,13 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayDeque;
+import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -58,6 +66,12 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
 
     private PartitionedFile partitionedFile;
 
+    private PartitionedFileReader fileReader;
+
+    private FileChannel dataFileChannel;
+
+    private FileChannel indexFileChannel;
+
     private BatchShuffleReadBufferPool bufferPool;
 
     private ExecutorService executor;
@@ -79,13 +93,19 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
                         numBuffersPerSubpartition,
                         bufferSize,
                         dataBytes);
+        dataFileChannel = openFileChannel(partitionedFile.getDataFilePath());
+        indexFileChannel = openFileChannel(partitionedFile.getIndexFilePath());
+        fileReader =
+                new PartitionedFileReader(partitionedFile, 0, dataFileChannel, indexFileChannel);
         bufferPool = new BatchShuffleReadBufferPool(totalBytes, bufferSize);
         executor = Executors.newFixedThreadPool(numThreads);
         readScheduler = new SortMergeResultPartitionReadScheduler(bufferPool, executor, this);
     }
 
     @After
-    public void after() {
+    public void after() throws Exception {
+        dataFileChannel.close();
+        indexFileChannel.close();
         partitionedFile.deleteQuietly();
         bufferPool.destroy();
         executor.shutdown();
@@ -190,6 +210,37 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
         assertNotNull(subpartitionReader.getFailureCause());
         assertTrue(subpartitionReader.isAvailable(0));
         assertAllResourcesReleased();
+    }
+
+    @Test(timeout = 60000)
+    public void testNoDeadlockWhenReadAndReleaseBuffers() throws Exception {
+        SortMergeSubpartitionReader subpartitionReader =
+                new SortMergeSubpartitionReader(new NoOpBufferAvailablityListener(), fileReader);
+        Thread readAndReleaseThread =
+                new Thread(
+                        () -> {
+                            Queue<MemorySegment> segments = new ArrayDeque<>();
+                            segments.add(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
+                            try {
+                                assertTrue(fileReader.hasRemaining());
+                                subpartitionReader.readBuffers(segments, readScheduler);
+                                subpartitionReader.releaseAllResources();
+                                subpartitionReader.readBuffers(segments, readScheduler);
+                            } catch (Exception ignore) {
+                            }
+                        });
+
+        synchronized (this) {
+            readAndReleaseThread.start();
+            do {
+                Thread.sleep(100);
+            } while (!subpartitionReader.isReleased());
+        }
+        readAndReleaseThread.join();
+    }
+
+    private static FileChannel openFileChannel(Path path) throws IOException {
+        return FileChannel.open(path, StandardOpenOption.READ);
     }
 
     private void assertAllResourcesReleased() {
