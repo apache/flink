@@ -27,7 +27,7 @@ import java.io.IOException;
 public interface InProgressFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
 
     /**
-     * Write a element to the part file.
+     * Write an element to the part file.
      *
      * @param element the element to be written.
      * @param currentTime the writing time.
