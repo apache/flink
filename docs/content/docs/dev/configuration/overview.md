@@ -36,36 +36,23 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Project Configuration
+# Project configuration
 
 Every Flink application depends on a set of Flink libraries. At a minimum, the application depends
 on the Flink APIs and, in addition, on certain connector libraries (i.e. Kafka, Cassandra).
 When running Flink applications (either in a distributed deployment or in the IDE for testing),
 the Flink runtime library must be available.
 
-## Getting started
-
-Every Flink application needs, at a minimum, the API dependencies to develop against. When setting up
-a project manually, you need to add the following dependencies for the Java/Scala API.
-
-In Maven syntax, it would look like:
-
-{{< tabs "a49d57a4-27ee-4dd3-a2b8-a673b99b011e" >}}
-{{< tab "Java" >}}
-
-{{< artifact flink-streaming-java withProvidedScope >}}
-
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-{{< artifact flink-streaming-scala withScalaVersion withProvidedScope >}}
-
-{{< /tab >}}
-{{< /tabs >}}
+The guides in this section will show you how to configure your projects via popular build tools,
+add the necessary dependencies so you can start working on your Flink application, and also cover 
+some advanced configuration topics. 
 
 ## Which dependencies do you need?
 
-Different APIs will require different dependencies. 
+Depending on what you want to achieve, you are going to choose a combination of our available APIs, 
+which will require different dependencies. 
+
+Here is a table of artifact/dependency names:
 
 | APIs you want to use              | Dependency you need to add    |
 |-----------------------------------|-------------------------------|
@@ -76,12 +63,8 @@ Different APIs will require different dependencies.
 | Table API + DataStream            | flink-table-api-java-bridge   |
 | Table API + DataStream with Scala | flink-table-api-scala-bridge{{< scala_version >}}  |
 
-You can use [Maven]({{< ref "docs/dev/configuration/maven" >}}), [Gradle]({{< ref "docs/dev/configuration/gradle" >}}), 
-or [sbt]({{< ref "docs/dev/configuration/sbt" >}}) to configure your project and add these dependencies.
 
-**Important:** Note that all these dependencies should have their scope set to *provided*. This means that
-they are needed to compile against, but that they should not be packaged into the project's resulting
-application JAR file. If not set to *provided*, the best case scenario is that the resulting JAR
-becomes excessively large, because it also contains all Flink core dependencies. The worst case scenario
-is that the Flink core dependencies that are added to the application's JAR file clash with some of
-your own dependency versions (which is normally avoided through inverted classloading).
+## Next steps
+
+Check out the [build tools]({{< ref "docs/dev/configuration/buildtools" >}}) section to learn how to
+add these dependencies with Maven, Gradle, or sbt. 

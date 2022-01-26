@@ -26,14 +26,14 @@ under the License.
 
 Flink can read from and write to various external systems via [connectors]({{< ref "docs/connectors/table/overview" >}})
 and define the [format]({{< ref "docs/connectors/table/formats/overview" >}}) in which to store the 
-data (i.e. mapping binary data onto table columns).  
+data.  
 
-The way that the information is serialized is represented in the external system and that system needs
+The way that information is serialized is represented in the external system and that system needs
 to know how to read this data in a format that can be read by Flink.  This is done through format dependencies.
 
-Most applications need specific connectors to run. Flink provides a set of table formats that can be 
-used with table connectors (with the dependencies for both being fairly unified). These are not part 
-of Flink's core dependencies and must be added as dependencies to the application.
+Most applications need specific connectors to run. Flink provides a set of formats that can be used 
+with connectors (with the dependencies for both being fairly unified). These are not part of Flink's 
+core dependencies and must be added as dependencies to the application.
 
 ## Adding Connector Dependencies 
 
@@ -50,19 +50,26 @@ to automatically include the application dependencies into the application JAR w
 For projects that are not set up from those templates, we recommend adding the Maven Shade Plugin to 
 build the application jar with all required dependencies.
 
-**Important:** For Maven (and other build tools) to correctly package the dependencies into the application jar,
-these application dependencies must be specified in scope *compile* (unlike the core dependencies, which
-must be specified in scope *provided*).
+**Important:** For Maven (and other build tools) to correctly package the dependencies into the application 
+jar, these application dependencies must be specified in scope *compile* (unlike the core dependencies, 
+which must be specified in scope *provided*).
 
 ## Packaging Dependencies
 
-In the Maven Repository, you will find connectors named "flink-connector-<NAME>" and
+On [Maven Central](https://search.maven.org), we publish connectors named "flink-connector-<NAME>" and
 "flink-sql-connector-<NAME>". The former are thin JARs while the latter are uber JARs.
 
-In order to use the uber JARs, you can shade them in the uber JAR of your application, or you can add
-them to the `/lib` folder of the distribution (i.e. SQL client).
+In order to use the uber JARs, you can shade them (including and renaming dependencies to create a 
+private copy) in the uber JAR of your application, or you can add them to the `/lib` folder of the 
+distribution (i.e. SQL client).
 
-[ EXPLAIN PROS and CONS ]
+If you shade a dependency JAR, you will have more control over the dependency version in the job JAR. 
+In case of shading the thin JAR, you will have even more control over the transitive dependencies, 
+since you can change the versions without changing the connector version (binary compatibility permitting).
+
+If you include uber JARs directly in the distribution, this can simplify the management of dependencies 
+in a shared multi-job Flink cluster, but it also means that you will lock in a specific version of the 
+dependency. 
 
 In order to create an uber JAR to run the job, do this:
 

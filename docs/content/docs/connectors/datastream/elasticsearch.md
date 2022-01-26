@@ -54,7 +54,7 @@ of the Elasticsearch installation:
 </table>
 
 Note that the streaming connectors are currently not part of the binary
-distribution. See [here]({{< ref "docs/dev/configuration" >}}) for information
+distribution. See [here]({{< ref "docs/dev/configuration/overview" >}}) for information
 about how to package the program with the libraries for cluster execution.
 
 ## Installing Elasticsearch

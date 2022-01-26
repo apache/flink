@@ -37,7 +37,7 @@ Dependencies
 {{< sql_download_table "kinesis" >}}
 
 The Kinesis connector is not currently part of the binary distribution.
-See how to link with it for cluster execution [here]({{< ref "docs/dev/configuration" >}}).
+See how to link with it for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
 
 How to create a Kinesis data stream table
 -----------------------------------------

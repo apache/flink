@@ -98,7 +98,7 @@ project.
 ```
 
 Alternatively, you can also add the dependency to the cluster classpath (see the
-[dependency section]({{< ref "docs/dev/configuration" >}}) for more information).
+[dependency section]({{< ref "docs/dev/configuration/overview" >}}) for more information).
 
 If you want to use the `MATCH_RECOGNIZE` clause in the
 [SQL Client]({{< ref "docs/dev/table/sqlClient" >}}), you don't have to do anything as all the

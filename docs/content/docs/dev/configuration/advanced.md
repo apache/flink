@@ -31,7 +31,7 @@ There are two broad categories of dependencies and libraries in Flink, which are
 Flink itself consists of a set of classes and dependencies that form the core of Flink's runtime
 and must be present when a Flink application is started. The classes and dependencies needed to run
 the system handle areas such as coordination, networking, checkpointing, failover, APIs,
-operations (such as windowing), resource management, etc.
+operators (such as windowing), resource management, etc.
 
 These core classes and dependencies are packaged in the `flink-dist` jar, are part of Flink's `lib`
 folder, and part of the basic Flink container images. You can think of these dependencies as similar
@@ -44,8 +44,8 @@ avoid having an excessive default number of classes and dependencies in the clas
 ## User Application Dependencies
 
 These dependencies include all connectors, formats, or libraries that a specific user application
-needs and explicitly do not include the Flink DataStream APIs and runtime dependencies since those
-are already part of the Flink Core Dependencies.
+needs and explicitly do not include the Flink DataStream and Table APIs and runtime dependencies 
+since those are already part of the Flink core dependencies.
 
 The user application is typically packaged into an *application jar*, which contains the application
 code and the required connector and library dependencies.
@@ -64,13 +64,12 @@ calls the application's `main()` method.
 
 # Scala Versions
 
-Different Scala versions are not binary compatible with one another. For that reason, Flink for 
-Scala 2.11 cannot be used with an application that uses Scala 2.12. All Flink dependencies that 
+Different Scala versions are not binary compatible with one another. All Flink dependencies that 
 (transitively) depend on Scala are suffixed with the Scala version that they are built for 
 (i.e. `flink-streaming-scala_2.12`).
 
-If you are only using Java, you can use any Scala version. If you are using Scala, you need to pick 
-the Scala version that matches the application's Scala version.
+If you are only using Flink's Java APIs, you can use any Scala version. If you are using Flink's Scala APIs, 
+you need to pick the Scala version that matches the application's Scala version.
 
 Please refer to the [build guide]({{< ref "docs/flinkDev/building" >}}#scala-versions) for details 
 on how to build Flink for a specific Scala version.
@@ -97,8 +96,9 @@ The Flink distribution contains by default the required JARs to execute Flink SQ
 -`flink-table-runtime-{{< version >}}.jar` containing the runtime
 -`flink-table-planner-loader-{{< version >}}.jar` containing the query planner
 
-When using formats and connectors with the Scala API, you need to either download and manually include 
-the JARs in the `/lib` folder (recommended), or you need to shade them in the uber JAR of your Flink SQL Jobs.
+When using formats and connectors with the Flink Scala API, you need to either download and manually 
+include the JARs in the `/lib` folder (recommended), or you need to shade them in the uber JAR of your 
+Flink SQL Jobs.
 
 For more details, check out [Connect to External Systems]({{< ref "docs/connectors/table/overview" >}}).
 
@@ -138,7 +138,7 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 
 There are two main reasons for this design:
 
-- Some Hadoop interaction happens in Flink's core, possibly before the user application is started. 
+- Some Hadoop interactions happen in Flink's core, possibly before the user application is started. 
   These include setting up HDFS for checkpoints, authenticating via Hadoop's Kerberos tokens, or 
   deploying on YARN.
 
