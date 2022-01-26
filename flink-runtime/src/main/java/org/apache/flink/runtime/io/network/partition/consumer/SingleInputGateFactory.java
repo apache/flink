@@ -132,7 +132,6 @@ public class SingleInputGateFactory {
                         gateIndex,
                         igdd.getConsumedResultId(),
                         igdd.getConsumedPartitionType(),
-                        igdd.getConsumedSubpartitionIndex(),
                         igdd.getShuffleDescriptors().length,
                         partitionProducerStateProvider,
                         bufferPoolFactory,
@@ -145,7 +144,8 @@ public class SingleInputGateFactory {
 
         InputChannelMetrics metrics =
                 new InputChannelMetrics(networkInputGroup, owner.getParentGroup());
-        createInputChannels(owningTaskName, igdd, inputGate, metrics);
+        createInputChannels(
+                owningTaskName, igdd, inputGate, igdd.getConsumedSubpartitionIndex(), metrics);
         return inputGate;
     }
 
@@ -173,6 +173,7 @@ public class SingleInputGateFactory {
             String owningTaskName,
             InputGateDeploymentDescriptor inputGateDeploymentDescriptor,
             SingleInputGate inputGate,
+            int consumedSubpartitionIndex,
             InputChannelMetrics metrics) {
         ShuffleDescriptor[] shuffleDescriptors =
                 inputGateDeploymentDescriptor.getShuffleDescriptors();
@@ -185,7 +186,12 @@ public class SingleInputGateFactory {
         for (int i = 0; i < inputChannels.length; i++) {
             inputChannels[i] =
                     createInputChannel(
-                            inputGate, i, shuffleDescriptors[i], channelStatistics, metrics);
+                            inputGate,
+                            i,
+                            shuffleDescriptors[i],
+                            consumedSubpartitionIndex,
+                            channelStatistics,
+                            metrics);
         }
         inputGate.setInputChannels(inputChannels);
 
@@ -200,6 +206,7 @@ public class SingleInputGateFactory {
             SingleInputGate inputGate,
             int index,
             ShuffleDescriptor shuffleDescriptor,
+            int consumedSubpartitionIndex,
             ChannelStatistics channelStatistics,
             InputChannelMetrics metrics) {
         return applyWithShuffleTypeCheck(
@@ -211,6 +218,7 @@ public class SingleInputGateFactory {
                             inputGate,
                             index,
                             unknownShuffleDescriptor.getResultPartitionID(),
+                            consumedSubpartitionIndex,
                             partitionManager,
                             taskEventPublisher,
                             connectionManager,
@@ -224,6 +232,7 @@ public class SingleInputGateFactory {
                                 inputGate,
                                 index,
                                 nettyShuffleDescriptor,
+                                consumedSubpartitionIndex,
                                 channelStatistics,
                                 metrics));
     }
@@ -233,6 +242,7 @@ public class SingleInputGateFactory {
             SingleInputGate inputGate,
             int index,
             NettyShuffleDescriptor inputChannelDescriptor,
+            int consumedSubpartitionIndex,
             ChannelStatistics channelStatistics,
             InputChannelMetrics metrics) {
         ResultPartitionID partitionId = inputChannelDescriptor.getResultPartitionID();
@@ -243,6 +253,7 @@ public class SingleInputGateFactory {
                     inputGate,
                     index,
                     partitionId,
+                    consumedSubpartitionIndex,
                     partitionManager,
                     taskEventPublisher,
                     partitionRequestInitialBackoff,
@@ -256,6 +267,7 @@ public class SingleInputGateFactory {
                     inputGate,
                     index,
                     partitionId,
+                    consumedSubpartitionIndex,
                     inputChannelDescriptor.getConnectionId(),
                     connectionManager,
                     partitionRequestInitialBackoff,

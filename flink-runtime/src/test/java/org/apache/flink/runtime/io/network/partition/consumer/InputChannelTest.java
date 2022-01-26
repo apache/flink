@@ -126,6 +126,7 @@ public class InputChannelTest {
                     inputGate,
                     channelIndex,
                     partitionId,
+                    0,
                     initialBackoff,
                     maxBackoff,
                     new SimpleCounter(),
@@ -139,7 +140,7 @@ public class InputChannelTest {
         public void acknowledgeAllRecordsProcessed() throws IOException {}
 
         @Override
-        void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {}
+        void requestSubpartition() throws IOException, InterruptedException {}
 
         @Override
         Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException {

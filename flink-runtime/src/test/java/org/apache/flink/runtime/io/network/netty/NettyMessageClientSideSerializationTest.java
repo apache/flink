@@ -84,7 +84,7 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
         inputGate = createSingleInputGate(1, networkBufferPool);
         RemoteInputChannel inputChannel =
                 createRemoteInputChannel(inputGate, new TestingPartitionRequestClient());
-        inputChannel.requestSubpartition(0);
+        inputChannel.requestSubpartition();
         inputGate.setInputChannels(inputChannel);
         inputGate.setup();
 

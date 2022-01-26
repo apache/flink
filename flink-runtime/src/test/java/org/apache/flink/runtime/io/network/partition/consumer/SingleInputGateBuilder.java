@@ -55,8 +55,6 @@ public class SingleInputGateBuilder {
 
     private ResultPartitionType partitionType = ResultPartitionType.PIPELINED;
 
-    private int consumedSubpartitionIndex = 0;
-
     private int gateIndex = 0;
 
     private int numberOfChannels = 1;
@@ -88,11 +86,6 @@ public class SingleInputGateBuilder {
 
     public SingleInputGateBuilder setResultPartitionType(ResultPartitionType partitionType) {
         this.partitionType = partitionType;
-        return this;
-    }
-
-    public SingleInputGateBuilder setConsumedSubpartitionIndex(int consumedSubpartitionIndex) {
-        this.consumedSubpartitionIndex = consumedSubpartitionIndex;
         return this;
     }
 
@@ -161,7 +154,6 @@ public class SingleInputGateBuilder {
                         gateIndex,
                         intermediateDataSetID,
                         partitionType,
-                        consumedSubpartitionIndex,
                         numberOfChannels,
                         partitionProducerStateProvider,
                         bufferPoolFactory,

@@ -40,7 +40,6 @@ import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
-import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
@@ -133,12 +132,6 @@ public class SingleInputGate extends IndexedInputGate {
     /** The type of the partition the input gate is consuming. */
     private final ResultPartitionType consumedPartitionType;
 
-    /**
-     * The index of the consumed subpartition of each consumed partition. This index depends on the
-     * {@link DistributionPattern} and the subtask indices of the producing and consuming task.
-     */
-    private final int consumedSubpartitionIndex;
-
     /** The number of input channels (equivalent to the number of consumed partitions). */
     private final int numberOfInputChannels;
 
@@ -216,7 +209,6 @@ public class SingleInputGate extends IndexedInputGate {
             int gateIndex,
             IntermediateDataSetID consumedResultId,
             final ResultPartitionType consumedPartitionType,
-            int consumedSubpartitionIndex,
             int numberOfInputChannels,
             PartitionProducerStateProvider partitionProducerStateProvider,
             SupplierWithException<BufferPool, IOException> bufferPoolFactory,
@@ -233,9 +225,6 @@ public class SingleInputGate extends IndexedInputGate {
         this.consumedResultId = checkNotNull(consumedResultId);
         this.consumedPartitionType = checkNotNull(consumedPartitionType);
         this.bufferPoolFactory = checkNotNull(bufferPoolFactory);
-
-        checkArgument(consumedSubpartitionIndex >= 0);
-        this.consumedSubpartitionIndex = consumedSubpartitionIndex;
 
         checkArgument(numberOfInputChannels > 0);
         this.numberOfInputChannels = numberOfInputChannels;
@@ -339,7 +328,7 @@ public class SingleInputGate extends IndexedInputGate {
     private void internalRequestPartitions() {
         for (InputChannel inputChannel : inputChannels.values()) {
             try {
-                inputChannel.requestSubpartition(consumedSubpartitionIndex);
+                inputChannel.requestSubpartition();
             } catch (Throwable t) {
                 inputChannel.setError(t);
                 return;
@@ -581,7 +570,7 @@ public class SingleInputGate extends IndexedInputGate {
                 channels[current.getChannelIndex()] = newChannel;
 
                 if (requestedPartitionsFlag) {
-                    newChannel.requestSubpartition(consumedSubpartitionIndex);
+                    newChannel.requestSubpartition();
                 }
 
                 for (TaskEvent event : pendingEvents) {
@@ -608,11 +597,11 @@ public class SingleInputGate extends IndexedInputGate {
                         "{}: Retriggering partition request {}:{}.",
                         owningTaskName,
                         ch.partitionId,
-                        consumedSubpartitionIndex);
+                        ch.getConsumedSubpartitionIndex());
 
                 if (ch.getClass() == RemoteInputChannel.class) {
                     final RemoteInputChannel rch = (RemoteInputChannel) ch;
-                    rch.retriggerSubpartitionRequest(consumedSubpartitionIndex);
+                    rch.retriggerSubpartitionRequest();
                 } else if (ch.getClass() == LocalInputChannel.class) {
                     final LocalInputChannel ich = (LocalInputChannel) ch;
 
@@ -620,8 +609,7 @@ public class SingleInputGate extends IndexedInputGate {
                         retriggerLocalRequestTimer = new Timer(true);
                     }
 
-                    ich.retriggerSubpartitionRequest(
-                            retriggerLocalRequestTimer, consumedSubpartitionIndex);
+                    ich.retriggerSubpartitionRequest(retriggerLocalRequestTimer);
                 } else {
                     throw new IllegalStateException(
                             "Unexpected type of channel to retrigger partition: " + ch.getClass());
