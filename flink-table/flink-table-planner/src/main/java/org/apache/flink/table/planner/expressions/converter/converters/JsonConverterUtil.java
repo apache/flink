@@ -23,6 +23,7 @@ import org.apache.flink.table.api.JsonOnNull;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.planner.typeutils.SymbolUtil;
 
 import org.apache.calcite.sql.SqlJsonConstructorNullClause;
 
@@ -33,19 +34,9 @@ class JsonConverterUtil {
             CallExpression call, int argumentIdx) {
         return ((ValueLiteralExpression) call.getChildren().get(argumentIdx))
                 .getValueAs(JsonOnNull.class)
-                .map(JsonConverterUtil::convertOnNull)
+                .map(SymbolUtil::commonToCalcite)
+                .map(SqlJsonConstructorNullClause.class::cast)
                 .orElseThrow(() -> new TableException("Missing argument for ON NULL."));
-    }
-
-    private static SqlJsonConstructorNullClause convertOnNull(JsonOnNull onNull) {
-        switch (onNull) {
-            case NULL:
-                return SqlJsonConstructorNullClause.NULL_ON_NULL;
-            case ABSENT:
-                return SqlJsonConstructorNullClause.ABSENT_ON_NULL;
-            default:
-                throw new TableException("Unknown ON NULL behavior: " + onNull);
-        }
     }
 
     private JsonConverterUtil() {}

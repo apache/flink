@@ -24,6 +24,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction;
+import org.apache.flink.table.planner.typeutils.SymbolUtil.SerializableSymbol;
 import org.apache.flink.table.utils.EncodingUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -46,6 +47,8 @@ import org.apache.calcite.util.Sarg;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+
+import static org.apache.flink.table.planner.typeutils.SymbolUtil.calciteToSerializable;
 
 /**
  * JSON serializer for {@link RexNode}. refer to {@link RexNodeJsonDeserializer} for deserializer.
@@ -237,8 +240,9 @@ public class RexNodeJsonSerializer extends StdSerializer<RexNode> {
                 gen.writeNumberField(FIELD_NAME_VALUE, ((BigDecimal) value).longValue());
                 break;
             case SYMBOL:
-                gen.writeStringField(FIELD_NAME_VALUE, ((Enum<?>) value).name());
-                gen.writeStringField(FIELD_NAME_CLASS, value.getClass().getName());
+                final SerializableSymbol symbol = calciteToSerializable((Enum<?>) value);
+                gen.writeStringField(FIELD_NAME_VALUE, symbol.getValue());
+                gen.writeStringField(FIELD_NAME_CLASS, symbol.getKind());
                 break;
             case SARG:
                 serialize((Sarg<?>) value, elementTypeName, gen, serializerProvider);
