@@ -31,8 +31,10 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.rules.ExternalResource;
@@ -67,6 +69,12 @@ public class MiniClusterResource extends ExternalResource {
     private int numberSlots = -1;
 
     private UnmodifiableConfiguration restClusterClientConfig;
+
+    private static final RpcSystem rpcSystem = RpcSystem.load();
+
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> rpcSystem.close()));
+    }
 
     public MiniClusterResource(
             final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
@@ -231,7 +239,8 @@ public class MiniClusterResource extends ExternalResource {
                         .setHaServices(miniClusterResourceConfiguration.getHaServices())
                         .build();
 
-        miniCluster = new MiniCluster(miniClusterConfiguration);
+        miniCluster =
+                new MiniCluster(miniClusterConfiguration, () -> Reference.borrowed(rpcSystem));
 
         miniCluster.start();
 
