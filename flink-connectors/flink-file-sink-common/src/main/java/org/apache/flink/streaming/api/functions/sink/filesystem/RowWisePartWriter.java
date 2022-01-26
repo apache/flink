@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.util.Preconditions;
 
@@ -37,10 +38,11 @@ public final class RowWisePartWriter<IN, BucketID>
 
     public RowWisePartWriter(
             final BucketID bucketId,
+            final Path path,
             final RecoverableFsDataOutputStream currentPartStream,
             final Encoder<IN> encoder,
             final long creationTime) {
-        super(bucketId, currentPartStream, creationTime);
+        super(bucketId, path, currentPartStream, creationTime);
         this.encoder = Preconditions.checkNotNull(encoder);
     }
 
