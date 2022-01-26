@@ -28,8 +28,8 @@ under the License.
 
 # Text files format
 
-Flink 支持使用 `TextLineInputFormat` 从文件中读取文本行。此格式使用 Java 的内置 InputStreamReader 以支持的字符集编码来解码字节流。
-要使用该格式，你需要将 Flink Connector Files 依赖项添加到项目中：
+Flink 支持使用 `TextLineInputFormat` 从文件中读取文本行。此 format 使用 Java 的内置 InputStreamReader 以支持的字符集编码来解码字节流。
+要使用该 format，你需要将 Flink Connector Files 依赖项添加到项目中：
 
 ```xml
 <dependency>
@@ -39,8 +39,8 @@ Flink 支持使用 `TextLineInputFormat` 从文件中读取文本行。此格式
 </dependency>
 ```
 
-此格式与新 Source 兼容，可以在批处理和流模式下使用。
-因此，你可以通过两种方式使用此格式：
+此 format 与新 Source 兼容，可以在批处理和流模式下使用。
+因此，你可以通过两种方式使用此 format：
 - 批处理模式的有界读取
 - 流模式的连续读取：监视目录中出现的新文件
 
