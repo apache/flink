@@ -28,6 +28,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 import org.apache.flink.types.Row;
 
 import org.junit.runners.Parameterized;
@@ -43,13 +44,10 @@ import java.time.LocalTime;
 import java.time.Period;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -61,6 +59,7 @@ import static org.apache.flink.table.api.DataTypes.DATE;
 import static org.apache.flink.table.api.DataTypes.DAY;
 import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.DOUBLE;
+import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
@@ -79,6 +78,9 @@ import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.LegacyCastBehaviour;
+import static org.apache.flink.util.CollectionUtil.entry;
+import static org.apache.flink.util.CollectionUtil.map;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link BuiltInFunctionDefinitions#CAST}. */
 public class CastFunctionITCase extends BuiltInFunctionTestBase {
@@ -127,6 +129,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     public static List<TestSpec> testData() {
         final List<TestSpec> specs = new ArrayList<>();
         specs.addAll(allTypesBasic());
+        specs.addAll(toStringCasts());
         specs.addAll(decimalCasts());
         specs.addAll(numericBounds());
         specs.addAll(constructedTypes());
@@ -135,126 +138,6 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
     public static List<TestSpec> allTypesBasic() {
         return Arrays.asList(
-                CastTestSpecBuilder.testCastTo(CHAR(3))
-                        .fromCase(CHAR(5), null, null)
-                        .fromCase(CHAR(3), "foo", "foo")
-                        .fromCase(VARCHAR(3), "foo", "foo")
-                        .fromCase(VARCHAR(5), "foo", "foo")
-                        .fromCase(STRING(), "abcdef", "abc")
-                        .fromCase(DATE(), DEFAULT_DATE, "202")
-                        .build(),
-                CastTestSpecBuilder.testCastTo(CHAR(5))
-                        .fromCase(CHAR(5), null, null)
-                        .fromCase(CHAR(3), "foo", "foo  ")
-                        .build(),
-                CastTestSpecBuilder.testCastTo(VARCHAR(3))
-                        .fromCase(VARCHAR(5), null, null)
-                        .fromCase(CHAR(3), "foo", "foo")
-                        .fromCase(CHAR(4), "foo", "foo")
-                        .fromCase(VARCHAR(3), "foo", "foo")
-                        .fromCase(VARCHAR(5), "foo", "foo")
-                        .fromCase(STRING(), "abcdef", "abc")
-                        .build(),
-                CastTestSpecBuilder.testCastTo(STRING())
-                        .fromCase(STRING(), null, null)
-                        .fromCase(CHAR(3), "foo", "foo")
-                        .fromCase(CHAR(5), "foo", "foo  ")
-                        .fromCase(VARCHAR(5), "Flink", "Flink")
-                        .fromCase(VARCHAR(10), "Flink", "Flink")
-                        .fromCase(STRING(), "Apache Flink", "Apache Flink")
-                        .fromCase(STRING(), null, null)
-                        .fromCase(BOOLEAN(), true, "TRUE")
-                        .fromCase(BINARY(2), DEFAULT_BINARY, "0001")
-                        .fromCase(BINARY(3), DEFAULT_BINARY, "000100")
-                        .fromCase(VARBINARY(3), DEFAULT_VARBINARY, "000102")
-                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, "000102")
-                        .fromCase(BYTES(), DEFAULT_BYTES, "0001020304")
-                        .fromCase(DECIMAL(4, 3), 9.87, "9.870")
-                        .fromCase(DECIMAL(10, 5), 1, "1.00000")
-                        .fromCase(
-                                TINYINT(),
-                                DEFAULT_POSITIVE_TINY_INT,
-                                String.valueOf(DEFAULT_POSITIVE_TINY_INT))
-                        .fromCase(
-                                TINYINT(),
-                                DEFAULT_NEGATIVE_TINY_INT,
-                                String.valueOf(DEFAULT_NEGATIVE_TINY_INT))
-                        .fromCase(
-                                SMALLINT(),
-                                DEFAULT_POSITIVE_SMALL_INT,
-                                String.valueOf(DEFAULT_POSITIVE_SMALL_INT))
-                        .fromCase(
-                                SMALLINT(),
-                                DEFAULT_NEGATIVE_SMALL_INT,
-                                String.valueOf(DEFAULT_NEGATIVE_SMALL_INT))
-                        .fromCase(INT(), DEFAULT_POSITIVE_INT, String.valueOf(DEFAULT_POSITIVE_INT))
-                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, String.valueOf(DEFAULT_NEGATIVE_INT))
-                        .fromCase(
-                                BIGINT(),
-                                DEFAULT_POSITIVE_BIGINT,
-                                String.valueOf(DEFAULT_POSITIVE_BIGINT))
-                        .fromCase(
-                                BIGINT(),
-                                DEFAULT_NEGATIVE_BIGINT,
-                                String.valueOf(DEFAULT_NEGATIVE_BIGINT))
-                        .fromCase(
-                                FLOAT(),
-                                DEFAULT_POSITIVE_FLOAT,
-                                String.valueOf(DEFAULT_POSITIVE_FLOAT))
-                        .fromCase(
-                                FLOAT(),
-                                DEFAULT_NEGATIVE_FLOAT,
-                                String.valueOf(DEFAULT_NEGATIVE_FLOAT))
-                        .fromCase(
-                                DOUBLE(),
-                                DEFAULT_POSITIVE_DOUBLE,
-                                String.valueOf(DEFAULT_POSITIVE_DOUBLE))
-                        .fromCase(
-                                DOUBLE(),
-                                DEFAULT_NEGATIVE_DOUBLE,
-                                String.valueOf(DEFAULT_NEGATIVE_DOUBLE))
-                        .fromCase(DATE(), DEFAULT_DATE, "2021-09-24")
-                        // https://issues.apache.org/jira/browse/FLINK-17224 Currently, fractional
-                        // seconds are lost
-                        .fromCase(TIME(5), DEFAULT_TIME, "12:34:56")
-                        .fromCase(TIMESTAMP(), DEFAULT_TIMESTAMP, "2021-09-24 12:34:56.123456")
-                        .fromCase(TIMESTAMP(9), DEFAULT_TIMESTAMP, "2021-09-24 12:34:56.123456700")
-                        .fromCase(TIMESTAMP(4), DEFAULT_TIMESTAMP, "2021-09-24 12:34:56.1234")
-                        .fromCase(
-                                TIMESTAMP(3),
-                                LocalDateTime.parse("2021-09-24T12:34:56.1"),
-                                "2021-09-24 12:34:56.100")
-                        .fromCase(TIMESTAMP(4).nullable(), null, null)
-
-                        // https://issues.apache.org/jira/browse/FLINK-20869
-                        // TIMESTAMP_WITH_TIME_ZONE
-
-                        .fromCase(
-                                TIMESTAMP_LTZ(5),
-                                DEFAULT_TIMESTAMP_LTZ,
-                                "2021-09-25 07:54:56.12345")
-                        .fromCase(
-                                TIMESTAMP_LTZ(9),
-                                DEFAULT_TIMESTAMP_LTZ,
-                                "2021-09-25 07:54:56.123456700")
-                        .fromCase(
-                                TIMESTAMP_LTZ(3),
-                                fromLocalTZ("2021-09-24T22:34:56.1"),
-                                "2021-09-25 07:54:56.100")
-                        .fromCase(INTERVAL(YEAR()), 84, "+7-00")
-                        .fromCase(INTERVAL(MONTH()), 5, "+0-05")
-                        .fromCase(INTERVAL(MONTH()), 123, "+10-03")
-                        .fromCase(INTERVAL(MONTH()), 12334, "+1027-10")
-                        .fromCase(INTERVAL(DAY()), 10, "+0 00:00:00.010")
-                        .fromCase(INTERVAL(DAY()), 123456789L, "+1 10:17:36.789")
-                        .fromCase(INTERVAL(DAY()), Duration.ofHours(36), "+1 12:00:00.000")
-                        // https://issues.apache.org/jira/browse/FLINK-21456 Not supported currently
-                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
-                        // ROW
-                        // RAW
-                        .build(),
                 CastTestSpecBuilder.testCastTo(BOOLEAN())
                         .fromCase(BOOLEAN(), null, null)
                         .failRuntime(CHAR(3), "foo", TableException.class)
@@ -1079,6 +962,135 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                 );
     }
 
+    public static List<TestSpec> toStringCasts() {
+        return Arrays.asList(
+                CastTestSpecBuilder.testCastTo(CHAR(3))
+                        .fromCase(CHAR(5), null, null)
+                        .fromCase(CHAR(3), "foo", "foo")
+                        .fromCase(VARCHAR(3), "foo", "foo")
+                        .fromCase(VARCHAR(5), "foo", "foo")
+                        .fromCase(STRING(), "abcdef", "abc")
+                        .fromCase(DATE(), DEFAULT_DATE, "202")
+                        .build(),
+                CastTestSpecBuilder.testCastTo(CHAR(5))
+                        .fromCase(CHAR(5), null, null)
+                        .fromCase(CHAR(3), "foo", "foo  ")
+                        .build(),
+                CastTestSpecBuilder.testCastTo(VARCHAR(3))
+                        .fromCase(VARCHAR(5), null, null)
+                        .fromCase(CHAR(3), "foo", "foo")
+                        .fromCase(CHAR(4), "foo", "foo")
+                        .fromCase(VARCHAR(3), "foo", "foo")
+                        .fromCase(VARCHAR(5), "foo", "foo")
+                        .fromCase(STRING(), "abcdef", "abc")
+                        .build(),
+                CastTestSpecBuilder.testCastTo(STRING())
+                        .fromCase(STRING(), null, null)
+                        .fromCase(CHAR(3), "foo", "foo")
+                        .fromCase(CHAR(5), "foo", "foo  ")
+                        .fromCase(VARCHAR(5), "Flink", "Flink")
+                        .fromCase(VARCHAR(10), "Flink", "Flink")
+                        .fromCase(STRING(), "Apache Flink", "Apache Flink")
+                        .fromCase(STRING(), null, null)
+                        .fromCase(BOOLEAN(), true, "TRUE")
+                        .fromCase(BINARY(2), DEFAULT_BINARY, "0001")
+                        .fromCase(BINARY(3), DEFAULT_BINARY, "000100")
+                        .fromCase(VARBINARY(3), DEFAULT_VARBINARY, "000102")
+                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, "000102")
+                        .fromCase(BYTES(), DEFAULT_BYTES, "0001020304")
+                        .fromCase(DECIMAL(4, 3), 9.87, "9.870")
+                        .fromCase(DECIMAL(10, 5), 1, "1.00000")
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_POSITIVE_TINY_INT,
+                                String.valueOf(DEFAULT_POSITIVE_TINY_INT))
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_NEGATIVE_TINY_INT,
+                                String.valueOf(DEFAULT_NEGATIVE_TINY_INT))
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_POSITIVE_SMALL_INT,
+                                String.valueOf(DEFAULT_POSITIVE_SMALL_INT))
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_NEGATIVE_SMALL_INT,
+                                String.valueOf(DEFAULT_NEGATIVE_SMALL_INT))
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, String.valueOf(DEFAULT_POSITIVE_INT))
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, String.valueOf(DEFAULT_NEGATIVE_INT))
+                        .fromCase(
+                                BIGINT(),
+                                DEFAULT_POSITIVE_BIGINT,
+                                String.valueOf(DEFAULT_POSITIVE_BIGINT))
+                        .fromCase(
+                                BIGINT(),
+                                DEFAULT_NEGATIVE_BIGINT,
+                                String.valueOf(DEFAULT_NEGATIVE_BIGINT))
+                        .fromCase(
+                                FLOAT(),
+                                DEFAULT_POSITIVE_FLOAT,
+                                String.valueOf(DEFAULT_POSITIVE_FLOAT))
+                        .fromCase(
+                                FLOAT(),
+                                DEFAULT_NEGATIVE_FLOAT,
+                                String.valueOf(DEFAULT_NEGATIVE_FLOAT))
+                        .fromCase(
+                                DOUBLE(),
+                                DEFAULT_POSITIVE_DOUBLE,
+                                String.valueOf(DEFAULT_POSITIVE_DOUBLE))
+                        .fromCase(
+                                DOUBLE(),
+                                DEFAULT_NEGATIVE_DOUBLE,
+                                String.valueOf(DEFAULT_NEGATIVE_DOUBLE))
+                        .fromCase(DATE(), DEFAULT_DATE, "2021-09-24")
+                        // https://issues.apache.org/jira/browse/FLINK-17224 Currently, fractional
+                        // seconds are lost
+                        .fromCase(TIME(5), DEFAULT_TIME, "12:34:56")
+                        .fromCase(TIMESTAMP(), DEFAULT_TIMESTAMP, "2021-09-24 12:34:56.123456")
+                        .fromCase(TIMESTAMP(9), DEFAULT_TIMESTAMP, "2021-09-24 12:34:56.123456700")
+                        .fromCase(TIMESTAMP(4), DEFAULT_TIMESTAMP, "2021-09-24 12:34:56.1234")
+                        .fromCase(
+                                TIMESTAMP(3),
+                                LocalDateTime.parse("2021-09-24T12:34:56.1"),
+                                "2021-09-24 12:34:56.100")
+                        .fromCase(TIMESTAMP(4).nullable(), null, null)
+
+                        // https://issues.apache.org/jira/browse/FLINK-20869
+                        // TIMESTAMP_WITH_TIME_ZONE
+
+                        .fromCase(
+                                TIMESTAMP_LTZ(5),
+                                DEFAULT_TIMESTAMP_LTZ,
+                                "2021-09-25 07:54:56.12345")
+                        .fromCase(
+                                TIMESTAMP_LTZ(9),
+                                DEFAULT_TIMESTAMP_LTZ,
+                                "2021-09-25 07:54:56.123456700")
+                        .fromCase(
+                                TIMESTAMP_LTZ(3),
+                                fromLocalTZ("2021-09-24T22:34:56.1"),
+                                "2021-09-25 07:54:56.100")
+                        .fromCase(INTERVAL(YEAR()), 84, "+7-00")
+                        .fromCase(INTERVAL(MONTH()), 5, "+0-05")
+                        .fromCase(INTERVAL(MONTH()), 123, "+10-03")
+                        .fromCase(INTERVAL(MONTH()), 12334, "+1027-10")
+                        .fromCase(INTERVAL(DAY()), 10, "+0 00:00:00.010")
+                        .fromCase(INTERVAL(DAY()), 123456789L, "+1 10:17:36.789")
+                        .fromCase(INTERVAL(DAY()), Duration.ofHours(36), "+1 12:00:00.000")
+                        .fromCase(ARRAY(INT().nullable()), new Integer[] {null, 456}, "[NULL, 456]")
+                        .fromCase(
+                                MAP(STRING(), INTERVAL(MONTH()).nullable()),
+                                map(entry("a", -123), entry("b", null)),
+                                "{a=-10-03, b=NULL}")
+                        .fromCase(
+                                ROW(FIELD("f0", INT().nullable()), FIELD("f1", STRING())),
+                                Row.of(null, "abc"),
+                                "(NULL, abc)")
+                        // MULTISET, RAW and STRUCTURED are tested in CastFunctionMiscITCase,
+                        // because we need to work around the limitations of fromValues
+                        .build());
+    }
+
     public static List<TestSpec> decimalCasts() {
         return Collections.singletonList(
                 CastTestSpecBuilder.testCastTo(DECIMAL(8, 4))
@@ -1237,6 +1249,11 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
             this.columnTypes.add(dataType);
             this.columnData.add(src);
             this.expectedValues.add(target);
+            assertThat(
+                            LogicalTypeCasts.supportsExplicitCast(
+                                    dataType.getLogicalType(), targetType.getLogicalType()))
+                    .as("Should support explicit casting")
+                    .isTrue();
             return this;
         }
 
@@ -1358,21 +1375,5 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
     private static boolean isTimestampToNumeric(LogicalType srcType, LogicalType trgType) {
         return srcType.is(LogicalTypeFamily.TIMESTAMP) && trgType.is(LogicalTypeFamily.NUMERIC);
-    }
-
-    private static <K, V> Map.Entry<K, V> entry(K k, V v) {
-        return new AbstractMap.SimpleImmutableEntry<>(k, v);
-    }
-
-    @SafeVarargs
-    private static <K, V> Map<K, V> map(Map.Entry<K, V>... entries) {
-        if (entries == null) {
-            return Collections.emptyMap();
-        }
-        Map<K, V> map = new HashMap<>();
-        for (Map.Entry<K, V> entry : entries) {
-            map.put(entry.getKey(), entry.getValue());
-        }
-        return map;
     }
 }
