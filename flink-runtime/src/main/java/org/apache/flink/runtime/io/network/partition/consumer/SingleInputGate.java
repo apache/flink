@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.deployment.SubpartitionIndexRange;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -40,6 +41,7 @@ import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
@@ -132,14 +134,21 @@ public class SingleInputGate extends IndexedInputGate {
     /** The type of the partition the input gate is consuming. */
     private final ResultPartitionType consumedPartitionType;
 
+    /**
+     * Range of the index of the consumed subpartition of each consumed partition. This index
+     * depends on the {@link DistributionPattern} and the subtask indices of the producing and
+     * consuming task. The range is inclusive.
+     */
+    private final SubpartitionIndexRange subpartitionIndexRange;
+
     /** The number of input channels (equivalent to the number of consumed partitions). */
     private final int numberOfInputChannels;
 
     /**
-     * Input channels. There is a one input channel for each consumed intermediate result partition.
-     * We store this in a map for runtime updates of single channels.
+     * Input channels. There is one input channel for each consumed subpartition. We store this in a
+     * map for runtime updates of single channels.
      */
-    private final Map<IntermediateResultPartitionID, InputChannel> inputChannels;
+    private final Map<SubpartitionInfo, InputChannel> inputChannels;
 
     @GuardedBy("requestLock")
     private final InputChannel[] channels;
@@ -209,6 +218,7 @@ public class SingleInputGate extends IndexedInputGate {
             int gateIndex,
             IntermediateDataSetID consumedResultId,
             final ResultPartitionType consumedPartitionType,
+            SubpartitionIndexRange subpartitionIndexRange,
             int numberOfInputChannels,
             PartitionProducerStateProvider partitionProducerStateProvider,
             SupplierWithException<BufferPool, IOException> bufferPoolFactory,
@@ -225,6 +235,8 @@ public class SingleInputGate extends IndexedInputGate {
         this.consumedResultId = checkNotNull(consumedResultId);
         this.consumedPartitionType = checkNotNull(consumedPartitionType);
         this.bufferPoolFactory = checkNotNull(bufferPoolFactory);
+
+        this.subpartitionIndexRange = checkNotNull(subpartitionIndexRange);
 
         checkArgument(numberOfInputChannels > 0);
         this.numberOfInputChannels = numberOfInputChannels;
@@ -307,8 +319,7 @@ public class SingleInputGate extends IndexedInputGate {
     @VisibleForTesting
     public void convertRecoveredInputChannels() {
         LOG.debug("Converting recovered input channels ({} channels)", getNumberOfInputChannels());
-        for (Map.Entry<IntermediateResultPartitionID, InputChannel> entry :
-                inputChannels.entrySet()) {
+        for (Map.Entry<SubpartitionInfo, InputChannel> entry : inputChannels.entrySet()) {
             InputChannel inputChannel = entry.getValue();
             if (inputChannel instanceof RecoveredInputChannel) {
                 try {
@@ -528,7 +539,11 @@ public class SingleInputGate extends IndexedInputGate {
             for (InputChannel inputChannel : channels) {
                 IntermediateResultPartitionID partitionId =
                         inputChannel.getPartitionId().getPartitionId();
-                if (inputChannels.put(partitionId, inputChannel) == null
+                int subpartitionIndex = inputChannel.getConsumedSubpartitionIndex();
+                if (inputChannels.put(
+                                        new SubpartitionInfo(partitionId, subpartitionIndex),
+                                        inputChannel)
+                                == null
                         && inputChannel instanceof UnknownInputChannel) {
 
                     numberOfUninitializedChannels++;
@@ -549,47 +564,55 @@ public class SingleInputGate extends IndexedInputGate {
             IntermediateResultPartitionID partitionId =
                     shuffleDescriptor.getResultPartitionID().getPartitionId();
 
-            InputChannel current = inputChannels.get(partitionId);
+            for (int subpartitionIndex = subpartitionIndexRange.getStartIndex();
+                    subpartitionIndex <= subpartitionIndexRange.getEndIndex();
+                    ++subpartitionIndex) {
+                SubpartitionInfo subpartitionInfo =
+                        new SubpartitionInfo(partitionId, subpartitionIndex);
+                InputChannel current = inputChannels.get(subpartitionInfo);
 
-            if (current instanceof UnknownInputChannel) {
-                UnknownInputChannel unknownChannel = (UnknownInputChannel) current;
-                boolean isLocal = shuffleDescriptor.isLocalTo(localLocation);
-                InputChannel newChannel;
-                if (isLocal) {
-                    newChannel = unknownChannel.toLocalInputChannel();
-                } else {
-                    RemoteInputChannel remoteInputChannel =
-                            unknownChannel.toRemoteInputChannel(
-                                    shuffleDescriptor.getConnectionId());
-                    remoteInputChannel.setup();
-                    newChannel = remoteInputChannel;
-                }
-                LOG.debug("{}: Updated unknown input channel to {}.", owningTaskName, newChannel);
+                if (current instanceof UnknownInputChannel) {
+                    UnknownInputChannel unknownChannel = (UnknownInputChannel) current;
+                    boolean isLocal = shuffleDescriptor.isLocalTo(localLocation);
+                    InputChannel newChannel;
+                    if (isLocal) {
+                        newChannel = unknownChannel.toLocalInputChannel();
+                    } else {
+                        RemoteInputChannel remoteInputChannel =
+                                unknownChannel.toRemoteInputChannel(
+                                        shuffleDescriptor.getConnectionId());
+                        remoteInputChannel.setup();
+                        newChannel = remoteInputChannel;
+                    }
+                    LOG.debug(
+                            "{}: Updated unknown input channel to {}.", owningTaskName, newChannel);
 
-                inputChannels.put(partitionId, newChannel);
-                channels[current.getChannelIndex()] = newChannel;
+                    inputChannels.put(subpartitionInfo, newChannel);
+                    channels[current.getChannelIndex()] = newChannel;
 
-                if (requestedPartitionsFlag) {
-                    newChannel.requestSubpartition();
-                }
+                    if (requestedPartitionsFlag) {
+                        newChannel.requestSubpartition();
+                    }
 
-                for (TaskEvent event : pendingEvents) {
-                    newChannel.sendTaskEvent(event);
-                }
+                    for (TaskEvent event : pendingEvents) {
+                        newChannel.sendTaskEvent(event);
+                    }
 
-                if (--numberOfUninitializedChannels == 0) {
-                    pendingEvents.clear();
+                    if (--numberOfUninitializedChannels == 0) {
+                        pendingEvents.clear();
+                    }
                 }
             }
         }
     }
 
     /** Retriggers a partition request. */
-    public void retriggerPartitionRequest(IntermediateResultPartitionID partitionId)
-            throws IOException {
+    public void retriggerPartitionRequest(
+            IntermediateResultPartitionID partitionId, int subpartitionIndex) throws IOException {
         synchronized (requestLock) {
             if (!closeFuture.isDone()) {
-                final InputChannel ch = inputChannels.get(partitionId);
+                final InputChannel ch =
+                        inputChannels.get(new SubpartitionInfo(partitionId, subpartitionIndex));
 
                 checkNotNull(ch, "Unknown input channel with ID " + partitionId);
 
@@ -950,7 +973,7 @@ public class SingleInputGate extends IndexedInputGate {
         queueChannel(checkNotNull(inputChannel), null, true);
     }
 
-    void triggerPartitionStateCheck(ResultPartitionID partitionId) {
+    void triggerPartitionStateCheck(ResultPartitionID partitionId, int subpartitionIndex) {
         partitionProducerStateProvider.requestPartitionProducerState(
                 consumedResultId,
                 partitionId,
@@ -960,7 +983,8 @@ public class SingleInputGate extends IndexedInputGate {
                                     .isProducerReadyOrAbortConsumption(responseHandle);
                     if (isProducingState) {
                         try {
-                            retriggerPartitionRequest(partitionId.getPartitionId());
+                            retriggerPartitionRequest(
+                                    partitionId.getPartitionId(), subpartitionIndex);
                         } catch (IOException t) {
                             responseHandle.failConsumption(t);
                         }
@@ -1061,7 +1085,36 @@ public class SingleInputGate extends IndexedInputGate {
 
     // ------------------------------------------------------------------------
 
-    public Map<IntermediateResultPartitionID, InputChannel> getInputChannels() {
+    public Map<SubpartitionInfo, InputChannel> getInputChannels() {
         return inputChannels;
+    }
+
+    static class SubpartitionInfo {
+        private final IntermediateResultPartitionID partitionID;
+        private final int subpartitionIndex;
+
+        SubpartitionInfo(IntermediateResultPartitionID partitionID, int subpartitionIndex) {
+            this.partitionID = checkNotNull(partitionID);
+            checkArgument(subpartitionIndex >= 0);
+            this.subpartitionIndex = subpartitionIndex;
+        }
+
+        @Override
+        public int hashCode() {
+            return partitionID.hashCode() ^ subpartitionIndex;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) {
+                return true;
+            } else if (obj != null && obj.getClass() == getClass()) {
+                SubpartitionInfo that = (SubpartitionInfo) obj;
+                return that.partitionID.equals(this.partitionID)
+                        && that.subpartitionIndex == this.subpartitionIndex;
+            } else {
+                return false;
+            }
+        }
     }
 }

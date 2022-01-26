@@ -27,7 +27,7 @@ public class SubpartitionIndexRange implements Serializable {
     private final int startIndex;
     private final int endIndex;
 
-    SubpartitionIndexRange(int startIndex, int endIndex) {
+    public SubpartitionIndexRange(int startIndex, int endIndex) {
         checkArgument(startIndex >= 0);
         checkArgument(endIndex >= startIndex);
 
