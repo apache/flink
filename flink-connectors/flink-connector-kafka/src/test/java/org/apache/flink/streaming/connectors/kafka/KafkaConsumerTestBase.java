@@ -82,7 +82,6 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
-import kafka.server.KafkaServer;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
@@ -1516,11 +1515,13 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
                 .addSink(new ValidatingExactlyOnceSink(totalElements))
                 .setParallelism(1);
 
-        BrokerKillingMapper.killedLeaderBefore = false;
-        tryExecute(env, "Broker failure once test");
-
-        // start a new broker:
-        kafkaServer.restartBroker(leaderId);
+        try {
+            BrokerKillingMapper.killedLeaderBefore = false;
+            tryExecute(env, "Broker failure once test");
+        } finally {
+            // start a new broker:
+            kafkaServer.restartBroker(leaderId);
+        }
     }
 
     public void runKeyValueTest() throws Exception {
@@ -2620,32 +2621,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
                 if (failer && numElementsTotal >= failCount) {
                     // shut down a Kafka broker
-                    KafkaServer toShutDown = null;
-                    for (KafkaServer server : kafkaServer.getBrokers()) {
-
-                        if (kafkaServer.getBrokerId(server) == shutdownBrokerId) {
-                            toShutDown = server;
-                            break;
-                        }
-                    }
-
-                    if (toShutDown == null) {
-                        StringBuilder listOfBrokers = new StringBuilder();
-                        for (KafkaServer server : kafkaServer.getBrokers()) {
-                            listOfBrokers.append(kafkaServer.getBrokerId(server));
-                            listOfBrokers.append(" ; ");
-                        }
-
-                        throw new Exception(
-                                "Cannot find broker to shut down: "
-                                        + shutdownBrokerId
-                                        + " ; available brokers: "
-                                        + listOfBrokers.toString());
-                    } else {
-                        hasBeenCheckpointedBeforeFailure = hasBeenCheckpointed;
-                        killedLeaderBefore = true;
-                        toShutDown.shutdown();
-                    }
+                    kafkaServer.stopBroker(shutdownBrokerId);
                 }
             }
             return value;
