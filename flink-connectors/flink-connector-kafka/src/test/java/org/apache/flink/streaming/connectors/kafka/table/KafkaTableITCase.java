@@ -29,6 +29,8 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 
 import org.apache.kafka.clients.consumer.NoOffsetForPartitionException;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.TopicPartition;
 import org.assertj.core.api.Assertions;
 import org.junit.Before;
 import org.junit.Test;
@@ -47,9 +49,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.collectRows;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.readLines;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT;
@@ -842,8 +846,20 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                 .satisfies(FlinkAssertions.anyCauseMatches(NoOffsetForPartitionException.class));
     }
 
-    private List<String> appendNewData(String tableName)
-            throws ExecutionException, InterruptedException {
+    private List<String> appendNewData(
+            String topic, String tableName, String groupId, int targetNum) throws Exception {
+        waitUtil(
+                () -> {
+                    Map<TopicPartition, OffsetAndMetadata> offsets = getConsumerOffset(groupId);
+                    long sum =
+                            offsets.entrySet().stream()
+                                    .filter(e -> e.getKey().topic().contains(topic))
+                                    .mapToLong(e -> e.getValue().offset())
+                                    .sum();
+                    return sum == targetNum;
+                },
+                Duration.ofMillis(20000),
+                "Can not reach the expected offset before adding new data.");
         String appendValues =
                 "INSERT INTO "
                         + tableName
@@ -880,6 +896,8 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                         + "  'properties.group.id' = '%s',\n"
                         + "  'scan.startup.mode' = 'group-offsets',\n"
                         + "  'properties.auto.offset.reset' = '%s',\n"
+                        + "  'properties.enable.auto.commit' = 'true',\n"
+                        + "  'properties.auto.commit.interval.ms' = '1000',\n"
                         + "  'format' = '%s'\n"
                         + ")";
         tEnv.executeSql(
@@ -926,7 +944,8 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
         final String tableName = "Table" + format + resetStrategy;
-        final String topic = "groupOffset_" + format + resetStrategy;
+        final String topic =
+                "groupOffset_" + format + resetStrategy + ThreadLocalRandom.current().nextLong();
         String groupId = format + resetStrategy;
         String sinkName = "mySink" + format + resetStrategy;
         List<String> expected =
@@ -937,9 +956,9 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         try {
             tableResult = startFromGroupOffset(tableName, topic, groupId, resetStrategy, sinkName);
             if ("latest".equals(resetStrategy)) {
-                expected = appendNewData(tableName);
+                expected = appendNewData(topic, tableName, groupId, expected.size());
             }
-            KafkaTableTestUtils.waitingExpectedResults(sinkName, expected, Duration.ofSeconds(5));
+            KafkaTableTestUtils.waitingExpectedResults(sinkName, expected, Duration.ofSeconds(15));
         } finally {
             // ------------- cleanup -------------------
             if (tableResult != null) {
