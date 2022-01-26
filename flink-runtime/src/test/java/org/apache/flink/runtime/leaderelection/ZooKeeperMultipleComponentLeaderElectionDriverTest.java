@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
@@ -43,13 +42,9 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -69,7 +64,10 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     public void testElectionDriverGainsLeadershipAtStartup() throws Exception {
         new Context() {
             {
-                runTest(() -> leaderElectionListener.await(IsLeaderEvent.class));
+                runTest(
+                        () ->
+                                leaderElectionListener.await(
+                                        LeaderElectionEvent.IsLeaderEvent.class));
             }
         };
     }
@@ -80,9 +78,9 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
             {
                 runTest(
                         () -> {
-                            leaderElectionListener.await(IsLeaderEvent.class);
+                            leaderElectionListener.await(LeaderElectionEvent.IsLeaderEvent.class);
                             zooKeeperExtension.stop();
-                            leaderElectionListener.await(NotLeaderEvent.class);
+                            leaderElectionListener.await(LeaderElectionEvent.NotLeaderEvent.class);
                         });
             }
         };
@@ -94,7 +92,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
             {
                 runTest(
                         () -> {
-                            leaderElectionListener.await(IsLeaderEvent.class);
+                            leaderElectionListener.await(LeaderElectionEvent.IsLeaderEvent.class);
 
                             final String componentId = "retrieved-component";
                             final DefaultLeaderRetrievalService defaultLeaderRetrievalService =
@@ -129,7 +127,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
             {
                 runTest(
                         () -> {
-                            leaderElectionListener.await(IsLeaderEvent.class);
+                            leaderElectionListener.await(LeaderElectionEvent.IsLeaderEvent.class);
 
                             final String componentId = "retrieved-component";
                             final DefaultLeaderRetrievalService defaultLeaderRetrievalService =
@@ -170,7 +168,8 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                         () -> {
                             ElectionDriver otherLeaderElectionDriver = null;
                             try {
-                                leaderElectionListener.await(IsLeaderEvent.class);
+                                leaderElectionListener.await(
+                                        LeaderElectionEvent.IsLeaderEvent.class);
 
                                 otherLeaderElectionDriver =
                                         createLeaderElectionDriver(
@@ -184,7 +183,8 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
 
                                 assertThat(
                                                 leaderElectionListener.await(
-                                                        LeaderInformationChangeEvent.class,
+                                                        LeaderElectionEvent
+                                                                .LeaderInformationChangeEvent.class,
                                                         Duration.ofMillis(50L)))
                                         .isEmpty();
                             } finally {
@@ -203,7 +203,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
             {
                 runTest(
                         () -> {
-                            leaderElectionListener.await(IsLeaderEvent.class);
+                            leaderElectionListener.await(LeaderElectionEvent.IsLeaderEvent.class);
 
                             final LeaderInformation leaderInformation =
                                     LeaderInformation.known(UUID.randomUUID(), "foobar");
@@ -217,9 +217,11 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                                     () -> true,
                                     path);
 
-                            final LeaderInformationChangeEvent leaderInformationChangeEvent =
-                                    leaderElectionListener.await(
-                                            LeaderInformationChangeEvent.class);
+                            final LeaderElectionEvent.LeaderInformationChangeEvent
+                                    leaderInformationChangeEvent =
+                                            leaderElectionListener.await(
+                                                    LeaderElectionEvent.LeaderInformationChangeEvent
+                                                            .class);
 
                             assertThat(leaderInformationChangeEvent.getComponentId())
                                     .isEqualTo(componentId);
@@ -248,8 +250,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                         CompletableFuture.anyOf(
                                 electionDrivers.stream()
                                         .map(ElectionDriver::getLeadershipFuture)
-                                        .collect(Collectors.toList())
-                                        .toArray(new CompletableFuture[0]));
+                                        .toArray(CompletableFuture[]::new));
 
                 // wait for any leader
                 anyLeader.join();
@@ -277,7 +278,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
             {
                 runTest(
                         () -> {
-                            leaderElectionListener.await(IsLeaderEvent.class);
+                            leaderElectionListener.await(LeaderElectionEvent.IsLeaderEvent.class);
 
                             final LeaderInformation leaderInformation =
                                     LeaderInformation.known(UUID.randomUUID(), "foobar");
@@ -292,14 +293,17 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                                     path);
 
                             // wait for the publishing of the leader information
-                            leaderElectionListener.await(LeaderInformationChangeEvent.class);
+                            leaderElectionListener.await(
+                                    LeaderElectionEvent.LeaderInformationChangeEvent.class);
 
                             curatorFramework.asCuratorFramework().delete().forPath(path);
 
                             // wait for the removal of the leader information
-                            final LeaderInformationChangeEvent leaderInformationChangeEvent =
-                                    leaderElectionListener.await(
-                                            LeaderInformationChangeEvent.class);
+                            final LeaderElectionEvent.LeaderInformationChangeEvent
+                                    leaderInformationChangeEvent =
+                                            leaderElectionListener.await(
+                                                    LeaderElectionEvent.LeaderInformationChangeEvent
+                                                            .class);
                             assertThat(leaderInformationChangeEvent.getComponentId())
                                     .isEqualTo(componentId);
                             assertThat(leaderInformationChangeEvent.getLeaderInformation())
@@ -391,175 +395,6 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
         configuration.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperExtension.getConnectString());
         return ZooKeeperUtils.startCuratorFramework(configuration, NoOpFatalErrorHandler.INSTANCE);
-    }
-
-    private static final class TestingLeaderElectionListener
-            implements MultipleComponentLeaderElectionDriver.Listener {
-        private final BlockingQueue<LeaderElectionEvent> leaderElectionEvents =
-                new ArrayBlockingQueue<>(10);
-
-        @Override
-        public void isLeader() {
-            put(new IsLeaderEvent());
-        }
-
-        @Override
-        public void notLeader() {
-            put(new NotLeaderEvent());
-        }
-
-        @Override
-        public void notifyLeaderInformationChange(
-                String componentId, LeaderInformation leaderInformation) {
-            put(new LeaderInformationChangeEvent(componentId, leaderInformation));
-        }
-
-        @Override
-        public void notifyAllKnownLeaderInformation(
-                Collection<LeaderInformationWithComponentId> leaderInformationWithComponentIds) {
-            put(new AllKnownLeaderInformationEvent(leaderInformationWithComponentIds));
-        }
-
-        private void put(LeaderElectionEvent leaderElectionEvent) {
-            try {
-                leaderElectionEvents.put(leaderElectionEvent);
-            } catch (InterruptedException e) {
-                ExceptionUtils.rethrow(e);
-            }
-        }
-
-        public <T> T await(Class<T> clazz) throws InterruptedException {
-            while (true) {
-                final LeaderElectionEvent leaderElectionEvent = leaderElectionEvents.take();
-
-                if (clazz.isAssignableFrom(leaderElectionEvent.getClass())) {
-                    return clazz.cast(leaderElectionEvent);
-                }
-            }
-        }
-
-        public <T> Optional<T> await(Class<T> clazz, Duration timeout) throws InterruptedException {
-            final Deadline deadline = Deadline.fromNow(timeout);
-
-            while (true) {
-                final Duration timeLeft = deadline.timeLeft();
-
-                if (timeLeft.isNegative()) {
-                    return Optional.empty();
-                } else {
-                    final Optional<LeaderElectionEvent> optLeaderElectionEvent =
-                            Optional.ofNullable(
-                                    leaderElectionEvents.poll(
-                                            timeLeft.toMillis(), TimeUnit.MILLISECONDS));
-
-                    if (optLeaderElectionEvent.isPresent()) {
-                        final LeaderElectionEvent leaderElectionEvent =
-                                optLeaderElectionEvent.get();
-
-                        if (clazz.isAssignableFrom(leaderElectionEvent.getClass())) {
-                            return Optional.of(clazz.cast(optLeaderElectionEvent));
-                        }
-                    } else {
-                        return Optional.empty();
-                    }
-                }
-            }
-        }
-    }
-
-    private abstract static class LeaderElectionEvent {
-        boolean isIsLeaderEvent() {
-            return false;
-        }
-
-        boolean isNotLeaderEvent() {
-            return false;
-        }
-
-        boolean isLeaderInformationChangeEvent() {
-            return false;
-        }
-
-        boolean isAllKnownLeaderInformationEvent() {
-            return false;
-        }
-
-        IsLeaderEvent asIsLeaderEvent() {
-            return as(IsLeaderEvent.class);
-        }
-
-        NotLeaderEvent asNotLeaderEvent() {
-            return as(NotLeaderEvent.class);
-        }
-
-        LeaderInformationChangeEvent asLeaderInformationChangeEvent() {
-            return as(LeaderInformationChangeEvent.class);
-        }
-
-        AllKnownLeaderInformationEvent asAllKnownLeaderInformationEvent() {
-            return as(AllKnownLeaderInformationEvent.class);
-        }
-
-        <T> T as(Class<T> clazz) {
-            if (clazz.isAssignableFrom(getClass())) {
-                return clazz.cast(this);
-            } else {
-                throw new IllegalStateException("Cannot cast object.");
-            }
-        }
-    }
-
-    private static class IsLeaderEvent extends LeaderElectionEvent {
-        @Override
-        boolean isIsLeaderEvent() {
-            return true;
-        }
-    }
-
-    private static class NotLeaderEvent extends LeaderElectionEvent {
-        @Override
-        boolean isNotLeaderEvent() {
-            return true;
-        }
-    }
-
-    private static class LeaderInformationChangeEvent extends LeaderElectionEvent {
-        private final String componentId;
-        private final LeaderInformation leaderInformation;
-
-        private LeaderInformationChangeEvent(
-                String componentId, LeaderInformation leaderInformation) {
-            this.componentId = componentId;
-            this.leaderInformation = leaderInformation;
-        }
-
-        @Override
-        boolean isLeaderInformationChangeEvent() {
-            return true;
-        }
-
-        public String getComponentId() {
-            return componentId;
-        }
-
-        public LeaderInformation getLeaderInformation() {
-            return leaderInformation;
-        }
-    }
-
-    private static class AllKnownLeaderInformationEvent extends LeaderElectionEvent {
-        private final Collection<LeaderInformationWithComponentId>
-                leaderInformationWithComponentIds;
-
-        private AllKnownLeaderInformationEvent(
-                Collection<LeaderInformationWithComponentId> leaderInformationWithComponentIds) {
-            this.leaderInformationWithComponentIds = leaderInformationWithComponentIds;
-        }
-
-        @Override
-        boolean isAllKnownLeaderInformationEvent() {
-            return true;
-        }
     }
 
     private class Context {

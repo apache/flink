@@ -97,6 +97,7 @@ public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
                             watchExecutorService,
                             configMapName,
                             retrievalEventHandler,
+                            KubernetesUtils::getLeaderInformationFromConfigMap,
                             retrievalEventHandler::handleError);
 
             electionEventHandler.waitForLeader(TIMEOUT);

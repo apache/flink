@@ -45,6 +45,7 @@ import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
@@ -70,6 +71,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
@@ -88,6 +90,9 @@ public class KubernetesUtils {
     private static final Logger LOG = LoggerFactory.getLogger(KubernetesUtils.class);
 
     private static final YAMLMapper yamlMapper = new YAMLMapper();
+
+    private static final String LEADER_PREFIX = "org.apache.flink.k8s.leader.";
+    private static final char LEADER_INFORMATION_SEPARATOR = ',';
 
     /**
      * Check whether the port config option is a fixed port. If not, the fallback port will be set
@@ -511,6 +516,51 @@ public class KubernetesUtils {
     public enum ClusterComponent {
         JOB_MANAGER,
         TASK_MANAGER
+    }
+
+    public static String encodeLeaderInformation(LeaderInformation leaderInformation) {
+        Preconditions.checkArgument(leaderInformation.getLeaderSessionID() != null);
+        Preconditions.checkArgument(leaderInformation.getLeaderAddress() != null);
+
+        return leaderInformation.getLeaderSessionID().toString()
+                + LEADER_INFORMATION_SEPARATOR
+                + leaderInformation.getLeaderAddress();
+    }
+
+    public static Optional<LeaderInformation> parseLeaderInformationSafely(String value) {
+        try {
+            return Optional.of(parseLeaderInformation(value));
+        } catch (Throwable throwable) {
+            LOG.debug("Could not parse value {} into LeaderInformation.", value, throwable);
+            return Optional.empty();
+        }
+    }
+
+    private static LeaderInformation parseLeaderInformation(String value) {
+        final int splitIndex = value.indexOf(LEADER_INFORMATION_SEPARATOR);
+
+        Preconditions.checkState(
+                splitIndex >= 0,
+                String.format(
+                        "Expecting '<session_id>%c<leader_address>'",
+                        LEADER_INFORMATION_SEPARATOR));
+
+        final UUID leaderSessionId = UUID.fromString(value.substring(0, splitIndex));
+        final String leaderAddress = value.substring(splitIndex + 1);
+
+        return LeaderInformation.known(leaderSessionId, leaderAddress);
+    }
+
+    public static String createSingleLeaderKey(String componentId) {
+        return LEADER_PREFIX + componentId;
+    }
+
+    public static boolean isSingleLeaderKey(String key) {
+        return key.startsWith(LEADER_PREFIX);
+    }
+
+    public static String extractLeaderName(String key) {
+        return key.substring(LEADER_PREFIX.length());
     }
 
     private KubernetesUtils() {}
