@@ -42,6 +42,7 @@ public class InputChannelBuilder {
 
     private int channelIndex = 0;
     private ResultPartitionID partitionId = new ResultPartitionID();
+    private int consumedSubpartitionIndex = 0;
     private ConnectionID connectionID = STUB_CONNECTION_ID;
     private ResultPartitionManager partitionManager =
             new TestingResultPartitionManager(new NoOpResultSubpartitionView());
@@ -65,6 +66,11 @@ public class InputChannelBuilder {
 
     public InputChannelBuilder setPartitionId(ResultPartitionID partitionId) {
         this.partitionId = partitionId;
+        return this;
+    }
+
+    public InputChannelBuilder setConsumedSubpartitionIndex(int consumedSubpartitionIndex) {
+        this.consumedSubpartitionIndex = consumedSubpartitionIndex;
         return this;
     }
 
@@ -123,6 +129,7 @@ public class InputChannelBuilder {
                         inputGate,
                         channelIndex,
                         partitionId,
+                        consumedSubpartitionIndex,
                         partitionManager,
                         taskEventPublisher,
                         connectionManager,
@@ -139,6 +146,7 @@ public class InputChannelBuilder {
                 inputGate,
                 channelIndex,
                 partitionId,
+                consumedSubpartitionIndex,
                 partitionManager,
                 taskEventPublisher,
                 initialBackoff,
@@ -153,6 +161,7 @@ public class InputChannelBuilder {
                 inputGate,
                 channelIndex,
                 partitionId,
+                consumedSubpartitionIndex,
                 connectionID,
                 connectionManager,
                 initialBackoff,
@@ -169,6 +178,7 @@ public class InputChannelBuilder {
                         inputGate,
                         channelIndex,
                         partitionId,
+                        consumedSubpartitionIndex,
                         partitionManager,
                         taskEventPublisher,
                         initialBackoff,
@@ -185,6 +195,7 @@ public class InputChannelBuilder {
                         inputGate,
                         channelIndex,
                         partitionId,
+                        consumedSubpartitionIndex,
                         connectionID,
                         connectionManager,
                         initialBackoff,

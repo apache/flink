@@ -41,7 +41,7 @@ public class RecoveredInputChannelTest {
 
     @Test(expected = UnsupportedOperationException.class)
     public void testRequestPartitionsImpossible() {
-        buildChannel().requestSubpartition(0);
+        buildChannel().requestSubpartition();
     }
 
     @Test(expected = CheckpointException.class)
@@ -58,6 +58,7 @@ public class RecoveredInputChannelTest {
                     new SingleInputGateBuilder().build(),
                     0,
                     new ResultPartitionID(),
+                    0,
                     0,
                     0,
                     new SimpleCounter(),
