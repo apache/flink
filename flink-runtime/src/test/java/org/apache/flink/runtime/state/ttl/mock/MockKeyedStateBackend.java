@@ -65,11 +65,13 @@ import java.util.stream.Stream;
 
 /** State backend which produces in memory mock state objects. */
 public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
+    public static final long UN_NOTIFIED_CHECKPOINT_ID = -1L;
 
     /** Whether to create empty snapshot ({@link MockKeyedStateHandle} isn't recognized by JM). */
     private final boolean emptySnapshot;
 
-    private long lastCompletedCheckpointID;
+    private long lastCompletedCheckpointID = UN_NOTIFIED_CHECKPOINT_ID;
+    private long lastAbortedCheckpointID = UN_NOTIFIED_CHECKPOINT_ID;
 
     private interface StateFactory {
         <N, SV, S extends State, IS extends S> IS createInternalState(
@@ -195,7 +197,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     @Override
     public void notifyCheckpointAborted(long checkpointId) {
-        // noop
+        lastAbortedCheckpointID = checkpointId;
     }
 
     @Override
@@ -304,6 +306,10 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     public long getLastCompletedCheckpointID() {
         return lastCompletedCheckpointID;
+    }
+
+    public long getLastAbortedCheckpointID() {
+        return lastAbortedCheckpointID;
     }
 
     static class MockKeyedStateHandle<K> implements KeyedStateHandle {

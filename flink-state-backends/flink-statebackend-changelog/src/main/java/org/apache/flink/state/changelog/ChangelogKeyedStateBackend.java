@@ -78,13 +78,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -120,6 +118,9 @@ public class ChangelogKeyedStateBackend<K>
     private static final CheckpointOptions CHECKPOINT_OPTIONS =
             new CheckpointOptions(
                     CheckpointType.CHECKPOINT, CheckpointStorageLocationReference.getDefault());
+
+    // the init materialization id starts from zero.
+    private static final long INIT_MATERIALIZED_ID = 0L;
 
     private static final Map<StateDescriptor.Type, StateFactory> STATE_FACTORIES =
             Stream.of(
@@ -170,7 +171,7 @@ public class ChangelogKeyedStateBackend<K>
 
     private long lastCheckpointId = -1L;
 
-    private long materializedId = 0;
+    private long materializedId = INIT_MATERIALIZED_ID;
 
     /** last accessed partitioned state. */
     @SuppressWarnings("rawtypes")
@@ -209,21 +210,10 @@ public class ChangelogKeyedStateBackend<K>
 
     /** Checkpoint ID mapped to Materialization ID - used to notify nested backend of completion. */
     private final NavigableMap<Long, Long> materializationIdByCheckpointId = new TreeMap<>();
-    /**
-     * Materialization ID mapped to Checkpoint IDs - used to notify nested backend of abortion.
-     * Entry is removed when:
-     *
-     * <ol>
-     *   <li>some checkpoint of a Set completes (in which case {@link #keyedStateBackend} is {@link
-     *       CheckpointListener#notifyCheckpointComplete(long) notified of completion}.
-     *   <li>a newer checkpoint completes
-     *   <li>all checkpoints of a Set are aborted (in which case {@link #keyedStateBackend} is
-     *       {@link CheckpointListener#notifyCheckpointAborted(long) notified of abortion}.
-     * </ol>
-     */
-    private final Map<Long, Set<Long>> pendingMaterializationConfirmations = new HashMap<>();
 
-    private long lastConfirmedMaterializationId = -1L;
+    private long lastConfirmedMaterializationId = INIT_MATERIALIZED_ID;
+
+    private long lastCandidateAbortedMaterializationId = INIT_MATERIALIZED_ID;
 
     public ChangelogKeyedStateBackend(
             AbstractKeyedStateBackend<K> keyedStateBackend,
@@ -403,11 +393,6 @@ public class ChangelogKeyedStateBackend<K>
         if (changelogStateBackendStateCopy.materializationID > lastConfirmedMaterializationId) {
             materializationIdByCheckpointId.put(
                     checkpointId, changelogStateBackendStateCopy.materializationID);
-            pendingMaterializationConfirmations
-                    .computeIfAbsent(
-                            changelogStateBackendStateCopy.materializationID,
-                            ign -> new HashSet<>())
-                    .add(checkpointId);
         }
 
         return toRunnableFuture(
@@ -504,15 +489,14 @@ public class ChangelogKeyedStateBackend<K>
             if (materializationID > lastConfirmedMaterializationId) {
                 keyedStateBackend.notifyCheckpointComplete(materializationID);
                 lastConfirmedMaterializationId = materializationID;
+                // once pending materialization is confirmed, the materialization id
+                // to abort would be reset
+                if (lastConfirmedMaterializationId == lastCandidateAbortedMaterializationId) {
+                    lastCandidateAbortedMaterializationId = INIT_MATERIALIZED_ID;
+                }
             }
-            pendingMaterializationConfirmations.remove(materializationID);
         }
-        // there is a chance that nested backend will miss the abort notification
-        // but there is no other way to cleanup this map
-        Map<Long, Long> olderCheckpoints =
-                materializationIdByCheckpointId.headMap(checkpointId, true);
-        olderCheckpoints.values().forEach(pendingMaterializationConfirmations::remove);
-        olderCheckpoints.clear();
+        materializationIdByCheckpointId.headMap(checkpointId, true).clear();
     }
 
     @Override
@@ -526,18 +510,16 @@ public class ChangelogKeyedStateBackend<K>
         }
         Long materializationID = materializationIdByCheckpointId.remove(checkpointId);
         if (materializationID != null) {
-            Set<Long> checkpoints = pendingMaterializationConfirmations.get(materializationID);
-            checkpoints.remove(checkpointId);
-            if (checkpoints.isEmpty()) {
-                if (materializationID < changelogSnapshotState.materializationID) {
-                    // Notification is not strictly required and will arrive only after the nested
-                    // snapshot has completed. It's also unlikely to be sent because of the
-                    // difference in checkpoint/materialization intervals. But it can still be
-                    // useful
-                    // for some backends.
-                    keyedStateBackend.notifyCheckpointAborted(materializationID);
+            if (materializationID > lastCandidateAbortedMaterializationId) {
+                if (lastCandidateAbortedMaterializationId != INIT_MATERIALIZED_ID) {
+                    // we would not notify aborted materialization ids smaller than
+                    // last confirmed success materialization id.
+                    // e,g chk-40, chk-41 notify mat-1 as aborted, and then chk-42 notify mat-2
+                    // as completed, thus mat-1 would no longer be notified as aborted.
+                    keyedStateBackend.notifyCheckpointAborted(
+                            lastCandidateAbortedMaterializationId);
                 }
-                pendingMaterializationConfirmations.remove(materializationID);
+                lastCandidateAbortedMaterializationId = materializationID;
             }
         }
     }

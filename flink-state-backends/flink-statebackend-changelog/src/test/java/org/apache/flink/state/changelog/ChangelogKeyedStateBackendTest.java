@@ -20,6 +20,7 @@ package org.apache.flink.state.changelog;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -38,49 +39,137 @@ import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackendBuilder;
 import org.apache.flink.state.changelog.ChangelogStateBackendTestUtils.DummyCheckpointingStorageAccess;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
+import java.util.NavigableSet;
+import java.util.Random;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static java.util.Collections.emptyList;
+import static org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend.UN_NOTIFIED_CHECKPOINT_ID;
 import static org.junit.Assert.assertEquals;
 
 /** {@link ChangelogKeyedStateBackend} test. */
-@RunWith(Parameterized.class)
 public class ChangelogKeyedStateBackendTest {
 
-    @Parameterized.Parameters(name = "checkpointID={0}, materializationId={1}")
-    public static Object[][] parameters() {
-        return new Object[][] {
-            {0L, 200L},
-            {200L, 0L},
-        };
-    }
-
-    @Parameter(0)
-    public long checkpointId;
-
-    @Parameter(1)
-    public long materializationId;
+    private final List<Long> checkpointIds =
+            Arrays.asList(201L, 202L, 203L, 204L, 205L, 206L, 207L, 208L);
+    private final List<Long> materializationIds =
+            Arrays.asList(UN_NOTIFIED_CHECKPOINT_ID, 1L, 1L, 2L, 2L, 2L, 3L, 3L);
 
     @Test
-    public void testCheckpointConfirmation() throws Exception {
+    public void testCheckpointsAllCompleted() throws Exception {
+        testCheckpointsWithMaterialization(new FakeRandom(true));
+    }
+
+    @Test
+    public void testCheckpointsAllAborted() throws Exception {
+        testCheckpointsWithMaterialization(new FakeRandom(false));
+    }
+
+    @Test
+    public void testCheckpointsMixed() throws Exception {
+        testCheckpointsWithMaterialization(ThreadLocalRandom.current());
+    }
+
+    private void testCheckpointsWithMaterialization(Random random) throws Exception {
         MockKeyedStateBackend<Integer> mock = createMock();
         ChangelogKeyedStateBackend<Integer> changelog = createChangelog(mock);
+        int rounds = checkpointIds.size();
         try {
-            changelog.updateChangelogSnapshotState(
-                    SnapshotResult.empty(), materializationId, SequenceNumber.of(Long.MAX_VALUE));
-            checkpoint(changelog, checkpointId).get().discardState();
+            long lastMaterializationId = UN_NOTIFIED_CHECKPOINT_ID;
+            NavigableMap<Long, Tuple2<Boolean, Long>> materializationIdByCheckpointId =
+                    new TreeMap<>();
+            // since we would not notify aborted materialization id smaller than last confirmed
+            // success materialization id, we need to record all success
+            // materialization ids to identify this.
+            Set<Long> successMaterializationIds = new HashSet<>();
+            for (int i = 0; i < rounds; i++) {
+                long checkpointId = checkpointIds.get(i);
+                checkpoint(changelog, checkpointId).get().discardState();
+                boolean success = random.nextBoolean();
+                materializationIdByCheckpointId.put(
+                        checkpointId, Tuple2.of(success, lastMaterializationId));
+                if (success) {
+                    successMaterializationIds.add(lastMaterializationId);
+                    changelog.notifyCheckpointComplete(checkpointId);
+                    assertEquals(
+                            findLastConfirmedMaterializationId(materializationIdByCheckpointId),
+                            mock.getLastCompletedCheckpointID());
+                } else {
+                    changelog.notifyCheckpointAborted(checkpointId);
+                    if (!successMaterializationIds.contains(lastMaterializationId)) {
+                        assertEquals(
+                                findLastAbortedMaterializationId(materializationIdByCheckpointId),
+                                mock.getLastAbortedCheckpointID());
+                    }
+                }
 
-            changelog.notifyCheckpointComplete(checkpointId);
-            assertEquals(materializationId, mock.getLastCompletedCheckpointID());
-
+                long materializationId = materializationIds.get(i);
+                if (materializationId != lastMaterializationId) {
+                    changelog.updateChangelogSnapshotState(
+                            SnapshotResult.empty(),
+                            materializationId,
+                            SequenceNumber.of(checkpointId));
+                    lastMaterializationId = materializationId;
+                }
+            }
         } finally {
             changelog.close();
             changelog.dispose();
         }
+    }
+
+    private long findLastConfirmedMaterializationId(
+            NavigableMap<Long, Tuple2<Boolean, Long>> materializationIdByCheckpointId) {
+        for (Map.Entry<Long, Tuple2<Boolean, Long>> entry :
+                materializationIdByCheckpointId.descendingMap().entrySet()) {
+            if (entry.getValue().f0) {
+                return entry.getValue().f1;
+            }
+        }
+        return MockKeyedStateBackend.UN_NOTIFIED_CHECKPOINT_ID;
+    }
+
+    private long findLastAbortedMaterializationId(
+            NavigableMap<Long, Tuple2<Boolean, Long>> materializationIdByCheckpointId) {
+        NavigableSet<Long> failedMaterializationIds = new TreeSet<>();
+        NavigableSet<Long> successMaterializationIds = new TreeSet<>();
+        for (Map.Entry<Long, Tuple2<Boolean, Long>> entry :
+                materializationIdByCheckpointId.descendingMap().entrySet()) {
+            long materializationId = entry.getValue().f1;
+            if (entry.getValue().f0) {
+                successMaterializationIds.add(materializationId);
+            } else {
+                failedMaterializationIds.add(materializationId);
+            }
+        }
+        long lastSuccessMaterializationId =
+                successMaterializationIds.isEmpty()
+                        ? MockKeyedStateBackend.UN_NOTIFIED_CHECKPOINT_ID
+                        : successMaterializationIds.last();
+        failedMaterializationIds.removeAll(successMaterializationIds);
+        Iterator<Long> iterator = failedMaterializationIds.descendingIterator();
+        boolean lastMaterializationAlwaysFailed = true;
+        while (iterator.hasNext()) {
+            long failedMaterializationId = iterator.next();
+            if (lastMaterializationAlwaysFailed
+                    && failedMaterializationId > lastSuccessMaterializationId) {
+                lastMaterializationAlwaysFailed = false;
+                continue;
+            }
+            return failedMaterializationId;
+        }
+        return MockKeyedStateBackend.UN_NOTIFIED_CHECKPOINT_ID;
     }
 
     private MockKeyedStateBackend<Integer> createMock() {
@@ -120,5 +209,19 @@ public class ChangelogKeyedStateBackendTest {
                 0L,
                 new MemCheckpointStreamFactory(1000),
                 CheckpointOptions.forCheckpointWithDefaultLocation());
+    }
+
+    private static class FakeRandom extends Random {
+        private static final long serialVersionUID = 1L;
+        private final boolean alwaysBoolean;
+
+        FakeRandom(boolean alwaysBoolean) {
+            this.alwaysBoolean = alwaysBoolean;
+        }
+
+        @Override
+        public boolean nextBoolean() {
+            return alwaysBoolean;
+        }
     }
 }
