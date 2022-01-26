@@ -44,6 +44,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.connector.kafka.testutils.extension.KafkaClientKit;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
@@ -85,11 +86,12 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.NotLeaderForPartitionException;
 import org.apache.kafka.common.errors.TimeoutException;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.apache.kafka.common.serialization.VoidSerializer;
 import org.junit.Assert;
 import org.junit.Before;
 
@@ -1380,7 +1382,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRestartStrategy(RestartStrategies.noRestart());
-        env.enableCheckpointing(100);
         env.setParallelism(parallelism);
 
         // add consuming topology:
@@ -1419,53 +1420,27 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
                     }
                 });
 
-        // add producing topology
-        Properties producerProps = new Properties();
+        List<ProducerRecord<Void, byte[]>> records = new ArrayList<>();
+        Random rnd = new Random();
+        int sevenMb = 1024 * 1024 * 7;
+        for (long i = 0; i < 10; i++) {
+            byte[] wl = new byte[sevenMb + rnd.nextInt(sevenMb)];
+            byte[] binary = serSchema.serialize(new Tuple2<>(i, wl));
+            records.add(new ProducerRecord<>(topic, binary));
+        }
+        records.add(
+                new ProducerRecord<>(
+                        topic, serSchema.serialize(new Tuple2<>(-1L, new byte[] {1}))));
+
+        KafkaClientKit kafkaClientKit =
+                ((KafkaTestEnvironmentImpl) kafkaServer).kafkaExtension.createKafkaClientKit();
+
+        Properties producerProps =
+                kafkaClientKit.createProducerProps(VoidSerializer.class, ByteArraySerializer.class);
         producerProps.setProperty("max.request.size", Integer.toString(1024 * 1024 * 15));
         producerProps.setProperty("retries", "3");
-        producerProps.putAll(secureProps);
-        producerProps.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerConnectionStrings);
 
-        DataStream<Tuple2<Long, byte[]>> stream =
-                env.addSource(
-                        new RichSourceFunction<Tuple2<Long, byte[]>>() {
-
-                            private boolean running;
-
-                            @Override
-                            public void open(Configuration parameters) throws Exception {
-                                super.open(parameters);
-                                running = true;
-                            }
-
-                            @Override
-                            public void run(SourceContext<Tuple2<Long, byte[]>> ctx)
-                                    throws Exception {
-                                Random rnd = new Random();
-                                long cnt = 0;
-                                int sevenMb = 1024 * 1024 * 7;
-
-                                while (running) {
-                                    byte[] wl = new byte[sevenMb + rnd.nextInt(sevenMb)];
-                                    ctx.collect(new Tuple2<>(cnt++, wl));
-
-                                    Thread.sleep(100);
-
-                                    if (cnt == 10) {
-                                        // signal end
-                                        ctx.collect(new Tuple2<>(-1L, new byte[] {1}));
-                                        break;
-                                    }
-                                }
-                            }
-
-                            @Override
-                            public void cancel() {
-                                running = false;
-                            }
-                        });
-
-        kafkaServer.produceIntoKafka(stream, topic, serSchema, producerProps, null);
+        kafkaClientKit.produceToKafka(records, producerProps);
 
         tryExecute(env, "big topology test");
         deleteTestTopic(topic);

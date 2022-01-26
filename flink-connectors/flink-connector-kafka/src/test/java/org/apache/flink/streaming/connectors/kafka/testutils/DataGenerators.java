@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.connectors.kafka.testutils;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
@@ -159,7 +158,7 @@ public class DataGenerators {
         @Override
         public void run() {
             // we manually feed data into the Kafka sink
-            RichFunction producer = null;
+            OneInputStreamOperatorTestHarness<String, Object> testHarness = null;
             try {
                 Properties producerProperties =
                         FlinkKafkaProducerBase.getPropertiesFromBrokerList(
@@ -176,8 +175,7 @@ public class DataGenerators {
                                 producerProperties,
                                 new FlinkFixedPartitioner<>());
 
-                OneInputStreamOperatorTestHarness<String, Object> testHarness =
-                        new OneInputStreamOperatorTestHarness<>(sink);
+                testHarness = new OneInputStreamOperatorTestHarness<>(sink);
 
                 testHarness.open();
 
@@ -198,9 +196,9 @@ public class DataGenerators {
             } catch (Throwable t) {
                 this.error = t;
             } finally {
-                if (producer != null) {
+                if (testHarness != null) {
                     try {
-                        producer.close();
+                        testHarness.close();
                     } catch (Throwable t) {
                         // ignore
                     }
