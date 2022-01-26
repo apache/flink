@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.env.pemja;
+package org.apache.flink.python.env.embedded;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
@@ -24,8 +24,6 @@ import org.apache.flink.python.env.AbstractPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironment;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import pemja.core.PythonInterpreterConfig;
 
 import java.io.File;
@@ -39,9 +37,6 @@ import java.util.Map;
 @Internal
 public class EmbeddedPythonEnvironmentManager extends AbstractPythonEnvironmentManager {
 
-    private static final Logger LOG =
-            LoggerFactory.getLogger(EmbeddedPythonEnvironmentManager.class);
-
     public EmbeddedPythonEnvironmentManager(
             PythonDependencyInfo dependencyInfo,
             String[] tmpDirectories,
@@ -52,13 +47,19 @@ public class EmbeddedPythonEnvironmentManager extends AbstractPythonEnvironmentM
 
     @Override
     public PythonEnvironment createEnvironment() throws Exception {
-        Map<String, String> env = new HashMap<>(resource.env);
+        Map<String, String> env = new HashMap<>(getPythonEnv());
 
         PythonInterpreterConfig.ExecType execType;
-        if (dependencyInfo.getThreadModeExecType().equals("sub-interpreter")) {
+
+        String executionMode = dependencyInfo.getExecutionMode();
+
+        if (executionMode.equalsIgnoreCase("sub-interpreter")) {
             execType = PythonInterpreterConfig.ExecType.SUB_INTERPRETER;
-        } else {
+        } else if (executionMode.equalsIgnoreCase("multi-thread")) {
             execType = PythonInterpreterConfig.ExecType.MULTI_THREAD;
+        } else {
+            throw new RuntimeException(
+                    String.format("Unsupported execution mode %s.", executionMode));
         }
 
         if (env.containsKey("FLINK_TESTING")) {

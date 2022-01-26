@@ -165,7 +165,7 @@ public class CommonPythonUtil {
             return config.getString(
                             (ConfigOption<String>)
                                     (clazz.getField("PYTHON_EXECUTION_MODE").get(null)))
-                    .equals("process");
+                    .equalsIgnoreCase("process");
 
         } catch (IllegalAccessException | NoSuchFieldException e) {
             throw new TableException("Field PYTHON_EXECUTION_MODE accessed failed.", e);

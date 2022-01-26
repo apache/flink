@@ -70,8 +70,8 @@ public final class PythonDependencyInfo {
      */
     @Nonnull private final String pythonExec;
 
-    /** Execution type in Thread Mode. */
-    @Nonnull private final String threadModeExecType;
+    /** Execution Mode. */
+    @Nonnull private final String executionMode;
 
     public PythonDependencyInfo(
             @Nonnull Map<String, String> pythonFiles,
@@ -85,7 +85,7 @@ public final class PythonDependencyInfo {
                 requirementsCacheDir,
                 archives,
                 pythonExec,
-                PythonOptions.PYTHON_THREAD_MODE_EXECUTION_TYPE.defaultValue());
+                PythonOptions.PYTHON_EXECUTION_MODE.defaultValue());
     }
 
     public PythonDependencyInfo(
@@ -94,13 +94,13 @@ public final class PythonDependencyInfo {
             @Nullable String requirementsCacheDir,
             @Nonnull Map<String, String> archives,
             @Nonnull String pythonExec,
-            @Nonnull String threadModeExecType) {
+            @Nonnull String executionMode) {
         this.pythonFiles = Objects.requireNonNull(pythonFiles);
         this.requirementsFilePath = requirementsFilePath;
         this.requirementsCacheDir = requirementsCacheDir;
         this.pythonExec = Objects.requireNonNull(pythonExec);
         this.archives = Objects.requireNonNull(archives);
-        this.threadModeExecType = Objects.requireNonNull(threadModeExecType);
+        this.executionMode = Objects.requireNonNull(executionMode);
     }
 
     public Map<String, String> getPythonFiles() {
@@ -123,8 +123,8 @@ public final class PythonDependencyInfo {
         return archives;
     }
 
-    public String getThreadModeExecType() {
-        return threadModeExecType;
+    public String getExecutionMode() {
+        return executionMode;
     }
 
     /**
@@ -174,6 +174,6 @@ public final class PythonDependencyInfo {
                 requirementsCacheDir,
                 archives,
                 pythonExec,
-                pythonConfig.getThreadModeExecType());
+                pythonConfig.getExecutionMode());
     }
 }

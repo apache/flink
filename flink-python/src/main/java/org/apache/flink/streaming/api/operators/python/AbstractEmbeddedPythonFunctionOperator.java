@@ -25,14 +25,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.env.PythonDependencyInfo;
-import org.apache.flink.python.env.pemja.EmbeddedPythonEnvironment;
-import org.apache.flink.python.env.pemja.EmbeddedPythonEnvironmentManager;
+import org.apache.flink.python.env.embedded.EmbeddedPythonEnvironment;
+import org.apache.flink.python.env.embedded.EmbeddedPythonEnvironmentManager;
 import org.apache.flink.table.functions.python.PythonEnv;
 
 import pemja.core.PythonInterpreter;
 import pemja.core.PythonInterpreterConfig;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
@@ -81,38 +80,32 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
         if (env.containsKey(PYTHON_WORKING_DIR)) {
             lock.lockInterruptibly();
 
-            JobID jobId = getRuntimeContext().getJobId();
-            Tuple2<String, Integer> dirAndNums;
+            try {
+                JobID jobId = getRuntimeContext().getJobId();
+                Tuple2<String, Integer> dirAndNums;
 
-            if (workingDirectories.containsKey(jobId)) {
-                dirAndNums = workingDirectories.get(jobId);
-            } else {
-                dirAndNums = Tuple2.of(null, 0);
-                workingDirectories.put(jobId, dirAndNums);
+                if (workingDirectories.containsKey(jobId)) {
+                    dirAndNums = workingDirectories.get(jobId);
+                } else {
+                    dirAndNums = Tuple2.of(null, 0);
+                    workingDirectories.put(jobId, dirAndNums);
+                }
+                dirAndNums.f1 += 1;
+
+                if (dirAndNums.f0 == null) {
+                    // get current directory.
+                    interpreter.exec("import os;cwd = os.getcwd();");
+                    dirAndNums.f0 = interpreter.get("cwd", String.class);
+                    String workingDirectory = env.get(PYTHON_WORKING_DIR);
+                    // set working directory
+                    interpreter.exec(String.format("import os;os.chdir('%s')", workingDirectory));
+                }
+            } finally {
+                lock.unlock();
             }
-            dirAndNums.f1 += 1;
-
-            if (dirAndNums.f0 == null) {
-                // get current directory.
-                interpreter.exec("import os;cwd = os.getcwd();");
-                dirAndNums.f0 = interpreter.get("cwd", String.class);
-                String workingDirectory = env.get(PYTHON_WORKING_DIR);
-                // set working directory
-                interpreter.exec(String.format("import os;os.chdir('%s')", workingDirectory));
-            }
-
-            lock.unlock();
         }
 
-        if (interpreterConfig
-                .getExecType()
-                .equals(PythonInterpreterConfig.ExecType.SUB_INTERPRETER)) {
-            LOG.info("Create Operation in multi interpreters.");
-            createOperationInMultiInterpreters(pythonConfig.getPythonExec(), env);
-        } else {
-            LOG.info("Create Operation in multi threads.");
-            createOperationInMultiThread();
-        }
+        openPythonInterpreter(pythonConfig.getPythonExec(), env, interpreterConfig.getExecType());
     }
 
     @Override
@@ -121,13 +114,17 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
             JobID jobId = getRuntimeContext().getJobId();
             if (workingDirectories.containsKey(jobId)) {
                 lock.lockInterruptibly();
-                Tuple2<String, Integer> dirAndNums = workingDirectories.get(jobId);
-                dirAndNums.f1 -= 1;
-                if (dirAndNums.f1 == 0) {
-                    // change to previous working directory.
-                    interpreter.exec(String.format("import os;os.chdir('%s')", dirAndNums.f0));
+
+                try {
+                    Tuple2<String, Integer> dirAndNums = workingDirectories.get(jobId);
+                    dirAndNums.f1 -= 1;
+                    if (dirAndNums.f1 == 0) {
+                        // change to previous working directory.
+                        interpreter.exec(String.format("import os;os.chdir('%s')", dirAndNums.f0));
+                    }
+                } finally {
+                    lock.unlock();
                 }
-                lock.unlock();
             }
 
             if (interpreter != null) {
@@ -154,19 +151,12 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
                 getRuntimeContext().getJobId());
     }
 
-    /** Creates the operation in multi-thread mode. */
-    public abstract void createOperationInMultiThread();
-
-    /**
-     * Creates the operation in sub-interpreter mode.
-     *
-     * <p>The CPython extension included in proto does not support initialization multiple times, so
-     * we choose the only interpreter process to be responsible for initialization and proto
-     * parsing. The only interpreter parses the proto and serializes function operations with
-     * cloudpickle.
-     */
-    public abstract void createOperationInMultiInterpreters(
-            String pythonExecutable, Map<String, String> env) throws IOException;
+    /** Setup method for Python Interpreter. It can be used for initialization work. */
+    public abstract void openPythonInterpreter(
+            String pythonExecutable,
+            Map<String, String> env,
+            PythonInterpreterConfig.ExecType execType)
+            throws Exception;
 
     /** Returns the {@link PythonEnv} used to create PythonEnvironmentManager. */
     public abstract PythonEnv getPythonEnv();

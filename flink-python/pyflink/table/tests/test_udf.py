@@ -226,10 +226,10 @@ class UserDefinedFunctionTests(object):
         execution_mode = self.t_env.get_config().get_configuration().get_string(
             "python.execution-mode", None)
 
-        if execution_mode == "thread":
-            subtract = udf(Subtract(), result_type=DataTypes.BIGINT())
-        else:
+        if execution_mode == "process":
             subtract = udf(SubtractWithMetrics(), result_type=DataTypes.BIGINT())
+        else:
+            subtract = udf(Subtract(), result_type=DataTypes.BIGINT())
 
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
@@ -800,8 +800,7 @@ class PyFlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
 class PyFlinkEmbeddedMultiThreadTests(UserDefinedFunctionTests, PyFlinkBatchTableTestCase):
     def setUp(self):
         super(PyFlinkEmbeddedMultiThreadTests, self).setUp()
-        self.t_env.get_config().get_configuration().set_string("python.execution-mode", "thread")
-        self.t_env.get_config().get_configuration().set_string("python.thread-mode.execution-type",
+        self.t_env.get_config().get_configuration().set_string("python.execution-mode",
                                                                "multi-thread")
 
 
@@ -809,8 +808,7 @@ class PyFlinkEmbeddedMultiThreadTests(UserDefinedFunctionTests, PyFlinkBatchTabl
 class PyFlinkEmbeddedSubInterpreterTests(UserDefinedFunctionTests, PyFlinkBatchTableTestCase):
     def setUp(self):
         super(PyFlinkEmbeddedSubInterpreterTests, self).setUp()
-        self.t_env.get_config().get_configuration().set_string("python.execution-mode", "thread")
-        self.t_env.get_config().get_configuration().set_string("python.thread-mode.execution-type",
+        self.t_env.get_config().get_configuration().set_string("python.execution-mode",
                                                                "sub-interpreter")
 
 

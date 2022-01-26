@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.env.pemja;
+package org.apache.flink.python.env.embedded;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.python.env.PythonEnvironment;

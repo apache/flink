@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.env.beam;
+package org.apache.flink.python.env.process;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.python.env.PythonDependencyInfo;
@@ -44,14 +44,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import static org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager.PYFLINK_GATEWAY_DISABLED;
-import static org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager.PYTHON_ARCHIVES_DIR;
-import static org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager.PYTHON_FILES_DIR;
-import static org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager.PYTHON_REQUIREMENTS_CACHE;
-import static org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager.PYTHON_REQUIREMENTS_DIR;
-import static org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager.PYTHON_REQUIREMENTS_FILE;
-import static org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager.PYTHON_REQUIREMENTS_INSTALL_DIR;
-import static org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager.PYTHON_WORKING_DIR;
+import static org.apache.flink.python.env.process.ProcessPythonEnvironmentManager.PYFLINK_GATEWAY_DISABLED;
+import static org.apache.flink.python.env.process.ProcessPythonEnvironmentManager.PYTHON_ARCHIVES_DIR;
+import static org.apache.flink.python.env.process.ProcessPythonEnvironmentManager.PYTHON_FILES_DIR;
+import static org.apache.flink.python.env.process.ProcessPythonEnvironmentManager.PYTHON_REQUIREMENTS_CACHE;
+import static org.apache.flink.python.env.process.ProcessPythonEnvironmentManager.PYTHON_REQUIREMENTS_DIR;
+import static org.apache.flink.python.env.process.ProcessPythonEnvironmentManager.PYTHON_REQUIREMENTS_FILE;
+import static org.apache.flink.python.env.process.ProcessPythonEnvironmentManager.PYTHON_REQUIREMENTS_INSTALL_DIR;
+import static org.apache.flink.python.env.process.ProcessPythonEnvironmentManager.PYTHON_WORKING_DIR;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;

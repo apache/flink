@@ -96,8 +96,7 @@ class DependencyTests(object):
 class EmbeddedMultiThreadDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
     def setUp(self):
         super(EmbeddedMultiThreadDependencyTests, self).setUp()
-        self.t_env.get_config().get_configuration().set_string("python.execution-mode", "thread")
-        self.t_env.get_config().get_configuration().set_string("python.thread-mode.execution-type",
+        self.t_env.get_config().get_configuration().set_string("python.execution-mode",
                                                                "multi-thread")
 
 
@@ -105,8 +104,7 @@ class EmbeddedMultiThreadDependencyTests(DependencyTests, PyFlinkStreamTableTest
 class EmbeddedSubInterpreterDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
     def setUp(self):
         super(EmbeddedSubInterpreterDependencyTests, self).setUp()
-        self.t_env.get_config().get_configuration().set_string("python.execution-mode", "thread")
-        self.t_env.get_config().get_configuration().set_string("python.thread-mode.execution-type",
+        self.t_env.get_config().get_configuration().set_string("python.execution-mode",
                                                                "sub-interpreter")
 
 

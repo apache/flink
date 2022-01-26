@@ -16,12 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.env.beam;
+package org.apache.flink.python.env.process;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.python.env.ExternalPythonEnvironmentManager;
-import org.apache.flink.python.env.ProcessPythonEnvironment;
+import org.apache.flink.python.env.AbstractPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
@@ -42,7 +41,7 @@ import java.util.UUID;
  * is configured to run python UDF in process mode.
  */
 @Internal
-public final class ProcessPythonEnvironmentManager extends ExternalPythonEnvironmentManager {
+public final class ProcessPythonEnvironmentManager extends AbstractPythonEnvironmentManager {
 
     public ProcessPythonEnvironmentManager(
             PythonDependencyInfo dependencyInfo,
@@ -69,7 +68,6 @@ public final class ProcessPythonEnvironmentManager extends ExternalPythonEnviron
      *
      * @return The path of empty RetrievalToken.
      */
-    @Override
     public String createRetrievalToken() throws IOException {
         File retrievalToken =
                 new File(
@@ -88,7 +86,7 @@ public final class ProcessPythonEnvironmentManager extends ExternalPythonEnviron
         }
     }
 
-    @Override
+    /** Returns the boot log of the Python Environment. */
     public String getBootLog() throws Exception {
         File bootLogFile =
                 new File(resource.baseDirectory + File.separator + "flink-python-udf-boot.log");

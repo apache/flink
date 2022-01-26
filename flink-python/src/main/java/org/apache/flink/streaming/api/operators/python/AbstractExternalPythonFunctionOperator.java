@@ -22,9 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.python.env.ExternalPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
-import org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager;
+import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.streaming.api.runners.python.beam.BeamPythonFunctionRunner;
 import org.apache.flink.table.functions.python.PythonEnv;
 
@@ -119,7 +118,7 @@ public abstract class AbstractExternalPythonFunctionOperator<OUT>
     }
 
     @Override
-    protected ExternalPythonEnvironmentManager createPythonEnvironmentManager() {
+    protected ProcessPythonEnvironmentManager createPythonEnvironmentManager() {
         PythonDependencyInfo dependencyInfo =
                 PythonDependencyInfo.create(
                         pythonConfig, getRuntimeContext().getDistributedCache());

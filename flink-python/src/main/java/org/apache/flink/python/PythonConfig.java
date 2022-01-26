@@ -89,8 +89,8 @@ public class PythonConfig implements Serializable {
     /** Whether profile is enabled. */
     private final boolean profileEnabled;
 
-    /** Execution Type in Thread Mode. */
-    private final String threadModeExecType;
+    /** Execution Mode. */
+    private final String executionMode;
 
     public PythonConfig(Configuration config) {
         this.config = config;
@@ -113,7 +113,7 @@ public class PythonConfig implements Serializable {
         metricEnabled = config.getBoolean(PythonOptions.PYTHON_METRIC_ENABLED);
         isUsingManagedMemory = config.getBoolean(PythonOptions.USE_MANAGED_MEMORY);
         profileEnabled = config.getBoolean(PythonOptions.PYTHON_PROFILE_ENABLED);
-        threadModeExecType = config.getString(PythonOptions.PYTHON_THREAD_MODE_EXECUTION_TYPE);
+        executionMode = config.getString(PythonOptions.PYTHON_EXECUTION_MODE);
     }
 
     public int getMaxBundleSize() {
@@ -148,8 +148,8 @@ public class PythonConfig implements Serializable {
         return pythonExec;
     }
 
-    public String getThreadModeExecType() {
-        return threadModeExecType;
+    public String getExecutionMode() {
+        return executionMode;
     }
 
     public boolean isMetricEnabled() {
