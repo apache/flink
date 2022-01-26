@@ -176,6 +176,10 @@ env.fromSource(kafkaSource, new CustomWatermarkStrategy(), "Kafka Source With Cu
 ```
 [这篇文档]({{< ref "docs/dev/datastream/event-time/generating_watermarks.md" >}})描述了如何自定义水印策略（```WatermarkStrategy```）。
 
+### 空闲
+如果并行度高于分区数，Kafka Source 不会自动进入空闲状态。您将需要降低并行度或向水印策略添加空闲超时。如果在这段时间内没有记录在流的分区中流动，则该分区被视为“空闲”并且不会阻止下游操作符中水印的进度。
+[这篇文档]({{< ref "docs/dev/datastream/event-time/generating_watermarks.md" >}}#dealing-with-idle-sources) 描述了有关如何定义 ```WatermarkStrategy#withIdleness``` 的详细信息.
+
 ### 消费位点提交
 Kafka source 在 checkpoint **完成**时提交当前的消费位点 ，以保证 Flink 的 checkpoint 状态和 Kafka broker 上的提交位点一致。如果未开启 
 checkpoint，Kafka source 依赖于 Kafka consumer 内部的位点定时自动提交逻辑，自动提交功能由 ```enable.auto.commit``` 和 
