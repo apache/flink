@@ -318,11 +318,17 @@ public final class LogicalTypeCasts {
             // cast between interval and exact numeric is only supported if interval has a single
             // field
             return isSingleFieldInterval(targetType);
+        } else if ((sourceType.is(CONSTRUCTED) || sourceType.is(STRUCTURED_TYPE))
+                && targetType.is(CHARACTER_STRING)) {
+            return supportsCollectionAndStructuredToStringCasting(sourceType, allowExplicit);
         } else if (sourceType.is(CONSTRUCTED) || targetType.is(CONSTRUCTED)) {
             return supportsConstructedCasting(sourceType, targetType, allowExplicit);
         } else if (sourceRoot == STRUCTURED_TYPE || targetRoot == STRUCTURED_TYPE) {
             return supportsStructuredCasting(
                     sourceType, targetType, (s, t) -> supportsCasting(s, t, allowExplicit));
+        } else if (sourceType.is(RAW) && targetType.is(CHARACTER_STRING)) {
+            // We always support RAW to STRING
+            return true;
         } else if (sourceRoot == RAW && !targetType.is(BINARY_STRING) || targetRoot == RAW) {
             // the two raw types are not equal (from initial invariant), casting is not possible
             return false;
@@ -407,6 +413,17 @@ public final class LogicalTypeCasts {
             return true;
         }
         return false;
+    }
+
+    private static boolean supportsCollectionAndStructuredToStringCasting(
+            LogicalType sourceType, boolean allowExplicit) {
+        final List<LogicalType> sourceChildren = sourceType.getChildren();
+        for (LogicalType sourceChild : sourceChildren) {
+            if (!supportsCasting(sourceChild, VarCharType.STRING_TYPE, allowExplicit)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static CastingRuleBuilder castTo(LogicalTypeRoot targetType) {
