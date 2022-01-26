@@ -39,8 +39,8 @@ Flink 支持读取 [Parquet](https://parquet.apache.org/) 文件并生成 [Flink
 </dependency>
 ```
  
-此格式与新 Source 兼容，可以在批处理和流模式下使用。
-因此，你可以通过两种方式使用此格式：
+此 format 与新 Source 兼容，可以在批处理和流模式下使用。
+因此，你可以通过两种方式使用此 format：
 - 批处理模式的有界读取
 - 流模式的连续读取：监视目录中出现的新文件
 
