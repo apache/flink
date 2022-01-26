@@ -59,7 +59,7 @@ under the License.
 前者用于从 `FileInputFormat` 派生的 Input Format，而后者必须用于通用的 Input Format。
 生成的 `InputFormat` 可通过使用 `ExecutionEnvironmen#createInput` 创建数据源。
 
-生成的 `DataStream` 包含 2 元组，其中第一个字段是键，第二个字段是从 Hadoop InputFormat 接收的值。
+生成的 `DataStream` 包含 2 元组，其中第一个字段是键，第二个字段是从 Hadoop `InputFormat` 接收的值。
 
 下面的示例展示了如何使用 Hadoop 的 `TextInputFormat`。
 
@@ -97,7 +97,7 @@ val input: DataStream[(LongWritable, Text)] =
 ## Using Hadoop OutputFormats
 
 Flink 为 Hadoop `OutputFormats` 提供了一个兼容性包装器。支持任何实现 `org.apache.hadoop.mapred.OutputFormat` 或扩展 `org.apache.hadoop.mapreduce.OutputFormat` 的类。
-OutputFormat 包装器期望其输入数据是包含键和值的 2 元组的 DataSet。这些将由 Hadoop OutputFormat 处理。
+`OutputFormat` 包装器期望其输入数据是包含键和值的 2-元组的 DataSet。这些将由 Hadoop `OutputFormat` 处理。
 
 下面的示例展示了如何使用 Hadoop 的 `TextOutputFormat`。
 
