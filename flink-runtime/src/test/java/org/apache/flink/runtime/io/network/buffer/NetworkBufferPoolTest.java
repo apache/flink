@@ -603,8 +603,7 @@ public class NetworkBufferPoolTest extends TestLogger {
      * NetworkBufferPool#recycleUnpooledMemorySegments(Collection)}.
      */
     @Test(timeout = 10000L)
-    public void testIsAvailableOrNotAfterRequestAndRecycleMultiSegments()
-            throws InterruptedException, IOException {
+    public void testIsAvailableOrNotAfterRequestAndRecycleMultiSegments() throws Exception {
         final int numberOfSegmentsToRequest = 5;
         final int numBuffers = 2 * numberOfSegmentsToRequest;
 
@@ -627,7 +626,6 @@ public class NetworkBufferPoolTest extends TestLogger {
             assertEquals(numberOfSegmentsToRequest, segments2.size());
 
             // request another 5 segments
-            final CountDownLatch latch = new CountDownLatch(1);
             final List<MemorySegment> segments3 = new ArrayList<>(numberOfSegmentsToRequest);
             CheckedThread asyncRequest =
                     new CheckedThread() {
@@ -637,7 +635,6 @@ public class NetworkBufferPoolTest extends TestLogger {
                             segments3.addAll(
                                     globalPool.requestUnpooledMemorySegments(
                                             numberOfSegmentsToRequest));
-                            latch.countDown();
                         }
                     };
             asyncRequest.start();
@@ -648,7 +645,7 @@ public class NetworkBufferPoolTest extends TestLogger {
             assertTrue(availableFuture.isDone());
 
             // wait util the third request is fulfilled
-            latch.await();
+            asyncRequest.sync();
             assertFalse(globalPool.getAvailableFuture().isDone());
             assertEquals(numberOfSegmentsToRequest, segments3.size());
 
