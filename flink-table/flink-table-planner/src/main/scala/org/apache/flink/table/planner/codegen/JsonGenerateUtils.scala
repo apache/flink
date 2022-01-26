@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.api.{DataTypes, JsonOnNull}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName, rowFieldReadAccess, typeTerm}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.{JSON_ARRAY, JSON_OBJECT}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
@@ -33,7 +33,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.{Arr
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.util.RawValue
 
 import org.apache.calcite.rex.{RexCall, RexNode}
-import org.apache.calcite.sql.SqlJsonConstructorNullClause
 
 import java.time.format.DateTimeFormatter
 
@@ -134,12 +133,12 @@ object JsonGenerateUtils {
        |""".stripMargin
   }
 
-  /** Convert the operand to [[SqlJsonConstructorNullClause]]. */
-  def getOnNullBehavior(operand: GeneratedExpression): SqlJsonConstructorNullClause = {
+  /** Convert the operand to [[JsonOnNull]]. */
+  def getOnNullBehavior(operand: GeneratedExpression): JsonOnNull = {
     operand.literalValue match {
-      case Some(onNull: SqlJsonConstructorNullClause) => onNull
+      case Some(onNull: JsonOnNull) => onNull
       case _ => throw new CodeGenException(s"Expected operand to be of type"
-        + s"'${typeTerm(classOf[SqlJsonConstructorNullClause])}''")
+        + s"'${typeTerm(classOf[JsonOnNull])}''")
     }
   }
 

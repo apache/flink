@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
+import org.apache.flink.table.api.JsonOnNull
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{createNodeTerm, getOnNullBehavior}
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
@@ -27,7 +28,6 @@ import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.{NullNode, ObjectNode}
 
 import org.apache.calcite.rex.RexCall
-import org.apache.calcite.sql.SqlJsonConstructorNullClause.{ABSENT_ON_NULL, NULL_ON_NULL}
 
 /**
  * [[CallGenerator]] for `JSON_OBJECT`.
@@ -60,7 +60,7 @@ class JsonObjectCallGen(call: RexCall) extends CallGenerator {
         val valueTerm = createNodeTerm(ctx, valueExpr, call.operands.get(valueIdx))
 
         onNull match {
-          case NULL_ON_NULL =>
+          case JsonOnNull.NULL =>
             s"""
                |if (${valueExpr.nullTerm}) {
                |    $nodeTerm.set(${keyExpr.resultTerm}.toString(), $nullNodeTerm);
@@ -68,7 +68,7 @@ class JsonObjectCallGen(call: RexCall) extends CallGenerator {
                |    $nodeTerm.set(${keyExpr.resultTerm}.toString(), $valueTerm);
                |}
                |""".stripMargin
-          case ABSENT_ON_NULL =>
+          case JsonOnNull.ABSENT =>
             s"""
                |if (!${valueExpr.nullTerm}) {
                |    $nodeTerm.set(${keyExpr.resultTerm}.toString(), $valueTerm);

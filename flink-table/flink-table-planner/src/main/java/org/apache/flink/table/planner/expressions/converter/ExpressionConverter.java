@@ -39,8 +39,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimeType;
 
 import org.apache.calcite.avatica.util.ByteString;
-import org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -64,6 +62,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.planner.typeutils.SymbolUtil.commonToCalcite;
 import static org.apache.flink.table.planner.utils.TimestampStringUtils.fromLocalDateTime;
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
 
@@ -175,9 +174,9 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
             default:
                 value = extractValue(valueLiteral, Object.class);
                 if (value instanceof TimePointUnit) {
-                    value = timePointUnitToTimeUnit((TimePointUnit) value);
+                    value = commonToCalcite((TimePointUnit) value);
                 } else if (value instanceof TimeIntervalUnit) {
-                    value = intervalUnitToUnitRange((TimeIntervalUnit) value);
+                    value = commonToCalcite((TimeIntervalUnit) value);
                 }
                 break;
         }
@@ -262,70 +261,6 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
                 return dataTypeFactory;
             }
         };
-    }
-
-    private static TimeUnit timePointUnitToTimeUnit(TimePointUnit unit) {
-        switch (unit) {
-            case YEAR:
-                return TimeUnit.YEAR;
-            case MONTH:
-                return TimeUnit.MONTH;
-            case DAY:
-                return TimeUnit.DAY;
-            case HOUR:
-                return TimeUnit.HOUR;
-            case MINUTE:
-                return TimeUnit.MINUTE;
-            case SECOND:
-                return TimeUnit.SECOND;
-            case QUARTER:
-                return TimeUnit.QUARTER;
-            case WEEK:
-                return TimeUnit.WEEK;
-            case MILLISECOND:
-                return TimeUnit.MILLISECOND;
-            case MICROSECOND:
-                return TimeUnit.MICROSECOND;
-            default:
-                throw new UnsupportedOperationException("TimePointUnit is: " + unit);
-        }
-    }
-
-    private static TimeUnitRange intervalUnitToUnitRange(TimeIntervalUnit intervalUnit) {
-        switch (intervalUnit) {
-            case YEAR:
-                return TimeUnitRange.YEAR;
-            case YEAR_TO_MONTH:
-                return TimeUnitRange.YEAR_TO_MONTH;
-            case QUARTER:
-                return TimeUnitRange.QUARTER;
-            case MONTH:
-                return TimeUnitRange.MONTH;
-            case WEEK:
-                return TimeUnitRange.WEEK;
-            case DAY:
-                return TimeUnitRange.DAY;
-            case DAY_TO_HOUR:
-                return TimeUnitRange.DAY_TO_HOUR;
-            case DAY_TO_MINUTE:
-                return TimeUnitRange.DAY_TO_MINUTE;
-            case DAY_TO_SECOND:
-                return TimeUnitRange.DAY_TO_SECOND;
-            case HOUR:
-                return TimeUnitRange.HOUR;
-            case SECOND:
-                return TimeUnitRange.SECOND;
-            case HOUR_TO_MINUTE:
-                return TimeUnitRange.HOUR_TO_MINUTE;
-            case HOUR_TO_SECOND:
-                return TimeUnitRange.HOUR_TO_SECOND;
-            case MINUTE:
-                return TimeUnitRange.MINUTE;
-            case MINUTE_TO_SECOND:
-                return TimeUnitRange.MINUTE_TO_SECOND;
-            default:
-                throw new UnsupportedOperationException("TimeIntervalUnit is: " + intervalUnit);
-        }
     }
 
     /**

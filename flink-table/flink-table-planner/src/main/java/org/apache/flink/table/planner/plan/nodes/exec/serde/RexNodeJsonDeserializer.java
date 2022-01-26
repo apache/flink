@@ -26,6 +26,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.module.CoreModule;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction;
+import org.apache.flink.table.planner.typeutils.SymbolUtil.SerializableSymbol;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
@@ -90,6 +91,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSe
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.SQL_KIND_LITERAL;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.SQL_KIND_PATTERN_INPUT_REF;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.SQL_KIND_REX_CALL;
+import static org.apache.flink.table.planner.typeutils.SymbolUtil.serializableToCalcite;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** JSON deserializer for {@link RexNode}. refer to {@link RexNodeJsonSerializer} for serializer. */
@@ -223,10 +225,8 @@ public class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
                         .getValue();
             case SYMBOL:
                 JsonNode classNode = literalNode.get(FIELD_NAME_CLASS);
-                return getEnum(
-                        classNode.asText(),
-                        valueNode.asText(),
-                        SerdeContext.get(ctx).getClassLoader());
+                return serializableToCalcite(
+                        SerializableSymbol.of(classNode.asText(), valueNode.asText()));
             case ROW:
             case MULTISET:
                 ArrayNode valuesNode = (ArrayNode) valueNode;
@@ -237,17 +237,6 @@ public class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
                 return list;
             default:
                 throw new TableException("Unknown literal: " + valueNode);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T extends Enum<T>> T getEnum(
-            String clazz, String name, ClassLoader classLoader) {
-        try {
-            Class<T> c = (Class<T>) Class.forName(clazz, true, classLoader);
-            return Enum.valueOf(c, name);
-        } catch (ClassNotFoundException e) {
-            throw new TableException("Unknown class: " + clazz);
         }
     }
 

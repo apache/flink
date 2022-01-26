@@ -284,7 +284,7 @@
       "after" : {
         "kind" : "LITERAL",
         "value" : "SKIP_TO_NEXT_ROW",
-        "class" : "org.apache.calcite.sql.SqlMatchRecognize$AfterOption",
+        "class" : "MATCH_RECOGNIZE_AFTER_OPTION",
         "type" : {
           "type" : "SYMBOL",
           "nullable" : false
