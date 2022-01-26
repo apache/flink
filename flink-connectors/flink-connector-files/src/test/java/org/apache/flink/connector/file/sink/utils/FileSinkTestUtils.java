@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.sink.utils;
 
 import org.apache.flink.connector.file.sink.FileSink;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWriter;
@@ -35,12 +36,30 @@ public class FileSinkTestUtils {
     /** A type of testing {@link InProgressFileWriter.PendingFileRecoverable}. */
     public static class TestPendingFileRecoverable extends StringValue
             implements InProgressFileWriter.PendingFileRecoverable {
+        @Override
+        public Path getPath() {
+            return null;
+        }
+
+        @Override
+        public long getSize() {
+            return -1L;
+        }
         // Nope
     }
 
     /** A type of testing {@link InProgressFileWriter.InProgressFileRecoverable}. */
     public static class TestInProgressFileRecoverable extends StringValue
             implements InProgressFileWriter.InProgressFileRecoverable {
+        @Override
+        public Path getPath() {
+            return null;
+        }
+
+        @Override
+        public long getSize() {
+            return -1L;
+        }
         // Nope
     }
 
