@@ -27,12 +27,6 @@
             <td>The cluster-id, which should be no more than 45 characters, is used for identifying a unique Flink cluster. The id must only contain lowercase alphanumeric characters and "-". The required format is <code class="highlighter-rouge">[a-z]([-a-z0-9]*[a-z0-9])</code>. If not set, the client will automatically generate it with a random ID.</td>
         </tr>
         <tr>
-            <td><h5>kubernetes.hostnetwork.enabled</h5></td>
-            <td style="word-wrap: break-word;">false</td>
-            <td>Boolean</td>
-            <td>Whether to enable HostNetwork mode. The HostNetwork allows the pod could use the node network namespace instead of the individual pod network namespace. Please note that the JobManager service account should have the permission to update Kubernetes service.</td>
-        </tr>
-        <tr>
             <td><h5>kubernetes.config.file</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -91,6 +85,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Specify the name of an existing ConfigMap that contains custom Hadoop configuration to be mounted on the JobManager(s) and TaskManagers.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.hostnetwork.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable HostNetwork mode. The HostNetwork allows the pod could use the node network namespace instead of the individual pod network namespace. Please note that the JobManager service account should have the permission to update Kubernetes service.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.jobmanager.annotations</h5></td>
