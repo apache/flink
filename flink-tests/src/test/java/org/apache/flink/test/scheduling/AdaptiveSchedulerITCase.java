@@ -26,6 +26,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -81,9 +82,9 @@ public class AdaptiveSchedulerITCase extends TestLogger {
 
     private static Configuration getConfiguration() {
         final Configuration conf = new Configuration();
-
         conf.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
-
+        conf.set(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 1_000L);
+        conf.set(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 5_000L);
         return conf;
     }
 
@@ -103,7 +104,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
 
     @After
     public void cancelRunningJobs() {
-        MINI_CLUSTER_WITH_CLIENT_RESOURCE.cancelAllJobs();
+        MINI_CLUSTER_WITH_CLIENT_RESOURCE.cancelAllJobsAndWaitUntilSlotsAreFreed();
     }
 
     /** Tests that the adaptive scheduler can recover stateful operators. */

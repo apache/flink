@@ -77,6 +77,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -828,10 +829,23 @@ public class MiniCluster implements AutoCloseableAsync {
                                 jobId, operatorId, serializedRequest, rpcTimeout));
     }
 
+    public CompletableFuture<ResourceOverview> getResourceOverview() {
+        return runResourceManagerCommand(
+                resourceManagerGateway ->
+                        resourceManagerGateway.requestResourceOverview(rpcTimeout));
+    }
+
     private <T> CompletableFuture<T> runDispatcherCommand(
             Function<DispatcherGateway, CompletableFuture<T>> dispatcherCommand) {
         return getDispatcherGatewayFuture()
                 .thenApply(dispatcherCommand)
+                .thenCompose(Function.identity());
+    }
+
+    private <T> CompletableFuture<T> runResourceManagerCommand(
+            Function<ResourceManagerGateway, CompletableFuture<T>> resourceManagerCommand) {
+        return getResourceManagerGatewayFuture()
+                .thenApply(resourceManagerCommand)
                 .thenCompose(Function.identity());
     }
 
@@ -952,6 +966,13 @@ public class MiniCluster implements AutoCloseableAsync {
         synchronized (lock) {
             checkState(running, "MiniCluster is not yet running or has already been shut down.");
             return dispatcherGatewayRetriever.getFuture();
+        }
+    }
+
+    private CompletableFuture<ResourceManagerGateway> getResourceManagerGatewayFuture() {
+        synchronized (lock) {
+            checkState(running, "MiniCluster is not yet running or has already been shut down.");
+            return resourceManagerGatewayRetriever.getFuture();
         }
     }
 
