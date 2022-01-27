@@ -29,9 +29,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -40,11 +38,13 @@ import java.util.Map;
 import java.util.Set;
 
 import static java.util.Collections.singletonList;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** This tests verifies the checking logic of {@link VertexFinishedStateChecker}. */
 public class VertexFinishedStateCheckerTest {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testRestoringPartiallyFinishedChainsFailsWithoutUidHash() throws Exception {
@@ -87,14 +87,19 @@ public class VertexFinishedStateCheckerTest {
         VertexFinishedStateChecker finishedStateChecker =
                 new VertexFinishedStateChecker(vertices, operatorStates);
 
-        thrown.expect(FlinkRuntimeException.class);
-        thrown.expectMessage(
-                "Can not restore vertex "
-                        + "anon("
-                        + jobVertexID1
-                        + ")"
-                        + " which contain mixed operator finished state: [ALL_RUNNING, FULLY_FINISHED]");
-        finishedStateChecker.validateOperatorsFinishedState();
+        FlinkRuntimeException exception =
+                assertThrows(
+                        FlinkRuntimeException.class,
+                        finishedStateChecker::validateOperatorsFinishedState);
+        assertThat(
+                exception.getMessage(),
+                is(
+                        equalTo(
+                                "Can not restore vertex "
+                                        + "anon("
+                                        + jobVertexID1
+                                        + ")"
+                                        + " which contain mixed operator finished state: [ALL_RUNNING, FULLY_FINISHED]")));
     }
 
     @Test
@@ -278,9 +283,11 @@ public class VertexFinishedStateCheckerTest {
         VertexFinishedStateChecker finishedStateChecker =
                 new VertexFinishedStateChecker(vertices, operatorStates);
 
-        thrown.expect(expectedExceptionalClass);
-        thrown.expectMessage(expectedMessage);
-        finishedStateChecker.validateOperatorsFinishedState();
+        Throwable exception =
+                assertThrows(
+                        expectedExceptionalClass,
+                        finishedStateChecker::validateOperatorsFinishedState);
+        assertThat(exception.getMessage(), is(equalTo(expectedMessage)));
     }
 
     private OperatorState createOperatorState(
