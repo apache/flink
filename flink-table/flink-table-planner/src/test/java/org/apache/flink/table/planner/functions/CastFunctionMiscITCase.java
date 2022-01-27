@@ -227,12 +227,12 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 "(i=123456, s=Flink)",
                                 STRING()),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast MULTISET to STRING")
-                        .onFieldsWithData(map(entry("a", 1), entry("b", 1)))
+                        .onFieldsWithData(map(entry("a", 1), entry("b", 2)))
                         .andDataTypes(MAP(STRING(), INT()))
                         .withFunction(JsonFunctionsITCase.CreateMultiset.class)
                         .testTableApiResult(
                                 call("CreateMultiset", $("f0")).cast(STRING()),
-                                "{a=1, b=1}",
+                                "{a=1, b=2}",
                                 STRING()),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast RAW to STRING")
                         .onFieldsWithData("2020-11-11T18:08:01.123")
