@@ -19,14 +19,11 @@
 package org.apache.flink.fs.gs.utils;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.fs.gs.TestUtils;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.MapDifference;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Maps;
 
-import com.google.cloud.storage.StorageOptions;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -38,7 +35,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -58,12 +54,16 @@ public class ConfigUtilsHadoopTest {
     @Parameterized.Parameter(value = 2)
     public Configuration flinkConfig;
 
-    /* The additional Hadoop resources to add to the hadoop config when hadoop conf dir is present. */
+    /* The Hadoop resources to load from the config dir. */
     @Parameterized.Parameter(value = 3)
-    public org.apache.hadoop.conf.Configuration additionalHadoopConfig;
+    public org.apache.hadoop.conf.Configuration loadedHadoopConfig;
+
+    /* The expected Hadoop configuration directory. */
+    @Parameterized.Parameter(value = 4)
+    public String expectedHadoopConfigDir;
 
     /* The expected Hadoop configuration. */
-    @Parameterized.Parameter(value = 4)
+    @Parameterized.Parameter(value = 5)
     public org.apache.hadoop.conf.Configuration expectedHadoopConfig;
 
     @Parameterized.Parameters(name = "description={0}")
@@ -75,6 +75,7 @@ public class ConfigUtilsHadoopTest {
                         null,
                         Configuration.fromMap(new HashMap<>()),
                         TestUtils.hadoopConfigFromMap(new HashMap<>()),
+                        null,
                         TestUtils.hadoopConfigFromMap(new HashMap<>()),
                     },
                     {
@@ -87,6 +88,7 @@ public class ConfigUtilsHadoopTest {
                                         put("fs.gs.project.id", "project-id");
                                     }
                                 }),
+                        null,
                         TestUtils.hadoopConfigFromMap(new HashMap<>()),
                     },
                     {
@@ -99,6 +101,7 @@ public class ConfigUtilsHadoopTest {
                                         put("fs.gs.project.id", "project-id");
                                     }
                                 }),
+                        "/hadoop/conf",
                         TestUtils.hadoopConfigFromMap(
                                 new HashMap<String, String>() {
                                     {
@@ -121,6 +124,7 @@ public class ConfigUtilsHadoopTest {
                                         put("fs.gs.project.id", "project-id");
                                     }
                                 }),
+                        "/hadoop/conf",
                         TestUtils.hadoopConfigFromMap(
                                 new HashMap<String, String>() {
                                     {
@@ -143,6 +147,7 @@ public class ConfigUtilsHadoopTest {
                                         put("fs.gs.project.id", "project-id");
                                     }
                                 }),
+                        "/hadoop/conf2",
                         TestUtils.hadoopConfigFromMap(
                                 new HashMap<String, String>() {
                                     {
@@ -165,6 +170,7 @@ public class ConfigUtilsHadoopTest {
                                         put("fs.gs.project.id", "project-id");
                                     }
                                 }),
+                        "/hadoop/conf",
                         TestUtils.hadoopConfigFromMap(
                                 new HashMap<String, String>() {
                                     {
@@ -188,6 +194,7 @@ public class ConfigUtilsHadoopTest {
                                         put("fs.gs.project.id", "project-id-2");
                                     }
                                 }),
+                        "/hadoop/conf",
                         TestUtils.hadoopConfigFromMap(
                                 new HashMap<String, String>() {
                                     {
@@ -208,6 +215,7 @@ public class ConfigUtilsHadoopTest {
                                                 "/opt/file.json");
                                     }
                                 }),
+                        "/hadoop/conf",
                         TestUtils.hadoopConfigFromMap(
                                 new HashMap<String, String>() {
                                     {
@@ -231,6 +239,7 @@ public class ConfigUtilsHadoopTest {
                                                 "/opt/file.json");
                                     }
                                 }),
+                        "/hadoop/conf",
                         TestUtils.hadoopConfigFromMap(
                                 new HashMap<String, String>() {
                                     {
@@ -240,62 +249,35 @@ public class ConfigUtilsHadoopTest {
                                                 "/opt/file.json");
                                     }
                                 }),
-                    },
+                    }
                 });
-    }
-
-    private @Nullable String expectedHadoopConfigDir;
-
-    @Before
-    public void before() {
-
-        // determine which hadoop conf dir we expect to receive
-        expectedHadoopConfigDir = flinkConfig.get(CoreOptions.FLINK_HADOOP_CONF_DIR);
-        if (expectedHadoopConfigDir == null) {
-            expectedHadoopConfigDir = envHadoopConfDir;
-        }
     }
 
     @Test
     public void shouldProperlyCreateHadoopConfig() {
-        final String[] actualHadoopConfigDir = {null};
+
+        // construct the testing config context
+        HashMap<String, String> envs = new HashMap<>();
+        if (envHadoopConfDir != null) {
+            envs.put("HADOOP_CONF_DIR", envHadoopConfDir);
+        }
+        HashMap<String, org.apache.hadoop.conf.Configuration> hadoopConfigs = new HashMap<>();
+        if (expectedHadoopConfigDir != null) {
+            hadoopConfigs.put(expectedHadoopConfigDir, loadedHadoopConfig);
+        }
+        TestingConfigContext configContext =
+                new TestingConfigContext(envs, hadoopConfigs, new HashMap<>());
 
         // get the hadoop configuration
         org.apache.hadoop.conf.Configuration hadoopConfig =
-                ConfigUtils.getHadoopConfiguration(
-                        flinkConfig,
-                        new ConfigUtils.ConfigContext() {
-                            @Override
-                            public Optional<String> getenv(String name) {
-                                if ("HADOOP_CONF_DIR".equals(name)) {
-                                    return Optional.ofNullable(envHadoopConfDir);
-                                }
-                                return Optional.empty();
-                            }
+                ConfigUtils.getHadoopConfiguration(flinkConfig, configContext);
 
-                            @Override
-                            public void addHadoopResourcesFromDir(
-                                    org.apache.hadoop.conf.Configuration config, String configDir) {
-                                actualHadoopConfigDir[0] = configDir;
-                                config.addResource(additionalHadoopConfig);
-                            }
-
-                            @Override
-                            public void setStorageCredentialsFromFile(
-                                    StorageOptions.Builder storageOptionsBuilder,
-                                    String credentialsPath) {
-                                throw new UnsupportedOperationException();
-                            }
-                        });
-
-        assertEquals(expectedHadoopConfigDir, actualHadoopConfigDir[0]);
-
+        // compare to the expected hadoop configuration
         Map<String, String> expectedHadoopConfigMap =
                 TestUtils.hadoopConfigToMap(expectedHadoopConfig);
         Map<String, String> hadoopConfigMap = TestUtils.hadoopConfigToMap(hadoopConfig);
         MapDifference<String, String> difference =
                 Maps.difference(expectedHadoopConfigMap, hadoopConfigMap);
-
         assertEquals(Collections.EMPTY_MAP, difference.entriesDiffering());
         assertEquals(Collections.EMPTY_MAP, difference.entriesOnlyOnLeft());
         assertEquals(Collections.EMPTY_MAP, difference.entriesOnlyOnRight());

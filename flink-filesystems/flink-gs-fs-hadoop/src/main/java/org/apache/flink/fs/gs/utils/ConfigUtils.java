@@ -18,11 +18,12 @@
 
 package org.apache.flink.fs.gs.utils;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
 
-import com.google.cloud.storage.StorageOptions;
+import com.google.auth.oauth2.GoogleCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +45,14 @@ public class ConfigUtils {
     private static final String[][] MIRRORED_CONFIG_KEYS = {};
 
     private static final String FLINK_SHADING_PREFIX = "";
+
+    @VisibleForTesting
+    static final String HADOOP_OPTION_ENABLE_SERVICE_ACCOUNT =
+            "google.cloud.auth.service.account.enable";
+
+    @VisibleForTesting
+    static final String HADOOP_OPTION_SERVICE_ACCOUNT_JSON_KEYFILE =
+            "google.cloud.auth.service.account.json.keyfile";
 
     /**
      * Loads the Hadoop configuration, by loading from a Hadoop conf dir (if one exists) and then
@@ -69,7 +78,7 @@ public class ConfigUtils {
         hadoopConfigDir.ifPresent(
                 configDir -> {
                     LOGGER.info("Loading Hadoop config resources from {}", configDir);
-                    configContext.addHadoopResourcesFromDir(hadoopConfig, configDir);
+                    hadoopConfig.addResource(configContext.loadHadoopConfigFromDir(configDir));
                 });
 
         // now, load hadoop config from flink and add to base hadoop config
@@ -92,13 +101,13 @@ public class ConfigUtils {
     }
 
     /**
-     * Creates a StorageOptions instance for the given Hadoop config and environment.
+     * Creates an (optional) GoogleCredentials instance for the given Hadoop config and environment.
      *
      * @param hadoopConfig The Hadoop config.
      * @param configContext The config context.
-     * @return The StorageOptions instance.
+     * @return The optional GoogleCredentials instance.
      */
-    public static StorageOptions getStorageOptions(
+    public static Optional<GoogleCredentials> getStorageCredentials(
             org.apache.hadoop.conf.Configuration hadoopConfig, ConfigContext configContext) {
 
         // follow the same rules as for the Hadoop connector, i.e.
@@ -114,7 +123,7 @@ public class ConfigUtils {
 
         // only look for credentials if service account support is enabled
         boolean enableServiceAccount =
-                hadoopConfig.getBoolean("google.cloud.auth.service.account.enable", true);
+                hadoopConfig.getBoolean(HADOOP_OPTION_ENABLE_SERVICE_ACCOUNT, true);
         if (enableServiceAccount) {
 
             // load google application credentials, and then fall back to
@@ -127,7 +136,7 @@ public class ConfigUtils {
             } else {
                 credentialsPath =
                         Optional.ofNullable(
-                                hadoopConfig.get("google.cloud.auth.service.account.json.keyfile"));
+                                hadoopConfig.get(HADOOP_OPTION_SERVICE_ACCOUNT_JSON_KEYFILE));
                 credentialsPath.ifPresent(
                         path ->
                                 LOGGER.info(
@@ -136,19 +145,18 @@ public class ConfigUtils {
             }
         }
 
-        // construct the storage options
-        StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder();
+        // if we have a credentials path, load and return the credentials; otherwise, return empty
         if (credentialsPath.isPresent()) {
             LOGGER.info(
                     "Creating GSRecoverableWriter using credentials from {}",
                     credentialsPath.get());
-            configContext.setStorageCredentialsFromFile(
-                    storageOptionsBuilder, credentialsPath.get());
+            GoogleCredentials credentials =
+                    configContext.loadStorageCredentialsFromFile(credentialsPath.get());
+            return Optional.of(credentials);
         } else {
             LOGGER.info("Creating GSRecoverableWriter using no credentials");
+            return Optional.empty();
         }
-
-        return storageOptionsBuilder.build();
     }
 
     /**
@@ -182,21 +190,19 @@ public class ConfigUtils {
         Optional<String> getenv(String name);
 
         /**
-         * Adds resources to the Hadoop configuration for the provided Hadoop config dir directory.
+         * Loads the Hadoop configuration from a directory.
          *
-         * @param config The Hadoop configuration.
          * @param configDir The Hadoop config directory.
+         * @return The Hadoop configuration.
          */
-        void addHadoopResourcesFromDir(
-                org.apache.hadoop.conf.Configuration config, String configDir);
+        org.apache.hadoop.conf.Configuration loadHadoopConfigFromDir(String configDir);
 
         /**
-         * Assigns credentials to the storage options builder from credentials at the given path.
+         * Loads the Google credentials from a file.
          *
-         * @param storageOptionsBuilder The storage options builder.
          * @param credentialsPath The path of the credentials file.
+         * @return The Google credentials.
          */
-        void setStorageCredentialsFromFile(
-                StorageOptions.Builder storageOptionsBuilder, String credentialsPath);
+        GoogleCredentials loadStorageCredentialsFromFile(String credentialsPath);
     }
 }

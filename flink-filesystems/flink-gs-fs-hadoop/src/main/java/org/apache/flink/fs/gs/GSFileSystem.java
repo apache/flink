@@ -45,7 +45,6 @@ class GSFileSystem extends HadoopFileSystem {
         super(Preconditions.checkNotNull(googleHadoopFileSystem));
         this.fileSystemOptions = Preconditions.checkNotNull(fileSystemOptions);
         this.storage = Preconditions.checkNotNull(storage);
-        LOGGER.info("Creating GSFileSystem with file-system options {}", fileSystemOptions);
     }
 
     @Override

@@ -20,8 +20,7 @@ package org.apache.flink.fs.gs.utils;
 
 import org.apache.flink.fs.gs.TestUtils;
 
-import com.google.cloud.storage.StorageOptions;
-import org.apache.hadoop.conf.Configuration;
+import com.google.auth.oauth2.GoogleCredentials;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -34,7 +33,6 @@ import java.util.HashMap;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /** Test construction of Storage instance in GSFileSystemFactory. */
 @RunWith(Parameterized.class)
@@ -54,7 +52,7 @@ public class ConfigUtilsStorageTest {
 
     /* The expected credentials file to use. */
     @Parameterized.Parameter(value = 3)
-    public @Nullable String expectedCredentialsFile;
+    public @Nullable String expectedCredentialsFilePath;
 
     @Parameterized.Parameters(name = "description={0}")
     public static Collection<Object[]> data() {
@@ -127,37 +125,28 @@ public class ConfigUtilsStorageTest {
     }
 
     @Test
-    public void shouldProperlyCreateStorageOptions() {
+    public void shouldProperlyCreateStorageCredentials() {
 
-        final String[] actualCredentialsPath = {null};
+        // populate this if we store credentials in the testing context
+        Optional<GoogleCredentials> expectedCredentials = Optional.empty();
 
-        StorageOptions storageOptions =
-                ConfigUtils.getStorageOptions(
-                        hadoopConfig,
-                        new ConfigUtils.ConfigContext() {
-                            @Override
-                            public Optional<String> getenv(String name) {
-                                if ("GOOGLE_APPLICATION_CREDENTIALS".equals(name)) {
-                                    return Optional.ofNullable(envGoogleApplicationCredentials);
-                                }
-                                return Optional.empty();
-                            }
+        // construct the testing config context
+        HashMap<String, String> envs = new HashMap<>();
+        if (envGoogleApplicationCredentials != null) {
+            envs.put("GOOGLE_APPLICATION_CREDENTIALS", envGoogleApplicationCredentials);
+        }
+        HashMap<String, GoogleCredentials> credentials = new HashMap<>();
+        if (expectedCredentialsFilePath != null) {
+            expectedCredentials = Optional.of(GoogleCredentials.newBuilder().build());
+            credentials.put(expectedCredentialsFilePath, expectedCredentials.get());
+        }
+        TestingConfigContext configContext =
+                new TestingConfigContext(envs, new HashMap<>(), credentials);
 
-                            @Override
-                            public void addHadoopResourcesFromDir(
-                                    Configuration config, String configDir) {
-                                throw new UnsupportedOperationException();
-                            }
+        // load the storage credentials
+        Optional<GoogleCredentials> loadedCredentials =
+                ConfigUtils.getStorageCredentials(hadoopConfig, configContext);
 
-                            @Override
-                            public void setStorageCredentialsFromFile(
-                                    StorageOptions.Builder storageOptionsBuilder,
-                                    String credentialsPath) {
-                                actualCredentialsPath[0] = credentialsPath;
-                            }
-                        });
-
-        assertNotNull(storageOptions);
-        assertEquals(expectedCredentialsFile, actualCredentialsPath[0]);
+        assertEquals(expectedCredentials, loadedCredentials);
     }
 }

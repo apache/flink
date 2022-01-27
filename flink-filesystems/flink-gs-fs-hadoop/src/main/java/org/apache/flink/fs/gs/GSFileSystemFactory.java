@@ -83,14 +83,21 @@ public class GSFileSystemFactory implements FileSystemFactory {
 
         ConfigUtils.ConfigContext configContext = new RuntimeConfigContext();
 
+        // load Hadoop config
         this.hadoopConfig = ConfigUtils.getHadoopConfiguration(flinkConfig, configContext);
         LOGGER.info(
                 "Using Hadoop configuration {}", ConfigUtils.stringifyHadoopConfig(hadoopConfig));
 
+        // construct file-system options
         this.fileSystemOptions = new GSFileSystemOptions(flinkConfig);
         LOGGER.info("Using file system options {}", fileSystemOptions);
 
-        this.storage = ConfigUtils.getStorageOptions(hadoopConfig, configContext).getService();
+        // get storage credentials and construct Storage instance
+        Optional<GoogleCredentials> credentials =
+                ConfigUtils.getStorageCredentials(hadoopConfig, configContext);
+        StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder();
+        credentials.ifPresent(storageOptionsBuilder::setCredentials);
+        this.storage = storageOptionsBuilder.build().getService();
     }
 
     @Override
@@ -100,7 +107,7 @@ public class GSFileSystemFactory implements FileSystemFactory {
 
     @Override
     public FileSystem create(URI fsUri) throws IOException {
-        LOGGER.info("Creating GS file system for uri {}", fsUri);
+        LOGGER.info("Creating GSFileSystem for uri {} with options {}", fsUri, fileSystemOptions);
 
         Preconditions.checkNotNull(fsUri);
 
@@ -125,18 +132,19 @@ public class GSFileSystemFactory implements FileSystemFactory {
         }
 
         @Override
-        public void addHadoopResourcesFromDir(
-                org.apache.hadoop.conf.Configuration config, String configDir) {
-            config.addResource(new Path(configDir, "core-default.xml"));
-            config.addResource(new Path(configDir, "core-site.xml"));
+        public org.apache.hadoop.conf.Configuration loadHadoopConfigFromDir(String configDir) {
+            org.apache.hadoop.conf.Configuration hadoopConfig =
+                    new org.apache.hadoop.conf.Configuration();
+            hadoopConfig.addResource(new Path(configDir, "core-default.xml"));
+            hadoopConfig.addResource(new Path(configDir, "core-site.xml"));
+            hadoopConfig.reloadConfiguration();
+            return hadoopConfig;
         }
 
         @Override
-        public void setStorageCredentialsFromFile(
-                StorageOptions.Builder storageOptionsBuilder, String credentialsPath) {
+        public GoogleCredentials loadStorageCredentialsFromFile(String credentialsPath) {
             try (FileInputStream credentialsStream = new FileInputStream(credentialsPath)) {
-                GoogleCredentials credentials = GoogleCredentials.fromStream(credentialsStream);
-                storageOptionsBuilder.setCredentials(credentials);
+                return GoogleCredentials.fromStream(credentialsStream);
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
