@@ -283,13 +283,9 @@
                     "attributeType" : "ARRAY<VARCHAR(2147483647)>"
                   } ]
                 },
-                "conversionClass" : "org.apache.flink.table.api.dataview.ListView",
                 "fields" : [ {
                   "name" : "list",
-                  "conversionClass" : "java.util.List",
-                  "elementClass" : {
-                    "conversionClass" : "java.lang.String"
-                  }
+                  "conversionClass" : "java.util.List"
                 } ]
               }
             }
@@ -299,21 +295,11 @@
               "type" : "RAW",
               "class" : "org.apache.flink.table.api.dataview.MapView",
               "externalDataType" : {
-                "logicalType" : {
-                  "type" : "STRUCTURED_TYPE",
-                  "implementationClass" : "org.apache.flink.table.api.dataview.MapView",
-                  "attributes" : [ {
-                    "name" : "map",
-                    "attributeType" : "MAP<VARCHAR(2147483647), BOOLEAN>"
-                  } ]
-                },
-                "conversionClass" : "org.apache.flink.table.api.dataview.MapView",
-                "fields" : [ {
+                "type" : "STRUCTURED_TYPE",
+                "implementationClass" : "org.apache.flink.table.api.dataview.MapView",
+                "attributes" : [ {
                   "name" : "map",
-                  "conversionClass" : "java.util.Map",
-                  "keyClass" : {
-                    "conversionClass" : "java.lang.String"
-                  }
+                  "attributeType" : "MAP<VARCHAR(2147483647), BOOLEAN>"
                 } ]
               }
             }
@@ -333,10 +319,11 @@
                 "attributeType" : "MAP<VARCHAR(2147483647), BIGINT NOT NULL>"
               } ]
             },
-            "conversionClass" : "org.apache.flink.table.api.dataview.MapView",
             "fields" : [ {
               "name" : "map",
-              "conversionClass" : "java.util.Map"
+              "keyClass" : {
+                "conversionClass" : "org.apache.flink.table.data.StringData"
+              }
             } ]
           }
         }
@@ -390,13 +377,9 @@
                     "attributeType" : "ARRAY<VARCHAR(2147483647)>"
                   } ]
                 },
-                "conversionClass" : "org.apache.flink.table.api.dataview.ListView",
                 "fields" : [ {
                   "name" : "list",
-                  "conversionClass" : "java.util.List",
-                  "elementClass" : {
-                    "conversionClass" : "java.lang.String"
-                  }
+                  "conversionClass" : "java.util.List"
                 } ]
               }
             }
@@ -406,21 +389,11 @@
               "type" : "RAW",
               "class" : "org.apache.flink.table.api.dataview.MapView",
               "externalDataType" : {
-                "logicalType" : {
-                  "type" : "STRUCTURED_TYPE",
-                  "implementationClass" : "org.apache.flink.table.api.dataview.MapView",
-                  "attributes" : [ {
-                    "name" : "map",
-                    "attributeType" : "MAP<VARCHAR(2147483647), BOOLEAN>"
-                  } ]
-                },
-                "conversionClass" : "org.apache.flink.table.api.dataview.MapView",
-                "fields" : [ {
+                "type" : "STRUCTURED_TYPE",
+                "implementationClass" : "org.apache.flink.table.api.dataview.MapView",
+                "attributes" : [ {
                   "name" : "map",
-                  "conversionClass" : "java.util.Map",
-                  "keyClass" : {
-                    "conversionClass" : "java.lang.String"
-                  }
+                  "attributeType" : "MAP<VARCHAR(2147483647), BOOLEAN>"
                 } ]
               }
             }
@@ -440,10 +413,11 @@
                 "attributeType" : "MAP<VARCHAR(2147483647), BIGINT NOT NULL>"
               } ]
             },
-            "conversionClass" : "org.apache.flink.table.api.dataview.MapView",
             "fields" : [ {
               "name" : "map",
-              "conversionClass" : "java.util.Map"
+              "keyClass" : {
+                "conversionClass" : "org.apache.flink.table.data.StringData"
+              }
             } ]
           }
         }

@@ -116,7 +116,7 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
         if (logicalTypeNode.isTextual()) {
             return deserializeWithCompactSerialization(logicalTypeNode.asText(), serdeContext);
         } else {
-            return deserializeWithGenericSerialization(logicalTypeNode, serdeContext);
+            return deserializeWithExtendedSerialization(logicalTypeNode, serdeContext);
         }
     }
 
@@ -127,7 +127,7 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
         return dataTypeFactory.createLogicalType(serializableString);
     }
 
-    private static LogicalType deserializeWithGenericSerialization(
+    private static LogicalType deserializeWithExtendedSerialization(
             JsonNode logicalTypeNode, SerdeContext serdeContext) {
         final LogicalType logicalType = deserializeFromRoot(logicalTypeNode, serdeContext);
         if (logicalTypeNode.has(FIELD_NAME_NULLABLE)) {

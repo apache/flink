@@ -76,31 +76,34 @@ public class DataTypeJsonDeserializer extends StdDeserializer<DataType> {
 
     public static DataType deserialize(JsonNode dataTypeNode, SerdeContext serdeContext) {
         if (dataTypeNode.isTextual()) {
-            return deserializeWithInternalClass(dataTypeNode, serdeContext);
+            return deserializeWithCompactSerialization(dataTypeNode, serdeContext);
         } else {
-            return deserializeWithExternalClass(dataTypeNode, serdeContext);
+            return deserializeWithExtendedSerialization(dataTypeNode, serdeContext);
         }
     }
 
-    private static DataType deserializeWithInternalClass(
+    private static DataType deserializeWithCompactSerialization(
             JsonNode logicalTypeNode, SerdeContext serdeContext) {
         final LogicalType logicalType =
                 LogicalTypeJsonDeserializer.deserialize(logicalTypeNode, serdeContext);
-        return DataTypes.of(logicalType).toInternal();
+        return DataTypes.of(logicalType);
     }
 
-    private static DataType deserializeWithExternalClass(
+    private static DataType deserializeWithExtendedSerialization(
             JsonNode dataTypeNode, SerdeContext serdeContext) {
+        final JsonNode logicalTypeNode =
+                dataTypeNode.has(FIELD_NAME_TYPE)
+                        ? dataTypeNode.get(FIELD_NAME_TYPE)
+                        : dataTypeNode;
         final LogicalType logicalType =
-                LogicalTypeJsonDeserializer.deserialize(
-                        dataTypeNode.get(FIELD_NAME_TYPE), serdeContext);
+                LogicalTypeJsonDeserializer.deserialize(logicalTypeNode, serdeContext);
         return deserializeClass(logicalType, dataTypeNode, serdeContext);
     }
 
     private static DataType deserializeClass(
             LogicalType logicalType, @Nullable JsonNode parentNode, SerdeContext serdeContext) {
         if (parentNode == null) {
-            return DataTypes.of(logicalType).toInternal();
+            return DataTypes.of(logicalType);
         }
 
         final DataType dataType;
@@ -167,7 +170,11 @@ public class DataTypeJsonDeserializer extends StdDeserializer<DataType> {
                 break;
 
             default:
-                dataType = DataTypes.of(logicalType).toInternal();
+                dataType = DataTypes.of(logicalType);
+        }
+
+        if (!parentNode.has(FIELD_NAME_CONVERSION_CLASS)) {
+            return dataType;
         }
 
         final Class<?> conversionClass =

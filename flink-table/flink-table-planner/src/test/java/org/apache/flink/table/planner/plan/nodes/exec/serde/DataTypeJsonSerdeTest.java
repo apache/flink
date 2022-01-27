@@ -68,7 +68,8 @@ public class DataTypeJsonSerdeTest {
                         DataTypes.FIELD("f0", DataTypes.INT().notNull().bridgedTo(int.class)),
                         DataTypes.FIELD("f1", DataTypes.BIGINT().notNull().bridgedTo(long.class)),
                         DataTypes.FIELD("f2", DataTypes.STRING())),
-                DataTypes.MAP(DataTypes.STRING().toInternal(), DataTypes.TIMESTAMP(3)));
+                DataTypes.MAP(DataTypes.STRING().toInternal(), DataTypes.TIMESTAMP(3)),
+                DataTypes.ROW(DataTypes.TIMESTAMP_LTZ(3)).toInternal());
     }
 
     // --------------------------------------------------------------------------------------------
