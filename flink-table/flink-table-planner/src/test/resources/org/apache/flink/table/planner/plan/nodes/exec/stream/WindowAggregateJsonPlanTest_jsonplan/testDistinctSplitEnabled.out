@@ -295,10 +295,11 @@
                 "attributeType" : "MAP<VARCHAR(2147483647), BIGINT NOT NULL>"
               } ]
             },
-            "conversionClass" : "org.apache.flink.table.api.dataview.MapView",
             "fields" : [ {
               "name" : "map",
-              "conversionClass" : "java.util.Map"
+              "keyClass" : {
+                "conversionClass" : "org.apache.flink.table.data.StringData"
+              }
             } ]
           }
         }
@@ -350,10 +351,11 @@
                 "attributeType" : "MAP<VARCHAR(2147483647), BIGINT NOT NULL>"
               } ]
             },
-            "conversionClass" : "org.apache.flink.table.api.dataview.MapView",
             "fields" : [ {
               "name" : "map",
-              "conversionClass" : "java.util.Map"
+              "keyClass" : {
+                "conversionClass" : "org.apache.flink.table.data.StringData"
+              }
             } ]
           }
         }
