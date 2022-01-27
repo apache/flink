@@ -22,11 +22,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Dependencies: Flink Core and User Application
+# Advanced Configuration Topics
+
+## Dependencies: Flink Core and User Application
 
 There are two broad categories of dependencies and libraries in Flink, which are explained below.
 
-## Flink Core Dependencies
+### Flink Core Dependencies
 
 Flink itself consists of a set of classes and dependencies that form the core of Flink's runtime
 and must be present when a Flink application is started. The classes and dependencies needed to run
@@ -41,7 +43,7 @@ In order to keep the core dependencies as small as possible and avoid dependency
 Flink Core Dependencies do not contain any connectors or libraries (i.e. CEP, SQL, ML) in order to
 avoid having an excessive default number of classes and dependencies in the classpath.
 
-## User Application Dependencies
+### User Application Dependencies
 
 These dependencies include all connectors, formats, or libraries that a specific user application
 needs and explicitly do not include the Flink DataStream and Table APIs and runtime dependencies 
@@ -62,7 +64,7 @@ See [this article](https://intellij-support.jetbrains.com/hc/en-us/articles/2065
 (possibly due to using an older IntelliJ IDEA version), then a workaround is to create a test that
 calls the application's `main()` method.
 
-# Scala Versions
+## Scala Versions
 
 Different Scala versions are not binary compatible with one another. All Flink dependencies that 
 (transitively) depend on Scala are suffixed with the Scala version that they are built for 
@@ -88,21 +90,21 @@ The relevant section states:
 > work.  See the [pull request
 > description](https://github.com/scala/scala/pull/7469) for more details.
 
-# Distribution
 
-The Flink distribution contains by default the required JARs to execute Flink SQL Jobs in `/lib`, in particular:
+The Flink distribution contains by default the required JARs to execute Flink SQL Jobs (found in the `/lib` folder), 
+in particular:
 
--`flink-table-api-java-uber-{{< version >}}.jar` containing all the Java APIs
--`flink-table-runtime-{{< version >}}.jar` containing the runtime
--`flink-table-planner-loader-{{< version >}}.jar` containing the query planner
+-`flink-table-api-java-uber-{{< version >}}.jar` --> contains all the Java APIs
+-`flink-table-runtime-{{< version >}}.jar` --> contains the runtime
+-`flink-table-planner-loader-{{< version >}}.jar` --> contains the query planner
 
 When using formats and connectors with the Flink Scala API, you need to either download and manually 
-include the JARs in the `/lib` folder (recommended), or you need to shade them in the uber JAR of your 
+include these JARs in the `/lib` folder (recommended), or you need to shade them in the uber JAR of your 
 Flink SQL Jobs.
 
-For more details, check out [Connect to External Systems]({{< ref "docs/connectors/table/overview" >}}).
+For more details, check out how to [connect to external systems]({{< ref "docs/connectors/table/overview" >}}).
 
-# Table Planner and Table Planner Loader
+## Table Planner and Table Planner Loader
 
 Starting from Flink 1.15, the distribution contains two planners:
 
@@ -121,7 +123,7 @@ version of the Flink distribution that you are using.
 **Note:** The two planners cannot co-exist at the same time in the classpath. If you load both of them
 in `/lib` your Table Jobs will fail.
 
-# Hadoop Dependencies
+## Hadoop Dependencies
 
 **General rule:** It should not be necessary to add Hadoop dependencies directly to your application.
 The only exception is when you use existing Hadoop input/output formats with [Flink's Hadoop compatibility 
@@ -150,54 +152,3 @@ There are two main reasons for this design:
 If you need Hadoop dependencies during developing or testing inside the IDE (i.e. for HDFS access),
 you should configure these dependencies similar to the scope of the dependencies (i.e. to *test* or 
 to *provided*).
-
-# Template for building a JAR with Dependencies
-
-To build an application JAR that contains all dependencies required for declared connectors and libraries,
-you can use the following shade plugin definition:
-
-```xml
-<build>
-    <plugins>
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-shade-plugin</artifactId>
-            <version>3.1.1</version>
-            <executions>
-                <execution>
-                    <phase>package</phase>
-                    <goals>
-                        <goal>shade</goal>
-                    </goals>
-                    <configuration>
-                        <artifactSet>
-                            <excludes>
-                                <exclude>com.google.code.findbugs:jsr305</exclude>
-                                <exclude>org.slf4j:*</exclude>
-                                <exclude>log4j:*</exclude>
-                            </excludes>
-                        </artifactSet>
-                        <filters>
-                            <filter>
-                                <!-- Do not copy the signatures in the META-INF folder.
-                                Otherwise, this might cause SecurityExceptions when using the JAR. -->
-                                <artifact>*:*</artifact>
-                                <excludes>
-                                    <exclude>META-INF/*.SF</exclude>
-                                    <exclude>META-INF/*.DSA</exclude>
-                                    <exclude>META-INF/*.RSA</exclude>
-                                </excludes>
-                            </filter>
-                        </filters>
-                        <transformers>
-                            <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                <mainClass>my.programs.main.clazz</mainClass>
-                            </transformer>
-                        </transformers>
-                    </configuration>
-                </execution>
-            </executions>
-        </plugin>
-    </plugins>
-</build>
-```

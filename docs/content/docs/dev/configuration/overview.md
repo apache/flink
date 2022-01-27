@@ -36,16 +36,19 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Project configuration
+# Project Configuration
 
 Every Flink application depends on a set of Flink libraries. At a minimum, the application depends
 on the Flink APIs and, in addition, on certain connector libraries (i.e. Kafka, Cassandra).
-When running Flink applications (either in a distributed deployment or in the IDE for testing),
-the Flink runtime library must be available.
+When running Flink applications (either in a distributed deployment or locally for testing),
+the [Flink runtime library](https://ossindex.sonatype.org/component/pkg:maven/org.apache.flink/flink-runtime@1.14.3) 
+must be available.
 
-The guides in this section will show you how to configure your projects via popular build tools,
-add the necessary dependencies so you can start working on your Flink application, and also cover 
-some advanced configuration topics. 
+The guides in this section will show you how to configure your projects via popular 
+[build tools]({{< ref "docs/dev/configuration/buildtools" >}}), add the necessary dependencies 
+(i.e. [connectors and formats]({{< ref "docs/dev/configuration/connector" >}}), 
+[testing]({{< ref "docs/dev/configuration/testing" >}})) so you can start working on your Flink application.
+Make sure to also check out some [advanced]({{< ref "docs/dev/configuration/advanced" >}}) configuration topics. 
 
 ## Which dependencies do you need?
 

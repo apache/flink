@@ -29,32 +29,22 @@ and define the [format]({{< ref "docs/connectors/table/formats/overview" >}}) in
 data.  
 
 The way that information is serialized is represented in the external system and that system needs
-to know how to read this data in a format that can be read by Flink.  This is done through format dependencies.
+to know how to read this data in a format that can be read by Flink.  This is done through format 
+dependencies.
 
 Most applications need specific connectors to run. Flink provides a set of formats that can be used 
 with connectors (with the dependencies for both being fairly unified). These are not part of Flink's 
 core dependencies and must be added as dependencies to the application.
 
-## Adding Connector Dependencies 
+## Adding Dependencies 
 
-As an example, you can add the Kafka connector as a dependency like this (Maven syntax):
-
-{{< artifact flink-connector-kafka >}}
-
-We recommend packaging the application code and all its required dependencies into one *JAR-with-dependencies* 
-which we refer to as the *application JAR*. The application JAR can be submitted to an already running 
-Flink cluster, or added to a Flink application container image.
-
-Projects created from the `Java Project Template`, the `Scala Project Template`, or Gradle are configured 
-to automatically include the application dependencies into the application JAR when you run `mvn clean package`. 
-For projects that are not set up from those templates, we recommend adding the Maven Shade Plugin to 
-build the application jar with all required dependencies.
-
-**Important:** For Maven (and other build tools) to correctly package the dependencies into the application 
-jar, these application dependencies must be specified in scope *compile* (unlike the core dependencies, 
-which must be specified in scope *provided*).
+For more information on how to add dependencies, refer to the [build tools]({{< ref "docs/dev/configuration/buildtools" >}}) section.
 
 ## Packaging Dependencies
+
+We recommend packaging the application code and all its required dependencies into one *JAR-with-dependencies*
+which we refer to as the *application JAR*. The application JAR can be submitted to an already running
+Flink cluster, or added to a Flink application container image.
 
 On [Maven Central](https://search.maven.org), we publish connectors named "flink-connector-<NAME>" and
 "flink-sql-connector-<NAME>". The former are thin JARs while the latter are uber JARs.
@@ -69,11 +59,4 @@ since you can change the versions without changing the connector version (binary
 
 If you include uber JARs directly in the distribution, this can simplify the management of dependencies 
 in a shared multi-job Flink cluster, but it also means that you will lock in a specific version of the 
-dependency. 
-
-In order to create an uber JAR to run the job, do this:
-
-[ FILL IN ]
-
-**Note:** You do not need to shade Flink API dependencies. You only need to do this for connectors,
-formats and third-party dependencies.
+dependency.

@@ -22,7 +22,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# DataStream API Test Dependencies
+# Dependencies for Testing 
+
+## DataStream API Test Dependencies
 
 You need to add the following dependencies if you want to develop tests for a job built with the 
 DataStream API:
@@ -31,7 +33,7 @@ DataStream API:
 {{< artifact flink-runtime withTestScope >}}
 
 
-# Table Program Test Dependencies
+## Table Program Test Dependencies
 
 If you want to test the Table API & SQL programs locally within your IDE, you can add the following 
 dependency:

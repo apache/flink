@@ -24,8 +24,8 @@ under the License.
 
 # Using build tools to configure your Flink project
 
-You will likely need a build tool to configure your Flink project. Here is more information on how to 
-do so with Maven, Gradle, and sbt. 
+You will likely need a build tool to configure your Flink project. This guide will show you how to 
+do so with [Maven](https://maven.apache.org), [Gradle](https://gradle.org), and [sbt](https://www.scala-sbt.org). 
 
 {{< tabs "build tool" >}}
 {{< tab "Maven" >}}
@@ -329,9 +329,88 @@ fork in run := true
 You can use [Maven](https://maven.apache.org), [Gradle](https://gradle.org/), or [sbt](https://www.scala-sbt.org/)
 to configure your project and add these dependencies.
 
+
+As an example, you can add the Kafka connector as a dependency like this (in Maven syntax):
+
+{{< artifact flink-connector-kafka >}}
+
+
 **Important:** Note that all these dependencies should have their scope set to [*provided*](https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#dependency-scope). This means that
 they are needed to compile against, but that they should not be packaged into the project's resulting
 application JAR file. If not set to *provided*, the best case scenario is that the resulting JAR
 becomes excessively large, because it also contains all Flink core dependencies. The worst case scenario
 is that the Flink core dependencies that are added to the application's JAR file clash with some of
 your own dependency versions (which is normally avoided through inverted classloading).
+
+
+Projects created from the `Java Project Template`, the `Scala Project Template`, or Gradle are configured
+to automatically include the application dependencies into the application JAR when you run `mvn clean package`.
+For projects that are not set up from those templates, we recommend adding the Maven Shade Plugin to
+build the application jar with all required dependencies.
+
+**Important:** For Maven (and other build tools) to correctly package the dependencies into the application
+jar, these application dependencies must be specified in scope *compile* (unlike the core dependencies,
+which must be specified in scope *provided*).
+
+
+### Shading
+
+
+In order to create an uber JAR to run the job, do this:
+
+[ FILL IN ]
+
+**Note:** You do not need to shade Flink API dependencies. You only need to do this for connectors,
+formats and third-party dependencies.
+
+
+# Template for building a JAR with Dependencies
+
+To build an application JAR that contains all dependencies required for declared connectors and libraries,
+you can use the following shade plugin definition:
+
+```xml
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+            <version>3.1.1</version>
+            <executions>
+                <execution>
+                    <phase>package</phase>
+                    <goals>
+                        <goal>shade</goal>
+                    </goals>
+                    <configuration>
+                        <artifactSet>
+                            <excludes>
+                                <exclude>com.google.code.findbugs:jsr305</exclude>
+                                <exclude>org.slf4j:*</exclude>
+                                <exclude>log4j:*</exclude>
+                            </excludes>
+                        </artifactSet>
+                        <filters>
+                            <filter>
+                                <!-- Do not copy the signatures in the META-INF folder.
+                                Otherwise, this might cause SecurityExceptions when using the JAR. -->
+                                <artifact>*:*</artifact>
+                                <excludes>
+                                    <exclude>META-INF/*.SF</exclude>
+                                    <exclude>META-INF/*.DSA</exclude>
+                                    <exclude>META-INF/*.RSA</exclude>
+                                </excludes>
+                            </filter>
+                        </filters>
+                        <transformers>
+                            <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                <mainClass>my.programs.main.clazz</mainClass>
+                            </transformer>
+                        </transformers>
+                    </configuration>
+                </execution>
+            </executions>
+        </plugin>
+    </plugins>
+</build>
+```
