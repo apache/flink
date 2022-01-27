@@ -638,9 +638,9 @@ class DataStreamTests(object):
                 self.value_state.update(value[0])
                 current_list = [_ for _ in self.list_state.get()]
                 self.list_state.add(value[0])
-                map_entries_string = []
-                for k, v in self.map_state.items():
-                    map_entries_string.append(str(k) + ': ' + str(v))
+                map_entries = {k: v for k, v in self.map_state.items()}
+                keys = sorted(map_entries.keys())
+                map_entries_string = [str(k) + ': ' + str(map_entries[k]) for k in keys]
                 map_entries_string = '{' + ', '.join(map_entries_string) + '}'
                 self.map_state.put(value[0], value[1])
                 current_key = ctx.get_current_key()
