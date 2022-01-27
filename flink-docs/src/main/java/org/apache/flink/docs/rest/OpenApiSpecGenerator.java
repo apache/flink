@@ -83,9 +83,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -155,7 +152,6 @@ public class OpenApiSpecGenerator {
 
         injectAsyncOperationResultSchema(openApi, asyncOperationSchemas);
 
-        deduplicateFields(openApi);
         overrideIdSchemas(openApi);
         overrideSerializeThrowableSchema(openApi);
 
@@ -277,69 +273,6 @@ public class OpenApiSpecGenerator {
 
         openAPI.getComponents()
                 .addSchemas(SerializedThrowable.class.getSimpleName(), serializedThrowableSchema);
-    }
-
-    /**
-     * Searches for fields that only differ by naming conventions and deduplicates them.
-     *
-     * <p>Example: startTime > start-time > start_time
-     */
-    private static void deduplicateFields(final OpenAPI openApi) {
-        for (Schema schema : openApi.getComponents().getSchemas().values()) {
-
-            final Map<String, Schema> properties = schema.getProperties();
-            if (properties == null) {
-                continue;
-            }
-
-            final Map<String, Set<String>> deduplicationMap =
-                    properties.keySet().stream()
-                            .collect(
-                                    Collectors.groupingBy(
-                                            OpenApiSpecGenerator::normalize, Collectors.toSet()));
-
-            for (Set<String> identicalFields : deduplicationMap.values()) {
-                if (identicalFields.size() > 1) {
-                    final String chosen = selectField(identicalFields);
-
-                    identicalFields.remove(chosen);
-                    properties.keySet().removeAll(identicalFields);
-                }
-            }
-        }
-    }
-
-    private static String selectField(Set<String> identicalFields) {
-        final Optional<String> camelCaseField = findCamelCaseField(identicalFields);
-        if (camelCaseField.isPresent()) {
-            return camelCaseField.get();
-        }
-        final Optional<String> dashField = findDashField(identicalFields);
-        if (dashField.isPresent()) {
-            return dashField.get();
-        }
-        final Optional<String> underscoreField = findUnderscoreField(identicalFields);
-        if (underscoreField.isPresent()) {
-            return underscoreField.get();
-        }
-        throw new RuntimeException(
-                String.format("Failed to resolve fields %s to single field.", identicalFields));
-    }
-
-    private static Optional<String> findCamelCaseField(Set<String> candidates) {
-        return candidates.stream().filter(x -> !x.contains("-") && !x.contains("_")).findAny();
-    }
-
-    private static Optional<String> findDashField(Set<String> candidates) {
-        return candidates.stream().filter(x -> x.contains("-")).findAny();
-    }
-
-    private static Optional<String> findUnderscoreField(Set<String> candidates) {
-        return candidates.stream().filter(x -> x.contains("_")).findAny();
-    }
-
-    private static String normalize(String key) {
-        return key.replaceAll("[-_]", "");
     }
 
     private static void add(MessageHeaders<?, ?, ?> spec, OpenAPI openApi) {
