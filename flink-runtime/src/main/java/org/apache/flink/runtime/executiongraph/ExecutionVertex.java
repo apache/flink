@@ -37,8 +37,6 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
 
-import org.slf4j.Logger;
-
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -61,8 +59,6 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class ExecutionVertex
         implements AccessExecutionVertex, Archiveable<ArchivedExecutionVertex> {
-
-    private static final Logger LOG = DefaultExecutionGraph.LOG;
 
     public static final int MAX_DISTINCT_LOCATIONS_TO_CONSIDER = 8;
 
