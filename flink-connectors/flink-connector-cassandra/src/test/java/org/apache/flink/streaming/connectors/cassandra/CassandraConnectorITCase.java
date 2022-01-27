@@ -69,6 +69,8 @@ import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.CassandraContainer;
+import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.images.builder.Transferable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -84,8 +86,6 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import org.testcontainers.containers.output.Slf4jLogConsumer;
 
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
@@ -111,10 +111,11 @@ public class CassandraConnectorITCase
     private static final String TABLE_POJO = "test";
     private static final String TABLE_POJO_NO_ANNOTATED_KEYSPACE = "testPojoNoAnnotatedKeyspace";
 
-    @ClassRule
-    public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+
     @ClassRule
     public static final CassandraContainer CASSANDRA_CONTAINER = createCassandraContainer();
+
     @Rule public final RetryRule retryRule = new RetryRule();
 
     private static final int PORT = 9042;
@@ -257,19 +258,35 @@ public class CassandraConnectorITCase
                     new String(Files.readAllBytes(configurationPath), StandardCharsets.UTF_8);
             String patchedConfiguration =
                     configuration
-                            .replaceAll("request_timeout_in_ms: [0-9]+", "request_timeout_in_ms: 30000")
+                            .replaceAll(
+                                    "request_timeout_in_ms: [0-9]+", "request_timeout_in_ms: 30000")
                             .replaceAll(
                                     "read_request_timeout_in_ms: [0-9]+",
                                     "read_request_timeout_in_ms: 15000")
                             .replaceAll(
                                     "write_request_timeout_in_ms: [0-9]+",
                                     "write_request_timeout_in_ms: 6000");
-            Files.write(configurationPath, patchedConfiguration.getBytes(StandardCharsets.UTF_8));
-            CASSANDRA_CONTAINER.withConfigurationOverride(
-                    configurationPath.toAbsolutePath().toString());
+            CASSANDRA_CONTAINER.copyFileToContainer(
+                    Transferable.of(patchedConfiguration.getBytes(StandardCharsets.UTF_8)),
+                    "/etc/cassandra/cassandra.yaml");
         } catch (IOException e) {
             throw new RuntimeException("Unable to open Cassandra configuration file ", e);
         }
+    }
+
+    @Test
+    public void testRaiseCassandraRequestsTimeouts() throws IOException {
+        // raiseCassandraRequestsTimeouts() was already called in @BeforeClass,
+        // do not change the container conf twice, just assert that it was indeed changed in the
+        // container
+        final Path configurationPath = TEMPORARY_FOLDER.newFile().toPath();
+        CASSANDRA_CONTAINER.copyFileFromContainer(
+                "/etc/cassandra/cassandra.yaml", configurationPath.toAbsolutePath().toString());
+        final String configuration =
+                new String(Files.readAllBytes(configurationPath), StandardCharsets.UTF_8);
+        assertTrue(configuration.contains("request_timeout_in_ms: 30000"));
+        assertTrue(configuration.contains("read_request_timeout_in_ms: 15000"));
+        assertTrue(configuration.contains("write_request_timeout_in_ms: 6000"));
     }
 
     @Before
