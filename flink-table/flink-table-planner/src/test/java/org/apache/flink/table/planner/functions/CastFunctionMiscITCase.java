@@ -50,8 +50,8 @@ import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.row;
-import static org.apache.flink.table.planner.functions.CastFunctionITCase.entry;
-import static org.apache.flink.table.planner.functions.CastFunctionITCase.map;
+import static org.apache.flink.util.CollectionUtil.entry;
+import static org.apache.flink.util.CollectionUtil.map;
 
 /** Tests for {@link BuiltInFunctionDefinitions#CAST} regarding {@link DataTypes#ROW}. */
 public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
