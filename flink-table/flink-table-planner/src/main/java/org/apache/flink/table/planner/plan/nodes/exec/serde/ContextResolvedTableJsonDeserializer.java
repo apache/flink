@@ -82,7 +82,7 @@ class ContextResolvedTableJsonDeserializer extends StdDeserializer<ContextResolv
         if (identifier == null && resolvedCatalogTable == null) {
             throw new ValidationException(
                     String.format(
-                            "The input json is invalid because it doesn't contain '%s', nor the '%s'.",
+                            "The input JSON is invalid because it doesn't contain '%s', nor the '%s'.",
                             FIELD_NAME_IDENTIFIER, FIELD_NAME_CATALOG_TABLE));
         }
 
@@ -172,7 +172,7 @@ class ContextResolvedTableJsonDeserializer extends StdDeserializer<ContextResolv
     static ValidationException missingIdentifier() {
         return new ValidationException(
                 String.format(
-                        "The table cannot be deserialized, as no identifier is present within the json, "
+                        "The table cannot be deserialized, as no identifier is present within the JSON, "
                                 + "but lookup is forced by '%s' == '%s'. "
                                 + "Either allow restoring table from the catalog with '%s' == '%s' | '%s' or make sure you don't use anonymous tables when generating the plan.",
                         PLAN_RESTORE_CATALOG_OBJECTS.key(),

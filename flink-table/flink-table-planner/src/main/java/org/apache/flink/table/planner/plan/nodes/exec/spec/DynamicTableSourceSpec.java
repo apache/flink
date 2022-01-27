@@ -113,7 +113,7 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
         } else {
             throw new TableException(
                     String.format(
-                            "%s is not a ScanTableSource.\n" + "please check it.",
+                            "%s is not a ScanTableSource.\nPlease check it.",
                             tableSource.getClass().getName()));
         }
     }
@@ -125,7 +125,7 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
         } else {
             throw new TableException(
                     String.format(
-                            "%s is not a LookupTableSource.\n" + "please check it.",
+                            "%s is not a LookupTableSource.\nPlease check it.",
                             tableSource.getClass().getName()));
         }
     }

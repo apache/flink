@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.utils;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -46,17 +47,19 @@ public class PlannerMocks {
     private final FlinkPlannerImpl planner;
     private final ParserImpl parser;
     private final CatalogManager catalogManager;
+    private final TableConfig tableConfig;
+    private final PlannerContext plannerContext;
 
-    private PlannerMocks() {
+    private PlannerMocks(TableConfig tableConfig) {
         this.catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
+        this.tableConfig = tableConfig;
 
-        final TableConfig tableConfig = new TableConfig();
         final ModuleManager moduleManager = new ModuleManager();
 
         final FunctionCatalog functionCatalog =
                 new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
-        final PlannerContext plannerContext =
+        this.plannerContext =
                 new PlannerContext(
                         false,
                         tableConfig,
@@ -100,6 +103,14 @@ public class PlannerMocks {
         return catalogManager;
     }
 
+    public TableConfig getTableConfig() {
+        return tableConfig;
+    }
+
+    public PlannerContext getPlannerContext() {
+        return plannerContext;
+    }
+
     public PlannerMocks registerTemporaryTable(String tableName, Schema tableSchema) {
         final CatalogTable table =
                 CatalogTable.of(tableSchema, null, Collections.emptyList(), Collections.emptyMap());
@@ -117,6 +128,12 @@ public class PlannerMocks {
     }
 
     public static PlannerMocks create() {
-        return new PlannerMocks();
+        return new PlannerMocks(new TableConfig());
+    }
+
+    public static PlannerMocks create(Configuration configuration) {
+        TableConfig tableConfig = new TableConfig();
+        tableConfig.addConfiguration(configuration);
+        return new PlannerMocks(tableConfig);
     }
 }

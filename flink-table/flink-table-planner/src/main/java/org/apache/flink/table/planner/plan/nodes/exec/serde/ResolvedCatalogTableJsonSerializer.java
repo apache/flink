@@ -62,7 +62,7 @@ class ResolvedCatalogTableJsonSerializer extends StdSerializer<ResolvedCatalogTa
             JsonGenerator jsonGenerator,
             SerializerProvider serializerProvider)
             throws IOException {
-        // Thia should never happen anyway, but we keep this assertion for sanity check
+        // This should never happen anyway, but we keep this assertion for sanity check
         assert resolvedCatalogTable.getTableKind() == CatalogBaseTable.TableKind.TABLE;
 
         jsonGenerator.writeStartObject();

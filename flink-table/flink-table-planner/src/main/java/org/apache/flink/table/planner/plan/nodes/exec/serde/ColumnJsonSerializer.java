@@ -31,9 +31,9 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil
 class ColumnJsonSerializer extends StdSerializer<Column> {
 
     public static final String KIND = "kind";
-    public static final String KIND_PHYSICAL = "physical";
-    public static final String KIND_COMPUTED = "computed";
-    public static final String KIND_METADATA = "metadata";
+    public static final String KIND_PHYSICAL = "PHYSICAL";
+    public static final String KIND_COMPUTED = "COMPUTED";
+    public static final String KIND_METADATA = "METADATA";
     public static final String NAME = "name";
     public static final String DATA_TYPE = "dataType";
     public static final String COMMENT = "comment";
