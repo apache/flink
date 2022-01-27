@@ -48,7 +48,7 @@ class TableRequestsContainer {
 
     public void put(DynamoDbWriteRequest request) {
         Map<PrimaryKey, WriteRequest> tableRequests =
-                container.computeIfAbsent(request.getTableName(), k -> new LinkedHashMap<>());
+                container.computeIfAbsent(request.getTableName(), k -> new HashMap<>());
         tableRequests.put(
                 PrimaryKey.build(
                         tablesConfig.getTableConfig(request.getTableName()),

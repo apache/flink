@@ -27,8 +27,6 @@ import org.apache.flink.streaming.api.functions.source.datagen.RandomGenerator;
 import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
 import org.apache.flink.streaming.connectors.dynamodb.testutils.DynamoDBHelpers;
 import org.apache.flink.streaming.connectors.dynamodb.testutils.DynamoDbContainer;
-import org.apache.flink.streaming.connectors.dynamodb.util.TestDynamoDbElementConverter;
-import org.apache.flink.streaming.connectors.dynamodb.util.TestMapper;
 import org.apache.flink.util.DockerImageVersions;
 
 import org.assertj.core.api.Assertions;

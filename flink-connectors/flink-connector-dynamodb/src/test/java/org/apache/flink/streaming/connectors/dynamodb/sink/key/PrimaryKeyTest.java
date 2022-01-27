@@ -23,7 +23,7 @@ import org.apache.flink.streaming.connectors.dynamodb.sink.InvalidRequestExcepti
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
-import org.junit.Assert;
+import org.assertj.core.api.Assertions;
 import org.junit.Test;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -77,8 +77,8 @@ public class PrimaryKeyTest {
         PrimaryKey deleteRequestKey =
                 PrimaryKey.build(config, createDeleteItemRequest(createItemValues()));
 
-        Assert.assertEquals(putRequestKey, deleteRequestKey);
-        Assert.assertEquals(putRequestKey.hashCode(), deleteRequestKey.hashCode());
+        Assertions.assertThat(putRequestKey).isEqualTo(deleteRequestKey);
+        Assertions.assertThat(putRequestKey.hashCode()).isEqualTo(deleteRequestKey.hashCode());
     }
 
     @Test
@@ -91,8 +91,8 @@ public class PrimaryKeyTest {
         PrimaryKey deleteRequestKey =
                 PrimaryKey.build(config, createDeleteItemRequest(createItemValues()));
 
-        Assert.assertEquals(putRequestKey, deleteRequestKey);
-        Assert.assertEquals(putRequestKey.hashCode(), deleteRequestKey.hashCode());
+        Assertions.assertThat(putRequestKey).isEqualTo(deleteRequestKey);
+        Assertions.assertThat(putRequestKey.hashCode()).isEqualTo(deleteRequestKey.hashCode());
     }
 
     @Test(expected = InvalidRequestException.class)

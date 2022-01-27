@@ -21,8 +21,8 @@ package org.apache.flink.streaming.connectors.dynamodb.util;
 import org.apache.flink.connector.aws.util.TestUtil;
 import org.apache.flink.streaming.connectors.dynamodb.config.AWSDynamoDbConfigConstants;
 
+import org.assertj.core.api.Assertions;
 import org.junit.Test;
-import org.junit.jupiter.api.Assertions;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
 import software.amazon.awssdk.core.retry.RetryPolicy;
@@ -34,8 +34,6 @@ import software.amazon.awssdk.core.retry.backoff.FullJitterBackoffStrategy;
 import java.time.Duration;
 import java.util.Properties;
 
-import static org.junit.Assert.assertTrue;
-
 /** Tests for {@link AWSDynamoDbUtil}. */
 public class AWSDynamoDbUtilTest {
 
@@ -45,9 +43,9 @@ public class AWSDynamoDbUtilTest {
                 TestUtil.properties(
                         AWSDynamoDbConfigConstants.THROTTLING_BACKOFF_STRATEGY, "FULL_JITTER");
 
-        assertTrue(
-                "Should have retry configuration",
-                AWSDynamoDbUtil.hasRetryConfiguration(properties));
+        Assertions.assertThat(AWSDynamoDbUtil.hasRetryConfiguration(properties))
+                .as("Should have retry configuration")
+                .isTrue();
     }
 
     @Test
@@ -61,13 +59,12 @@ public class AWSDynamoDbUtilTest {
                 AWSDynamoDbUtil.getBackoffStrategy(
                         properties, AWSDynamoDbConfigConstants.BACKOFF_STRATEGY);
 
-        Assertions.assertInstanceOf(FullJitterBackoffStrategy.class, backoffStrategy);
-        Assertions.assertEquals(
-                Duration.ofMillis(100),
-                ((FullJitterBackoffStrategy) backoffStrategy).toBuilder().baseDelay());
-        Assertions.assertEquals(
-                Duration.ofMillis(10),
-                ((FullJitterBackoffStrategy) backoffStrategy).toBuilder().maxBackoffTime());
+        Assertions.assertThat(backoffStrategy).isInstanceOf(FullJitterBackoffStrategy.class);
+        Assertions.assertThat(((FullJitterBackoffStrategy) backoffStrategy).toBuilder().baseDelay())
+                .isEqualTo(Duration.ofMillis(100));
+        Assertions.assertThat(
+                        ((FullJitterBackoffStrategy) backoffStrategy).toBuilder().maxBackoffTime())
+                .isEqualTo(Duration.ofMillis(10));
     }
 
     @Test
@@ -81,13 +78,13 @@ public class AWSDynamoDbUtilTest {
                 AWSDynamoDbUtil.getBackoffStrategy(
                         properties, AWSDynamoDbConfigConstants.BACKOFF_STRATEGY);
 
-        Assertions.assertInstanceOf(EqualJitterBackoffStrategy.class, backoffStrategy);
-        Assertions.assertEquals(
-                Duration.ofMillis(10),
-                ((EqualJitterBackoffStrategy) backoffStrategy).toBuilder().baseDelay());
-        Assertions.assertEquals(
-                Duration.ofMillis(100),
-                ((EqualJitterBackoffStrategy) backoffStrategy).toBuilder().maxBackoffTime());
+        Assertions.assertThat(backoffStrategy).isInstanceOf(EqualJitterBackoffStrategy.class);
+        Assertions.assertThat(
+                        ((EqualJitterBackoffStrategy) backoffStrategy).toBuilder().baseDelay())
+                .isEqualTo(Duration.ofMillis(10));
+        Assertions.assertThat(
+                        ((EqualJitterBackoffStrategy) backoffStrategy).toBuilder().maxBackoffTime())
+                .isEqualTo(Duration.ofMillis(100));
     }
 
     @Test
@@ -100,9 +97,9 @@ public class AWSDynamoDbUtilTest {
                 AWSDynamoDbUtil.getBackoffStrategy(
                         properties, AWSDynamoDbConfigConstants.THROTTLING_BACKOFF_STRATEGY);
 
-        Assertions.assertInstanceOf(FixedDelayBackoffStrategy.class, backoffStrategy);
-        Assertions.assertEquals(
-                FixedDelayBackoffStrategy.create(Duration.ofMillis(10)), backoffStrategy);
+        Assertions.assertThat(backoffStrategy).isInstanceOf(FixedDelayBackoffStrategy.class);
+        Assertions.assertThat(backoffStrategy)
+                .isEqualTo(FixedDelayBackoffStrategy.create(Duration.ofMillis(10)));
     }
 
     @Test
@@ -124,9 +121,10 @@ public class AWSDynamoDbUtilTest {
 
         RetryPolicy policy = AWSDynamoDbUtil.getRetryPolicy(properties);
 
-        Assertions.assertEquals(expectedNumRetries, policy.toBuilder().numRetries());
-        Assertions.assertEquals(expectedStrategy, policy.toBuilder().backoffStrategy());
-        Assertions.assertEquals(expectedStrategy, policy.toBuilder().throttlingBackoffStrategy());
+        Assertions.assertThat(policy.toBuilder().numRetries()).isEqualTo(expectedNumRetries);
+        Assertions.assertThat(policy.toBuilder().backoffStrategy()).isEqualTo(expectedStrategy);
+        Assertions.assertThat(policy.toBuilder().throttlingBackoffStrategy())
+                .isEqualTo(expectedStrategy);
     }
 
     @Test
@@ -136,17 +134,18 @@ public class AWSDynamoDbUtilTest {
         ClientOverrideConfiguration configuration =
                 AWSDynamoDbUtil.getOverrideConfiguration(properties);
 
-        Assertions.assertEquals(
-                AWSDynamoDbUtil.getFlinkUserAgentPrefix(properties),
-                getAdvancedOption(configuration, SdkAdvancedClientOption.USER_AGENT_PREFIX));
+        Assertions.assertThat(
+                        getAdvancedOption(configuration, SdkAdvancedClientOption.USER_AGENT_PREFIX))
+                .isEqualTo(AWSDynamoDbUtil.getFlinkUserAgentPrefix(properties));
 
-        Assertions.assertTrue(configuration.retryPolicy().isPresent());
-        Assertions.assertEquals(
-                RetryPolicy.defaultRetryPolicy(), configuration.retryPolicy().get());
-        Assertions.assertNull(
-                getAdvancedOption(configuration, SdkAdvancedClientOption.USER_AGENT_SUFFIX));
-        Assertions.assertFalse(configuration.apiCallTimeout().isPresent());
-        Assertions.assertFalse(configuration.apiCallAttemptTimeout().isPresent());
+        Assertions.assertThat(configuration.retryPolicy().isPresent()).isTrue();
+        Assertions.assertThat(configuration.retryPolicy().get())
+                .isEqualTo(RetryPolicy.defaultRetryPolicy());
+        Assertions.assertThat(
+                        getAdvancedOption(configuration, SdkAdvancedClientOption.USER_AGENT_SUFFIX))
+                .isNull();
+        Assertions.assertThat(configuration.apiCallTimeout().isPresent()).isFalse();
+        Assertions.assertThat(configuration.apiCallAttemptTimeout().isPresent()).isFalse();
     }
 
     private String getAdvancedOption(

@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodb.util;
+package org.apache.flink.streaming.connectors.dynamodb.sink;
 
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
-import org.apache.flink.streaming.connectors.dynamodb.sink.DynamoDbWriteRequest;
 
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutRequest;

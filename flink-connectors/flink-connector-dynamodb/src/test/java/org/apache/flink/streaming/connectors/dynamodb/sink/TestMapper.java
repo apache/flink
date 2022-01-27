@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodb.util;
+package org.apache.flink.streaming.connectors.dynamodb.sink;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
 
