@@ -28,6 +28,7 @@ import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 /** Input processor for {@link MultipleInputStreamOperator}. */
@@ -56,19 +57,8 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
     @Override
     public boolean isAvailable() {
-        if (inputSelectionHandler.isAnyInputAvailable()
-                || inputSelectionHandler.areAllInputsFinished()) {
-            return true;
-        } else {
-            boolean isAvailable = false;
-            for (int i = 0; i < inputProcessors.length; i++) {
-                isAvailable =
-                        !inputSelectionHandler.isInputFinished(i)
-                                && inputSelectionHandler.isInputSelected(i)
-                                && inputProcessors[i].isAvailable();
-            }
-            return isAvailable;
-        }
+        return inputSelectionHandler.isAnyInputAvailable()
+                || inputSelectionHandler.areAllInputsFinished();
     }
 
     @Override
@@ -77,20 +67,16 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
                 || inputSelectionHandler.areAllInputsFinished()) {
             return AVAILABLE;
         }
-        for (int i = 0; i < inputProcessors.length; i++) {
-            if (!inputSelectionHandler.isInputFinished(i)
-                    && inputSelectionHandler.isInputSelected(i)
-                    && inputProcessors[i].getAvailableFuture() == AVAILABLE) {
-                return AVAILABLE;
-            }
-        }
-        if (availabilityHelper.isInvalid()) {
-            availabilityHelper.resetToUnavailable();
+        /*
+         * According to the following issue. The implementation of `CompletableFuture.anyOf` in jdk8
+         * has some memory issue. This issue is fixed in jdk9.
+         * https://bugs.openjdk.java.net/browse/JDK-8160402
+         */
+        if (availabilityHelper.checkReusableAndReset()) {
             for (int i = 0; i < inputProcessors.length; i++) {
                 if (!inputSelectionHandler.isInputFinished(i)
                         && inputSelectionHandler.isInputSelected(i)) {
-                    CompletableFuture<?> future = inputProcessors[i].getAvailableFuture();
-                    availabilityHelper.anyOf(i, future);
+                    availabilityHelper.anyOf(i, inputProcessors[i].getAvailableFuture());
                 }
             }
         }
@@ -187,12 +173,13 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
         }
     }
 
-    /** Visible for testing only. Do not use out side StreamMultipleInputProcessor. */
+    /** Visible for testing only. Do not use out side of StreamMultipleInputProcessor. */
     @VisibleForTesting
     public static class MultipleInputAvailabilityHelper {
         private final CompletableFuture<?>[] cachedAvailableFutures;
         private final Consumer[] onCompletion;
         private CompletableFuture<?> availableFuture;
+        private final ReentrantLock lock = new ReentrantLock();
 
         public CompletableFuture<?> getAvailableFuture() {
             return availableFuture;
@@ -208,6 +195,9 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
             this.onCompletion = new Consumer[inputSize];
         }
 
+        /**
+         * Visible for testing only.
+         */
         @VisibleForTesting
         public void init() {
             for (int i = 0; i < cachedAvailableFutures.length; i++) {
@@ -216,12 +206,18 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
             }
         }
 
-        public boolean isInvalid() {
-            return availableFuture == null || availableFuture.isDone();
-        }
-
-        public void resetToUnavailable() {
-            availableFuture = new CompletableFuture<>();
+        /**
+         * Check the finished state of availableFuture. Reuse if possible.
+         * Renew {availableFuture} if previous availableFuture is already completed.
+         * @return true if availableFuture is renewed.
+         *         false, reuse previous availableFuture.
+         */
+        public boolean checkReusableAndReset() {
+            boolean needReset = availableFuture == null || availableFuture.isDone();
+            if (needReset) {
+                availableFuture = new CompletableFuture<>();
+            }
+            return needReset;
         }
 
         private void notifyCompletion(int idx) {
@@ -231,10 +227,18 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
             cachedAvailableFutures[idx] = AVAILABLE;
         }
 
+        /**
+         * Implement `Or` logic.
+         * @param idx
+         * @param dep
+         */
         public void anyOf(final int idx, CompletableFuture<?> dep) {
-            if (dep != cachedAvailableFutures[idx]) {
-                dep.thenAccept(getCallback(idx));
+            if (dep == AVAILABLE || dep.isDone()) {
                 cachedAvailableFutures[idx] = dep;
+                availableFuture.complete(null);
+            } else if (dep != cachedAvailableFutures[idx]) {
+                cachedAvailableFutures[idx] = dep;
+                dep.thenAccept(getCallback(idx));
             }
         }
 
