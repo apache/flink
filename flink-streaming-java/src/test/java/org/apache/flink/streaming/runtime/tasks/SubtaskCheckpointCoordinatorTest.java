@@ -275,7 +275,8 @@ public class SubtaskCheckpointCoordinatorTest {
                     operatorChain(streamMap);
             StreamTaskStateInitializerImpl stateInitializer =
                     new StreamTaskStateInitializerImpl(mockEnvironment, new TestStateBackend());
-            operatorChain.initializeStateAndOpenOperators(stateInitializer);
+            operatorChain.initializeStateAndOpenOperators(
+                    stateInitializer, "testNotifyCheckpointSubsumed");
 
             long checkpointId = 42L;
 

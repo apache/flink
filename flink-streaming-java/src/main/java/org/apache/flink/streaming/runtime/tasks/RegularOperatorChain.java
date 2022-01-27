@@ -100,11 +100,14 @@ public class RegularOperatorChain<OUT, OP extends StreamOperator<OUT>>
 
     @Override
     public void initializeStateAndOpenOperators(
-            StreamTaskStateInitializer streamTaskStateInitializer) throws Exception {
+            StreamTaskStateInitializer streamTaskStateInitializer, String taskName)
+            throws Exception {
         for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
             StreamOperator<?> operator = operatorWrapper.getStreamOperator();
+            LOG.debug("Initializing {} {} state and open.", taskName, operator.getOperatorID());
             operator.initializeState(streamTaskStateInitializer);
             operator.open();
+            LOG.debug("Complete {} {} initialization.", taskName, operator.getOperatorID());
         }
     }
 

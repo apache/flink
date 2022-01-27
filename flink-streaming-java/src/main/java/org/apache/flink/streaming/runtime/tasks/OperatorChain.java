@@ -296,12 +296,13 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
      * #finishOperators(StreamTaskActionExecutor, StopMode)}).
      */
     public abstract void initializeStateAndOpenOperators(
-            StreamTaskStateInitializer streamTaskStateInitializer) throws Exception;
+            StreamTaskStateInitializer streamTaskStateInitializer, String taskName)
+            throws Exception;
 
     /**
      * Closes all operators in a chain effect way. Closing happens from <b>heads to tail</b>
      * operator in the chain, contrary to {@link StreamOperator#open()} which happens <b>tail to
-     * heads</b> (see {@link #initializeStateAndOpenOperators(StreamTaskStateInitializer)}).
+     * heads</b> (see {@link #initializeStateAndOpenOperators(StreamTaskStateInitializer, String)}).
      */
     public abstract void finishOperators(StreamTaskActionExecutor actionExecutor, StopMode stopMode)
             throws Exception;

@@ -647,7 +647,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             return;
         }
         closedOperators = false;
-        LOG.debug("Initializing {}.", getName());
+        LOG.info("Initializing {}.", getName());
+        long startTime = System.currentTimeMillis();
 
         operatorChain =
                 getEnvironment().getTaskStateManager().isTaskDeployedAsFinished()
@@ -685,7 +686,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         // we recovered all the gates, we can close the channel IO executor as it is no longer
         // needed
         channelIOExecutor.shutdown();
-
+        LOG.info(
+                "{} completion initialization, takes {}ms.",
+                getName(),
+                (System.currentTimeMillis() - startTime));
         isRunning = true;
     }
 
@@ -695,7 +699,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         reader.readOutputData(
                 getEnvironment().getAllWriters(), !configuration.isGraphContainingLoops());
 
-        operatorChain.initializeStateAndOpenOperators(createStreamTaskStateInitializer());
+        operatorChain.initializeStateAndOpenOperators(
+                createStreamTaskStateInitializer(), getName());
 
         IndexedInputGate[] inputGates = getEnvironment().getAllInputGates();
         channelIOExecutor.execute(

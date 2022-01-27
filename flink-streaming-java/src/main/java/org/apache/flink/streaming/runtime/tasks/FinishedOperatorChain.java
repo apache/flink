@@ -74,7 +74,7 @@ public class FinishedOperatorChain<OUT, OP extends StreamOperator<OUT>>
 
     @Override
     public void initializeStateAndOpenOperators(
-            StreamTaskStateInitializer streamTaskStateInitializer) {}
+            StreamTaskStateInitializer streamTaskStateInitializer, String taskName) {}
 
     @Override
     public void finishOperators(StreamTaskActionExecutor actionExecutor, StopMode stopMode)

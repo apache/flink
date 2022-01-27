@@ -137,7 +137,7 @@ public class StreamOperatorChainingTest {
 
             headOperator.setup(mockTask, streamConfig, operatorChain.getMainOperatorOutput());
 
-            operatorChain.initializeStateAndOpenOperators(null);
+            operatorChain.initializeStateAndOpenOperators(null, "testMultiChaining");
 
             headOperator.processElement(new StreamRecord<>(1));
             headOperator.processElement(new StreamRecord<>(2));
@@ -263,7 +263,7 @@ public class StreamOperatorChainingTest {
 
             headOperator.setup(mockTask, streamConfig, operatorChain.getMainOperatorOutput());
 
-            operatorChain.initializeStateAndOpenOperators(null);
+            operatorChain.initializeStateAndOpenOperators(null, "testMultiChainingWithSplit");
 
             headOperator.processElement(new StreamRecord<>(1));
             headOperator.processElement(new StreamRecord<>(2));
@@ -302,7 +302,8 @@ public class StreamOperatorChainingTest {
 
         @Override
         public void initializeStateAndOpenOperators(
-                StreamTaskStateInitializer streamTaskStateInitializer) throws Exception {
+                StreamTaskStateInitializer streamTaskStateInitializer, String taskName)
+                throws Exception {
             for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
                 StreamOperator<?> operator = operatorWrapper.getStreamOperator();
                 operator.open();
