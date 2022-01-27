@@ -25,6 +25,8 @@ import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -217,11 +219,34 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
 
     private boolean isRetryable(Throwable err) {
         if (err instanceof CompletionException
-                && err.getCause() instanceof ResourceNotFoundException) {
+                && isInterruptingSignalException(ExceptionUtils.stripCompletionException(err))) {
+            getFatalExceptionCons().accept(new FlinkException("Running job was cancelled"));
+            return false;
+        }
+        if (err instanceof CompletionException
+                && ExceptionUtils.stripCompletionException(err)
+                        instanceof ResourceNotFoundException) {
             getFatalExceptionCons()
                     .accept(
                             new KinesisDataStreamsException(
-                                    "Encountered non-recoverable exception", err));
+                                    "Encountered non-recoverable exception relating to not being able to find the specified resources",
+                                    err));
+            return false;
+        }
+        if (err instanceof CompletionException
+                && ExceptionUtils.stripCompletionException(err) instanceof StsException) {
+            getFatalExceptionCons()
+                    .accept(
+                            new KinesisDataStreamsException(
+                                    "Encountered non-recoverable exception relating to the provided credentials.",
+                                    err));
+            return false;
+        }
+        if (err instanceof Error) {
+            getFatalExceptionCons()
+                    .accept(
+                            new KinesisDataStreamsException(
+                                    "Encountered non-recoverable exception.", err));
             return false;
         }
         if (failOnError) {
@@ -233,5 +258,12 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
         }
 
         return true;
+    }
+
+    private boolean isInterruptingSignalException(Throwable err) {
+        return err != null
+                && (err instanceof InterruptedException
+                        || (err instanceof IllegalStateException
+                                && err.getCause() instanceof InterruptedException));
     }
 }
