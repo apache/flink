@@ -35,6 +35,7 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
+import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend.MockSnapshotSupplier;
 import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -120,7 +121,7 @@ public class UnalignedCheckpointFailureHandlingITCase {
 
         // use non-snapshotting backend to test channel state persistence integration with
         // checkpoint storage
-        env.setStateBackend(new MockStateBackend(true));
+        env.setStateBackend(new MockStateBackend(MockSnapshotSupplier.EMPTY));
 
         env.getCheckpointConfig().enableUnalignedCheckpoints();
 

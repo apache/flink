@@ -29,7 +29,6 @@ import org.apache.flink.runtime.rpc.StartStoppable;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.rpc.exceptions.RpcException;
 import org.apache.flink.runtime.rpc.messages.CallAsync;
-import org.apache.flink.runtime.rpc.messages.LocalRpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RemoteRpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RunAsync;
@@ -61,8 +60,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Invocation handler to be used with an {@link AkkaRpcActor}. The invocation handler wraps the rpc
- * in a {@link LocalRpcInvocation} message and then sends it to the {@link AkkaRpcActor} where it is
- * executed.
+ * in a {@link RemoteRpcInvocation} message and then sends it to the {@link AkkaRpcActor} where it
+ * is executed.
  */
 class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, RpcServer {
     private static final Logger LOG = LoggerFactory.getLogger(AkkaInvocationHandler.class);
@@ -292,34 +291,23 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
             final Class<?>[] parameterTypes,
             final Object[] args)
             throws IOException {
-        final RpcInvocation rpcInvocation;
+        try {
+            RemoteRpcInvocation remoteRpcInvocation =
+                    new RemoteRpcInvocation(declaringClassName, methodName, parameterTypes, args);
 
-        if (isLocal) {
-            rpcInvocation =
-                    new LocalRpcInvocation(declaringClassName, methodName, parameterTypes, args);
-        } else {
-            try {
-                RemoteRpcInvocation remoteRpcInvocation =
-                        new RemoteRpcInvocation(
-                                declaringClassName, methodName, parameterTypes, args);
-
-                if (remoteRpcInvocation.getSize() > maximumFramesize) {
-                    throw new IOException(
-                            String.format(
-                                    "The rpc invocation size %d exceeds the maximum akka framesize.",
-                                    remoteRpcInvocation.getSize()));
-                } else {
-                    rpcInvocation = remoteRpcInvocation;
-                }
-            } catch (IOException e) {
-                LOG.warn(
-                        "Could not create remote rpc invocation message. Failing rpc invocation because...",
-                        e);
-                throw e;
+            if (remoteRpcInvocation.getSize() > maximumFramesize) {
+                throw new IOException(
+                        String.format(
+                                "The rpc invocation size %d exceeds the maximum akka framesize.",
+                                remoteRpcInvocation.getSize()));
             }
+            return remoteRpcInvocation;
+        } catch (IOException e) {
+            LOG.warn(
+                    "Could not create remote rpc invocation message. Failing rpc invocation because...",
+                    e);
+            throw e;
         }
-
-        return rpcInvocation;
     }
 
     // ------------------------------------------------------------------------

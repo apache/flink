@@ -34,6 +34,7 @@ import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend;
+import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend.MockSnapshotSupplier;
 import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackendBuilder;
 import org.apache.flink.state.changelog.ChangelogStateBackendTestUtils.DummyCheckpointingStorageAccess;
 
@@ -96,7 +97,7 @@ public class ChangelogKeyedStateBackendTest {
                         emptyList(),
                         UncompressedStreamCompressionDecorator.INSTANCE,
                         new CloseableRegistry(),
-                        true)
+                        MockSnapshotSupplier.EMPTY)
                 .build();
     }
 
