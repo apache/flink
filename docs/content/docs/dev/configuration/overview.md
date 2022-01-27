@@ -44,8 +44,9 @@ When running Flink applications (either in a distributed deployment or locally f
 the [Flink runtime library](https://ossindex.sonatype.org/component/pkg:maven/org.apache.flink/flink-runtime@1.14.3) 
 must be available.
 
-The guides in this section will show you how to configure your projects via popular 
-[build tools]({{< ref "docs/dev/configuration/buildtools" >}}), add the necessary dependencies 
+The guides in this section will show you how to configure your projects via popular build tools
+([Maven]({{< ref "docs/dev/configuration/maven" >}}), [Gradle]({{< ref "docs/dev/configuration/gradle" >}}),
+[sbt]({{< ref "docs/dev/configuration/sbt" >}})), add the necessary dependencies 
 (i.e. [connectors and formats]({{< ref "docs/dev/configuration/connector" >}}), 
 [testing]({{< ref "docs/dev/configuration/testing" >}})), and cover some 
 [advanced]({{< ref "docs/dev/configuration/advanced" >}}) configuration topics. 
@@ -248,5 +249,5 @@ Here is a table of artifact/dependency names:
 
 ## Next steps
 
-Check out the [build tools]({{< ref "docs/dev/configuration/buildtools" >}}) section to learn how to
-add these dependencies with Maven, Gradle, or sbt. 
+Check out the sections on how to add these dependencies with [Maven]({{< ref "docs/dev/configuration/maven" >}}), 
+[Gradle]({{< ref "docs/dev/configuration/gradle" >}}), or [sbt]({{< ref "docs/dev/configuration/sbt" >}}).
