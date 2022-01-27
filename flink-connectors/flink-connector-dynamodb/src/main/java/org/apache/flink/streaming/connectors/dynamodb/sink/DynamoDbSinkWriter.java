@@ -45,9 +45,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /**
- * TODO.
+ * Sink writer created by {@link DynamoDbSink} to write to DynamoDB. More details on the operation
+ * of this sink writer may be found in the doc for {@link DynamoDbSink}. More details on the
+ * internals of this sink writer may be found in {@link AsyncSinkWriter}.
  *
- * @param <InputT>
+ * <p>The {@link DynamoDbAsyncClient} used here may be configured in the standard way for the AWS
+ * SDK 2.x. e.g. the provision of {@code AWS_REGION}, {@code AWS_ACCESS_KEY_ID} and {@code
+ * AWS_SECRET_ACCESS_KEY} through environment variables etc.
  */
 class DynamoDbSinkWriter<InputT> extends AsyncSinkWriter<InputT, DynamoDbWriteRequest> {
     private static final Logger LOG = LoggerFactory.getLogger(DynamoDbSinkWriter.class);

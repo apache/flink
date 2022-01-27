@@ -85,7 +85,8 @@ public class PrimaryKey {
                 + '}';
     }
 
-    public static PrimaryKey build(DynamoDbTablesConfig.TableConfig config, WriteRequest request) {
+    public static PrimaryKey build(
+            @Nullable DynamoDbTablesConfig.TableConfig config, WriteRequest request) {
         if (config != null) {
             Map<String, AttributeValue> requestItems = getRequestItems(request);
 
@@ -93,7 +94,7 @@ public class PrimaryKey {
                     requestItems.get(config.getPartitionKeyName());
             AttributeValue sortKeyAttributeValue = requestItems.get(config.getSortKeyName());
 
-            if (config.getPartitionKeyName() != null && partitionKeyAttributeValue == null) {
+            if (partitionKeyAttributeValue == null) {
                 throw new InvalidRequestException(
                         "Request "
                                 + request.toString()
@@ -109,11 +110,11 @@ public class PrimaryKey {
                                 + config.getSortKeyName());
             }
 
-            if (partitionKeyAttributeValue != null && sortKeyAttributeValue != null) {
+            if (sortKeyAttributeValue != null) {
                 return new PrimaryKey(
                         getKeyValue(partitionKeyAttributeValue),
                         getKeyValue(sortKeyAttributeValue));
-            } else if (partitionKeyAttributeValue != null) {
+            } else {
                 return new PrimaryKey(getKeyValue(partitionKeyAttributeValue));
             }
         }
