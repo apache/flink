@@ -775,6 +775,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     doVerifyExplain(stmtSet.explain(extraDetails: _*), extraDetails: _*)
   }
 
+  final val PLAN_TEST_FORCE_OVERWRITE = "PLAN_TEST_FORCE_OVERWRITE"
+
   /**
    * Verify the json plan for the given insert statement.
    */
@@ -795,19 +797,20 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       val plannerDirPath = clazz.getResource("/").getFile.replace("/target/test-classes/", "")
       new File(s"$plannerDirPath/src/test/resources$resourceTestFilePath")
     }
-    if (file.exists()) {
+    if (!file.exists() || "true".equalsIgnoreCase(System.getenv(PLAN_TEST_FORCE_OVERWRITE))) {
+      Files.deleteIfExists(Paths.get(file.toURI))
+      file.getParentFile.mkdirs()
+      assertTrue(file.createNewFile())
+      val prettyJson = TableTestUtil.getPrettyJson(jsonPlanWithoutFlinkVersion)
+      Files.write(Paths.get(file.toURI), prettyJson.getBytes)
+      fail(s"$testMethodFileName regenerated.")
+    } else {
       val expected = TableTestUtil.readFromResource(resourceTestFilePath)
       assertEquals(
         TableTestUtil.replaceExecNodeId(
           TableTestUtil.getFormattedJson(expected)),
         TableTestUtil.replaceExecNodeId(
           TableTestUtil.getFormattedJson(jsonPlanWithoutFlinkVersion)))
-    } else {
-      file.getParentFile.mkdirs()
-      assertTrue(file.createNewFile())
-      val prettyJson = TableTestUtil.getPrettyJson(jsonPlanWithoutFlinkVersion)
-      Files.write(Paths.get(file.toURI), prettyJson.getBytes)
-      fail(s"$testMethodFileName does not exist.")
     }
   }
 
