@@ -59,9 +59,24 @@ can run the application from the JAR file without additionally specifying the ma
 
 ## Adding dependencies to the project
 
-As an example, you can add the Kafka connector as a dependency like this (in Maven syntax):
+Open the `pom.xml` file in your profile directory and add the dependency in between
+the `dependencies` tab.  
 
-{{< artifact flink-connector-kafka >}}
+For example, you can add the Kafka connector as a dependency like this:
+
+```xml
+<dependencies>
+    
+    <dependency>
+        <groupId>org.apache.flink</groupId>
+        <artifactId>flink-connector-kafka</artifactId>
+        <version>{{< version >}}</version>
+    </dependency>
+    
+</dependencies>
+```
+
+Then execute `mvn install` on the command line. 
 
 Projects created from the `Java Project Template`, the `Scala Project Template`, or Gradle are configured
 to automatically include the application dependencies into the application JAR when you run `mvn clean package`.
