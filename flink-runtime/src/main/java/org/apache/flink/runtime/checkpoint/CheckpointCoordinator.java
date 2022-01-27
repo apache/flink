@@ -80,6 +80,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -199,6 +200,12 @@ public class CheckpointCoordinator {
     /** Optional tracker for checkpoint statistics. */
     private final CheckpointStatsTracker statsTracker;
 
+    private final BiFunction<
+                    Set<ExecutionJobVertex>,
+                    Map<OperatorID, OperatorState>,
+                    VertexFinishedStateChecker>
+            vertexFinishedStateCheckerFactory;
+
     /** Id of checkpoint for which in-flight data should be ignored on recovery. */
     private final long checkpointIdOfIgnoredInFlightData;
 
@@ -218,6 +225,7 @@ public class CheckpointCoordinator {
     private final ExecutionAttemptMappingProvider attemptMappingProvider;
 
     private boolean baseLocationsForCheckpointInitialized = false;
+
     private boolean forceFullSnapshot;
 
     // --------------------------------------------------------------------------------------------
@@ -251,7 +259,8 @@ public class CheckpointCoordinator {
                 checkpointPlanCalculator,
                 attemptMappingProvider,
                 SystemClock.getInstance(),
-                statsTracker);
+                statsTracker,
+                VertexFinishedStateChecker::new);
     }
 
     @VisibleForTesting
@@ -269,7 +278,12 @@ public class CheckpointCoordinator {
             CheckpointPlanCalculator checkpointPlanCalculator,
             ExecutionAttemptMappingProvider attemptMappingProvider,
             Clock clock,
-            CheckpointStatsTracker statsTracker) {
+            CheckpointStatsTracker statsTracker,
+            BiFunction<
+                            Set<ExecutionJobVertex>,
+                            Map<OperatorID, OperatorState>,
+                            VertexFinishedStateChecker>
+                    vertexFinishedStateCheckerFactory) {
 
         // sanity checks
         checkNotNull(checkpointStorage);
@@ -344,6 +358,7 @@ public class CheckpointCoordinator {
                         this.pendingCheckpoints::size,
                         this.checkpointsCleaner::getNumberOfCheckpointsToClean);
         this.statsTracker = checkNotNull(statsTracker, "Statistic tracker can not be null");
+        this.vertexFinishedStateCheckerFactory = checkNotNull(vertexFinishedStateCheckerFactory);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -1611,7 +1626,7 @@ public class CheckpointCoordinator {
 
             if (checkForPartiallyFinishedOperators) {
                 VertexFinishedStateChecker vertexFinishedStateChecker =
-                        new VertexFinishedStateChecker(tasks, operatorStates);
+                        vertexFinishedStateCheckerFactory.apply(tasks, operatorStates);
                 vertexFinishedStateChecker.validateOperatorsFinishedState();
             }
 

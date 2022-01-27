@@ -27,6 +27,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.ChainedStateHandle;
@@ -37,6 +38,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.types.BooleanValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -49,6 +51,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -60,6 +63,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -1106,5 +1110,99 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                         .getTaskRestore()
                         .getTaskStateSnapshot();
         assertTrue(restoredState.isTaskDeployedAsFinished());
+    }
+
+    @Test
+    public void testJobGraphModificationsAreCheckedForInitialCheckpoint() throws Exception {
+        final JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID, 1, 1)
+                        .build();
+        CompletedCheckpointStore completedCheckpointStore = new EmbeddedCompletedCheckpointStore();
+        CompletedCheckpoint completedCheckpoint =
+                new CompletedCheckpoint(
+                        graph.getJobID(),
+                        2,
+                        System.currentTimeMillis(),
+                        System.currentTimeMillis() + 3000,
+                        Collections.emptyMap(),
+                        Collections.emptyList(),
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        new TestCompletedCheckpointStorageLocation());
+        completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
+                completedCheckpoint, new CheckpointsCleaner(), () -> {});
+
+        BooleanValue checked = new BooleanValue(false);
+        CheckpointCoordinator restoreCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setExecutionGraph(graph)
+                        .setCompletedCheckpointStore(completedCheckpointStore)
+                        .setVertexFinishedStateCheckerFactory(
+                                (vertices, states) ->
+                                        new VertexFinishedStateChecker(vertices, states) {
+                                            @Override
+                                            public void validateOperatorsFinishedState() {
+                                                checked.set(true);
+                                            }
+                                        })
+                        .build();
+        restoreCoordinator.restoreInitialCheckpointIfPresent(
+                new HashSet<>(graph.getAllVertices().values()));
+        assertTrue(
+                "The finished states should be checked when job is restored on startup",
+                checked.get());
+    }
+
+    @Test
+    public void testJobGraphModificationsAreCheckedForSavepoint() throws Exception {
+        final JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID, 1, 1)
+                        .build();
+        CheckpointCoordinator coordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setExecutionGraph(graph)
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .build();
+        File savepointPath = tmpFolder.newFolder();
+        CompletableFuture<CompletedCheckpoint> savepointFuture =
+                coordinator.triggerSavepoint("file://" + savepointPath.getAbsolutePath());
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        long pendingSavepointId =
+                coordinator.getPendingCheckpoints().keySet().stream().findFirst().get();
+        coordinator.receiveAcknowledgeMessage(
+                new AcknowledgeCheckpoint(
+                        graph.getJobID(),
+                        graph.getJobVertex(jobVertexID)
+                                .getTaskVertices()[0]
+                                .getCurrentExecutionAttempt()
+                                .getAttemptId(),
+                        pendingSavepointId),
+                "localhost");
+        assertTrue(savepointFuture.isDone());
+
+        BooleanValue checked = new BooleanValue(false);
+        CheckpointCoordinator restoreCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setExecutionGraph(graph)
+                        .setVertexFinishedStateCheckerFactory(
+                                (vertices, states) ->
+                                        new VertexFinishedStateChecker(vertices, states) {
+                                            @Override
+                                            public void validateOperatorsFinishedState() {
+                                                checked.set(true);
+                                            }
+                                        })
+                        .build();
+        restoreCoordinator.restoreSavepoint(
+                SavepointRestoreSettings.forPath(savepointFuture.get().getExternalPointer()),
+                graph.getAllVertices(),
+                getClass().getClassLoader());
+        assertTrue(
+                "The finished states should be checked when job is restored on startup",
+                checked.get());
     }
 }
