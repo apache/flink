@@ -116,7 +116,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                         .sink(buildRuntimeSinkProvider(new TestTimestampWriter(timestamps)))
                         .build();
         tableEnv.createTable("T1", sourceDescriptor);
-        String sqlStmt = "INSERT INTO T1 SELECT * FROM T1";
+        final String sqlStmt = "INSERT INTO T1 SELECT * FROM T1";
         assertPlan(tableEnv, sqlStmt, true);
         tableEnv.executeSql(sqlStmt).await();
         assertTimestampResults(timestamps, rows);
@@ -159,7 +159,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                                 })
                         .build();
         tableEnv.createTable("T1", sourceDescriptor);
-        String sqlStmt = "INSERT INTO T1 SELECT * FROM T1";
+        final String sqlStmt = "INSERT INTO T1 SELECT * FROM T1";
         assertPlan(tableEnv, sqlStmt, true);
         tableEnv.executeSql(sqlStmt).await();
         Collections.sort(timestamps.get());
@@ -201,7 +201,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                         .sink(buildDataStreamSinkProvider(fetched))
                         .build();
         tableEnv.createTable("T1", sourceDescriptor);
-        String sqlStmt = "INSERT INTO T1 SELECT * FROM T1";
+        final String sqlStmt = "INSERT INTO T1 SELECT * FROM T1";
         tableEnv.executeSql(sqlStmt).await();
         final List<Integer> fetchedRows =
                 fetched.get().stream().map(r -> r.getInt(0)).sorted().collect(Collectors.toList());
@@ -389,7 +389,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                         .build());
 
         // Default config - ignore (no trim)
-        ExecutionException ee =
+        final ExecutionException ee =
                 assertThrows(
                         ExecutionException.class,
                         () -> tableEnv.executeSql("INSERT INTO T1 SELECT * FROM T1").await());
@@ -404,7 +404,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
 
         // Test not including a NOT NULL column
         results.get().clear();
-        ValidationException ve =
+        final ValidationException ve =
                 assertThrows(
                         ValidationException.class,
                         () ->
@@ -530,8 +530,8 @@ public class CommonExecSinkITCase extends AbstractTestBase {
             StreamTableEnvironment tableEnv,
             String sql,
             boolean containsStreamRecordTimestampInserter) {
-        String explainStr = tableEnv.explainSql(sql, ExplainDetail.JSON_EXECUTION_PLAN);
-        String containedStr = "StreamRecordTimestampInserter(rowtime field: 2";
+        final String explainStr = tableEnv.explainSql(sql, ExplainDetail.JSON_EXECUTION_PLAN);
+        final String containedStr = "StreamRecordTimestampInserter(rowtime field: 2";
         if (containsStreamRecordTimestampInserter) {
             assertThat(explainStr).contains(containedStr);
         } else {
@@ -540,7 +540,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
     }
 
     private static Schema schemaStreamRecordTimestampInserter(boolean withWatermark) {
-        Schema.Builder builder =
+        final Schema.Builder builder =
                 Schema.newBuilder()
                         .column("a", "INT")
                         .column("b", "STRING")
@@ -605,7 +605,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                     context.createDataStructureConverter(
                             getFactoryContext().getPhysicalRowDataType());
 
-            return SourceFunctionProvider.of(new TestSourceFunction(rows, converter), true);
+            return SourceFunctionProvider.of(new TestSourceFunction(rows, converter), false);
         }
     }
 
