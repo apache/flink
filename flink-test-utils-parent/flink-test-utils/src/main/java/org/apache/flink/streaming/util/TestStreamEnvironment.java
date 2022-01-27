@@ -131,6 +131,15 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                 boolean enabled =
                         randomize(conf, StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true, false);
                 if (enabled) {
+                    randomize(
+                            conf,
+                            StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL,
+                            Duration.ofMillis(100),
+                            Duration.ofMillis(500),
+                            Duration.ofSeconds(1),
+                            Duration.ofSeconds(5),
+                            Duration.ofSeconds(
+                                    Long.MAX_VALUE / 1000 /* max allowed by Duration.toMillis */));
                     miniCluster.overrideRestoreModeForRandomizedChangelogStateBackend();
                 }
             }
