@@ -28,10 +28,12 @@ import org.apache.flink.connector.testframe.external.ExternalContextFactory;
 import org.apache.flink.connector.testframe.external.ExternalSystemSplitDataWriter;
 import org.apache.flink.connector.testframe.external.source.DataStreamSourceExternalContext;
 import org.apache.flink.connector.testframe.external.source.TestingSourceSettings;
+import org.apache.flink.connector.testframe.junit.annotations.Semantic;
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
 import org.apache.flink.connector.testframe.testsuites.SourceTestSuiteBase;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -63,6 +65,10 @@ import static org.apache.flink.formats.avro.AvroBulkFormatTestUtils.ROW_TYPE;
 public class AvroBulkFormatITCase extends SourceTestSuiteBase<RowData> {
 
     private static final RowDataSerializer SERIALIZER = new RowDataSerializer(ROW_TYPE);
+
+    @SuppressWarnings("unused")
+    @Semantic
+    CheckpointingMode[] semantics = new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};
 
     @SuppressWarnings("unused")
     @TestEnv

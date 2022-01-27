@@ -19,12 +19,15 @@
 package org.apache.flink.connector.testframe.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.CheckpointingMode;
 
-import org.hamcrest.Description;
-import org.hamcrest.TypeSafeDiagnosingMatcher;
+import org.assertj.core.api.Condition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 
 /** Matchers for validating test data. */
@@ -33,113 +36,27 @@ public class TestDataMatchers {
 
     // ----------------------------  Matcher Builders ----------------------------------
     public static <T> MultipleSplitDataMatcher<T> matchesMultipleSplitTestData(
-            List<List<T>> testRecordsLists) {
-        return new MultipleSplitDataMatcher<>(testRecordsLists);
+            List<List<T>> testRecordsLists, CheckpointingMode semantic) {
+        return new MultipleSplitDataMatcher<>(testRecordsLists, semantic);
     }
 
-    public static <T> SingleSplitDataMatcher<T> matchesSplitTestData(List<T> testData) {
-        return new SingleSplitDataMatcher<>(testData);
+    public static <T> MultipleSplitDataMatcher<T> matchesMultipleSplitTestData(
+            List<List<T>> testRecordsLists,
+            CheckpointingMode semantic,
+            boolean testDataAllInResult) {
+        return new MultipleSplitDataMatcher<>(
+                testRecordsLists, MultipleSplitDataMatcher.UNSET, semantic, testDataAllInResult);
     }
 
-    public static <T> SingleSplitDataMatcher<T> matchesSplitTestData(List<T> testData, int limit) {
-        return new SingleSplitDataMatcher<>(testData, limit);
+    public static <T> MultipleSplitDataMatcher<T> matchesMultipleSplitTestData(
+            List<List<T>> testRecordsLists, Integer limit, CheckpointingMode semantic) {
+        if (limit == null) {
+            return new MultipleSplitDataMatcher<>(testRecordsLists, semantic);
+        }
+        return new MultipleSplitDataMatcher<>(testRecordsLists, limit, semantic);
     }
 
     // ---------------------------- Matcher Definitions --------------------------------
-
-    /**
-     * Matcher for validating test data in a single split.
-     *
-     * @param <T> Type of validating record
-     */
-    public static class SingleSplitDataMatcher<T> extends TypeSafeDiagnosingMatcher<Iterator<T>> {
-        private static final int UNSET = -1;
-
-        private final List<T> testData;
-        private final int limit;
-
-        private String mismatchDescription = null;
-
-        public SingleSplitDataMatcher(List<T> testData) {
-            this.testData = testData;
-            this.limit = UNSET;
-        }
-
-        public SingleSplitDataMatcher(List<T> testData, int limit) {
-            if (limit > testData.size()) {
-                throw new IllegalArgumentException(
-                        "Limit validation size should be less than number of test records");
-            }
-            this.testData = testData;
-            this.limit = limit;
-        }
-
-        @Override
-        protected boolean matchesSafely(Iterator<T> resultIterator, Description description) {
-            if (mismatchDescription != null) {
-                description.appendText(mismatchDescription);
-                return false;
-            }
-
-            boolean dataMismatch = false;
-            boolean sizeMismatch = false;
-            String sizeMismatchDescription = "";
-            String dataMismatchDescription = "";
-            int recordCounter = 0;
-            for (T testRecord : testData) {
-                if (!resultIterator.hasNext()) {
-                    sizeMismatchDescription =
-                            String.format(
-                                    "Expected to have %d records in result, but only received %d records",
-                                    limit == UNSET ? testData.size() : limit, recordCounter);
-                    sizeMismatch = true;
-                    break;
-                }
-                T resultRecord = resultIterator.next();
-                if (!testRecord.equals(resultRecord)) {
-                    dataMismatchDescription =
-                            String.format(
-                                    "Mismatched record at position %d: Expected '%s' but was '%s'",
-                                    recordCounter, testRecord, resultRecord);
-                    dataMismatch = true;
-                }
-                recordCounter++;
-                if (limit != UNSET && recordCounter >= limit) {
-                    break;
-                }
-            }
-
-            if (limit == UNSET && resultIterator.hasNext()) {
-                sizeMismatchDescription =
-                        String.format(
-                                "Expected to have exactly %d records in result, "
-                                        + "but result iterator hasn't reached the end",
-                                testData.size());
-                sizeMismatch = true;
-            }
-
-            if (dataMismatch && sizeMismatch) {
-                mismatchDescription = sizeMismatchDescription + " And " + dataMismatchDescription;
-                return false;
-            } else if (dataMismatch) {
-                mismatchDescription = dataMismatchDescription;
-                return false;
-            } else if (sizeMismatch) {
-                mismatchDescription = sizeMismatchDescription;
-                return false;
-            } else {
-                return true;
-            }
-        }
-
-        @Override
-        public void describeTo(Description description) {
-            description.appendText(
-                    "Records consumed by Flink should be identical to test data "
-                            + "and preserve the order in split");
-        }
-    }
-
     /**
      * Matcher for validating test data from multiple splits.
      *
@@ -152,41 +69,92 @@ public class TestDataMatchers {
      *
      * @param <T> Type of validating record
      */
-    public static class MultipleSplitDataMatcher<T> extends TypeSafeDiagnosingMatcher<Iterator<T>> {
+    public static class MultipleSplitDataMatcher<T> extends Condition<Iterator<T>> {
+        private static final Logger LOG = LoggerFactory.getLogger(MultipleSplitDataMatcher.class);
+
+        private static final int UNSET = -1;
 
         List<TestRecords<T>> testRecordsLists = new ArrayList<>();
 
+        private List<List<T>> testData;
         private String mismatchDescription = null;
+        private final int limit;
+        private final int testDataSize;
+        private final CheckpointingMode semantic;
+        private final boolean testDataAllInResult;
 
-        public MultipleSplitDataMatcher(List<List<T>> testData) {
+        public MultipleSplitDataMatcher(List<List<T>> testData, CheckpointingMode semantic) {
+            this(testData, UNSET, semantic);
+        }
+
+        public MultipleSplitDataMatcher(
+                List<List<T>> testData, int limit, CheckpointingMode semantic) {
+            this(testData, limit, semantic, true);
+        }
+
+        public MultipleSplitDataMatcher(
+                List<List<T>> testData,
+                int limit,
+                CheckpointingMode semantic,
+                boolean testDataAllInResult) {
+            super();
+            int allSize = 0;
             for (List<T> testRecordsList : testData) {
                 this.testRecordsLists.add(new TestRecords<>(testRecordsList));
+                allSize += testRecordsList.size();
             }
+
+            if (limit > allSize) {
+                throw new IllegalArgumentException(
+                        "Limit validation size should be less than number of test records");
+            }
+            this.testDataAllInResult = testDataAllInResult;
+            this.testData = testData;
+            this.semantic = semantic;
+            this.testDataSize = allSize;
+            this.limit = limit;
         }
 
         @Override
-        protected boolean matchesSafely(Iterator<T> resultIterator, Description description) {
-            if (mismatchDescription != null) {
-                description.appendText(mismatchDescription);
-                return false;
+        public boolean matches(Iterator<T> resultIterator) {
+            if (CheckpointingMode.AT_LEAST_ONCE.equals(semantic)) {
+                return matchAtLeastOnce(resultIterator);
             }
+            return matchExactlyOnce(resultIterator);
+        }
 
+        protected boolean matchExactlyOnce(Iterator<T> resultIterator) {
             int recordCounter = 0;
             while (resultIterator.hasNext()) {
                 final T record = resultIterator.next();
                 if (!matchThenNext(record)) {
-                    this.mismatchDescription =
-                            generateMismatchDescription(
-                                    String.format(
-                                            "Unexpected record '%s' at position %d",
-                                            record, recordCounter),
-                                    resultIterator);
+                    if (recordCounter >= testDataSize) {
+                        this.mismatchDescription =
+                                generateMismatchDescription(
+                                        String.format(
+                                                "Expected to have exactly %d records in result, but received more records",
+                                                testRecordsLists.stream()
+                                                        .mapToInt(list -> list.records.size())
+                                                        .sum()),
+                                        resultIterator);
+                    } else {
+                        this.mismatchDescription =
+                                generateMismatchDescription(
+                                        String.format(
+                                                "Unexpected record '%s' at position %d",
+                                                record, recordCounter),
+                                        resultIterator);
+                    }
+                    logError();
                     return false;
                 }
                 recordCounter++;
-            }
 
-            if (!hasReachedEnd()) {
+                if (limit != UNSET && recordCounter >= limit) {
+                    break;
+                }
+            }
+            if (limit == UNSET && !hasReachedEnd()) {
                 this.mismatchDescription =
                         generateMismatchDescription(
                                 String.format(
@@ -196,17 +164,66 @@ public class TestDataMatchers {
                                                 .sum(),
                                         recordCounter),
                                 resultIterator);
+                logError();
                 return false;
             } else {
                 return true;
             }
         }
 
-        @Override
-        public void describeTo(Description description) {
-            description.appendText(
-                    "Records consumed by Flink should be identical to test data "
-                            + "and preserve the order in multiple splits");
+        protected boolean matchAtLeastOnce(Iterator<T> resultIterator) {
+            List<T> duplicateRead = new LinkedList<>();
+
+            int recordCounter = 0;
+            while (resultIterator.hasNext()) {
+                final T record = resultIterator.next();
+                if (!matchThenNext(record)) {
+                    duplicateRead.add(record);
+                } else {
+                    recordCounter++;
+                }
+
+                if (limit != UNSET && recordCounter >= limit) {
+                    break;
+                }
+            }
+            if (limit == UNSET && !hasReachedEnd()) {
+                this.mismatchDescription =
+                        generateMismatchDescription(
+                                String.format(
+                                        "Expected to have at least %d records in result, but only received %d records",
+                                        testRecordsLists.stream()
+                                                .mapToInt(list -> list.records.size())
+                                                .sum(),
+                                        recordCounter),
+                                resultIterator);
+                logError();
+                return false;
+            } else {
+                if (testDataAllInResult) {
+                    return confirmDuplicateRead(duplicateRead);
+                }
+                return true;
+            }
+        }
+
+        private boolean confirmDuplicateRead(List<T> duplicateRead) {
+            for (T record : duplicateRead) {
+                boolean found = false;
+                for (List<T> collection : testData) {
+                    if (collection.contains(record)) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    this.mismatchDescription =
+                            String.format("Unexpected duplicate record '%s'", record);
+                    logError();
+                    return false;
+                }
+            }
+            return true;
         }
 
         /**
@@ -271,6 +288,13 @@ public class TestDataMatchers {
                 }
             }
             return sb.toString();
+        }
+
+        private void logError() {
+            LOG.error(
+                    "Records consumed by Flink should be identical to test data "
+                            + "and preserve the order in multiple splits");
+            LOG.error(mismatchDescription);
         }
 
         private static class TestRecords<T> {
