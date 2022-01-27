@@ -102,6 +102,8 @@ When using formats and connectors with the Flink Scala API, you need to either d
 include these JARs in the `/lib` folder (recommended), or you need to shade them in the uber JAR of your 
 Flink SQL Jobs.
 
+before, we had everything packaged in the same jar called flink-table (if you download the 1.14 distro, you see it under /lib). Now, because we need to allow users to swap the planner-loader with planner_scalaversion, we had to split that single jar in 3 jars
+
 For more details, check out how to [connect to external systems]({{< ref "docs/connectors/table/overview" >}}).
 
 ## Table Planner and Table Planner Loader

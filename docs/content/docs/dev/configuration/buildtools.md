@@ -1,5 +1,5 @@
 ---
-title: "Using Build Tools"
+title: "With Build Tools"
 weight: 2
 type: docs
 ---
@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Using build tools to configure your Flink project
+# How to use build tools to configure your project
 
 You will likely need a build tool to configure your Flink project. This guide will show you how to 
 do so with [Maven](https://maven.apache.org), [Gradle](https://gradle.org), and [sbt](https://www.scala-sbt.org). 
@@ -42,7 +42,7 @@ build, compile, test, as well as manage libraries and dependencies.
 {{< /tab >}}
 {{< /tabs >}}
 
-### Requirements
+## Requirements
 
 {{< tabs "requirements" >}}
 {{< tab "Maven" >}}
@@ -59,7 +59,7 @@ build, compile, test, as well as manage libraries and dependencies.
 {{< /tab >}}
 {{< /tabs >}}
 
-### Creating a Flink project
+## Creating a Flink project
 
 {{< tabs "creating project" >}}
 {{< tab "Maven" >}}
@@ -67,7 +67,7 @@ build, compile, test, as well as manage libraries and dependencies.
 You can create a project based on an [Archetype](https://maven.apache.org/guides/introduction/introduction-to-archetypes.html) 
 with the Maven command below or use the provided quickstart bash script.
 
-#### Maven command
+### Maven command
 ```bash
 $ mvn archetype:generate                \
   -DarchetypeGroupId=org.apache.flink   \
@@ -77,7 +77,7 @@ $ mvn archetype:generate                \
 This allows you to name your newly created project and will interactively ask you for the groupId,
 artifactId, and package name.
 
-#### Quickstart script
+### Quickstart script
 ```bash
 $ curl https://flink.apache.org/q/quickstart.sh | bash -s {{< version >}}
 ```
@@ -111,7 +111,7 @@ repository entry to your `settings.xml` file. For example:
 {{< tab "Gradle" >}}
 You can create a project with a Gradle build script or use the provided quickstart bash script.
 
-#### Gradle build script
+### Gradle build script
 
 To execute these build configuration scripts, run the `gradle` command in the directory with these scripts.
 
@@ -214,7 +214,7 @@ shadowJar {
 ```gradle
 rootProject.name = 'quickstart'
 ```
-#### Quickstart script
+### Quickstart script
 ```bash
 bash -c "$(curl https://flink.apache.org/q/gradle-quickstart.sh)" -- {{< version >}} {{< scala_version >}}
 ```
@@ -223,19 +223,19 @@ bash -c "$(curl https://flink.apache.org/q/gradle-quickstart.sh)" -- {{< version
 You can scaffold a new Flink project with the following [giter8 template](https://github.com/tillrohrmann/flink-project.g8)
 and the `sbt new` command (which creates new build definitions from a template) or use the provided quickstart bash script.
 
-#### sbt template
+### sbt template
 ```bash
 $ sbt new tillrohrmann/flink-project.g8
 ```
 
-#### Quickstart script
+### Quickstart script
 ```bash
 $ bash <(curl https://flink.apache.org/q/sbt-quickstart.sh)
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-### Importing the project into your IDE
+## Importing the project into your IDE
 
 Once the project folder and files have been created, we recommend that you import this project into
 your IDE for developing and testing.
@@ -288,7 +288,7 @@ In Eclipse, choose `Run Configurations -> Arguments` and write into the `VM Argu
 In IntelliJ IDEA recommended way to change JVM options is from the `Help | Edit Custom VM Options` menu.
 See [this article](https://intellij-support.jetbrains.com/hc/en-us/articles/206544869-Configuring-JVM-options-and-platform-properties) for details.
 
-### Building the project
+## Building the project
 
 {{< tabs "building project" >}}
 {{< tab "Maven" >}}
@@ -324,47 +324,49 @@ fork in run := true
 {{< /tab >}}
 {{< /tabs >}}
 
-### Adding dependencies to the project
+## Adding dependencies to the project
 
-You can use [Maven](https://maven.apache.org), [Gradle](https://gradle.org/), or [sbt](https://www.scala-sbt.org/)
-to configure your project and add these dependencies.
-
+{{< tabs "requirements" >}}
+{{< tab "Maven" >}}
 
 As an example, you can add the Kafka connector as a dependency like this (in Maven syntax):
 
 {{< artifact flink-connector-kafka >}}
 
+Projects created from the `Java Project Template`, the `Scala Project Template`, or Gradle are configured
+to automatically include the application dependencies into the application JAR when you run `mvn clean package`.
+For projects that are not set up from those templates, we recommend adding the Maven Shade Plugin to
+build the application jar with all required dependencies.
+{{< /tab >}}
+{{< tab "Gradle" >}}
 
-**Important:** Note that all these dependencies should have their scope set to [*provided*](https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#dependency-scope). This means that
+{{< /tab >}}
+{{< tab "sbt" >}}
+
+{{< /tab >}}
+{{< /tabs >}}
+
+
+**Important:** Note that all these (core) dependencies should have their scope set to [*provided*](https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#dependency-scope). This means that
 they are needed to compile against, but that they should not be packaged into the project's resulting
 application JAR file. If not set to *provided*, the best case scenario is that the resulting JAR
 becomes excessively large, because it also contains all Flink core dependencies. The worst case scenario
 is that the Flink core dependencies that are added to the application's JAR file clash with some of
 your own dependency versions (which is normally avoided through inverted classloading).
 
+To correctly package the dependencies into the application JAR, these application dependencies must 
+be set to the *compile* scope.
 
-Projects created from the `Java Project Template`, the `Scala Project Template`, or Gradle are configured
-to automatically include the application dependencies into the application JAR when you run `mvn clean package`.
-For projects that are not set up from those templates, we recommend adding the Maven Shade Plugin to
-build the application jar with all required dependencies.
-
-**Important:** For Maven (and other build tools) to correctly package the dependencies into the application
-jar, these application dependencies must be specified in scope *compile* (unlike the core dependencies,
-which must be specified in scope *provided*).
-
-
-### Shading
-
+## Shading
 
 In order to create an uber JAR to run the job, do this:
 
-[ FILL IN ]
 
 **Note:** You do not need to shade Flink API dependencies. You only need to do this for connectors,
 formats and third-party dependencies.
 
 
-# Template for building a JAR with Dependencies
+## Template for building a JAR with Dependencies
 
 To build an application JAR that contains all dependencies required for declared connectors and libraries,
 you can use the following shade plugin definition:
