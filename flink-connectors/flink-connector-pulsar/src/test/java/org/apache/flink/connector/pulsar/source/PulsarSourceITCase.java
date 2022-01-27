@@ -27,7 +27,9 @@ import org.apache.flink.connector.testframe.environment.MiniClusterTestEnvironme
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
 import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
+import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
 import org.apache.flink.connector.testframe.testsuites.SourceTestSuiteBase;
+import org.apache.flink.streaming.api.CheckpointingMode;
 
 /** Unite test class for {@link PulsarSource}. */
 @SuppressWarnings("unused")
@@ -39,6 +41,9 @@ class PulsarSourceITCase extends SourceTestSuiteBase<String> {
     // Defines pulsar running environment
     @TestExternalSystem
     PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.mock());
+
+    @TestSemantics
+    CheckpointingMode[] semantics = new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};
 
     // Defines an external context Factories,
     // so test cases will be invoked using this external contexts.

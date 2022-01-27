@@ -33,9 +33,8 @@ import org.apache.flink.connector.testframe.external.source.DataStreamSourceExte
 import org.apache.flink.connector.testframe.external.source.TestingSourceSettings;
 import org.apache.flink.connector.testframe.junit.extensions.ConnectorTestingExtension;
 import org.apache.flink.connector.testframe.junit.extensions.TestCaseInvocationContextProvider;
-import org.apache.flink.connector.testframe.utils.TestDataMatchers;
+import org.apache.flink.connector.testframe.utils.CollectIteratorAssertions;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -48,7 +47,6 @@ import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLoggerExtension;
 
-import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestTemplate;
@@ -59,10 +57,16 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
+
+import static org.apache.flink.runtime.testutils.CommonTestUtils.terminateJob;
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForJobStatus;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Base class for all test suites.
@@ -103,13 +107,15 @@ public abstract class SourceTestSuiteBase<T> {
     @TestTemplate
     @DisplayName("Test source with single split")
     public void testSourceSingleSplit(
-            TestEnvironment testEnv, DataStreamSourceExternalContext<T> externalContext)
+            TestEnvironment testEnv,
+            DataStreamSourceExternalContext<T> externalContext,
+            CheckpointingMode semantic)
             throws Exception {
         // Step 1: Preparation
         TestingSourceSettings sourceSettings =
                 TestingSourceSettings.builder()
                         .setBoundedness(Boundedness.BOUNDED)
-                        .setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE)
+                        .setCheckpointingMode(semantic)
                         .build();
         TestEnvironmentSettings envSettings =
                 TestEnvironmentSettings.builder()
@@ -128,11 +134,11 @@ public abstract class SourceTestSuiteBase<T> {
         CollectIteratorBuilder<T> iteratorBuilder = addCollectSink(stream);
         JobClient jobClient = submitJob(execEnv, "Source Single Split Test");
 
-        // Step 4: Validate test data
-        try (CloseableIterator<T> resultIterator = iteratorBuilder.build(jobClient)) {
+        // Validate test data
+        try (CollectResultIterator<T> resultIterator = iteratorBuilder.build(jobClient)) {
+            // Check test result
             LOG.info("Checking test results");
-            MatcherAssert.assertThat(
-                    resultIterator, TestDataMatchers.matchesSplitTestData(testRecords));
+            checkResultWithSemantic(resultIterator, Arrays.asList(testRecords), semantic, null);
         }
     }
 
@@ -151,13 +157,15 @@ public abstract class SourceTestSuiteBase<T> {
     @TestTemplate
     @DisplayName("Test source with multiple splits")
     public void testMultipleSplits(
-            TestEnvironment testEnv, DataStreamSourceExternalContext<T> externalContext)
+            TestEnvironment testEnv,
+            DataStreamSourceExternalContext<T> externalContext,
+            CheckpointingMode semantic)
             throws Exception {
         // Step 1: Preparation
         TestingSourceSettings sourceSettings =
                 TestingSourceSettings.builder()
                         .setBoundedness(Boundedness.BOUNDED)
-                        .setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE)
+                        .setCheckpointingMode(semantic)
                         .build();
         TestEnvironmentSettings envOptions =
                 TestEnvironmentSettings.builder()
@@ -184,9 +192,7 @@ public abstract class SourceTestSuiteBase<T> {
         try (CloseableIterator<T> resultIterator = iteratorBuilder.build(jobClient)) {
             // Check test result
             LOG.info("Checking test results");
-            MatcherAssert.assertThat(
-                    resultIterator,
-                    TestDataMatchers.matchesMultipleSplitTestData(testRecordsLists));
+            checkResultWithSemantic(resultIterator, testRecordsLists, semantic, null);
         }
     }
 
@@ -207,13 +213,15 @@ public abstract class SourceTestSuiteBase<T> {
     @TestTemplate
     @DisplayName("Test source with at least one idle parallelism")
     public void testIdleReader(
-            TestEnvironment testEnv, DataStreamSourceExternalContext<T> externalContext)
+            TestEnvironment testEnv,
+            DataStreamSourceExternalContext<T> externalContext,
+            CheckpointingMode semantic)
             throws Exception {
         // Step 1: Preparation
         TestingSourceSettings sourceSettings =
                 TestingSourceSettings.builder()
                         .setBoundedness(Boundedness.BOUNDED)
-                        .setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE)
+                        .setCheckpointingMode(semantic)
                         .build();
         TestEnvironmentSettings envOptions =
                 TestEnvironmentSettings.builder()
@@ -239,9 +247,7 @@ public abstract class SourceTestSuiteBase<T> {
         // Step 4: Validate test data
         try (CloseableIterator<T> resultIterator = iteratorBuilder.build(jobClient)) {
             LOG.info("Checking test results");
-            MatcherAssert.assertThat(
-                    resultIterator,
-                    TestDataMatchers.matchesMultipleSplitTestData(testRecordsLists));
+            checkResultWithSemantic(resultIterator, testRecordsLists, semantic, null);
         }
     }
 
@@ -263,13 +269,14 @@ public abstract class SourceTestSuiteBase<T> {
     public void testTaskManagerFailure(
             TestEnvironment testEnv,
             DataStreamSourceExternalContext<T> externalContext,
-            ClusterControllable controller)
+            ClusterControllable controller,
+            CheckpointingMode semantic)
             throws Exception {
         // Step 1: Preparation
         TestingSourceSettings sourceSettings =
                 TestingSourceSettings.builder()
                         .setBoundedness(Boundedness.CONTINUOUS_UNBOUNDED)
-                        .setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE)
+                        .setCheckpointingMode(semantic)
                         .build();
         TestEnvironmentSettings envOptions =
                 TestEnvironmentSettings.builder()
@@ -302,17 +309,18 @@ public abstract class SourceTestSuiteBase<T> {
         // Step 4: Validate records before killing TaskManagers
         CloseableIterator<T> iterator = iteratorBuilder.build(jobClient);
         LOG.info("Checking records before killing TaskManagers");
-        MatcherAssert.assertThat(
+        checkResultWithSemantic(
                 iterator,
-                TestDataMatchers.matchesSplitTestData(
-                        testRecordsBeforeFailure, testRecordsBeforeFailure.size()));
+                Arrays.asList(testRecordsBeforeFailure),
+                semantic,
+                testRecordsBeforeFailure.size());
 
         // Step 5: Trigger TaskManager failover
         LOG.info("Trigger TaskManager failover");
         controller.triggerTaskManagerFailover(jobClient, () -> {});
 
         LOG.info("Waiting for job recovering from failure");
-        CommonTestUtils.waitForJobStatus(
+        waitForJobStatus(
                 jobClient,
                 Collections.singletonList(JobStatus.RUNNING),
                 Deadline.fromNow(Duration.ofSeconds(30)));
@@ -329,14 +337,15 @@ public abstract class SourceTestSuiteBase<T> {
 
         // Step 7: Validate test result
         LOG.info("Checking records after job failover");
-        MatcherAssert.assertThat(
+        checkResultWithSemantic(
                 iterator,
-                TestDataMatchers.matchesSplitTestData(
-                        testRecordsAfterFailure, testRecordsAfterFailure.size()));
+                Arrays.asList(testRecordsAfterFailure),
+                semantic,
+                testRecordsAfterFailure.size());
 
         // Step 8: Clean up
-        CommonTestUtils.terminateJob(jobClient, Duration.ofSeconds(30));
-        CommonTestUtils.waitForJobStatus(
+        terminateJob(jobClient, Duration.ofSeconds(30));
+        waitForJobStatus(
                 jobClient,
                 Collections.singletonList(JobStatus.CANCELED),
                 Deadline.fromNow(Duration.ofSeconds(30)));
@@ -398,6 +407,37 @@ public abstract class SourceTestSuiteBase<T> {
                 serializer,
                 accumulatorName,
                 stream.getExecutionEnvironment().getCheckpointConfig());
+    }
+
+    /**
+     * Compare the test data with the result.
+     *
+     * <p>If the source is bounded, limit should be null.
+     *
+     * @param resultIterator the data read from the job
+     * @param testData the test data
+     * @param semantic the supported semantic, see {@link CheckpointingMode}
+     * @param limit expected number of the data to read from the job
+     */
+    private void checkResultWithSemantic(
+            CloseableIterator<T> resultIterator,
+            List<List<T>> testData,
+            CheckpointingMode semantic,
+            Integer limit) {
+        if (limit != null) {
+            assertThat(
+                            CompletableFuture.supplyAsync(
+                                    () -> {
+                                        CollectIteratorAssertions.assertThat(resultIterator)
+                                                .withNumRecordsLimit(limit)
+                                                .matchesRecordsFromSource(testData, semantic);
+                                        return true;
+                                    }))
+                    .succeedsWithin(Duration.ofSeconds(30));
+        } else {
+            CollectIteratorAssertions.assertThat(resultIterator)
+                    .matchesRecordsFromSource(testData, semantic);
+        }
     }
 
     /** Builder class for constructing {@link CollectResultIterator} of collect sink. */

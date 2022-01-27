@@ -33,7 +33,9 @@ import org.apache.flink.connector.testframe.external.DefaultContainerizedExterna
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
 import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
+import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
 import org.apache.flink.connector.testframe.testsuites.SourceTestSuiteBase;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
@@ -259,6 +261,8 @@ public class KafkaSourceITCase {
     /** Integration test based on connector testing framework. */
     @Nested
     class IntegrationTests extends SourceTestSuiteBase<String> {
+        @TestSemantics
+        CheckpointingMode[] semantics = new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};
 
         // Defines test environment on Flink MiniCluster
         @SuppressWarnings("unused")
