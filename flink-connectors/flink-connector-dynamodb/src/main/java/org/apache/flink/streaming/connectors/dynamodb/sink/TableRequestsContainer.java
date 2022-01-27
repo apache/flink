@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.sink;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
 import org.apache.flink.streaming.connectors.dynamodb.sink.key.PrimaryKey;
 
@@ -36,6 +37,7 @@ import java.util.Map;
  * contains at least two items with identical hash and range keys (which essentially is two put
  * operations).
  */
+@Internal
 class TableRequestsContainer {
 
     private final DynamoDbTablesConfig tablesConfig;

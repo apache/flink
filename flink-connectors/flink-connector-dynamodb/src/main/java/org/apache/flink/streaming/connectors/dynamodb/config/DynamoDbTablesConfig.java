@@ -49,6 +49,7 @@ public class DynamoDbTablesConfig implements Serializable {
     }
 
     /** DynamoDB table configuration. */
+    @PublicEvolving
     public static class TableConfig implements Serializable {
 
         private final String partitionKeyName;

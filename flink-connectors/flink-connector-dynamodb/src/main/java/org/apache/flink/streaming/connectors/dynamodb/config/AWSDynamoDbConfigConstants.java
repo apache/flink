@@ -43,6 +43,7 @@ public class AWSDynamoDbConfigConstants {
      * Internally, a corresponding implementation of {@link
      * software.amazon.awssdk.core.retry.backoff.BackoffStrategy} will be used.
      */
+    @PublicEvolving
     public enum BackoffStrategy {
 
         /**

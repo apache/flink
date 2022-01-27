@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.sink.key;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
 import org.apache.flink.streaming.connectors.dynamodb.sink.InvalidRequestException;
 
@@ -32,6 +33,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /** Represents DynamoDB primary key. */
+@Internal
 public class PrimaryKey {
 
     private final String partitionKeyValue;

@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.sink;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 
 import java.io.Serializable;
@@ -27,6 +29,7 @@ import java.util.Objects;
  * Represents a single DynamoDb {@link WriteRequest}. Contains the name of the DynamoDb table name
  * to write to as well as the {@link WriteRequest}
  */
+@PublicEvolving
 public class DynamoDbWriteRequest implements Serializable {
 
     private static final long serialVersionUID = 1L;

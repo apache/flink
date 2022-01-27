@@ -56,7 +56,7 @@ import java.util.Properties;
  *
  * <ul>
  *   <li>{@code maxBatchSize} will be 25
- *   <li>{@code maxInFlightRequests} will be 10
+ *   <li>{@code maxInFlightRequests} will be 50
  *   <li>{@code maxBufferedRequests} will be 10000
  *   <li>{@code maxBatchSizeInBytes} will be 16 MB i.e. {@code 16 * 1000 * 1000}
  *   <li>{@code maxTimeInBufferMS} will be 5000ms
@@ -73,7 +73,7 @@ public class DynamoDbSinkBuilder<InputT>
         extends AsyncSinkBaseBuilder<InputT, DynamoDbWriteRequest, DynamoDbSinkBuilder<InputT>> {
 
     private static final int DEFAULT_MAX_BATCH_SIZE = 25;
-    private static final int DEFAULT_MAX_IN_FLIGHT_REQUESTS = 10;
+    private static final int DEFAULT_MAX_IN_FLIGHT_REQUESTS = 50;
     private static final int DEFAULT_MAX_BUFFERED_REQUESTS = 10000;
     private static final long DEFAULT_MAX_BATCH_SIZE_IN_B = 16 * 1000 * 1000;
     private static final long DEFAULT_MAX_TIME_IN_BUFFER_MS = 5000;

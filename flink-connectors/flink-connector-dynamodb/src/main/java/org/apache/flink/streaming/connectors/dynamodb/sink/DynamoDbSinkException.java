@@ -18,7 +18,10 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.sink;
 
+import org.apache.flink.annotation.Internal;
+
 /** Exception is thrown when DynamoDb sink failed to write data. */
+@Internal
 public class DynamoDbSinkException extends RuntimeException {
     public DynamoDbSinkException(String message) {
         super(message);
@@ -32,6 +35,7 @@ public class DynamoDbSinkException extends RuntimeException {
      * When the flag {@code failOnError} is set in {@link DynamoDbSinkWriter}, this exception is
      * raised as soon as any exception occurs or sink returns unprocessed items.
      */
+    @Internal
     static class DynamoDbSinkFailFastException extends DynamoDbSinkException {
 
         public DynamoDbSinkFailFastException() {

@@ -18,7 +18,10 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.sink;
 
+import org.apache.flink.annotation.Internal;
+
 /** Exception is thrown if a DynamoDB request was invalid. */
+@Internal
 public class InvalidRequestException extends RuntimeException {
     public InvalidRequestException(String message) {
         super(message);
