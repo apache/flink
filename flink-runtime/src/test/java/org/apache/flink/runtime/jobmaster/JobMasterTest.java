@@ -642,6 +642,9 @@ public class JobMasterTest extends TestLogger {
         }
 
         @Override
+        public void setIsJobRestarting(boolean isJobRestarting) {}
+
+        @Override
         public void releaseSlot(@Nonnull SlotRequestId slotRequestId, @Nullable Throwable cause) {
             throw new UnsupportedOperationException(
                     "TestingSlotPool does not support this operation.");
@@ -1920,6 +1923,62 @@ public class JobMasterTest extends TestLogger {
         schedulerTerminationFuture.complete(null);
 
         jobMasterTerminationFuture.get();
+    }
+
+    @Test
+    public void testJobMasterAcceptsExcessSlotsWhenJobIsRestarting() throws Exception {
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofDays(1));
+        final JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withConfiguration(configuration)
+                        .createJobMaster();
+
+        try {
+            jobMaster.start();
+
+            final JobMasterGateway jobMasterGateway =
+                    jobMaster.getSelfGateway(JobMasterGateway.class);
+
+            assertThat(
+                    jobMasterGateway.requestJobStatus(testingTimeout).get(), is(JobStatus.RUNNING));
+
+            final LocalUnresolvedTaskManagerLocation unresolvedTaskManagerLocation =
+                    new LocalUnresolvedTaskManagerLocation();
+            registerSlotsAtJobMaster(
+                    1,
+                    jobMasterGateway,
+                    jobGraph.getJobID(),
+                    new TestingTaskExecutorGatewayBuilder()
+                            .setAddress("firstTaskManager")
+                            .createTestingTaskExecutorGateway(),
+                    unresolvedTaskManagerLocation);
+
+            jobMasterGateway.disconnectTaskManager(
+                    unresolvedTaskManagerLocation.getResourceID(),
+                    new FlinkException("Test exception."));
+
+            CommonTestUtils.waitUntilCondition(
+                    () ->
+                            jobMasterGateway.requestJobStatus(testingTimeout).get()
+                                    == JobStatus.RESTARTING,
+                    Deadline.fromNow(TimeUtils.toDuration(testingTimeout)));
+
+            final int numberSlots = 3;
+            assertThat(
+                    registerSlotsAtJobMaster(
+                            numberSlots,
+                            jobMasterGateway,
+                            jobGraph.getJobID(),
+                            new TestingTaskExecutorGatewayBuilder()
+                                    .setAddress("secondTaskManager")
+                                    .createTestingTaskExecutorGateway(),
+                            new LocalUnresolvedTaskManagerLocation()),
+                    hasSize(numberSlots));
+        } finally {
+            RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+        }
     }
 
     private void runJobFailureWhenTaskExecutorTerminatesTest(
