@@ -150,7 +150,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
                     final int numRunningTaskManagers =
                             taskManagersInfo.getTaskManagerInfos().size();
-                    if (numRunningTaskManagers == numTaskManagers) {
+                    if (numRunningTaskManagers >= numTaskManagers) {
                         return new StandaloneClusterController(distribution);
                     } else {
                         LOG.info(

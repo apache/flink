@@ -116,6 +116,7 @@ final class FlinkDistribution {
         AutoClosableProcess.create(bin.resolve("start-cluster.sh").toAbsolutePath().toString())
                 // ignore the variable, we assume we log to the distribution directory
                 // and we copy the logs over in case of failure
+                .setStdoutProcessor(LOG::info)
                 .setEnv(env -> env.remove("FLINK_LOG_DIR"))
                 .runBlocking();
 
@@ -198,7 +199,7 @@ final class FlinkDistribution {
 
         AutoClosableProcess.create(commands.toArray(new String[0]))
                 .setStdoutProcessor(stdoutProcessor)
-                .runBlocking();
+                .runBlocking(timeout);
 
         try {
             return JobID.fromHexString(rawJobIdFuture.get(timeout.getSeconds(), TimeUnit.SECONDS));
