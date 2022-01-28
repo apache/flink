@@ -37,6 +37,7 @@ import static org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime.
  * subscription.
  */
 public class PulsarSourceOrderedE2ECase extends SourceTestSuiteBase<String> {
+
     // Defines the Semantic.
     @Semantic
     CheckpointingMode[] semantics = new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};
