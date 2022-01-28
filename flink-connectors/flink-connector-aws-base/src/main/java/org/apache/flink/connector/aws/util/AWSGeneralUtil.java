@@ -49,6 +49,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.CredentialProvider.WEB_IDENTITY_TOKEN;
+
 /** Some general utilities specific to Amazon Web Service. */
 @Internal
 public class AWSGeneralUtil {
@@ -86,7 +88,15 @@ public class AWSGeneralUtil {
                 return CredentialProvider.AUTO;
             }
         } else {
-            return CredentialProvider.valueOf(configProps.getProperty(configPrefix));
+            try {
+                return CredentialProvider.valueOf(configProps.getProperty(configPrefix));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(
+                        String.format(
+                                "Invalid AWS Credential Provider type %s.",
+                                configProps.getProperty(configPrefix)),
+                        e);
+            }
         }
     }
 
@@ -315,20 +325,8 @@ public class AWSGeneralUtil {
      */
     public static void validateAwsConfiguration(Properties config) {
         if (config.containsKey(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER)) {
-            // value specified for AWSConfigConstants.AWS_CREDENTIALS_PROVIDER needs to be
-            // recognizable
-            try {
-                getCredentialsProvider(config);
-            } catch (IllegalArgumentException e) {
-                StringBuilder sb = new StringBuilder();
-                for (CredentialProvider type : CredentialProvider.values()) {
-                    sb.append(type.toString()).append(", ");
-                }
-                throw new IllegalArgumentException(
-                        "Invalid AWS Credential Provider Type set in config. Valid values are: "
-                                + sb.toString());
-            }
 
+            validateCredentialProvider(config);
             // if BASIC type is used, also check that the Access Key ID and Secret Key is supplied
             CredentialProvider credentialsProviderType =
                     getCredentialProviderType(config, AWSConfigConstants.AWS_CREDENTIALS_PROVIDER);
@@ -372,6 +370,38 @@ public class AWSGeneralUtil {
         }
         if (exception != null) {
             throw exception;
+        }
+    }
+
+
+    public static void validateWebIdentityTokenFileCredentialsProvider(Properties config) {
+        validateCredentialProvider(config);
+        try {
+            CredentialProvider credentialProviderType =
+                    getCredentialProviderType(config, AWSConfigConstants.AWS_CREDENTIALS_PROVIDER);
+            if (credentialProviderType.equals(WEB_IDENTITY_TOKEN)) {
+                getCredentialsProvider(config).resolveCredentials();
+            }
+        } catch (Throwable e) {
+            throw new AWSAuthenticationException(
+                    String.format("Failed to create client using %s provider", WEB_IDENTITY_TOKEN),
+                    e);
+        }
+    }
+
+    private static void validateCredentialProvider(Properties config) {
+        // value specified for AWSConfigConstants.AWS_CREDENTIALS_PROVIDER needs to be
+        // recognizable
+        try {
+            getCredentialsProvider(config);
+        } catch (IllegalArgumentException e) {
+            StringBuilder sb = new StringBuilder();
+            for (CredentialProvider type : CredentialProvider.values()) {
+                sb.append(type.toString()).append(", ");
+            }
+            throw new IllegalArgumentException(
+                    "Invalid AWS Credential Provider Type set in config. Valid values are: "
+                            + sb.toString());
         }
     }
 }
