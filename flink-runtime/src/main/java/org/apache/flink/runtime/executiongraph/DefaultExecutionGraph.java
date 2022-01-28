@@ -763,6 +763,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     // --------------------------------------------------------------------------------------------
 
     @Override
+    public void notifyNewlyInitializedJobVertices(List<ExecutionJobVertex> vertices) {
+        executionTopology.notifyExecutionGraphUpdated(this, vertices);
+    }
+
+    @Override
     public void attachJobGraph(List<JobVertex> topologicallySorted) throws JobException {
         if (isDynamic) {
             attachJobGraph(topologicallySorted, Collections.emptyList());

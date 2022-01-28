@@ -387,39 +387,41 @@ public class SchedulerTestingUtils {
 
     /** Builder for {@link DefaultScheduler}. */
     public static class DefaultSchedulerBuilder {
-        private final JobGraph jobGraph;
+        protected final JobGraph jobGraph;
 
-        private final ComponentMainThreadExecutor mainThreadExecutor;
+        protected final ComponentMainThreadExecutor mainThreadExecutor;
 
-        private SchedulingStrategyFactory schedulingStrategyFactory =
+        protected SchedulingStrategyFactory schedulingStrategyFactory =
                 new PipelinedRegionSchedulingStrategy.Factory();
 
-        private Logger log = LOG;
-        private Executor ioExecutor = TestingUtils.defaultExecutor();
-        private Configuration jobMasterConfiguration = new Configuration();
-        private ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
-        private ScheduledExecutor delayExecutor =
+        protected Logger log = LOG;
+        protected Executor ioExecutor = TestingUtils.defaultExecutor();
+        protected Configuration jobMasterConfiguration = new Configuration();
+        protected ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
+        protected ScheduledExecutor delayExecutor =
                 new ScheduledExecutorServiceAdapter(futureExecutor);
-        private ClassLoader userCodeLoader = ClassLoader.getSystemClassLoader();
-        private CheckpointsCleaner checkpointCleaner = new CheckpointsCleaner();
-        private CheckpointRecoveryFactory checkpointRecoveryFactory =
+        protected ClassLoader userCodeLoader = ClassLoader.getSystemClassLoader();
+        protected CheckpointsCleaner checkpointCleaner = new CheckpointsCleaner();
+        protected CheckpointRecoveryFactory checkpointRecoveryFactory =
                 new StandaloneCheckpointRecoveryFactory();
-        private Time rpcTimeout = DEFAULT_TIMEOUT;
-        private BlobWriter blobWriter = VoidBlobWriter.getInstance();
-        private JobManagerJobMetricGroup jobManagerJobMetricGroup =
+        protected Time rpcTimeout = DEFAULT_TIMEOUT;
+        protected BlobWriter blobWriter = VoidBlobWriter.getInstance();
+        protected JobManagerJobMetricGroup jobManagerJobMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
-        private ShuffleMaster<?> shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
-        private JobMasterPartitionTracker partitionTracker = NoOpJobMasterPartitionTracker.INSTANCE;
-        private FailoverStrategy.Factory failoverStrategyFactory =
+        protected ShuffleMaster<?> shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
+        protected JobMasterPartitionTracker partitionTracker =
+                NoOpJobMasterPartitionTracker.INSTANCE;
+        protected FailoverStrategy.Factory failoverStrategyFactory =
                 new RestartPipelinedRegionFailoverStrategy.Factory();
-        private RestartBackoffTimeStrategy restartBackoffTimeStrategy =
+        protected RestartBackoffTimeStrategy restartBackoffTimeStrategy =
                 NoRestartBackoffTimeStrategy.INSTANCE;
-        private ExecutionVertexOperations executionVertexOperations =
+        protected ExecutionVertexOperations executionVertexOperations =
                 new DefaultExecutionVertexOperations();
-        private ExecutionVertexVersioner executionVertexVersioner = new ExecutionVertexVersioner();
-        private ExecutionSlotAllocatorFactory executionSlotAllocatorFactory =
+        protected ExecutionVertexVersioner executionVertexVersioner =
+                new ExecutionVertexVersioner();
+        protected ExecutionSlotAllocatorFactory executionSlotAllocatorFactory =
                 new TestExecutionSlotAllocatorFactory();
-        private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
+        protected JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
 
         public DefaultSchedulerBuilder(
                 final JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {

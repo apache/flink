@@ -85,7 +85,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /** The future default scheduler. */
 public class DefaultScheduler extends SchedulerBase implements SchedulerOperations {
 
-    private final Logger log;
+    protected final Logger log;
 
     private final ClassLoader userCodeLoader;
 
@@ -95,7 +95,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     private final ScheduledExecutor delayExecutor;
 
-    private final SchedulingStrategy schedulingStrategy;
+    protected final SchedulingStrategy schedulingStrategy;
 
     private final ExecutionVertexOperations executionVertexOperations;
 
@@ -136,6 +136,57 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             final ShuffleMaster<?> shuffleMaster,
             final Time rpcTimeout)
             throws Exception {
+        this(
+                log,
+                jobGraph,
+                ioExecutor,
+                jobMasterConfiguration,
+                startUpAction,
+                delayExecutor,
+                userCodeLoader,
+                checkpointsCleaner,
+                checkpointRecoveryFactory,
+                jobManagerJobMetricGroup,
+                schedulingStrategyFactory,
+                failoverStrategyFactory,
+                restartBackoffTimeStrategy,
+                executionVertexOperations,
+                executionVertexVersioner,
+                executionSlotAllocatorFactory,
+                initializationTimestamp,
+                mainThreadExecutor,
+                jobStatusListener,
+                executionGraphFactory,
+                shuffleMaster,
+                rpcTimeout,
+                computeVertexParallelismStore(jobGraph));
+    }
+
+    protected DefaultScheduler(
+            final Logger log,
+            final JobGraph jobGraph,
+            final Executor ioExecutor,
+            final Configuration jobMasterConfiguration,
+            final Consumer<ComponentMainThreadExecutor> startUpAction,
+            final ScheduledExecutor delayExecutor,
+            final ClassLoader userCodeLoader,
+            final CheckpointsCleaner checkpointsCleaner,
+            final CheckpointRecoveryFactory checkpointRecoveryFactory,
+            final JobManagerJobMetricGroup jobManagerJobMetricGroup,
+            final SchedulingStrategyFactory schedulingStrategyFactory,
+            final FailoverStrategy.Factory failoverStrategyFactory,
+            final RestartBackoffTimeStrategy restartBackoffTimeStrategy,
+            final ExecutionVertexOperations executionVertexOperations,
+            final ExecutionVertexVersioner executionVertexVersioner,
+            final ExecutionSlotAllocatorFactory executionSlotAllocatorFactory,
+            long initializationTimestamp,
+            final ComponentMainThreadExecutor mainThreadExecutor,
+            final JobStatusListener jobStatusListener,
+            final ExecutionGraphFactory executionGraphFactory,
+            final ShuffleMaster<?> shuffleMaster,
+            final Time rpcTimeout,
+            final VertexParallelismStore vertexParallelismStore)
+            throws Exception {
 
         super(
                 log,
@@ -151,7 +202,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 mainThreadExecutor,
                 jobStatusListener,
                 executionGraphFactory,
-                computeVertexParallelismStore(jobGraph));
+                vertexParallelismStore);
 
         this.log = log;
 
