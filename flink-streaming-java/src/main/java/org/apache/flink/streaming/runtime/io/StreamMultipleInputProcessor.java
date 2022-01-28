@@ -70,12 +70,11 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
          * has some memory issue. This issue is fixed in jdk9.
          * https://bugs.openjdk.java.net/browse/JDK-8160402
          */
-        if (availabilityHelper.checkReusableAndReset()) {
-            for (int i = 0; i < inputProcessors.length; i++) {
-                if (!inputSelectionHandler.isInputFinished(i)
-                        && inputSelectionHandler.isInputSelected(i)) {
-                    availabilityHelper.anyOf(i, inputProcessors[i].getAvailableFuture());
-                }
+        availabilityHelper.resetToUnAvailable();
+        for (int i = 0; i < inputProcessors.length; i++) {
+            if (!inputSelectionHandler.isInputFinished(i)
+                    && inputSelectionHandler.isInputSelected(i)) {
+                availabilityHelper.anyOf(i, inputProcessors[i].getAvailableFuture());
             }
         }
         return availabilityHelper.getAvailableFuture();
@@ -176,7 +175,8 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
     public static class MultipleInputAvailabilityHelper {
         private final CompletableFuture<?>[] cachedAvailableFutures;
         private final Consumer[] onCompletion;
-        private CompletableFuture<?> availableFuture;
+        private volatile CompletableFuture<?> availableFuture;
+
         public CompletableFuture<?> getAvailableFuture() {
             return availableFuture;
         }
@@ -189,31 +189,22 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
         private MultipleInputAvailabilityHelper(int inputSize) {
             this.cachedAvailableFutures = new CompletableFuture[inputSize];
             this.onCompletion = new Consumer[inputSize];
+            availableFuture = new CompletableFuture<>();
             for (int i = 0; i < cachedAvailableFutures.length; i++) {
                 final int inputIdx = i;
                 onCompletion[i] = (Void) -> notifyCompletion(inputIdx);
             }
         }
 
-        /**
-         * Check the finished state of availableFuture. Reuse if possible. Renew {availableFuture}
-         * if previous availableFuture is already completed.
-         *
-         * @return true if availableFuture is renewed. false, reuse previous availableFuture.
-         */
-        public boolean checkReusableAndReset() {
-            if (availableFuture == null || availableFuture.isDone()){
+        /** Reset availableFuture to fresh unavailable. */
+        public void resetToUnAvailable() {
+            if (availableFuture.isDone()) {
                 availableFuture = new CompletableFuture<>();
-                return true;
-            } else {
-                return false;
             }
         }
 
         private void notifyCompletion(int idx) {
-            if (availableFuture != null && !availableFuture.isDone()) {
-                availableFuture.complete(null);
-            }
+            availableFuture.complete(null);
             cachedAvailableFutures[idx] = AVAILABLE;
         }
 
@@ -232,6 +223,5 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
                 dep.thenAccept(onCompletion[idx]);
             }
         }
-
     }
 }
