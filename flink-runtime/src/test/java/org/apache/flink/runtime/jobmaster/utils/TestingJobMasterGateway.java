@@ -70,6 +70,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static org.apache.flink.runtime.checkpoint.TaskStateSnapshot.deserializeTaskStateSnapshot;
+
 /** {@link JobMasterGateway} implementation for testing purposes. */
 public class TestingJobMasterGateway implements JobMasterGateway {
 
@@ -436,10 +438,14 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             ExecutionAttemptID executionAttemptID,
             long checkpointId,
             CheckpointMetrics checkpointMetrics,
-            TaskStateSnapshot subtaskState) {
+            SerializedValue<TaskStateSnapshot> subtaskState) {
         acknowledgeCheckpointConsumer.accept(
                 Tuple5.of(
-                        jobID, executionAttemptID, checkpointId, checkpointMetrics, subtaskState));
+                        jobID,
+                        executionAttemptID,
+                        checkpointId,
+                        checkpointMetrics,
+                        deserializeTaskStateSnapshot(subtaskState, getClass().getClassLoader())));
     }
 
     @Override

@@ -114,6 +114,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.checkpoint.TaskStateSnapshot.deserializeTaskStateSnapshot;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -521,10 +522,13 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
             final ExecutionAttemptID executionAttemptID,
             final long checkpointId,
             final CheckpointMetrics checkpointMetrics,
-            final TaskStateSnapshot checkpointState) {
-
+            @Nullable final SerializedValue<TaskStateSnapshot> checkpointState) {
         schedulerNG.acknowledgeCheckpoint(
-                jobID, executionAttemptID, checkpointId, checkpointMetrics, checkpointState);
+                jobID,
+                executionAttemptID,
+                checkpointId,
+                checkpointMetrics,
+                deserializeTaskStateSnapshot(checkpointState, getClass().getClassLoader()));
     }
 
     @Override
