@@ -195,9 +195,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
             this.onCompletion = new Consumer[inputSize];
         }
 
-        /**
-         * Visible for testing only.
-         */
+        /** Visible for testing only. */
         @VisibleForTesting
         public void init() {
             for (int i = 0; i < cachedAvailableFutures.length; i++) {
@@ -207,10 +205,10 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
         }
 
         /**
-         * Check the finished state of availableFuture. Reuse if possible.
-         * Renew {availableFuture} if previous availableFuture is already completed.
-         * @return true if availableFuture is renewed.
-         *         false, reuse previous availableFuture.
+         * Check the finished state of availableFuture. Reuse if possible. Renew {availableFuture}
+         * if previous availableFuture is already completed.
+         *
+         * @return true if availableFuture is renewed. false, reuse previous availableFuture.
          */
         public boolean checkReusableAndReset() {
             boolean needReset = availableFuture == null || availableFuture.isDone();
@@ -229,6 +227,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
         /**
          * Implement `Or` logic.
+         *
          * @param idx
          * @param dep
          */
