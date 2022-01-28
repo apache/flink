@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.changelog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -30,12 +31,14 @@ import static org.apache.flink.util.Preconditions.checkState;
  * StateChangelogStorage} as an optimization.
  */
 @Internal
-public interface SequenceNumber extends Comparable<SequenceNumber> {
+public interface SequenceNumber extends Comparable<SequenceNumber>, Serializable {
 
     SequenceNumber next();
 
     /** Generic {@link SequenceNumber}. */
     final class GenericSequenceNumber implements SequenceNumber {
+        private static final long serialVersionUID = 1L;
+
         public final long number;
 
         GenericSequenceNumber(long number) {

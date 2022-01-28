@@ -62,6 +62,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.checkpoint.TaskStateSnapshot.serializeTaskStateSnapshot;
+
 /**
  * A testing utility, that simulates the desired interactions with {@link JobMasterGateway} RPC.
  * This is useful for light-weight e2e tests, eg. simulating specific fail-over scenario.
@@ -227,7 +229,8 @@ public class JobMasterTester implements Closeable {
                                     executionAttemptId,
                                     checkpointId,
                                     new CheckpointMetrics(),
-                                    createNonEmptyStateSnapshot(taskInformation));
+                                    serializeTaskStateSnapshot(
+                                            createNonEmptyStateSnapshot(taskInformation)));
                             return CompletableFuture.completedFuture(Acknowledge.get());
                         });
     }
