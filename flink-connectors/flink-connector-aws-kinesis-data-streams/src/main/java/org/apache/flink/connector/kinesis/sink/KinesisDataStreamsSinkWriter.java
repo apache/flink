@@ -20,13 +20,12 @@ package org.apache.flink.connector.kinesis.sink;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.aws.util.AWSAsyncSinkUtil;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
+import org.apache.flink.connector.base.sink.util.RetryableExceptionClassifier;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,8 +43,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
+
+import static org.apache.flink.connector.aws.util.AWSCredentialRetryableExceptionClassifiers.getInvalidCredentialsExceptionClassifier;
+import static org.apache.flink.connector.aws.util.AWSCredentialRetryableExceptionClassifiers.getSdkClientMisconfiguredExceptionClassifier;
+import static org.apache.flink.connector.base.sink.writer.AsyncSinkRetryableExceptionClassifiers.getGeneralExceptionClassifier;
+import static org.apache.flink.connector.base.sink.writer.AsyncSinkRetryableExceptionClassifiers.getInterruptedExceptionClassifier;
 
 /**
  * Sink writer created by {@link KinesisDataStreamsSink} to write to Kinesis Data Streams. More
@@ -59,6 +62,31 @@ import java.util.function.Consumer;
  */
 class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRecordsRequestEntry> {
     private static final Logger LOG = LoggerFactory.getLogger(KinesisDataStreamsSinkWriter.class);
+
+    private static final RetryableExceptionClassifier RESOURCE_NOT_FOUND_STRATEGY =
+            RetryableExceptionClassifier.withRootCauseOfType(
+                    ResourceNotFoundException.class,
+                    err ->
+                            new KinesisDataStreamsException(
+                                    "Encountered non-recoverable exception relating to not being able to find the specified resources",
+                                    err));
+
+    private static final RetryableExceptionClassifier NON_RECOVERABLE_EXCEPTION_STRATEGY =
+            RetryableExceptionClassifier.withRootCauseOfType(
+                    Error.class,
+                    err ->
+                            new KinesisDataStreamsException(
+                                    "Encountered non-recoverable exception in the Kinesis Data Streams Sink",
+                                    err));
+
+    private static final RetryableExceptionClassifier KINESIS_RETRY_VALIDATION_STRATEGY =
+            RetryableExceptionClassifier.createChain(
+                    getGeneralExceptionClassifier(),
+                    getInterruptedExceptionClassifier(),
+                    getInvalidCredentialsExceptionClassifier(),
+                    RESOURCE_NOT_FOUND_STRATEGY,
+                    getSdkClientMisconfiguredExceptionClassifier(),
+                    NON_RECOVERABLE_EXCEPTION_STRATEGY);
 
     /* A counter for the total number of records that have encountered an error during put */
     private final Counter numRecordsOutErrorsCounter;
@@ -136,8 +164,9 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
         this.kinesisClient = buildClient(kinesisClientProperties, this.httpClient);
     }
 
-    private KinesisAsyncClient buildClient(
-            Properties kinesisClientProperties, SdkAsyncHttpClient httpClient) {
+    private KinesisAsyncClient buildClient(Properties kinesisClientProperties, SdkAsyncHttpClient httpClient) {
+        AWSGeneralUtil.validateAwsConfiguration(kinesisClientProperties);
+        AWSGeneralUtil.validateWebIdentityTokenFileCredentialsProvider(kinesisClientProperties);
         return AWSAsyncSinkUtil.createAwsAsyncClient(
                 kinesisClientProperties,
                 httpClient,
@@ -218,35 +247,8 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
     }
 
     private boolean isRetryable(Throwable err) {
-        if (err instanceof CompletionException
-                && isInterruptingSignalException(ExceptionUtils.stripCompletionException(err))) {
-            getFatalExceptionCons().accept(new FlinkException("Running job was cancelled"));
-            return false;
-        }
-        if (err instanceof CompletionException
-                && ExceptionUtils.stripCompletionException(err)
-                        instanceof ResourceNotFoundException) {
-            getFatalExceptionCons()
-                    .accept(
-                            new KinesisDataStreamsException(
-                                    "Encountered non-recoverable exception relating to not being able to find the specified resources",
-                                    err));
-            return false;
-        }
-        if (err instanceof CompletionException
-                && ExceptionUtils.stripCompletionException(err) instanceof StsException) {
-            getFatalExceptionCons()
-                    .accept(
-                            new KinesisDataStreamsException(
-                                    "Encountered non-recoverable exception relating to the provided credentials.",
-                                    err));
-            return false;
-        }
-        if (err instanceof Error) {
-            getFatalExceptionCons()
-                    .accept(
-                            new KinesisDataStreamsException(
-                                    "Encountered non-recoverable exception.", err));
+
+        if (!KINESIS_RETRY_VALIDATION_STRATEGY.shouldSuppress(err, getFatalExceptionCons())) {
             return false;
         }
         if (failOnError) {
@@ -258,12 +260,5 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
         }
 
         return true;
-    }
-
-    private boolean isInterruptingSignalException(Throwable err) {
-        return err != null
-                && (err instanceof InterruptedException
-                        || (err instanceof IllegalStateException
-                                && err.getCause() instanceof InterruptedException));
     }
 }

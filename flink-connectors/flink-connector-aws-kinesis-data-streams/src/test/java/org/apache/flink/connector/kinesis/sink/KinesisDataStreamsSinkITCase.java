@@ -20,6 +20,7 @@ package org.apache.flink.connector.kinesis.sink;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -54,6 +55,7 @@ import java.util.Properties;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ACCESS_KEY_ID;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_CREDENTIALS_PROVIDER;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ENDPOINT;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_REGION;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_SECRET_ACCESS_KEY;
@@ -159,6 +161,21 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         testJobFatalFailureTerminatesCorrectlyWithFailOnErrorFlagSetTo(false, "test-stream-name-6");
     }
 
+    private void testJobFatalFailureTerminatesCorrectlyWithFailOnErrorFlagSetTo(
+            boolean failOnError, String streamName) {
+        Assertions.assertThatExceptionOfType(JobExecutionException.class)
+                .isThrownBy(
+                        () ->
+                                new Scenario()
+                                        .withKinesaliteStreamName(streamName)
+                                        .withSinkConnectionStreamName("non-existent-stream")
+                                        .withFailOnError(failOnError)
+                                        .runScenario())
+                .havingCause()
+                .havingCause()
+                .withMessageContaining("Encountered non-recoverable exception");
+    }
+
     @Test
     public void veryLargeMessagesFailGracefullyWithBrokenElementConverter() {
         Assertions.assertThatExceptionOfType(JobExecutionException.class)
@@ -179,6 +196,227 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                         "Encountered an exception while persisting records, not retrying due to {failOnError} being set.");
     }
 
+    @Test
+    public void badRegionShouldResultInFailureWhenInFailOnErrorIsOn() {
+        badRegionShouldResultInFailureWhenInFailOnErrorIs(true);
+    }
+
+    @Test
+    public void badRegionShouldResultInFailureWhenInFailOnErrorIsOff() {
+        badRegionShouldResultInFailureWhenInFailOnErrorIs(false);
+    }
+
+    private void badRegionShouldResultInFailureWhenInFailOnErrorIs(boolean failOnError) {
+        Properties properties = getDefaultProperties();
+        properties.setProperty(AWS_REGION, "some-bad-region");
+        String streamName = "do-not-create-new-stream";
+        assertRunWithPropertiesAndStreamShouldFailWithExceptionOfType(
+                streamName, failOnError, properties, "Invalid AWS region set in config");
+    }
+
+    @Test
+    public void missingRegionShouldResultInFailureWhenInFailOnErrorIsOn() {
+        missingRegionShouldResultInFailureWhenInFailOnErrorIs(true);
+    }
+
+    @Test
+    public void missingRegionShouldResultInFailureWhenInFailOnErrorIsOff() {
+        missingRegionShouldResultInFailureWhenInFailOnErrorIs(false);
+    }
+
+    private void missingRegionShouldResultInFailureWhenInFailOnErrorIs(boolean failOnError) {
+        Properties properties = getDefaultProperties();
+        properties.remove(AWS_REGION);
+        String streamName = "do-not-create-new-stream";
+        assertRunWithPropertiesAndStreamShouldFailWithExceptionOfType(
+                streamName, failOnError, properties, "region must not be null.");
+    }
+
+    @Test
+    public void noURIEndpointShouldResultInFailureWhenInFailOnErrorIsOn() {
+        noURIEndpointShouldResultInFailureWhenInFailOnErrorIs(true);
+    }
+
+    @Test
+    public void noURIEndpointShouldResultInFailureWhenInFailOnErrorIsOff() {
+        noURIEndpointShouldResultInFailureWhenInFailOnErrorIs(false);
+    }
+
+    private void noURIEndpointShouldResultInFailureWhenInFailOnErrorIs(boolean failOnError) {
+        Properties properties = getDefaultProperties();
+        properties.setProperty(AWS_ENDPOINT, "bad-endpoint-no-uri");
+        String streamName = "do-not-create-new-stream";
+        assertRunWithPropertiesAndStreamShouldFailWithExceptionOfType(
+                streamName,
+                failOnError,
+                properties,
+                "The URI scheme of endpointOverride must not be null.");
+    }
+
+    @Test
+    public void badEndpointShouldResultInFailureWhenInFailOnErrorIsOn() {
+        badEndpointShouldResultInFailureWhenInFailOnErrorIs(true);
+    }
+
+    @Test
+    public void badEndpointShouldResultInFailureWhenInFailOnErrorIsOff() {
+        badEndpointShouldResultInFailureWhenInFailOnErrorIs(false);
+    }
+
+    private void badEndpointShouldResultInFailureWhenInFailOnErrorIs(boolean failOnError) {
+        Properties properties = getDefaultProperties();
+        properties.setProperty(AWS_ENDPOINT, "https://bad-endpoint-with-uri");
+        String streamName = "do-not-create-new-stream";
+        assertRunWithPropertiesAndStreamShouldFailWithExceptionOfType(
+                streamName,
+                failOnError,
+                properties,
+                "Encountered non-recoverable exception relating to mis-configured client");
+    }
+
+    @Test
+    public void envVarWithNoCredentialsShouldResultInFailureWhenInFailOnErrorIsOn() {
+        noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
+                true,
+                AWSConfigConstants.CredentialProvider.ENV_VAR.toString(),
+                "Encountered non-recoverable exception relating to mis-configured client");
+    }
+
+    @Test
+    public void envVarWithNoCredentialsShouldResultInFailureWhenInFailOnErrorIsOff() {
+        noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
+                false,
+                AWSConfigConstants.CredentialProvider.ENV_VAR.toString(),
+                "Encountered non-recoverable exception relating to mis-configured client");
+    }
+
+    @Test
+    public void sysPropWithNoCredentialsShouldResultInFailureWhenInFailOnErrorIsOn() {
+        noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
+                true,
+                AWSConfigConstants.CredentialProvider.SYS_PROP.toString(),
+                "Encountered non-recoverable exception relating to mis-configured client");
+    }
+
+    @Test
+    public void sysPropWithNoCredentialsShouldResultInFailureWhenInFailOnErrorIsOff() {
+        noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
+                false,
+                AWSConfigConstants.CredentialProvider.SYS_PROP.toString(),
+                "Encountered non-recoverable exception relating to mis-configured client");
+    }
+
+    @Test
+    public void basicWithNoCredentialsShouldResultInFailureWhenInFailOnErrorIsOn() {
+        noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
+                true,
+                AWSConfigConstants.CredentialProvider.BASIC.toString(),
+                "Please set values for AWS Access Key ID ('"
+                        + AWSConfigConstants.AWS_ACCESS_KEY_ID
+                        + "') "
+                        + "and Secret Key ('"
+                        + AWSConfigConstants.AWS_SECRET_ACCESS_KEY
+                        + "') when using the BASIC AWS credential provider type.");
+    }
+
+    @Test
+    public void basicWithNoCredentialsShouldResultInFailureWhenInFailOnErrorIsOff() {
+        noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
+                false,
+                AWSConfigConstants.CredentialProvider.BASIC.toString(),
+                "Please set values for AWS Access Key ID ('"
+                        + AWSConfigConstants.AWS_ACCESS_KEY_ID
+                        + "') "
+                        + "and Secret Key ('"
+                        + AWSConfigConstants.AWS_SECRET_ACCESS_KEY
+                        + "') when using the BASIC AWS credential provider type.");
+    }
+
+    @Test
+    public void webIdentityTokenWithNoCredentialsShouldResultInFailureWhenInFailOnErrorIsOn() {
+        noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
+                true,
+                AWSConfigConstants.CredentialProvider.WEB_IDENTITY_TOKEN.toString(),
+                "Failed to create client using WEB_IDENTITY_TOKEN provider");
+    }
+
+    @Test
+    public void webIdentityTokenWithNoCredentialsShouldResultInFailureWhenInFailOnErrorIsOff() {
+        noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
+                false,
+                AWSConfigConstants.CredentialProvider.WEB_IDENTITY_TOKEN.toString(),
+                "Failed to create client using WEB_IDENTITY_TOKEN provider");
+    }
+
+    @Test
+    public void wrongCredentialProviderNameShouldResultInFailureWhenInFailOnErrorIsOn() {
+        noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
+                true, "WRONG", "Invalid AWS Credential Provider Type");
+    }
+
+    @Test
+    public void wrongCredentialProviderNameShouldResultInFailureWhenInFailOnErrorIsOff() {
+        noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
+                false, "WRONG", "Invalid AWS Credential Provider Type");
+    }
+
+    private void credentialsProvidedThroughProfilePathShouldResultInFailure(
+            boolean failOnError,
+            String credentialsProvider,
+            String credentialsProfileLocation,
+            String expectedMessage) {
+        Properties properties =
+                getDefaultPropertiesWithoutCredentialsSetAndCredentialProvider(credentialsProvider);
+        properties.put(
+                AWSConfigConstants.profilePath(AWS_CREDENTIALS_PROVIDER),
+                credentialsProfileLocation);
+        assertRunWithPropertiesAndStreamShouldFailWithExceptionOfType(
+                "do-not-create-new-stream", failOnError, properties, expectedMessage);
+    }
+
+    private void noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
+            boolean failOnError, String credentialsProvider, String expectedMessage) {
+        assertRunWithPropertiesAndStreamShouldFailWithExceptionOfType(
+                "do-not-create-new-stream",
+                failOnError,
+                getDefaultPropertiesWithoutCredentialsSetAndCredentialProvider(credentialsProvider),
+                expectedMessage);
+    }
+
+    private void assertRunWithPropertiesAndStreamShouldFailWithExceptionOfType(
+            String streamName, boolean failOnError, Properties properties, String expectedMessage) {
+        Assertions.assertThatExceptionOfType(JobExecutionException.class)
+                .isThrownBy(
+                        () ->
+                                new Scenario()
+                                        .withKinesaliteStreamName(streamName)
+                                        .withSinkConnectionStreamName(streamName)
+                                        .withFailOnError(failOnError)
+                                        .withProperties(properties)
+                                        .runScenario())
+                .havingCause()
+                .havingCause()
+                .withMessageContaining(expectedMessage);
+    }
+
+    private Properties getDefaultPropertiesWithoutCredentialsSetAndCredentialProvider(
+            String credentialsProvider) {
+        Properties properties = getDefaultProperties();
+        properties.setProperty(AWS_CREDENTIALS_PROVIDER, credentialsProvider);
+        properties.remove(AWS_SECRET_ACCESS_KEY);
+        properties.remove(AWS_ACCESS_KEY_ID);
+        return properties;
+    }
+
+    private Properties getDefaultProperties() {
+        Properties properties = new Properties();
+        properties.setProperty(AWS_ENDPOINT, KINESALITE.getHostEndpointUrl());
+        properties.setProperty(AWS_ACCESS_KEY_ID, KINESALITE.getAccessKey());
+        properties.setProperty(AWS_SECRET_ACCESS_KEY, KINESALITE.getSecretKey());
+        properties.setProperty(AWS_REGION, KINESALITE.getRegion().toString());
+        return properties;
+    }
+
     private class Scenario {
         private int numberOfElementsToSend = 50;
         private int sizeOfMessageBytes = 25;
@@ -193,9 +431,12 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                 KinesisDataStreamsSinkITCase.this.serializationSchema;
         private PartitionKeyGenerator<String> partitionKeyGenerator =
                 KinesisDataStreamsSinkITCase.this.partitionKeyGenerator;
+        private Properties properties = KinesisDataStreamsSinkITCase.this.getDefaultProperties();
 
         public void runScenario() throws Exception {
             prepareStream(kinesaliteStreamName);
+            properties.setProperty(TRUST_ALL_CERTIFICATES, "true");
+            properties.setProperty(HTTP_PROTOCOL_VERSION, "HTTP1_1");
 
             DataStream<String> stream =
                     env.addSource(
@@ -204,14 +445,6 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                                             100,
                                             (long) numberOfElementsToSend))
                             .returns(String.class);
-
-            Properties prop = new Properties();
-            prop.setProperty(AWS_ENDPOINT, KINESALITE.getHostEndpointUrl());
-            prop.setProperty(AWS_ACCESS_KEY_ID, KINESALITE.getAccessKey());
-            prop.setProperty(AWS_SECRET_ACCESS_KEY, KINESALITE.getSecretKey());
-            prop.setProperty(AWS_REGION, KINESALITE.getRegion().toString());
-            prop.setProperty(TRUST_ALL_CERTIFICATES, "true");
-            prop.setProperty(HTTP_PROTOCOL_VERSION, "HTTP1_1");
 
             KinesisDataStreamsSink<String> kdsSink =
                     KinesisDataStreamsSink.<String>builder()
@@ -223,7 +456,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                             .setFailOnError(failOnError)
                             .setMaxBufferedRequests(1000)
                             .setStreamName(sinkConnectionStreamName)
-                            .setKinesisClientProperties(prop)
+                            .setKinesisClientProperties(properties)
                             .setFailOnError(true)
                             .build();
 
@@ -310,7 +543,15 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
             return this;
         }
 
+        public Scenario withProperties(Properties properties) {
+            this.properties = properties;
+            return this;
+        }
+
         private void prepareStream(String streamName) throws Exception {
+            if (streamName.equals("do-not-create-new-stream")) {
+                return;
+            }
             final RateLimiter rateLimiter =
                     RateLimiterBuilder.newBuilder()
                             .withRate(1, SECONDS)
@@ -348,20 +589,5 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                 return false;
             }
         }
-    }
-
-    private void testJobFatalFailureTerminatesCorrectlyWithFailOnErrorFlagSetTo(
-            boolean failOnError, String streamName) {
-        Assertions.assertThatExceptionOfType(JobExecutionException.class)
-                .isThrownBy(
-                        () ->
-                                new Scenario()
-                                        .withKinesaliteStreamName(streamName)
-                                        .withSinkConnectionStreamName("non-existent-stream")
-                                        .withFailOnError(failOnError)
-                                        .runScenario())
-                .havingCause()
-                .havingCause()
-                .withMessageContaining("Encountered non-recoverable exception");
     }
 }
