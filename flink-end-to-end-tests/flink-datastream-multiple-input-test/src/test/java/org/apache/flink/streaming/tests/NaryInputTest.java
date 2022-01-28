@@ -140,7 +140,7 @@ public class NaryInputTest {
                         clusterController.submitJob(
                                 new JobSubmission.JobSubmissionBuilder(jobJar)
                                         .setDetached(false)
-                                        .addArgument("--limit", String.valueOf(1_000_000))
+                                        .addArgument("--limit", String.valueOf(1_000))
                                         .addArgument(
                                                 "--num-of-total", String.valueOf(param.numOfTotal))
                                         .addArgument(
