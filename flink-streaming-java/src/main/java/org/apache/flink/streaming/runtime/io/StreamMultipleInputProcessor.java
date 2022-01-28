@@ -28,7 +28,6 @@ import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 /** Input processor for {@link MultipleInputStreamOperator}. */
@@ -52,7 +51,6 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
         this.inputProcessors = inputProcessors;
         this.availabilityHelper =
                 MultipleInputAvailabilityHelper.newInstance(inputProcessors.length);
-        this.availabilityHelper.init();
     }
 
     @Override
@@ -179,8 +177,6 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
         private final CompletableFuture<?>[] cachedAvailableFutures;
         private final Consumer[] onCompletion;
         private CompletableFuture<?> availableFuture;
-        private final ReentrantLock lock = new ReentrantLock();
-
         public CompletableFuture<?> getAvailableFuture() {
             return availableFuture;
         }
@@ -193,11 +189,6 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
         private MultipleInputAvailabilityHelper(int inputSize) {
             this.cachedAvailableFutures = new CompletableFuture[inputSize];
             this.onCompletion = new Consumer[inputSize];
-        }
-
-        /** Visible for testing only. */
-        @VisibleForTesting
-        public void init() {
             for (int i = 0; i < cachedAvailableFutures.length; i++) {
                 final int inputIdx = i;
                 onCompletion[i] = (Void) -> notifyCompletion(inputIdx);
@@ -211,11 +202,12 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
          * @return true if availableFuture is renewed. false, reuse previous availableFuture.
          */
         public boolean checkReusableAndReset() {
-            boolean needReset = availableFuture == null || availableFuture.isDone();
-            if (needReset) {
+            if (availableFuture == null || availableFuture.isDone()){
                 availableFuture = new CompletableFuture<>();
+                return true;
+            } else {
+                return false;
             }
-            return needReset;
         }
 
         private void notifyCompletion(int idx) {
@@ -237,18 +229,9 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
                 availableFuture.complete(null);
             } else if (dep != cachedAvailableFutures[idx]) {
                 cachedAvailableFutures[idx] = dep;
-                dep.thenAccept(getCallback(idx));
+                dep.thenAccept(onCompletion[idx]);
             }
         }
 
-        /**
-         * for mock testing.
-         *
-         * @param idx
-         * @return
-         */
-        private Consumer getCallback(int idx) {
-            return onCompletion[idx];
-        }
     }
 }
