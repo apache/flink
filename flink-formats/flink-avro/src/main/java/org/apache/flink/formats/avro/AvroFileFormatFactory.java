@@ -52,6 +52,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Function;
 
 import static org.apache.flink.formats.avro.AvroFormatOptions.AVRO_OUTPUT_CODEC;
 
@@ -129,9 +130,6 @@ public class AvroFileFormatFactory implements BulkReaderFormatFactory, BulkWrite
         private final RowType producedRowType;
         private final TypeInformation<RowData> producedTypeInfo;
 
-        private transient AvroToRowDataConverters.AvroToRowDataConverter converter;
-        private transient GenericRecord reusedAvroRecord;
-
         public AvroGenericRecordBulkFormat(
                 DynamicTableSource.Context context, RowType producedRowType) {
             super(AvroSchemaConverter.convertToSchema(producedRowType));
@@ -140,19 +138,15 @@ public class AvroFileFormatFactory implements BulkReaderFormatFactory, BulkWrite
         }
 
         @Override
-        protected void open(FileSourceSplit split) {
-            converter = AvroToRowDataConverters.createRowConverter(producedRowType);
-            reusedAvroRecord = new GenericData.Record(readerSchema);
-        }
-
-        @Override
-        protected RowData convert(GenericRecord record) {
-            return record == null ? null : (GenericRowData) converter.convert(record);
-        }
-
-        @Override
         protected GenericRecord createReusedAvroRecord() {
-            return reusedAvroRecord;
+            return new GenericData.Record(readerSchema);
+        }
+
+        @Override
+        protected Function<GenericRecord, RowData> createConverter() {
+            AvroToRowDataConverters.AvroToRowDataConverter converter =
+                    AvroToRowDataConverters.createRowConverter(producedRowType);
+            return record -> record == null ? null : (GenericRowData) converter.convert(record);
         }
 
         @Override
