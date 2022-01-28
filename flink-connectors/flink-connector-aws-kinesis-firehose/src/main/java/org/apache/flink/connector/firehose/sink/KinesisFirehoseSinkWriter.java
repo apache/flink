@@ -21,6 +21,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.connector.aws.util.AWSAsyncSinkUtil;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
+import org.apache.flink.connector.base.sink.util.RetryableExceptionClassifier;
+import org.apache.flink.connector.base.sink.util.RetryableExceptionClassifier;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.metrics.Counter;
@@ -41,8 +43,17 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
+
+import static org.apache.flink.connector.aws.util.AWSCredentialRetryableExceptionClassifiers.getInvalidCredentialsExceptionClassifier;
+import static org.apache.flink.connector.aws.util.AWSCredentialRetryableExceptionClassifiers.getSdkClientMisconfiguredExceptionClassifier;
+import static org.apache.flink.connector.base.sink.writer.AsyncSinkRetryableExceptionClassifiers.getGeneralExceptionClassifier;
+import static org.apache.flink.connector.base.sink.writer.AsyncSinkRetryableExceptionClassifiers.getInterruptedExceptionClassifier;
+
+import static org.apache.flink.connector.aws.util.AWSCredentialRetryableExceptionClassifiers.getInvalidCredentialsExceptionClassifier;
+import static org.apache.flink.connector.aws.util.AWSCredentialRetryableExceptionClassifiers.getSdkClientMisconfiguredExceptionClassifier;
+import static org.apache.flink.connector.base.sink.writer.AsyncSinkRetryableExceptionClassifiers.getGeneralExceptionClassifier;
+import static org.apache.flink.connector.base.sink.writer.AsyncSinkRetryableExceptionClassifiers.getInterruptedExceptionClassifier;
 
 /**
  * Sink writer created by {@link KinesisFirehoseSink} to write to Kinesis Data Firehose. More
@@ -72,6 +83,31 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
                 KinesisFirehoseConfigConstants.BASE_FIREHOSE_USER_AGENT_PREFIX_FORMAT,
                 KinesisFirehoseConfigConstants.FIREHOSE_CLIENT_USER_AGENT_PREFIX);
     }
+
+    private static final RetryableExceptionClassifier RESOURCE_NOT_FOUND_STRATEGY =
+            RetryableExceptionClassifier.withRootCauseOfType(
+                    ResourceNotFoundException.class,
+                    err ->
+                            new KinesisFirehoseException(
+                                    "Encountered non-recoverable exception relating to not being able to find the specified resources",
+                                    err));
+
+    private static final RetryableExceptionClassifier NON_RECOVERABLE_EXCEPTION_STRATEGY =
+            RetryableExceptionClassifier.withRootCauseOfType(
+                    Error.class,
+                    err ->
+                            new KinesisFirehoseException(
+                                    "Encountered non-recoverable exception in the Kinesis Data Firehose Sink",
+                                    err));
+
+    private static final RetryableExceptionClassifier FIREHOSE_RETRY_VALIDATION_STRATEGY =
+            RetryableExceptionClassifier.createChain(
+                    getGeneralExceptionClassifier(),
+                    getInterruptedExceptionClassifier(),
+                    getInvalidCredentialsExceptionClassifier(),
+                    RESOURCE_NOT_FOUND_STRATEGY,
+                    getSdkClientMisconfiguredExceptionClassifier(),
+                    NON_RECOVERABLE_EXCEPTION_STRATEGY);
 
     /* A counter for the total number of records that have encountered an error during put */
     private final Counter numRecordsOutErrorsCounter;
@@ -118,6 +154,20 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
         this.numRecordsOutErrorsCounter = metrics.getNumRecordsOutErrorsCounter();
         this.httpClient = createHttpClient(firehoseClientProperties);
         this.firehoseClient = createFirehoseClient(firehoseClientProperties, httpClient);
+    }
+
+    private FirehoseAsyncClient buildClient(Properties firehoseClientProperties) {
+        AWSGeneralUtil.validateAwsConfiguration(firehoseClientProperties);
+        AWSGeneralUtil.validateWebIdentityTokenFileCredentialsProvider(firehoseClientProperties);
+        final SdkAsyncHttpClient httpClient =
+                AWSGeneralUtil.createAsyncHttpClient(firehoseClientProperties);
+
+        return AWSAsyncSinkUtil.createAwsAsyncClient(
+                firehoseClientProperties,
+                httpClient,
+                FirehoseAsyncClient.builder(),
+                KinesisFirehoseConfigConstants.BASE_FIREHOSE_USER_AGENT_PREFIX_FORMAT,
+                KinesisFirehoseConfigConstants.FIREHOSE_CLIENT_USER_AGENT_PREFIX);
     }
 
     @Override
@@ -199,12 +249,7 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
     }
 
     private boolean isRetryable(Throwable err) {
-        if (err instanceof CompletionException
-                && err.getCause() instanceof ResourceNotFoundException) {
-            getFatalExceptionCons()
-                    .accept(
-                            new KinesisFirehoseException(
-                                    "Encountered non-recoverable exception", err));
+        if (!FIREHOSE_RETRY_VALIDATION_STRATEGY.shouldSuppress(err, getFatalExceptionCons())) {
             return false;
         }
         if (failOnError) {
