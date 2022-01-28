@@ -39,12 +39,12 @@ class KinesisDataStreamsException extends RuntimeException {
 
         public KinesisDataStreamsFailFastException() {
             super(
-                    "Encountered an exception while persisting records, not retrying due to {failOnError} being set.");
+                    "Encountered an exception while persisting records, not retrying due to either: {failOnError} being set or the exception should not be retried.");
         }
 
         public KinesisDataStreamsFailFastException(final Throwable cause) {
             super(
-                    "Encountered an exception while persisting records, not retrying due to {failOnError} being set.",
+                    "Encountered an exception while persisting records, not retrying due to either: {failOnError} being set or the exception should not be retried.",
                     cause);
         }
     }

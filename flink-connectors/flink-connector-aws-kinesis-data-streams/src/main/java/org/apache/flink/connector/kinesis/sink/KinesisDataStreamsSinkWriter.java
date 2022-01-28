@@ -36,6 +36,7 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 import software.amazon.awssdk.services.kinesis.model.ResourceNotFoundException;
+import software.amazon.awssdk.services.sts.model.StsException;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -205,7 +206,8 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
             getFatalExceptionCons()
                     .accept(
                             new KinesisDataStreamsException(
-                                    "Encountered non-recoverable exception.", err));
+                                    "Encountered non-recoverable exception relating to not being able to find the specified resources",
+                                    err));
             return false;
         }
         if (failOnError) {
