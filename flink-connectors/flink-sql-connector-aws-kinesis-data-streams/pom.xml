@@ -55,6 +55,7 @@
 						<configuration>
 							<artifactSet>
 								<includes>
+									<include>org.apache.flink:flink-core</include>
 									<include>org.apache.flink:flink-table-common</include>
 									<include>org.apache.flink:flink-streaming-java</include>
 									<include>org.apache.flink:flink-connector-base</include>

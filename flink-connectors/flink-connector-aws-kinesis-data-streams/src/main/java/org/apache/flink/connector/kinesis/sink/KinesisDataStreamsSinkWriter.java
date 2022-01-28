@@ -24,8 +24,7 @@ import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.ThrowableWrapper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,8 +41,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
+
+import static org.apache.flink.connector.aws.util.AWSCredentialExceptionWrappers.INVALID_CREDENTIALS_STRATEGY;
+import static org.apache.flink.connector.aws.util.AWSCredentialExceptionWrappers.MISSING_ACCESS_KEY_ID_STRATEGY;
+import static org.apache.flink.connector.aws.util.AWSCredentialExceptionWrappers.SDK_CLIENT_MISCONFIGURED_STRATEGY;
+import static org.apache.flink.connector.base.sink.writer.AsyncSinkThrowableWrappers.GENERAL_ERROR_STRATEGY;
+import static org.apache.flink.connector.base.sink.writer.AsyncSinkThrowableWrappers.INTERRUPTED_STRATEGY;
 
 /**
  * Sink writer created by {@link KinesisDataStreamsSink} to write to Kinesis Data Streams. More
@@ -57,6 +61,32 @@ import java.util.function.Consumer;
  */
 class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRecordsRequestEntry> {
     private static final Logger LOG = LoggerFactory.getLogger(KinesisDataStreamsSinkWriter.class);
+
+    private static final ThrowableWrapper RESOURCE_NOT_FOUND_STRATEGY =
+            ThrowableWrapper.withRootCauseOfType(
+                    ResourceNotFoundException.class,
+                    err ->
+                            new KinesisDataStreamsException(
+                                    "Encountered non-recoverable exception relating to not being able to find the specified resources",
+                                    err));
+
+    private static final ThrowableWrapper NON_RECOVERABLE_EXCEPTION_STRATEGY =
+            ThrowableWrapper.withRootCauseOfType(
+                    Error.class,
+                    err ->
+                            new KinesisDataStreamsException(
+                                    "Encountered non-recoverable exception in the Kinesis Data Streams Sink",
+                                    err));
+
+    private static final ThrowableWrapper KINESIS_RETRY_VALIDATION_STRATEGY =
+            ThrowableWrapper.build(
+                    GENERAL_ERROR_STRATEGY.clone(),
+                    INTERRUPTED_STRATEGY.clone(),
+                    INVALID_CREDENTIALS_STRATEGY.clone(),
+                    RESOURCE_NOT_FOUND_STRATEGY.clone(),
+                    SDK_CLIENT_MISCONFIGURED_STRATEGY.clone(),
+                    MISSING_ACCESS_KEY_ID_STRATEGY.clone(),
+                    NON_RECOVERABLE_EXCEPTION_STRATEGY.clone());
 
     /* A counter for the total number of records that have encountered an error during put */
     private final Counter numRecordsOutErrorsCounter;
@@ -181,35 +211,8 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
     }
 
     private boolean isRetryable(Throwable err) {
-        if (err instanceof CompletionException
-                && isInterruptingSignalException(ExceptionUtils.stripCompletionException(err))) {
-            getFatalExceptionCons().accept(new FlinkException("Running job was cancelled"));
-            return false;
-        }
-        if (err instanceof CompletionException
-                && ExceptionUtils.stripCompletionException(err)
-                        instanceof ResourceNotFoundException) {
-            getFatalExceptionCons()
-                    .accept(
-                            new KinesisDataStreamsException(
-                                    "Encountered non-recoverable exception relating to not being able to find the specified resources",
-                                    err));
-            return false;
-        }
-        if (err instanceof CompletionException
-                && ExceptionUtils.stripCompletionException(err) instanceof StsException) {
-            getFatalExceptionCons()
-                    .accept(
-                            new KinesisDataStreamsException(
-                                    "Encountered non-recoverable exception relating to the provided credentials.",
-                                    err));
-            return false;
-        }
-        if (err instanceof Error) {
-            getFatalExceptionCons()
-                    .accept(
-                            new KinesisDataStreamsException(
-                                    "Encountered non-recoverable exception.", err));
+
+        if (!KINESIS_RETRY_VALIDATION_STRATEGY.shouldSuppress(err, getFatalExceptionCons())) {
             return false;
         }
         if (failOnError) {
@@ -221,12 +224,5 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
         }
 
         return true;
-    }
-
-    private boolean isInterruptingSignalException(Throwable err) {
-        return err != null
-                && (err instanceof InterruptedException
-                        || (err instanceof IllegalStateException
-                                && err.getCause() instanceof InterruptedException));
     }
 }

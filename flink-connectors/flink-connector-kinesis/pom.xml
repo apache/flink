@@ -316,6 +316,7 @@ under the License.
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<artifactSet combine.children="append">
 								<includes>
+									<include>org.apache.flink:flink-core:*</include>
 									<include>org.apache.flink:flink-connector-aws-base:*</include>
 									<include>org.apache.flink:flink-connector-aws-kinesis-data-streams:*</include>
 									<include>com.amazonaws:*</include>

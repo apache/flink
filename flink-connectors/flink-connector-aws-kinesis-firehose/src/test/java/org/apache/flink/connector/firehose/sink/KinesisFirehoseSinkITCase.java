@@ -18,13 +18,17 @@
 package org.apache.flink.connector.firehose.sink;
 
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.connector.aws.testutils.LocalstackContainer;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.DockerImageVersions;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.assertj.core.api.Assertions;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -41,7 +45,12 @@ import software.amazon.awssdk.utils.ImmutableMap;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_CREDENTIALS_PROVIDER;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_REGION;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_WEB_IDENTITY_TOKEN_FILE;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.TRUST_ALL_CERTIFICATES;
 import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.createBucket;
 import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.createIAMRole;
 import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.getConfig;
@@ -62,6 +71,8 @@ public class KinesisFirehoseSinkITCase {
     private static final String BUCKET_NAME = "s3-firehose";
     private static final String STREAM_NAME = "s3-stream";
     private static final int NUMBER_OF_ELEMENTS = 92;
+    private StreamExecutionEnvironment env;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private S3AsyncClient s3AsyncClient;
     private FirehoseAsyncClient firehoseAsyncClient;
@@ -77,6 +88,7 @@ public class KinesisFirehoseSinkITCase {
         s3AsyncClient = getS3Client(mockFirehoseContainer.getEndpoint());
         firehoseAsyncClient = getFirehoseClient(mockFirehoseContainer.getEndpoint());
         iamAsyncClient = getIamClient(mockFirehoseContainer.getEndpoint());
+        env = StreamExecutionEnvironment.getExecutionEnvironment();
     }
 
     @After
@@ -85,27 +97,13 @@ public class KinesisFirehoseSinkITCase {
     }
 
     @Test
-    public void test() throws Exception {
+    public void firehoseSinkWritesCorrectDataToMockAWSServices() throws Exception {
         LOG.info("1 - Creating the bucket for Firehose to deliver into...");
         createBucket(s3AsyncClient, BUCKET_NAME);
         LOG.info("2 - Creating the IAM Role for Firehose to write into the s3 bucket...");
         createIAMRole(iamAsyncClient, ROLE_NAME);
         LOG.info("3 - Creating the Firehose delivery stream...");
         createDeliveryStream(STREAM_NAME, BUCKET_NAME, ROLE_ARN, firehoseAsyncClient);
-
-        ObjectMapper mapper = new ObjectMapper();
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-        DataStream<String> generator =
-                env.fromSequence(1, NUMBER_OF_ELEMENTS)
-                        .map(Object::toString)
-                        .returns(String.class)
-                        .map(data -> mapper.writeValueAsString(ImmutableMap.of("data", data)));
-        List<String> expectedElements = new ArrayList<>();
-        for (int i = 1; i < NUMBER_OF_ELEMENTS; i++) {
-            expectedElements.add(
-                    mapper.writeValueAsString(ImmutableMap.of("data", String.valueOf(i))));
-        }
 
         KinesisFirehoseSink<String> kdsSink =
                 KinesisFirehoseSink.<String>builder()
@@ -115,7 +113,7 @@ public class KinesisFirehoseSinkITCase {
                         .setFirehoseClientProperties(getConfig(mockFirehoseContainer.getEndpoint()))
                         .build();
 
-        generator.sinkTo(kdsSink);
+        getSampleDataGenerator().sinkTo(kdsSink);
         env.execute("Integration Test");
 
         List<S3Object> objects = listBucketObjects(s3AsyncClient, BUCKET_NAME);
@@ -126,6 +124,70 @@ public class KinesisFirehoseSinkITCase {
                                 objects,
                                 BUCKET_NAME,
                                 response -> new String(response.asByteArrayUnsafe())))
-                .containsAll(expectedElements);
+                .containsAll(getSampleDataGenerated());
+    }
+
+    @Test
+    public void firehoseSinkFailsWhenAccessKeyIdIsNotProvided() {
+        Properties properties = getConfig(mockFirehoseContainer.getEndpoint());
+        properties.setProperty(AWS_CREDENTIALS_PROVIDER, AWS_WEB_IDENTITY_TOKEN_FILE);
+        properties.remove(AWSConfigConstants.secretKey(AWS_CREDENTIALS_PROVIDER));
+        firehoseSinkFailsWithAppropriateMessageWhenInitialConditionsAreMisconfigured(
+                properties,
+                "No enum constant org.apache.flink.connector.aws.config.AWSConfigConstants.CredentialProvider.aws.credentials.provider.webIdentityToken.file");
+    }
+
+    @Test
+    public void firehoseSinkFailsWhenRegionIsNotProvided() {
+        Properties properties = getConfig(mockFirehoseContainer.getEndpoint());
+        properties.remove(AWS_REGION);
+        firehoseSinkFailsWithAppropriateMessageWhenInitialConditionsAreMisconfigured(
+                properties, "region must not be null.");
+    }
+
+    @Test
+    public void firehoseSinkFailsWhenUnableToConnectToRemoteService() {
+        Properties properties = getConfig(mockFirehoseContainer.getEndpoint());
+        properties.remove(TRUST_ALL_CERTIFICATES);
+        firehoseSinkFailsWithAppropriateMessageWhenInitialConditionsAreMisconfigured(
+                properties,
+                "Encountered non-recoverable exception relating to mis-configured client");
+    }
+
+    private void firehoseSinkFailsWithAppropriateMessageWhenInitialConditionsAreMisconfigured(
+            Properties properties, String errorMessage) {
+        KinesisFirehoseSink<String> kdsSink =
+                KinesisFirehoseSink.<String>builder()
+                        .setSerializationSchema(new SimpleStringSchema())
+                        .setDeliveryStreamName("non-existent-stream")
+                        .setMaxBatchSize(1)
+                        .setFirehoseClientProperties(properties)
+                        .build();
+
+        getSampleDataGenerator().sinkTo(kdsSink);
+
+        Assertions.assertThatExceptionOfType(JobExecutionException.class)
+                .isThrownBy(() -> env.execute("Integration Test"))
+                .havingCause()
+                .havingCause()
+                .withMessageContaining(errorMessage);
+    }
+
+    private DataStream<String> getSampleDataGenerator() {
+        ObjectMapper mapper = new ObjectMapper();
+
+        return env.fromSequence(1, NUMBER_OF_ELEMENTS)
+                .map(Object::toString)
+                .returns(String.class)
+                .map(data -> mapper.writeValueAsString(ImmutableMap.of("data", data)));
+    }
+
+    private List<String> getSampleDataGenerated() throws JsonProcessingException {
+        List<String> expectedElements = new ArrayList<>();
+        for (int i = 1; i < NUMBER_OF_ELEMENTS; i++) {
+            expectedElements.add(
+                    MAPPER.writeValueAsString(ImmutableMap.of("data", String.valueOf(i))));
+        }
+        return expectedElements;
     }
 }
