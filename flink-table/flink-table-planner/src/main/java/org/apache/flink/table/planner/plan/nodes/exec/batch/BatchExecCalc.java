@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecCalc;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
@@ -42,11 +43,12 @@ public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowDa
             RowType outputType,
             String description) {
         super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecCalc.class),
                 projection,
                 condition,
                 TableStreamOperator.class,
                 false, // retainHeader
-                getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

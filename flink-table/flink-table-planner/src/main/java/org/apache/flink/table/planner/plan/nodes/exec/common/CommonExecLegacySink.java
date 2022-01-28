@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -67,6 +68,8 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
     protected final boolean isStreaming;
 
     public CommonExecLegacySink(
+            int id,
+            ExecNodeContext context,
             TableSink<T> tableSink,
             @Nullable String[] upsertKeys,
             boolean needRetraction,
@@ -74,7 +77,7 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
             InputProperty inputProperty,
             LogicalType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        super(id, context, Collections.singletonList(inputProperty), outputType, description);
         this.tableSink = tableSink;
         this.upsertKeys = upsertKeys;
         this.needRetraction = needRetraction;

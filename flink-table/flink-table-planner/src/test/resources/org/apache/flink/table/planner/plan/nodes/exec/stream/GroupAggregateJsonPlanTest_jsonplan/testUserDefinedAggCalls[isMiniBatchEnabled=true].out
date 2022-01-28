@@ -1,7 +1,8 @@
 {
   "flinkVersion" : "",
   "nodes" : [ {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MyTable`",
@@ -30,17 +31,16 @@
         }
       }
     },
-    "id" : 1,
     "outputType" : "ROW<`a` BIGINT, `b` INT NOT NULL, `c` VARCHAR(2147483647), `d` BIGINT>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
     "inputProperties" : [ ]
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMiniBatchAssigner",
+    "id" : 2,
+    "type" : "stream-exec-mini-batch-assigner_1",
     "miniBatchInterval" : {
       "interval" : 10000,
       "mode" : "ProcTime"
     },
-    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -51,7 +51,8 @@
     "outputType" : "ROW<`a` BIGINT, `b` INT NOT NULL, `c` VARCHAR(2147483647), `d` BIGINT>",
     "description" : "MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 3,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
@@ -78,7 +79,6 @@
       "type" : "VARCHAR(2147483647)"
     } ],
     "condition" : null,
-    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -89,8 +89,8 @@
     "outputType" : "ROW<`b` INT NOT NULL, `$f1` INT NOT NULL, `$f2` INT NOT NULL, `d` BIGINT, `a` BIGINT, `c` VARCHAR(2147483647)>",
     "description" : "Calc(select=[b, 10 AS $f1, 5 AS $f2, d, a, c])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
     "id" : 4,
+    "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -102,7 +102,8 @@
     "outputType" : "ROW<`b` INT NOT NULL, `$f1` INT NOT NULL, `$f2` INT NOT NULL, `d` BIGINT, `a` BIGINT, `c` VARCHAR(2147483647)>",
     "description" : "Exchange(distribution=[hash[b]])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupAggregate",
+    "id" : 5,
+    "type" : "stream-exec-group-aggregate_1",
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "a1",
@@ -172,7 +173,6 @@
     "aggCallNeedRetractions" : [ false, false, false, false ],
     "generateUpdateBefore" : true,
     "needRetraction" : false,
-    "id" : 5,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -183,7 +183,8 @@
     "outputType" : "ROW<`b` INT NOT NULL, `a1` BIGINT, `a2` BIGINT, `a3` BIGINT, `c1` BIGINT>",
     "description" : "GroupAggregate(groupBy=[b], select=[b, my_sum1(b, $f1) AS a1, my_sum2($f2, b) AS a2, my_avg(d, a) AS a3, my_count(c) AS c1])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 6,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "REX_CALL",
       "operator" : {
@@ -215,7 +216,6 @@
       "type" : "BIGINT"
     } ],
     "condition" : null,
-    "id" : 6,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -226,7 +226,8 @@
     "outputType" : "ROW<`b` BIGINT, `a1` BIGINT, `a2` BIGINT, `a3` BIGINT, `c1` BIGINT>",
     "description" : "Calc(select=[CAST(b AS BIGINT) AS b, a1, a2, a3, c1])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "id" : 7,
+    "type" : "stream-exec-sink_1",
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",
@@ -260,7 +261,6 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER" ],
-    "id" : 7,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

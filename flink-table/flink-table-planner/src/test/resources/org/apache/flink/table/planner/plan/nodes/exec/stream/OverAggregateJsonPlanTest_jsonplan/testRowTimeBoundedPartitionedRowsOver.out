@@ -1,7 +1,8 @@
 {
   "flinkVersion" : "",
   "nodes" : [ {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MyTable`",
@@ -74,19 +75,18 @@
         "producedType" : "ROW<`a` INT, `c` BIGINT, `rowtime` TIMESTAMP(3)> NOT NULL"
       } ]
     },
-    "id" : 1,
     "outputType" : "ROW<`a` INT, `c` BIGINT, `rowtime` TIMESTAMP(3)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])",
     "inputProperties" : [ ]
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner",
+    "id" : 2,
+    "type" : "stream-exec-watermark-assigner_1",
     "watermarkExpr" : {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
       "type" : "TIMESTAMP(3)"
     },
     "rowtimeFieldIndex" : 2,
-    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -113,8 +113,8 @@
     },
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
     "id" : 3,
+    "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -142,7 +142,8 @@
     },
     "description" : "Exchange(distribution=[hash[c]])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecOverAggregate",
+    "id" : 4,
+    "type" : "stream-exec-over-aggregate_1",
     "overSpec" : {
       "partition" : {
         "fields" : [ 1 ]
@@ -190,7 +191,6 @@
       } ],
       "originalInputFields" : 3
     },
-    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -220,7 +220,8 @@
     },
     "description" : "OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 5,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
@@ -231,7 +232,6 @@
       "type" : "BIGINT NOT NULL"
     } ],
     "condition" : null,
-    "id" : 5,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -242,7 +242,8 @@
     "outputType" : "ROW<`c` BIGINT, `$1` BIGINT NOT NULL>",
     "description" : "Calc(select=[c, w0$o0 AS $1])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "id" : 6,
+    "type" : "stream-exec-sink_1",
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",
@@ -267,7 +268,6 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 6,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

@@ -1,7 +1,8 @@
 {
   "flinkVersion" : "",
   "nodes" : [ {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MyTable`",
@@ -39,17 +40,16 @@
         "producedType" : "ROW<`a` BIGINT, `c` VARCHAR(2147483647)> NOT NULL"
       } ]
     },
-    "id" : 1,
     "outputType" : "ROW<`a` BIGINT, `c` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], metadata=[]]], fields=[a, c])",
     "inputProperties" : [ ]
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMiniBatchAssigner",
+    "id" : 2,
+    "type" : "stream-exec-mini-batch-assigner_1",
     "miniBatchInterval" : {
       "interval" : 10000,
       "mode" : "ProcTime"
     },
-    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -60,7 +60,8 @@
     "outputType" : "ROW<`a` BIGINT, `c` VARCHAR(2147483647)>",
     "description" : "MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 3,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
@@ -97,7 +98,6 @@
       "type" : "INT"
     } ],
     "condition" : null,
-    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -108,7 +108,8 @@
     "outputType" : "ROW<`a` BIGINT, `c` VARCHAR(2147483647), `$f2` INT>",
     "description" : "Calc(select=[a, c, MOD(HASH_CODE(c), 1024) AS $f2])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalGroupAggregate",
+    "id" : 4,
+    "type" : "stream-exec-local-group-aggregate_1",
     "grouping" : [ 0, 2 ],
     "aggCalls" : [ {
       "name" : null,
@@ -126,7 +127,6 @@
     } ],
     "aggCallNeedRetractions" : [ false ],
     "needRetraction" : false,
-    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -171,8 +171,8 @@
     },
     "description" : "LocalGroupAggregate(groupBy=[a, $f2], partialFinalType=[PARTIAL], select=[a, $f2, COUNT(distinct$0 c) AS count$0, DISTINCT(c) AS distinct$0])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
     "id" : 5,
+    "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -218,7 +218,8 @@
     },
     "description" : "Exchange(distribution=[hash[a, $f2]])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecIncrementalGroupAggregate",
+    "id" : 6,
+    "type" : "stream-exec-incremental-group-aggregate_1",
     "partialAggGrouping" : [ 0, 1 ],
     "finalAggGrouping" : [ 0 ],
     "partialOriginalAggCalls" : [ {
@@ -238,7 +239,6 @@
     "partialAggCallNeedRetractions" : [ false ],
     "partialLocalAggInputRowType" : "ROW<`a` BIGINT, `c` VARCHAR(2147483647), `$f2` INT>",
     "partialAggNeedRetraction" : false,
-    "id" : 6,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -249,8 +249,8 @@
     "outputType" : "ROW<`a` BIGINT, `count$0` BIGINT>",
     "description" : "IncrementalGroupAggregate(partialAggGrouping=[a, $f2], finalAggGrouping=[a], select=[a, COUNT(distinct$0 count$0) AS count$0])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
     "id" : 7,
+    "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -262,7 +262,8 @@
     "outputType" : "ROW<`a` BIGINT, `count$0` BIGINT>",
     "description" : "Exchange(distribution=[hash[a]])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalGroupAggregate",
+    "id" : 8,
+    "type" : "stream-exec-global-group-aggregate_1",
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : null,
@@ -282,7 +283,6 @@
     "localAggInputRowType" : "ROW<`a` BIGINT, `$f2` INT, `$f2_0` BIGINT NOT NULL>",
     "generateUpdateBefore" : true,
     "needRetraction" : false,
-    "id" : 8,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -293,7 +293,8 @@
     "outputType" : "ROW<`a` BIGINT, `$f1` BIGINT NOT NULL>",
     "description" : "GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(count$0) AS $f1])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "id" : 9,
+    "type" : "stream-exec-sink_1",
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",
@@ -318,7 +319,6 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE" ],
-    "id" : 9,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

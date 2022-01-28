@@ -18,13 +18,15 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecValues;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rex.RexLiteral;
@@ -32,19 +34,29 @@ import org.apache.calcite.rex.RexLiteral;
 import java.util.List;
 
 /** Stream {@link ExecNode} that read records from given values. */
-@JsonIgnoreProperties(ignoreUnknown = true)
+@ExecNodeMetadata(
+        name = "stream-exec-values",
+        version = 1,
+        minPlanVersion = FlinkVersion.v1_15,
+        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecValues extends CommonExecValues implements StreamExecNode<RowData> {
 
     public StreamExecValues(List<List<RexLiteral>> tuples, RowType outputType, String description) {
-        this(tuples, getNewNodeId(), outputType, description);
+        this(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecValues.class),
+                tuples,
+                outputType,
+                description);
     }
 
     @JsonCreator
     public StreamExecValues(
-            @JsonProperty(FIELD_NAME_TUPLES) List<List<RexLiteral>> tuples,
             @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_TUPLES) List<List<RexLiteral>> tuples,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(tuples, id, outputType, description);
+        super(id, context, tuples, outputType, description);
     }
 }

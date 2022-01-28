@@ -51,6 +51,7 @@ import org.apache.flink.table.planner.connectors.TransformationSinkProvider;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
@@ -74,7 +75,6 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.RowKind;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.ArrayList;
@@ -94,18 +94,19 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     @JsonProperty(FIELD_NAME_DYNAMIC_TABLE_SINK)
     protected final DynamicTableSinkSpec tableSinkSpec;
 
-    @JsonIgnore private final ChangelogMode inputChangelogMode;
-    @JsonIgnore private final boolean isBounded;
+    private final ChangelogMode inputChangelogMode;
+    private final boolean isBounded;
 
     protected CommonExecSink(
+            int id,
+            ExecNodeContext context,
             DynamicTableSinkSpec tableSinkSpec,
             ChangelogMode inputChangelogMode,
             boolean isBounded,
-            int id,
             List<InputProperty> inputProperties,
             LogicalType outputType,
             String description) {
-        super(id, inputProperties, outputType, description);
+        super(id, context, inputProperties, outputType, description);
         this.tableSinkSpec = tableSinkSpec;
         this.inputChangelogMode = inputChangelogMode;
         this.isBounded = isBounded;

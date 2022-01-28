@@ -1,7 +1,8 @@
 {
   "flinkVersion" : "",
   "nodes" : [ {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MyTable`",
@@ -45,13 +46,12 @@
         "producedType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL> NOT NULL"
       } ]
     },
-    "id" : 1,
     "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
     "inputProperties" : [ ]
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDropUpdateBefore",
     "id" : 2,
+    "type" : "stream-exec-drop-update-before_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -62,8 +62,8 @@
     "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
     "description" : "DropUpdateBefore"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
     "id" : 3,
+    "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -75,10 +75,10 @@
     "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
     "description" : "Exchange(distribution=[hash[a, b]])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogNormalize",
+    "id" : 4,
+    "type" : "stream-exec-changelog-normalize_1",
     "uniqueKeys" : [ 0, 1 ],
     "generateUpdateBefore" : true,
-    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -89,7 +89,8 @@
     "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
     "description" : "ChangelogNormalize(key=[a, b])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "id" : 5,
+    "type" : "stream-exec-sink_1",
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",
@@ -114,7 +115,6 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE" ],
-    "id" : 5,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
