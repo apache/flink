@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from abc import ABC, abstractmethod
 
 from pyflink.common import typeinfo, Duration, WatermarkStrategy, ConfigOptions
 from pyflink.common.serialization import JsonRowDeserializationSchema, \
@@ -34,7 +35,15 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase, _load_specific_flin
 from pyflink.util.java_utils import load_java_class, get_field_value
 
 
-class ConnectorTestBase(PyFlinkTestCase):
+class ConnectorTestBase(PyFlinkTestCase, ABC):
+
+    @classmethod
+    @abstractmethod
+    def _get_jars_relative_path(cls):
+        """
+        Return the relative path of connector, such as `/flink-connectors/flink-sql-connector-jdbc`.
+        """
+        pass
 
     def setUp(self) -> None:
         self.env = StreamExecutionEnvironment.get_execution_environment()
@@ -43,7 +52,7 @@ class ConnectorTestBase(PyFlinkTestCase):
         # will change the ClassLoader back to the cached ContextClassLoader after the test case
         # finished.
         self._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
-        _load_specific_flink_module_jars(self._jars_relative_path)
+        _load_specific_flink_module_jars(self._get_jars_relative_path())
 
     def tearDown(self):
         # Change the ClassLoader back to the cached ContextClassLoader after the test case finished.
@@ -53,8 +62,11 @@ class ConnectorTestBase(PyFlinkTestCase):
 
 class FlinkKafkaTest(ConnectorTestBase):
 
+    @classmethod
+    def _get_jars_relative_path(cls):
+        return '/flink-connectors/flink-sql-connector-kafka'
+
     def setUp(self) -> None:
-        self._jars_relative_path = '/flink-connectors/flink-sql-connector-kafka'
         super().setUp()
         self.env.set_parallelism(2)
 
@@ -110,9 +122,9 @@ class FlinkKafkaTest(ConnectorTestBase):
 
 class FlinkJdbcSinkTest(ConnectorTestBase):
 
-    def setUp(self) -> None:
-        self._jars_relative_path = '/flink-connectors/flink-connector-jdbc'
-        super().setUp()
+    @classmethod
+    def _get_jars_relative_path(cls):
+        return '/flink-connectors/flink-connector-jdbc'
 
     def test_jdbc_sink(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
@@ -154,9 +166,9 @@ class FlinkJdbcSinkTest(ConnectorTestBase):
 
 class FlinkPulsarTest(ConnectorTestBase):
 
-    def setUp(self) -> None:
-        self._jars_relative_path = '/flink-connectors/flink-sql-connector-pulsar'
-        super().setUp()
+    @classmethod
+    def _get_jars_relative_path(cls):
+        return '/flink-connectors/flink-sql-connector-pulsar'
 
     def test_pulsar_source(self):
         test_option = ConfigOptions.key('pulsar.source.enableAutoAcknowledgeMessage') \
@@ -238,9 +250,9 @@ class FlinkPulsarTest(ConnectorTestBase):
 
 class RMQTest(ConnectorTestBase):
 
-    def setUp(self):
-        self._jars_relative_path = '/flink-connectors/flink-sql-connector-rabbitmq'
-        super().setUp()
+    @classmethod
+    def _get_jars_relative_path(cls):
+        return '/flink-connectors/flink-sql-connector-rabbitmq'
 
     def test_rabbitmq_connectors(self):
         connection_config = RMQConnectionConfig.Builder() \
