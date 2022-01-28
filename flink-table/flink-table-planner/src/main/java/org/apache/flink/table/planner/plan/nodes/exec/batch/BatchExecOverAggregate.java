@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec.GroupSpec;
@@ -77,7 +78,13 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(overSpec, inputProperty, outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecOverAggregate.class),
+                overSpec,
+                inputProperty,
+                outputType,
+                description);
     }
 
     @SuppressWarnings("unchecked")

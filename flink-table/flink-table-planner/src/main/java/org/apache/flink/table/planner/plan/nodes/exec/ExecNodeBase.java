@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableConfig;
@@ -31,6 +30,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,54 +46,44 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
-    /** The unique identifier for each ExecNode in the json plan. */
-    @JsonIgnore private final int id;
+    private final String description;
 
-    @JsonIgnore private final String description;
+    private final LogicalType outputType;
 
-    @JsonIgnore private final LogicalType outputType;
+    private final List<InputProperty> inputProperties;
 
-    @JsonIgnore private final List<InputProperty> inputProperties;
+    private List<ExecEdge> inputEdges;
 
-    @JsonIgnore private List<ExecEdge> inputEdges;
+    private transient Transformation<T> transformation;
 
-    @JsonIgnore private transient Transformation<T> transformation;
+    /** Holds the context information (id, name, version) as deserialized from a JSON plan. */
+    @JsonProperty(value = FIELD_NAME_TYPE, access = JsonProperty.Access.WRITE_ONLY)
+    private final ExecNodeContext context;
 
-    /** This is used to assign a unique ID to every ExecNode. */
-    private static Integer idCounter = 0;
-
-    /** Generate an unique ID for ExecNode. */
-    public static int getNewNodeId() {
-        idCounter++;
-        return idCounter;
+    /**
+     * Retrieves the default context from the {@link ExecNodeMetadata} annotation to be serialized
+     * into the JSON plan.
+     */
+    @JsonProperty(value = FIELD_NAME_TYPE, access = JsonProperty.Access.READ_ONLY, index = 1)
+    protected final ExecNodeContext getContextFromAnnotation() {
+        return ExecNodeContext.newContext(this.getClass()).withId(getId());
     }
 
-    /** Reset the id counter to 0. */
-    @VisibleForTesting
-    public static void resetIdCounter() {
-        idCounter = 0;
-    }
-
-    // used for json creator
     protected ExecNodeBase(
             int id,
+            ExecNodeContext context,
             List<InputProperty> inputProperties,
             LogicalType outputType,
             String description) {
-        this.id = id;
+        this.context = checkNotNull(context).withId(id);
         this.inputProperties = checkNotNull(inputProperties);
         this.outputType = checkNotNull(outputType);
         this.description = checkNotNull(description);
     }
 
-    protected ExecNodeBase(
-            List<InputProperty> inputProperties, LogicalType outputType, String description) {
-        this(getNewNodeId(), inputProperties, outputType, description);
-    }
-
     @Override
     public final int getId() {
-        return id;
+        return context.getId();
     }
 
     @Override
@@ -191,7 +181,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     protected String getFormattedOperatorDescription(String description, Configuration config) {
         if (config.getBoolean(
                 OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
-            return String.format("[%d]:%s", id, description);
+            return String.format("[%d]:%s", getId(), description);
         }
         return description;
     }
@@ -200,7 +190,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
             String detailName, String simplifiedName, Configuration config) {
         if (config.getBoolean(
                 OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
-            return String.format("%s[%d]", simplifiedName, id);
+            return String.format("%s[%d]", simplifiedName, getId());
         }
         return detailName;
     }

@@ -1,7 +1,8 @@
 {
   "flinkVersion" : "",
   "nodes" : [ {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MyTable`",
@@ -90,12 +91,12 @@
         }
       }
     },
-    "id" : 1,
     "outputType" : "ROW<`a` INT, `b` BIGINT, `c` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
@@ -123,7 +124,6 @@
       "type" : "TIMESTAMP(3)"
     } ],
     "condition" : null,
-    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -134,7 +134,8 @@
     "outputType" : "ROW<`a` INT, `b` BIGINT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3)>",
     "description" : "Calc(select=[a, b, c, TO_TIMESTAMP(c) AS rowtime])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner",
+    "id" : 3,
+    "type" : "stream-exec-watermark-assigner_1",
     "watermarkExpr" : {
       "kind" : "REX_CALL",
       "operator" : {
@@ -154,7 +155,6 @@
       "type" : "TIMESTAMP(3)"
     },
     "rowtimeFieldIndex" : 3,
-    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -184,7 +184,8 @@
     },
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 4,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
@@ -233,7 +234,6 @@
       }
     } ],
     "condition" : null,
-    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -266,7 +266,8 @@
     },
     "description" : "Calc(select=[a, b, c, MOD(HASH_CODE(c), 1024) AS $f5, rowtime])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate",
+    "id" : 5,
+    "type" : "stream-exec-local-window-aggregate_1",
     "grouping" : [ 0, 3 ],
     "aggCalls" : [ {
       "name" : null,
@@ -323,7 +324,6 @@
       "timeAttributeIndex" : 4,
       "isRowtime" : true
     },
-    "id" : 5,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -377,8 +377,8 @@
     },
     "description" : "LocalWindowAggregate(groupBy=[a, $f5], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])], select=[a, $f5, COUNT(*) AS count1$0, SUM(b) AS sum$1, COUNT(distinct$0 c) AS count$2, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
     "id" : 6,
+    "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -433,7 +433,8 @@
     },
     "description" : "Exchange(distribution=[hash[a, $f5]])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalWindowAggregate",
+    "id" : 7,
+    "type" : "stream-exec-global-window-aggregate_1",
     "grouping" : [ 0, 1 ],
     "aggCalls" : [ {
       "name" : null,
@@ -517,7 +518,6 @@
         }
       }
     } ],
-    "id" : 7,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -551,7 +551,8 @@
     "outputType" : "ROW<`a` INT, `$f5` INT, `$f2` BIGINT NOT NULL, `$f3` BIGINT, `$f4` BIGINT NOT NULL, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL>",
     "description" : "GlobalWindowAggregate(groupBy=[a, $f5], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, $f5, COUNT(count1$0) AS $f2, SUM(sum$1) AS $f3, COUNT(distinct$0 count$2) AS $f4, start('w$) AS window_start, end('w$) AS window_end])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 8,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
@@ -582,7 +583,6 @@
       "type" : "BIGINT NOT NULL"
     } ],
     "condition" : null,
-    "id" : 8,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -593,7 +593,8 @@
     "outputType" : "ROW<`a` INT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `$f5` INT, `$f4` BIGINT NOT NULL, `$f5_0` BIGINT, `$f6` BIGINT NOT NULL>",
     "description" : "Calc(select=[a, window_start, window_end, $f5, $f2 AS $f4, $f3 AS $f5_0, $f4 AS $f6])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate",
+    "id" : 9,
+    "type" : "stream-exec-local-window-aggregate_1",
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : null,
@@ -651,7 +652,6 @@
       "windowEnd" : 2,
       "isRowtime" : true
     },
-    "id" : 9,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -662,8 +662,8 @@
     "outputType" : "ROW<`a` INT, `sum$0` BIGINT, `sum$1` BIGINT, `sum$2` BIGINT, `$window_end` BIGINT>",
     "description" : "LocalWindowAggregate(groupBy=[a], window=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], select=[a, $SUM0($f4) AS sum$0, SUM($f5_0) AS sum$1, $SUM0($f6) AS sum$2, slice_end('w$) AS $window_end])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
     "id" : 10,
+    "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -675,7 +675,8 @@
     "outputType" : "ROW<`a` INT, `sum$0` BIGINT, `sum$1` BIGINT, `sum$2` BIGINT, `$window_end` BIGINT>",
     "description" : "Exchange(distribution=[hash[a]])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalWindowAggregate",
+    "id" : 11,
+    "type" : "stream-exec-global-window-aggregate_1",
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : null,
@@ -760,7 +761,6 @@
         }
       }
     } ],
-    "id" : 11,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -772,7 +772,8 @@
     "outputType" : "ROW<`a` INT, `$f1` BIGINT NOT NULL, `$f2` BIGINT, `$f3` BIGINT NOT NULL, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL>",
     "description" : "GlobalWindowAggregate(groupBy=[a], window=[CUMULATE(win_end=[$window_end], max_size=[1 h], step=[10 min])], select=[a, $SUM0(sum$0) AS $f1, SUM(sum$1) AS $f2, $SUM0(sum$2) AS $f3, start('w$) AS window_start, end('w$) AS window_end])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 12,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "REX_CALL",
       "operator" : {
@@ -844,7 +845,6 @@
       "type" : "BIGINT"
     } ],
     "condition" : null,
-    "id" : 12,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -855,7 +855,8 @@
     "outputType" : "ROW<`a` BIGINT, `window_start` TIMESTAMP(3), `window_end` TIMESTAMP(3), `cnt_star` BIGINT, `sum_b` BIGINT, `cnt_distinct_c` BIGINT>",
     "description" : "Calc(select=[CAST(a AS BIGINT) AS a, CAST(window_start AS TIMESTAMP(3)) AS window_start, CAST(window_end AS TIMESTAMP(3)) AS window_end, CAST($f1 AS BIGINT) AS cnt_star, $f2 AS sum_b, CAST($f3 AS BIGINT) AS cnt_distinct_c])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "id" : 13,
+    "type" : "stream-exec-sink_1",
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",
@@ -892,7 +893,6 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 13,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

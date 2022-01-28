@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.codegen.NestedLoopJoinCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
@@ -58,7 +59,12 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
             InputProperty rightInputProperty,
             RowType outputType,
             String description) {
-        super(Arrays.asList(leftInputProperty, rightInputProperty), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecNestedLoopJoin.class),
+                Arrays.asList(leftInputProperty, rightInputProperty),
+                outputType,
+                description);
         this.joinType = checkNotNull(joinType);
         this.condition = checkNotNull(condition);
         this.leftIsBuild = leftIsBuild;

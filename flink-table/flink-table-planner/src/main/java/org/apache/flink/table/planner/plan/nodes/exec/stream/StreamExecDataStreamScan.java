@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -68,7 +69,12 @@ public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
             List<String> qualifiedName,
             RowType outputType,
             String description) {
-        super(Collections.emptyList(), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecDataStreamScan.class),
+                Collections.emptyList(),
+                outputType,
+                description);
         this.dataStream = dataStream;
         this.sourceType = sourceType;
         this.fieldIndexes = fieldIndexes;
