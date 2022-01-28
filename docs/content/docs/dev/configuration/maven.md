@@ -93,16 +93,26 @@ your own dependency versions (which is normally avoided through inverted classlo
 To correctly package the dependencies into the application JAR, these application dependencies must 
 be set to the *compile* scope.
 
-## Shading
+## Packaging the application
 
-In order to create an uber JAR to run the job, do this:
+Depending on your use case, you may need to package your Flink application in different ways before it
+gets deployed to a Flink environment. 
 
+If you want to create a JAR for a Flink Job and use only Flink dependencies without any third-party 
+dependencies (i.e. using the filesystem connector with JSON format), you do not need to create an 
+uber/fat JAR or shade any dependencies.
 
-**Note:** You do not need to shade Flink API dependencies. You only need to do this for connectors,
-formats and third-party dependencies.
+If you want to create a JAR for a Flink Job and use external dependencies not built into the Flink 
+distribution, you can either add them to the classpath of the distribution or shade them into your 
+uber/fat application JAR.
 
+With the generated uber/fat JAR, you can submit it to a local or remote cluster with:
 
-## Template for building a JAR with Dependencies
+```sh
+bin/flink run -c org.example.MyJob myFatJar.jar
+```
+
+## Template for building a JAR with dependencies
 
 To build an application JAR that contains all dependencies required for declared connectors and libraries,
 you can use the following shade plugin definition:
