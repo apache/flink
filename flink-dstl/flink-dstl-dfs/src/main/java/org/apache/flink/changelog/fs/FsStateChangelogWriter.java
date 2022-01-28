@@ -105,6 +105,8 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     /** Current {@link SequenceNumber}. */
     private SequenceNumber activeSequenceNumber = INITIAL_SQN;
 
+    private SequenceNumber lastAppendedSequenceNumber = INITIAL_SQN;
+
     /**
      * {@link SequenceNumber} before which changes will NOT be requested, exclusive. Increased after
      * materialization.
@@ -172,14 +174,17 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
 
     @Override
     public SequenceNumber lastAppendedSequenceNumber() {
-        LOG.trace("query {} sqn: {}", logId, activeSequenceNumber);
-        SequenceNumber tmp = activeSequenceNumber;
         // the returned current sequence number must be able to distinguish between the changes
         // appended before and after this call so we need to use the next sequence number
         // At the same time, we don't want to increment SQN on each append (to avoid too many
         // objects and segments in the resulting file).
         rollover();
-        return tmp;
+        LOG.trace(
+                "query {} sqn, last: {}, active: {}",
+                logId,
+                lastAppendedSequenceNumber,
+                activeSequenceNumber);
+        return lastAppendedSequenceNumber;
     }
 
     @Override
@@ -285,6 +290,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         notUploaded.put(
                 activeSequenceNumber,
                 new StateChangeSet(logId, activeSequenceNumber, activeChangeSet));
+        lastAppendedSequenceNumber = activeSequenceNumber;
         activeSequenceNumber = activeSequenceNumber.next();
         LOG.debug("bump active sqn to {}", activeSequenceNumber);
         activeChangeSet = new ArrayList<>();
