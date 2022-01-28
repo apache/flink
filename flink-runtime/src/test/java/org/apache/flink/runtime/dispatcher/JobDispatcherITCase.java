@@ -29,6 +29,7 @@ import org.apache.flink.runtime.dispatcher.runner.JobDispatcherLeaderProcessFact
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
@@ -47,12 +48,12 @@ import org.apache.flink.runtime.scheduler.adaptive.AdaptiveSchedulerClusterITCas
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -60,7 +61,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.function.Supplier;
 
 import static java.nio.file.StandardOpenOption.CREATE;
@@ -68,11 +71,10 @@ import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetrieve
 import static org.junit.Assert.assertNotNull;
 
 /** An integration test which recovers from checkpoint after regaining the leadership. */
-public class JobDispatcherITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class JobDispatcherITCase {
 
     private static final Duration TIMEOUT = Duration.ofMinutes(10);
-
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
     private Supplier<DispatcherResourceManagerComponentFactory>
             createJobModeDispatcherResourceManagerComponentFactorySupplier(
@@ -92,7 +94,8 @@ public class JobDispatcherITCase extends TestLogger {
     }
 
     @Test
-    public void testRecoverFromCheckpointAfterLosingAndRegainingLeadership() throws Exception {
+    public void testRecoverFromCheckpointAfterLosingAndRegainingLeadership(@TempDir Path tmpPath)
+            throws Exception {
         final Deadline deadline = Deadline.fromNow(TIMEOUT);
         final Configuration configuration = new Configuration();
         configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
@@ -103,9 +106,11 @@ public class JobDispatcherITCase extends TestLogger {
         final EmbeddedHaServicesWithLeadershipControl haServices =
                 new EmbeddedHaServicesWithLeadershipControl(TestingUtils.defaultExecutor());
 
-        Configuration newConfiguration = new Configuration(clusterConfiguration.getConfiguration());
-        long checkpointInterval = 500;
-        JobID jobID = generateJobGraph(newConfiguration, checkpointInterval);
+        final Configuration newConfiguration =
+                new Configuration(clusterConfiguration.getConfiguration());
+        final long checkpointInterval = 100;
+        final JobID jobID =
+                generateAndPersistJobGraph(newConfiguration, checkpointInterval, tmpPath);
 
         final TestingMiniCluster.Builder clusterBuilder =
                 TestingMiniCluster.newBuilder(clusterConfiguration)
@@ -113,18 +118,13 @@ public class JobDispatcherITCase extends TestLogger {
                         .setDispatcherResourceManagerComponentFactorySupplier(
                                 createJobModeDispatcherResourceManagerComponentFactorySupplier(
                                         newConfiguration));
+        AtLeastOneCheckpointInvokable.reset();
 
         try (final MiniCluster cluster = clusterBuilder.build()) {
             // start mini cluster and submit the job
             cluster.start();
 
-            // wait until job is running
-            awaitJobStatus(cluster, jobID, JobStatus.RUNNING, deadline);
-            CommonTestUtils.waitForAllTaskRunning(cluster, jobID, false);
-            CommonTestUtils.waitUntilCondition(
-                    () -> queryCompletedCheckpoints(cluster, jobID) > 0L,
-                    Deadline.fromNow(Duration.ofSeconds(30)),
-                    checkpointInterval / 2);
+            AtLeastOneCheckpointInvokable.atLeastOneCheckpointCompleted.await();
 
             final CompletableFuture<JobResult> firstJobResult = cluster.requestJobResult(jobID);
             haServices.revokeDispatcherLeadership();
@@ -142,19 +142,13 @@ public class JobDispatcherITCase extends TestLogger {
                             .get()
                             .getCheckpointStatsSnapshot()
                             .getLatestRestoredCheckpoint());
-
-            cluster.cancelJob(jobID);
-
-            // the cluster should shut down automatically once the application completes
-            CommonTestUtils.waitUntilCondition(() -> !cluster.isRunning(), deadline);
         }
     }
 
-    private JobID generateJobGraph(Configuration configuration, long checkpointInterval)
-            throws Exception {
+    private JobID generateAndPersistJobGraph(
+            Configuration configuration, long checkpointInterval, Path tmpPath) throws Exception {
         final JobVertex jobVertex = new JobVertex("jobVertex");
-        jobVertex.setInvokableClass(
-                AdaptiveSchedulerClusterITCase.CheckpointingNoOpInvokable.class);
+        jobVertex.setInvokableClass(AtLeastOneCheckpointInvokable.class);
         jobVertex.setParallelism(1);
 
         final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
@@ -163,30 +157,19 @@ public class JobDispatcherITCase extends TestLogger {
                         .build();
         final JobCheckpointingSettings checkpointingSettings =
                 new JobCheckpointingSettings(checkpointCoordinatorConfiguration, null);
-        JobGraph jobGraph =
+        final JobGraph jobGraph =
                 JobGraphBuilder.newStreamingJobGraphBuilder()
                         .addJobVertex(jobVertex)
                         .setJobCheckpointingSettings(checkpointingSettings)
                         .build();
 
-        final Path jobGraphPath =
-                TEMPORARY_FOLDER.newFile(JOB_GRAPH_FILE_PATH.defaultValue()).toPath();
+        final Path jobGraphPath = tmpPath.resolve(JOB_GRAPH_FILE_PATH.defaultValue());
         try (ObjectOutputStream objectOutputStream =
                 new ObjectOutputStream(Files.newOutputStream(jobGraphPath, CREATE))) {
             objectOutputStream.writeObject(jobGraph);
         }
         configuration.setString(JOB_GRAPH_FILE_PATH.key(), jobGraphPath.toString());
         return jobGraph.getJobID();
-    }
-
-    private long queryCompletedCheckpoints(MiniCluster miniCluster, JobID jobID)
-            throws InterruptedException, ExecutionException {
-        return miniCluster
-                .getArchivedExecutionGraph(jobID)
-                .get()
-                .getCheckpointStatsSnapshot()
-                .getCounts()
-                .getNumberOfCompletedCheckpoints();
     }
 
     private static void awaitJobStatus(
@@ -206,5 +189,29 @@ public class JobDispatcherITCase extends TestLogger {
                     }
                 },
                 deadline);
+    }
+
+    /**
+     * An invokable that supports checkpointing and counts down when there is at least one
+     * checkpoint.
+     */
+    public static class AtLeastOneCheckpointInvokable
+            extends AdaptiveSchedulerClusterITCase.CheckpointingNoOpInvokable {
+
+        private static volatile CountDownLatch atLeastOneCheckpointCompleted;
+
+        private static void reset() {
+            atLeastOneCheckpointCompleted = new CountDownLatch(1);
+        }
+
+        public AtLeastOneCheckpointInvokable(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
+            atLeastOneCheckpointCompleted.countDown();
+            return CompletableFuture.completedFuture(null);
+        }
     }
 }
