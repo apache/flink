@@ -31,7 +31,6 @@ import org.apache.flink.table.utils.PartitionPathUtils;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.BufferedReader;
@@ -60,7 +59,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 /** IT Case for testing managed table compaction. */
-@Ignore("FLINK-25726: This test requires using a GlobalCommitter")
 public class CompactManagedTableITCase extends BatchTestBase {
 
     private final ObjectIdentifier tableIdentifier =
