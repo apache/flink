@@ -21,6 +21,7 @@ package org.apache.flink.table.functions.hive;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.functions.FunctionContext;
@@ -128,6 +129,15 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
     @Override
     public void setArgumentTypesAndConstants(Object[] constantArguments, DataType[] argTypes) {
         this.constantArguments = constantArguments;
+        // we always use string type for string constant arg because that's what hive UDFs
+        // expect.
+        // it may happen that the type is char when call the function
+        // in Flink SQL for calcite treat string literal as char type.
+        for (int i = 0; i < constantArguments.length; i++) {
+            if (constantArguments[i] instanceof String) {
+                argTypes[i] = DataTypes.STRING();
+            }
+        }
         this.argTypes = argTypes;
     }
 

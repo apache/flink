@@ -263,6 +263,8 @@ public class TableEnvHiveConnectorITCase {
             tableEnv.executeSql("create table db1.nested (a array<map<int, string>>)");
             tableEnv.executeSql(
                     "create function hiveudtf as 'org.apache.hadoop.hive.ql.udf.generic.GenericUDTFExplode'");
+            tableEnv.executeSql(
+                    "create function json_tuple as 'org.apache.hadoop.hive.ql.udf.generic.GenericUDTFJSONTuple'");
             HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "simple")
                     .addRow(new Object[] {3, Arrays.asList(1, 2, 3)})
                     .commit();
@@ -289,6 +291,15 @@ public class TableEnvHiveConnectorITCase {
                                     .execute()
                                     .collect());
             assertEquals("[+I[{1=a, 2=b}], +I[{3=c}]]", results.toString());
+
+            results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.sqlQuery(
+                                            "select foo.i, b.role_id from db1.simple foo,"
+                                                    + " lateral table(json_tuple('{\"a\": \"0\", \"b\": \"1\"}', 'a')) as b(role_id)")
+                                    .execute()
+                                    .collect());
+            assertEquals("[+I[3, 0]]", results.toString());
 
             tableEnv.executeSql("create table db1.ts (a array<timestamp>)");
             HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "ts")
