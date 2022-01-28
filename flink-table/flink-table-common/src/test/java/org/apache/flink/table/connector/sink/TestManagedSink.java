@@ -34,7 +34,8 @@ import java.util.List;
 import java.util.Optional;
 
 /** Managed {@link Sink} for testing compaction. */
-public class TestManagedSink implements Sink<RowData, TestManagedCommittable, Void, Void> {
+public class TestManagedSink
+        implements Sink<RowData, TestManagedCommittable, Void, TestManagedCommittable> {
 
     private static final long serialVersionUID = 1L;
 
@@ -54,7 +55,7 @@ public class TestManagedSink implements Sink<RowData, TestManagedCommittable, Vo
 
     @Override
     public Optional<Committer<TestManagedCommittable>> createCommitter() {
-        return Optional.of(new TestManagedSinkCommitter(tableIdentifier, basePath));
+        return Optional.empty();
     }
 
     @Override
@@ -68,13 +69,15 @@ public class TestManagedSink implements Sink<RowData, TestManagedCommittable, Vo
     }
 
     @Override
-    public Optional<GlobalCommitter<TestManagedCommittable, Void>> createGlobalCommitter() {
-        return Optional.empty();
+    public Optional<GlobalCommitter<TestManagedCommittable, TestManagedCommittable>>
+            createGlobalCommitter() {
+        return Optional.of(new TestManagedSinkCommitter(tableIdentifier, basePath));
     }
 
     @Override
-    public Optional<SimpleVersionedSerializer<Void>> getGlobalCommittableSerializer() {
-        return Optional.empty();
+    public Optional<SimpleVersionedSerializer<TestManagedCommittable>>
+            getGlobalCommittableSerializer() {
+        return Optional.of(new TestManagedSinkCommittableSerializer());
     }
 
     @Override
