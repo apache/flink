@@ -1843,7 +1843,7 @@ components:
       type: string
     CheckpointStatistics:
       required:
-      - '@class'
+      - className
       type: object
       properties:
         id:
@@ -1894,10 +1894,10 @@ components:
           type: object
           additionalProperties:
             $ref: '#/components/schemas/TaskCheckpointStatistics'
-        '@class':
+        className:
           type: string
       discriminator:
-        propertyName: '@class'
+        propertyName: className
     JobConfigInfo:
       type: object
       properties:
@@ -2136,7 +2136,7 @@ components:
           type: string
     SubtaskCheckpointStatistics:
       required:
-      - '@class'
+      - className
       type: object
       properties:
         index:
@@ -2144,10 +2144,10 @@ components:
           format: int32
         status:
           type: string
-        '@class':
+        className:
           type: string
       discriminator:
-        propertyName: '@class'
+        propertyName: className
     CompletedSubtaskCheckpointStatistics:
       type: object
       allOf:

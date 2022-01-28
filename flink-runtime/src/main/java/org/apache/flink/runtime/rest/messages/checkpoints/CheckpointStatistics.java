@@ -47,7 +47,10 @@ import java.util.Map;
 import java.util.Objects;
 
 /** Statistics for a checkpoint. */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "@class")
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        include = JsonTypeInfo.As.PROPERTY,
+        property = "className")
 @JsonSubTypes({
     @JsonSubTypes.Type(
             value = CheckpointStatistics.CompletedCheckpointStatistics.class,

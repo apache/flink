@@ -26,7 +26,10 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 import java.util.Objects;
 
 /** Checkpoint statistics for a subtask. */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "@class")
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        include = JsonTypeInfo.As.PROPERTY,
+        property = "className")
 @JsonSubTypes({
     @JsonSubTypes.Type(
             value = SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics.class,
