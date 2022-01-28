@@ -148,9 +148,6 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
         this.maxRequestedBuffers =
                 Math.max(2 * bufferPool.getNumBuffersPerRequest(), numSubpartitions);
         this.bufferRequestTimeout = checkNotNull(bufferRequestTimeout);
-
-        // initialize the buffer pool eagerly to avoid reporting errors like OOM too late
-        bufferPool.initialize();
     }
 
     @Override

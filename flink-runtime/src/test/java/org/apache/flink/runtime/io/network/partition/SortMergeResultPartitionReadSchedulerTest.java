@@ -158,6 +158,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
 
     @Test(expected = IllegalStateException.class)
     public void testCreateSubpartitionReaderAfterReleased() throws Exception {
+        bufferPool.initialize();
         readScheduler.release();
         try {
             readScheduler.createSubpartitionReader(
