@@ -704,8 +704,12 @@ public class Execution
     }
 
     private void updatePartitionConsumers(final IntermediateResultPartition partition) {
-        final ConsumerVertexGroup consumerVertexGroup = partition.getConsumerVertexGroup();
-        for (ExecutionVertexID consumerVertexId : consumerVertexGroup) {
+        final Optional<ConsumerVertexGroup> consumerVertexGroup =
+                partition.getConsumerVertexGroupOptional();
+        if (!consumerVertexGroup.isPresent()) {
+            return;
+        }
+        for (ExecutionVertexID consumerVertexId : consumerVertexGroup.get()) {
             final ExecutionVertex consumerVertex =
                     vertex.getExecutionGraphAccessor().getExecutionVertexOrThrow(consumerVertexId);
             final Execution consumer = consumerVertex.getCurrentExecutionAttempt();

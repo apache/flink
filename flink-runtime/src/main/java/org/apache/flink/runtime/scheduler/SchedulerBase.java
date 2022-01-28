@@ -152,7 +152,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     private final ExecutionGraphHandler executionGraphHandler;
 
-    private final OperatorCoordinatorHandler operatorCoordinatorHandler;
+    protected final OperatorCoordinatorHandler operatorCoordinatorHandler;
 
     private final ComponentMainThreadExecutor mainThreadExecutor;
 

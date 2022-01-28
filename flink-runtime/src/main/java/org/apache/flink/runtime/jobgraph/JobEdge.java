@@ -57,6 +57,8 @@ public class JobEdge implements java.io.Serializable {
 
     private boolean isBroadcast;
 
+    private boolean isForward;
+
     /**
      * Optional name for the pre-processing operation (sort, combining sort, ...), to be displayed
      * in the JSON plan.
@@ -174,6 +176,16 @@ public class JobEdge implements java.io.Serializable {
     /** Sets whether the edge is broadcast edge. */
     public void setBroadcast(boolean broadcast) {
         isBroadcast = broadcast;
+    }
+
+    /** Gets whether the edge is forward edge. */
+    public boolean isForward() {
+        return isForward;
+    }
+
+    /** Sets whether the edge is forward edge. */
+    public void setForward(boolean forward) {
+        isForward = forward;
     }
 
     /**

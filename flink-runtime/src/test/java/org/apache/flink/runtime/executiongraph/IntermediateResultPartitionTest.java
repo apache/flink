@@ -29,6 +29,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
+import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
@@ -270,7 +271,7 @@ public class IntermediateResultPartitionTest extends TestLogger {
     public static VertexParallelismStore computeVertexParallelismStoreConsideringDynamicGraph(
             Iterable<JobVertex> vertices, boolean isDynamicGraph, int defaultMaxParallelism) {
         if (isDynamicGraph) {
-            return ExecutionJobVertexTest.computeVertexParallelismStoreForDynamicGraph(
+            return AdaptiveBatchScheduler.computeVertexParallelismStoreForDynamicGraph(
                     vertices, defaultMaxParallelism);
         } else {
             return SchedulerBase.computeVertexParallelismStore(vertices);
