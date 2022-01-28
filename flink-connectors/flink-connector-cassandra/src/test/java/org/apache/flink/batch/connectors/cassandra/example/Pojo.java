@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.cassandra;
+package org.apache.flink.batch.connectors.cassandra.example;
 
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
 
 import java.io.Serializable;
 
-/** Test Pojo with DataStax annotations used (no keyspace). */
-@Table(name = "testPojoNoAnnotatedKeyspace")
-public class PojoNoAnnotatedKeyspace implements Serializable {
+/** Test Pojo with DataStax annotations used. */
+@Table(keyspace = "flink", name = "batches")
+public class Pojo implements Serializable {
 
     private static final long serialVersionUID = 1038054554690916991L;
 
@@ -37,7 +37,10 @@ public class PojoNoAnnotatedKeyspace implements Serializable {
     @Column(name = "batch_id")
     private int batchID;
 
-    public PojoNoAnnotatedKeyspace(String id, int counter, int batchID) {
+    // required for deserialization
+    public Pojo() {}
+
+    public Pojo(String id, int counter, int batchID) {
         this.id = id;
         this.counter = counter;
         this.batchID = batchID;
