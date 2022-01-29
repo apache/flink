@@ -18,14 +18,57 @@
 
 package org.apache.flink.table.module;
 
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
+
 import org.junit.Test;
 
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 /** Test for {@link CoreModule}. */
 public class CoreModuleTest {
+
+    @Test
+    public void testListFunctions() {
+        assertThat(CoreModule.INSTANCE.listFunctions(false))
+                .contains("IFNULL")
+                .doesNotContain("$REPLICATE_ROWS$1");
+
+        assertThat(CoreModule.INSTANCE.listFunctions(true))
+                .contains("IFNULL")
+                .contains("$REPLICATE_ROWS$1");
+    }
+
     @Test
     public void testGetNonExistFunction() {
-        assertFalse(CoreModule.INSTANCE.getFunctionDefinition("nonexist").isPresent());
+        assertThat(CoreModule.INSTANCE.getFunctionDefinition("nonexist")).isEmpty();
+    }
+
+    @Test
+    public void testGetFunction() {
+        assertThat(CoreModule.INSTANCE.getFunctionDefinition("CAST"))
+                .hasValueSatisfying(
+                        def ->
+                                assertThat(def)
+                                        .asInstanceOf(type(BuiltInFunctionDefinition.class))
+                                        .extracting(BuiltInFunctionDefinition::getQualifiedName)
+                                        .isEqualTo("$CAST$1"));
+    }
+
+    @Test
+    public void testGetInternalFunction() {
+        assertThat(CoreModule.INSTANCE.getFunctionDefinition("$REPLICATE_ROWS$1"))
+                .hasValueSatisfying(
+                        def ->
+                                assertThat(def)
+                                        .asInstanceOf(type(BuiltInFunctionDefinition.class))
+                                        .satisfies(
+                                                builtInDef ->
+                                                        assertThat(builtInDef.isInternal())
+                                                                .isTrue())
+                                        .satisfies(
+                                                builtInDef ->
+                                                        assertThat(builtInDef.getQualifiedName())
+                                                                .isEqualTo("$REPLICATE_ROWS$1")));
     }
 }

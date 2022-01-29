@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.testutils.migration.MigrationVersion;
+import org.apache.flink.FlinkVersion;
 
 import org.junit.Ignore;
 import org.junit.runners.Parameterized;
@@ -31,25 +31,22 @@ import java.util.Collection;
  * by {@link FlinkKafkaProducer011MigrationTest#writeSnapshot()}.
  *
  * <p>Warning: We need to rename the generated resource based on the file naming pattern specified
- * by the {@link #getOperatorSnapshotPath(MigrationVersion)} method then copy the resource to the
- * path also specified by the {@link #getOperatorSnapshotPath(MigrationVersion)} method.
+ * by the {@link #getOperatorSnapshotPath(FlinkVersion)} method then copy the resource to the path
+ * also specified by the {@link #getOperatorSnapshotPath(FlinkVersion)} method.
  */
 public class FlinkKafkaProducerMigrationOperatorTest extends FlinkKafkaProducerMigrationTest {
     @Parameterized.Parameters(name = "Migration Savepoint: {0}")
-    public static Collection<MigrationVersion> parameters() {
+    public static Collection<FlinkVersion> parameters() {
         return Arrays.asList(
-                MigrationVersion.v1_8,
-                MigrationVersion.v1_9,
-                MigrationVersion.v1_10,
-                MigrationVersion.v1_11);
+                FlinkVersion.v1_8, FlinkVersion.v1_9, FlinkVersion.v1_10, FlinkVersion.v1_11);
     }
 
-    public FlinkKafkaProducerMigrationOperatorTest(MigrationVersion testMigrateVersion) {
+    public FlinkKafkaProducerMigrationOperatorTest(FlinkVersion testMigrateVersion) {
         super(testMigrateVersion);
     }
 
     @Override
-    public String getOperatorSnapshotPath(MigrationVersion version) {
+    public String getOperatorSnapshotPath(FlinkVersion version) {
         return "src/test/resources/kafka-0.11-migration-kafka-producer-flink-"
                 + version
                 + "-snapshot";

@@ -19,15 +19,24 @@
 package org.apache.flink.table.connector;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.FieldsDataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 
 /**
  * {@link Projection} represents a list of (possibly nested) indexes that can be used to project
@@ -39,8 +48,24 @@ public abstract class Projection {
     // sealed class
     private Projection() {}
 
-    /** Project the provided {@link DataType} using this {@link Projection}. */
+    /**
+     * Projects a (possibly nested) row data type by returning a new data type that only includes
+     * fields of the given index paths.
+     *
+     * <p>When extracting nested fields, the name of the resulting fields is the full path of the
+     * field separated by {@code _}. For example, the field {@code b} inside the row field {@code a}
+     * of the root {@link DataType} is named {@code a_b} in the result {@link DataType}. In case of
+     * naming conflicts the postfix notation '_$%d' is used, where {@code %d} is an arbitrary
+     * number, in order to generate a unique field name. For example if the root {@link DataType}
+     * includes both a field {@code a_b} and a nested row {@code a} with field {@code b}, the result
+     * {@link DataType} will contain one field named {@code a_b} and the other named {@code a_b_1}.
+     */
     public abstract DataType project(DataType dataType);
+
+    /** Same as {@link #project(DataType)}, but accepting and returning {@link LogicalType}. */
+    public LogicalType project(LogicalType logicalType) {
+        return this.project(DataTypes.of(logicalType)).getLogicalType();
+    }
 
     /** @return {@code true} whether this projection is nested or not. */
     public abstract boolean isNested();
@@ -149,6 +174,11 @@ public abstract class Projection {
                 IntStream.range(0, DataType.getFieldCount(dataType)).toArray());
     }
 
+    /** Create a {@link Projection} of a field range. */
+    public static Projection range(int startInclusive, int endExclusive) {
+        return new TopLevelProjection(IntStream.range(startInclusive, endExclusive).toArray());
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -188,7 +218,7 @@ public abstract class Projection {
 
         @Override
         public DataType project(DataType dataType) {
-            return DataType.projectFields(dataType, toTopLevelIndexes());
+            return new NestedProjection(toNestedIndexes()).project(dataType);
         }
 
         @Override
@@ -229,7 +259,38 @@ public abstract class Projection {
 
         @Override
         public DataType project(DataType dataType) {
-            return DataType.projectFields(dataType, projection);
+            final List<RowType.RowField> updatedFields = new ArrayList<>();
+            final List<DataType> updatedChildren = new ArrayList<>();
+            Set<String> nameDomain = new HashSet<>();
+            int duplicateCount = 0;
+            for (int[] indexPath : this.projection) {
+                DataType fieldType = dataType.getChildren().get(indexPath[0]);
+                LogicalType fieldLogicalType = fieldType.getLogicalType();
+                StringBuilder builder =
+                        new StringBuilder(
+                                ((RowType) dataType.getLogicalType())
+                                        .getFieldNames()
+                                        .get(indexPath[0]));
+                for (int index = 1; index < indexPath.length; index++) {
+                    Preconditions.checkArgument(
+                            fieldLogicalType.is(ROW), "Row data type expected.");
+                    RowType rowtype = ((RowType) fieldLogicalType);
+                    builder.append("_").append(rowtype.getFieldNames().get(indexPath[index]));
+                    fieldLogicalType = rowtype.getFields().get(indexPath[index]).getType();
+                    fieldType = fieldType.getChildren().get(indexPath[index]);
+                }
+                String path = builder.toString();
+                while (nameDomain.contains(path)) {
+                    path = builder.append("_$").append(duplicateCount++).toString();
+                }
+                updatedFields.add(new RowType.RowField(path, fieldLogicalType));
+                updatedChildren.add(fieldType);
+                nameDomain.add(path);
+            }
+            return new FieldsDataType(
+                    new RowType(dataType.getLogicalType().isNullable(), updatedFields),
+                    dataType.getConversionClass(),
+                    updatedChildren);
         }
 
         @Override
@@ -314,7 +375,7 @@ public abstract class Projection {
 
         @Override
         public DataType project(DataType dataType) {
-            return DataType.projectFields(dataType, this.projection);
+            return new NestedProjection(toNestedIndexes()).project(dataType);
         }
 
         @Override

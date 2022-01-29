@@ -20,16 +20,22 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.utils.CastExecutor;
+import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.NullType;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 /** This class resolves {@link CastRule} using the input and the target type. */
 @Internal
@@ -46,6 +52,9 @@ public class CastRuleProvider {
                 .addRule(NumericPrimitiveToDecimalCastRule.INSTANCE)
                 .addRule(DecimalToNumericPrimitiveCastRule.INSTANCE)
                 .addRule(NumericPrimitiveCastRule.INSTANCE)
+                // Boolean <-> numeric rules
+                .addRule(BooleanToNumericCastRule.INSTANCE)
+                .addRule(NumericToBooleanCastRule.INSTANCE)
                 // To string rules
                 .addRule(NumericToStringCastRule.INSTANCE)
                 .addRule(BooleanToStringCastRule.INSTANCE)
@@ -56,6 +65,7 @@ public class CastRuleProvider {
                 .addRule(IntervalToStringCastRule.INSTANCE)
                 .addRule(ArrayToStringCastRule.INSTANCE)
                 .addRule(MapAndMultisetToStringCastRule.INSTANCE)
+                .addRule(StructuredToStringCastRule.INSTANCE)
                 .addRule(RowToStringCastRule.INSTANCE)
                 .addRule(RawToStringCastRule.INSTANCE)
                 // From string rules
@@ -66,9 +76,16 @@ public class CastRuleProvider {
                 .addRule(StringToTimeCastRule.INSTANCE)
                 .addRule(StringToTimestampCastRule.INSTANCE)
                 .addRule(StringToBinaryCastRule.INSTANCE)
+                // To binary rules
+                .addRule(BinaryToBinaryCastRule.INSTANCE)
+                .addRule(RawToBinaryCastRule.INSTANCE)
                 // Collection rules
                 .addRule(ArrayToArrayCastRule.INSTANCE)
+                .addRule(MapToMapAndMultisetToMultisetCastRule.INSTANCE)
+                .addRule(RowToRowCastRule.INSTANCE)
                 // Special rules
+                .addRule(CharVarCharTrimPadCastRule.INSTANCE)
+                .addRule(NullToStringCastRule.INSTANCE)
                 .addRule(IdentityCastRule.INSTANCE);
     }
 
@@ -129,6 +146,25 @@ public class CastRuleProvider {
                         context, inputTerm, inputIsNullTerm, inputLogicalType, targetLogicalType);
     }
 
+    /**
+     * This method wraps {@link #generateCodeBlock(CodeGeneratorCastRule.Context, String, String,
+     * LogicalType, LogicalType)}, but adding the assumption that the inputTerm is always non-null.
+     * Used by {@link CodeGeneratorCastRule}s which checks for nullability, rather than deferring
+     * the check to the rules.
+     */
+    static @Nullable CastCodeBlock generateAlwaysNonNullCodeBlock(
+            CodeGeneratorCastRule.Context context,
+            String inputTerm,
+            LogicalType inputLogicalType,
+            LogicalType targetLogicalType) {
+        if (inputLogicalType instanceof NullType) {
+            return generateCodeBlock(
+                    context, inputTerm, "true", inputLogicalType, targetLogicalType);
+        }
+        return generateCodeBlock(
+                context, inputTerm, "false", inputLogicalType.copy(false), targetLogicalType);
+    }
+
     /* ------ Implementation ------ */
 
     // Map<Target family or root, Map<Input family or root, rule>>
@@ -138,10 +174,20 @@ public class CastRuleProvider {
     private CastRuleProvider addRule(CastRule<?, ?> rule) {
         CastRulePredicate predicate = rule.getPredicateDefinition();
 
-        for (LogicalTypeRoot targetTypeRoot : predicate.getTargetTypes()) {
+        for (LogicalType targetType : predicate.getTargetTypes()) {
+            final Map<Object, CastRule<?, ?>> map =
+                    rules.computeIfAbsent(targetType, k -> new HashMap<>());
+            for (LogicalTypeRoot inputTypeRoot : predicate.getInputTypeRoots()) {
+                map.put(inputTypeRoot, rule);
+            }
+            for (LogicalTypeFamily inputTypeFamily : predicate.getInputTypeFamilies()) {
+                map.put(inputTypeFamily, rule);
+            }
+        }
+        for (LogicalTypeRoot targetTypeRoot : predicate.getTargetTypeRoots()) {
             final Map<Object, CastRule<?, ?>> map =
                     rules.computeIfAbsent(targetTypeRoot, k -> new HashMap<>());
-            for (LogicalTypeRoot inputTypeRoot : predicate.getInputTypes()) {
+            for (LogicalTypeRoot inputTypeRoot : predicate.getInputTypeRoots()) {
                 map.put(inputTypeRoot, rule);
             }
             for (LogicalTypeFamily inputTypeFamily : predicate.getInputTypeFamilies()) {
@@ -151,7 +197,7 @@ public class CastRuleProvider {
         for (LogicalTypeFamily targetTypeFamily : predicate.getTargetTypeFamilies()) {
             final Map<Object, CastRule<?, ?>> map =
                     rules.computeIfAbsent(targetTypeFamily, k -> new HashMap<>());
-            for (LogicalTypeRoot inputTypeRoot : predicate.getInputTypes()) {
+            for (LogicalTypeRoot inputTypeRoot : predicate.getInputTypeRoots()) {
                 map.put(inputTypeRoot, rule);
             }
             for (LogicalTypeFamily inputTypeFamily : predicate.getInputTypeFamilies()) {
@@ -166,48 +212,56 @@ public class CastRuleProvider {
         return this;
     }
 
-    private CastRule<?, ?> internalResolve(LogicalType inputType, LogicalType targetType) {
+    private CastRule<?, ?> internalResolve(LogicalType input, LogicalType target) {
+        LogicalType inputType = unwrapDistinct(input);
+        LogicalType targetType = unwrapDistinct(target);
+
+        final Iterator<Object> targetTypeRootFamilyIterator =
+                Stream.<Object>concat(
+                                Stream.of(targetType),
+                                Stream.<Object>concat(
+                                        Stream.of(targetType.getTypeRoot()),
+                                        targetType.getTypeRoot().getFamilies().stream()))
+                        .iterator();
+
         // Try lookup by target type root/type families
-        final Map<Object, CastRule<?, ?>> inputTypeToCastRuleMap =
-                lookupTypeInMap(rules, targetType.getTypeRoot());
-        CastRule<?, ?> rule;
-        if (inputTypeToCastRuleMap != null) {
+        while (targetTypeRootFamilyIterator.hasNext()) {
+            final Object targetMapKey = targetTypeRootFamilyIterator.next();
+            final Map<Object, CastRule<?, ?>> inputTypeToCastRuleMap = rules.get(targetMapKey);
+
+            if (inputTypeToCastRuleMap == null) {
+                continue;
+            }
+
             // Try lookup by input type root/type families
-            rule = lookupTypeInMap(inputTypeToCastRuleMap, inputType.getTypeRoot());
-            if (rule != null) {
-                return rule;
+            Optional<? extends CastRule<?, ?>> rule =
+                    Stream.<Object>concat(
+                                    Stream.of(inputType.getTypeRoot()),
+                                    inputType.getTypeRoot().getFamilies().stream())
+                            .map(inputTypeToCastRuleMap::get)
+                            .filter(Objects::nonNull)
+                            .findFirst();
+
+            if (rule.isPresent()) {
+                return rule.get();
             }
         }
 
         // Try with the custom predicate rules
-        rule =
-                rulesWithCustomPredicate.stream()
-                        .filter(
-                                r ->
-                                        r.getPredicateDefinition()
-                                                .getCustomPredicate()
-                                                .test(inputType, targetType))
-                        .findFirst()
-                        .orElse(null);
-
-        return rule;
+        return rulesWithCustomPredicate.stream()
+                .filter(
+                        r ->
+                                r.getPredicateDefinition()
+                                        .getCustomPredicate()
+                                        .test(inputType, targetType))
+                .findFirst()
+                .orElse(null);
     }
 
-    /**
-     * Function that performs a map lookup first based on the type root, then on any of its
-     * families.
-     */
-    private static <T> T lookupTypeInMap(Map<Object, T> map, LogicalTypeRoot type) {
-        T out = map.get(type);
-        if (out == null) {
-            /* lookup by any family matching */
-            for (LogicalTypeFamily family : type.getFamilies()) {
-                out = map.get(family);
-                if (out != null) {
-                    return out;
-                }
-            }
+    private LogicalType unwrapDistinct(LogicalType logicalType) {
+        if (logicalType.is(LogicalTypeRoot.DISTINCT_TYPE)) {
+            return unwrapDistinct(((DistinctType) logicalType).getSourceType());
         }
-        return out;
+        return logicalType;
     }
 }

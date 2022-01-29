@@ -189,7 +189,7 @@ public final class DataTypes {
     public static UnresolvedDataType of(TypeInformation<?> typeInfo) {
         Preconditions.checkNotNull(typeInfo, "Type information must not be null.");
         return new UnresolvedDataType(
-                () -> String.format("'%s'", typeInfo.toString()),
+                () -> String.format("'%s'", typeInfo),
                 (factory) -> factory.createDataType(typeInfo));
     }
 

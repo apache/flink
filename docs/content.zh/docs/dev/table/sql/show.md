@@ -603,7 +603,7 @@ show columns from orders like '%r';
 1 row in set
 ```
 
-- 显示指定表中相不相似于指定 SQL 正则式的所有列。
+- 显示指定表中不相似于指定 SQL 正则式的所有列。
 
 ```sql
 show columns from orders not like '%_r';

@@ -49,11 +49,13 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.WatermarkSpec;
@@ -80,8 +82,6 @@ import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleEntry;
 import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.operations.CatalogQueryOperation;
-import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
@@ -102,6 +102,9 @@ import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
+import org.apache.flink.table.operations.SinkModifyOperation;
+import org.apache.flink.table.operations.SourceQueryOperation;
+import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
@@ -225,7 +228,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             try {
                                 UnresolvedIdentifier unresolvedIdentifier =
                                         getParser().parseIdentifier(path);
-                                Optional<CatalogQueryOperation> catalogQueryOperation =
+                                Optional<SourceQueryOperation> catalogQueryOperation =
                                         scanInternal(unresolvedIdentifier);
                                 return catalogQueryOperation.map(
                                         t -> ApiExpressionUtils.tableRef(path, t));
@@ -463,12 +466,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         Preconditions.checkNotNull(path, "Path must not be null.");
         Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
 
-        createTemporaryTableInternal(getParser().parseIdentifier(path), descriptor);
-    }
-
-    private void createTemporaryTableInternal(
-            UnresolvedIdentifier path, TableDescriptor descriptor) {
-        final ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(path);
+        final ObjectIdentifier tableIdentifier =
+                catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
         catalogManager.createTemporaryTable(descriptor.toCatalogTable(), tableIdentifier, false);
     }
 
@@ -538,9 +537,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     public Table from(TableDescriptor descriptor) {
         Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
 
-        final String path = TableDescriptorUtil.getUniqueAnonymousPath();
-        createTemporaryTableInternal(UnresolvedIdentifier.of(path), descriptor);
-        return from(path);
+        final ResolvedCatalogTable resolvedCatalogBaseTable =
+                catalogManager.resolveCatalogTable(descriptor.toCatalogTable());
+        final QueryOperation queryOperation =
+                new SourceQueryOperation(ContextResolvedTable.anonymous(resolvedCatalogBaseTable));
+        return createTable(queryOperation);
     }
 
     @Override
@@ -561,20 +562,20 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private void insertIntoInternal(UnresolvedIdentifier unresolvedIdentifier, Table table) {
         ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
+        ContextResolvedTable contextResolvedTable =
+                catalogManager.getTableOrError(objectIdentifier);
+
         List<ModifyOperation> modifyOperations =
                 Collections.singletonList(
-                        new CatalogSinkModifyOperation(
-                                objectIdentifier, table.getQueryOperation()));
+                        new SinkModifyOperation(contextResolvedTable, table.getQueryOperation()));
 
         buffer(modifyOperations);
     }
 
-    private Optional<CatalogQueryOperation> scanInternal(UnresolvedIdentifier identifier) {
+    private Optional<SourceQueryOperation> scanInternal(UnresolvedIdentifier identifier) {
         ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(identifier);
 
-        return catalogManager
-                .getTable(tableIdentifier)
-                .map(t -> new CatalogQueryOperation(tableIdentifier, t.getResolvedSchema()));
+        return catalogManager.getTable(tableIdentifier).map(SourceQueryOperation::new);
     }
 
     @Override
@@ -688,6 +689,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     "Unsupported SQL query! explainSql() only accepts a single SQL query.");
         }
 
+        if (operations.get(0) instanceof StatementSetOperation) {
+            operations =
+                    new ArrayList<>(((StatementSetOperation) operations.get(0)).getOperations());
+        }
         return explainInternal(operations, extraDetails);
     }
 
@@ -792,14 +797,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     private TableResultInternal executeQueryOperation(QueryOperation operation) {
-        final UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(
-                        "Unregistered_Collect_Sink_" + CollectModifyOperation.getUniqueId());
-        final ObjectIdentifier objectIdentifier =
-                catalogManager.qualifyIdentifier(unresolvedIdentifier);
-
-        CollectModifyOperation sinkOperation =
-                new CollectModifyOperation(objectIdentifier, operation);
+        CollectModifyOperation sinkOperation = new CollectModifyOperation(operation);
         List<Transformation<?>> transformations =
                 translate(Collections.singletonList(sinkOperation));
         final String defaultJobName = "collect";
@@ -871,6 +869,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     public TableResultInternal executeInternal(Operation operation) {
         if (operation instanceof ModifyOperation) {
             return executeInternal(Collections.singletonList((ModifyOperation) operation));
+        } else if (operation instanceof StatementSetOperation) {
+            return executeInternal(((StatementSetOperation) operation).getOperations());
         } else if (operation instanceof CreateTableOperation) {
             CreateTableOperation createTableOperation = (CreateTableOperation) operation;
             if (createTableOperation.isTemporary()) {
@@ -920,11 +920,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     AlterTableAddConstraintOperation addConstraintOP =
                             (AlterTableAddConstraintOperation) operation;
                     CatalogTable oriTable =
-                            (CatalogTable)
-                                    catalogManager
-                                            .getTable(addConstraintOP.getTableIdentifier())
-                                            .get()
-                                            .getTable();
+                            catalogManager
+                                    .getTable(addConstraintOP.getTableIdentifier())
+                                    .get()
+                                    .getTable();
                     TableSchema.Builder builder =
                             TableSchemaUtils.builderWithGivenSchema(oriTable.getSchema());
                     if (addConstraintOP.getConstraintName().isPresent()) {
@@ -946,11 +945,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     AlterTableDropConstraintOperation dropConstraintOperation =
                             (AlterTableDropConstraintOperation) operation;
                     CatalogTable oriTable =
-                            (CatalogTable)
-                                    catalogManager
-                                            .getTable(dropConstraintOperation.getTableIdentifier())
-                                            .get()
-                                            .getTable();
+                            catalogManager
+                                    .getTable(dropConstraintOperation.getTableIdentifier())
+                                    .get()
+                                    .getTable();
                     CatalogTable newTable =
                             new CatalogTableImpl(
                                     TableSchemaUtils.dropConstraint(
@@ -1151,32 +1149,33 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         } else if (operation instanceof ShowCreateTableOperation) {
             ShowCreateTableOperation showCreateTableOperation =
                     (ShowCreateTableOperation) operation;
-            Optional<CatalogManager.TableLookupResult> result =
-                    catalogManager.getTable(showCreateTableOperation.getTableIdentifier());
-            if (result.isPresent()) {
-                return TableResultImpl.builder()
-                        .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                        .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
-                        .data(
-                                Collections.singletonList(
-                                        Row.of(
-                                                ShowCreateUtil.buildShowCreateTableRow(
-                                                        result.get().getResolvedTable(),
-                                                        showCreateTableOperation
-                                                                .getTableIdentifier(),
-                                                        result.get().isTemporary()))))
-                        .build();
-            } else {
-                throw new ValidationException(
-                        String.format(
-                                "Could not execute SHOW CREATE TABLE. Table with identifier %s does not exist.",
-                                showCreateTableOperation
-                                        .getTableIdentifier()
-                                        .asSerializableString()));
-            }
+            ContextResolvedTable table =
+                    catalogManager
+                            .getTable(showCreateTableOperation.getTableIdentifier())
+                            .orElseThrow(
+                                    () ->
+                                            new ValidationException(
+                                                    String.format(
+                                                            "Could not execute SHOW CREATE TABLE. Table with identifier %s does not exist.",
+                                                            showCreateTableOperation
+                                                                    .getTableIdentifier()
+                                                                    .asSerializableString())));
+
+            return TableResultImpl.builder()
+                    .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+                    .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
+                    .data(
+                            Collections.singletonList(
+                                    Row.of(
+                                            ShowCreateUtil.buildShowCreateTableRow(
+                                                    table.getResolvedTable(),
+                                                    showCreateTableOperation.getTableIdentifier(),
+                                                    table.isTemporary()))))
+                    .build();
+
         } else if (operation instanceof ShowCreateViewOperation) {
             ShowCreateViewOperation showCreateViewOperation = (ShowCreateViewOperation) operation;
-            final CatalogManager.TableLookupResult result =
+            final ContextResolvedTable table =
                     catalogManager
                             .getTable(showCreateViewOperation.getViewIdentifier())
                             .orElseThrow(
@@ -1195,9 +1194,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             Collections.singletonList(
                                     Row.of(
                                             ShowCreateUtil.buildShowCreateViewRow(
-                                                    result.getResolvedTable(),
+                                                    table.getResolvedTable(),
                                                     showCreateViewOperation.getViewIdentifier(),
-                                                    result.isTemporary()))))
+                                                    table.isTemporary()))))
                     .build();
         } else if (operation instanceof ShowCurrentCatalogOperation) {
             return buildShowResult(
@@ -1239,7 +1238,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return buildShowResult("view name", listViews());
         } else if (operation instanceof ShowColumnsOperation) {
             ShowColumnsOperation showColumnsOperation = (ShowColumnsOperation) operation;
-            Optional<CatalogManager.TableLookupResult> result =
+            Optional<ContextResolvedTable> result =
                     catalogManager.getTable(showColumnsOperation.getTableIdentifier());
             if (result.isPresent()) {
                 return buildShowColumnsResult(
@@ -1285,10 +1284,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     explainOperation.getExplainDetails().stream()
                             .map(ExplainDetail::valueOf)
                             .toArray(ExplainDetail[]::new);
-            String explanation =
-                    explainInternal(
-                            Collections.singletonList(((ExplainOperation) operation).getChild()),
-                            explainDetails);
+            Operation child = ((ExplainOperation) operation).getChild();
+            List<Operation> operations;
+            if (child instanceof StatementSetOperation) {
+                operations = new ArrayList<>(((StatementSetOperation) child).getOperations());
+            } else {
+                operations = Collections.singletonList(child);
+            }
+            String explanation = explainInternal(operations, explainDetails);
             return TableResultImpl.builder()
                     .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                     .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
@@ -1296,7 +1299,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     .build();
         } else if (operation instanceof DescribeTableOperation) {
             DescribeTableOperation describeTableOperation = (DescribeTableOperation) operation;
-            Optional<CatalogManager.TableLookupResult> result =
+            Optional<ContextResolvedTable> result =
                     catalogManager.getTable(describeTableOperation.getSqlIdentifier());
             if (result.isPresent()) {
                 return buildDescribeResult(result.get().getResolvedSchema());
@@ -1309,8 +1312,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         } else if (operation instanceof QueryOperation) {
             return executeQueryOperation((QueryOperation) operation);
         } else if (operation instanceof CreateTableASOperation) {
-            executeInternal(((CreateTableASOperation) operation).getCreateTableOperation());
-            return executeInternal(((CreateTableASOperation) operation).getInsertOperation());
+            CreateTableASOperation createTableASOperation = (CreateTableASOperation) operation;
+            executeInternal(createTableASOperation.getCreateTableOperation());
+            return executeInternal(createTableASOperation.toSinkModifyOperation(catalogManager));
         } else if (operation instanceof NopOperation) {
             return TableResultImpl.TABLE_RESULT_OK;
         } else {
@@ -1499,10 +1503,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         List<String> tableNames = new ArrayList<>(operations.size());
         Map<String, Integer> tableNameToCount = new HashMap<>();
         for (ModifyOperation operation : operations) {
-            if (operation instanceof CatalogSinkModifyOperation) {
-                ObjectIdentifier identifier =
-                        ((CatalogSinkModifyOperation) operation).getTableIdentifier();
-                String fullName = identifier.asSummaryString();
+            if (operation instanceof SinkModifyOperation) {
+                String fullName =
+                        ((SinkModifyOperation) operation)
+                                .getContextResolvedTable()
+                                .getIdentifier()
+                                .asSummaryString();
                 tableNames.add(fullName);
                 tableNameToCount.put(fullName, tableNameToCount.getOrDefault(fullName, 0) + 1);
             } else {
@@ -1725,8 +1731,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private Optional<CatalogBaseTable> getTemporaryTable(ObjectIdentifier identifier) {
         return catalogManager
                 .getTable(identifier)
-                .filter(CatalogManager.TableLookupResult::isTemporary)
-                .map(CatalogManager.TableLookupResult::getTable);
+                .filter(ContextResolvedTable::isTemporary)
+                .map(ContextResolvedTable::getTable);
     }
 
     private TableResultInternal createCatalogFunction(
@@ -1844,7 +1850,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         }
     }
 
-    protected TableImpl createTable(QueryOperation tableOperation) {
+    @VisibleForTesting
+    public TableImpl createTable(QueryOperation tableOperation) {
         return TableImpl.createTable(
                 this,
                 tableOperation,

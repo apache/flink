@@ -32,6 +32,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -149,5 +150,32 @@ public class RegionPartitionGroupReleaseStrategyTest extends TestLogger {
         return regionPartitionGroupReleaseStrategy.vertexFinished(finishedVertex).stream()
                 .flatMap(IterableUtils::toStream)
                 .collect(Collectors.toList());
+    }
+
+    @Test
+    public void updateStrategyOnTopologyUpdate() {
+        final TestingSchedulingExecutionVertex ev1 = testingSchedulingTopology.newExecutionVertex();
+
+        final RegionPartitionGroupReleaseStrategy regionPartitionReleaseStrategy =
+                new RegionPartitionGroupReleaseStrategy(testingSchedulingTopology);
+
+        regionPartitionReleaseStrategy.vertexFinished(ev1.getId());
+
+        final TestingSchedulingExecutionVertex ev2 = testingSchedulingTopology.newExecutionVertex();
+        testingSchedulingTopology.connect(ev1, ev2, ResultPartitionType.BLOCKING);
+
+        regionPartitionReleaseStrategy.notifySchedulingTopologyUpdated(
+                testingSchedulingTopology, Collections.singletonList(ev2.getId()));
+
+        // this check ensures that existing region views are not affected
+        assertThat(regionPartitionReleaseStrategy.isRegionOfVertexFinished(ev1.getId()), is(true));
+
+        assertThat(regionPartitionReleaseStrategy.isRegionOfVertexFinished(ev2.getId()), is(false));
+
+        List<IntermediateResultPartitionID> releasablePartitions =
+                getReleasablePartitions(regionPartitionReleaseStrategy, ev2.getId());
+        assertThat(regionPartitionReleaseStrategy.isRegionOfVertexFinished(ev2.getId()), is(true));
+        assertThat(
+                releasablePartitions, contains(ev1.getProducedResults().iterator().next().getId()));
     }
 }

@@ -24,9 +24,11 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.util.FlinkException;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /** Handler for the {@link OperatorCoordinator OperatorCoordinators}. */
@@ -67,4 +69,14 @@ public interface OperatorCoordinatorHandler {
      */
     CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             OperatorID operator, CoordinationRequest request) throws FlinkException;
+
+    /**
+     * Register and start new operator coordinators.
+     *
+     * @param coordinators the operator coordinator to be registered.
+     * @param mainThreadExecutor Executor for submitting work to the main thread.
+     */
+    void registerAndStartNewCoordinators(
+            Collection<OperatorCoordinatorHolder> coordinators,
+            ComponentMainThreadExecutor mainThreadExecutor);
 }

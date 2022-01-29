@@ -164,9 +164,18 @@ public class CheckpointingOptions {
             ConfigOptions.key("taskmanager.state.local.root-dirs")
                     .noDefaultValue()
                     .withDescription(
-                            "The config parameter defining the root directories for storing file-based state for local "
-                                    + "recovery. Local recovery currently only covers keyed state backends. Currently, MemoryStateBackend does "
-                                    + "not support local recovery and ignore this option");
+                            Description.builder()
+                                    .text(
+                                            "The config parameter defining the root directories for storing file-based "
+                                                    + "state for local recovery. Local recovery currently only covers keyed "
+                                                    + "state backends. Currently, MemoryStateBackend does not support local "
+                                                    + "recovery and ignores this option. If not configured it will default "
+                                                    + "to <WORKING_DIR>/localState. The <WORKING_DIR> can be configured via %s",
+                                            TextElement.code(
+                                                    ClusterOptions
+                                                            .TASK_MANAGER_PROCESS_WORKING_DIR_BASE
+                                                            .key()))
+                                    .build());
 
     // ------------------------------------------------------------------------
     //  Options specific to the file-system-based state backends

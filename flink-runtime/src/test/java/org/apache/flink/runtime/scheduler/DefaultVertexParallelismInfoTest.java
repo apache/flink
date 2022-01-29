@@ -41,7 +41,13 @@ public class DefaultVertexParallelismInfoTest extends TestLogger {
         assertThrows(
                 "parallelism is not in valid bounds",
                 IllegalArgumentException.class,
-                () -> new DefaultVertexParallelismInfo(-1, 1, ALWAYS_VALID));
+                () -> new DefaultVertexParallelismInfo(-2, 1, ALWAYS_VALID));
+    }
+
+    @Test
+    public void parallelismValid() {
+        new DefaultVertexParallelismInfo(10, 1, ALWAYS_VALID);
+        new DefaultVertexParallelismInfo(ExecutionConfig.PARALLELISM_DEFAULT, 1, ALWAYS_VALID);
     }
 
     @Test
@@ -50,6 +56,43 @@ public class DefaultVertexParallelismInfoTest extends TestLogger {
                 "max parallelism is not in valid bounds",
                 IllegalArgumentException.class,
                 () -> new DefaultVertexParallelismInfo(1, -1, ALWAYS_VALID));
+    }
+
+    @Test
+    public void testSetParallelism() {
+        DefaultVertexParallelismInfo info =
+                new DefaultVertexParallelismInfo(
+                        ExecutionConfig.PARALLELISM_DEFAULT, 10, ALWAYS_VALID);
+
+        // test set negative value
+        assertThrows(
+                "parallelism is not in valid bounds",
+                IllegalArgumentException.class,
+                () -> {
+                    info.setParallelism(-1);
+                    return null;
+                });
+
+        // test parallelism larger than max parallelism
+        assertThrows(
+                "Vertex's parallelism should be smaller than or equal to vertex's max parallelism.",
+                IllegalArgumentException.class,
+                () -> {
+                    info.setParallelism(11);
+                    return null;
+                });
+
+        // set valid value.
+        info.setParallelism(5);
+
+        // test set parallelism for vertex whose parallelism was decided.
+        assertThrows(
+                "Vertex's parallelism can be set only if the vertex's parallelism was not decided yet.",
+                IllegalStateException.class,
+                () -> {
+                    info.setParallelism(5);
+                    return null;
+                });
     }
 
     @Test

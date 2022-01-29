@@ -226,14 +226,9 @@ class TableEnvironmentTest(object):
         self.assertEqual(schema,
                          Schema(Schema.new_builder()._j_builder
                                 .fromResolvedSchema(table._j_table.getResolvedSchema()).build()))
-        table = CatalogBaseTable(self.t_env._j_tenv
-                                 .getCatalogManager()
-                                 .getTable(table._j_table
-                                           .getQueryOperation()
-                                           .getTableIdentifier())
-                                 .get()
-                                 .getTable())
-        self.assertEqual("fake", table.get_options().get("connector"))
+        contextResolvedTable = table._j_table.getQueryOperation().getContextResolvedTable()
+        options = contextResolvedTable.getTable().getOptions()
+        self.assertEqual("fake", options.get("connector"))
 
 
 class DataStreamConversionTestCases(PyFlinkTestCase):

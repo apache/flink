@@ -23,6 +23,7 @@ import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -66,7 +67,10 @@ public abstract class AsyncSinkBase<InputT, RequestEntryT extends Serializable>
             long maxBatchSizeInBytes,
             long maxTimeInBufferMS,
             long maxRecordSizeInBytes) {
-        this.elementConverter = elementConverter;
+        this.elementConverter =
+                Preconditions.checkNotNull(
+                        elementConverter,
+                        "ElementConverter must be not null when initializing the AsyncSinkBase.");
         this.maxBatchSize = maxBatchSize;
         this.maxInFlightRequests = maxInFlightRequests;
         this.maxBufferedRequests = maxBufferedRequests;

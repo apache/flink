@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -79,6 +81,11 @@ public class CreatingExecutionGraph implements State {
                     throwable);
             context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, throwable));
         } else {
+            for (ExecutionVertex vertex :
+                    executionGraphWithVertexParallelism.executionGraph.getAllExecutionVertices()) {
+                vertex.getCurrentExecutionAttempt().transitionState(ExecutionState.SCHEDULED);
+            }
+
             final AssignmentResult result =
                     context.tryToAssignSlots(executionGraphWithVertexParallelism);
 
@@ -106,7 +113,7 @@ public class CreatingExecutionGraph implements State {
 
     @Override
     public JobStatus getJobStatus() {
-        return JobStatus.INITIALIZING;
+        return JobStatus.CREATED;
     }
 
     @Override

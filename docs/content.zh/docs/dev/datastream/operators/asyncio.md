@@ -174,6 +174,8 @@ val resultStream: DataStream[(String, String)] =
 
 当异步 I/O 请求超时的时候，默认会抛出异常并重启作业。
 如果你想处理超时，可以重写 `AsyncFunction#timeout` 方法。
+重写 `AsyncFunction#timeout` 时别忘了调用 `ResultFuture.complete()` 或者 `ResultFuture.completeExceptionally()`
+以便告诉Flink这条记录的处理已经完成。如果超时发生时你不想发出任何记录，你可以调用 `ResultFuture.complete(Collections.emptyList())` 。
 
 ### 结果的顺序
 

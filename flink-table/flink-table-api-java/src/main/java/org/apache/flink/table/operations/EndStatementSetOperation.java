@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
+
 /** Operation to describe a End statement. */
-public class EndStatementSetOperation implements StatementSetOperation {
+@Internal
+public final class EndStatementSetOperation implements Operation {
 
     @Override
     public String asSummaryString() {

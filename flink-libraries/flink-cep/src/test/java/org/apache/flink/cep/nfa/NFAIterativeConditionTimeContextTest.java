@@ -35,7 +35,7 @@ import static org.apache.flink.cep.utils.EventBuilder.event;
 import static org.apache.flink.cep.utils.NFATestHarness.forPattern;
 import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
 
-/** Tests for accesing time properties from {@link IterativeCondition}. */
+/** Tests for accessing time properties from {@link IterativeCondition}. */
 public class NFAIterativeConditionTimeContextTest extends TestLogger {
 
     @Test

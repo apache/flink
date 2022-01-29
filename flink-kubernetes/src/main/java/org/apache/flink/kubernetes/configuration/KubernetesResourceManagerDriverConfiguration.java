@@ -18,6 +18,8 @@
 
 package org.apache.flink.kubernetes.configuration;
 
+import javax.annotation.Nullable;
+
 /**
  * Configuration specific to {@link org.apache.flink.kubernetes.KubernetesResourceManagerDriver}.
  */
@@ -25,11 +27,20 @@ public class KubernetesResourceManagerDriverConfiguration {
 
     private final String clusterId;
 
-    public KubernetesResourceManagerDriverConfiguration(String clusterId) {
+    @Nullable private final String webInterfaceUrl;
+
+    public KubernetesResourceManagerDriverConfiguration(
+            String clusterId, @Nullable String webInterfaceUrl) {
         this.clusterId = clusterId;
+        this.webInterfaceUrl = webInterfaceUrl;
     }
 
     public String getClusterId() {
         return clusterId;
+    }
+
+    @Nullable
+    public String getWebInterfaceUrl() {
+        return webInterfaceUrl;
     }
 }

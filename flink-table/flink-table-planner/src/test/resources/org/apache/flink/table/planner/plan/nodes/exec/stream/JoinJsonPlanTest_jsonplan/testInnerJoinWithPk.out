@@ -3,57 +3,41 @@
   "nodes" : [ {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
     "scanTableSource" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "A"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`A`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a1",
+              "dataType" : "INT"
+            }, {
+              "name" : "a2",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "a3",
+              "dataType" : "BIGINT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "bounded" : "false"
+          }
+        }
       },
-      "catalogTable" : {
-        "schema.2.data-type" : "BIGINT",
-        "connector" : "values",
-        "schema.0.data-type" : "INT",
-        "schema.2.name" : "a3",
-        "schema.1.name" : "a2",
-        "bounded" : "false",
-        "schema.0.name" : "a1",
-        "schema.1.data-type" : "BIGINT"
-      },
-      "sourceAbilitySpecs" : [ {
+      "abilities" : [ {
         "type" : "ProjectPushDown",
         "projectedFields" : [ [ 0 ], [ 1 ] ],
-        "producedType" : {
-          "type" : "ROW",
-          "nullable" : false,
-          "fields" : [ {
-            "a1" : "INT"
-          }, {
-            "a2" : "BIGINT"
-          } ]
-        }
+        "producedType" : "ROW<`a1` INT, `a2` BIGINT> NOT NULL"
       }, {
         "type" : "ReadingMetadata",
         "metadataKeys" : [ ],
-        "producedType" : {
-          "type" : "ROW",
-          "nullable" : false,
-          "fields" : [ {
-            "a1" : "INT"
-          }, {
-            "a2" : "BIGINT"
-          } ]
-        }
+        "producedType" : "ROW<`a1` INT, `a2` BIGINT> NOT NULL"
       } ]
     },
     "id" : 1,
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a1" : "INT"
-      }, {
-        "a2" : "BIGINT"
-      } ]
-    },
+    "outputType" : "ROW<`a1` INT, `a2` BIGINT>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, A, project=[a1, a2], metadata=[]]], fields=[a1, a2])",
     "inputProperties" : [ ]
   }, {
@@ -67,15 +51,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a1" : "INT"
-      }, {
-        "a2" : "BIGINT"
-      } ]
-    },
+    "outputType" : "ROW<`a1` INT, `a2` BIGINT>",
     "description" : "Exchange(distribution=[hash[a1]])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupAggregate",
@@ -92,10 +68,7 @@
       "distinct" : false,
       "approximate" : false,
       "ignoreNulls" : false,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     } ],
     "aggCallNeedRetractions" : [ false ],
     "generateUpdateBefore" : true,
@@ -108,32 +81,18 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a1" : "INT"
-      }, {
-        "a2" : "BIGINT"
-      } ]
-    },
+    "outputType" : "ROW<`a1` INT, `a2` BIGINT>",
     "description" : "GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     } ],
     "condition" : null,
     "id" : 4,
@@ -144,15 +103,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a2" : "BIGINT"
-      }, {
-        "a1" : "INT"
-      } ]
-    },
+    "outputType" : "ROW<`a2` BIGINT, `a1` INT>",
     "description" : "Calc(select=[a2, a1])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
@@ -165,70 +116,46 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a2" : "BIGINT"
-      }, {
-        "a1" : "INT"
-      } ]
-    },
+    "outputType" : "ROW<`a2` BIGINT, `a1` INT>",
     "description" : "Exchange(distribution=[hash[a2]])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
     "scanTableSource" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "B"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`B`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "b1",
+              "dataType" : "INT"
+            }, {
+              "name" : "b2",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b3",
+              "dataType" : "BIGINT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "bounded" : "false"
+          }
+        }
       },
-      "catalogTable" : {
-        "schema.2.data-type" : "BIGINT",
-        "connector" : "values",
-        "schema.0.data-type" : "INT",
-        "schema.2.name" : "b3",
-        "schema.1.name" : "b2",
-        "bounded" : "false",
-        "schema.0.name" : "b1",
-        "schema.1.data-type" : "BIGINT"
-      },
-      "sourceAbilitySpecs" : [ {
+      "abilities" : [ {
         "type" : "ProjectPushDown",
         "projectedFields" : [ [ 0 ], [ 1 ] ],
-        "producedType" : {
-          "type" : "ROW",
-          "nullable" : false,
-          "fields" : [ {
-            "b1" : "INT"
-          }, {
-            "b2" : "BIGINT"
-          } ]
-        }
+        "producedType" : "ROW<`b1` INT, `b2` BIGINT> NOT NULL"
       }, {
         "type" : "ReadingMetadata",
         "metadataKeys" : [ ],
-        "producedType" : {
-          "type" : "ROW",
-          "nullable" : false,
-          "fields" : [ {
-            "b1" : "INT"
-          }, {
-            "b2" : "BIGINT"
-          } ]
-        }
+        "producedType" : "ROW<`b1` INT, `b2` BIGINT> NOT NULL"
       } ]
     },
     "id" : 6,
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "b1" : "INT"
-      }, {
-        "b2" : "BIGINT"
-      } ]
-    },
+    "outputType" : "ROW<`b1` INT, `b2` BIGINT>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, B, project=[b1, b2], metadata=[]]], fields=[b1, b2])",
     "inputProperties" : [ ]
   }, {
@@ -242,15 +169,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "b1" : "INT"
-      }, {
-        "b2" : "BIGINT"
-      } ]
-    },
+    "outputType" : "ROW<`b1` INT, `b2` BIGINT>",
     "description" : "Exchange(distribution=[hash[b1]])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupAggregate",
@@ -267,10 +186,7 @@
       "distinct" : false,
       "approximate" : false,
       "ignoreNulls" : false,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     } ],
     "aggCallNeedRetractions" : [ false ],
     "generateUpdateBefore" : true,
@@ -283,32 +199,18 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "b1" : "INT"
-      }, {
-        "b2" : "BIGINT"
-      } ]
-    },
+    "outputType" : "ROW<`b1` INT, `b2` BIGINT>",
     "description" : "GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     } ],
     "condition" : null,
     "id" : 9,
@@ -319,15 +221,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "b2" : "BIGINT"
-      }, {
-        "b1" : "INT"
-      } ]
-    },
+    "outputType" : "ROW<`b2` BIGINT, `b1` INT>",
     "description" : "Calc(select=[b2, b1])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
@@ -340,15 +234,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "b2" : "BIGINT"
-      }, {
-        "b1" : "INT"
-      } ]
-    },
+    "outputType" : "ROW<`b2` BIGINT, `b1` INT>",
     "description" : "Exchange(distribution=[hash[b2]])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin",
@@ -375,50 +261,26 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a2" : "BIGINT"
-      }, {
-        "a1" : "INT"
-      }, {
-        "b2" : "BIGINT"
-      }, {
-        "b1" : "INT"
-      } ]
-    },
+    "outputType" : "ROW<`a2` BIGINT, `a1` INT, `b2` BIGINT, `b1` INT>",
     "description" : "Join(joinType=[InnerJoin], where=[(a2 = b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 3,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     } ],
     "condition" : null,
     "id" : 12,
@@ -429,40 +291,37 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a1" : "INT"
-      }, {
-        "a2" : "BIGINT"
-      }, {
-        "b1" : "INT"
-      }, {
-        "b2" : "BIGINT"
-      } ]
-    },
+    "outputType" : "ROW<`a1` INT, `a2` BIGINT, `b1` INT, `b2` BIGINT>",
     "description" : "Calc(select=[a1, a2, b1, b2])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "MySink"
-      },
-      "catalogTable" : {
-        "schema.3.data-type" : "BIGINT",
-        "sink-insert-only" : "false",
-        "table-sink-class" : "DEFAULT",
-        "schema.2.data-type" : "INT",
-        "schema.3.name" : "b2",
-        "connector" : "values",
-        "schema.0.data-type" : "INT",
-        "schema.2.name" : "b1",
-        "schema.1.name" : "a2",
-        "schema.0.name" : "a1",
-        "schema.1.data-type" : "BIGINT"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a1",
+              "dataType" : "INT"
+            }, {
+              "name" : "a2",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b1",
+              "dataType" : "INT"
+            }, {
+              "name" : "b2",
+              "dataType" : "BIGINT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "sink-insert-only" : "false",
+            "table-sink-class" : "DEFAULT",
+            "connector" : "values"
+          }
+        }
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER" ],
@@ -474,19 +333,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a1" : "INT"
-      }, {
-        "a2" : "BIGINT"
-      }, {
-        "b1" : "INT"
-      }, {
-        "b2" : "BIGINT"
-      } ]
-    },
+    "outputType" : "ROW<`a1` INT, `a2` BIGINT, `b1` INT, `b2` BIGINT>",
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a1, a2, b1, b2])"
   } ],
   "edges" : [ {

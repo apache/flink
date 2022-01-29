@@ -19,12 +19,15 @@
 package org.apache.flink.connector.elasticsearch.table;
 
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
+import org.apache.flink.connector.elasticsearch.ElasticsearchUtil;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -33,6 +36,9 @@ import org.junit.jupiter.api.function.Executable;
 
 import java.util.Arrays;
 import java.util.Collections;
+
+import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for validation in {@link ElasticsearchDynamicSinkFactoryBase}. */
 @ExtendWith(TestLoggerExtension.class)
@@ -226,5 +232,20 @@ abstract class ElasticsearchDynamicSinkFactoryBaseTest {
                                                 ElasticsearchConnectorOptions.PASSWORD_OPTION.key(),
                                                 "")
                                         .build()));
+    }
+
+    @Test
+    public void testSinkParallelism() {
+        ElasticsearchDynamicSinkFactoryBase sinkFactory = createSinkFactory();
+        DynamicTableSink sink =
+                sinkFactory.createDynamicTableSink(
+                        createPrefilledTestContext()
+                                .withOption(SINK_PARALLELISM.key(), "2")
+                                .build());
+        assertThat(sink).isInstanceOf(ElasticsearchDynamicSink.class);
+        ElasticsearchDynamicSink esSink = (ElasticsearchDynamicSink) sink;
+        SinkProvider provider =
+                (SinkProvider) esSink.getSinkRuntimeProvider(new ElasticsearchUtil.MockContext());
+        assertThat(2).isEqualTo(provider.getParallelism().get());
     }
 }

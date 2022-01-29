@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.blob.TaskExecutorBlobService;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -45,7 +45,7 @@ class TestingTaskExecutor extends TaskExecutor {
             HeartbeatServices heartbeatServices,
             TaskManagerMetricGroup taskManagerMetricGroup,
             @Nullable String metricQueryServiceAddress,
-            BlobCacheService blobCacheService,
+            TaskExecutorBlobService taskExecutorBlobService,
             FatalErrorHandler fatalErrorHandler,
             TaskExecutorPartitionTracker partitionTracker) {
         super(
@@ -57,7 +57,7 @@ class TestingTaskExecutor extends TaskExecutor {
                 heartbeatServices,
                 taskManagerMetricGroup,
                 metricQueryServiceAddress,
-                blobCacheService,
+                taskExecutorBlobService,
                 fatalErrorHandler,
                 partitionTracker);
     }

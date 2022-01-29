@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -219,9 +220,10 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                 new KeyedProcessOperator<>(overProcessFunction);
 
         OneInputTransformation<RowData, RowData> transform =
-                new OneInputTransformation<>(
+                ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getDescription(),
+                        getOperatorName(tableConfig),
+                        getOperatorDescription(tableConfig),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

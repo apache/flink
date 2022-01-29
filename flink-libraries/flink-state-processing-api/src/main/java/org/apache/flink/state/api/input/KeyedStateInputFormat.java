@@ -203,8 +203,8 @@ public class KeyedStateInputFormat<K, N, OUT>
     public void close() throws IOException {
         try {
             IOUtils.closeQuietly(keysAndNamespaces);
-            operator.close();
-            registry.close();
+            IOUtils.closeQuietly(operator);
+            IOUtils.closeQuietly(registry);
         } catch (Exception e) {
             throw new IOException("Failed to close state backend", e);
         }

@@ -26,7 +26,7 @@ import org.apache.flink.annotation.Internal;
  */
 @Internal
 public interface ModifyOperationVisitor<T> {
-    T visit(CatalogSinkModifyOperation catalogSink);
+    T visit(SinkModifyOperation catalogSink);
 
     T visit(OutputConversionModifyOperation outputConversion);
 

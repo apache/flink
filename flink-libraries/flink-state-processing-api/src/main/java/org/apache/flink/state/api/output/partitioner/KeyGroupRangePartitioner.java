@@ -24,6 +24,7 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 
 /** A partitioner that selects the target channel based on the key group index. */
 @Internal
+@Deprecated
 public class KeyGroupRangePartitioner implements Partitioner<Integer> {
 
     private static final long serialVersionUID = 1L;

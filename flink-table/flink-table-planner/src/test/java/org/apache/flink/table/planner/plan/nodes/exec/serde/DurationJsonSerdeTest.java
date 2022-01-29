@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -42,11 +41,8 @@ public class DurationJsonSerdeTest {
 
     @Test
     public void testDurationSerde() throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        SimpleModule module = new SimpleModule();
-        module.addSerializer(new DurationJsonSerializer());
-        module.addDeserializer(Duration.class, new DurationJsonDeserializer());
-        mapper.registerModule(module);
+        ObjectMapper mapper = JsonSerdeUtil.getObjectMapper();
+
         StringWriter writer = new StringWriter(100);
         try (JsonGenerator gen = mapper.getFactory().createGenerator(writer)) {
             gen.writeObject(duration);

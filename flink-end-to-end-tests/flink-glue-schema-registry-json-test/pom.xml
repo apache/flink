@@ -33,7 +33,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<guava.version>16.0.1</guava.version>
+		<guava.version>29.0-jre</guava.version>
 		<netty.version>4.1.68.Final</netty.version>
 		<kotlin.version>1.3.50</kotlin.version>
 		<classgraph.version>4.8.120</classgraph.version>
@@ -114,6 +114,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-aws-kinesis-data-streams</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -141,7 +148,6 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.22.1</version>
 				<configuration>
 					<systemPropertyVariables>
 						<!-- Required for Kinesalite. -->

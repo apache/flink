@@ -35,6 +35,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaDeserializationSchema.MetadataConverter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -49,7 +50,9 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.header.Header;
 
@@ -61,6 +64,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
@@ -392,7 +396,13 @@ public class KafkaDynamicSource
                 kafkaSourceBuilder.setStartingOffsets(OffsetsInitializer.latest());
                 break;
             case GROUP_OFFSETS:
-                kafkaSourceBuilder.setStartingOffsets(OffsetsInitializer.committedOffsets());
+                String offsetResetConfig =
+                        properties.getProperty(
+                                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                                OffsetResetStrategy.NONE.name());
+                OffsetResetStrategy offsetResetStrategy = getResetStrategy(offsetResetConfig);
+                kafkaSourceBuilder.setStartingOffsets(
+                        OffsetsInitializer.committedOffsets(offsetResetStrategy));
                 break;
             case SPECIFIC_OFFSETS:
                 Map<TopicPartition, Long> offsets = new HashMap<>();
@@ -414,6 +424,23 @@ public class KafkaDynamicSource
                 .setDeserializer(KafkaRecordDeserializationSchema.of(kafkaDeserializer));
 
         return kafkaSourceBuilder.build();
+    }
+
+    private OffsetResetStrategy getResetStrategy(String offsetResetConfig) {
+        return Arrays.stream(OffsetResetStrategy.values())
+                .filter(ors -> ors.name().equals(offsetResetConfig.toUpperCase(Locale.ROOT)))
+                .findAny()
+                .orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        String.format(
+                                                "%s can not be set to %s. Valid values: [%s]",
+                                                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                                                offsetResetConfig,
+                                                Arrays.stream(OffsetResetStrategy.values())
+                                                        .map(Enum::name)
+                                                        .map(String::toLowerCase)
+                                                        .collect(Collectors.joining(",")))));
     }
 
     private KafkaDeserializationSchema<RowData> createKafkaDeserializationSchema(
@@ -467,8 +494,7 @@ public class KafkaDynamicSource
         if (format == null) {
             return null;
         }
-        DataType physicalFormatDataType =
-                DataTypeUtils.projectRow(this.physicalDataType, projection);
+        DataType physicalFormatDataType = Projection.of(projection).project(this.physicalDataType);
         if (prefix != null) {
             physicalFormatDataType = DataTypeUtils.stripRowPrefix(physicalFormatDataType, prefix);
         }

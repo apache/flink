@@ -29,9 +29,9 @@ import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -101,11 +101,30 @@ public final class RexNodeExpression implements ResolvedExpression {
 
     @Override
     public List<ResolvedExpression> getResolvedChildren() {
-        return new ArrayList<>();
+        return Collections.emptyList();
     }
 
     @Override
     public String toString() {
         return asSummaryString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        RexNodeExpression that = (RexNodeExpression) o;
+        return rexNode.equals(that.rexNode)
+                && outputDataType.equals(that.outputDataType)
+                && Objects.equals(serializableString, that.serializableString);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(rexNode, outputDataType, serializableString);
     }
 }

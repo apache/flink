@@ -29,6 +29,7 @@ import org.apache.flink.connector.jdbc.JdbcITCase;
 import org.apache.flink.connector.jdbc.JdbcSink;
 import org.apache.flink.connector.jdbc.JdbcTestBase;
 import org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
+import org.apache.flink.connector.jdbc.dialect.oracle.OracleContainer;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -45,6 +46,7 @@ import org.apache.flink.util.LogLevelRule;
 import org.apache.flink.util.function.SerializableSupplier;
 
 import com.mysql.cj.jdbc.MysqlXADataSource;
+import oracle.jdbc.xa.client.OracleXADataSource;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -141,13 +143,13 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                 // PGSQL: check for issues with suspending connections (requires pooling) and
                 // honoring limits (properly closing connections).
                 new PgSqlJdbcExactlyOnceSinkTestEnv(4),
-                //            ,
                 // MYSQL: check for issues with errors on closing connections.
-                new MySqlJdbcExactlyOnceSinkTestEnv(4)
+                new MySqlJdbcExactlyOnceSinkTestEnv(4),
+                // ORACLE - default tests.
+                new OracleJdbcExactlyOnceSinkTestEnv(4)
                 // MSSQL - not testing: XA transactions need to be enabled via GUI (plus EULA).
                 // DB2 - not testing: requires auth configuration (plus EULA).
                 // MARIADB - not testing: XA rollback doesn't recognize recovered transactions.
-                // ORACLE - not testing: an image needs to be built.
                 );
     }
 
@@ -796,6 +798,73 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                 xaDataSource.setUser(username);
                 xaDataSource.setPassword(password);
                 return xaDataSource;
+            }
+        }
+    }
+
+    private static class OracleJdbcExactlyOnceSinkTestEnv implements JdbcExactlyOnceSinkTestEnv {
+        private final int parallelism;
+        private final OracleContainer db;
+
+        private OracleJdbcExactlyOnceSinkTestEnv(int parallelism) {
+            this.parallelism = parallelism;
+            this.db = new OracleContainer();
+        }
+
+        @Override
+        public void start() {
+            db.start();
+        }
+
+        @Override
+        public void stop() {
+            db.close();
+        }
+
+        @Override
+        public JdbcDatabaseContainer<?> getContainer() {
+            return db;
+        }
+
+        @Override
+        public SerializableSupplier<XADataSource> getDataSourceSupplier() {
+            return new OracleXaDataSourceFactory(
+                    db.getJdbcUrl(), db.getUsername(), db.getPassword());
+        }
+
+        @Override
+        public int getParallelism() {
+            return parallelism;
+        }
+
+        @Override
+        public String toString() {
+            return db + ", parallelism=" + parallelism;
+        }
+
+        private static class OracleXaDataSourceFactory
+                implements SerializableSupplier<XADataSource> {
+            private final String jdbcUrl;
+            private final String username;
+            private final String password;
+
+            public OracleXaDataSourceFactory(String jdbcUrl, String username, String password) {
+                this.jdbcUrl = jdbcUrl;
+                this.username = username;
+                this.password = password;
+            }
+
+            @Override
+            public XADataSource get() {
+                try {
+                    OracleXADataSource xaDataSource = new OracleXADataSource();
+                    xaDataSource.setURL(jdbcUrl);
+                    xaDataSource.setUser(username);
+                    xaDataSource.setPassword(password);
+                    return xaDataSource;
+                } catch (SQLException ex) {
+                    throw new RuntimeException(ex);
+                }
             }
         }
     }

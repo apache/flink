@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.sinks.DataStreamTableSink;
 import org.apache.flink.table.planner.sinks.TableSinkUtils;
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
@@ -195,9 +196,13 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
                             withChangeFlag,
                             "SinkConversion",
                             rowtimeIndex);
-            return new OneInputTransformation<>(
+            final Configuration config = planner.getTableConfig().getConfiguration();
+            final String description =
+                    "SinkConversion To " + resultDataType.getConversionClass().getSimpleName();
+            return ExecNodeUtil.createOneInputTransformation(
                     inputTransform,
-                    "SinkConversionTo" + resultDataType.getConversionClass().getSimpleName(),
+                    getFormattedOperatorName(description, "SinkConversion", config),
+                    getFormattedOperatorDescription(description, config),
                     converterOperator,
                     outputTypeInfo,
                     inputTransform.getParallelism());

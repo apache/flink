@@ -101,7 +101,11 @@ public class ConfigOptionsDocGenerator {
                         "org.apache.flink.connector.pulsar.common.config"),
                 new OptionsClassLocation(
                         "flink-connectors/flink-connector-pulsar",
-                        "org.apache.flink.connector.pulsar.source")
+                        "org.apache.flink.connector.pulsar.source"),
+                new OptionsClassLocation(
+                        "flink-libraries/flink-cep", "org.apache.flink.cep.configuration"),
+                new OptionsClassLocation(
+                        "flink-dstl/flink-dstl-dfs", "org.apache.flink.changelog.fs"),
             };
 
     static final Set<String> EXCLUSIONS =
@@ -112,7 +116,8 @@ public class ConfigOptionsDocGenerator {
                             "org.apache.flink.configuration.ConfigOptions",
                             "org.apache.flink.streaming.api.environment.CheckpointConfig",
                             "org.apache.flink.contrib.streaming.state.PredefinedOptions",
-                            "org.apache.flink.python.PythonConfig"));
+                            "org.apache.flink.python.PythonConfig",
+                            "org.apache.flink.cep.configuration.SharedBufferCacheConfig"));
 
     static final String DEFAULT_PATH_PREFIX = "src/main/java";
 

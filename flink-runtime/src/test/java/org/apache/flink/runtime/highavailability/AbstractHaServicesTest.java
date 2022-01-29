@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
@@ -193,7 +194,17 @@ public class AbstractHaServicesTest extends TestLogger {
                 Queue<? super CloseOperations> closeOperations,
                 RunnableWithException internalCleanupRunnable,
                 Consumer<JobID> internalJobCleanupConsumer) {
-            super(config, ioExecutor, blobStoreService);
+            super(
+                    config,
+                    ioExecutor,
+                    blobStoreService,
+                    TestingJobResultStore.builder()
+                            .withMarkResultAsCleanConsumer(
+                                    ignoredJobId -> {
+                                        throw new AssertionError(
+                                                "Marking the job as clean shouldn't happen in the HaServices cleanup");
+                                    })
+                            .build());
             this.closeOperations = closeOperations;
             this.internalCleanupRunnable = internalCleanupRunnable;
             this.internalJobCleanupConsumer = internalJobCleanupConsumer;
@@ -216,11 +227,6 @@ public class AbstractHaServicesTest extends TestLogger {
 
         @Override
         protected JobGraphStore createJobGraphStore() throws Exception {
-            throw new UnsupportedOperationException("Not supported by this test implementation.");
-        }
-
-        @Override
-        protected RunningJobsRegistry createRunningJobsRegistry() {
             throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
 

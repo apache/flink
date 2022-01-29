@@ -105,7 +105,7 @@ class PythonBootTests(PyFlinkTestCase):
 
     def test_set_working_directory(self):
         JProcessPythonEnvironmentManager = \
-            get_gateway().jvm.org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager
+            get_gateway().jvm.org.apache.flink.python.env.process.ProcessPythonEnvironmentManager
 
         output_file = os.path.join(self.tmp_dir, "output.txt")
         pyflink_dir = os.path.join(self.tmp_dir, "pyflink")

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -31,6 +32,8 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
@@ -574,6 +577,39 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         final Table resultTable = getComplexUnifiedPipeline(env);
 
         testResult(resultTable.execute(), Row.of("Bob", 1L), Row.of("Alice", 1L));
+    }
+
+    @Test
+    public void testTableStreamConversionBatch() throws Exception {
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+        DataStreamSource<Row> streamSource =
+                env.fromElements(
+                        Row.of("Alice"),
+                        Row.of("alice"),
+                        Row.of("lily"),
+                        Row.of("Bob"),
+                        Row.of("lily"),
+                        Row.of("lily"));
+        StreamTableEnvironment tableEnvironment = StreamTableEnvironment.create(env);
+        Table sourceTable = tableEnvironment.fromDataStream(streamSource).as("word");
+        tableEnvironment.createTemporaryView("tmp_table", sourceTable);
+        Table resultTable = tableEnvironment.sqlQuery("select UPPER(word) as word from tmp_table");
+        SingleOutputStreamOperator<Tuple2<String, Integer>> resultStream =
+                tableEnvironment
+                        .toDataStream(resultTable)
+                        .map(row -> (String) row.getField("word"))
+                        .returns(TypeInformation.of(String.class))
+                        .map(s -> new Tuple2<>(s, 1))
+                        .returns(TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}))
+                        .keyBy(tuple -> tuple.f0)
+                        .sum(1);
+
+        testResult(
+                resultStream,
+                new Tuple2<>("ALICE", 2),
+                new Tuple2<>("BOB", 1),
+                new Tuple2<>("LILY", 3));
     }
 
     @Test

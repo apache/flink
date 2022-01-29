@@ -18,19 +18,16 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
-import org.apache.flink.util.IterableUtils;
 
 import java.util.List;
-import java.util.function.Function;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -48,9 +45,7 @@ class DefaultResultPartition implements SchedulingResultPartition {
 
     private DefaultExecutionVertex producer;
 
-    private final List<ConsumerVertexGroup> consumerVertexGroups;
-
-    private final Function<ExecutionVertexID, DefaultExecutionVertex> executionVertexRetriever;
+    private final Supplier<ConsumerVertexGroup> consumerVertexGroupSupplier;
 
     private final Supplier<List<ConsumedPartitionGroup>> consumerPartitionGroupSupplier;
 
@@ -59,32 +54,14 @@ class DefaultResultPartition implements SchedulingResultPartition {
             IntermediateDataSetID intermediateDataSetId,
             ResultPartitionType partitionType,
             Supplier<ResultPartitionState> resultPartitionStateSupplier,
-            List<ConsumerVertexGroup> consumerVertexGroups,
-            Function<ExecutionVertexID, DefaultExecutionVertex> executionVertexRetriever,
+            Supplier<ConsumerVertexGroup> consumerVertexGroupSupplier,
             Supplier<List<ConsumedPartitionGroup>> consumerPartitionGroupSupplier) {
         this.resultPartitionId = checkNotNull(partitionId);
         this.intermediateDataSetId = checkNotNull(intermediateDataSetId);
         this.partitionType = checkNotNull(partitionType);
         this.resultPartitionStateSupplier = checkNotNull(resultPartitionStateSupplier);
-        this.consumerVertexGroups = consumerVertexGroups;
-        this.executionVertexRetriever = executionVertexRetriever;
-        this.consumerPartitionGroupSupplier = consumerPartitionGroupSupplier;
-    }
-
-    @VisibleForTesting
-    DefaultResultPartition(
-            IntermediateResultPartitionID partitionId,
-            IntermediateDataSetID intermediateDataSetId,
-            ResultPartitionType partitionType,
-            Supplier<ResultPartitionState> resultPartitionStateSupplier) {
-        this(
-                partitionId,
-                intermediateDataSetId,
-                partitionType,
-                resultPartitionStateSupplier,
-                null,
-                null,
-                null);
+        this.consumerVertexGroupSupplier = checkNotNull(consumerVertexGroupSupplier);
+        this.consumerPartitionGroupSupplier = checkNotNull(consumerPartitionGroupSupplier);
     }
 
     @Override
@@ -113,13 +90,8 @@ class DefaultResultPartition implements SchedulingResultPartition {
     }
 
     @Override
-    public Iterable<DefaultExecutionVertex> getConsumers() {
-        return IterableUtils.flatMap(consumerVertexGroups, executionVertexRetriever);
-    }
-
-    @Override
-    public List<ConsumerVertexGroup> getConsumerVertexGroups() {
-        return consumerVertexGroups;
+    public Optional<ConsumerVertexGroup> getConsumerVertexGroup() {
+        return Optional.ofNullable(consumerVertexGroupSupplier.get());
     }
 
     @Override

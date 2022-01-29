@@ -44,6 +44,15 @@ public class StreamEdge implements Serializable {
     private final int sourceId;
     private final int targetId;
 
+    /**
+     * Note that this field doesn't have to be unique among all {@link StreamEdge}s. It's enough if
+     * this field ensures that all logical instances of {@link StreamEdge} are unique, and {@link
+     * #hashCode()} are different and {@link #equals(Object)} returns false, for every possible pair
+     * of {@link StreamEdge}. Especially among two different {@link StreamEdge}s that are connecting
+     * the same pair of nodes.
+     */
+    private final int uniqueId;
+
     /** The type number of the input for co-tasks. */
     private final int typeNumber;
     /** The side-output tag (if any) of this {@link StreamEdge}. */
@@ -78,7 +87,8 @@ public class StreamEdge implements Serializable {
                 ALWAYS_FLUSH_BUFFER_TIMEOUT,
                 outputPartitioner,
                 outputTag,
-                StreamExchangeMode.UNDEFINED);
+                StreamExchangeMode.UNDEFINED,
+                0);
     }
 
     public StreamEdge(
@@ -87,7 +97,8 @@ public class StreamEdge implements Serializable {
             int typeNumber,
             StreamPartitioner<?> outputPartitioner,
             OutputTag outputTag,
-            StreamExchangeMode exchangeMode) {
+            StreamExchangeMode exchangeMode,
+            int uniqueId) {
 
         this(
                 sourceVertex,
@@ -96,7 +107,8 @@ public class StreamEdge implements Serializable {
                 sourceVertex.getBufferTimeout(),
                 outputPartitioner,
                 outputTag,
-                exchangeMode);
+                exchangeMode,
+                uniqueId);
     }
 
     public StreamEdge(
@@ -106,10 +118,12 @@ public class StreamEdge implements Serializable {
             long bufferTimeout,
             StreamPartitioner<?> outputPartitioner,
             OutputTag outputTag,
-            StreamExchangeMode exchangeMode) {
+            StreamExchangeMode exchangeMode,
+            int uniqueId) {
 
         this.sourceId = sourceVertex.getId();
         this.targetId = targetVertex.getId();
+        this.uniqueId = uniqueId;
         this.typeNumber = typeNumber;
         this.bufferTimeout = bufferTimeout;
         this.outputPartitioner = outputPartitioner;
@@ -118,7 +132,15 @@ public class StreamEdge implements Serializable {
         this.targetOperatorName = targetVertex.getOperatorName();
         this.exchangeMode = checkNotNull(exchangeMode);
         this.edgeId =
-                sourceVertex + "_" + targetVertex + "_" + typeNumber + "_" + outputPartitioner;
+                sourceVertex
+                        + "_"
+                        + targetVertex
+                        + "_"
+                        + typeNumber
+                        + "_"
+                        + outputPartitioner
+                        + "_"
+                        + uniqueId;
     }
 
     public int getSourceId() {
@@ -200,6 +222,8 @@ public class StreamEdge implements Serializable {
                 + bufferTimeout
                 + ", outputTag="
                 + outputTag
+                + ", uniqueId="
+                + uniqueId
                 + ')';
     }
 }

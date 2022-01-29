@@ -131,8 +131,8 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
     }
 
     @Override
-    public String getFlinkLogDirInPod() {
-        return flinkConfig.getString(KubernetesConfigOptions.FLINK_LOG_DIR);
+    public Optional<String> getFlinkLogDirInPod() {
+        return Optional.ofNullable(flinkConfig.getString(KubernetesConfigOptions.FLINK_LOG_DIR));
     }
 
     @Override
@@ -201,5 +201,9 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
         return flinkConfig
                 .getOptional(KubernetesConfigOptions.KUBERNETES_ENV_SECRET_KEY_REF)
                 .orElse(Collections.emptyList());
+    }
+
+    public boolean isHostNetworkEnabled() {
+        return flinkConfig.getBoolean(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED);
     }
 }

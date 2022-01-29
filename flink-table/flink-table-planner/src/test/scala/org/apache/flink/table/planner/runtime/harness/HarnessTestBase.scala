@@ -71,12 +71,12 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
 
   def createHarnessTester(
       ds: DataStream[_],
-      prefixOperatorName: String)
+      operatorNameIdentifier: String)
   : KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData] = {
 
     val transformation = extractExpectedTransformation(
       ds.javaStream.getTransformation,
-      prefixOperatorName)
+      operatorNameIdentifier)
     val processOperator = transformation.getOperator
       .asInstanceOf[OneInputStreamOperator[Any, Any]]
     val keySelector = transformation.getStateKeySelector.asInstanceOf[KeySelector[Any, Any]]
@@ -88,11 +88,11 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
 
   def createHarnessTesterForNoState(
       ds: DataStream[_],
-      prefixOperatorName: String)
+      operatorNameIdentifier: String)
   : OneInputStreamOperatorTestHarness[RowData, RowData] = {
     val transformation = extractExpectedTransformation(
       ds.javaStream.getTransformation,
-      prefixOperatorName)
+      operatorNameIdentifier)
     val processOperator = transformation.getOperator
         .asInstanceOf[OneInputStreamOperator[Any, Any]]
     new OneInputStreamOperatorTestHarness(processOperator)
@@ -104,7 +104,8 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
       prefixOperatorName: String): OneInputTransformation[_, _] = {
     t match {
       case one: OneInputTransformation[_, _] =>
-        if (one.getName.startsWith(prefixOperatorName)) {
+        if (one.getName.contains(prefixOperatorName)
+            || one.getDescription.contains(prefixOperatorName)) {
           one
         } else {
           extractExpectedTransformation(one.getInputs.get(0), prefixOperatorName)

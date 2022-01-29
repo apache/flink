@@ -45,11 +45,13 @@ public final class RowDataToStringConverterImpl implements RowDataToStringConver
         this(
                 dataType,
                 DateTimeUtils.UTC_ZONE.toZoneId(),
-                Thread.currentThread().getContextClassLoader());
+                Thread.currentThread().getContextClassLoader(),
+                false);
     }
 
     @SuppressWarnings("unchecked")
-    public RowDataToStringConverterImpl(DataType dataType, ZoneId zoneId, ClassLoader classLoader) {
+    public RowDataToStringConverterImpl(
+            DataType dataType, ZoneId zoneId, ClassLoader classLoader, boolean legacyBehaviour) {
         List<DataType> rowDataTypes = DataType.getFieldDataTypes(dataType);
         this.columnConverters = new Function[rowDataTypes.size()];
 
@@ -60,7 +62,7 @@ public final class RowDataToStringConverterImpl implements RowDataToStringConver
             CastExecutor<Object, StringData> castExecutor =
                     (CastExecutor<Object, StringData>)
                             CastRuleProvider.create(
-                                    CastRule.Context.create(zoneId, classLoader),
+                                    CastRule.Context.create(legacyBehaviour, zoneId, classLoader),
                                     fieldType,
                                     STRING().getLogicalType());
             if (castExecutor == null) {

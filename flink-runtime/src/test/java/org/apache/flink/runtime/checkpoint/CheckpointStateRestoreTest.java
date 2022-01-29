@@ -241,7 +241,8 @@ public class CheckpointStateRestoreTest {
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                         new TestCompletedCheckpointStorageLocation());
 
-        coord.getCheckpointStore().addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {});
+        coord.getCheckpointStore()
+                .addCheckpointAndSubsumeOldestOne(checkpoint, new CheckpointsCleaner(), () -> {});
 
         assertTrue(coord.restoreLatestCheckpointedStateToAll(tasks, false));
         assertTrue(coord.restoreLatestCheckpointedStateToAll(tasks, true));
@@ -270,7 +271,8 @@ public class CheckpointStateRestoreTest {
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                         new TestCompletedCheckpointStorageLocation());
 
-        coord.getCheckpointStore().addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {});
+        coord.getCheckpointStore()
+                .addCheckpointAndSubsumeOldestOne(checkpoint, new CheckpointsCleaner(), () -> {});
 
         // (i) Allow non restored state (should succeed)
         final boolean restored = coord.restoreLatestCheckpointedStateToAll(tasks, true);

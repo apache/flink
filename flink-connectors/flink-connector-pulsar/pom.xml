@@ -101,13 +101,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-testing</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
@@ -199,9 +192,7 @@ under the License.
 				<configuration>
 					<!-- Enforce single fork execution due to heavy mini cluster use in the tests -->
 					<forkCount>1</forkCount>
-					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber}
-						-XX:-UseGCOverheadLimit
-					</argLine>
+					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit -Duser.country=US -Duser.language=en</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -223,8 +214,7 @@ under the License.
 					<outputDirectory>
 						${project.build.directory}/generated-test-sources/protobuf/java
 					</outputDirectory>
-					<protocArtifact>com.google.protobuf:protoc:3.5.1:exe:${os.detected.classifier}
-					</protocArtifact>
+					<protocArtifact>com.google.protobuf:protoc:${protoc.version}:exe:${os.detected.classifier}</protocArtifact>
 				</configuration>
 				<executions>
 					<execution>
@@ -269,6 +259,7 @@ under the License.
 								<include>**/testutils/**</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
+								<include>containers/txnStandalone.conf</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -292,6 +283,7 @@ under the License.
 								<include>**/testutils/**</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
+								<include>containers/txnStandalone.conf</include>
 							</includes>
 						</configuration>
 					</execution>

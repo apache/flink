@@ -24,6 +24,7 @@ build-target
 flink-runtime-web/web-dashboard/node/
 flink-runtime-web/web-dashboard/node_modules/
 flink-runtime-web/web-dashboard/web/
+flink-runtime-web/web-dashboard/.angular/
 flink-python/dist/
 flink-python/apache-flink-libraries/dist/
 flink-python/build/

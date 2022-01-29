@@ -33,6 +33,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
@@ -51,7 +52,7 @@ import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.impl.VoidMetricQueryServiceRetriever;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
-import org.apache.flink.test.recovery.AbstractTaskManagerProcessFailureRecoveryTest.TaskExecutorProcessEntryPoint;
+import org.apache.flink.test.recovery.utils.TaskExecutorProcessEntryPoint;
 import org.apache.flink.test.util.TestProcessBuilder;
 import org.apache.flink.test.util.TestProcessBuilder.TestProcess;
 import org.apache.flink.testutils.TestingUtils;
@@ -140,6 +141,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
             dispatcherResourceManagerComponent =
                     resourceManagerComponentFactory.create(
                             config,
+                            ResourceID.generate(),
                             ioExecutor,
                             rpcService,
                             haServices,

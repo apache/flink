@@ -30,7 +30,7 @@ public class SerializableConfiguration implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private Configuration conf;
+    private transient Configuration conf;
 
     public SerializableConfiguration(Configuration conf) {
         this.conf = conf;
@@ -41,13 +41,12 @@ public class SerializableConfiguration implements Serializable {
     }
 
     private void writeObject(ObjectOutputStream out) throws IOException {
+        out.defaultWriteObject();
         conf.write(out);
     }
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-        if (conf == null) {
-            conf = new Configuration();
-        }
+        conf = new Configuration(false);
         conf.readFields(in);
     }
 }

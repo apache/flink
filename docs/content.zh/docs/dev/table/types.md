@@ -1530,7 +1530,7 @@ information similar to `java.util.Map[java.lang.Object, java.lang.Object]`.
 | `java.time.LocalDateTime`   | `TIMESTAMP(9)`                      |
 | `java.time.OffsetDateTime`  | `TIMESTAMP(9) WITH TIME ZONE`       |
 | `java.time.Instant`         | `TIMESTAMP_LTZ(9)`                  |
-| `java.time.Duration`        | `INVERVAL SECOND(9)`                |
+| `java.time.Duration`        | `INTERVAL SECOND(9)`                |
 | `java.time.Period`          | `INTERVAL YEAR(4) TO MONTH`         |
 | `byte[]`                    | `BYTES`                             |
 | `T[]`                       | `ARRAY<T>`                          |

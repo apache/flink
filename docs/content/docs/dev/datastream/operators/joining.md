@@ -216,7 +216,7 @@ This can also be expressed more formally as
 `b.timestamp ∈ [a.timestamp + lowerBound; a.timestamp + upperBound]` or 
 `a.timestamp + lowerBound <= b.timestamp <= a.timestamp + upperBound`
 
-where a and b are elements of A and B that share a common key. Both the lower and upper bound can be either negative or positive as long as as the lower bound is always smaller or equal to the upper bound. The interval join currently only performs inner joins.
+where a and b are elements of A and B that share a common key. Both the lower and upper bound can be either negative or positive as long as the lower bound is always smaller or equal to the upper bound. The interval join currently only performs inner joins.
 
 When a pair of elements are passed to the `ProcessJoinFunction`, they will be assigned with the larger timestamp (which can be accessed via the `ProcessJoinFunction.Context`) of the two elements.
 
@@ -226,7 +226,7 @@ The interval join currently only supports event time.
 
 {{< img src="/fig/interval-join.svg" width="80%" >}} 
 
-In the example above, we join two streams 'orange' and 'green' with a lower bound of -2 milliseconds and an upper bound of +1 millisecond. Be default, these boundaries are inclusive, but `.lowerBoundExclusive()` and `.upperBoundExclusive` can be applied to change the behaviour.
+In the example above, we join two streams 'orange' and 'green' with a lower bound of -2 milliseconds and an upper bound of +1 millisecond. Be default, these boundaries are inclusive, but `.lowerBoundExclusive()` and `.upperBoundExclusive()` can be applied to change the behaviour.
 
 Using the more formal notation again this will translate to 
 

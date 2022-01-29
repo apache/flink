@@ -171,9 +171,9 @@ public class OperatorState implements CompositeStateHandle {
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
+    public void registerSharedStates(SharedStateRegistry sharedStateRegistry, long checkpointID) {
         for (OperatorSubtaskState operatorSubtaskState : operatorSubtaskStates.values()) {
-            operatorSubtaskState.registerSharedStates(sharedStateRegistry);
+            operatorSubtaskState.registerSharedStates(sharedStateRegistry, checkpointID);
         }
     }
 
@@ -189,6 +189,20 @@ public class OperatorState implements CompositeStateHandle {
             OperatorSubtaskState operatorSubtaskState = operatorSubtaskStates.get(i);
             if (operatorSubtaskState != null) {
                 result += operatorSubtaskState.getStateSize();
+            }
+        }
+
+        return result;
+    }
+
+    @Override
+    public long getCheckpointedSize() {
+        long result = coordinatorState == null ? 0L : coordinatorState.getStateSize();
+
+        for (int i = 0; i < parallelism; i++) {
+            OperatorSubtaskState operatorSubtaskState = operatorSubtaskStates.get(i);
+            if (operatorSubtaskState != null) {
+                result += operatorSubtaskState.getCheckpointedSize();
             }
         }
 

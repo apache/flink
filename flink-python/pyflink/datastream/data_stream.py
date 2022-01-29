@@ -231,6 +231,24 @@ class DataStream(object):
             self._j_data_stream.slotSharingGroup(slot_sharing_group)
         return self
 
+    def set_description(self, description: str) -> 'DataStream':
+        """
+        Sets the description for this operator.
+
+        Description is used in json plan and web ui, but not in logging and metrics where only
+        name is available. Description is expected to provide detailed information about the
+        operator, while name is expected to be more simple, providing summary information only,
+        so that we can have more user-friendly logging messages and metric tags without losing
+        useful messages for debugging.
+
+        :param description: The description for this operator.
+        :return: The operator with new description.
+
+        .. versionadded:: 1.15.0
+        """
+        self._j_data_stream.setDescription(description)
+        return self
+
     def map(self, func: Union[Callable, MapFunction], output_type: TypeInformation = None) \
             -> 'DataStream':
         """
@@ -887,6 +905,24 @@ class DataStreamSink(object):
         self._j_data_stream_sink.setParallelism(parallelism)
         return self
 
+    def set_description(self, description: str) -> 'DataStreamSink':
+        """
+        Sets the description for this sink.
+
+        Description is used in json plan and web ui, but not in logging and metrics where only
+        name is available. Description is expected to provide detailed information about the sink,
+        while name is expected to be more simple, providing summary information only, so that we can
+        have more user-friendly logging messages and metric tags without losing useful messages for
+        debugging.
+
+        :param description: The description for this sink.
+        :return: The sink with new description.
+
+        .. versionadded:: 1.15.0
+        """
+        self._j_data_stream_sink.setDescription(description)
+        return self
+
     def disable_chaining(self) -> 'DataStreamSink':
         """
         Turns off chaining for this operator so thread co-location will not be used as an
@@ -1436,10 +1472,14 @@ class ConnectedStreams(object):
                     self._close_func()
 
                 def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                    yield self._map1_func(value)
+                    result = self._map1_func(value)
+                    if result is not None:
+                        yield result
 
                 def process_element2(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                    yield self._map2_func(value)
+                    result = self._map2_func(value)
+                    if result is not None:
+                        yield result
 
             return self.process(CoMapKeyedCoProcessFunctionAdapter(func), output_type) \
                 .name("Co-Map")
@@ -1458,10 +1498,14 @@ class ConnectedStreams(object):
                     self._close_func()
 
                 def process_element1(self, value, ctx: 'CoProcessFunction.Context'):
-                    yield self._map1_func(value)
+                    result = self._map1_func(value)
+                    if result is not None:
+                        yield result
 
                 def process_element2(self, value, ctx: 'CoProcessFunction.Context'):
-                    yield self._map2_func(value)
+                    result = self._map2_func(value)
+                    if result is not None:
+                        yield result
 
             return self.process(CoMapCoProcessFunctionAdapter(func), output_type) \
                 .name("Co-Map")
@@ -1498,10 +1542,14 @@ class ConnectedStreams(object):
                     self._close_func()
 
                 def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                    yield from self._flat_map1_func(value)
+                    result = self._flat_map1_func(value)
+                    if result:
+                        yield from result
 
                 def process_element2(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                    yield from self._flat_map2_func(value)
+                    result = self._flat_map2_func(value)
+                    if result:
+                        yield from result
 
             return self.process(FlatMapKeyedCoProcessFunctionAdapter(func), output_type) \
                 .name("Co-Flat Map")
@@ -1521,10 +1569,14 @@ class ConnectedStreams(object):
                     self._close_func()
 
                 def process_element1(self, value, ctx: 'CoProcessFunction.Context'):
-                    yield from self._flat_map1_func(value)
+                    result = self._flat_map1_func(value)
+                    if result:
+                        yield from result
 
                 def process_element2(self, value, ctx: 'CoProcessFunction.Context'):
-                    yield from self._flat_map2_func(value)
+                    result = self._flat_map2_func(value)
+                    if result:
+                        yield from result
 
             return self.process(FlatMapCoProcessFunctionAdapter(func), output_type) \
                 .name("Co-Flat Map")

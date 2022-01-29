@@ -188,6 +188,7 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
                         .createTestingLogicalSlot();
 
         assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+        vertex.getCurrentExecutionAttempt().transitionState(ExecutionState.SCHEDULED);
 
         vertex.getCurrentExecutionAttempt()
                 .registerProducedPartitions(slot.getTaskManagerLocation(), true)

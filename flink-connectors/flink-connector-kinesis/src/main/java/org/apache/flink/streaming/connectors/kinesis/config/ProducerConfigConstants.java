@@ -26,7 +26,8 @@ import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
  *     keys. See <a
  *     href="https://github.com/awslabs/amazon-kinesis-producer/blob/master/java/amazon-kinesis-producer-sample/default_config.properties">
  *     here</a> for the full list of available configs. For configuring the region and credentials,
- *     please use the keys in {@link AWSConfigConstants}.
+ *     please use the keys in {@link
+ *     org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants}.
  */
 @Deprecated
 public class ProducerConfigConstants extends AWSConfigConstants {

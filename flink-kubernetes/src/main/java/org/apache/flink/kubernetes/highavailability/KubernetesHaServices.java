@@ -28,7 +28,7 @@ import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
@@ -61,7 +61,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * k8s-ha-app1-00000000000000000000000000000000-jobmanager-leader
  *
  * <p>Note that underline("_") is not allowed in Kubernetes ConfigMap name.
+ *
+ * @deprecated in favour of {@link KubernetesMultipleComponentLeaderElectionHaServices}
  */
+@Deprecated
 public class KubernetesHaServices extends AbstractHaServices {
 
     private final String clusterId;
@@ -93,8 +96,8 @@ public class KubernetesHaServices extends AbstractHaServices {
             Executor executor,
             Configuration config,
             BlobStoreService blobStoreService) {
+        super(config, executor, blobStoreService, new EmbeddedJobResultStore());
 
-        super(config, executor, blobStoreService);
         this.kubeClient = checkNotNull(kubeClient);
         this.clusterId = checkNotNull(config.get(KubernetesConfigOptions.CLUSTER_ID));
 
@@ -127,10 +130,11 @@ public class KubernetesHaServices extends AbstractHaServices {
 
     @Override
     public CheckpointRecoveryFactory createCheckpointRecoveryFactory() {
-        return new KubernetesCheckpointRecoveryFactory(
+        return KubernetesCheckpointRecoveryFactory.withLeadershipValidation(
                 kubeClient,
                 configuration,
                 ioExecutor,
+                clusterId,
                 this::getLeaderPathForJobManager,
                 lockIdentity);
     }
@@ -139,12 +143,6 @@ public class KubernetesHaServices extends AbstractHaServices {
     public JobGraphStore createJobGraphStore() throws Exception {
         return KubernetesUtils.createJobGraphStore(
                 configuration, kubeClient, getLeaderPathForDispatcher(), lockIdentity);
-    }
-
-    @Override
-    public RunningJobsRegistry createRunningJobsRegistry() {
-        return new KubernetesRunningJobsRegistry(
-                kubeClient, getLeaderPathForDispatcher(), lockIdentity);
     }
 
     @Override

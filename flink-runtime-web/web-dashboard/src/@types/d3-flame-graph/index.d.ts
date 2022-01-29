@@ -52,7 +52,7 @@ declare module 'd3-flame-graph' {
     title(): string;
     tooltip(val: boolean): FlameGraph;
     tooltip(): boolean;
-    tooltip(any: tip): boolean;
+    tooltip(tip: unknown): boolean;
     transitionDuration(val: number): FlameGraph;
     transitionDuration(): number;
     transitionEase(val: string): FlameGraph;

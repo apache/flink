@@ -113,10 +113,13 @@ public class RemoteInputChannel extends InputChannel {
 
     private final ChannelStatePersister channelStatePersister;
 
+    private long totalQueueSizeInBytes;
+
     public RemoteInputChannel(
             SingleInputGate inputGate,
             int channelIndex,
             ResultPartitionID partitionId,
+            int consumedSubpartitionIndex,
             ConnectionID connectionId,
             ConnectionManager connectionManager,
             int initialBackOff,
@@ -130,6 +133,7 @@ public class RemoteInputChannel extends InputChannel {
                 inputGate,
                 channelIndex,
                 partitionId,
+                consumedSubpartitionIndex,
                 initialBackOff,
                 maxBackoff,
                 numBytesIn,
@@ -168,13 +172,12 @@ public class RemoteInputChannel extends InputChannel {
     /** Requests a remote subpartition. */
     @VisibleForTesting
     @Override
-    public void requestSubpartition(int subpartitionIndex)
-            throws IOException, InterruptedException {
+    public void requestSubpartition() throws IOException, InterruptedException {
         if (partitionRequestClient == null) {
             LOG.debug(
                     "{}: Requesting REMOTE subpartition {} of partition {}. {}",
                     this,
-                    subpartitionIndex,
+                    consumedSubpartitionIndex,
                     partitionId,
                     channelStatePersister);
             // Create a client and request the partition
@@ -187,17 +190,18 @@ public class RemoteInputChannel extends InputChannel {
                 throw new PartitionConnectionException(partitionId, e);
             }
 
-            partitionRequestClient.requestSubpartition(partitionId, subpartitionIndex, this, 0);
+            partitionRequestClient.requestSubpartition(
+                    partitionId, consumedSubpartitionIndex, this, 0);
         }
     }
 
     /** Retriggers a remote subpartition request. */
-    void retriggerSubpartitionRequest(int subpartitionIndex) throws IOException {
+    void retriggerSubpartitionRequest() throws IOException {
         checkPartitionRequestQueueInitialized();
 
         if (increaseBackoff()) {
             partitionRequestClient.requestSubpartition(
-                    partitionId, subpartitionIndex, this, getCurrentBackoff());
+                    partitionId, consumedSubpartitionIndex, this, getCurrentBackoff());
         } else {
             failPartitionRequest();
         }
@@ -212,6 +216,10 @@ public class RemoteInputChannel extends InputChannel {
 
         synchronized (receivedBuffers) {
             next = receivedBuffers.poll();
+
+            if (next != null) {
+                totalQueueSizeInBytes -= next.buffer.getSize();
+            }
             nextDataType =
                     receivedBuffers.peek() != null
                             ? receivedBuffers.peek().buffer.getDataType()
@@ -454,6 +462,11 @@ public class RemoteInputChannel extends InputChannel {
         return Math.max(0, receivedBuffers.size());
     }
 
+    @Override
+    public long unsynchronizedGetSizeOfQueuedBuffers() {
+        return Math.max(0, totalQueueSizeInBytes);
+    }
+
     public int unsynchronizedGetExclusiveBuffersUsed() {
         return Math.max(
                 0, initialCredit - bufferManager.unsynchronizedGetAvailableExclusiveBuffers());
@@ -550,6 +563,7 @@ public class RemoteInputChannel extends InputChannel {
                         firstPriorityEvent = addPriorityBuffer(announce(sequenceBuffer));
                     }
                 }
+                totalQueueSizeInBytes += buffer.getSize();
                 final OptionalLong barrierId =
                         channelStatePersister.checkForBarrier(sequenceBuffer.buffer);
                 if (barrierId.isPresent() && barrierId.getAsLong() > lastBarrierId) {
@@ -785,7 +799,7 @@ public class RemoteInputChannel extends InputChannel {
     }
 
     public void onFailedPartitionRequest() {
-        inputGate.triggerPartitionStateCheck(partitionId);
+        inputGate.triggerPartitionStateCheck(partitionId, consumedSubpartitionIndex);
     }
 
     public void onError(Throwable cause) {

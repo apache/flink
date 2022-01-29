@@ -34,6 +34,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotatio
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A sub-class of {@link SinkAbilitySpec} that can not only serialize/deserialize the metadata
@@ -41,7 +42,7 @@ import java.util.List;
  * SupportsWritingMetadata}.
  */
 @JsonTypeName("WritingMetadata")
-public class WritingMetadataSpec implements SinkAbilitySpec {
+public final class WritingMetadataSpec implements SinkAbilitySpec {
     public static final String FIELD_NAME_METADATA_KEYS = "metadataKeys";
     public static final String FIELD_NAME_CONSUMED_TYPE = "consumedType";
 
@@ -73,5 +74,23 @@ public class WritingMetadataSpec implements SinkAbilitySpec {
                             "%s does not support SupportsWritingMetadata.",
                             tableSink.getClass().getName()));
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        WritingMetadataSpec that = (WritingMetadataSpec) o;
+        return Objects.equals(metadataKeys, that.metadataKeys)
+                && Objects.equals(consumedType, that.consumedType);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(metadataKeys, consumedType);
     }
 }

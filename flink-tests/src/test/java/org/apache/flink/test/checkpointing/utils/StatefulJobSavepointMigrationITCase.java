@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.checkpointing.utils;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -39,7 +40,6 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -76,37 +76,37 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
     private final ExecutionMode executionMode = ExecutionMode.VERIFY_SAVEPOINT;
 
     @Parameterized.Parameters(name = "Migrate Savepoint / Backend: {0}")
-    public static Collection<Tuple2<MigrationVersion, String>> parameters() {
+    public static Collection<Tuple2<FlinkVersion, String>> parameters() {
         return Arrays.asList(
-                Tuple2.of(MigrationVersion.v1_4, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_4, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_5, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_5, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_7, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_7, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_8, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_8, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_9, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_9, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_10, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_10, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_11, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_11, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_12, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_12, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_13, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_13, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_14, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_14, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
+                Tuple2.of(FlinkVersion.v1_4, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_4, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_5, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_5, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_7, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_7, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_8, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_8, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_9, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_9, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_10, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_10, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_11, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_11, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_12, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_12, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_13, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_13, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_14, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+                Tuple2.of(FlinkVersion.v1_14, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
     }
 
-    private final MigrationVersion testMigrateVersion;
+    private final FlinkVersion testMigrateVersion;
     private final String testStateBackend;
 
     public StatefulJobSavepointMigrationITCase(
-            Tuple2<MigrationVersion, String> testMigrateVersionAndBackend) throws Exception {
+            Tuple2<FlinkVersion, String> testMigrateVersionAndBackend) throws Exception {
         this.testMigrateVersion = testMigrateVersionAndBackend.f0;
         this.testStateBackend = testMigrateVersionAndBackend.f1;
     }
@@ -227,7 +227,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
         }
     }
 
-    private String getSavepointPath(MigrationVersion savepointVersion, String backendType) {
+    private String getSavepointPath(FlinkVersion savepointVersion, String backendType) {
         switch (backendType) {
             case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME:
                 return "new-stateful-udf-migration-itcase-flink"

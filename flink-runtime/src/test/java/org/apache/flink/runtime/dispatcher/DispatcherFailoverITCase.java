@@ -24,7 +24,7 @@ import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -47,6 +47,7 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -69,15 +70,23 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
         super.setUp();
         haServices.setCheckpointRecoveryFactory(
                 new PerJobCheckpointRecoveryFactory<EmbeddedCompletedCheckpointStore>(
-                        (maxCheckpoints, previous) -> {
+                        (maxCheckpoints, previous, sharedStateRegistryFactory, ioExecutor) -> {
                             if (previous != null) {
-                                // First job attempt failed before cleaning up the checkpoint store.
+                                // First job attempt failed before cleaning up the checkpoint
+                                // store.
                                 assertFalse(previous.getShutdownStatus().isPresent());
                                 assertFalse(previous.getAllCheckpoints().isEmpty());
                                 return new EmbeddedCompletedCheckpointStore(
-                                        maxCheckpoints, previous.getAllCheckpoints());
+                                        maxCheckpoints,
+                                        previous.getAllCheckpoints(),
+                                        sharedStateRegistryFactory.create(
+                                                ioExecutor, previous.getAllCheckpoints()));
                             }
-                            return new EmbeddedCompletedCheckpointStore(maxCheckpoints);
+                            return new EmbeddedCompletedCheckpointStore(
+                                    maxCheckpoints,
+                                    Collections.emptyList(),
+                                    sharedStateRegistryFactory.create(
+                                            ioExecutor, Collections.emptyList()));
                         }));
     }
 
@@ -214,13 +223,17 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
         for (JobID jobId : haServices.getJobGraphStore().getJobIds()) {
             jobGraphs.add(haServices.getJobGraphStore().recoverJobGraph(jobId));
         }
-        haServices.setRunningJobsRegistry(new StandaloneRunningJobsRegistry());
+        // we need to reinstantiate the JobResultStore here to simulate a not-persisting
+        // JobResultStore
+        haServices.setJobResultStore(new EmbeddedJobResultStore());
         final TestingDispatcher dispatcher =
                 new TestingDispatcherBuilder()
                         .setJobManagerRunnerFactory(
                                 JobMasterServiceLeadershipRunnerFactory.INSTANCE)
                         .setJobGraphWriter(haServices.getJobGraphStore())
+                        .setJobResultStore(haServices.getJobResultStore())
                         .setInitialJobGraphs(jobGraphs)
+                        .setDirtyJobResults(haServices.getJobResultStore().getDirtyResults())
                         .setFatalErrorHandler(
                                 fatalErrorHandler == null
                                         ? testingFatalErrorHandlerResource.getFatalErrorHandler()

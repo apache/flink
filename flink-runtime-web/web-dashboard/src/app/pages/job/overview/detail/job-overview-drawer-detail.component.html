@@ -17,8 +17,8 @@
   -->
 
 <ng-container *ngIf="node">
-  <div class="name">
-    {{ node.detail.name }}
+  <div class="name {{ multilineNameCSS }}">
+    {{ node.description }}
   </div>
   <div nz-row class="wrapper">
     <div nz-col [nzSpan]="12">

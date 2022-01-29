@@ -78,7 +78,7 @@ public class NettyPartitionRequestClientTest {
             inputGate.setupChannels();
 
             // first subpartition request
-            inputChannel.requestSubpartition(0);
+            inputChannel.requestSubpartition();
 
             assertTrue(channel.isWritable());
             Object readFromOutbound = channel.readOutbound();
@@ -89,7 +89,9 @@ public class NettyPartitionRequestClientTest {
             assertEquals(numExclusiveBuffers, ((PartitionRequest) readFromOutbound).credit);
 
             // retrigger subpartition request, e.g. due to failures
-            inputGate.retriggerPartitionRequest(inputChannel.getPartitionId().getPartitionId());
+            inputGate.retriggerPartitionRequest(
+                    inputChannel.getPartitionId().getPartitionId(),
+                    inputChannel.getConsumedSubpartitionIndex());
             runAllScheduledPendingTasks(channel, deadline);
 
             readFromOutbound = channel.readOutbound();
@@ -100,7 +102,9 @@ public class NettyPartitionRequestClientTest {
             assertEquals(numExclusiveBuffers, ((PartitionRequest) readFromOutbound).credit);
 
             // retrigger subpartition request once again, e.g. due to failures
-            inputGate.retriggerPartitionRequest(inputChannel.getPartitionId().getPartitionId());
+            inputGate.retriggerPartitionRequest(
+                    inputChannel.getPartitionId().getPartitionId(),
+                    inputChannel.getConsumedSubpartitionIndex());
             runAllScheduledPendingTasks(channel, deadline);
 
             readFromOutbound = channel.readOutbound();
@@ -137,7 +141,7 @@ public class NettyPartitionRequestClientTest {
             final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
-            inputChannel.requestSubpartition(0);
+            inputChannel.requestSubpartition();
 
             // The input channel should only send one partition request
             assertTrue(channel.isWritable());
@@ -173,7 +177,7 @@ public class NettyPartitionRequestClientTest {
             final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
-            inputChannel.requestSubpartition(0);
+            inputChannel.requestSubpartition();
 
             inputChannel.resumeConsumption();
             channel.runPendingTasks();
@@ -211,7 +215,7 @@ public class NettyPartitionRequestClientTest {
             BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
-            inputChannel.requestSubpartition(0);
+            inputChannel.requestSubpartition();
 
             inputChannel.acknowledgeAllRecordsProcessed();
             channel.runPendingTasks();
@@ -236,16 +240,19 @@ public class NettyPartitionRequestClientTest {
 
     private NettyPartitionRequestClient createPartitionRequestClient(
             Channel tcpChannel, NetworkClientHandler clientHandler) throws Exception {
-        int port = NetUtils.getAvailablePort();
-        ConnectionID connectionID = new ConnectionID(new InetSocketAddress("localhost", port), 0);
-        NettyConfig config =
-                new NettyConfig(InetAddress.getLocalHost(), port, 1024, 1, new Configuration());
-        NettyClient nettyClient = new NettyClient(config);
-        PartitionRequestClientFactory partitionRequestClientFactory =
-                new PartitionRequestClientFactory(nettyClient);
+        try (NetUtils.Port availablePort = NetUtils.getAvailablePort()) {
+            int port = availablePort.getPort();
+            ConnectionID connectionID =
+                    new ConnectionID(new InetSocketAddress("localhost", port), 0);
+            NettyConfig config =
+                    new NettyConfig(InetAddress.getLocalHost(), port, 1024, 1, new Configuration());
+            NettyClient nettyClient = new NettyClient(config);
+            PartitionRequestClientFactory partitionRequestClientFactory =
+                    new PartitionRequestClientFactory(nettyClient);
 
-        return new NettyPartitionRequestClient(
-                tcpChannel, clientHandler, connectionID, partitionRequestClientFactory);
+            return new NettyPartitionRequestClient(
+                    tcpChannel, clientHandler, connectionID, partitionRequestClientFactory);
+        }
     }
 
     /**

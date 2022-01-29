@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
@@ -126,6 +127,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
                 ResourceManagerServiceImpl.create(
                         rmFactory,
                         new Configuration(),
+                        ResourceID.generate(),
                         rpcService,
                         haService,
                         heartbeatServices,

@@ -19,9 +19,12 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.List;
 
@@ -35,8 +38,12 @@ public interface CompletedCheckpointStore {
      *
      * <p>Only a bounded number of checkpoints is kept. When exceeding the maximum number of
      * retained checkpoints, the oldest one will be discarded.
+     *
+     * @return the subsumed oldest completed checkpoint if possible, return null if no checkpoint
+     *     needs to be discarded on subsume.
      */
-    void addCheckpoint(
+    @Nullable
+    CompletedCheckpoint addCheckpointAndSubsumeOldestOne(
             CompletedCheckpoint checkpoint,
             CheckpointsCleaner checkpointsCleaner,
             Runnable postCleanup)
@@ -103,4 +110,7 @@ public interface CompletedCheckpointStore {
      *     false if the store stores the metadata itself.
      */
     boolean requiresExternalizedCheckpoints();
+
+    /** Returns the {@link SharedStateRegistry} used to register the shared state. */
+    SharedStateRegistry getSharedStateRegistry();
 }

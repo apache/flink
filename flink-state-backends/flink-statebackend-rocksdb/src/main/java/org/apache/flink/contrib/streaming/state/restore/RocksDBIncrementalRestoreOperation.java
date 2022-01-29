@@ -72,7 +72,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -87,7 +86,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             LoggerFactory.getLogger(RocksDBIncrementalRestoreOperation.class);
 
     private final String operatorIdentifier;
-    private final SortedMap<Long, Set<StateHandleID>> restoredSstFiles;
+    private final SortedMap<Long, Map<StateHandleID, StreamStateHandle>> restoredSstFiles;
     private final RocksDBHandle rocksHandle;
     private final Collection<KeyedStateHandle> restoreStateHandles;
     private final CloseableRegistry cancelStreamRegistry;
@@ -207,7 +206,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         backendUID = localKeyedStateHandle.getBackendIdentifier();
         restoredSstFiles.put(
                 localKeyedStateHandle.getCheckpointId(),
-                localKeyedStateHandle.getSharedStateHandleIDs());
+                localKeyedStateHandle.getSharedStateHandles());
         lastCompletedCheckpointId = localKeyedStateHandle.getCheckpointId();
     }
 
@@ -239,7 +238,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 backendUID);
 
         this.rocksHandle.openDB(
-                createlumnFamilyDescriptors(stateMetaInfoSnapshots, true),
+                createColumnFamilyDescriptors(stateMetaInfoSnapshots, true),
                 stateMetaInfoSnapshots,
                 restoreSourcePath);
     }
@@ -263,7 +262,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 new DirectoryStateHandle(temporaryRestoreInstancePath),
                 restoreStateHandle.getKeyGroupRange(),
                 restoreStateHandle.getMetaStateHandle(),
-                restoreStateHandle.getSharedState().keySet());
+                restoreStateHandle.getSharedState());
     }
 
     private void cleanUpPathQuietly(@Nonnull Path path) {
@@ -457,7 +456,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 serializationProxy.getStateMetaInfoSnapshots();
 
         List<ColumnFamilyDescriptor> columnFamilyDescriptors =
-                createlumnFamilyDescriptors(stateMetaInfoSnapshots, false);
+                createColumnFamilyDescriptors(stateMetaInfoSnapshots, false);
 
         List<ColumnFamilyHandle> columnFamilyHandles =
                 new ArrayList<>(stateMetaInfoSnapshots.size() + 1);
@@ -479,7 +478,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
      * This method recreates and registers all {@link ColumnFamilyDescriptor} from Flink's state
      * meta data snapshot.
      */
-    private List<ColumnFamilyDescriptor> createlumnFamilyDescriptors(
+    private List<ColumnFamilyDescriptor> createColumnFamilyDescriptors(
             List<StateMetaInfoSnapshot> stateMetaInfoSnapshots, boolean registerTtlCompactFilter) {
 
         List<ColumnFamilyDescriptor> columnFamilyDescriptors =

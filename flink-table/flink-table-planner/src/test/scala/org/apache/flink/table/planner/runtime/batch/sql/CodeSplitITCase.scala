@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.apache.flink.core.testutils.FlinkMatchers
 import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
@@ -26,10 +25,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData.{nullablesOfData3, smallData3, type3}
 import org.apache.flink.types.Row
 
-import org.hamcrest.MatcherAssert
 import org.junit.{Assert, Before, Test}
-
-import java.io.{OutputStream, PrintStream}
 
 import scala.collection.Seq
 
@@ -127,25 +123,5 @@ class CodeSplitITCase extends BatchTestBase {
     tEnv.getConfig.getConfiguration.setInteger(
       TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, 10000)
     checkResult(sql.mkString, results)
-
-    tEnv.getConfig.getConfiguration.setInteger(
-      TableConfigOptions.MAX_LENGTH_GENERATED_CODE, Int.MaxValue)
-    tEnv.getConfig.getConfiguration.setInteger(
-      TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, Int.MaxValue)
-    val originalStdOut = System.out
-    try {
-      // redirect stdout to a null output stream to silence compile error in CompileUtils
-      System.setOut(new PrintStream(new OutputStream {
-        override def write(b: Int): Unit = {}
-      }))
-      checkResult(sql, results)
-      Assert.fail("Expecting compiler exception")
-    } catch {
-      case e: Exception =>
-        MatcherAssert.assertThat(e, FlinkMatchers.containsMessage("grows beyond 64 KB"))
-    } finally {
-      // set stdout back
-      System.setOut(originalStdOut)
-    }
   }
 }

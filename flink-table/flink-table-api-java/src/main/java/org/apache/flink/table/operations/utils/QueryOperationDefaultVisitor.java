@@ -21,7 +21,6 @@ package org.apache.flink.table.operations.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.operations.AggregateQueryOperation;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
-import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.DistinctQueryOperation;
 import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation;
@@ -30,6 +29,7 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.QueryOperationVisitor;
 import org.apache.flink.table.operations.SetQueryOperation;
 import org.apache.flink.table.operations.SortQueryOperation;
+import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.ValuesQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation;
@@ -88,7 +88,7 @@ public abstract class QueryOperationDefaultVisitor<T> implements QueryOperationV
     }
 
     @Override
-    public T visit(CatalogQueryOperation catalogTable) {
+    public T visit(SourceQueryOperation catalogTable) {
         return defaultMethod(catalogTable);
     }
 

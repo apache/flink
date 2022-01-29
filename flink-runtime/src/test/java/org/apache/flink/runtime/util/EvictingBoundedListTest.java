@@ -26,6 +26,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -161,5 +162,19 @@ public class EvictingBoundedListTest {
         } catch (ConcurrentModificationException ignored) {
 
         }
+    }
+
+    @Test
+    public void testIsDroppedIndex() {
+        final int boundSize = 5;
+        final EvictingBoundedList<Integer> list = new EvictingBoundedList<>(boundSize, null);
+
+        for (int i = 0; i < 10; i++) {
+            list.add(i);
+        }
+
+        assertThat(list.isDroppedIndex(list.size() - 1)).isFalse();
+        assertThat(list.isDroppedIndex(list.size() - boundSize)).isFalse();
+        assertThat(list.isDroppedIndex(list.size() - 1 - boundSize)).isTrue();
     }
 }

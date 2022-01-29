@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -49,9 +50,9 @@ public interface StateChangelogWriter<Handle extends ChangelogStateHandle> exten
     CompletableFuture<Handle> persist(SequenceNumber from) throws IOException;
 
     /**
-     * Truncate this state changelog to free up resources. Called upon state materialization. Any
-     * {@link #persist(SequenceNumber) persisted} state changes will be discarded unless previously
-     * {@link #confirm confirmed}.
+     * Truncate in-memory view of this state changelog to free up resources. Called upon state
+     * materialization. Any {@link #persist(SequenceNumber) persisted} state changes will not be
+     * discarded; any ongoing persist calls will not be affected.
      *
      * @param to exclusive
      */
@@ -76,4 +77,7 @@ public interface StateChangelogWriter<Handle extends ChangelogStateHandle> exten
      * be lost.
      */
     void close();
+
+    @VisibleForTesting
+    SequenceNumber getLowestSequenceNumber();
 }

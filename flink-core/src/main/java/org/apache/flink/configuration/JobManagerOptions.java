@@ -387,13 +387,16 @@ public class JobManagerOptions {
                                     .list(
                                             text("'Ng': new generation scheduler"),
                                             text(
-                                                    "'Adaptive': adaptive scheduler; supports reactive mode"))
+                                                    "'Adaptive': adaptive scheduler; supports reactive mode"),
+                                            text(
+                                                    "'AdaptiveBatch': adaptive batch scheduler, which can automatically decide parallelisms of job vertices for batch jobs"))
                                     .build());
 
     /** Type of scheduler implementation. */
     public enum SchedulerType {
         Ng,
-        Adaptive
+        Adaptive,
+        AdaptiveBatch
     }
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
@@ -479,6 +482,81 @@ public class JobManagerOptions {
                     .defaultValue(true)
                     .withDescription(
                             "Controls whether partitions should already be released during the job execution.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_MIN_PARALLELISM =
+            key("jobmanager.scheduler.adaptive-batch.min-parallelism")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The lower bound of allowed parallelism to set adaptively if %s has been set to %s",
+                                            code(SCHEDULER.key()),
+                                            code(SchedulerType.AdaptiveBatch.name()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM =
+            key("jobmanager.scheduler.adaptive-batch.max-parallelism")
+                    .intType()
+                    .defaultValue(128)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The upper bound of allowed parallelism to set adaptively if %s has been set to %s",
+                                            code(SCHEDULER.key()),
+                                            code(SchedulerType.AdaptiveBatch.name()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<MemorySize> ADAPTIVE_BATCH_SCHEDULER_DATA_VOLUME_PER_TASK =
+            key("jobmanager.scheduler.adaptive-batch.data-volume-per-task")
+                    .memoryType()
+                    .defaultValue(MemorySize.ofMebiBytes(1024))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The size of data volume to expect each task instance to process if %s has been set to %s",
+                                            code(SCHEDULER.key()),
+                                            code(SchedulerType.AdaptiveBatch.name()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_DEFAULT_SOURCE_PARALLELISM =
+            key("jobmanager.scheduler.adaptive-batch.source-parallelism.default")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The default parallelism of source vertices if %s has been set to %s",
+                                            code(SCHEDULER.key()),
+                                            code(SchedulerType.AdaptiveBatch.name()))
+                                    .build());
+
+    /**
+     * The JobManager's ResourceID. If not configured, the ResourceID will be generated randomly.
+     */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<String> JOB_MANAGER_RESOURCE_ID =
+            key("jobmanager.resource-id")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The JobManager's ResourceID. If not configured, the ResourceID will be generated randomly.");
 
     // ---------------------------------------------------------------------------------------------
 

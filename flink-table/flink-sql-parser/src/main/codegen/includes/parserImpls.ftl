@@ -508,6 +508,7 @@ SqlAlterTable SqlAlterTable() :
     SqlIdentifier newTableIdentifier = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
+    SqlNodeList partitionSpec = null;
     SqlIdentifier constraintName;
     SqlTableConstraint constraint;
 }
@@ -555,6 +556,17 @@ SqlAlterTable SqlAlterTable() :
                 tableIdentifier,
                 constraintName,
                 startPos.plus(getPos()));
+        }
+    |
+        [
+            <PARTITION>
+            {   partitionSpec = new SqlNodeList(getPos());
+                PartitionSpecCommaList(partitionSpec);
+            }
+        ]
+        <COMPACT>
+        {
+            return new SqlAlterTableCompact(startPos.plus(getPos()), tableIdentifier, partitionSpec);
         }
     )
 }
@@ -1698,6 +1710,31 @@ SqlEndStatementSet SqlEndStatementSet() :
 }
 
 /**
+* Parse a statement set.
+* END;
+*/
+SqlNode SqlStatementSet() :
+{
+    SqlParserPos startPos;
+    SqlNode insert;
+    List<RichSqlInsert> inserts = new ArrayList<RichSqlInsert>();
+}
+{
+    <STATEMENT>{ startPos = getPos(); } <SET> <BEGIN>
+    (
+        insert = RichSqlInsert()
+        <SEMICOLON>
+        {
+            inserts.add((RichSqlInsert) insert);
+        }
+    )+
+    <END>
+    {
+        return new SqlStatementSet(inserts, startPos);
+    }
+}
+
+/**
 * Parses a explain module statement.
 */
 SqlNode SqlRichExplain() :
@@ -1717,12 +1754,36 @@ SqlNode SqlRichExplain() :
         )*
     ]
     (
+        stmt = SqlStatementSet()
+        |
         stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
         |
         stmt = RichSqlInsert()
     )
     {
         return new SqlRichExplain(getPos(), stmt, explainDetails);
+    }
+}
+
+/**
+* Parses a execute statement.
+*/
+SqlNode SqlExecute() :
+{
+    SqlParserPos startPos;
+    SqlNode stmt;
+}
+{
+    <EXECUTE>{ startPos = getPos(); }
+    (
+        stmt = SqlStatementSet()
+        |
+        stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+        |
+        stmt = RichSqlInsert()
+    )
+    {
+        return new SqlExecute(stmt, startPos);
     }
 }
 

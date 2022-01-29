@@ -156,13 +156,13 @@ public class ModuleManager {
     }
 
     /**
-     * Get names of all functions from used modules.
+     * Get names of all functions from used modules. It excludes hidden functions.
      *
      * @return a set of function names of used modules
      */
     public Set<String> listFunctions() {
         return usedModules.stream()
-                .map(name -> loadedModules.get(name).listFunctions())
+                .map(name -> loadedModules.get(name).listFunctions(false))
                 .flatMap(Collection::stream)
                 .collect(Collectors.toSet());
     }
@@ -172,12 +172,14 @@ public class ModuleManager {
      * modules in the used order, and the first match will be returned. If no match is found in all
      * modules, return an optional.
      *
+     * <p>It includes hidden functions even though not listed in {@link #listFunctions()}.
+     *
      * @param name name of the function
      * @return an optional of {@link FunctionDefinition}
      */
     public Optional<FunctionDefinition> getFunctionDefinition(String name) {
         for (String moduleName : usedModules) {
-            if (loadedModules.get(moduleName).listFunctions().stream()
+            if (loadedModules.get(moduleName).listFunctions(true).stream()
                     .anyMatch(name::equalsIgnoreCase)) {
                 LOG.debug("Got FunctionDefinition '{}' from '{}' module.", name, moduleName);
                 return loadedModules.get(moduleName).getFunctionDefinition(name);

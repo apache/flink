@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.table.data.RowData;
@@ -38,7 +37,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * watermarks.
  */
 public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
-        implements OneInputStreamOperator<RowData, RowData>, ProcessingTimeCallback {
+        implements OneInputStreamOperator<RowData, RowData>,
+                org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback {
 
     private static final long serialVersionUID = 1L;
 

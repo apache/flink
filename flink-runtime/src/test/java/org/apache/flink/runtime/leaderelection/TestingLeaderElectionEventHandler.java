@@ -23,6 +23,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
@@ -34,7 +35,7 @@ public class TestingLeaderElectionEventHandler extends TestingLeaderBase
 
     private final Object lock = new Object();
 
-    private final LeaderInformation leaderInformation;
+    private final String leaderAddress;
 
     private final OneShotLatch initializationLatch;
 
@@ -44,8 +45,8 @@ public class TestingLeaderElectionEventHandler extends TestingLeaderBase
 
     private boolean running = true;
 
-    public TestingLeaderElectionEventHandler(LeaderInformation leaderInformation) {
-        this.leaderInformation = leaderInformation;
+    public TestingLeaderElectionEventHandler(String leaderAddress) {
+        this.leaderAddress = leaderAddress;
         this.initializationLatch = new OneShotLatch();
     }
 
@@ -64,12 +65,14 @@ public class TestingLeaderElectionEventHandler extends TestingLeaderBase
     }
 
     @Override
-    public void onGrantLeadership() {
+    public void onGrantLeadership(UUID newLeaderSessionId) {
         ifRunning(
                 () ->
                         waitForInitialization(
                                 leaderElectionDriver -> {
-                                    confirmedLeaderInformation = leaderInformation;
+                                    confirmedLeaderInformation =
+                                            LeaderInformation.known(
+                                                    newLeaderSessionId, leaderAddress);
                                     leaderElectionDriver.writeLeaderInformation(
                                             confirmedLeaderInformation);
                                     leaderEventQueue.offer(confirmedLeaderInformation);

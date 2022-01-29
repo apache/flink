@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
@@ -45,6 +47,14 @@ import static org.apache.flink.table.api.Expressions.row;
 
 /** Tests for {@link BuiltInFunctionDefinitions#CAST} regarding {@link DataTypes#ROW}. */
 public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
+
+    @Override
+    protected Configuration configuration() {
+        return super.configuration()
+                .set(
+                        ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
+                        ExecutionConfigOptions.LegacyCastBehaviour.DISABLED);
+    }
 
     @Parameterized.Parameters(name = "{index}: {0}")
     public static List<TestSpec> testData() {
@@ -138,8 +148,6 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                         .cast(ROW(BIGINT(), STRING())),
                                 Row.of(12L, "Ingo"),
                                 ROW(BIGINT(), STRING())),
-
-                // https://issues.apache.org/jira/browse/FLINK-24419  Not trimmed to 3
                 TestSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
                                 "cast from RAW(Integer) to BINARY(3)")
@@ -148,7 +156,7 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                         .withFunction(IntegerToRaw.class)
                         .testTableApiResult(
                                 call("IntegerToRaw", $("f0")).cast(BINARY(3)),
-                                new byte[] {0, 1, -30, 64},
+                                new byte[] {0, 1, -30},
                                 BINARY(3)),
                 TestSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST, "cast from RAW(Integer) to BYTES")
@@ -159,6 +167,16 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 call("IntegerToRaw", $("f0")).cast(BYTES()),
                                 new byte[] {0, 1, -30, 64},
                                 BYTES()),
+                TestSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST,
+                                "cast from RAW(Integer) to BINARY(6)")
+                        .onFieldsWithData(123456)
+                        .andDataTypes(INT())
+                        .withFunction(IntegerToRaw.class)
+                        .testTableApiResult(
+                                call("IntegerToRaw", $("f0")).cast(BINARY(6)),
+                                new byte[] {0, 1, -30, 64, 0, 0},
+                                BINARY(6)),
                 TestSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
                                 "cast from RAW(UserPojo) to VARBINARY")
@@ -179,15 +197,15 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 BuiltInFunctionDefinitions.CAST, "test the x'....' binary syntax")
                         .onFieldsWithData("foo")
                         .testSqlResult(
-                                "CAST(CAST(x'68656C6C6F20636F6465' AS BINARY) AS VARCHAR)",
-                                "hello code",
+                                "CAST(CAST(x'68656C6C6F20636F6465' AS BINARY(10)) AS VARCHAR)",
+                                "68656c6c6f20636f6465",
                                 STRING().notNull()),
                 TestSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST, "test the x'....' binary syntax")
                         .onFieldsWithData("foo")
                         .testSqlResult(
-                                "CAST(CAST(x'68656C6C6F2063617374' AS BINARY) AS VARCHAR)",
-                                "hello cast",
+                                "CAST(CAST(x'68656C6C6F2063617374' AS BINARY(10)) AS VARCHAR)",
+                                "68656c6c6f2063617374",
                                 STRING().notNull()));
     }
 

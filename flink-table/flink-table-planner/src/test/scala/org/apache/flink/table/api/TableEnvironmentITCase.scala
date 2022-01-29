@@ -421,6 +421,16 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
   }
 
   @Test
+  def testExecuteInsert2(): Unit = {
+    val sinkPath = TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink")
+    checkEmptyFile(sinkPath)
+    val tableResult = tEnv.executeSql("execute insert into MySink select first from MyTable")
+    checkInsertTableResult(tableResult, "default_catalog.default_database.MySink")
+    assertFirstValues(sinkPath)
+  }
+
+  @Test
   def testExecuteInsertOverwrite(): Unit = {
     if(isStreaming) {
       // Streaming mode not support overwrite for FileSystemTableSink.
@@ -541,6 +551,28 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
   }
 
   @Test
+  def testExecuteStatementSet(): Unit = {
+    val sink1Path = TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
+
+    val sink2Path = TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("last"), Array(STRING)), "MySink2")
+
+    val tableResult = tEnv.executeSql(
+    """execute statement set begin
+        |insert into MySink1 select first from MyTable;
+        |insert into MySink2 select last from MyTable;
+        |end""".stripMargin)
+    checkInsertTableResult(
+      tableResult,
+      "default_catalog.default_database.MySink1",
+      "default_catalog.default_database.MySink2")
+
+    assertFirstValues(sink1Path)
+    assertLastValues(sink2Path)
+  }
+
+  @Test
   def testStatementSetWithOverwrite(): Unit = {
     if(isStreaming) {
       // Streaming mode not support overwrite for FileSystemTableSink.
@@ -632,11 +664,23 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
   @Test
   def testExecuteSelect(): Unit = {
-    val query =
+    val query = {
       """
         |select id, concat(concat(`first`, ' '), `last`) as `full name`
         |from MyTable where mod(id, 2) = 0
       """.stripMargin
+    }
+    testExecuteSelectInternal(query)
+    val query2 = {
+      """
+        |execute select id, concat(concat(`first`, ' '), `last`) as `full name`
+        |from MyTable where mod(id, 2) = 0
+      """.stripMargin
+    }
+    testExecuteSelectInternal(query2)
+  }
+
+  def testExecuteSelectInternal(query: String): Unit = {
     val tableResult = tEnv.executeSql(query)
     assertTrue(tableResult.getJobClient.isPresent)
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
@@ -750,7 +794,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     val tableResult = tEnv.asInstanceOf[TableEnvironmentInternal].getCatalogManager
       .getTable(ObjectIdentifier.of(listener.getName, "default", "tbl1"))
     assertTrue(tableResult.isPresent)
-    assertEquals(listener.tableComment, tableResult.get().getTable.getComment)
+    assertEquals(listener.tableComment, tableResult.get().getTable[CatalogBaseTable].getComment)
     tEnv.executeSql("drop temporary table tbl1")
     assertEquals(1, listener.numTempTable)
     tEnv.executeSql(s"drop temporary table ${listener.getName}.`default`.tbl1")
@@ -770,7 +814,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     val viewResult = tEnv.asInstanceOf[TableEnvironmentInternal].getCatalogManager
       .getTable(ObjectIdentifier.of(listener.getName, "default", "v1"))
     assertTrue(viewResult.isPresent)
-    assertEquals(listener.tableComment, viewResult.get().getTable.getComment)
+    assertEquals(listener.tableComment, viewResult.get().getTable[CatalogBaseTable].getComment)
     tEnv.executeSql("drop temporary view v1")
     assertEquals(1, listener.numTempTable)
     tEnv.executeSql(s"drop temporary view ${listener.getName}.`default`.v1")

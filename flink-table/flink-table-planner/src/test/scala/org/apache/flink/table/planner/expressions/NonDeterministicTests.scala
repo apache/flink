@@ -18,10 +18,6 @@
 
 package org.apache.flink.table.planner.expressions
 
-import java.sql.Time
-import java.time.format.DateTimeFormatter
-import java.time.{LocalDate, LocalDateTime, ZoneId}
-import java.util.TimeZone
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.ExecutionOptions
@@ -33,6 +29,11 @@ import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+
+import java.sql.Time
+import java.time.format.DateTimeFormatter
+import java.time.{LocalDate, LocalDateTime, ZoneId}
+import java.util.TimeZone
 
 import scala.collection.mutable
 
@@ -154,30 +155,30 @@ class NonDeterministicTests extends ExpressionTestBase {
     // in session time zone
     testSqlApi(
       s"TIME_SUB(LOCALTIME, TIME '$formattedLocalTime') <= 60000",
-      "true")
+      "TRUE")
     testSqlApi(
       s"TIMESTAMPDIFF(SECOND, TIMESTAMP '$formattedLocalDateTime', LOCALTIMESTAMP) <= 60",
-      "true")
+      "TRUE")
     testSqlApi(
       s"DATE_SUB(CURRENT_DATE, DATE '$formattedCurrentDate') >= 0",
-      "true")
+      "TRUE")
 
     testSqlApi(
       s"TIME_SUB(CURRENT_TIME, TIME '$formattedCurrentTime') <= 60000",
-      "true")
+      "TRUE")
 
     testSqlApi(
       s"TIMESTAMPDIFF(SECOND, ${timestampLtz(formattedCurrentTimestamp)}, CURRENT_TIMESTAMP) <= 60",
-      "true")
+      "TRUE")
 
     testSqlApi(
       s"TIMESTAMPDIFF(SECOND, ${timestampLtz(formattedCurrentTimestamp)}, NOW()) <= 60",
-      "true")
+      "TRUE")
 
     testSqlApi(
       s"TIMESTAMPDIFF(SECOND, " +
         s"${timestampLtz(formattedCurrentTimestamp)}, CURRENT_ROW_TIMESTAMP()) <= 60",
-      "true")
+      "TRUE")
   }
 
   @Test

@@ -12,7 +12,7 @@ Versions
 --------
 
 * JDK8
-* Hadoop 2.8.3
+* Hadoop 2.8.5
 
 Default Environment Variables
 -----------------------------

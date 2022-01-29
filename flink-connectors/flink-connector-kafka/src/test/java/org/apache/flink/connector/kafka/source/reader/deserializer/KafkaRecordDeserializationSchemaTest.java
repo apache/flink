@@ -23,24 +23,43 @@ import org.apache.flink.formats.json.JsonNodeDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.JSONKeyValueDeserializationSchema;
 import org.apache.flink.util.Collector;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.Configurable;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit tests for KafkaRecordDeserializationSchema. */
 public class KafkaRecordDeserializationSchemaTest {
+
+    private static Map<String, ?> configurableConfiguration;
+    private static Map<String, ?> configuration;
+    private static boolean isKeyDeserializer;
+
+    @Before
+    public void setUp() {
+        configurableConfiguration = new HashMap<>(1);
+        configuration = new HashMap<>(1);
+        isKeyDeserializer = false;
+    }
 
     @Test
     public void testKafkaDeserializationSchemaWrapper() throws IOException {
@@ -93,6 +112,29 @@ public class KafkaRecordDeserializationSchemaTest {
         assertEquals("world", collector.list.get(0));
     }
 
+    @Test
+    public void testKafkaValueDeserializerWrapperWithoutConfigurable() throws Exception {
+        final Map<String, String> config = ImmutableMap.of("simpleKey", "simpleValue");
+        KafkaRecordDeserializationSchema<String> schema =
+                KafkaRecordDeserializationSchema.valueOnly(SimpleStringSerializer.class, config);
+        schema.open(new TestingDeserializationContext());
+        Assertions.assertEquals(configuration, config);
+        assertFalse(isKeyDeserializer);
+        assertTrue(configurableConfiguration.isEmpty());
+    }
+
+    @Test
+    public void testKafkaValueDeserializerWrapperWithConfigurable() throws Exception {
+        final Map<String, String> config = ImmutableMap.of("configKey", "configValue");
+        KafkaRecordDeserializationSchema<String> schema =
+                KafkaRecordDeserializationSchema.valueOnly(
+                        ConfigurableStringSerializer.class, config);
+        schema.open(new TestingDeserializationContext());
+        Assertions.assertEquals(configurableConfiguration, config);
+        assertFalse(isKeyDeserializer);
+        assertTrue(configuration.isEmpty());
+    }
+
     private ConsumerRecord<byte[], byte[]> getConsumerRecord() throws JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode initialKey = mapper.createObjectNode();
@@ -118,6 +160,33 @@ public class KafkaRecordDeserializationSchemaTest {
         @Override
         public void close() {
             // do nothing
+        }
+    }
+
+    /**
+     * Serializer based on Kafka's serialization stack. This is the special case that implements
+     * {@link Configurable}
+     *
+     * <p>This class must be public to make it instantiable by the tests.
+     */
+    public static class ConfigurableStringSerializer extends StringDeserializer
+            implements Configurable {
+        @Override
+        public void configure(Map<String, ?> configs) {
+            configurableConfiguration = configs;
+        }
+    }
+
+    /**
+     * Serializer based on Kafka's serialization stack.
+     *
+     * <p>This class must be public to make it instantiable by the tests.
+     */
+    public static class SimpleStringSerializer extends StringDeserializer {
+        @Override
+        public void configure(Map<String, ?> configs, boolean isKey) {
+            configuration = configs;
+            isKeyDeserializer = isKey;
         }
     }
 }

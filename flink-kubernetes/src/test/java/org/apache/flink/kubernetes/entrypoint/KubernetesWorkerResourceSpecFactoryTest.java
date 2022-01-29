@@ -37,6 +37,7 @@ public class KubernetesWorkerResourceSpecFactoryTest extends TestLogger {
         final Configuration configuration = new Configuration();
         configuration.setDouble(TaskManagerOptions.CPU_CORES, 1.0);
         configuration.setDouble(KubernetesConfigOptions.TASK_MANAGER_CPU, 2.0);
+        configuration.setDouble(KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT_FACTOR, 1.5);
         configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
 
         assertThat(
@@ -48,6 +49,7 @@ public class KubernetesWorkerResourceSpecFactoryTest extends TestLogger {
     public void testGetCpuCoresKubernetesOption() {
         final Configuration configuration = new Configuration();
         configuration.setDouble(KubernetesConfigOptions.TASK_MANAGER_CPU, 2.0);
+        configuration.setDouble(KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT_FACTOR, 1.5);
         configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
 
         assertThat(

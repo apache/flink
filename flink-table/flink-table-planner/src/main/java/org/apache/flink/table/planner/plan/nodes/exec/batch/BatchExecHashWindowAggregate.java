@@ -28,7 +28,6 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.agg.batch.HashWindowCodeGenerator;
 import org.apache.flink.table.planner.codegen.agg.batch.WindowCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -40,6 +39,7 @@ import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedOperator;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -59,7 +59,7 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
     private final LogicalWindow window;
     private final int inputTimeFieldIndex;
     private final boolean inputTimeIsDate;
-    private final PlannerNamedWindowProperty[] namedWindowProperties;
+    private final NamedWindowProperty[] namedWindowProperties;
     private final RowType aggInputRowType;
     private final boolean enableAssignPane;
     private final boolean isMerge;
@@ -72,7 +72,7 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
             LogicalWindow window,
             int inputTimeFieldIndex,
             boolean inputTimeIsDate,
-            PlannerNamedWindowProperty[] namedWindowProperties,
+            NamedWindowProperty[] namedWindowProperties,
             RowType aggInputRowType,
             boolean enableAssignPane,
             boolean isMerge,
@@ -145,7 +145,8 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
                         .getBytes();
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getDescription(),
+                getOperatorName(tableConfig),
+                getOperatorDescription(tableConfig),
                 new CodeGenOperatorFactory<>(generatedOperator),
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism(),

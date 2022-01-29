@@ -3,42 +3,95 @@
   "nodes" : [ {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
     "scanTableSource" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "MyTable"
-      },
-      "catalogTable" : {
-        "schema.watermark.0.strategy.expr" : "`rowtime` - INTERVAL '1' SECOND",
-        "schema.4.expr" : "PROCTIME()",
-        "schema.0.data-type" : "INT NOT NULL",
-        "schema.2.name" : "c",
-        "schema.1.name" : "b",
-        "schema.4.name" : "proctime",
-        "schema.1.data-type" : "BIGINT",
-        "schema.3.data-type" : "TIMESTAMP(3)",
-        "schema.2.data-type" : "VARCHAR(2147483647)",
-        "schema.3.name" : "rowtime",
-        "connector" : "values",
-        "schema.watermark.0.rowtime" : "rowtime",
-        "schema.watermark.0.strategy.data-type" : "TIMESTAMP(3)",
-        "schema.3.expr" : "TO_TIMESTAMP(`c`)",
-        "schema.4.data-type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL",
-        "schema.0.name" : "a"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MyTable`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "b",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "c",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "rowtime",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "REX_CALL",
+                  "operator" : {
+                    "name" : "TO_TIMESTAMP",
+                    "kind" : "OTHER_FUNCTION",
+                    "syntax" : "FUNCTION"
+                  },
+                  "operands" : [ {
+                    "kind" : "INPUT_REF",
+                    "inputIndex" : 2,
+                    "type" : "VARCHAR(2147483647)"
+                  } ],
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "TO_TIMESTAMP(`c`)"
+              }
+            }, {
+              "name" : "proctime",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "REX_CALL",
+                  "operator" : {
+                    "name" : "PROCTIME",
+                    "kind" : "OTHER_FUNCTION",
+                    "syntax" : "FUNCTION"
+                  },
+                  "operands" : [ ],
+                  "type" : {
+                    "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                    "nullable" : false,
+                    "precision" : 3,
+                    "kind" : "PROCTIME"
+                  }
+                },
+                "serializableString" : "PROCTIME()"
+              }
+            } ],
+            "watermarkSpecs" : [ {
+              "rowtimeAttribute" : "rowtime",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "REX_CALL",
+                  "operator" : {
+                    "name" : "-",
+                    "kind" : "MINUS",
+                    "syntax" : "SPECIAL"
+                  },
+                  "operands" : [ {
+                    "kind" : "INPUT_REF",
+                    "inputIndex" : 3,
+                    "type" : "TIMESTAMP(3)"
+                  }, {
+                    "kind" : "LITERAL",
+                    "value" : 1000,
+                    "type" : "INTERVAL SECOND(6) NOT NULL"
+                  } ],
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "`rowtime` - INTERVAL '1' SECOND"
+              }
+            } ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values"
+          }
+        }
       }
     },
     "id" : 1,
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "INT NOT NULL"
-      }, {
-        "b" : "BIGINT"
-      }, {
-        "c" : "VARCHAR(2147483647)"
-      } ]
-    },
+    "outputType" : "ROW<`a` INT NOT NULL, `b` BIGINT, `c` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
@@ -46,10 +99,7 @@
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -60,24 +110,13 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 2,
-        "type" : {
-          "typeName" : "VARCHAR",
-          "nullable" : true,
-          "precision" : 2147483647
-        }
+        "type" : "VARCHAR(2147483647)"
       } ],
-      "type" : {
-        "typeName" : "TIMESTAMP",
-        "nullable" : true,
-        "precision" : 3
-      }
+      "type" : "TIMESTAMP(3)"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : false
-      }
+      "type" : "INT NOT NULL"
     } ],
     "condition" : null,
     "id" : 2,
@@ -88,22 +127,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "b" : "BIGINT"
-      }, {
-        "rowtime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      }, {
-        "a" : "INT NOT NULL"
-      } ]
-    },
+    "outputType" : "ROW<`b` BIGINT, `rowtime` TIMESTAMP(3), `a` INT NOT NULL>",
     "description" : "Calc(select=[b, TO_TIMESTAMP(c) AS rowtime, a])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner",
@@ -117,26 +141,13 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 1,
-        "type" : {
-          "typeName" : "TIMESTAMP",
-          "nullable" : true,
-          "precision" : 3
-        }
+        "type" : "TIMESTAMP(3)"
       }, {
         "kind" : "LITERAL",
         "value" : 1000,
-        "type" : {
-          "typeName" : "INTERVAL_SECOND",
-          "nullable" : false,
-          "precision" : 2,
-          "scale" : 6
-        }
+        "type" : "INTERVAL SECOND(6) NOT NULL"
       } ],
-      "type" : {
-        "typeName" : "TIMESTAMP",
-        "nullable" : true,
-        "precision" : 3
-      }
+      "type" : "TIMESTAMP(3)"
     },
     "rowtimeFieldIndex" : 1,
     "id" : 3,
@@ -149,18 +160,19 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "b" : "BIGINT"
+        "name" : "b",
+        "fieldType" : "BIGINT"
       }, {
-        "rowtime" : {
+        "name" : "rowtime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
       }, {
-        "a" : "INT NOT NULL"
+        "name" : "a",
+        "fieldType" : "INT NOT NULL"
       } ]
     },
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
@@ -169,25 +181,19 @@
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
       "type" : {
-        "timestampKind" : "ROWTIME",
-        "typeName" : "TIMESTAMP",
-        "nullable" : true
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "precision" : 3,
+        "kind" : "ROWTIME"
       }
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : false
-      }
+      "type" : "INT NOT NULL"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -198,22 +204,13 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 2,
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : false
-        }
+        "type" : "INT NOT NULL"
       }, {
         "kind" : "LITERAL",
         "value" : "1",
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : false
-        }
+        "type" : "INT NOT NULL"
       } ],
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : false
-      }
+      "type" : "INT NOT NULL"
     } ],
     "condition" : null,
     "id" : 4,
@@ -226,20 +223,22 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "b" : "BIGINT"
+        "name" : "b",
+        "fieldType" : "BIGINT"
       }, {
-        "rowtime" : {
+        "name" : "rowtime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
       }, {
-        "a" : "INT NOT NULL"
+        "name" : "a",
+        "fieldType" : "INT NOT NULL"
       }, {
-        "$f3" : "INT NOT NULL"
+        "name" : "$f3",
+        "fieldType" : "INT NOT NULL"
       } ]
     },
     "description" : "Calc(select=[b, rowtime, a, (a + 1) AS $f3])"
@@ -256,20 +255,22 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "b" : "BIGINT"
+        "name" : "b",
+        "fieldType" : "BIGINT"
       }, {
-        "rowtime" : {
+        "name" : "rowtime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
       }, {
-        "a" : "INT NOT NULL"
+        "name" : "a",
+        "fieldType" : "INT NOT NULL"
       }, {
-        "$f3" : "INT NOT NULL"
+        "name" : "$f3",
+        "fieldType" : "INT NOT NULL"
       } ]
     },
     "description" : "Exchange(distribution=[hash[b]])"
@@ -291,10 +292,7 @@
       "distinct" : false,
       "approximate" : false,
       "ignoreNulls" : false,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     } ],
     "window" : {
       "kind" : "TUMBLING",
@@ -302,7 +300,6 @@
         "name" : "w$",
         "type" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
@@ -313,7 +310,6 @@
         "inputIndex" : 0,
         "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
@@ -329,7 +325,6 @@
           "name" : "w$",
           "type" : {
             "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-            "nullable" : true,
             "precision" : 3,
             "kind" : "ROWTIME"
           }
@@ -343,7 +338,6 @@
           "name" : "w$",
           "type" : {
             "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-            "nullable" : true,
             "precision" : 3,
             "kind" : "ROWTIME"
           }
@@ -357,7 +351,6 @@
           "name" : "w$",
           "type" : {
             "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-            "nullable" : true,
             "precision" : 3,
             "kind" : "ROWTIME"
           }
@@ -371,7 +364,6 @@
           "name" : "w$",
           "type" : {
             "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-            "nullable" : true,
             "precision" : 3,
             "kind" : "ROWTIME"
           }
@@ -390,36 +382,29 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "b" : "BIGINT"
+        "name" : "b",
+        "fieldType" : "BIGINT"
       }, {
-        "EXPR$3" : "BIGINT"
+        "name" : "EXPR$3",
+        "fieldType" : "BIGINT"
       }, {
-        "w$start" : {
+        "name" : "w$start",
+        "fieldType" : "TIMESTAMP(3) NOT NULL"
+      }, {
+        "name" : "w$end",
+        "fieldType" : "TIMESTAMP(3) NOT NULL"
+      }, {
+        "name" : "w$rowtime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      }, {
-        "w$end" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      }, {
-        "w$rowtime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
       }, {
-        "w$proctime" : {
+        "name" : "w$proctime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "PROCTIME"
         }
@@ -431,33 +416,19 @@
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
-      "type" : {
-        "typeName" : "TIMESTAMP",
-        "nullable" : false,
-        "precision" : 3
-      }
+      "type" : "TIMESTAMP(3) NOT NULL"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 3,
-      "type" : {
-        "typeName" : "TIMESTAMP",
-        "nullable" : false,
-        "precision" : 3
-      }
+      "type" : "TIMESTAMP(3) NOT NULL"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     } ],
     "condition" : null,
     "id" : 7,
@@ -468,48 +439,35 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "b" : "BIGINT"
-      }, {
-        "window_start" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      }, {
-        "window_end" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      }, {
-        "EXPR$3" : "BIGINT"
-      } ]
-    },
+    "outputType" : "ROW<`b` BIGINT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `EXPR$3` BIGINT>",
     "description" : "Calc(select=[b, w$start AS window_start, w$end AS window_end, EXPR$3])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "MySink"
-      },
-      "catalogTable" : {
-        "schema.3.data-type" : "BIGINT",
-        "schema.2.data-type" : "TIMESTAMP(3)",
-        "schema.3.name" : "c",
-        "connector" : "values",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "window_end",
-        "schema.1.name" : "window_start",
-        "schema.0.name" : "b",
-        "schema.1.data-type" : "TIMESTAMP(3)"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "b",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "window_start",
+              "dataType" : "TIMESTAMP(3)"
+            }, {
+              "name" : "window_end",
+              "dataType" : "TIMESTAMP(3)"
+            }, {
+              "name" : "c",
+              "dataType" : "BIGINT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values"
+          }
+        }
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
@@ -521,29 +479,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "b" : "BIGINT"
-      }, {
-        "window_start" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      }, {
-        "window_end" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      }, {
-        "EXPR$3" : "BIGINT"
-      } ]
-    },
+    "outputType" : "ROW<`b` BIGINT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `EXPR$3` BIGINT>",
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, window_start, window_end, EXPR$3])"
   } ],
   "edges" : [ {

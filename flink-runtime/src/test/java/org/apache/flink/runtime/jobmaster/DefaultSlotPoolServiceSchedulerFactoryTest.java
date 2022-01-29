@@ -18,22 +18,31 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.runtime.jobgraph.JobType;
+import org.apache.flink.runtime.jobmaster.slotpool.PreferredAllocationRequestSlotMatchingStrategy;
+import org.apache.flink.runtime.jobmaster.slotpool.RequestSlotMatchingStrategy;
+import org.apache.flink.runtime.jobmaster.slotpool.SimpleRequestSlotMatchingStrategy;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.adaptive.AdaptiveSchedulerFactory;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import java.util.stream.Stream;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DefaultSlotPoolServiceSchedulerFactory}. */
-public class DefaultSlotPoolServiceSchedulerFactoryTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class DefaultSlotPoolServiceSchedulerFactoryTest {
 
     @Test
     public void testFallsBackToDefaultSchedulerIfBatchJob() {
@@ -44,12 +53,10 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest extends TestLogger {
                 DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
                         configuration, JobType.BATCH);
 
-        assertThat(
-                defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory(),
-                is(instanceOf(DefaultSchedulerFactory.class)));
-        assertThat(
-                defaultSlotPoolServiceSchedulerFactory.getSchedulerType(),
-                is(JobManagerOptions.SchedulerType.Ng));
+        assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory())
+                .isInstanceOf(DefaultSchedulerFactory.class);
+        assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerType())
+                .isEqualTo(JobManagerOptions.SchedulerType.Ng);
     }
 
     @Test
@@ -61,11 +68,32 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest extends TestLogger {
                 DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
                         configuration, JobType.STREAMING);
 
+        assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory())
+                .isInstanceOf(AdaptiveSchedulerFactory.class);
+        assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerType())
+                .isEqualTo(JobManagerOptions.SchedulerType.Adaptive);
+    }
+
+    @ParameterizedTest
+    @MethodSource("testGetRequestSlotMatchingStrategy")
+    public void testGetRequestSlotMatchingStrategy(
+            boolean isLocalRecoveryEnabled, JobType jobType, RequestSlotMatchingStrategy expected) {
+        final Configuration configuration = new Configuration();
+        configuration.set(CheckpointingOptions.LOCAL_RECOVERY, isLocalRecoveryEnabled);
         assertThat(
-                defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory(),
-                is(instanceOf(AdaptiveSchedulerFactory.class)));
-        assertThat(
-                defaultSlotPoolServiceSchedulerFactory.getSchedulerType(),
-                is(JobManagerOptions.SchedulerType.Adaptive));
+                        DefaultSlotPoolServiceSchedulerFactory.getRequestSlotMatchingStrategy(
+                                configuration, jobType))
+                .isSameAs(expected);
+    }
+
+    private static Stream<Arguments> testGetRequestSlotMatchingStrategy() {
+        return Stream.of(
+                Arguments.of(false, JobType.BATCH, SimpleRequestSlotMatchingStrategy.INSTANCE),
+                Arguments.of(false, JobType.STREAMING, SimpleRequestSlotMatchingStrategy.INSTANCE),
+                Arguments.of(true, JobType.BATCH, SimpleRequestSlotMatchingStrategy.INSTANCE),
+                Arguments.of(
+                        true,
+                        JobType.STREAMING,
+                        PreferredAllocationRequestSlotMatchingStrategy.INSTANCE));
     }
 }

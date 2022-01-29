@@ -39,12 +39,16 @@ import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnec
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.BULK_FLUSH_MAX_ACTIONS_OPTION;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.BULK_FLUSH_MAX_SIZE_OPTION;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.CONNECTION_PATH_PREFIX_OPTION;
+import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.CONNECTION_REQUEST_TIMEOUT;
+import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.CONNECTION_TIMEOUT;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.DELIVERY_GUARANTEE_OPTION;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.HOSTS_OPTION;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.INDEX_OPTION;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.KEY_DELIMITER_OPTION;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.PASSWORD_OPTION;
+import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.SOCKET_TIMEOUT;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.USERNAME_OPTION;
+import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Elasticsearch base configuration. */
@@ -104,10 +108,26 @@ class ElasticsearchConfiguration {
         return config.getOptional(CONNECTION_PATH_PREFIX_OPTION);
     }
 
+    public Optional<Duration> getConnectionRequestTimeout() {
+        return config.getOptional(CONNECTION_REQUEST_TIMEOUT);
+    }
+
+    public Optional<Duration> getConnectionTimeout() {
+        return config.getOptional(CONNECTION_TIMEOUT);
+    }
+
+    public Optional<Duration> getSocketTimeout() {
+        return config.getOptional(SOCKET_TIMEOUT);
+    }
+
     public List<HttpHost> getHosts() {
         return config.get(HOSTS_OPTION).stream()
                 .map(ElasticsearchConfiguration::validateAndParseHostsString)
                 .collect(Collectors.toList());
+    }
+
+    public Optional<Integer> getParallelism() {
+        return config.getOptional(SINK_PARALLELISM);
     }
 
     private static HttpHost validateAndParseHostsString(String host) {

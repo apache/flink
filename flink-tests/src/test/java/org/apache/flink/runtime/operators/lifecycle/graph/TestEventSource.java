@@ -20,8 +20,6 @@ package org.apache.flink.runtime.operators.lifecycle.graph;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommand;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher;
-import org.apache.flink.runtime.operators.lifecycle.event.OperatorFinishedEvent;
-import org.apache.flink.runtime.operators.lifecycle.event.OperatorFinishedEvent.LastReceivedVertexDataInfo;
 import org.apache.flink.runtime.operators.lifecycle.event.OperatorStartedEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.TestCommandAckEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.TestEvent;
@@ -33,7 +31,6 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static java.util.Collections.emptyMap;
 import static org.apache.flink.runtime.operators.lifecycle.command.TestCommand.FAIL;
 import static org.apache.flink.runtime.operators.lifecycle.command.TestCommand.FINISH_SOURCES;
 
@@ -41,7 +38,7 @@ import static org.apache.flink.runtime.operators.lifecycle.command.TestCommand.F
  * {@link SourceFunction} that emits {@link TestEvent}s and reacts to {@link TestCommand}s. It emits
  * {@link TestDataElement} to its output.
  */
-class TestEventSource extends RichSourceFunction<TestDataElement>
+public class TestEventSource extends RichSourceFunction<TestDataElement>
         implements ParallelSourceFunction<TestDataElement> {
     private final String operatorID;
     private final TestCommandDispatcher commandQueue;
@@ -49,7 +46,7 @@ class TestEventSource extends RichSourceFunction<TestDataElement>
     private transient volatile boolean isRunning = true;
     private final TestEventQueue eventQueue;
 
-    TestEventSource(
+    public TestEventSource(
             String operatorID, TestEventQueue eventQueue, TestCommandDispatcher commandQueue) {
         this.operatorID = operatorID;
         this.eventQueue = eventQueue;
@@ -92,16 +89,6 @@ class TestEventSource extends RichSourceFunction<TestDataElement>
             } else {
                 throw new RuntimeException("unknown command " + cmd);
             }
-        }
-        // note: this only gets collected with FLIP-147 changes
-        synchronized (ctx.getCheckpointLock()) {
-            eventQueue.add(
-                    new OperatorFinishedEvent(
-                            operatorID,
-                            getRuntimeContext().getIndexOfThisSubtask(),
-                            getRuntimeContext().getAttemptNumber(),
-                            lastSent,
-                            new LastReceivedVertexDataInfo(emptyMap())));
         }
     }
 

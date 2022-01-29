@@ -16,9 +16,9 @@
 # limitations under the License.
 ################################################################################
 from apache_beam.coders.coder_impl import create_InputStream, create_OutputStream
-from apache_beam.runners.worker.data_plane import PeriodicThread
 
 from pyflink.fn_execution.stream_slow import InputStream
+from pyflink.fn_execution.utils.operation_utils import PeriodicThread
 
 
 class BeamInputStream(InputStream):

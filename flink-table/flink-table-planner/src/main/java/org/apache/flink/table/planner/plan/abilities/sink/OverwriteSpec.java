@@ -26,12 +26,14 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
+import java.util.Objects;
+
 /**
  * A sub-class of {@link SinkAbilitySpec} that can not only serialize/deserialize the overwrite flag
  * to/from JSON, but also can overwrite existing data for {@link SupportsOverwrite}.
  */
 @JsonTypeName("Overwrite")
-public class OverwriteSpec implements SinkAbilitySpec {
+public final class OverwriteSpec implements SinkAbilitySpec {
     public static final String FIELD_NAME_OVERWRITE = "overwrite";
 
     @JsonProperty(FIELD_NAME_OVERWRITE)
@@ -52,5 +54,22 @@ public class OverwriteSpec implements SinkAbilitySpec {
                             "%s does not support SupportsOverwrite.",
                             tableSink.getClass().getName()));
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        OverwriteSpec that = (OverwriteSpec) o;
+        return overwrite == that.overwrite;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(overwrite);
     }
 }

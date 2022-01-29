@@ -884,8 +884,8 @@ Metrics related to data exchange between task executors using netty network comm
   </thead>
   <tbody>
     <tr>
-      <th rowspan="6"><strong>TaskManager</strong></th>
-      <td rowspan="6">Status.Shuffle.Netty</td>
+      <th rowspan="7"><strong>TaskManager</strong></th>
+      <td rowspan="7">Status.Shuffle.Netty</td>
       <td>AvailableMemorySegments</td>
       <td>The number of unused memory segments.</td>
       <td>Gauge</td>
@@ -916,10 +916,20 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="18">Task</th>
-      <td rowspan="4">Shuffle.Netty.Input.Buffers</td>
+      <td>RequestedMemoryUsage</td>
+      <td>Experimental: The usage of the network memory. Shows (as percentage) the total amount of requested memory from all of the subtasks. It can exceed 100% as not all requested memory is required for subtask to make progress. However if usage exceeds 100% throughput can suffer greatly and please consider increasing available network memory, or decreasing configured size of network buffer pools.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <th rowspan="20">Task</th>
+      <td rowspan="5">Shuffle.Netty.Input.Buffers</td>
       <td>inputQueueLength</td>
       <td>The number of queued input buffers.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>inputQueueSize</td>
+      <td>The real size of queued input buffers in bytes. The size for local input channels is always `0` since the local channel takes records directly from the output queue.</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -938,9 +948,14 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
-      <td rowspan="2">Shuffle.Netty.Output.Buffers</td>
+      <td rowspan="3">Shuffle.Netty.Output.Buffers</td>
       <td>outputQueueLength</td>
       <td>The number of queued output buffers.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>outputQueueSize</td>
+      <td>The real size of queued output buffers in bytes.</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -1032,6 +1047,11 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
+      <td>numPendingTaskManagers</td>
+      <td>(only applicable to Native Kubernetes / YARN) The number of outstanding taskmanagers that Flink has requested.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
       <td>numRunningJobs</td>
       <td>The number of running jobs.</td>
       <td>Gauge</td>
@@ -1051,6 +1071,11 @@ Metrics related to data exchange between task executors using netty network comm
 
 ### Availability
 
+The metrics in this table are available for each of the following job states: INITIALIZING, CREATED, RUNNING, RESTARTING, CANCELLING, FAILING.
+Whether these metrics are reported depends on the [metrics.job.status.enable]({{< ref "docs/deployment/config" >}}#metrics-job-status-enable) setting.
+
+<span class="label label-info">Evolving</span> The semantics of these metrics may change in later releases.
+
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -1062,12 +1087,36 @@ Metrics related to data exchange between task executors using netty network comm
   </thead>
   <tbody>
     <tr>
-      <th rowspan="5"><strong>Job (only available on JobManager)</strong></th>
-      <td>restartingTime</td>
-      <td>The time it took to restart the job, or how long the current restart has been in progress (in milliseconds).</td>
+      <th rowspan="3"><strong>Job (only available on JobManager)</strong></th>
+      <td>&lt;jobStatus&gt;State</td>
+      <td>For a given state, return 1 if the job is currently in that state, otherwise return 0.</td>
       <td>Gauge</td>
     </tr>
     <tr>
+      <td>&lt;jobStatus&gt;Time</td>
+      <td>For a given state, if the job is currently in that state, return the time (in milliseconds) since the job transitioned into that state, otherwise return 0.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>&lt;jobStatus&gt;TimeTotal</td>
+      <td>For a given state, return how much time (in milliseconds) the job has spent in that state in total.</td>
+      <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="4"><strong>Job (only available on JobManager)</strong></th>
       <td>uptime</td>
       <td>
         The time that the job has been running without interruption.
@@ -1168,6 +1217,59 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
 ### RocksDB
 Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{< ref "docs/deployment/config" >}}#rocksdb-native-metrics)
 
+### State Changelog
+
+Note that the metrics are only available via reporters.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="20"><strong>Job (only available on TaskManager)</strong></th>
+      <td>numberOfUploadRequests</td>
+      <td>Total number of upload requests made</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>numberOfUploadFailures</td>
+      <td>Total number of failed upload requests (request may be retried after the failure)</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>attemptsPerUpload</td>
+      <td>The number of attempts per upload</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>uploadBatchSizes</td>
+      <td>The number of upload tasks (coming from one or more writers, i.e. backends/tasks) that were grouped together and form a single upload resulting in a single file</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>uploadLatenciesNanos</td>
+      <td>The latency distributions of uploads</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>uploadSizes</td>
+      <td>The size distributions of uploads</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>uploadQueueSize</td>
+      <td>Current size of upload queue. Queue items can be packed together and form a single upload.</td>
+      <td>Meter</td>
+    </tr>
+  </tbody>
+</table>
+
 ### IO
 <table class="table table-bordered">
   <thead>
@@ -1186,7 +1288,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>Histogram</td>
     </tr>
     <tr>
-      <th rowspan="16"><strong>Task</strong></th>
+      <th rowspan="20"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
       <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{< ref "docs/ops/metrics" >}}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
@@ -1257,14 +1359,34 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>Meter</td>
     </tr>
     <tr>
-      <td>backPressuredTimeMsPerSecond</td>
-      <td>The time (in milliseconds) this task is back pressured per second.</td>
-      <td>Meter</td>
-    </tr>
-    <tr>
       <td>busyTimeMsPerSecond</td>
       <td>The time (in milliseconds) this task is busy (neither idle nor back pressured) per second. Can be NaN, if the value could not be calculated.</td>
-      <td>Meter</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>backPressuredTimeMsPerSecond</td>
+      <td>The time (in milliseconds) this task is back pressured (soft or hard) per second. It's a sum of softBackPressuredTimeMsPerSecond and hardBackPressuredTimeMsPerSecond.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>softBackPressuredTimeMsPerSecond</td>
+      <td>The time (in milliseconds) this task is softly back pressured per second. Softly back pressured task will be still responsive and capable of for example triggering unaligned checkpoints.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>hardBackPressuredTimeMsPerSecond</td>
+      <td>The time (in milliseconds) this task is back pressured in a hard way per second. During hard back pressured task is completely blocked and unresponsive preventing for example unaligned checkpoints from triggering.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>maxSoftBackPressuredTimeMs</td>
+      <td>Maximum recorded duration of a single consecutive period of the task being softly back pressured in the last sampling period. Please check softBackPressuredTimeMsPerSecond and hardBackPressuredTimeMsPerSecond for more information.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>maxHardBackPressuredTimeMs</td>
+      <td>Maximum recorded duration of a single consecutive period of the task being in the hard back pressure state in the last sampling period. Please check softBackPressuredTimeMsPerSecond and hardBackPressuredTimeMsPerSecond for more information.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td rowspan="2"><strong>Task (only if buffer debloating is enabled and in non-source tasks)</strong></td>

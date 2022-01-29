@@ -51,7 +51,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -115,7 +114,8 @@ public class RocksIncrementalSnapshotStrategyTest {
         // construct RocksIncrementalSnapshotStrategy
         long lastCompletedCheckpointId = -1L;
         ResourceGuard rocksDBResourceGuard = new ResourceGuard();
-        SortedMap<Long, Set<StateHandleID>> materializedSstFiles = new TreeMap<>();
+        SortedMap<Long, Map<StateHandleID, StreamStateHandle>> materializedSstFiles =
+                new TreeMap<>();
         LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation =
                 new LinkedHashMap<>();
 
@@ -137,23 +137,20 @@ public class RocksIncrementalSnapshotStrategyTest {
                 new RocksDBKeyedStateBackend.RocksDbKvStateInfo(columnFamilyHandle, metaInfo);
         kvStateInformation.putIfAbsent("test", rocksDbKvStateInfo);
 
-        RocksIncrementalSnapshotStrategy checkpointSnapshotStrategy =
-                new RocksIncrementalSnapshotStrategy(
-                        rocksDB,
-                        rocksDBResourceGuard,
-                        IntSerializer.INSTANCE,
-                        kvStateInformation,
-                        new KeyGroupRange(0, 1),
-                        keyGroupPrefixBytes,
-                        TestLocalRecoveryConfig.disabled(),
-                        closeableRegistry,
-                        tmp.newFolder(),
-                        UUID.randomUUID(),
-                        materializedSstFiles,
-                        rocksDBStateUploader,
-                        lastCompletedCheckpointId);
-
-        return checkpointSnapshotStrategy;
+        return new RocksIncrementalSnapshotStrategy<>(
+                rocksDB,
+                rocksDBResourceGuard,
+                IntSerializer.INSTANCE,
+                kvStateInformation,
+                new KeyGroupRange(0, 1),
+                keyGroupPrefixBytes,
+                TestLocalRecoveryConfig.disabled(),
+                closeableRegistry,
+                tmp.newFolder(),
+                UUID.randomUUID(),
+                materializedSstFiles,
+                rocksDBStateUploader,
+                lastCompletedCheckpointId);
     }
 
     public FsCheckpointStreamFactory createFsCheckpointStreamFactory() throws IOException {

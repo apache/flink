@@ -23,10 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 
-import org.apache.calcite.rex.RexNode;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -35,16 +32,8 @@ import static org.junit.Assert.assertEquals;
 
 /** Tests for {@link IntervalJoinSpec} serialization and deserialization. */
 public class IntervalJoinSpecJsonSerdeTest {
-    private ObjectMapper mapper;
 
-    @Before
-    public void setUp() {
-        mapper = new ObjectMapper();
-        SimpleModule module = new SimpleModule();
-        module.addSerializer(new RexNodeJsonSerializer());
-        module.addDeserializer(RexNode.class, new RexNodeJsonDeserializer());
-        mapper.registerModule(module);
-    }
+    private final ObjectMapper mapper = JsonSerdeUtil.getObjectMapper();
 
     @Test
     public void testWindowBoundsSerde() throws IOException {

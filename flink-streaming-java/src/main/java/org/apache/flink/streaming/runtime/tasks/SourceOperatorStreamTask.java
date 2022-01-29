@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
@@ -107,42 +108,43 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
     }
 
     @Override
-    protected void finishTask() throws Exception {
-        mailboxProcessor.allActionsCompleted();
-    }
-
-    @Override
     public CompletableFuture<Boolean> triggerCheckpointAsync(
             CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
         if (!isExternallyInducedSource) {
-            if (checkpointOptions.getCheckpointType().shouldDrain()) {
-                return triggerStopWithSavepointWithDrainAsync(
-                        checkpointMetaData, checkpointOptions);
+            if (checkpointOptions.getCheckpointType().isSynchronous()) {
+                return triggerStopWithSavepointAsync(checkpointMetaData, checkpointOptions);
             } else {
                 return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
             }
+        } else if (checkpointOptions.getCheckpointType() == CheckpointType.FULL_CHECKPOINT) {
+            // see FLINK-25256
+            throw new IllegalStateException(
+                    "Using externally induced sources, we can not enforce taking a full checkpoint."
+                            + "If you are restoring from a snapshot in NO_CLAIM mode, please use"
+                            + " either CLAIM or LEGACY mode.");
         } else {
             return CompletableFuture.completedFuture(isRunning());
         }
     }
 
-    private CompletableFuture<Boolean> triggerStopWithSavepointWithDrainAsync(
+    private CompletableFuture<Boolean> triggerStopWithSavepointAsync(
             CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
 
         CompletableFuture<Void> operatorFinished = new CompletableFuture<>();
         mainMailboxExecutor.execute(
                 () -> {
-                    setSynchronousSavepoint(checkpointMetaData.getCheckpointId(), true);
-                    FutureUtils.forward(mainOperator.stop(), operatorFinished);
+                    setSynchronousSavepoint(checkpointMetaData.getCheckpointId());
+                    FutureUtils.forward(
+                            mainOperator.stop(
+                                    checkpointOptions.getCheckpointType().shouldDrain()
+                                            ? StopMode.DRAIN
+                                            : StopMode.NO_DRAIN),
+                            operatorFinished);
                 },
-                "stop Flip-27 source for stop-with-savepoint --drain");
+                "stop Flip-27 source for stop-with-savepoint");
 
-        return assertTriggeringCheckpointExceptions(
-                operatorFinished.thenCompose(
-                        (ignore) ->
-                                super.triggerCheckpointAsync(
-                                        checkpointMetaData, checkpointOptions)),
-                checkpointMetaData.getCheckpointId());
+        return operatorFinished.thenCompose(
+                (ignore) -> super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions));
     }
 
     @Override

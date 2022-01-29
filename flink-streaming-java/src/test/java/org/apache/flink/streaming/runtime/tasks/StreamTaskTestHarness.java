@@ -34,6 +34,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -492,7 +493,7 @@ public class StreamTaskTestHarness<OUT> {
 
     public void endInput(int gateIndex, int channelIndex, boolean emitEndOfData) {
         if (emitEndOfData) {
-            inputGates[gateIndex].sendEvent(EndOfData.INSTANCE, channelIndex);
+            inputGates[gateIndex].sendEvent(new EndOfData(StopMode.DRAIN), channelIndex);
         }
         inputGates[gateIndex].sendEvent(EndOfPartitionEvent.INSTANCE, channelIndex);
     }

@@ -20,13 +20,13 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.StreamFilter;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.misc.DropUpdateBeforeFunction;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -67,9 +67,10 @@ public class StreamExecDropUpdateBefore extends ExecNodeBase<RowData>
                 (Transformation<RowData>) getInputEdges().get(0).translateToPlan(planner);
         final StreamFilter<RowData> operator = new StreamFilter<>(new DropUpdateBeforeFunction());
 
-        return new OneInputTransformation<>(
+        return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getDescription(),
+                getOperatorName(planner.getTableConfig()),
+                getOperatorDescription(planner.getTableConfig()),
                 operator,
                 inputTransform.getOutputType(),
                 inputTransform.getParallelism());

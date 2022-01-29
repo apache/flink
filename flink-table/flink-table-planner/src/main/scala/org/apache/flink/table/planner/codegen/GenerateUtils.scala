@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{AtomicType => AtomicTypeInfo}
-import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.utils.JoinedRowData
@@ -30,11 +29,12 @@ import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, 
 import org.apache.flink.table.planner.codegen.calls.CurrentTimePointCallGen
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
 import org.apache.flink.table.planner.plan.utils.SortUtil
+import org.apache.flink.table.planner.typeutils.SymbolUtil.calciteToCommon
+import org.apache.flink.table.planner.utils.TimestampStringUtils.toLocalDateTime
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isReference, isTemporal}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getFieldTypes}
-import org.apache.flink.table.planner.utils.TimestampStringUtils.toLocalDateTime
 
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.util.TimestampString
@@ -435,27 +435,22 @@ object GenerateUtils {
       case DISTINCT_TYPE =>
         generateLiteral(ctx, literalType.asInstanceOf[DistinctType].getSourceType, literalValue)
 
-      // Symbol type for special flags e.g. TRIM's BOTH, LEADING, TRAILING
-      case RAW if literalType.asInstanceOf[TypeInformationRawType[_]]
-          .getTypeInformation.getTypeClass.isAssignableFrom(classOf[Enum[_]]) =>
-        generateSymbol(literalValue.asInstanceOf[Enum[_]])
-
       case SYMBOL =>
-        throw new UnsupportedOperationException() // TODO support symbol?
+        generateSymbol(literalValue.asInstanceOf[Enum[_]])
 
       case ARRAY | MULTISET | MAP | ROW | STRUCTURED_TYPE | NULL | UNRESOLVED =>
         throw new CodeGenException(s"Type not supported: $literalType")
     }
   }
 
-  def generateSymbol(enum: Enum[_]): GeneratedExpression = {
+  def generateSymbol(value: Enum[_]): GeneratedExpression = {
+    val convertedValue = calciteToCommon(value, true)
     GeneratedExpression(
-      qualifyEnum(enum),
+      qualifyEnum(convertedValue),
       NEVER_NULL,
       NO_CODE,
-      new TypeInformationRawType[AnyRef](new GenericTypeInfo[AnyRef](
-        enum.getDeclaringClass.asInstanceOf[Class[AnyRef]])),
-      literalValue = Some(enum))
+      new SymbolType(false),
+      literalValue = Some(convertedValue))
   }
 
   /**

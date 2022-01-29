@@ -65,6 +65,12 @@ public class InMemoryChangelogStateHandle implements ChangelogStateHandle {
         return changes.stream().mapToLong(change -> change.getChange().length).sum();
     }
 
+    @Override
+    public long getCheckpointedSize() {
+        // memory changelog state handle would be counted as checkpoint each time.
+        return getStateSize();
+    }
+
     public List<StateChange> getChanges() {
         return Collections.unmodifiableList(changes);
     }
@@ -83,7 +89,7 @@ public class InMemoryChangelogStateHandle implements ChangelogStateHandle {
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry stateRegistry) {
+    public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
         // do nothing
     }
 

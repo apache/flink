@@ -19,7 +19,6 @@
 package org.apache.flink.table.sources;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.types.Row;
 
@@ -29,7 +28,7 @@ import java.util.Map;
 /**
  * Factory for creating configured instances of {@link CsvTableSource} in a stream environment.
  *
- * @deprecated The legacy CSV connector has been replaced by {@link FileSource}. It is kept only to
+ * @deprecated The legacy CSV connector has been replaced by {@code FileSource}. It is kept only to
  *     support tests for the legacy connector stack.
  */
 @Internal

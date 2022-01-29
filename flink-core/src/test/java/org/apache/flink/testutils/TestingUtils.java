@@ -23,11 +23,13 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import java.time.Duration;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Convenience functions to test actor based components. */
 public class TestingUtils {
+    private static final UUID ZERO_UUID = new UUID(0L, 0L);
 
     public static final Duration TESTING_DURATION = Duration.ofMinutes(2L);
     public static final Time TIMEOUT = Time.minutes(1L);
@@ -49,5 +51,9 @@ public class TestingUtils {
 
     public static ScheduledExecutor defaultScheduledExecutor() {
         return new ScheduledExecutorServiceAdapter(defaultExecutor());
+    }
+
+    public static UUID zeroUUID() {
+        return ZERO_UUID;
     }
 }

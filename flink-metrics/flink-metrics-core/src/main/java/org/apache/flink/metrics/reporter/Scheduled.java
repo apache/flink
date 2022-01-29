@@ -18,7 +18,10 @@
 
 package org.apache.flink.metrics.reporter;
 
+import org.apache.flink.annotation.Public;
+
 /** Interface for reporters that actively send out data periodically. */
+@Public
 public interface Scheduled {
 
     /**

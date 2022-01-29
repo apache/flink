@@ -21,7 +21,9 @@ package org.apache.flink.table.runtime.typeutils;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
@@ -61,6 +63,17 @@ public class PythonTypeUtilsTest {
         assertEquals("f1", schema.getFields(0).getName());
         assertEquals(
                 FlinkFnApi.Schema.TypeName.BIGINT, schema.getFields(0).getType().getTypeName());
+    }
+
+    @Test
+    public void testLogicalTypeToDataConverter() {
+        PythonTypeUtils.DataConverter converter = PythonTypeUtils.toDataConverter(new IntType());
+
+        GenericRowData data = new GenericRowData(1);
+        data.setField(0, 10);
+        Object externalData = converter.toExternal(data, 0);
+        assertTrue(externalData instanceof Long);
+        assertEquals(externalData, 10L);
     }
 
     @Test

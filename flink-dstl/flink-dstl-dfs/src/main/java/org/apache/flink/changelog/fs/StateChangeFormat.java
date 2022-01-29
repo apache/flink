@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleStreamHandleReader;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.IOUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +45,6 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static java.util.Comparator.comparing;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /** Serialization format for state changes. */
 @Internal
@@ -135,7 +135,7 @@ public class StateChangeFormat
             private StateChange readChange() throws IOException {
                 int size = input.readInt();
                 byte[] bytes = new byte[size];
-                checkState(size == input.read(bytes));
+                IOUtils.readFully(input, bytes, 0, size);
                 return new StateChange(keyGroup, bytes);
             }
 

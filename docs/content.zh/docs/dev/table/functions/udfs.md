@@ -241,6 +241,9 @@ env.from("MyTable").select(call(classOf[MyConcatFunction], $"a", $"b", $"c"));
 
 为了将自定义函数存储在持久化的 catalog 中，该类必须具有默认构造器，且在运行时可实例化。
 
+Anonymous functions in Table API can only be persisted if the function is not stateful (i.e. containing
+only transient and static fields).
+
 ### 求值方法
 
 基类提供了一组可以被重写的方法，例如 `open()`、 `close()` 或 `isDeterministic()` 。

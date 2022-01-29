@@ -20,7 +20,7 @@ package org.apache.flink.connector.kafka.source.enumerator.initializer;
 
 import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumerator;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
-import org.apache.flink.connector.kafka.source.testutils.KafkaSourceTestEnv;
+import org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv;
 
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
@@ -51,9 +51,7 @@ public class OffsetsInitializerTest {
         KafkaSourceTestEnv.setupTopic(TOPIC2, false, false, KafkaSourceTestEnv::getRecordsForTopic);
         retriever =
                 new KafkaSourceEnumerator.PartitionOffsetsRetrieverImpl(
-                        KafkaSourceTestEnv.getConsumer(),
-                        KafkaSourceTestEnv.getAdminClient(),
-                        KafkaSourceTestEnv.GROUP_ID);
+                        KafkaSourceTestEnv.getAdminClient(), KafkaSourceTestEnv.GROUP_ID);
     }
 
     @AfterClass

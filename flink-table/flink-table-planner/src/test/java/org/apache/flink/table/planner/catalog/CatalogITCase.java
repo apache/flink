@@ -20,10 +20,17 @@ package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogDatabaseImpl;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalogFactoryOptions;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
@@ -32,7 +39,10 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.net.URLClassLoader;
+import java.util.ArrayList;
+import java.util.HashMap;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -167,6 +177,32 @@ public class CatalogITCase {
 
             assertTrue(tableEnvironment.getCatalog("cat").isPresent());
         }
+    }
+
+    @Test
+    public void testGetTablesFromGivenCatalogDatabase() throws Exception {
+        final Catalog c1 = new GenericInMemoryCatalog("c1", "default");
+        final Catalog c2 = new GenericInMemoryCatalog("c2", "d2");
+
+        final CatalogManager catalogManager =
+                CatalogManagerMocks.preparedCatalogManager().defaultCatalog("c2", c2).build();
+        catalogManager.registerCatalog("c1", c1);
+
+        final CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder().build(), null, new ArrayList<>(), new HashMap<>());
+
+        c1.createDatabase("d1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
+        c1.createTable(new ObjectPath("d1", "t1"), catalogTable, true);
+
+        c2.createTable(
+                new ObjectPath(catalogManager.getCurrentDatabase(), "t2"), catalogTable, true);
+
+        assertThat(catalogManager.getCurrentCatalog()).isEqualTo("c2");
+        assertThat(catalogManager.getCurrentDatabase()).isEqualTo("d2");
+
+        assertThat(catalogManager.listTables()).containsExactlyInAnyOrder("t2");
+        assertThat(catalogManager.listTables("c1", "d1")).containsExactlyInAnyOrder("t1");
     }
 
     private TableEnvironment getTableEnvironment() {

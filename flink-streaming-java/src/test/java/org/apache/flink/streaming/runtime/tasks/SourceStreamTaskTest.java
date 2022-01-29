@@ -28,7 +28,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.MultiShotLatch;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -38,6 +37,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.RecordOrEventCollectingResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
@@ -50,7 +50,6 @@ import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
@@ -72,8 +71,6 @@ import org.apache.flink.util.function.CheckedSupplier;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.annotation.Nonnull;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -89,14 +86,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
-import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT_SUSPEND;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT_TERMINATE;
-import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.triggerCheckpoint;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.CoreMatchers.is;
@@ -112,39 +106,6 @@ import static org.junit.Assert.assertTrue;
  * checkpointing/element emission don't occur concurrently.
  */
 public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
-
-    @Test
-    public void testInputEndedBeforeStopWithSavepointConfirmed() throws Exception {
-        CancelTestSource source =
-                new CancelTestSource(
-                        STRING_TYPE_INFO.createSerializer(new ExecutionConfig()), "src");
-        TestBoundedOneInputStreamOperator chainTail = new TestBoundedOneInputStreamOperator("t");
-        StreamTaskMailboxTestHarness<String> harness =
-                new StreamTaskMailboxTestHarnessBuilder<>(SourceStreamTask::new, STRING_TYPE_INFO)
-                        .setupOperatorChain(
-                                new OperatorID(),
-                                new StreamSource<String, CancelTestSource<String>>(source))
-                        .chain(
-                                new OperatorID(),
-                                chainTail,
-                                STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
-                        .finish()
-                        .build();
-        Future<Boolean> triggerFuture =
-                harness.streamTask.triggerCheckpointAsync(
-                        new CheckpointMetaData(1, 1),
-                        new CheckpointOptions(SAVEPOINT_SUSPEND, getDefault()));
-        while (!triggerFuture.isDone()) {
-            harness.streamTask.runMailboxStep();
-        }
-        // instead of completing stop with savepoint via `notifyCheckpointCompleted`
-        // we simulate that source has finished first. As a result, we expect that the endInput
-        // should have been issued
-        source.cancel();
-        harness.streamTask.invoke();
-        harness.waitForTaskCompletion();
-        assertTrue(TestBoundedOneInputStreamOperator.isInputEnded());
-    }
 
     /** This test verifies that open() and close() are correctly called by the StreamTask. */
     @Test
@@ -528,27 +489,6 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
         public void cancel() {}
     }
 
-    /** If finishing a task doesn't swallow exceptions this test would fail with an exception. */
-    @Test
-    public void finishingIgnoresExceptions() throws Exception {
-        final StreamTaskTestHarness<String> testHarness =
-                new StreamTaskTestHarness<>(SourceStreamTask::new, STRING_TYPE_INFO);
-
-        final CompletableFuture<Void> operatorRunningWaitingFuture = new CompletableFuture<>();
-        ExceptionThrowingSource.setIsInRunLoopFuture(operatorRunningWaitingFuture);
-
-        testHarness.setupOutputForSingletonOperatorChain();
-        StreamConfig streamConfig = testHarness.getStreamConfig();
-        streamConfig.setStreamOperator(new StreamSource<>(new ExceptionThrowingSource()));
-        streamConfig.setOperatorID(new OperatorID());
-
-        testHarness.invoke();
-        operatorRunningWaitingFuture.get();
-        testHarness.getTask().finishTask();
-
-        testHarness.waitForTaskCompletion();
-    }
-
     @Test
     public void testWaitsForSourceThreadOnCancel() throws Exception {
         StreamTaskTestHarness<String> harness =
@@ -578,45 +518,6 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
     }
 
     @Test
-    public void testStopWithSavepointShouldNotInterruptTheSource() throws Exception {
-        long checkpointId = 1;
-        WasInterruptedTestingSource interruptedTestingSource = new WasInterruptedTestingSource();
-        WasInterruptedTestingSource.reset();
-        try (StreamTaskMailboxTestHarness<String> harness =
-                new StreamTaskMailboxTestHarnessBuilder<>(SourceStreamTask::new, STRING_TYPE_INFO)
-                        .setupOutputForSingletonOperatorChain(
-                                new StreamSource<>(interruptedTestingSource))
-                        .build()) {
-
-            harness.processAll();
-
-            Future<Boolean> triggerFuture =
-                    harness.streamTask.triggerCheckpointAsync(
-                            new CheckpointMetaData(checkpointId, 1),
-                            new CheckpointOptions(SAVEPOINT_SUSPEND, getDefault()));
-            while (!triggerFuture.isDone()) {
-                harness.streamTask.runMailboxStep();
-            }
-            triggerFuture.get();
-
-            Future<Void> notifyFuture =
-                    harness.streamTask.notifyCheckpointCompleteAsync(checkpointId);
-            while (!notifyFuture.isDone()) {
-                harness.streamTask.runMailboxStep();
-            }
-            notifyFuture.get();
-
-            WasInterruptedTestingSource.allowExit();
-
-            harness.waitForTaskCompletion();
-            harness.finishProcessing();
-
-            assertTrue(notifyFuture.isDone());
-            assertFalse(interruptedTestingSource.wasInterrupted());
-        }
-    }
-
-    @Test
     public void testTriggeringCheckpointAfterSourceThreadFinished() throws Exception {
         ResultPartition[] partitionWriters = new ResultPartition[2];
         try (NettyShuffleEnvironment env =
@@ -634,15 +535,7 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
             try (StreamTaskMailboxTestHarness<String> testHarness =
                     new StreamTaskMailboxTestHarnessBuilder<>(
                                     SourceStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                            .modifyStreamConfig(
-                                    config -> {
-                                        config.setCheckpointingEnabled(true);
-                                        config.getConfiguration()
-                                                .set(
-                                                        ExecutionCheckpointingOptions
-                                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                        true);
-                                    })
+                            .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
                             .setCheckpointResponder(
                                     new TestCheckpointResponder() {
                                         @Override
@@ -720,8 +613,8 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                                         output,
                                         new StreamElementSerializer<>(IntSerializer.INSTANCE)) {
                                     @Override
-                                    public void notifyEndOfData() throws IOException {
-                                        broadcastEvent(EndOfData.INSTANCE, false);
+                                    public void notifyEndOfData(StopMode mode) throws IOException {
+                                        broadcastEvent(new EndOfData(mode), false);
                                     }
                                 })
                         .setupOperatorChain(new StreamSource<>(testSource))
@@ -732,7 +625,7 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
             harness.processAll();
             harness.streamTask.getCompletionFuture().get();
 
-            assertThat(output, contains(Watermark.MAX_WATERMARK, EndOfData.INSTANCE));
+            assertThat(output, contains(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN)));
 
             LifeCycleMonitorSource source =
                     (LifeCycleMonitorSource)
@@ -1035,47 +928,6 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
         }
     }
 
-    /**
-     * A {@link SourceFunction} that throws an exception from {@link #run(SourceContext)} when it is
-     * cancelled via {@link #cancel()}.
-     */
-    private static class ExceptionThrowingSource implements SourceFunction<String> {
-
-        private static volatile CompletableFuture<Void> isInRunLoop;
-
-        private volatile boolean running = true;
-
-        public static class TestException extends RuntimeException {
-            public TestException(String message) {
-                super(message);
-            }
-        }
-
-        public static void setIsInRunLoopFuture(
-                @Nonnull final CompletableFuture<Void> waitingLatch) {
-            ExceptionThrowingSource.isInRunLoop = waitingLatch;
-        }
-
-        @Override
-        public void run(SourceContext<String> ctx) throws TestException {
-            checkState(isInRunLoop != null && !isInRunLoop.isDone());
-
-            while (running) {
-                if (!isInRunLoop.isDone()) {
-                    isInRunLoop.complete(null);
-                }
-                ctx.collect("hello");
-            }
-
-            throw new TestException("Oh no, we're failing.");
-        }
-
-        @Override
-        public void cancel() {
-            running = false;
-        }
-    }
-
     private static final class OutputRecordInCloseTestSource<SRC extends SourceFunction<String>>
             extends StreamSource<String, SRC> implements BoundedOneInput {
 
@@ -1104,48 +956,6 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
 
         private void output(String record) {
             output.collect(new StreamRecord<>(record));
-        }
-    }
-
-    /**
-     * This source sleeps a little bit before processing cancellation and records whether it was
-     * interrupted by the {@link SourceStreamTask} or not.
-     */
-    private static class WasInterruptedTestingSource implements SourceFunction<String> {
-        private static final long serialVersionUID = 1L;
-
-        private static final OneShotLatch ALLOW_EXIT = new OneShotLatch();
-        private static final AtomicBoolean WAS_INTERRUPTED = new AtomicBoolean();
-
-        private volatile boolean running = true;
-
-        @Override
-        public void run(SourceContext<String> ctx) throws Exception {
-            try {
-                while (running || !ALLOW_EXIT.isTriggered()) {
-                    Thread.sleep(1);
-                }
-            } catch (InterruptedException e) {
-                WAS_INTERRUPTED.set(true);
-            }
-        }
-
-        @Override
-        public void cancel() {
-            running = false;
-        }
-
-        public static boolean wasInterrupted() {
-            return WAS_INTERRUPTED.get();
-        }
-
-        public static void reset() {
-            ALLOW_EXIT.reset();
-            WAS_INTERRUPTED.set(false);
-        }
-
-        public static void allowExit() {
-            ALLOW_EXIT.trigger();
         }
     }
 

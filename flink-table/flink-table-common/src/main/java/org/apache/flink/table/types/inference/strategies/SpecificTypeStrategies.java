@@ -76,6 +76,10 @@ public final class SpecificTypeStrategies {
     /** See {@link CurrentWatermarkTypeStrategy}. */
     public static final TypeStrategy CURRENT_WATERMARK = new CurrentWatermarkTypeStrategy();
 
+    /** See {@link InternalReplicateRowsTypeStrategy}. */
+    public static final TypeStrategy INTERNAL_REPLICATE_ROWS =
+            new InternalReplicateRowsTypeStrategy();
+
     private SpecificTypeStrategies() {
         // no instantiation
     }

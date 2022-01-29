@@ -21,22 +21,22 @@ package org.apache.flink.table.planner.plan.abilities.sink;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
-import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
 import java.util.Map;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A sub-class of {@link SinkAbilitySpec} that can not only serialize/deserialize the partition
- * to/from JSON, but also can write partitioned data for {@link SupportsWritingMetadata}.
+ * to/from JSON, but also can write partitioned data for {@link SupportsPartitioning}.
  */
 @JsonTypeName("Partitioning")
-public class PartitioningSpec implements SinkAbilitySpec {
+public final class PartitioningSpec implements SinkAbilitySpec {
     public static final String FIELD_NAME_PARTITION = "partition";
 
     @JsonProperty(FIELD_NAME_PARTITION)
@@ -57,5 +57,22 @@ public class PartitioningSpec implements SinkAbilitySpec {
                             "%s does not support SupportsPartitioning.",
                             tableSink.getClass().getName()));
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        PartitioningSpec that = (PartitioningSpec) o;
+        return Objects.equals(partition, that.partition);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(partition);
     }
 }

@@ -63,6 +63,7 @@ function set_mirror_config {
 	if [[ "$?" == "0" ]]; then
 		echo "Using Alibaba mirror"
 		MAVEN_MIRROR_CONFIG_FILE="$CI_DIR/alibaba-mirror-settings.xml"
+		NPM_PROXY_PROFILE_ACTIVATION="-Duse-alibaba-mirror"
 	else
 		echo "Using Google mirror"
 		MAVEN_MIRROR_CONFIG_FILE="$CI_DIR/google-mirror-settings.xml"
@@ -92,6 +93,7 @@ MAVEN_VERSIONED_DIR=${MAVEN_CACHE_DIR}/apache-maven-${MAVEN_VERSION}
 
 
 MAVEN_MIRROR_CONFIG_FILE=""
+NPM_PROXY_PROFILE_ACTIVATION=""
 set_mirror_config
 
 export MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR="$MAVEN_ARGS "
@@ -108,4 +110,4 @@ MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="$PROFILE "
 
 export MVN_GLOBAL_OPTIONS="${MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR} "
 # use google mirror everywhere
-MVN_GLOBAL_OPTIONS+="--settings $MAVEN_MIRROR_CONFIG_FILE "
+MVN_GLOBAL_OPTIONS+="--settings $MAVEN_MIRROR_CONFIG_FILE ${NPM_PROXY_PROFILE_ACTIVATION} "

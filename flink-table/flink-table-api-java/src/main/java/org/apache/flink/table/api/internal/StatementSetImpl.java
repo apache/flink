@@ -26,12 +26,14 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
-import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.SinkModifyOperation;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -76,10 +78,12 @@ public class StatementSetImpl<E extends TableEnvironmentInternal> implements Sta
                 tableEnvironment.getParser().parseIdentifier(targetPath);
         ObjectIdentifier objectIdentifier =
                 tableEnvironment.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
+        ContextResolvedTable contextResolvedTable =
+                tableEnvironment.getCatalogManager().getTableOrError(objectIdentifier);
 
         operations.add(
-                new CatalogSinkModifyOperation(
-                        objectIdentifier,
+                new SinkModifyOperation(
+                        contextResolvedTable,
                         table.getQueryOperation(),
                         Collections.emptyMap(),
                         overwrite,
@@ -96,8 +100,6 @@ public class StatementSetImpl<E extends TableEnvironmentInternal> implements Sta
     @Override
     public StatementSet addInsert(
             TableDescriptor targetDescriptor, Table table, boolean overwrite) {
-        final String path = TableDescriptorUtil.getUniqueAnonymousPath();
-
         final SchemaTranslator.ConsumingResult schemaTranslationResult =
                 SchemaTranslator.createConsumingResult(
                         tableEnvironment.getCatalogManager().getDataTypeFactory(),
@@ -107,8 +109,20 @@ public class StatementSetImpl<E extends TableEnvironmentInternal> implements Sta
         final TableDescriptor updatedDescriptor =
                 targetDescriptor.toBuilder().schema(schemaTranslationResult.getSchema()).build();
 
-        tableEnvironment.createTemporaryTable(path, updatedDescriptor);
-        return addInsert(path, table, overwrite);
+        final ResolvedCatalogTable resolvedCatalogBaseTable =
+                tableEnvironment
+                        .getCatalogManager()
+                        .resolveCatalogTable(updatedDescriptor.toCatalogTable());
+
+        operations.add(
+                new SinkModifyOperation(
+                        ContextResolvedTable.anonymous(resolvedCatalogBaseTable),
+                        table.getQueryOperation(),
+                        Collections.emptyMap(),
+                        overwrite,
+                        Collections.emptyMap()));
+
+        return this;
     }
 
     @Override

@@ -22,7 +22,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { BASE_URL } from 'config';
-import { JobManagerLogItem } from 'interfaces';
+import { JobManagerLogItem, JobManagerThreadDump } from 'interfaces';
 
 @Injectable({
   providedIn: 'root'
@@ -66,6 +66,14 @@ export class JobManagerService {
           };
         })
       );
+  }
+
+  public loadThreadDump(): Observable<string> {
+    return this.httpClient.get<JobManagerThreadDump>(`${BASE_URL}/jobmanager/thread-dump`).pipe(
+      map(JobManagerThreadDump => {
+        return JobManagerThreadDump.threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('');
+      })
+    );
   }
 
   public getMetricsName(): Observable<string[]> {

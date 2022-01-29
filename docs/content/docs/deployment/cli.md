@@ -241,6 +241,10 @@ $ ./bin/flink run \
 ```
 This is useful if your program dropped an operator that was part of the savepoint.
 
+You can also select the [restore mode]({{< ref "docs/ops/state/savepoints" >}}#restore-mode)
+which should be used for the savepoint. The mode controls who takes ownership of the files of
+the specified savepoint.
+
 {{< top >}}
 
 ## CLI Actions
@@ -440,7 +444,7 @@ related options. Here's an overview of all the Python related options for the ac
         <tr>
             <td><code class="highlighter-rouge">-py,--python</code></td>
             <td>
-                Python script with the program entry. The dependent resources can be configured
+                Python script with the program entry point. The dependent resources can be configured
                 with the <code class="highlighter-rouge">--pyFiles</code> option.
             </td>
         </tr>

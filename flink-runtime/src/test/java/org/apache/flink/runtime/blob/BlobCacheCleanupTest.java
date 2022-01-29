@@ -83,15 +83,17 @@ public class BlobCacheCleanupTest extends TestLogger {
 
         try {
             Configuration config = new Configuration();
-            config.setString(
-                    BlobServerOptions.STORAGE_DIRECTORY,
-                    temporaryFolder.newFolder().getAbsolutePath());
             config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
-            server = new BlobServer(config, new VoidBlobStore());
+            server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
             server.start();
             InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-            cache = new PermanentBlobCache(config, new VoidBlobStore(), serverAddress);
+            cache =
+                    new PermanentBlobCache(
+                            config,
+                            temporaryFolder.newFolder(),
+                            new VoidBlobStore(),
+                            serverAddress);
 
             // upload blobs
             keys.add(server.putPermanent(jobId, buf));
@@ -151,13 +153,11 @@ public class BlobCacheCleanupTest extends TestLogger {
      * when registering, releasing, and re-registering jobs.
      */
     @Test
-    public void testPermanentJobReferences() throws IOException, InterruptedException {
+    public void testPermanentJobReferences() throws IOException {
 
         JobID jobId = new JobID();
 
         Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
         config.setLong(
                 BlobServerOptions.CLEANUP_INTERVAL,
                 3_600_000L); // 1 hour should effectively prevent races
@@ -166,7 +166,8 @@ public class BlobCacheCleanupTest extends TestLogger {
         InetSocketAddress serverAddress = new InetSocketAddress("localhost", 12345);
 
         try (PermanentBlobCache cache =
-                new PermanentBlobCache(config, new VoidBlobStore(), serverAddress)) {
+                new PermanentBlobCache(
+                        config, temporaryFolder.newFolder(), new VoidBlobStore(), serverAddress)) {
 
             // register once
             cache.registerJob(jobId);
@@ -229,17 +230,20 @@ public class BlobCacheCleanupTest extends TestLogger {
 
         try {
             Configuration config = new Configuration();
-            config.setString(
-                    BlobServerOptions.STORAGE_DIRECTORY,
-                    temporaryFolder.newFolder().getAbsolutePath());
             config.setLong(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
 
-            server = new BlobServer(config, new VoidBlobStore());
+            server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
             server.start();
             InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
             final BlobCacheSizeTracker tracker =
                     new BlobCacheSizeTracker(MemorySize.ofMebiBytes(100).getBytes());
-            cache = new PermanentBlobCache(config, new VoidBlobStore(), serverAddress, tracker);
+            cache =
+                    new PermanentBlobCache(
+                            config,
+                            temporaryFolder.newFolder(),
+                            new VoidBlobStore(),
+                            serverAddress,
+                            tracker);
 
             // upload blobs
             keys.add(server.putPermanent(jobId, buf));
@@ -343,16 +347,16 @@ public class BlobCacheCleanupTest extends TestLogger {
         byte[] data2 = Arrays.copyOfRange(data, 10, 54);
 
         Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
         config.setLong(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
 
         long cleanupLowerBound;
 
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore());
+        try (BlobServer server =
+                        new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
                 final BlobCacheService cache =
                         new BlobCacheService(
                                 config,
+                                temporaryFolder.newFolder(),
                                 new VoidBlobStore(),
                                 new InetSocketAddress("localhost", server.getPort()))) {
             ConcurrentMap<Tuple2<JobID, TransientBlobKey>, Long> transientBlobExpiryTimes =

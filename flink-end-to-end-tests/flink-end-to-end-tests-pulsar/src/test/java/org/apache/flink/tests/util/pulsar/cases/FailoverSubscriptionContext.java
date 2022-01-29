@@ -23,15 +23,24 @@ import org.apache.flink.connector.pulsar.testutils.cases.MultipleTopicTemplateCo
 
 import org.apache.pulsar.client.api.SubscriptionType;
 
+import java.net.URL;
+import java.util.Collections;
+import java.util.List;
+
 import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_SERVICE_URL;
 
-/** We would consuming from test splits by using {@link SubscriptionType#Failover} subscription. */
+/** We would consume from test splits by using {@link SubscriptionType#Failover} subscription. */
 public class FailoverSubscriptionContext extends MultipleTopicTemplateContext {
-    private static final long serialVersionUID = 6238209089442257487L;
+    private static final long serialVersionUID = 1L;
 
     public FailoverSubscriptionContext(PulsarTestEnvironment environment) {
-        super(environment);
+        this(environment, Collections.emptyList());
+    }
+
+    public FailoverSubscriptionContext(
+            PulsarTestEnvironment environment, List<URL> connectorJarPaths) {
+        super(environment, connectorJarPaths);
     }
 
     @Override

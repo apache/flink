@@ -81,6 +81,8 @@ public class NettyShuffleEnvironmentBuilder {
     private BufferDebloatConfiguration debloatConfiguration =
             BufferDebloatConfiguration.fromConfiguration(new Configuration());
 
+    private int maxNumberOfConnections = 1;
+
     public NettyShuffleEnvironmentBuilder setTaskManagerLocation(ResourceID taskManagerLocation) {
         this.taskManagerLocation = taskManagerLocation;
         return this;
@@ -180,6 +182,11 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
+    public NettyShuffleEnvironmentBuilder setMaxNumberOfConnections(int maxNumberOfConnections) {
+        this.maxNumberOfConnections = maxNumberOfConnections;
+        return this;
+    }
+
     public NettyShuffleEnvironment build() {
         return NettyShuffleServiceFactory.createNettyShuffleEnvironment(
                 new NettyShuffleEnvironmentConfiguration(
@@ -200,7 +207,8 @@ public class NettyShuffleEnvironmentBuilder {
                         batchShuffleReadMemoryBytes,
                         sortShuffleMinBuffers,
                         sortShuffleMinParallelism,
-                        debloatConfiguration),
+                        debloatConfiguration,
+                        maxNumberOfConnections),
                 taskManagerLocation,
                 new TaskEventDispatcher(),
                 resultPartitionManager,

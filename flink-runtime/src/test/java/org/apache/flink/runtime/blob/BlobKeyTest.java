@@ -20,6 +20,7 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -180,6 +181,37 @@ public final class BlobKeyTest extends TestLogger {
     @Test
     public void testStreamsPermanent() throws Exception {
         testStreams(PERMANENT_BLOB);
+    }
+
+    @Test
+    public void testToFromStringPermanentKey() {
+        testToFromString(BlobKey.createKey(PERMANENT_BLOB));
+    }
+
+    @Test
+    public void testToFromStringTransientKey() {
+        testToFromString(BlobKey.createKey(TRANSIENT_BLOB));
+    }
+
+    private void testToFromString(BlobKey blobKey) {
+        final String stringRepresentation = blobKey.toString();
+        final BlobKey parsedBlobKey = BlobKey.fromString(stringRepresentation);
+
+        assertThat(blobKey, equalTo(parsedBlobKey));
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testFromStringFailsWithWrongInput() {
+        BlobKey.fromString("foobar");
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testFromStringFailsWithInvalidBlobKeyType() {
+        BlobKey.fromString(
+                String.format(
+                        "x-%s-%s",
+                        StringUtils.byteToHexString(KEY_ARRAY_1),
+                        StringUtils.byteToHexString(RANDOM_ARRAY_1)));
     }
 
     /** Test the serialization/deserialization using input/output streams. */

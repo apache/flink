@@ -29,6 +29,7 @@ import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
@@ -50,6 +51,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
 
+import static java.util.Collections.emptyList;
 import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
@@ -117,7 +119,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
     /** Tests that subsumed checkpoints are discarded. */
     @Test
     public void testDiscardingSubsumedCheckpoints() throws Exception {
-        final SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        final SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         final Configuration configuration = new Configuration();
         configuration.setString(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
@@ -131,12 +133,14 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
             final CompletedCheckpointStoreTest.TestCompletedCheckpoint checkpoint1 =
                     CompletedCheckpointStoreTest.createCheckpoint(0, sharedStateRegistry);
 
-            checkpointStore.addCheckpoint(checkpoint1, new CheckpointsCleaner(), () -> {});
+            checkpointStore.addCheckpointAndSubsumeOldestOne(
+                    checkpoint1, new CheckpointsCleaner(), () -> {});
             assertThat(checkpointStore.getAllCheckpoints(), Matchers.contains(checkpoint1));
 
             final CompletedCheckpointStoreTest.TestCompletedCheckpoint checkpoint2 =
                     CompletedCheckpointStoreTest.createCheckpoint(1, sharedStateRegistry);
-            checkpointStore.addCheckpoint(checkpoint2, new CheckpointsCleaner(), () -> {});
+            checkpointStore.addCheckpointAndSubsumeOldestOne(
+                    checkpoint2, new CheckpointsCleaner(), () -> {});
             final List<CompletedCheckpoint> allCheckpoints = checkpointStore.getAllCheckpoints();
             assertThat(allCheckpoints, Matchers.contains(checkpoint2));
             assertThat(allCheckpoints, Matchers.not(Matchers.contains(checkpoint1)));
@@ -154,7 +158,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
      */
     @Test
     public void testDiscardingCheckpointsAtShutDown() throws Exception {
-        final SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        final SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         final Configuration configuration = new Configuration();
         configuration.setString(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
@@ -168,7 +172,8 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
             final CompletedCheckpointStoreTest.TestCompletedCheckpoint checkpoint1 =
                     CompletedCheckpointStoreTest.createCheckpoint(0, sharedStateRegistry);
 
-            checkpointStore.addCheckpoint(checkpoint1, new CheckpointsCleaner(), () -> {});
+            checkpointStore.addCheckpointAndSubsumeOldestOne(
+                    checkpoint1, new CheckpointsCleaner(), () -> {});
             assertThat(checkpointStore.getAllCheckpoints(), Matchers.contains(checkpoint1));
 
             checkpointStore.shutdown(JobStatus.FINISHED, new CheckpointsCleaner());
@@ -191,6 +196,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
                 checkpointsInZooKeeper,
                 zooKeeperCheckpointStoreUtil,
                 Collections.emptyList(),
+                SharedStateRegistry.DEFAULT_FACTORY.create(Executors.directExecutor(), emptyList()),
                 Executors.directExecutor());
     }
 
@@ -250,7 +256,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
                             CheckpointProperties.forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION),
                             new TestCompletedCheckpointStorageLocation());
             // shouldn't fail despite the exception
-            store.addCheckpoint(
+            store.addCheckpointAndSubsumeOldestOne(
                     checkpointToAdd,
                     new CheckpointsCleaner(),
                     () -> {

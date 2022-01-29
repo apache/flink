@@ -22,6 +22,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
+
 import org.junit.Test
 
 class DecimalTypeTest extends ExpressionTestBase {
@@ -140,48 +141,48 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f1 < 12,
       "f1 < 12",
-      "false")
+      "FALSE")
 
     testAllApis(
       'f1 > 12,
       "f1 > 12",
-      "true")
+      "TRUE")
 
     testAllApis(
       'f1 === 12,
       "f1 = 12",
-      "false")
+      "FALSE")
 
     testAllApis(
       'f5 === 0,
       "f5 = 0",
-      "true")
+      "TRUE")
 
     testAllApis(
       'f1 === BigDecimal("123456789123456789123456789"),
       "f1 = CAST('123456789123456789123456789' AS DECIMAL(30, 0))",
-      "true")
+      "TRUE")
 
     testAllApis(
       'f1 !== BigDecimal("123456789123456789123456789"),
       "f1 <> CAST('123456789123456789123456789' AS DECIMAL(30, 0))",
-      "false")
+      "FALSE")
 
     testAllApis(
       'f4 < 'f0,
       "f4 < f0",
-      "true")
+      "TRUE")
 
     testAllApis(
       12.toExpr < 'f1,
       "12 < f1",
-      "true")
+      "TRUE")
 
     testAllApis(
       12.toExpr > 'f1,
       "12 > f1",
       "12 > f1",
-      "false")
+      "FALSE")
 
     testAllApis(
       12.toExpr - 'f37,
@@ -255,12 +256,12 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f11,
       "f11",
-      "null")
+      "NULL")
 
     testAllApis(
       'f12,
       "f12",
-      "null")
+      "NULL")
   }
 
   @Test
@@ -348,13 +349,13 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f19 + 'f19,
       "f19 + f19",
-      "null")
+      "NULL")
 
     // overflows in subexpression
     testAllApis(
       'f19 + 'f19 - 'f19,
       "f19 + f19 - f19",
-      "null")
+      "NULL")
   }
 
   @Test
@@ -426,7 +427,7 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f29 * 'f29,
       "f29 * f29",
-      "null"
+      "NULL"
     )
 
     //(60,40) => (38,17), scale part is reduced to make more space for integral part
@@ -491,7 +492,7 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f39 / 'f40,
       "f39 / f40",
-      "null")
+      "NULL")
   }
 
   @Test
@@ -671,7 +672,7 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       ('f52).round(-1),
       "round(f52,-1)",
-      "null")
+      "NULL")
   }
 
   @Test // functions e.g. sin() that treat Decimal as double
@@ -705,109 +706,109 @@ class DecimalTypeTest extends ExpressionTestBase {
     //   =, CASE, NULLIF, IN, IS DISTINCT FROM
     testSqlApi(
       "f63=f64",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f63=f65",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f63=f66",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f64=f63",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f65=f63",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f66=f63",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f63 IN(f64)",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f63 IN(f65)",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f63 IN(f66)",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f64 IN(f63)",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f65 IN(f63)",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f66 IN(f63)",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f63 IS DISTINCT FROM f64",
-      "false")
+      "FALSE")
 
     testSqlApi(
       "f64 IS DISTINCT FROM f63",
-      "false")
+      "FALSE")
 
     testSqlApi(
       "f63 IS DISTINCT FROM f65",
-      "false")
+      "FALSE")
 
     testSqlApi(
       "f65 IS DISTINCT FROM f63",
-      "false")
+      "FALSE")
 
     testSqlApi(
       "f63 IS DISTINCT FROM f66",
-      "false")
+      "FALSE")
 
     testSqlApi(
       "f66 IS DISTINCT FROM f63",
-      "false")
+      "FALSE")
 
     testSqlApi(
       "NULLIF(f63,f64)",
-      "null"
+      "NULL"
     )
 
     testSqlApi(
       "NULLIF(f63,f65)",
-      "null"
+      "NULL"
     )
 
     testSqlApi(
       "NULLIF(f63,f66)",
-      "null"
+      "NULL"
     )
 
     testSqlApi(
       "NULLIF(f64,f63)",
-      "null"
+      "NULL"
     )
 
     testSqlApi(
       "NULLIF(f65,f63)",
-      "null"
+      "NULL"
     )
 
     testSqlApi(
       "NULLIF(f66,f63)",
-      "null"
+      "NULL"
     )
 
     testSqlApi(
       "NULLIF(f63,f64)",
-      "null"
+      "NULL"
     )
 
     testSqlApi(
@@ -845,106 +846,106 @@ class DecimalTypeTest extends ExpressionTestBase {
   def testComparison(): Unit = {
     testSqlApi(
       "f63 < f64",
-      "false")
+      "FALSE")
 
     testSqlApi(
       "f63 < f65",
-      "false")
+      "FALSE")
 
     testSqlApi(
       "f63 < f66",
-      "false")
+      "FALSE")
 
     testSqlApi(
       "f64 < f63",
-      "false")
+      "FALSE")
 
     testSqlApi(
       "f65 < f63",
-      "false")
+      "FALSE")
 
     testSqlApi(
       "f66 < f63",
-      "false")
+      "FALSE")
 
     // no overflow during type conversion.
     // conceptually both operands are promoted to infinite precision before comparison.
     testSqlApi(
       "f67 < f68",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f67 < f69",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f67 < f70",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f68 < f67",
-      "false")
+      "FALSE")
 
     testSqlApi(
       "f69 < f67",
-      "false")
+      "FALSE")
 
     testSqlApi(
       "f70 < f67",
-      "false")
+      "FALSE")
 
     testSqlApi(
       "f63 between f64 and 1",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f64 between f63 and 1",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f63 between f65 and 1",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f65 between f63 and 1",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f63 between f66 and 1",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f66 between f63 and 1",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f63 between 0 and f64",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f64 between 0 and f63",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f63 between 0 and f65",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f65 between 0 and f63",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f63 between 0 and f66",
-      "true")
+      "TRUE")
 
     testSqlApi(
       "f66 between 0 and f63",
-      "true")
+      "TRUE")
   }
 
   @Test
   def testCompareDecimalColWithNull(): Unit = {
-    testSqlApi("f35>cast(1234567890123.123 as decimal(20,16))", "null")
+    testSqlApi("f35>cast(1234567890123.123 as decimal(20,16))", "NULL")
   }
 
   // ----------------------------------------------------------------------------------------------

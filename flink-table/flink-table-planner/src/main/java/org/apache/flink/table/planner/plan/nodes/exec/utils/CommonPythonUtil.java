@@ -36,17 +36,9 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.Count1AggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.CountAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.ListAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.ListAggWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.ListAggWsWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MaxAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MinAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.Sum0AggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.SumAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFunction;
@@ -57,8 +49,18 @@ import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
 import org.apache.flink.table.planner.plan.utils.AggregateInfo;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
-import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment;
+import org.apache.flink.table.runtime.dataview.DataViewSpec;
+import org.apache.flink.table.runtime.dataview.ListViewSpec;
+import org.apache.flink.table.runtime.dataview.MapViewSpec;
+import org.apache.flink.table.runtime.functions.aggregate.FirstValueAggFunction;
+import org.apache.flink.table.runtime.functions.aggregate.FirstValueWithRetractAggFunction;
+import org.apache.flink.table.runtime.functions.aggregate.LastValueAggFunction;
+import org.apache.flink.table.runtime.functions.aggregate.LastValueWithRetractAggFunction;
+import org.apache.flink.table.runtime.functions.aggregate.ListAggWithRetractAggFunction;
+import org.apache.flink.table.runtime.functions.aggregate.ListAggWsWithRetractAggFunction;
+import org.apache.flink.table.runtime.functions.aggregate.MaxWithRetractAggFunction;
+import org.apache.flink.table.runtime.functions.aggregate.MinWithRetractAggFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -77,6 +79,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -87,10 +90,11 @@ import java.util.stream.IntStream;
 
 /** A utility class used in PyFlink. */
 public class CommonPythonUtil {
-    private static Method convertLiteralToPython = null;
+    private static Method pickleValue = null;
 
     private static final String PYTHON_CONFIG_UTILS_CLASS =
             "org.apache.flink.python.util.PythonConfigUtil";
+    private static final String PYTHON_OPTIONS_CLASS = "org.apache.flink.python.PythonOptions";
 
     private CommonPythonUtil() {}
 
@@ -138,14 +142,14 @@ public class CommonPythonUtil {
                         ((BridgingSqlFunction) operator).getDefinition());
             }
         } catch (InvocationTargetException | IllegalAccessException e) {
-            throw new TableException("Method convertLiteralToPython accessed failed. ", e);
+            throw new TableException("Method pickleValue accessed failed. ", e);
         }
         throw new TableException(String.format("Unsupported Python SqlFunction %s.", operator));
     }
 
     @SuppressWarnings("unchecked")
     public static boolean isPythonWorkerUsingManagedMemory(Configuration config) {
-        Class clazz = loadClass("org.apache.flink.python.PythonOptions");
+        Class clazz = loadClass(PYTHON_OPTIONS_CLASS);
         try {
             return config.getBoolean(
                     (ConfigOption<Boolean>) (clazz.getField("USE_MANAGED_MEMORY").get(null)));
@@ -154,11 +158,25 @@ public class CommonPythonUtil {
         }
     }
 
-    public static Tuple2<PythonAggregateFunctionInfo[], DataViewUtils.DataViewSpec[][]>
+    @SuppressWarnings("unchecked")
+    public static boolean isPythonWorkerInProcessMode(Configuration config) {
+        Class clazz = loadClass("org.apache.flink.python.PythonOptions");
+        try {
+            return config.getString(
+                            (ConfigOption<String>)
+                                    (clazz.getField("PYTHON_EXECUTION_MODE").get(null)))
+                    .equalsIgnoreCase("process");
+
+        } catch (IllegalAccessException | NoSuchFieldException e) {
+            throw new TableException("Field PYTHON_EXECUTION_MODE accessed failed.", e);
+        }
+    }
+
+    public static Tuple2<PythonAggregateFunctionInfo[], DataViewSpec[][]>
             extractPythonAggregateFunctionInfos(
                     AggregateInfoList pythonAggregateInfoList, AggregateCall[] aggCalls) {
         List<PythonAggregateFunctionInfo> pythonAggregateFunctionInfoList = new ArrayList<>();
-        List<DataViewUtils.DataViewSpec[]> dataViewSpecList = new ArrayList<>();
+        List<DataViewSpec[]> dataViewSpecList = new ArrayList<>();
         AggregateInfo[] aggInfos = pythonAggregateInfoList.aggInfos();
         for (int i = 0; i < aggInfos.length; i++) {
             AggregateInfo aggInfo = aggInfos[i];
@@ -194,12 +212,12 @@ public class CommonPythonUtil {
                                 distinct));
                 // The data views of the built in Python Aggregate Function are different from Java
                 // side, we will create the spec at Python side.
-                dataViewSpecList.add(new DataViewUtils.DataViewSpec[0]);
+                dataViewSpecList.add(new DataViewSpec[0]);
             }
         }
         return Tuple2.of(
                 pythonAggregateFunctionInfoList.toArray(new PythonAggregateFunctionInfo[0]),
-                dataViewSpecList.toArray(new DataViewUtils.DataViewSpec[0][0]));
+                dataViewSpecList.toArray(new DataViewSpec[0][0]));
     }
 
     public static Tuple2<int[], PythonFunctionInfo[]>
@@ -240,9 +258,9 @@ public class CommonPythonUtil {
         return Tuple2.of(udafInputOffsets, pythonFunctionInfos.toArray(new PythonFunctionInfo[0]));
     }
 
-    public static DataViewUtils.DataViewSpec[] extractDataViewSpecs(int index, DataType accType) {
+    public static DataViewSpec[] extractDataViewSpecs(int index, DataType accType) {
         if (!(accType instanceof FieldsDataType)) {
-            return new DataViewUtils.DataViewSpec[0];
+            return new DataViewSpec[0];
         }
         FieldsDataType compositeAccType = (FieldsDataType) accType;
         if (includesDataView(compositeAccType)) {
@@ -264,7 +282,7 @@ public class CommonPythonUtil {
                                                     ((StructuredType) childLogicalType)
                                                             .getImplementationClass()
                                                             .get())) {
-                                        return new DataViewUtils.ListViewSpec(
+                                        return new ListViewSpec(
                                                 "agg"
                                                         + index
                                                         + "$"
@@ -278,7 +296,7 @@ public class CommonPythonUtil {
                                                     ((StructuredType) childLogicalType)
                                                             .getImplementationClass()
                                                             .get())) {
-                                        return new DataViewUtils.MapViewSpec(
+                                        return new MapViewSpec(
                                                 "agg"
                                                         + index
                                                         + "$"
@@ -292,13 +310,13 @@ public class CommonPythonUtil {
                                     return null;
                                 })
                         .filter(Objects::nonNull)
-                        .toArray(DataViewUtils.DataViewSpec[]::new);
+                        .toArray(DataViewSpec[]::new);
             } else {
                 throw new TableException(
                         "For Python AggregateFunction you can only use DataView in " + "Row type.");
             }
         } else {
-            return new DataViewUtils.DataViewSpec[0];
+            return new DataViewSpec[0];
         }
     }
 
@@ -320,20 +338,79 @@ public class CommonPythonUtil {
                         });
     }
 
+    private static byte[] convertLiteralToPython(RexLiteral o, SqlTypeName typeName)
+            throws InvocationTargetException, IllegalAccessException {
+        byte type;
+        Object value;
+        if (o.getValue3() == null) {
+            type = 0;
+            value = null;
+        } else {
+            switch (typeName) {
+                case TINYINT:
+                    type = 0;
+                    value = ((BigDecimal) o.getValue3()).byteValueExact();
+                    break;
+                case SMALLINT:
+                    type = 0;
+                    value = ((BigDecimal) o.getValue3()).shortValueExact();
+                    break;
+                case INTEGER:
+                    type = 0;
+                    value = ((BigDecimal) o.getValue3()).intValueExact();
+                    break;
+                case BIGINT:
+                    type = 0;
+                    value = ((BigDecimal) o.getValue3()).longValueExact();
+                    break;
+                case FLOAT:
+                    type = 0;
+                    value = ((BigDecimal) o.getValue3()).floatValue();
+                    break;
+                case DOUBLE:
+                    type = 0;
+                    value = ((BigDecimal) o.getValue3()).doubleValue();
+                    break;
+                case DECIMAL:
+                case BOOLEAN:
+                    type = 0;
+                    value = o.getValue3();
+                    break;
+                case CHAR:
+                case VARCHAR:
+                    type = 0;
+                    value = o.getValue3().toString();
+                    break;
+                case DATE:
+                    type = 1;
+                    value = o.getValue3();
+                    break;
+                case TIME:
+                    type = 2;
+                    value = o.getValue3();
+                    break;
+                case TIMESTAMP:
+                    type = 3;
+                    value = o.getValue3();
+                    break;
+                default:
+                    throw new RuntimeException("Unsupported type " + typeName);
+            }
+        }
+        loadPickleValue();
+        return (byte[]) pickleValue.invoke(null, value, type);
+    }
+
     @SuppressWarnings("unchecked")
-    private static void loadConvertLiteralToPythonMethod() {
-        if (convertLiteralToPython == null) {
+    private static void loadPickleValue() {
+        if (pickleValue == null) {
             synchronized (CommonPythonUtil.class) {
-                if (convertLiteralToPython == null) {
+                if (pickleValue == null) {
                     Class clazz = loadClass("org.apache.flink.api.common.python.PythonBridgeUtils");
                     try {
-                        convertLiteralToPython =
-                                clazz.getMethod(
-                                        "convertLiteralToPython",
-                                        RexLiteral.class,
-                                        SqlTypeName.class);
+                        pickleValue = clazz.getMethod("pickleValue", Object.class, byte.class);
                     } catch (NoSuchMethodException e) {
-                        throw new TableException("Method convertLiteralToPython loaded failed.", e);
+                        throw new TableException("Method pickleValue loaded failed.", e);
                     }
                 }
             }
@@ -354,10 +431,7 @@ public class CommonPythonUtil {
                 inputs.add(argPythonInfo);
             } else if (operand instanceof RexLiteral) {
                 RexLiteral literal = (RexLiteral) operand;
-                loadConvertLiteralToPythonMethod();
-                inputs.add(
-                        convertLiteralToPython.invoke(
-                                null, literal, literal.getType().getSqlTypeName()));
+                inputs.add(convertLiteralToPython(literal, literal.getType().getSqlTypeName()));
             } else {
                 if (inputNodes.containsKey(operand)) {
                     inputs.add(inputNodes.get(operand));

@@ -21,17 +21,19 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.jobmanager.StandaloneJobGraphStore;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
@@ -107,12 +109,11 @@ public class AbstractDispatcherTest extends TestLogger {
         haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
         haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
         haServices.setJobGraphStore(new StandaloneJobGraphStore());
+        haServices.setJobResultStore(new EmbeddedJobResultStore());
 
         configuration = new Configuration();
-        configuration.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
-        blobServer = new BlobServer(configuration, new VoidBlobStore());
+        blobServer =
+                new BlobServer(configuration, temporaryFolder.newFolder(), new VoidBlobStore());
     }
 
     @After
@@ -125,12 +126,18 @@ public class AbstractDispatcherTest extends TestLogger {
         }
     }
 
+    protected BlobServer getBlobServer() {
+        return blobServer;
+    }
+
     /** A convenient builder for the {@link TestingDispatcher}. */
     public class TestingDispatcherBuilder {
 
         private Collection<JobGraph> initialJobGraphs = Collections.emptyList();
 
-        private final DispatcherBootstrapFactory dispatcherBootstrapFactory =
+        private Collection<JobResult> dirtyJobResults = Collections.emptyList();
+
+        private DispatcherBootstrapFactory dispatcherBootstrapFactory =
                 (dispatcher, scheduledExecutor, errorHandler) -> new NoOpDispatcherBootstrap();
 
         private HeartbeatServices heartbeatServices = AbstractDispatcherTest.this.heartbeatServices;
@@ -142,8 +149,12 @@ public class AbstractDispatcherTest extends TestLogger {
 
         private JobGraphWriter jobGraphWriter = NoOpJobGraphWriter.INSTANCE;
 
+        private JobResultStore jobResultStore = new EmbeddedJobResultStore();
+
         private FatalErrorHandler fatalErrorHandler =
                 testingFatalErrorHandlerResource.getFatalErrorHandler();
+
+        private HistoryServerArchivist historyServerArchivist = VoidHistoryServerArchivist.INSTANCE;
 
         TestingDispatcherBuilder setHeartbeatServices(HeartbeatServices heartbeatServices) {
             this.heartbeatServices = heartbeatServices;
@@ -160,6 +171,17 @@ public class AbstractDispatcherTest extends TestLogger {
             return this;
         }
 
+        TestingDispatcherBuilder setDirtyJobResults(Collection<JobResult> dirtyJobResults) {
+            this.dirtyJobResults = dirtyJobResults;
+            return this;
+        }
+
+        TestingDispatcherBuilder setDispatcherBootstrapFactory(
+                DispatcherBootstrapFactory dispatcherBootstrapFactory) {
+            this.dispatcherBootstrapFactory = dispatcherBootstrapFactory;
+            return this;
+        }
+
         TestingDispatcherBuilder setJobManagerRunnerFactory(
                 JobManagerRunnerFactory jobManagerRunnerFactory) {
             this.jobManagerRunnerFactory = jobManagerRunnerFactory;
@@ -171,8 +193,19 @@ public class AbstractDispatcherTest extends TestLogger {
             return this;
         }
 
+        TestingDispatcherBuilder setJobResultStore(JobResultStore jobResultStore) {
+            this.jobResultStore = jobResultStore;
+            return this;
+        }
+
         public TestingDispatcherBuilder setFatalErrorHandler(FatalErrorHandler fatalErrorHandler) {
             this.fatalErrorHandler = fatalErrorHandler;
+            return this;
+        }
+
+        public TestingDispatcherBuilder setHistoryServerArchivist(
+                HistoryServerArchivist historyServerArchivist) {
+            this.historyServerArchivist = historyServerArchivist;
             return this;
         }
 
@@ -187,6 +220,7 @@ public class AbstractDispatcherTest extends TestLogger {
                     rpcService,
                     DispatcherId.generate(),
                     initialJobGraphs,
+                    dirtyJobResults,
                     dispatcherBootstrapFactory,
                     new DispatcherServices(
                             configuration,
@@ -196,11 +230,12 @@ public class AbstractDispatcherTest extends TestLogger {
                             heartbeatServices,
                             executionGraphInfoStore,
                             fatalErrorHandler,
-                            VoidHistoryServerArchivist.INSTANCE,
+                            historyServerArchivist,
                             null,
                             new DispatcherOperationCaches(),
                             UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
                             jobGraphWriter,
+                            jobResultStore,
                             jobManagerRunnerFactory,
                             ForkJoinPool.commonPool()));
         }

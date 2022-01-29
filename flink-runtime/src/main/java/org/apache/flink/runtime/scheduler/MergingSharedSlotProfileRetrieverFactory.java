@@ -28,6 +28,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -35,15 +36,16 @@ import java.util.function.Supplier;
 /** Factory for {@link MergingSharedSlotProfileRetriever}. */
 class MergingSharedSlotProfileRetrieverFactory
         implements SharedSlotProfileRetriever.SharedSlotProfileRetrieverFactory {
+
     private final SyncPreferredLocationsRetriever preferredLocationsRetriever;
 
-    private final Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever;
+    private final Function<ExecutionVertexID, Optional<AllocationID>> priorAllocationIdRetriever;
 
     private final Supplier<Set<AllocationID>> reservedAllocationIdsRetriever;
 
     MergingSharedSlotProfileRetrieverFactory(
             SyncPreferredLocationsRetriever preferredLocationsRetriever,
-            Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever,
+            Function<ExecutionVertexID, Optional<AllocationID>> priorAllocationIdRetriever,
             Supplier<Set<AllocationID>> reservedAllocationIdsRetriever) {
         this.preferredLocationsRetriever = Preconditions.checkNotNull(preferredLocationsRetriever);
         this.priorAllocationIdRetriever = Preconditions.checkNotNull(priorAllocationIdRetriever);
@@ -97,11 +99,12 @@ class MergingSharedSlotProfileRetrieverFactory
             Collection<AllocationID> priorAllocations = new HashSet<>();
             Collection<TaskManagerLocation> preferredLocations = new ArrayList<>();
             for (ExecutionVertexID execution : executionSlotSharingGroup.getExecutionVertexIds()) {
-                priorAllocations.add(priorAllocationIdRetriever.apply(execution));
+                priorAllocationIdRetriever.apply(execution).ifPresent(priorAllocations::add);
                 preferredLocations.addAll(
                         preferredLocationsRetriever.getPreferredLocations(
                                 execution, producersToIgnore));
             }
+
             return SlotProfile.priorAllocation(
                     physicalSlotResourceProfile,
                     physicalSlotResourceProfile,

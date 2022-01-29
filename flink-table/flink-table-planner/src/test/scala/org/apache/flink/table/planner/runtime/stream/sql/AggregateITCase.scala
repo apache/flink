@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.{Types, _}
-import org.apache.flink.table.planner.functions.aggfunctions.{ListAggWithRetractAggFunction, ListAggWsWithRetractAggFunction}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.{changelogRow, registerData}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.VarSumAggFunction
 import org.apache.flink.table.planner.runtime.batch.sql.agg.{MyPojoAggFunction, VarArgsAggFunction}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverloadedMaxFunction
@@ -37,6 +37,7 @@ import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWat
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => mLocalTime}
+import org.apache.flink.table.runtime.functions.aggregate.{ListAggWithRetractAggFunction, ListAggWsWithRetractAggFunction}
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
 import org.apache.flink.types.Row
 
@@ -49,6 +50,7 @@ import java.lang.{Integer => JInt, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 
 import scala.collection.{Seq, mutable}
+import scala.math.BigDecimal.double2bigDecimal
 import scala.util.Random
 
 @RunWith(classOf[Parameterized])
@@ -399,28 +401,116 @@ class AggregateITCase(
   @Test
   def testPrecisionForSumAggregationOnDecimal(): Unit = {
     var t = tEnv.sqlQuery(
-        "select cast(sum(1.03520274) as DECIMAL(32, 8)), " +
-        "cast(sum(12345.035202748654) AS DECIMAL(30, 20)), " +
-        "cast(sum(12.345678901234567) AS DECIMAL(25, 22))")
+        "select sum(cast(1.03520274 as DECIMAL(32, 8))), " +
+        "sum(cast(12345.035202748654 AS DECIMAL(30, 20))), " +
+        "sum(cast(12.345678901234567 AS DECIMAL(25, 22)))")
     var sink = new TestingRetractSink
     t.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
+
+    // Use the result precision/scale calculated for sum and don't override with the one calculated
+    // for plus(), which "looses" a decimal digit.
     var expected = List("1.03520274,12345.03520274865400000000,12.3456789012345670000000")
     assertEquals(expected, sink.getRetractResults)
 
-    val data = new mutable.MutableList[(Double, Int)]
-    data .+= ((1.11111111, 1))
-    data .+= ((1.11111111, 2))
+    val data = new mutable.MutableList[Double]
+    data .+= (1.11111111)
+    data .+= (1.11111111)
     env.setParallelism(1)
 
-    t = failingDataSource(data).toTable(tEnv, 'a, 'b)
+    t = failingDataSource(data).toTable(tEnv, 'a)
     tEnv.registerTable("T", t)
 
     t = tEnv.sqlQuery("select sum(cast(a as decimal(32, 8))) from T")
     sink = new TestingRetractSink
     t.toRetractStream[Row].addSink(sink)
     env.execute()
+
+    // Use the result precision/scale calculated for sum and don't override with the one calculated
+    // for plus(), which results in loosing a decimal digit.
     expected = List("2.22222222")
+    assertEquals(expected, sink.getRetractResults)
+  }
+
+  @Test
+  def testPrecisionForSumWithRetractAggregationOnDecimal(): Unit = {
+    val upsertSourceCurrencyData = List(
+      changelogRow("+I", 1.03520274.bigDecimal, 12345.035202748654.bigDecimal,
+        12.345678901234567.bigDecimal, "a"),
+      changelogRow("+I", 1.03520274.bigDecimal, 12345.035202748654.bigDecimal,
+        12.345678901234567.bigDecimal, "b"),
+      changelogRow("-D", 1.03520274.bigDecimal, 12345.035202748654.bigDecimal,
+        12.345678901234567.bigDecimal, "b"),
+      changelogRow("+I", 2.13520275.bigDecimal, 21245.542202748654.bigDecimal,
+        242.78594201234567.bigDecimal, "a"),
+      changelogRow("+I", 1.11111111.bigDecimal, 11111.111111111111.bigDecimal,
+        111.11111111111111.bigDecimal, "b"),
+      changelogRow("+I", 1.11111111.bigDecimal, 11111.111111111111.bigDecimal,
+        111.11111111111111.bigDecimal, "a"),
+      changelogRow("-D", 1.11111111.bigDecimal, 11111.111111111111.bigDecimal,
+        111.11111111111111.bigDecimal, "b"),
+      changelogRow("+I", 2.13520275.bigDecimal, 21245.542202748654.bigDecimal,
+        242.78594201234567.bigDecimal, "a"))
+
+    val upsertSourceDataId = registerData(upsertSourceCurrencyData);
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE T (
+         | `a` DECIMAL(32, 8),
+         | `b` DECIMAL(32, 20),
+         | `c` DECIMAL(32, 20),
+         | `d` STRING
+         |) WITH (
+         | 'connector' = 'values',
+         | 'data-id' = '${upsertSourceDataId}',
+         | 'changelog-mode' = 'I,D',
+         | 'failing-source' = 'true'
+         |)
+         |""".stripMargin)
+
+    val sql = "SELECT sum(a), sum(b), sum(c) FROM T GROUP BY d"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    // Use the result precision/scale calculated for sum and don't override with the one calculated
+    // for plus()/minus(), which results in loosing a decimal digit.
+    val expected = List("6.41671935,65947.23071935707000000000,609.02867403703699700000")
+    assertEquals(expected, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testPrecisionForAvgAggregationOnDecimal(): Unit = {
+    var t = tEnv.sqlQuery(
+      "select avg(cast(1.03520274 as DECIMAL(32, 8))), " +
+        "avg(cast(12345.035202748654 AS DECIMAL(30, 20))), " +
+        "avg(cast(12.345678901234567 AS DECIMAL(25, 22)))")
+    var sink = new TestingRetractSink
+    t.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    // Use the result precision/scale calculated for AvgAggFunction's SumType and don't override
+    // with the one calculated for plus()/minus(), which results in loosing a decimal digit.
+    var expected = List("1.03520274,12345.03520274865400000000,12.3456789012345670000000")
+    assertEquals(expected, sink.getRetractResults)
+
+    val data = new mutable.MutableList[Double]
+    data .+= (2.22222222)
+    data .+= (3.33333333)
+    env.setParallelism(1)
+
+    t = failingDataSource(data).toTable(tEnv, 'a)
+    tEnv.registerTable("T", t)
+
+    t = tEnv.sqlQuery("select avg(cast(a as decimal(32, 8))) from T")
+    sink = new TestingRetractSink
+    t.toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    // Use the result precision/scale calculated for AvgAggFunction's SumType and don't override
+    // with the one calculated for plus()/minus(), which result in loosing a decimal digit.
+    expected = List("2.77777778")
     assertEquals(expected, sink.getRetractResults)
   }
 
@@ -831,34 +921,53 @@ class AggregateITCase(
 
   @Test
   def testDifferentTypesSumWithRetract(): Unit = {
-    val data = List(
-      (1.toByte, 1.toShort, 1, 1L, 1.0F, 1.0, "a"),
-      (2.toByte, 2.toShort, 2, 2L, 2.0F, 2.0, "a"),
-      (3.toByte, 3.toShort, 3, 3L, 3.0F, 3.0, "a"),
-      (3.toByte, 3.toShort, 3, 3L, 3.0F, 3.0, "a"),
-      (1.toByte, 1.toShort, 1, 1L, 1.0F, 1.0, "b"),
-      (2.toByte, 2.toShort, 2, 2L, 2.0F, 2.0, "b"),
-      (3.toByte, 3.toShort, 3, 3L, 3.0F, 3.0, "c"),
-      (3.toByte, 3.toShort, 3, 3L, 3.0F, 3.0, "c")
-    )
+    val upsertSourceCurrencyData = List(
+      changelogRow("+I", Byte.box(1), Short.box(1), Int.box(1), Long.box(1),
+        Float.box(1.0F), Double.box(1.0), "a"),
+      changelogRow("+I", Byte.box(2), Short.box(2), Int.box(2), Long.box(2),
+        Float.box(2.0F), Double.box(2.0), "a"),
+      changelogRow("-D", Byte.box(1), Short.box(1), Int.box(1), Long.box(1),
+        Float.box(1.0F), Double.box(1.0), "a"),
+      changelogRow("+I", Byte.box(3), Short.box(3), Int.box(3), Long.box(3),
+        Float.box(3.0F), Double.box(3.0), "a"),
+      changelogRow("-D", Byte.box(2), Short.box(2), Int.box(2), Long.box(2),
+        Float.box(2.0F), Double.box(2.0), "a"),
+      changelogRow("+I", Byte.box(1), Short.box(1), Int.box(1), Long.box(1),
+        Float.box(1.0F), Double.box(1.0), "a"),
+      changelogRow("-D", Byte.box(3), Short.box(3), Int.box(3), Long.box(3),
+        Float.box(3.0F), Double.box(3.0), "a"),
+      changelogRow("+I", Byte.box(2), Short.box(2), Int.box(2), Long.box(2),
+        Float.box(2.0F), Double.box(2.0), "a"),
+      changelogRow("+I", Byte.box(3), Short.box(3), Int.box(3), Long.box(3),
+        Float.box(3.0F), Double.box(3.0), "a"))
 
-    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'f, 'g)
-    tEnv.registerTable("T", t)
+    val upsertSourceDataId = registerData(upsertSourceCurrencyData)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE T (
+         | `a` TINYINT,
+         | `b` SMALLINT,
+         | `c` INT,
+         | `d` BIGINT,
+         | `e` FLOAT,
+         | `f` DOUBLE,
+         | `g` STRING
+         |) WITH (
+         | 'connector' = 'values',
+         | 'data-id' = '${upsertSourceDataId}',
+         | 'changelog-mode' = 'I,D',
+         | 'failing-source' = 'true'
+         |)
+         |""".stripMargin)
 
-    // We use sub-query + limit here to ensure retraction
-    val sql =
-      """
-        |SELECT sum(a), sum(b), sum(c), sum(d), sum(e), sum(f), sum(h) FROM (
-        |  SELECT *, CAST(c AS DECIMAL(3, 2)) AS h FROM T LIMIT 8
-        |) GROUP BY g
-      """.stripMargin
+    val sql = "SELECT sum(a), sum(b), sum(c), sum(d), sum(e), sum(f) FROM T GROUP BY g"
 
     val sink = new TestingRetractSink
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
     env.execute()
 
-    val expected = List("9,9,9,9,9.0,9.0,9.00", "3,3,3,3,3.0,3.0,3.00", "6,6,6,6,6.0,6.0,6.00")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    val expected = List("6,6,6,6,6.0,6.0")
+    assertEquals(expected, sink.getRetractResults.sorted)
   }
 
   @Test

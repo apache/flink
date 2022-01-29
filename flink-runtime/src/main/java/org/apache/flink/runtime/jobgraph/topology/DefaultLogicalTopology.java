@@ -91,7 +91,7 @@ public class DefaultLogicalTopology implements LogicalTopology {
         return verticesSorted;
     }
 
-    private DefaultLogicalVertex getVertex(final JobVertexID vertexId) {
+    public DefaultLogicalVertex getVertex(final JobVertexID vertexId) {
         return Optional.ofNullable(idToVertexMap.get(vertexId))
                 .orElseThrow(
                         () -> new IllegalArgumentException("can not find vertex: " + vertexId));

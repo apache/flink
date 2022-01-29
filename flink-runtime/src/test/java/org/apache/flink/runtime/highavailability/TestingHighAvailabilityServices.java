@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -67,7 +67,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
     private volatile JobGraphStore jobGraphStore;
 
-    private volatile RunningJobsRegistry runningJobsRegistry = new StandaloneRunningJobsRegistry();
+    private volatile JobResultStore jobResultStore = new EmbeddedJobResultStore();
 
     private CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
@@ -125,8 +125,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
         this.jobGraphStore = jobGraphStore;
     }
 
-    public void setRunningJobsRegistry(RunningJobsRegistry runningJobsRegistry) {
-        this.runningJobsRegistry = runningJobsRegistry;
+    public void setJobResultStore(JobResultStore jobResultStore) {
+        this.jobResultStore = jobResultStore;
     }
 
     public void setJobMasterLeaderElectionServiceFunction(
@@ -262,8 +262,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     }
 
     @Override
-    public RunningJobsRegistry getRunningJobsRegistry() {
-        return runningJobsRegistry;
+    public JobResultStore getJobResultStore() {
+        return jobResultStore;
     }
 
     @Override

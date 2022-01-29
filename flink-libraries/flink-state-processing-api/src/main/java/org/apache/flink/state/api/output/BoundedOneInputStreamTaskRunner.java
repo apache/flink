@@ -37,6 +37,7 @@ import org.apache.flink.util.Collector;
  *
  * @param <IN> Type of the input to the partition
  */
+@Deprecated
 @Internal
 public class BoundedOneInputStreamTaskRunner<IN>
         extends RichMapPartitionFunction<IN, TaggedOperatorSubtaskState> {

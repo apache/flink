@@ -20,9 +20,9 @@ package org.apache.flink.tests.util.pulsar;
 
 import org.apache.flink.connector.pulsar.testutils.PulsarTestContextFactory;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
-import org.apache.flink.connectors.test.common.junit.annotations.ExternalContextFactory;
-import org.apache.flink.connectors.test.common.junit.annotations.ExternalSystem;
-import org.apache.flink.connectors.test.common.junit.annotations.TestEnv;
+import org.apache.flink.connector.testframe.junit.annotations.TestContext;
+import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
+import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
 import org.apache.flink.tests.util.pulsar.cases.KeySharedSubscriptionContext;
 import org.apache.flink.tests.util.pulsar.cases.SharedSubscriptionContext;
 import org.apache.flink.tests.util.pulsar.common.FlinkContainerWithPulsarEnvironment;
@@ -41,15 +41,18 @@ public class PulsarSourceUnorderedE2ECase extends UnorderedSourceTestSuiteBase<S
     FlinkContainerWithPulsarEnvironment flink = new FlinkContainerWithPulsarEnvironment(1, 8);
 
     // Defines ConnectorExternalSystem.
-    @ExternalSystem
-    PulsarTestEnvironment pulsar = new PulsarTestEnvironment(container(flink.getFlinkContainer()));
+    @TestExternalSystem
+    PulsarTestEnvironment pulsar =
+            new PulsarTestEnvironment(container(flink.getFlinkContainers().getJobManager()));
 
     // Defines a set of external context Factories for different test cases.
-    @ExternalContextFactory
+    @SuppressWarnings("unused")
+    @TestContext
     PulsarTestContextFactory<String, SharedSubscriptionContext> shared =
             new PulsarTestContextFactory<>(pulsar, SharedSubscriptionContext::new);
 
-    @ExternalContextFactory
+    @SuppressWarnings("unused")
+    @TestContext
     PulsarTestContextFactory<String, KeySharedSubscriptionContext> keyShared =
             new PulsarTestContextFactory<>(pulsar, KeySharedSubscriptionContext::new);
 }

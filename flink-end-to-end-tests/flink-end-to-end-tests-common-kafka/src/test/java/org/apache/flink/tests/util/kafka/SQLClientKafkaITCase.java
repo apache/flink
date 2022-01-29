@@ -22,7 +22,6 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.cache.DownloadCache;
-import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
@@ -65,7 +64,7 @@ import static org.junit.Assert.assertThat;
 
 /** End-to-end test for the kafka SQL connectors. */
 @RunWith(Parameterized.class)
-@Category(value = {TravisGroup1.class, FailsOnJava11.class})
+@Category(value = {FailsOnJava11.class})
 @Ignore("FLINK-21796")
 public class SQLClientKafkaITCase extends TestLogger {
 
@@ -75,7 +74,7 @@ public class SQLClientKafkaITCase extends TestLogger {
 
     @Parameterized.Parameters(name = "{index}: kafka-version:{0} kafka-sql-version:{1}")
     public static Collection<Object[]> data() {
-        return Arrays.asList(new Object[][] {{"2.4.1", "universal", "kafka", ".*kafka.jar"}});
+        return Arrays.asList(new Object[][] {{"2.8.1", "universal", "kafka", ".*kafka.jar"}});
     }
 
     private static Configuration getConfiguration() {

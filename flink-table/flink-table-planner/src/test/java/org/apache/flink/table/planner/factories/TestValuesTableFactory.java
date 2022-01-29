@@ -1676,7 +1676,7 @@ public final class TestValuesTableFactory
                                     + "' yet.");
                     sinkFunction = new RetractingSinkFunction(tableName, converter);
                 }
-                return SinkFunctionProvider.of(sinkFunction);
+                return SinkFunctionProvider.of(sinkFunction, this.parallelism);
             }
         }
 

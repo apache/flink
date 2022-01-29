@@ -699,7 +699,7 @@ class RemovableConcatIterator(collections.abc.Iterator):
 
     def remove(self):
         """
-        Remove the the last element returned by this iterator.
+        Remove the last element returned by this iterator.
         """
         if self._last_key is None:
             raise Exception("You need to call the '__next__' method before calling "

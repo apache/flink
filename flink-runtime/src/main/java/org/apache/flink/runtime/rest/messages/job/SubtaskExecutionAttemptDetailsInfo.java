@@ -32,6 +32,8 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.swagger.v3.oas.annotations.Hidden;
+
 import javax.annotation.Nullable;
 
 import java.util.Objects;
@@ -74,6 +76,7 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
     @JsonProperty(FIELD_NAME_START_TIME)
     private final long startTime;
 
+    @Hidden
     @JsonProperty(FIELD_NAME_COMPATIBLE_START_TIME)
     private final long startTimeCompatible;
 

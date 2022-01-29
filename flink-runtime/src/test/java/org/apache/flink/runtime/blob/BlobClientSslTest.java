@@ -35,7 +35,7 @@ import java.io.IOException;
 public class BlobClientSslTest extends BlobClientTest {
 
     /** The instance of the SSL BLOB server used during the tests. */
-    private static TestBlobServer blobSslServer;
+    private static BlobServer blobSslServer;
 
     /** Instance of a non-SSL BLOB server with SSL-enabled security options. */
     private static BlobServer blobNonSslServer;
@@ -54,11 +54,8 @@ public class BlobClientSslTest extends BlobClientTest {
         Configuration config =
                 SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores(
                         SecurityOptions.SSL_PROVIDER.defaultValue());
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY,
-                temporarySslFolder.newFolder().getAbsolutePath());
 
-        blobSslServer = new TestBlobServer(config, new VoidBlobStore());
+        blobSslServer = new BlobServer(config, temporarySslFolder.newFolder(), new VoidBlobStore());
         blobSslServer.start();
 
         sslClientConfig = config;
@@ -69,12 +66,10 @@ public class BlobClientSslTest extends BlobClientTest {
         Configuration config =
                 SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores(
                         SecurityOptions.SSL_PROVIDER.defaultValue());
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY,
-                temporarySslFolder.newFolder().getAbsolutePath());
         config.setBoolean(BlobServerOptions.SSL_ENABLED, false);
 
-        blobNonSslServer = new BlobServer(config, new VoidBlobStore());
+        blobNonSslServer =
+                new BlobServer(config, temporarySslFolder.newFolder(), new VoidBlobStore());
         blobNonSslServer.start();
 
         nonSslClientConfig = config;
@@ -100,7 +95,7 @@ public class BlobClientSslTest extends BlobClientTest {
         return sslClientConfig;
     }
 
-    protected TestBlobServer getBlobServer() {
+    protected BlobServer getBlobServer() {
         return blobSslServer;
     }
 

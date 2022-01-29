@@ -56,6 +56,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -86,6 +87,8 @@ public class ClientTest extends TestLogger {
 
     private Plan plan;
 
+    private NetUtils.Port port;
+
     private Configuration config;
 
     private static final String TEST_EXECUTOR_NAME = "test_executor";
@@ -102,12 +105,20 @@ public class ClientTest extends TestLogger {
         env.generateSequence(1, 1000).output(new DiscardingOutputFormat<>());
         plan = env.createProgramPlan();
 
-        final int freePort = NetUtils.getAvailablePort();
         config = new Configuration();
         config.setString(JobManagerOptions.ADDRESS, "localhost");
-        config.setInteger(JobManagerOptions.PORT, freePort);
+        NetUtils.Port port = NetUtils.getAvailablePort();
+        config.setInteger(JobManagerOptions.PORT, port.getPort());
+
         config.set(
                 AkkaOptions.ASK_TIMEOUT_DURATION, AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue());
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        if (port != null) {
+            port.close();
+        }
     }
 
     private Configuration fromPackagedProgram(

@@ -74,8 +74,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.UNRESOLVED;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link LogicalTypeParser}. */
 @RunWith(Parameterized.class)
@@ -92,7 +91,7 @@ public class LogicalTypeParserTest {
                 TestSpec.forString("CHAR(33)").expectType(new CharType(33)),
                 TestSpec.forString("VARCHAR").expectType(new VarCharType()),
                 TestSpec.forString("VARCHAR(33)").expectType(new VarCharType(33)),
-                TestSpec.forString("STRING").expectType(new VarCharType(VarCharType.MAX_LENGTH)),
+                TestSpec.forString("STRING").expectType(VarCharType.STRING_TYPE),
                 TestSpec.forString("BOOLEAN").expectType(new BooleanType()),
                 TestSpec.forString("BINARY").expectType(new BinaryType()),
                 TestSpec.forString("BINARY(33)").expectType(new BinaryType(33)),
@@ -269,8 +268,8 @@ public class LogicalTypeParserTest {
     @Test
     public void testParsing() {
         if (testSpec.expectedType != null) {
-            assertThat(
-                    LogicalTypeParser.parse(testSpec.typeString), equalTo(testSpec.expectedType));
+            assertThat(LogicalTypeParser.parse(testSpec.typeString))
+                    .isEqualTo(testSpec.expectedType);
         }
     }
 
@@ -280,9 +279,8 @@ public class LogicalTypeParserTest {
             if (!testSpec.expectedType.is(UNRESOLVED)
                     && testSpec.expectedType.getChildren().stream()
                             .noneMatch(t -> t.is(UNRESOLVED))) {
-                assertThat(
-                        LogicalTypeParser.parse(testSpec.expectedType.asSerializableString()),
-                        equalTo(testSpec.expectedType));
+                assertThat(LogicalTypeParser.parse(testSpec.expectedType.asSerializableString()))
+                        .isEqualTo(testSpec.expectedType);
             }
         }
     }

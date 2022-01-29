@@ -63,6 +63,50 @@ public class WindowTableFunctionJsonPlanTest extends TableTestBase {
     }
 
     @Test
+    public void testIndividualWindowTVF() {
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + " window_start TIMESTAMP(3),\n"
+                        + " window_end TIMESTAMP(3),\n"
+                        + " a INT,\n"
+                        + " b BIGINT,\n"
+                        + " c VARCHAR\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values')\n";
+        tEnv.executeSql(sinkTableDdl);
+        util.verifyJsonPlan(
+                "insert into MySink select\n"
+                        + "  window_start,\n"
+                        + "  window_end,\n"
+                        + "  a,\n"
+                        + "  b,\n"
+                        + "  c\n"
+                        + "FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))");
+    }
+
+    @Test
+    public void testIndividualWindowTVFProcessingTime() {
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + " window_start TIMESTAMP(3),\n"
+                        + " window_end TIMESTAMP(3),\n"
+                        + " a INT,\n"
+                        + " b BIGINT,\n"
+                        + " c VARCHAR\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values')\n";
+        tEnv.executeSql(sinkTableDdl);
+        util.verifyJsonPlan(
+                "insert into MySink select\n"
+                        + "  window_start,\n"
+                        + "  window_end,\n"
+                        + "  a,\n"
+                        + "  b,\n"
+                        + "  c\n"
+                        + "FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))");
+    }
+
+    @Test
     public void testFollowedByWindowJoin() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"

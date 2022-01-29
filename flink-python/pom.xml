@@ -70,13 +70,13 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -97,6 +97,13 @@ under the License.
 		<dependency>
 			<groupId>org.apache.beam</groupId>
 			<artifactId>beam-runners-core-java</artifactId>
+		</dependency>
+
+		<!-- PemJa dependencies -->
+		<dependency>
+			<groupId>com.alibaba</groupId>
+			<artifactId>pemja</artifactId>
+			<version>0.1.2</version>
 		</dependency>
 
 		<!-- Protobuf dependencies -->
@@ -135,31 +142,7 @@ under the License.
 					<groupId>commons-codec</groupId>
 					<artifactId>commons-codec</artifactId>
 				</exclusion>
-				<exclusion>
-					<!-- Override arrow netty dependency -->
-					<groupId>io.netty</groupId>
-					<artifactId>netty-buffer</artifactId>
-				</exclusion>
-				<exclusion>
-					<!-- Override arrow netty dependency -->
-					<groupId>io.netty</groupId>
-					<artifactId>netty-common</artifactId>
-				</exclusion>
 			</exclusions>
-		</dependency>
-
-		<dependency>
-			<!-- Bump arrow netty dependency -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-buffer</artifactId>
-			<version>4.1.46.Final</version>
-		</dependency>
-
-		<dependency>
-			<!-- Bump arrow netty dependency -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-common</artifactId>
-			<version>4.1.46.Final</version>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -182,6 +165,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
@@ -190,7 +180,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-runtime</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -368,6 +358,7 @@ under the License.
 									<include>org.apache.arrow:*</include>
 									<include>io.netty:*</include>
 									<include>com.google.flatbuffers:*</include>
+									<include>com.alibaba:pemja</include>
 								</includes>
 							</artifactSet>
 							<filters>
@@ -460,7 +451,7 @@ under the License.
 				<configuration>
 					<!-- Arrow requires the property io.netty.tryReflectionSetAccessible to
 					be set to true for JDK >= 9. Please refer to ARROW-5412 for more details. -->
-					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -Dio.netty.tryReflectionSetAccessible=true -XX:+UseG1GC</argLine>
+					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -Dio.netty.tryReflectionSetAccessible=true -XX:+UseG1GC -Duser.country=US -Duser.language=en</argLine>
 				</configuration>
 			</plugin>
 			<plugin>

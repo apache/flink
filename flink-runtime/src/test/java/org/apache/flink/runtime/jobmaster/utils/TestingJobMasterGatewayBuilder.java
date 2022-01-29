@@ -36,6 +36,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
+import org.apache.flink.runtime.jobmaster.TaskManagerRegistrationInformation;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -52,7 +53,6 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.TriConsumer;
@@ -101,13 +101,12 @@ public class TestingJobMasterGatewayBuilder {
                             CompletableFuture.completedFuture(Collections.emptyList());
     private TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer =
             (ignoredA, ignoredB, ignoredC) -> {};
-    private TriFunction<
-                    String,
-                    UnresolvedTaskManagerLocation,
+    private BiFunction<
                     JobID,
+                    TaskManagerRegistrationInformation,
                     CompletableFuture<RegistrationResponse>>
             registerTaskManagerFunction =
-                    (ignoredA, ignoredB, ignoredC) ->
+                    (ignoredA, ignoredB) ->
                             CompletableFuture.completedFuture(
                                     new JMTMRegistrationSuccess(RESOURCE_MANAGER_ID));
     private BiFunction<
@@ -243,10 +242,9 @@ public class TestingJobMasterGatewayBuilder {
     }
 
     public TestingJobMasterGatewayBuilder setRegisterTaskManagerFunction(
-            TriFunction<
-                            String,
-                            UnresolvedTaskManagerLocation,
+            BiFunction<
                             JobID,
+                            TaskManagerRegistrationInformation,
                             CompletableFuture<RegistrationResponse>>
                     registerTaskManagerFunction) {
         this.registerTaskManagerFunction = registerTaskManagerFunction;

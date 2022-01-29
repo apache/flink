@@ -93,7 +93,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
 
 The total memory amount of RocksDB instance(s) per slot can also be bounded, please refer to documentation [here]({{< ref "docs/ops/state/large_state_tuning" >}}#bounding-rocksdb-memory-usage) for details.
 
-# Choose The Right State Backend
+## Choose The Right State Backend
 
 When deciding between `HashMapStateBackend` and `RocksDB`, it is a choice between performance and scalability.
 `HashMapStateBackend` is very fast as each state access and update operates on objects on the Java heap; however, state size is limited by available memory within the cluster.
@@ -106,7 +106,7 @@ All the state backends produce a common format only starting from version 1.13. 
 take a savepoint with the new version, and only after that you can restore it with a different state backend.
 {{< /hint >}}
 
-# Configuring a State Backend
+## Configuring a State Backend
 
 The default state backend, if you specify nothing, is the jobmanager. If you wish to establish a different default for all jobs on your cluster, you can do so by defining a new default state backend in **flink-conf.yaml**. The default state backend can be overridden on a per-job basis, as shown below.
 
@@ -166,7 +166,7 @@ state.backend: hashmap
 state.checkpoints.dir: hdfs://namenode:40010/flink/checkpoints
 ```
 
-# RocksDB State Backend Details
+## RocksDB State Backend Details
 
 *This section describes the RocksDB state backend in more detail.*
 
@@ -264,6 +264,10 @@ The default value for this option is `DEFAULT` which translates to `PredefinedOp
 
 Predefined options set programmatically would override the ones configured via `flink-conf.yaml`.
 
+#### Reading Column Family Options from flink-conf.yaml
+
+RocksDB State Backend picks up all config options [defined here]({{< ref "docs/deployment/config" >}}#advanced-rocksdb-state-backends-options). Hence, you can configure low-level Column Family options simply by turning off managed memory for RocksDB and putting the relevant entries in the configuration.
+
 #### Passing Options Factory to RocksDB
 
 To manually control RocksDB's options, you need to configure an `RocksDBOptionsFactory`. This mechanism gives you fine-grained control over the settings of the Column Families, for example memory use, thread, compaction settings, etc. There is currently one Column Family per each state in each operator.
@@ -281,12 +285,6 @@ RocksDB is a native library that allocates memory directly from the process,
 and not from the JVM. Any memory you assign to RocksDB will have to be accounted for, typically by decreasing the JVM heap size
 of the TaskManagers by the same amount. Not doing that may result in YARN/etc terminating the JVM processes for
 allocating more memory than configured.
-
-**Reading Column Family Options from flink-conf.yaml**
-
-When a `RocksDBOptionsFactory` implements the `ConfigurableRocksDBOptionsFactory` interface, it can directly read settings from the configuration (`flink-conf.yaml`).
-
-The default value for `state.backend.rocksdb.options-factory` is in fact `org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory` which picks up all config options [defined here]({{< ref "docs/deployment/config" >}}#advanced-rocksdb-state-backends-options) by default. Hence, you can configure low-level Column Family options simply by turning off managed memory for RocksDB and putting the relevant entries in the configuration.
 
 Below is an example how to define a custom ConfigurableOptionsFactory (set class name under `state.backend.rocksdb.options-factory`).
 
@@ -326,6 +324,129 @@ public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 ```
 
 {{< top >}}
+
+## Enabling Changelog
+
+{{< hint warning >}} This feature is in experimental status. {{< /hint >}}
+
+{{< hint warning >}} Enabling Changelog may have a negative performance impact on your application (see below). {{< /hint >}}
+
+### Introduction
+
+Changelog is a feature that aims to decrease checkpointing time and, therefore, end-to-end latency in exactly-once mode.
+
+Most commonly, checkpoint duration is affected by:
+
+1. Barrier travel time and alignment, addressed by
+   [Unaligned checkpoints]({{< ref "docs/ops/state/checkpointing_under_backpressure#unaligned-checkpoints" >}})
+   and [Buffer debloating]({{< ref "docs/ops/state/checkpointing_under_backpressure#buffer-debloating" >}})
+2. Snapshot creation time (so-called synchronous phase), addressed by asynchronous snapshots (mentioned [above]({{<
+   ref "#the-embeddedrocksdbstatebackend">}}))
+4. Snapshot upload time (asynchronous phase)
+
+Upload time can be decreased by [incremental checkpoints]({{< ref "#incremental-checkpoints" >}}).
+However, most incremental state backends perform some form of compaction periodically, which results in re-uploading the
+old state in addition to the new changes. In large deployments, the probability of at least one task uploading lots of
+data tends to be very high in every checkpoint.
+
+With Changelog enabled, Flink uploads state changes continuously and forms a changelog. On checkpoint, only the relevant
+part of this changelog needs to be uploaded. The configured state backend is snapshotted in the
+background periodically. Upon successful upload, the changelog is truncated.
+
+As a result, asynchronous phase duration is reduced, as well as synchronous phase - because no data needs to be flushed
+to disk. In particular, long-tail latency is improved.
+
+However, resource usage is higher:
+
+- more files are created on DFS
+- more files can be left undeleted DFS (this will be addressed in the future versions in FLINK-25511 and FLINK-25512)
+- more IO bandwidth is used to upload state changes
+- more CPU used to serialize state changes
+- more memory used by Task Managers to buffer state changes
+
+Recovery time is another thing to consider. Depending on the `state.backend.changelog.periodic-materialize.interval`
+setting, the changelog can become lengthy and replaying it may take more time. However, recovery time combined with
+checkpoint duration will likely still be lower than in non-changelog setups, providing lower end-to-end latency even in
+failover case. However, it's also possible that the effective recovery time will increase, depending on the actual ratio
+of the aforementioned times.
+
+For more details, see [FLIP-158](https://cwiki.apache.org/confluence/display/FLINK/FLIP-158%3A+Generalized+incremental+checkpoints).
+
+### Installation
+
+Changelog JARs are included into the standard Flink distribution.
+
+Make sure to [add]({{< ref "docs/deployment/filesystems/overview" >}}) the necessary filesystem plugins.
+
+### Configuration
+
+Here is an example configuration in YAML:
+```yaml
+state.backend.changelog.enabled: true
+state.backend.changelog.storage: filesystem # currently, only filesystem and memory (for tests) are supported
+dstl.dfs.base-path: s3://<bucket-name> # similar to state.checkpoints.dir
+```
+
+Please keep the following defaults (see [limitations](#limitations)):
+```yaml
+execution.checkpointing.max-concurrent-checkpoints: 1
+state.backend.local-recovery: false
+```
+
+Please refer to the [configuration section]({{< ref "docs/deployment/config#state-changelog-options" >}}) for other options.
+
+Changelog can also be enabled or disabled per job programmatically:
+{{< tabs  >}}
+{{< tab "Java" >}}
+```java
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+env.enableChangelogStateBackend(true);
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+env.enableChangelogStateBackend(true)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.enable_changelog_statebackend(true)
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+### Monitoring
+
+Available metrics are listed [here]({{< ref "docs/ops/metrics#changelog" >}}).
+
+If a task is backpressured by writing state changes, it will be shown as busy (red) in the UI.
+
+### Upgrading existing jobs
+
+**Enabling Changelog**
+
+Resuming from both savepoints and checkpoints is supported:
+- given an existing non-changelog job
+- take either a [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) or a [checkpoint]({{< ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
+- alter configuration (enable Changelog)
+- resume from the taken snapshot
+
+**Disabling Changelog**
+
+Resuming only from [savepoints]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}})
+is supported. Resuming from [checkpoints]({{<  ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
+is planned in the future versions.
+
+**State migration** (including changing TTL) is currently not supported
+
+### Limitations
+ - At most one concurrent checkpoint
+ - Local recovery not supported
+ - As of Flink 1.15, only `filesystem` changelog implementation is available
+ - State migration (including changing TTL) is currently not supported
+- [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) mode not supported
 
 ## Migrating from Legacy Backends
 

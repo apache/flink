@@ -37,8 +37,11 @@ import static org.apache.flink.table.planner.codegen.CodeGenUtils.primitiveTypeT
 /** This class contains a set of utilities to develop {@link CastRule}. */
 final class CastRuleUtils {
 
-    static final String NULL_STR_LITERAL = strLiteral("null");
     static final String EMPTY_STR_LITERAL = "\"\"";
+
+    static String nullLiteral(boolean legacyBehaviour) {
+        return legacyBehaviour ? strLiteral("null") : strLiteral("NULL");
+    }
 
     static String staticCall(Class<?> clazz, String methodName, Object... args) {
         return methodCall(className(clazz), methodName, args);
@@ -73,6 +76,14 @@ final class CastRuleUtils {
 
     static String accessStaticField(Class<?> clazz, String fieldName) {
         return className(clazz) + "." + fieldName;
+    }
+
+    static String arrayLength(String arrayTerm) {
+        return arrayTerm + ".length";
+    }
+
+    static String arrayElement(String arrayTerm, String indexTerm) {
+        return arrayTerm + "[" + indexTerm + "]";
     }
 
     static String ternaryOperator(String condition, String ifTrue, String ifFalse) {
@@ -144,6 +155,25 @@ final class CastRuleUtils {
         return term;
     }
 
+    static String binaryWriterWriteField(
+            CodeGeneratorCastRule.Context context,
+            String writerTerm,
+            LogicalType logicalType,
+            String indexTerm,
+            String fieldValTerm) {
+        return CodeGenUtils.binaryWriterWriteField(
+                context::declareTypeSerializer,
+                String.valueOf(indexTerm),
+                fieldValTerm,
+                writerTerm,
+                logicalType);
+    }
+
+    static String binaryWriterWriteNull(
+            String writerTerm, LogicalType logicalType, String indexTerm) {
+        return CodeGenUtils.binaryWriterWriteNull(indexTerm, writerTerm, logicalType);
+    }
+
     static final class CodeWriter {
         StringBuilder builder = new StringBuilder();
 
@@ -204,6 +234,11 @@ final class CastRuleUtils {
             bodyWriterConsumer.accept(indexTerm, innerWriter);
             builder.append(innerWriter).append("}\n");
 
+            return this;
+        }
+
+        public CodeWriter breakStmt() {
+            builder.append("break;\n");
             return this;
         }
 

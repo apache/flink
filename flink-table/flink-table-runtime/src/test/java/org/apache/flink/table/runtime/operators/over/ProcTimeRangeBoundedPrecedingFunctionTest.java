@@ -50,7 +50,7 @@ public class ProcTimeRangeBoundedPrecedingFunctionTest {
 
     private LogicalType[] inputFieldTypes =
             new LogicalType[] {
-                new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(),
+                VarCharType.STRING_TYPE, new BigIntType(),
             };
     private LogicalType[] accTypes = new LogicalType[] {new BigIntType()};
 

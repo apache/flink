@@ -116,7 +116,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         // 'start()' wasn't called and where 'start()' failed.
         started = true;
 
-        // there are two ways the coordinator can get created:
+        // there are two ways the SplitEnumerator can get created:
         //  (1) Source.restoreEnumerator(), in which case the 'resetToCheckpoint()' method creates
         // it
         //  (2) Source.createEnumerator, in which case it has not been created, yet, and we create

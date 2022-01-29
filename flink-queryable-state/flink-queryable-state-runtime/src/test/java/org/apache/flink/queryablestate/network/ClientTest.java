@@ -255,10 +255,10 @@ public class ClientTest extends TestLogger {
 
         Client<KvStateInternalRequest, KvStateResponse> client = null;
 
-        try {
+        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
             client = new Client<>("Test Client", 1, serializer, stats);
 
-            int availablePort = NetUtils.getAvailablePort();
+            int availablePort = port.getPort();
 
             InetSocketAddress serverAddress =
                     new InetSocketAddress(InetAddress.getLocalHost(), availablePort);

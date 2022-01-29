@@ -70,6 +70,7 @@ public class DummyEnvironment implements Environment {
     private final AccumulatorRegistry accumulatorRegistry =
             new AccumulatorRegistry(jobId, executionId);
     private UserCodeClassLoader userClassLoader;
+    private final Configuration taskConfiguration = new Configuration();
 
     public DummyEnvironment() {
         this("Test Job", 1, 0, 1);
@@ -122,7 +123,7 @@ public class DummyEnvironment implements Environment {
 
     @Override
     public Configuration getTaskConfiguration() {
-        return new Configuration();
+        return taskConfiguration;
     }
 
     @Override

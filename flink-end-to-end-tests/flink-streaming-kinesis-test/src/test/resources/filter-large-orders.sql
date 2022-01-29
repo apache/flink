@@ -23,6 +23,9 @@ CREATE TABLE orders (
   'connector' = 'kinesis',
   'stream' = 'orders',
   'aws.endpoint' = 'https://kinesalite:4567',
+  'aws.credentials.provider'='BASIC',
+  'aws.credentials.basic.accesskeyid' = 'access key',
+  'aws.credentials.basic.secretkey' ='secret key',
   'scan.stream.initpos' = 'TRIM_HORIZON',
   'scan.shard.discovery.intervalmillis' = '1000',
   'scan.shard.adaptivereads' = 'true',
@@ -36,10 +39,13 @@ CREATE TABLE large_orders (
   'connector' = 'kinesis',
   'stream' = 'large_orders',
   'aws.region' = 'us-east-1',
-  'sink.producer.verify-certificate' = 'false',
-  'sink.producer.kinesis-port' = '4567',
-  'sink.producer.kinesis-endpoint' = 'kinesalite',
-  'sink.producer.aggregation-enabled' = 'false',
+  'aws.endpoint' = 'https://kinesalite:4567',
+  'aws.credentials.provider' = 'BASIC',
+  'aws.credentials.basic.accesskeyid' = 'access key',
+  'aws.credentials.basic.secretkey' ='secret key',
+  'aws.trust.all.certificates' = 'true',
+  'sink.http-client.protocol.version' = 'HTTP1_1',
+  'sink.batch.max-size' = '1',
   'format' = 'json'
 );
 

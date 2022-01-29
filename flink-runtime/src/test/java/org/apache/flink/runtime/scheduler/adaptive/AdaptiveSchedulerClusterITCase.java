@@ -20,7 +20,6 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
@@ -31,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -272,13 +272,15 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
                                     .getArchivedExecutionGraph(jobId)
                                     .get();
 
-                    if (archivedExecutionGraph.getState() == JobStatus.INITIALIZING) {
+                    final AccessExecutionJobVertex executionJobVertex =
+                            archivedExecutionGraph.getAllVertices().get(jobVertexId);
+
+                    if (executionJobVertex == null) {
                         // parallelism was not yet determined
                         return false;
                     }
 
-                    return archivedExecutionGraph.getAllVertices().get(jobVertexId).getParallelism()
-                            == targetParallelism;
+                    return executionJobVertex.getParallelism() == targetParallelism;
                 },
                 Deadline.fromNow(Duration.ofSeconds(10)));
     }
