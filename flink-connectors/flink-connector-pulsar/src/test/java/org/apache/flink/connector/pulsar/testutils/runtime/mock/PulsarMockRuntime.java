@@ -88,9 +88,7 @@ public class PulsarMockRuntime implements PulsarRuntime {
         if (!admin.clusters().getClusters().contains(CLUSTER_NAME)) {
             // Make clients can test short names
             ClusterData data =
-                    ClusterData.builder()
-                            .serviceUrl("http://127.0.0.1:" + pulsarService.getBrokerServicePort())
-                            .build();
+                    ClusterData.builder().serviceUrl(pulsarService.getBrokerServiceUrl()).build();
             admin.clusters().createCluster(CLUSTER_NAME, data);
         }
 

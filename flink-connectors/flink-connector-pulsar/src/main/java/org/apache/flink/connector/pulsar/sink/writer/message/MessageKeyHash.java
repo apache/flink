@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.pulsar.sink.writer.message;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.description.InlineElement;
 
@@ -30,6 +31,7 @@ import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /** Predefined the available hash function for routing the message. */
+@PublicEvolving
 public enum MessageKeyHash implements DescribedEnum {
 
     /** Use regular <code>String.hashCode()</code>. */

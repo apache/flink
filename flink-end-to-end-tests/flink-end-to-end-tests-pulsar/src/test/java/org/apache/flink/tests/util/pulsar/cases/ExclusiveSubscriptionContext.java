@@ -32,7 +32,6 @@ import static org.apache.flink.connector.pulsar.testutils.runtime.container.Puls
 
 /** We would consume from test splits by using {@link SubscriptionType#Exclusive} subscription. */
 public class ExclusiveSubscriptionContext extends MultipleTopicTemplateContext {
-    private static final long serialVersionUID = 1L;
 
     public ExclusiveSubscriptionContext(PulsarTestEnvironment environment) {
         this(environment, Collections.emptyList());

@@ -18,11 +18,14 @@
 
 package org.apache.flink.connector.pulsar.sink.committer;
 
+import org.apache.flink.annotation.Internal;
+
 import org.apache.pulsar.client.api.transaction.TxnID;
 
 import java.util.Objects;
 
 /** The writer state for Pulsar connector. */
+@Internal
 public class PulsarCommittable {
 
     /** The most significant 64 bits of this TxnID. */

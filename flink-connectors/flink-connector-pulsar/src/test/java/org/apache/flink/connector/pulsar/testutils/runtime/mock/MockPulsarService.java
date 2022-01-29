@@ -34,8 +34,6 @@ import java.util.function.Supplier;
 /** A Mock pulsar service which would use the mocked zookeeper and bookkeeper. */
 public class MockPulsarService extends PulsarService {
 
-    private final int brokerServicePort;
-
     private final MockZooKeeperClientFactory zooKeeperClientFactory =
             new MockZooKeeperClientFactory();
 
@@ -47,8 +45,6 @@ public class MockPulsarService extends PulsarService {
 
     public MockPulsarService(ServiceConfiguration config) {
         super(config);
-        this.brokerServicePort =
-                config.getBrokerServicePort().orElseThrow(IllegalArgumentException::new);
     }
 
     public ZooKeeperClientFactory getZooKeeperClientFactory() {
@@ -79,9 +75,5 @@ public class MockPulsarService extends PulsarService {
     @Override
     public BrokerInterceptor getBrokerInterceptor() {
         return new BlankBrokerInterceptor();
-    }
-
-    public int getBrokerServicePort() {
-        return brokerServicePort;
     }
 }

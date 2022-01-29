@@ -32,7 +32,6 @@ import static org.apache.flink.connector.pulsar.testutils.runtime.container.Puls
 
 /** We would consume from test splits by using {@link SubscriptionType#Failover} subscription. */
 public class FailoverSubscriptionContext extends MultipleTopicTemplateContext {
-    private static final long serialVersionUID = 1L;
 
     public FailoverSubscriptionContext(PulsarTestEnvironment environment) {
         this(environment, Collections.emptyList());
