@@ -24,15 +24,14 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
+import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Collections;
-import java.util.function.Function;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.hamcrest.CoreMatchers.is;
@@ -210,38 +209,11 @@ public class ExecutionJobVertexTest {
 
         final DefaultExecutionGraph eg = TestingDefaultExecutionGraphBuilder.newBuilder().build();
         final VertexParallelismStore vertexParallelismStore =
-                computeVertexParallelismStoreForDynamicGraph(
+                AdaptiveBatchScheduler.computeVertexParallelismStoreForDynamicGraph(
                         Collections.singletonList(jobVertex), defaultMaxParallelism);
         final VertexParallelismInformation vertexParallelismInfo =
                 vertexParallelismStore.getParallelismInfo(jobVertex.getID());
 
         return new ExecutionJobVertex(eg, jobVertex, vertexParallelismInfo);
-    }
-
-    /**
-     * Compute the {@link VertexParallelismStore} for all given vertices in a dynamic graph, which
-     * will set defaults and ensure that the returned store contains valid parallelisms, with the
-     * configured default max parallelism.
-     *
-     * @param vertices the vertices to compute parallelism for
-     * @param defaultMaxParallelism the global default max parallelism
-     * @return the computed parallelism store
-     */
-    public static VertexParallelismStore computeVertexParallelismStoreForDynamicGraph(
-            Iterable<JobVertex> vertices, int defaultMaxParallelism) {
-        // for dynamic graph, there is no need to normalize vertex parallelism. if the max
-        // parallelism is not configured and the parallelism is a positive value, max
-        // parallelism can be computed against the parallelism, otherwise it needs to use the
-        // global default max parallelism.
-        return SchedulerBase.computeVertexParallelismStore(
-                vertices,
-                v -> {
-                    if (v.getParallelism() > 0) {
-                        return SchedulerBase.getDefaultMaxParallelism(v);
-                    } else {
-                        return defaultMaxParallelism;
-                    }
-                },
-                Function.identity());
     }
 }

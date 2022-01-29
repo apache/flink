@@ -943,6 +943,7 @@ public class StreamingJobGraphGenerator {
         // set strategy name so that web interface can show it.
         jobEdge.setShipStrategyName(partitioner.toString());
         jobEdge.setBroadcast(partitioner.isBroadcast());
+        jobEdge.setForward(partitioner instanceof ForwardPartitioner);
         jobEdge.setDownstreamSubtaskStateMapper(partitioner.getDownstreamSubtaskStateMapper());
         jobEdge.setUpstreamSubtaskStateMapper(partitioner.getUpstreamSubtaskStateMapper());
 

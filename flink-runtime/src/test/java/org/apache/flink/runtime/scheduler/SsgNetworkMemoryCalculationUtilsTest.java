@@ -23,7 +23,6 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.DefaultExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertexTest;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartitionTest;
@@ -35,6 +34,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -208,7 +208,7 @@ public class SsgNetworkMemoryCalculationUtilsTest {
         JobGraph jobGraph = createBatchGraph(slotSharingGroups, Arrays.asList(4, -1, -1));
 
         final VertexParallelismStore vertexParallelismStore =
-                ExecutionJobVertexTest.computeVertexParallelismStoreForDynamicGraph(
+                AdaptiveBatchScheduler.computeVertexParallelismStoreForDynamicGraph(
                         jobGraph.getVertices(), defaultMaxParallelism);
 
         return TestingDefaultExecutionGraphBuilder.newBuilder()

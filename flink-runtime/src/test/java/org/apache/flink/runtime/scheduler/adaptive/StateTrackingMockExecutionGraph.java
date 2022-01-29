@@ -365,4 +365,9 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
             throws JobException {
         throw new UnsupportedOperationException();
     }
+
+    @Override
+    public void notifyNewlyInitializedJobVertices(List<ExecutionJobVertex> vertices) {
+        throw new UnsupportedOperationException();
+    }
 }

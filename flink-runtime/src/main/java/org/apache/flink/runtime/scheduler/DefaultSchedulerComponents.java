@@ -19,27 +19,20 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobgraph.JobType;
-import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkChecker;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkCheckerImpl;
-import org.apache.flink.runtime.jobmaster.slotpool.PreviousAllocationSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
+import org.apache.flink.runtime.util.SlotSelectionStrategyUtils;
 import org.apache.flink.util.clock.SystemClock;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.function.Consumer;
 
@@ -50,7 +43,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * PipelinedRegionSchedulingStrategy}.
  */
 public class DefaultSchedulerComponents {
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultSchedulerComponents.class);
 
     private final SchedulingStrategyFactory schedulingStrategyFactory;
     private final Consumer<ComponentMainThreadExecutor> startUpAction;
@@ -99,7 +91,8 @@ public class DefaultSchedulerComponents {
             final Time slotRequestTimeout) {
 
         final SlotSelectionStrategy slotSelectionStrategy =
-                selectSlotSelectionStrategy(jobType, jobMasterConfiguration);
+                SlotSelectionStrategyUtils.selectSlotSelectionStrategy(
+                        jobType, jobMasterConfiguration);
         final PhysicalSlotRequestBulkChecker bulkChecker =
                 PhysicalSlotRequestBulkCheckerImpl.createFromSlotPool(
                         slotPool, SystemClock.getInstance());
@@ -115,35 +108,5 @@ public class DefaultSchedulerComponents {
                 new PipelinedRegionSchedulingStrategy.Factory(),
                 bulkChecker::start,
                 allocatorFactory);
-    }
-
-    @VisibleForTesting
-    static SlotSelectionStrategy selectSlotSelectionStrategy(
-            final JobType jobType, final Configuration configuration) {
-        final boolean evenlySpreadOutSlots =
-                configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
-
-        final SlotSelectionStrategy locationPreferenceSlotSelectionStrategy;
-
-        locationPreferenceSlotSelectionStrategy =
-                evenlySpreadOutSlots
-                        ? LocationPreferenceSlotSelectionStrategy.createEvenlySpreadOut()
-                        : LocationPreferenceSlotSelectionStrategy.createDefault();
-
-        final boolean isLocalRecoveryEnabled =
-                configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY);
-        if (isLocalRecoveryEnabled) {
-            if (jobType == JobType.STREAMING) {
-                return PreviousAllocationSlotSelectionStrategy.create(
-                        locationPreferenceSlotSelectionStrategy);
-            } else {
-                LOG.warn(
-                        "Batch job does not support local recovery. Falling back to use "
-                                + locationPreferenceSlotSelectionStrategy.getClass());
-                return locationPreferenceSlotSelectionStrategy;
-            }
-        } else {
-            return locationPreferenceSlotSelectionStrategy;
-        }
     }
 }

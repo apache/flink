@@ -514,6 +514,11 @@ public class ExecutionJobVertex
         numExecutionVertexFinished--;
     }
 
+    public boolean isFinished() {
+        return isParallelismDecided()
+                && numExecutionVertexFinished == parallelismInfo.getParallelism();
+    }
+
     // --------------------------------------------------------------------------------------------
     //  Accumulators / Metrics
     // --------------------------------------------------------------------------------------------
