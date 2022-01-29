@@ -19,7 +19,6 @@
 package org.apache.flink.connector.pulsar.source.reader.split;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
@@ -56,10 +55,9 @@ public class PulsarOrderedPartitionSplitReader<OUT> extends PulsarPartitionSplit
     public PulsarOrderedPartitionSplitReader(
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin,
-            Configuration configuration,
             SourceConfiguration sourceConfiguration,
             PulsarDeserializationSchema<OUT> deserializationSchema) {
-        super(pulsarClient, pulsarAdmin, configuration, sourceConfiguration, deserializationSchema);
+        super(pulsarClient, pulsarAdmin, sourceConfiguration, deserializationSchema);
     }
 
     @Override

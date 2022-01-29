@@ -21,6 +21,7 @@ package org.apache.flink.connector.pulsar.source.reader.deserializer;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.connector.pulsar.SampleMessage.TestMessage;
+import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.testutils.source.deserialization.TestingDeserializationContext;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.types.StringValue;
@@ -46,6 +47,7 @@ import static org.apache.pulsar.client.api.Schema.PROTOBUF_NATIVE;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.mock;
 
 /** Unit tests for {@link PulsarDeserializationSchema}. */
 class PulsarDeserializationSchemaTest {
@@ -53,7 +55,7 @@ class PulsarDeserializationSchemaTest {
     @Test
     void createFromFlinkDeserializationSchema() throws Exception {
         PulsarDeserializationSchema<String> schema = flinkSchema(new SimpleStringSchema());
-        schema.open(new TestingDeserializationContext());
+        schema.open(new TestingDeserializationContext(), mock(SourceConfiguration.class));
         assertDoesNotThrow(() -> InstantiationUtil.clone(schema));
 
         Message<byte[]> message = getMessage("some-sample-message", String::getBytes);
@@ -68,7 +70,7 @@ class PulsarDeserializationSchemaTest {
     void createFromPulsarSchema() throws Exception {
         Schema<TestMessage> schema1 = PROTOBUF_NATIVE(TestMessage.class);
         PulsarDeserializationSchema<TestMessage> schema2 = pulsarSchema(schema1, TestMessage.class);
-        schema2.open(new TestingDeserializationContext());
+        schema2.open(new TestingDeserializationContext(), mock(SourceConfiguration.class));
         assertDoesNotThrow(() -> InstantiationUtil.clone(schema2));
 
         TestMessage message1 =
@@ -88,7 +90,7 @@ class PulsarDeserializationSchemaTest {
     @Test
     void createFromFlinkTypeInformation() throws Exception {
         PulsarDeserializationSchema<String> schema = flinkTypeInfo(Types.STRING, null);
-        schema.open(new TestingDeserializationContext());
+        schema.open(new TestingDeserializationContext(), mock(SourceConfiguration.class));
         assertDoesNotThrow(() -> InstantiationUtil.clone(schema));
 
         Message<byte[]> message =

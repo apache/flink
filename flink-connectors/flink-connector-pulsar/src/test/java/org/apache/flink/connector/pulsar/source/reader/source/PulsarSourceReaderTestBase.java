@@ -74,6 +74,7 @@ import static org.apache.flink.connector.pulsar.testutils.extension.TestOrderlin
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith({
     TestOrderlinessExtension.class,
@@ -146,7 +147,8 @@ abstract class PulsarSourceReaderTestBase extends PulsarTestSuiteBase {
         SourceReaderContext context = new TestingReaderContext();
         try {
             deserializationSchema.open(
-                    new PulsarDeserializationSchemaInitializationContext(context));
+                    new PulsarDeserializationSchemaInitializationContext(context),
+                    mock(SourceConfiguration.class));
         } catch (Exception e) {
             fail("Error while opening deserializationSchema");
         }
@@ -154,7 +156,7 @@ abstract class PulsarSourceReaderTestBase extends PulsarTestSuiteBase {
         SourceConfiguration sourceConfiguration = new SourceConfiguration(configuration);
         return (PulsarSourceReaderBase<Integer>)
                 PulsarSourceReaderFactory.create(
-                        context, deserializationSchema, configuration, sourceConfiguration);
+                        context, deserializationSchema, sourceConfiguration);
     }
 
     public class PulsarSourceReaderInvocationContextProvider

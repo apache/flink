@@ -51,6 +51,14 @@ public interface RangeGenerator extends Serializable {
      */
     List<TopicRange> range(TopicMetadata metadata, int parallelism);
 
+    /** Initialize some extra resource when bootstrap the source. */
+    default void open(SourceConfiguration sourceConfiguration) {
+        // This method is used for user implementation.
+        open(sourceConfiguration, sourceConfiguration);
+    }
+
+    /** @deprecated Use {@link #open(SourceConfiguration)} instead. */
+    @Deprecated
     default void open(Configuration configuration, SourceConfiguration sourceConfiguration) {
         // This method is used for user implementation.
     }
