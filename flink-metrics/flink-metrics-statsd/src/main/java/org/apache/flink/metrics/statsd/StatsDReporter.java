@@ -226,7 +226,29 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
         for (int i = 0; i < strLen; i++) {
             final char c = input.charAt(i);
             switch (c) {
+                case '>':
+                case '<':
+                case '"':
+                    // remove character by not moving cursor
+                    if (chars == null) {
+                        chars = input.toCharArray();
+                    }
+                    break;
+
+                case ' ':
+                    if (chars == null) {
+                        chars = input.toCharArray();
+                    }
+                    chars[pos++] = '_';
+                    break;
+
+                case ',':
+                case '=':
+                case ';':
                 case ':':
+                case '?':
+                case '\'':
+                case '*':
                     if (chars == null) {
                         chars = input.toCharArray();
                     }

@@ -57,6 +57,17 @@ public class StatsDReporterTest extends TestLogger {
         assertEquals("", reporter.filterCharacters(""));
         assertEquals("abc", reporter.filterCharacters("abc"));
         assertEquals("a-b--", reporter.filterCharacters("a:b::"));
+        assertEquals("abc", reporter.filterCharacters("a>b>c"));
+        assertEquals("abc", reporter.filterCharacters("a<b<c"));
+        assertEquals("abc", reporter.filterCharacters("a\"b\"c"));
+        assertEquals("a_b_c", reporter.filterCharacters("a b c"));
+        assertEquals("a-b-c", reporter.filterCharacters("a,b,c"));
+        assertEquals("a-b-c", reporter.filterCharacters("a=b=c"));
+        assertEquals("a-b-c", reporter.filterCharacters("a;b;c"));
+        assertEquals("a-b-c", reporter.filterCharacters("a:b:c"));
+        assertEquals("a-b-c", reporter.filterCharacters("a?b?c"));
+        assertEquals("a-b-c", reporter.filterCharacters("a\'b\'c"));
+        assertEquals("a-b-c", reporter.filterCharacters("a*b*c"));
     }
 
     /** Tests that the registered metrics' names don't contain invalid characters. */
