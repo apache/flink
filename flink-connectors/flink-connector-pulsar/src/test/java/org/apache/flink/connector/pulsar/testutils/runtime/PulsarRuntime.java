@@ -20,6 +20,7 @@ package org.apache.flink.connector.pulsar.testutils.runtime;
 
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime;
+import org.apache.flink.connector.pulsar.testutils.runtime.embedded.PulsarEmbeddedRuntime;
 import org.apache.flink.connector.pulsar.testutils.runtime.mock.PulsarMockRuntime;
 
 import org.testcontainers.containers.GenericContainer;
@@ -36,17 +37,51 @@ public interface PulsarRuntime {
     /** Shutdown this pulsar runtime. */
     void tearDown();
 
-    /** Return a operator for operating this pulsar runtime. */
+    /**
+     * Return a operator for operating this pulsar runtime. This operator predefined a set of
+     * extremely useful methods for Pulsar. You can easily add new methods in this operator.
+     */
     PulsarRuntimeOperator operator();
 
+    /**
+     * Create a mocked Pulsar instance. The backend zookeeper and bookkeeper would be mocked. This
+     * runtime is only used for lightweight test purpose. And Pulsar transaction is not supported.
+     */
     static PulsarRuntime mock() {
         return new PulsarMockRuntime();
     }
 
+    /**
+     * Create a standalone Pulsar instance in test thread. We would start a embedded zookeeper and
+     * bookkeeper. The stream storage for bookkeeper is disabled. The function worker is disabled on
+     * Pulsar broker.
+     *
+     * <p>This runtime would be faster than {@link #container()} and behaves the same like the
+     * {@link #container()}.
+     */
+    static PulsarRuntime embedded() {
+        return new PulsarEmbeddedRuntime();
+    }
+
+    /**
+     * Create a Pulsar instance in docker. We would start a standalone Pulsar in TestContainers.
+     * This runtime is often used in end-to-end tests. The performance may be a bit of slower than
+     * {@link #embedded()}. The stream storage for bookkeeper is disabled. The function worker is
+     * disabled on Pulsar broker.
+     */
     static PulsarRuntime container() {
         return new PulsarContainerRuntime();
     }
 
+    /**
+     * Create a Pulsar instance in docker. We would start a standalone Pulsar in TestContainers.
+     * This runtime is often used in end-to-end tests. The performance may be a bit of slower than
+     * {@link #embedded()}. The stream storage for bookkeeper is disabled. The function worker is
+     * disabled on Pulsar broker.
+     *
+     * <p>We would link the created Pulsar docker instance with the given flink instance. This would
+     * enable the connection for Pulsar and Flink in docker environment.
+     */
     static PulsarRuntime container(GenericContainer<?> flinkContainer) {
         return new PulsarContainerRuntime().bindWithFlinkContainer(flinkContainer);
     }

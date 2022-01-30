@@ -20,6 +20,7 @@ package org.apache.flink.connector.pulsar.testutils.runtime.mock;
 
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime;
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator;
+import org.apache.flink.connector.pulsar.testutils.runtime.embedded.PulsarEmbeddedRuntime;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableSet;
 
@@ -37,7 +38,10 @@ import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyAdmin;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** Providing a mocked pulsar server. */
+/**
+ * Providing a mocked Pulsar server. This runtime is normally used for non-transactional tests. If
+ * your tests is based on Pulsar transaction, use the {@link PulsarEmbeddedRuntime} instead.
+ */
 public class PulsarMockRuntime implements PulsarRuntime {
 
     private static final String CLUSTER_NAME = "mock-pulsar-" + randomAlphanumeric(6);
@@ -70,9 +74,11 @@ public class PulsarMockRuntime implements PulsarRuntime {
     @Override
     public void tearDown() {
         try {
+            if (operator != null) {
+                operator.close();
+                this.operator = null;
+            }
             pulsarService.close();
-            operator.close();
-            this.operator = null;
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
@@ -152,6 +158,9 @@ public class PulsarMockRuntime implements PulsarRuntime {
                 "org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider");
         configuration.setTransactionBufferProviderClassName(
                 "org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider");
+
+        // Enable standalone, disable the request redirect the Lookup service.
+        configuration.setRunningStandalone(true);
 
         return configuration;
     }
