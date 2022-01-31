@@ -37,7 +37,7 @@ Dependencies
 
 {{< sql_download_table "kafka" >}}
 
-The Kafka connector is not currently part of the binary distribution.
+The Kafka connector is not part of the binary distribution.
 See how to link with it for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
 
 How to create a Kafka table

@@ -52,7 +52,7 @@ since those are already part of the Flink core dependencies.
 The user application is typically packaged into an *application jar*, which contains the application
 code and the required connector and library dependencies.
 
-## IDE configuration
+## IDE Configuration
 
 The default JVM heap size for Java may be too small for Flink and you have to manually increase it.
 In Eclipse, choose `Run Configurations -> Arguments` and write `-Xmx800m` into the `VM Arguments` box.
@@ -90,6 +90,7 @@ The relevant section states:
 > work.  See the [pull request
 > description](https://github.com/scala/scala/pull/7469) for more details.
 
+## Anatomy of Table Dependencies
 
 The Flink distribution contains by default the required JARs to execute Flink SQL Jobs (found in the `/lib` folder), 
 in particular:
@@ -98,17 +99,18 @@ in particular:
 -`flink-table-runtime-{{< version >}}.jar` --> contains the runtime
 -`flink-table-planner-loader-{{< version >}}.jar` --> contains the query planner
 
-**Note:** Previously, these JARs were all packaged into `flink-table.jar`. This has now been split into 
-three JARs in order to allow users to swap the `flink-table-planner-loader-{{< version >}}.jar` with
-`flink-table-planner{{< scala_version >}}-{{< version >}}.jar`.
+**Note:** Previously, these JARs were all packaged into `flink-table.jar`. Since Flink 1.15, this has 
+now been split into three JARs in order to allow users to swap the `flink-table-planner-loader-{{< version >}}.jar` 
+with `flink-table-planner{{< scala_version >}}-{{< version >}}.jar`.
 
-When using formats and connectors with the Flink Scala API, you need to either download and manually 
-include these JARs in the `/lib` folder (recommended), or you need to shade them in the uber JAR of your 
-Flink SQL Jobs.
+While Table Java API artifacts are built into the distribution, Table Scala API artifacts are not 
+included by default. When using formats and connectors with the Flink Scala API, you need to either 
+download and include these JARs in the distribution `/lib` folder manually (recommended), or package 
+them as dependencies in the uber/fat JAR of your Flink SQL Jobs.
 
 For more details, check out how to [connect to external systems]({{< ref "docs/connectors/table/overview" >}}).
 
-## Table Planner and Table Planner Loader
+### Table Planner and Table Planner Loader
 
 Starting from Flink 1.15, the distribution contains two planners:
 

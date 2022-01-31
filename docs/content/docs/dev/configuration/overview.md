@@ -77,31 +77,6 @@ artifactId, and package name.
 $ curl https://flink.apache.org/q/quickstart.sh | bash -s {{< version >}}
 ```
 
-{{< hint info >}}
-For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via
-the command line. For details about this change, please refer to the <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">official Maven document</a> If you wish to use a snapshot repository, you need to add a
-repository entry to your `settings.xml` file. For example:
-
-```xml
-<settings>
-  <activeProfiles>
-    <activeProfile>apache</activeProfile>
-  </activeProfiles>
-  <profiles>
-    <profile>
-      <id>apache</id>
-      <repositories>
-        <repository>
-          <id>apache-snapshots</id>
-          <url>https://repository.apache.org/content/repositories/snapshots/</url>
-        </repository>
-      </repositories>
-    </profile>
-  </profiles>
-</settings>
-```
-{{< /hint >}}
-
 {{< /tab >}}
 {{< tab "Gradle" >}}
 You can create a project with a Gradle build script or use the provided quickstart bash script.
@@ -206,10 +181,13 @@ shadowJar {
 ```
 
 **settings.gradle**
+
 ```gradle
 rootProject.name = 'quickstart'
 ```
+
 ### Quickstart script
+
 ```bash
 bash -c "$(curl https://flink.apache.org/q/gradle-quickstart.sh)" -- {{< version >}} {{< scala_version >}}
 ```
@@ -219,11 +197,13 @@ You can scaffold a new Flink project with the following [giter8 template](https:
 and the `sbt new` command (which creates new build definitions from a template) or use the provided quickstart bash script.
 
 ### sbt template
+
 ```bash
 $ sbt new tillrohrmann/flink-project.g8
 ```
 
 ### Quickstart script
+
 ```bash
 $ bash <(curl https://flink.apache.org/q/sbt-quickstart.sh)
 ```
@@ -246,6 +226,8 @@ Here is a table of artifact/dependency names:
 | Table API + DataStream            | flink-table-api-java-bridge   |
 | Table API + DataStream with Scala | flink-table-api-scala-bridge{{< scala_version >}}  |
 
+Check out the sections on [Datastream API]({{< ref "docs/dev/datastream/overview" >}}) and 
+[Table API & SQL]({{< ref "docs/dev/table/overview" >}}) to learn more.
 
 ## Next steps
 
