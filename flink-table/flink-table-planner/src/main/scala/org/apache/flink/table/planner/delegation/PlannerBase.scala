@@ -23,10 +23,10 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.StreamGraph
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
 import org.apache.flink.table.api._
-import org.apache.flink.table.catalog._
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
 import org.apache.flink.table.catalog.ManagedTableListener.isManagedTable
+import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.delegation.{Executor, Parser, Planner}
 import org.apache.flink.table.descriptors.{ConnectorDescriptorValidator, DescriptorProperties}
@@ -482,34 +482,6 @@ abstract class PlannerBase(
       }
 
     new ExecNodeGraphCompiledPlan(ctx, execNodeGraph)
-  }
-
-  override def getJsonPlan(modifyOperations: util.List[ModifyOperation]): String = {
-    if (!isStreamingMode) {
-      throw new TableException("Only streaming mode is supported now.")
-    }
-    validateAndOverrideConfiguration()
-    val relNodes = modifyOperations.map(translateToRel)
-    val optimizedRelNodes = optimize(relNodes)
-    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
-    val jsonPlan = JsonSerdeUtil
-      .createObjectWriter(createSerdeContext)
-      .writeValueAsString(execGraph)
-    cleanupInternalConfigurations()
-    jsonPlan
-  }
-
-  override def translateJsonPlan(jsonPlan: String): util.List[Transformation[_]] = {
-    if (!isStreamingMode) {
-      throw new TableException("Only streaming mode is supported now.")
-    }
-    validateAndOverrideConfiguration()
-    val execGraph = JsonSerdeUtil
-      .createObjectReader(createSerdeContext)
-      .readValue(jsonPlan, classOf[ExecNodeGraph])
-    val transformations = translateToPlan(execGraph)
-    cleanupInternalConfigurations()
-    transformations
   }
 
   protected def createSerdeContext: SerdeContext = {

@@ -21,14 +21,12 @@ package org.apache.flink.table.planner.delegation
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
-import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.{CompiledPlan, ExplainDetail, TableConfig, TableException}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.{ModifyOperation, Operation, QueryOperation, SinkModifyOperation}
-import org.apache.flink.table.planner.operations.PlannerQueryOperation
+import org.apache.flink.table.operations.{ModifyOperation, Operation}
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode
@@ -40,7 +38,6 @@ import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelCollationTraitDef
-import org.apache.calcite.rel.logical.LogicalTableModify
 import org.apache.calcite.sql.SqlExplainLevel
 
 import java.util
@@ -135,10 +132,6 @@ class BatchPlanner(
     val executor = new DefaultExecutor(dummyExecEnv)
     new BatchPlanner(executor, config, moduleManager, functionCatalog, catalogManager)
   }
-
-  override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String =
-    throw new UnsupportedOperationException(
-      "The batch planner doesn't support the persisted plan feature.")
 
   override def compile(modifyOperations: util.List[ModifyOperation]): CompiledPlan =
     throw new UnsupportedOperationException(
