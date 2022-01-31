@@ -28,8 +28,6 @@ import org.apache.flink.util.ExceptionUtils;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
-
 /** Input processor for {@link MultipleInputStreamOperator}. */
 @Internal
 public final class StreamMultipleInputProcessor implements StreamInputProcessor {
@@ -38,7 +36,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
     private final StreamOneInputProcessor<?>[] inputProcessors;
 
-    private final MultipleInputAvailabilityHelper availabilityHelper;
+    private final MultipleFuturesAvailabilityHelper availabilityHelper;
     /** Always try to read from the first input. */
     private int lastReadInputIndex = 1;
 
@@ -49,7 +47,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
             StreamOneInputProcessor<?>[] inputProcessors) {
         this.inputSelectionHandler = inputSelectionHandler;
         this.inputProcessors = inputProcessors;
-        this.availabilityHelper = new MultipleInputAvailabilityHelper(inputProcessors.length);
+        this.availabilityHelper = new MultipleFuturesAvailabilityHelper(inputProcessors.length);
     }
 
     @Override
@@ -155,61 +153,6 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
             // NetworkBuffer
             if (inputProcessor.isApproximatelyAvailable() || inputProcessor.isAvailable()) {
                 inputSelectionHandler.setAvailableInput(i);
-            }
-        }
-    }
-
-    /**
-     * This class is semi-thread safe. Only method {@link #notifyCompletion()} is allowed to be
-     * executed from an outside of the task thread.
-     *
-     * <p>It solves a problem of a potential memory leak as described in FLINK-25728. In short we
-     * have to ensure, that if there is one input (future) that rarely (or never) completes, that
-     * such future would not prevent previously returned combined futures (like {@link
-     * CompletableFuture#anyOf(CompletableFuture[])} from being garbage collected. Additionally, we
-     * don't want to accumulate more and more completion stages on such rarely completed future, so
-     * we are registering {@link CompletableFuture#thenRun(Runnable)} only if it has not already
-     * been done.
-     *
-     * <p>Note {@link #resetToUnAvailable()} doesn't de register previously registered futures. If
-     * future was registered in the past, but for whatever reason now it is not, such future can
-     * still complete the newly created future.
-     *
-     * <p>It might be no longer needed after upgrading to JDK9
-     * (https://bugs.openjdk.java.net/browse/JDK-8160402).
-     */
-    private static class MultipleInputAvailabilityHelper {
-        private final CompletableFuture<?>[] futuresToCombine;
-
-        private volatile CompletableFuture<?> availableFuture = new CompletableFuture<>();
-
-        public MultipleInputAvailabilityHelper(int inputSize) {
-            futuresToCombine = new CompletableFuture[inputSize];
-        }
-
-        /** @return combined future using anyOf logic */
-        public CompletableFuture<?> getAvailableFuture() {
-            return availableFuture;
-        }
-
-        public void resetToUnAvailable() {
-            if (availableFuture.isDone()) {
-                availableFuture = new CompletableFuture<>();
-            }
-        }
-
-        private void notifyCompletion() {
-            availableFuture.complete(null);
-        }
-
-        /**
-         * Combine {@code availabilityFuture} using anyOf logic with other previously registered
-         * futures.
-         */
-        public void anyOf(final int idx, CompletableFuture<?> availabilityFuture) {
-            if (futuresToCombine[idx] == null || futuresToCombine[idx].isDone()) {
-                futuresToCombine[idx] = availabilityFuture;
-                assertNoException(availabilityFuture.thenRun(this::notifyCompletion));
             }
         }
     }
