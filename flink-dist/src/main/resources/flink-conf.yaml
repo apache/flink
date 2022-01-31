@@ -156,15 +156,20 @@ jobmanager.execution.failover-strategy: region
 
 # The address to which the REST client will connect to
 #
-#rest.address: 0.0.0.0
+rest.address: localhost
 
 # Port range for the REST and web server to bind to.
 #
 #rest.bind-port: 8080-8090
 
 # The address that the REST & web server binds to
+# By default, this is localhost, which prevents the REST & web server from
+# being able to communicate outside of the machine/container it is running on.
 #
-#rest.bind-address: 0.0.0.0
+# To enable this, set the bind address to one that has access to outside-facing
+# network interface, such as 0.0.0.0.
+#
+rest.bind-address: localhost
 
 # Flag to specify whether job submission is enabled from the web-based
 # runtime monitor. Uncomment to disable.
