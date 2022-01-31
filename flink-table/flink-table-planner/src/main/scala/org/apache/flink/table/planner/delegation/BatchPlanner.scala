@@ -23,7 +23,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException}
+import org.apache.flink.table.api.{CompiledPlan, ExplainDetail, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.module.ModuleManager
@@ -136,9 +136,21 @@ class BatchPlanner(
     new BatchPlanner(executor, config, moduleManager, functionCatalog, catalogManager)
   }
 
-  override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
-    throw new TableException("This method is not supported for batch planner now.")
-  }
+  override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String =
+    throw new UnsupportedOperationException(
+      "The batch planner doesn't support the persisted plan feature.")
+
+  override def compile(modifyOperations: util.List[ModifyOperation]): CompiledPlan =
+    throw new UnsupportedOperationException(
+      "The batch planner doesn't support the persisted plan feature.")
+
+  override def translate(plan: CompiledPlan): util.List[Transformation[_]] =
+    throw new UnsupportedOperationException(
+      "The batch planner doesn't support the persisted plan feature.")
+
+  override def explain(plan: CompiledPlan, extraDetails: ExplainDetail*): String =
+    throw new UnsupportedOperationException(
+      "The batch planner doesn't support the persisted plan feature.")
 
   override def validateAndOverrideConfiguration(): Unit = {
     super.validateAndOverrideConfiguration()

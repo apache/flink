@@ -22,16 +22,17 @@ import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.graph.StreamGraph
-import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException}
+import org.apache.flink.table.api.{CompiledPlan, ExplainDetail, PlanReference, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{ModifyOperation, Operation, QueryOperation, SinkModifyOperation}
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
+import org.apache.flink.table.planner.plan.ExecNodeGraphCompiledPlan
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.processor.ExecNodeGraphProcessor
-import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil
+import org.apache.flink.table.planner.plan.nodes.exec.serde.ExecNodeGraphJsonPlanGenerator
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
@@ -132,9 +133,50 @@ class StreamPlanner(
 
   override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
     validateAndOverrideConfiguration()
-    val execGraph = JsonSerdeUtil
-      .createObjectReader(createSerdeContext)
-      .readValue(jsonPlan, classOf[ExecNodeGraph])
+    val execGraph = ExecNodeGraphJsonPlanGenerator.read(
+      PlanReference.fromJsonString(jsonPlan), createSerdeContext)
+    val transformations = translateToPlan(execGraph)
+    cleanupInternalConfigurations()
+
+    val streamGraph = executor.createPipeline(transformations, config.getConfiguration, null)
+      .asInstanceOf[StreamGraph]
+
+    val sb = new StringBuilder
+    sb.append("== Optimized Execution Plan ==")
+    sb.append(System.lineSeparator)
+    sb.append(ExecNodePlanDumper.dagToString(execGraph))
+
+    if (extraDetails.contains(ExplainDetail.JSON_EXECUTION_PLAN)) {
+      sb.append(System.lineSeparator)
+      sb.append("== Physical Execution Plan ==")
+      sb.append(System.lineSeparator)
+      sb.append(streamGraph.getStreamingPlanAsJSON)
+    }
+
+    sb.toString()
+  }
+
+  override def compile(modifyOperations: util.List[ModifyOperation]): CompiledPlan = {
+    validateAndOverrideConfiguration()
+    val relNodes = modifyOperations.map(translateToRel)
+    val optimizedRelNodes = optimize(relNodes)
+    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
+    cleanupInternalConfigurations()
+
+    new ExecNodeGraphCompiledPlan(createSerdeContext, execGraph)
+  }
+
+  override def translate(plan: CompiledPlan): util.List[Transformation[_]] = {
+    validateAndOverrideConfiguration()
+    val execGraph = plan.asInstanceOf[ExecNodeGraphCompiledPlan].getExecNodeGraph
+    val transformations = translateToPlan(execGraph)
+    cleanupInternalConfigurations()
+    transformations
+  }
+
+  override def explain(plan: CompiledPlan, extraDetails: ExplainDetail*): String = {
+    validateAndOverrideConfiguration()
+    val execGraph = plan.asInstanceOf[ExecNodeGraphCompiledPlan].getExecNodeGraph
     val transformations = translateToPlan(execGraph)
     cleanupInternalConfigurations()
 

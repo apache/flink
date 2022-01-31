@@ -21,11 +21,14 @@ package org.apache.flink.table.delegation;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -129,4 +132,18 @@ public interface Planner {
      */
     @Experimental
     List<Transformation<?>> translateJsonPlan(String jsonPlan);
+
+    // FLIP-190 methods
+
+    @Experimental
+    CompiledPlan load(PlanReference planReference) throws IOException;
+
+    @Experimental
+    CompiledPlan compile(List<ModifyOperation> modifyOperations);
+
+    @Experimental
+    List<Transformation<?>> translate(CompiledPlan plan);
+
+    @Experimental
+    String explain(CompiledPlan plan, ExplainDetail... extraDetails);
 }

@@ -19,12 +19,15 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 
+import java.io.IOException;
 import java.util.List;
 
 /** Mocking {@link Planner} for tests. */
@@ -57,6 +60,26 @@ public class PlannerMock implements Planner {
 
     @Override
     public List<Transformation<?>> translateJsonPlan(String jsonPlan) {
+        return null;
+    }
+
+    @Override
+    public CompiledPlan load(PlanReference planReference) throws IOException {
+        return null;
+    }
+
+    @Override
+    public CompiledPlan compile(List<ModifyOperation> modifyOperations) {
+        return null;
+    }
+
+    @Override
+    public List<Transformation<?>> translate(CompiledPlan plan) {
+        return null;
+    }
+
+    @Override
+    public String explain(CompiledPlan plan, ExplainDetail... extraDetails) {
         return null;
     }
 }

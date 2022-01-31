@@ -43,6 +43,7 @@ import org.apache.flink.table.planner.delegation.ParserFactory.DefaultParserCont
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
+import org.apache.flink.table.planner.plan.ExecNodeGraphCompiledPlan
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.processor.{ExecNodeGraphProcessor, ProcessorContext}
 import org.apache.flink.table.planner.plan.nodes.exec.serde.{JsonSerdeUtil, SerdeContext}
@@ -57,6 +58,8 @@ import org.apache.flink.table.planner.utils.InternalConfigOptions.{TABLE_QUERY_S
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toScala}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader
 
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
@@ -464,6 +467,21 @@ abstract class PlannerBase(
         case _: Throwable => false
       }
     }
+  }
+
+  override def load(planReference: PlanReference): CompiledPlan = {
+    val ctx = createSerdeContext
+    val objectReader:  ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
+    val execNodeGraph =
+      if (planReference.getContent.isPresent) {
+        objectReader.readValue(planReference.getContent.get(), classOf[ExecNodeGraph])
+      } else if (planReference.getFile.isPresent) {
+        objectReader.readValue(planReference.getFile.get(), classOf[ExecNodeGraph])
+      } else {
+        throw new IllegalStateException("PlanReference doesn't contain content, nor a file path")
+      }
+
+    new ExecNodeGraphCompiledPlan(ctx, execNodeGraph)
   }
 
   override def getJsonPlan(modifyOperations: util.List[ModifyOperation]): String = {
