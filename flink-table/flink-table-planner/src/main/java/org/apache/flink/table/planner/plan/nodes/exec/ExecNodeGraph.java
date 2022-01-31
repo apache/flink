@@ -19,11 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.runtime.util.EnvironmentInformation;
-import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.ExecNodeGraphJsonPlanGenerator;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.SerdeContext;
 
-import java.io.IOException;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -50,21 +46,5 @@ public class ExecNodeGraph {
 
     public String getFlinkVersion() {
         return flinkVersion;
-    }
-
-    public static String createJsonPlan(ExecNodeGraph execGraph, SerdeContext serdeCtx) {
-        try {
-            return ExecNodeGraphJsonPlanGenerator.generateJsonPlan(execGraph, serdeCtx);
-        } catch (IOException e) {
-            throw new TableException("Failed to create json plan.", e);
-        }
-    }
-
-    public static ExecNodeGraph createExecNodeGraph(String jsonPlan, SerdeContext serdeCtx) {
-        try {
-            return ExecNodeGraphJsonPlanGenerator.generateExecNodeGraph(jsonPlan, serdeCtx);
-        } catch (IOException e) {
-            throw new TableException("Failed to create ExecNodeGraph.", e);
-        }
     }
 }
