@@ -785,6 +785,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
+    public CompiledPlan compilePlan(List<ModifyOperation> operations) {
+        return planner.compile(operations);
+    }
+
+    @Override
     public TableResultInternal executeInternal(List<ModifyOperation> operations) {
         List<Transformation<?>> transformations = translate(operations);
         List<String> sinkIdentifierNames = extractSinkIdentifierNames(operations);
@@ -1889,44 +1894,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 tableOperation,
                 operationTreeBuilder,
                 functionCatalog.asLookup(getParser()::parseIdentifier));
-    }
-
-    @Override
-    public String getJsonPlan(String stmt) {
-        List<Operation> operations = getParser().parse(stmt);
-        if (operations.size() != 1) {
-            throw new TableException(
-                    "Unsupported SQL query! getJsonPlan() only accepts a single INSERT statement.");
-        }
-        Operation operation = operations.get(0);
-        List<ModifyOperation> modifyOperations = new ArrayList<>(1);
-        if (operation instanceof ModifyOperation) {
-            modifyOperations.add((ModifyOperation) operation);
-        } else {
-            throw new TableException("Only INSERT is supported now.");
-        }
-        return getJsonPlan(modifyOperations);
-    }
-
-    @Override
-    public String getJsonPlan(List<ModifyOperation> operations) {
-        return planner.getJsonPlan(operations);
-    }
-
-    @Override
-    public String explainJsonPlan(String jsonPlan, ExplainDetail... extraDetails) {
-        return planner.explainJsonPlan(jsonPlan, extraDetails);
-    }
-
-    @Override
-    public TableResult executeJsonPlan(String jsonPlan) {
-        List<Transformation<?>> transformations = planner.translateJsonPlan(jsonPlan);
-        List<String> sinkIdentifierNames = new ArrayList<>();
-        for (int i = 0; i < transformations.size(); ++i) {
-            // TODO serialize the sink table names to json plan ?
-            sinkIdentifierNames.add("sink" + i);
-        }
-        return executeInternal(transformations, sinkIdentifierNames);
     }
 
     @Override

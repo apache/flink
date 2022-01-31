@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
@@ -36,6 +37,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,6 +50,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** The base class for json plan testing. */
 public abstract class JsonPlanTestBase extends AbstractTestBase {
@@ -257,5 +260,15 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
             }
         }
         return result;
+    }
+
+    public static PlanReference planReferenceFromClasspath(String classpathFilePath) {
+        try {
+            return PlanReference.fromFile(
+                    new File(JsonPlanTestBase.class.getResource(classpathFilePath).toURI()));
+        } catch (URISyntaxException | NullPointerException e) {
+            fail("Cannot load the plan reference", e);
+            return null;
+        }
     }
 }
