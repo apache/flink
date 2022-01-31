@@ -25,9 +25,11 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.StatementSet;
@@ -151,6 +153,7 @@ import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -199,6 +202,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     + "USE CATALOG, USE [CATALOG.]DATABASE, SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW [USER] FUNCTIONS, SHOW PARTITIONS"
                     + "CREATE VIEW, DROP VIEW, SHOW VIEWS, INSERT, DESCRIBE, LOAD MODULE, UNLOAD "
                     + "MODULE, USE MODULES, SHOW [FULL] MODULES.";
+    private static final String UNSUPPORTED_QUERY_IN_COMPILE_PLAN_SQL_MSG =
+            "Unsupported SQL query! compilePlanSql() only accepts a single SQL statement of type INSERT";
 
     protected TableEnvironmentImpl(
             CatalogManager catalogManager,
@@ -750,6 +755,33 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public StatementSet createStatementSet() {
         return new StatementSetImpl(this);
+    }
+
+    @Override
+    public CompiledPlan loadPlan(PlanReference planReference) throws IOException {
+        return planner.load(planReference);
+    }
+
+    @Override
+    public CompiledPlan compilePlanSql(String stmt) {
+        List<Operation> operations = getParser().parse(stmt);
+
+        if (operations.size() != 1 || !(operations.get(0) instanceof ModifyOperation)) {
+            throw new TableException(UNSUPPORTED_QUERY_IN_COMPILE_PLAN_SQL_MSG);
+        }
+
+        return planner.compile(Collections.singletonList((ModifyOperation) operations.get(0)));
+    }
+
+    @Override
+    public TableResult executePlan(CompiledPlan plan) {
+        List<Transformation<?>> transformations = planner.translate(plan);
+        List<String> sinkIdentifierNames = new ArrayList<>();
+        for (int i = 0; i < transformations.size(); ++i) {
+            // TODO serialize the sink table names to json plan ?
+            sinkIdentifierNames.add("sink" + i);
+        }
+        return executeInternal(transformations, sinkIdentifierNames);
     }
 
     @Override
@@ -1895,5 +1927,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             sinkIdentifierNames.add("sink" + i);
         }
         return executeInternal(transformations, sinkIdentifierNames);
+    }
+
+    @Override
+    public String explainPlan(CompiledPlan compiledPlan, ExplainDetail... extraDetails) {
+        return planner.explain(compiledPlan, extraDetails);
     }
 }
