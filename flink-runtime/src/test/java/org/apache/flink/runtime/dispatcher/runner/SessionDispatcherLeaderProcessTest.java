@@ -433,7 +433,7 @@ public class SessionDispatcherLeaderProcessTest {
             jobGraphStore.removeJobGraph(JOB_GRAPH.getJobID());
             dispatcherLeaderProcess.onRemovedJobGraph(JOB_GRAPH.getJobID());
 
-            assertThat(terminateJobFuture).isCompletedWithValue(JOB_GRAPH.getJobID());
+            assertThat(terminateJobFuture.get()).isEqualTo(JOB_GRAPH.getJobID());
         }
     }
 
