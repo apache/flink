@@ -37,6 +37,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std
 import java.io.IOException;
 import java.time.Duration;
 
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.traverse;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonSerializer.FIELD_NAME_ALIAS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonSerializer.FIELD_NAME_FIELD_INDEX;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonSerializer.FIELD_NAME_FIELD_NAME;
@@ -83,7 +84,7 @@ public class LogicalWindowJsonDeserializer extends StdDeserializer<LogicalWindow
                 if (isTimeTumblingWindow) {
                     Duration size =
                             deserializationContext.readValue(
-                                    jsonNode.get(FIELD_NAME_SIZE).traverse(jsonParser.getCodec()),
+                                    traverse(jsonNode.get(FIELD_NAME_SIZE), jsonParser.getCodec()),
                                     Duration.class);
                     return new TumblingGroupWindow(
                             alias, timeField, new ValueLiteralExpression(size));
@@ -97,11 +98,11 @@ public class LogicalWindowJsonDeserializer extends StdDeserializer<LogicalWindow
                 if (isTimeSlidingWindow) {
                     Duration size =
                             deserializationContext.readValue(
-                                    jsonNode.get(FIELD_NAME_SIZE).traverse(jsonParser.getCodec()),
+                                    traverse(jsonNode.get(FIELD_NAME_SIZE), jsonParser.getCodec()),
                                     Duration.class);
                     Duration slide =
                             deserializationContext.readValue(
-                                    jsonNode.get(FIELD_NAME_SLIDE).traverse(jsonParser.getCodec()),
+                                    traverse(jsonNode.get(FIELD_NAME_SLIDE), jsonParser.getCodec()),
                                     Duration.class);
                     return new SlidingGroupWindow(
                             alias,
@@ -120,7 +121,7 @@ public class LogicalWindowJsonDeserializer extends StdDeserializer<LogicalWindow
             case KIND_SESSION:
                 Duration gap =
                         deserializationContext.readValue(
-                                jsonNode.get(FIELD_NAME_GAP).traverse(jsonParser.getCodec()),
+                                traverse(jsonNode.get(FIELD_NAME_GAP), jsonParser.getCodec()),
                                 Duration.class);
                 return new SessionGroupWindow(alias, timeField, new ValueLiteralExpression(gap));
 
