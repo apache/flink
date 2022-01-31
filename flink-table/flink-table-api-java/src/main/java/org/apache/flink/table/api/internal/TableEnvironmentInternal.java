@@ -22,10 +22,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
-import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -35,7 +32,6 @@ import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 
-import java.io.IOException;
 import java.util.List;
 
 /**
@@ -113,40 +109,6 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      * @param configuredSink The configured {@link TableSink} to register.
      */
     void registerTableSinkInternal(String name, TableSink<?> configuredSink);
-
-    /** @deprecated This has been replaced by {@link #compilePlanSql(String)}. */
-    @Experimental
-    @Deprecated
-    default String getJsonPlan(String stmt) {
-        return compilePlanSql(stmt).asJsonString();
-    }
-
-    /** @deprecated This has been replaced by {@link #compilePlan(List)}. */
-    @Experimental
-    @Deprecated
-    default String getJsonPlan(List<ModifyOperation> operations) {
-        return compilePlan(operations).asJsonString();
-    }
-
-    /**
-     * @deprecated This has been replaced by {@link #explainPlan(CompiledPlan, ExplainDetail...)}.
-     */
-    @Experimental
-    @Deprecated
-    default String explainJsonPlan(String jsonPlan, ExplainDetail... extraDetails) {
-        return explainPlan(compilePlanSql(jsonPlan), extraDetails);
-    }
-
-    /** @deprecated This has been replaced by {@link #executePlan(PlanReference)}. */
-    @Experimental
-    @Deprecated
-    default TableResult executeJsonPlan(String jsonPlan) {
-        try {
-            return executePlan(PlanReference.fromJsonString(jsonPlan));
-        } catch (IOException e) {
-            throw new TableException("Error while trying to execute json plan", e);
-        }
-    }
 
     /**
      * Compile a plan staring from a list of operations.
