@@ -83,7 +83,15 @@ fork in run := true
 
 ## Adding dependencies to the project
 
-[TO DO]
+If you have JAR files that you want to use in your project, copy them to the `/lib` folder in the root 
+directory of your sbt project, and sbt will automatically find them. If those JAR files depend on other 
+JAR files, you will need to download them and copy them to the `/lib` directory as well.
+
+If you have a single managed dependency, you can add a `libraryDependencies` line to your `build.sbt` file:
+
+```java
+libraryDependencies += groupID % artifactID % revision % configuration
+```
 
 **Important:** Note that all these (core) dependencies should have their scope set to [*provided*](https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#dependency-scope). This means that
 they are needed to compile against, but that they should not be packaged into the project's resulting
