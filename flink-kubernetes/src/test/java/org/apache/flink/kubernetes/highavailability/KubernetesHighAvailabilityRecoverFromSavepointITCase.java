@@ -47,6 +47,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
@@ -102,12 +103,14 @@ public class KubernetesHighAvailabilityRecoverFromSavepointITCase extends TestLo
     @Test
     public void testRecoverFromSavepoint() throws Exception {
         final JobGraph jobGraph = createJobGraph();
-        clusterClient.submitJob(jobGraph).get(TIMEOUT, TimeUnit.MILLISECONDS);
+        clusterClient
+                .submitJob(jobGraph)
+                .get(TestingUtils.infiniteTime().toMilliseconds(), TimeUnit.MILLISECONDS);
 
         // Wait until all tasks running and getting a successful savepoint
         CommonTestUtils.waitUntilCondition(
                 () -> triggerSavepoint(clusterClient, jobGraph.getJobID(), savepointPath) != null,
-                Deadline.fromNow(Duration.ofMillis(TIMEOUT)),
+                Deadline.fromNow(TestingUtils.infiniteDuration()),
                 1000);
 
         // Trigger savepoint 2
