@@ -45,7 +45,7 @@ import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.processor.{ExecNodeGraphProcessor, ProcessorContext}
-import org.apache.flink.table.planner.plan.nodes.exec.serde.SerdeContext
+import org.apache.flink.table.planner.plan.nodes.exec.serde.{JsonSerdeUtil, SerdeContext}
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, ExecNodeGraphGenerator}
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
@@ -474,7 +474,9 @@ abstract class PlannerBase(
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execGraph = translateToExecNodeGraph(optimizedRelNodes)
-    val jsonPlan = ExecNodeGraph.createJsonPlan(execGraph, createSerdeContext)
+    val jsonPlan = JsonSerdeUtil
+      .createObjectWriter(createSerdeContext)
+      .writeValueAsString(execGraph)
     cleanupInternalConfigurations()
     jsonPlan
   }
@@ -484,7 +486,9 @@ abstract class PlannerBase(
       throw new TableException("Only streaming mode is supported now.")
     }
     validateAndOverrideConfiguration()
-    val execGraph = ExecNodeGraph.createExecNodeGraph(jsonPlan, createSerdeContext)
+    val execGraph = JsonSerdeUtil
+      .createObjectReader(createSerdeContext)
+      .readValue(jsonPlan, classOf[ExecNodeGraph])
     val transformations = translateToPlan(execGraph)
     cleanupInternalConfigurations()
     transformations
