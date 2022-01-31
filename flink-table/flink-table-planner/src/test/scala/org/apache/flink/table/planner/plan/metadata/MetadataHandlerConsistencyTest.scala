@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalCorrelate, BatchPhysicalGroupAggregateBase}
-import org.apache.flink.table.planner.plan.utils.ReflectionsUtil
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Aggregate, Correlate}
@@ -56,8 +55,28 @@ class MetadataHandlerConsistencyTest(
     logicalNodeClass: Class[_ <: RelNode],
     physicalNodeClass: Class[_ <: RelNode]) {
 
-  // get all subclasses of [[MetadataHandler]]
-  private val allMdHandlerClazz = fetchAllExtendedMetadataHandlers
+  // all subclasses of [[MetadataHandler]]
+  private val allMdHandlerClazz = List(
+    classOf[FlinkRelMdPercentageOriginalRows],
+    classOf[FlinkRelMdColumnNullCount],
+    classOf[FlinkRelMdColumnInterval],
+    classOf[FlinkRelMdCumulativeCost],
+    classOf[FlinkRelMdModifiedMonotonicity],
+    classOf[FlinkRelMdWindowProperties],
+    classOf[FlinkRelMdUniqueKeys],
+    classOf[FlinkRelMdDistribution],
+    classOf[FlinkRelMdSize],
+    classOf[FlinkRelMdCollation],
+    classOf[FlinkRelMdUniqueGroups],
+    classOf[FlinkRelMdPopulationSize],
+    classOf[FlinkRelMdFilteredColumnInterval],
+    classOf[FlinkRelMdUpsertKeys],
+    classOf[FlinkRelMdColumnUniqueness],
+    classOf[FlinkRelMdColumnOriginNullCount],
+    classOf[FlinkRelMdRowCount],
+    classOf[FlinkRelMdSelectivity],
+    classOf[FlinkRelMdNonCumulativeCost],
+    classOf[FlinkRelMdDistinctRowCount])
 
   // initiate each subclasses of [[MetadataHandler]]
   private val mdHandlerInstances = allMdHandlerClazz map { mdhClass =>
@@ -96,17 +115,6 @@ class MetadataHandlerConsistencyTest(
           }
         }
     }
-  }
-
-  /**
-    * Scan packages to find out all subclasses of [[MetadataHandler]] in flink.
-    *
-    * @return A list contains all subclasses of [[MetadataHandler]] in flink.
-    */
-  private def fetchAllExtendedMetadataHandlers: Seq[Class[_ <: MetadataHandler[_]]] = {
-    ReflectionsUtil.scanSubClasses(
-      "org.apache.flink.table.planner.plan.cost",
-      classOf[MetadataHandler[_]]).toSeq
   }
 
   /**
