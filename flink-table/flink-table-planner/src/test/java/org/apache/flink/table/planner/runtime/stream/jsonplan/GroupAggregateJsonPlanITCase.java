@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions;
@@ -85,14 +86,14 @@ public class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
                 "avg_a double",
                 "min_c varchar",
                 "primary key (b) not enforced");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
                         "insert into MySink select b, "
                                 + "count(*) as cnt, "
                                 + "avg(a) filter (where a > 1) as avg_a, "
                                 + "min(c) as min_c "
                                 + "from MyTable group by b");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        tableEnv.executePlan(compiledPlan).await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(Arrays.asList("+I[1, 1, null, Hi]", "+I[2, 2, 2.0, Hello]"), result);
@@ -118,8 +119,8 @@ public class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
                 "avg_b double",
                 "cnt_d bigint",
                 "primary key (e) not enforced");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
                         "insert into MySink select e, "
                                 + "count(distinct a) filter (where b > 10) as cnt_a1, "
                                 + "count(distinct a) as cnt_a2, "
@@ -128,7 +129,7 @@ public class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
                                 + "avg(b) as avg_b, "
                                 + "count(distinct d) as concat_d "
                                 + "from MyTable group by e");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        tableEnv.executePlan(compiledPlan).await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(
@@ -161,15 +162,15 @@ public class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
                 "s3 bigint",
                 "primary key (d) not enforced");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
                         "insert into MySink select "
                                 + "e, "
                                 + "my_sum1(c, 10) as s1, "
                                 + "my_sum2(5, c) as s2, "
                                 + "my_avg(e, a) as s3 "
                                 + "from MyTable group by e");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        tableEnv.executePlan(compiledPlan).await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(
@@ -193,14 +194,14 @@ public class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
         createTestNonInsertOnlyValuesSinkTable(
                 "MySink", "d bigint", "s1 bigint", "c1 varchar", "primary key (d) not enforced");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
                         "insert into MySink select "
                                 + "e, "
                                 + "my_avg(e, a) as s1, "
                                 + "my_concat_agg(d) as c1 "
                                 + "from MyTable group by e");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        tableEnv.executePlan(compiledPlan).await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(

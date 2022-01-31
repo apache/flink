@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -73,8 +74,8 @@ public class WindowDeduplicateJsonITCase extends JsonPlanTestBase {
                 "window_start TIMESTAMP(3)",
                 "window_end TIMESTAMP(3)",
                 "window_time TIMESTAMP(3)");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
                         "insert into MySink select\n"
                                 + "  `ts`,\n"
                                 + "  `int`,\n"
@@ -94,7 +95,7 @@ public class WindowDeduplicateJsonITCase extends JsonPlanTestBase {
                                 + "      FROM TABLE( \n"
                                 + "              TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))) \n"
                                 + "WHERE rownum <= 1");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        tableEnv.executePlan(compiledPlan).await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(

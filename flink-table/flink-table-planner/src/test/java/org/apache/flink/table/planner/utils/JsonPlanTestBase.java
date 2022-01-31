@@ -71,8 +71,8 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
         TestValuesTableFactory.clearAllData();
     }
 
-    protected TableResult executeSqlWithJsonPlanVerified(String sql) {
-        return tableEnv.executeJsonPlan(tableEnv.getJsonPlan(sql));
+    protected TableResult compileSqlAndExecutePlan(String sql) {
+        return tableEnv.executePlan(tableEnv.compilePlanSql(sql));
     }
 
     protected void createTestValuesSourceTable(

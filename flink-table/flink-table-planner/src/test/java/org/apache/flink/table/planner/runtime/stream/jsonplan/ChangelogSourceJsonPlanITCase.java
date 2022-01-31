@@ -45,7 +45,7 @@ public class ChangelogSourceJsonPlanITCase extends JsonPlanTestBase {
                 "balance2 DECIMAL(18,2)");
 
         String dml = "INSERT INTO user_sink SELECT * FROM users";
-        executeSqlWithJsonPlanVerified(dml).await();
+        compileSqlAndExecutePlan(dml).await();
 
         List<String> expected =
                 Arrays.asList(
@@ -67,7 +67,7 @@ public class ChangelogSourceJsonPlanITCase extends JsonPlanTestBase {
                 "balance2 DECIMAL(18,2)");
 
         String dml = "INSERT INTO user_sink SELECT * FROM users";
-        executeSqlWithJsonPlanVerified(dml).await();
+        compileSqlAndExecutePlan(dml).await();
 
         List<String> expected =
                 Arrays.asList(
