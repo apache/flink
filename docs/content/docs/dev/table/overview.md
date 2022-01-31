@@ -78,8 +78,8 @@ $ python -m pip install apache-flink
 {{< /tab >}}
 {{< /tabs >}}
 
-For more information on how to configure these dependencies, please refer to the [configuration]({{< ref "docs/dev/configuration/overview" >}})
-
+For more information on how to configure these dependencies, please refer to the [project configuration]({{< ref "docs/dev/configuration/overview" >}})
+section. 
 {{< top >}}
 
 Where to go next?
