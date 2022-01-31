@@ -188,7 +188,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                 .havingCause()
                 .havingCause()
                 .withMessageContaining(
-                        "Encountered an exception while persisting records, not retrying due to either: {failOnError} being set or the exception should not be retried.");
+                        "Encountered an exception while persisting records, not retrying due to {failOnError} being set.");
     }
 
     @Test
@@ -269,28 +269,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                 streamName,
                 failOnError,
                 properties,
-                "Encountered an exception while persisting records, not retrying due to either: {failOnError} being set or the exception should not be retried.");
-    }
-
-    @Test
-    public void missingEndpointShouldResultInFailureWhenInFailOnErrorIsOn() {
-        missingEndpointShouldResultInFailureWhenInFailOnErrorIs(true);
-    }
-
-    @Test
-    public void missingEndpointShouldResultInFailureWhenInFailOnErrorIsOff() {
-        missingEndpointShouldResultInFailureWhenInFailOnErrorIs(false);
-    }
-
-    private void missingEndpointShouldResultInFailureWhenInFailOnErrorIs(boolean failOnError) {
-        Properties properties = getDefaultProperties();
-        properties.remove(AWS_ENDPOINT);
-        String streamName = "do-not-create-new-stream";
-        assertRunWithPropertiesAndStreamShouldFailWithExceptionOfType(
-                streamName,
-                failOnError,
-                properties,
-                "Encountered an exception while persisting records, not retrying due to either: {failOnError} being set or the exception should not be retried.");
+                "Encountered non-recoverable exception relating to mis-configured client");
     }
 
     @Test
@@ -320,7 +299,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         noCredentialsAndSpecifiedCredentialsProviderShouldResultInFailureWhenInFailOnErrorIs(
                 true,
                 AWSConfigConstants.CredentialProvider.ENV_VAR.toString(),
-                "Encountered an exception while persisting records, not retrying due to either: {failOnError} being set or the exception should not be retried.");
+                "Encountered non-recoverable exception relating to mis-configured client");
     }
 
     @Test
@@ -328,7 +307,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         noCredentialsAndSpecifiedCredentialsProviderShouldResultInFailureWhenInFailOnErrorIs(
                 false,
                 AWSConfigConstants.CredentialProvider.ENV_VAR.toString(),
-                "Encountered an exception while persisting records, not retrying due to either: {failOnError} being set or the exception should not be retried.");
+                "Encountered non-recoverable exception relating to mis-configured client");
     }
 
     @Test
@@ -336,7 +315,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         noCredentialsAndSpecifiedCredentialsProviderShouldResultInFailureWhenInFailOnErrorIs(
                 true,
                 AWSConfigConstants.CredentialProvider.SYS_PROP.toString(),
-                "Encountered an exception while persisting records, not retrying due to either: {failOnError} being set or the exception should not be retried.");
+                "Encountered non-recoverable exception relating to mis-configured client");
     }
 
     @Test
@@ -344,7 +323,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         noCredentialsAndSpecifiedCredentialsProviderShouldResultInFailureWhenInFailOnErrorIs(
                 false,
                 AWSConfigConstants.CredentialProvider.SYS_PROP.toString(),
-                "Encountered an exception while persisting records, not retrying due to either: {failOnError} being set or the exception should not be retried.");
+                "Encountered non-recoverable exception relating to mis-configured client");
     }
 
     @Test
@@ -368,7 +347,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         noCredentialsAndSpecifiedCredentialsProviderShouldResultInFailureWhenInFailOnErrorIs(
                 true,
                 AWSConfigConstants.CredentialProvider.BASIC.toString(),
-                "Encountered an exception while persisting records, not retrying due to either: {failOnError} being set or the exception should not be retried.");
+                "Encountered non-recoverable exception relating to missing credentials");
     }
 
     @Test
@@ -376,7 +355,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         noCredentialsAndSpecifiedCredentialsProviderShouldResultInFailureWhenInFailOnErrorIs(
                 false,
                 AWSConfigConstants.CredentialProvider.BASIC.toString(),
-                "Encountered an exception while persisting records, not retrying due to either: {failOnError} being set or the exception should not be retried.");
+                "Encountered non-recoverable exception relating to missing credentials");
     }
 
     @Test
@@ -400,7 +379,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         noCredentialsAndSpecifiedCredentialsProviderShouldResultInFailureWhenInFailOnErrorIs(
                 true,
                 AWSConfigConstants.CredentialProvider.WEB_IDENTITY_TOKEN.toString(),
-                "Encountered an exception while persisting records, not retrying due to either: {failOnError} being set or the exception should not be retried.");
+                "Encountered non-recoverable exception relating to missing credentials");
     }
 
     @Test
@@ -408,7 +387,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         noCredentialsAndSpecifiedCredentialsProviderShouldResultInFailureWhenInFailOnErrorIs(
                 false,
                 AWSConfigConstants.CredentialProvider.WEB_IDENTITY_TOKEN.toString(),
-                "Encountered an exception while persisting records, not retrying due to either: {failOnError} being set or the exception should not be retried.");
+                "Encountered non-recoverable exception relating to missing credentials");
     }
 
     @Test

@@ -21,14 +21,15 @@ import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
+import org.apache.flink.connector.base.sink.writer.RetryValidationStrategy;
 import org.apache.flink.connector.kinesis.util.AWSKinesisDataStreamsUtil;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
@@ -43,8 +44,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
+
+import static org.apache.flink.connector.base.sink.writer.AsyncSinkRetryValidationStrategies.GENERAL_ERROR_STRATEGY;
+import static org.apache.flink.connector.base.sink.writer.AsyncSinkRetryValidationStrategies.INTERRUPTED_STRATEGY;
 
 /**
  * Sink writer created by {@link KinesisDataStreamsSink} to write to Kinesis Data Streams. More
@@ -58,6 +61,61 @@ import java.util.function.Consumer;
  */
 class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRecordsRequestEntry> {
     private static final Logger LOG = LoggerFactory.getLogger(KinesisDataStreamsSinkWriter.class);
+
+    private static final RetryValidationStrategy INVALID_CREDENTIALS_STRATEGY =
+            new RetryValidationStrategy(
+                    err -> ExceptionUtils.findThrowable(err, StsException.class).isPresent(),
+                    err ->
+                            new KinesisDataStreamsException(
+                                    "Encountered non-recoverable exception relating to the provided credentials.",
+                                    err));
+    private static final RetryValidationStrategy RESOURCE_NOT_FOUND_STRATEGY =
+            new RetryValidationStrategy(
+                    err ->
+                            ExceptionUtils.findThrowable(err, ResourceNotFoundException.class)
+                                    .isPresent(),
+                    err ->
+                            new KinesisDataStreamsException(
+                                    "Encountered non-recoverable exception relating to not being able to find the specified resources",
+                                    err));
+    private static final RetryValidationStrategy SDK_CLIENT_MISCONFIGURED_STRATEGY =
+            new RetryValidationStrategy(
+                    err -> ExceptionUtils.findThrowable(err, SdkClientException.class).isPresent(),
+                    err ->
+                            new KinesisDataStreamsException(
+                                    "Encountered non-recoverable exception relating to mis-configured client",
+                                    err));
+    private static final RetryValidationStrategy MISSING_ACCESS_KEY_ID_STRATEGY =
+            new RetryValidationStrategy(
+                    err ->
+                            ExceptionUtils.findThrowableWithMessage(
+                                                    err, "Access key ID cannot be blank.")
+                                            .isPresent()
+                                    || ExceptionUtils.findThrowableWithMessage(
+                                                    err,
+                                                    "Either the environment variable AWS_WEB_IDENTITY_TOKEN_FILE or the javaproperty aws.webIdentityTokenFile must be set.")
+                                            .isPresent(),
+                    err ->
+                            new KinesisDataStreamsException(
+                                    "Encountered non-recoverable exception relating to missing credentials",
+                                    err));
+    private static final RetryValidationStrategy NON_RECOVERABLE_EXCEPTION_STRATEGY =
+            new RetryValidationStrategy(
+                    err -> ExceptionUtils.findThrowable(err, Error.class).isPresent(),
+                    err ->
+                            new KinesisDataStreamsException(
+                                    "Encountered non-recoverable exception in the Kinesis Data Streams Sink",
+                                    err));
+
+    private static final RetryValidationStrategy KINESIS_RETRY_VALIDATION_STRATEGY =
+            RetryValidationStrategy.build(
+                    GENERAL_ERROR_STRATEGY,
+                    INTERRUPTED_STRATEGY,
+                    INVALID_CREDENTIALS_STRATEGY,
+                    RESOURCE_NOT_FOUND_STRATEGY,
+                    SDK_CLIENT_MISCONFIGURED_STRATEGY,
+                    MISSING_ACCESS_KEY_ID_STRATEGY,
+                    NON_RECOVERABLE_EXCEPTION_STRATEGY);
 
     /* A counter for the total number of records that have encountered an error during put */
     private final Counter numRecordsOutErrorsCounter;
@@ -178,36 +236,8 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
     }
 
     private boolean isRetryable(Throwable err) {
-        if (err instanceof CompletionException
-                && isInterruptingSignalException(ExceptionUtils.stripCompletionException(err))) {
-            getFatalExceptionCons().accept(new FlinkException("Running job was cancelled"));
-            return false;
-        }
-        if (err instanceof CompletionException
-                && ExceptionUtils.stripCompletionException(err)
-                        instanceof ResourceNotFoundException) {
-            getFatalExceptionCons()
-                    .accept(
-                            new KinesisDataStreamsException(
-                                    "Encountered non-recoverable exception relating to not being able to find the specified resources",
-                                    err));
-            return false;
-        }
-        if (err instanceof CompletionException
-                && ExceptionUtils.stripCompletionException(err) instanceof StsException) {
-            getFatalExceptionCons()
-                    .accept(
-                            new KinesisDataStreamsException(
-                                    "Encountered non-recoverable exception relating to the provided credentials.",
-                                    err));
-            return false;
-        }
-        if (err instanceof Error) {
-            getFatalExceptionCons()
-                    .accept(
-                            new KinesisDataStreamsException(
-                                    "Encountered non-recoverable exception relating to not being able to find the specified resources",
-                                    err));
+
+        if (!KINESIS_RETRY_VALIDATION_STRATEGY.shouldRetry(err, getFatalExceptionCons())) {
             return false;
         }
         if (failOnError) {
@@ -219,12 +249,5 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
         }
 
         return true;
-    }
-
-    private boolean isInterruptingSignalException(Throwable err) {
-        return err != null
-                && (err instanceof InterruptedException
-                        || (err instanceof IllegalStateException
-                                && err.getCause() instanceof InterruptedException));
     }
 }
