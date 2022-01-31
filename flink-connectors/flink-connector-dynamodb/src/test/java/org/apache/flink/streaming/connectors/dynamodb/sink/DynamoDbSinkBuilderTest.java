@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.connectors.dynamodb.sink;
 
 import org.assertj.core.api.Assertions;
-import org.junit.Assert;
 import org.junit.Test;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
@@ -37,7 +36,7 @@ public class DynamoDbSinkBuilderTest {
                                 new TestDynamoDbElementConverter(UUID.randomUUID().toString()))
                         .build();
 
-        Assert.assertEquals(1, dynamoDbSink.getWriterStateSerializer().getVersion());
+        Assertions.assertThat(dynamoDbSink.getWriterStateSerializer().getVersion()).isEqualTo(1);
     }
 
     @Test
