@@ -110,13 +110,13 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,
         self.t_env.create_temporary_system_function(
             "multi_emit", udtf(MultiEmit(), result_types=[DataTypes.BIGINT(), DataTypes.BIGINT()]))
 
-        json_plan = self.t_env._j_tenv.getJsonPlan("INSERT INTO sink_table "
-                                                   "SELECT a, x, y FROM source_table "
-                                                   "LEFT JOIN LATERAL TABLE(multi_emit(a, b))"
-                                                   " as T(x, y)"
-                                                   " ON TRUE")
+        json_plan = self.t_env._j_tenv.compilePlanSql("INSERT INTO sink_table "
+                                                      "SELECT a, x, y FROM source_table "
+                                                      "LEFT JOIN LATERAL TABLE(multi_emit(a, b))"
+                                                      " as T(x, y)"
+                                                      " ON TRUE")
         from py4j.java_gateway import get_method
-        get_method(self.t_env._j_tenv.executeJsonPlan(json_plan), "await")()
+        get_method(self.t_env._j_tenv.executePlan(json_plan), "await")()
 
         import glob
         lines = [line.strip() for file in glob.glob(sink_path + '/*') for line in open(file, 'r')]

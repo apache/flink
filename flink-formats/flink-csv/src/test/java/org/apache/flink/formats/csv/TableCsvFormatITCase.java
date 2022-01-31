@@ -19,6 +19,7 @@
 package org.apache.flink.formats.csv;
 
 import org.apache.flink.formats.common.TimeFormats;
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
@@ -45,8 +46,9 @@ public class TableCsvFormatITCase extends JsonPlanTestBase {
         createSourceTable("MyTable", data, "a bigint", "b int not null", "c varchar");
         File sinkPath = createSinkTable("MySink", "a bigint", "c varchar");
 
-        String jsonPlan = tableEnv.getJsonPlan("insert into MySink select a, c from MyTable");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql("insert into MySink select a, c from MyTable");
+        tableEnv.executePlan(compiledPlan).await();
 
         assertResult(Arrays.asList("1,hi", "2,hello", "3,hello world"), sinkPath);
     }
@@ -65,8 +67,9 @@ public class TableCsvFormatITCase extends JsonPlanTestBase {
 
         File sinkPath = createSinkTable("MySink", "a bigint", "m varchar");
 
-        String jsonPlan = tableEnv.getJsonPlan("insert into MySink select a, m from MyTable");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql("insert into MySink select a, m from MyTable");
+        tableEnv.executePlan(compiledPlan).await();
 
         assertResult(Arrays.asList("1,Hi", "2,Hello", "3,Hello world"), sinkPath);
     }
@@ -77,9 +80,9 @@ public class TableCsvFormatITCase extends JsonPlanTestBase {
         createSourceTable("MyTable", data, "a bigint", "b int not null", "c varchar");
         File sinkPath = createSinkTable("MySink", "a bigint", "b int", "c varchar");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan("insert into MySink select * from MyTable where a > 1");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql("insert into MySink select * from MyTable where a > 1");
+        tableEnv.executePlan(compiledPlan).await();
 
         assertResult(Arrays.asList("2,1,hello", "3,2,hello world"), sinkPath);
     }
@@ -98,9 +101,9 @@ public class TableCsvFormatITCase extends JsonPlanTestBase {
                 });
         File sinkPath = createSinkTable("MySink", "a int", "p bigint", "c varchar");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan("insert into MySink select * from MyTable where p = 2");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql("insert into MySink select * from MyTable where p = 2");
+        tableEnv.executePlan(compiledPlan).await();
 
         assertResult(Arrays.asList("2,2,Hello", "3,2,Hello world"), sinkPath);
     }
@@ -125,9 +128,10 @@ public class TableCsvFormatITCase extends JsonPlanTestBase {
 
         File sinkPath = createSinkTable("MySink", "a int", "b bigint", "ts timestamp(3)");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan("insert into MySink select a, b, ts from MyTable where b = 3");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
+                        "insert into MySink select a, b, ts from MyTable where b = 3");
+        tableEnv.executePlan(compiledPlan).await();
 
         assertResult(
                 Arrays.asList(
@@ -161,10 +165,10 @@ public class TableCsvFormatITCase extends JsonPlanTestBase {
 
         File sinkPath = createSinkTable("MySink", "a int", "ts timestamp(3)");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
                         "insert into MySink select a, ts from MyTable where b = 3 and a > 4");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        tableEnv.executePlan(compiledPlan).await();
 
         assertResult(
                 Arrays.asList("5," + formatSqlTimestamp(5000L), "6," + formatSqlTimestamp(6000L)),

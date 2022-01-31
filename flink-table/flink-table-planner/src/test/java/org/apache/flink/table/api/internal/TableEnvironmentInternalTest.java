@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.api.internal;
 
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
@@ -33,7 +34,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link TableEnvironmentInternal}. */
 public class TableEnvironmentInternalTest extends JsonPlanTestBase {
@@ -64,38 +66,43 @@ public class TableEnvironmentInternalTest extends JsonPlanTestBase {
     }
 
     @Test
-    public void testGetJsonPlan() throws IOException {
-        String jsonPlan = tableEnv.getJsonPlan("insert into MySink select * from MyTable");
+    public void testCompilePlanSql() throws IOException {
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql("insert into MySink select * from MyTable");
         String expected = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlan.out");
-        assertEquals(
-                TableTestUtil.replaceExecNodeId(
-                        TableTestUtil.replaceFlinkVersion(
-                                TableTestUtil.getFormattedJson(expected))),
-                TableTestUtil.replaceExecNodeId(
-                        TableTestUtil.replaceFlinkVersion(
-                                TableTestUtil.getFormattedJson(jsonPlan))));
+        assertThat(
+                        TableTestUtil.replaceExecNodeId(
+                                TableTestUtil.replaceFlinkVersion(
+                                        TableTestUtil.getFormattedJson(
+                                                compiledPlan.asJsonString()))))
+                .isEqualTo(
+                        TableTestUtil.replaceExecNodeId(
+                                TableTestUtil.replaceFlinkVersion(
+                                        TableTestUtil.getFormattedJson(expected))));
     }
 
     @Test
-    public void testExecuteJsonPlan() throws Exception {
+    public void testExecutePlan() throws Exception {
         List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
         createTestCsvSourceTable("src", data, "a bigint", "b int", "c varchar");
         File sinkPath = createTestCsvSinkTable("sink", "a bigint", "b int", "c varchar");
 
-        String jsonPlan = tableEnv.getJsonPlan("insert into sink select * from src");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        CompiledPlan plan = tableEnv.compilePlanSql("insert into sink select * from src");
+        tableEnv.executePlan(plan).await();
 
         assertResult(data, sinkPath);
     }
 
     @Test
-    public void testExplainJsonPlan() {
-        String jsonPlan = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlan.out");
-        String actual = tableEnv.explainJsonPlan(jsonPlan, ExplainDetail.JSON_EXECUTION_PLAN);
+    public void testExplainPlan() throws IOException {
+        String actual =
+                tableEnv.explainPlan(
+                        tableEnv.loadPlan(
+                                PlanReference.fromResource("/jsonplan/testGetJsonPlan.out")),
+                        ExplainDetail.JSON_EXECUTION_PLAN);
         String expected = TableTestUtil.readFromResource("/explain/testExplainJsonPlan.out");
-        assertEquals(
-                expected,
-                TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)));
+        assertThat(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
+                .isEqualTo(expected);
     }
 
     @Test
@@ -120,8 +127,8 @@ public class TableEnvironmentInternalTest extends JsonPlanTestBase {
                         + "  'table-sink-class' = 'DEFAULT')";
         tableEnv.executeSql(sinkTableDdl);
 
-        exception.expect(TableException.class);
-        exception.expectMessage("Only streaming mode is supported now");
-        tableEnv.getJsonPlan("insert into sink select * from src");
+        assertThatThrownBy(() -> tableEnv.compilePlanSql("insert into sink select * from src"))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessage("The batch planner doesn't support the persisted plan feature.");
     }
 }

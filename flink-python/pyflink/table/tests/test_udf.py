@@ -778,12 +778,12 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
         self.t_env.create_temporary_system_function("add_one", add_one)
 
-        json_plan = self.t_env._j_tenv.getJsonPlan("INSERT INTO sink_table SELECT "
-                                                   "a, "
-                                                   "add_one(b) "
-                                                   "FROM source_table")
+        json_plan = self.t_env._j_tenv.compilePlanSql("INSERT INTO sink_table SELECT "
+                                                      "a, "
+                                                      "add_one(b) "
+                                                      "FROM source_table")
         from py4j.java_gateway import get_method
-        get_method(self.t_env._j_tenv.executeJsonPlan(json_plan), "await")()
+        get_method(self.t_env._j_tenv.executePlan(json_plan), "await")()
 
         import glob
         lines = [line.strip() for file in glob.glob(sink_path + '/*') for line in open(file, 'r')]
