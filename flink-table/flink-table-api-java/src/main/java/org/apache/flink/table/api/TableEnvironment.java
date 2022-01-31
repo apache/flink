@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.Configuration;
@@ -34,6 +35,7 @@ import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.AbstractDataType;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Optional;
@@ -1252,4 +1254,52 @@ public interface TableEnvironment {
      * as one job.
      */
     StatementSet createStatementSet();
+
+    // FLIP-190 methods. They're considered experimental and might change in future versions
+
+    /**
+     * Load a plan starting from a {@link PlanReference} into a {@link CompiledPlan}. This will
+     * parse the input reference and will validate the plan.
+     *
+     * <p><b>Note:</b> This API is <b>experimental</b> and subject to change in future releases.
+     */
+    @Experimental
+    CompiledPlan loadPlan(PlanReference planReference) throws IOException, TableException;
+
+    /**
+     * Compile a SQL DML statement in a {@link CompiledPlan}. Only {@code INSERT INTO} is supported
+     * at the moment.
+     *
+     * <p><b>Note:</b> This API is <b>experimental</b> and subject to change in future releases.
+     */
+    @Experimental
+    CompiledPlan compilePlanSql(String stmt);
+
+    /**
+     * Execute the provided {@link CompiledPlan}. This will eventually resume the execution if a
+     * previous savepoint is already existing for this job.
+     *
+     * <p><b>Note:</b> This API is <b>experimental</b> and subject to change in future releases.
+     */
+    @Experimental
+    TableResult executePlan(CompiledPlan plan);
+
+    /**
+     * Shorthand for {@code tEnv.executePlan(tEnv.loadPlan(planReference))}.
+     *
+     * <p><b>Note:</b> This API is <b>experimental</b> and subject to change in future releases.
+     */
+    @Experimental
+    default TableResult executePlan(PlanReference planReference) throws IOException {
+        return executePlan(loadPlan(planReference));
+    }
+
+    /**
+     * Returns the AST of the specified statement and the execution plan to compute the result of
+     * the given statement.
+     *
+     * <p><b>Note:</b> This API is <b>experimental</b> and subject to change in future releases.
+     */
+    @Experimental
+    String explainPlan(CompiledPlan compiledPlan, ExplainDetail... extraDetails);
 }
