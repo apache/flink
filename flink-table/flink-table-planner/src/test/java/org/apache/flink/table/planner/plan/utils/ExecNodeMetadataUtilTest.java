@@ -22,11 +22,13 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleExecNodeMetadata;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -35,8 +37,12 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.assertj.core.api.Condition;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil.UNSUPPORTED_JSON_SERDE_CLASSES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -60,8 +66,7 @@ public class ExecNodeMetadataUtilTest {
                 .hasMessage(
                         "ExecNode: org.apache.flink.table.planner.plan.utils."
                                 + "ExecNodeMetadataUtilTest.DummyNodeNoAnnotation is missing "
-                                + "ExecNodeMetadata annotation. This is a bug, please contact "
-                                + "developers.");
+                                + "ExecNodeMetadata annotation.");
     }
 
     @Test
@@ -131,6 +136,41 @@ public class ExecNodeMetadataUtilTest {
                         "ExecNode: org.apache.flink.table.planner.plan.utils."
                                 + "ExecNodeMetadataUtilTest.DummyNode is not listed in the supported "
                                 + "classes and yet is annotated with: ExecNodeMetadata.");
+    }
+
+    @Test
+    public void testStreamExecNodeJsonSerdeCoverage() {
+        Set<Class<? extends ExecNode<?>>> subClasses = ExecNodeMetadataUtil.execNodes();
+        List<Class<? extends ExecNode<?>>> classesWithoutJsonCreator = new ArrayList<>();
+        List<Class<? extends ExecNode<?>>> classesWithJsonCreatorInUnsupportedList =
+                new ArrayList<>();
+        for (Class<? extends ExecNode<?>> clazz : subClasses) {
+            boolean hasJsonCreator = JsonSerdeUtil.hasJsonCreatorAnnotation(clazz);
+            if (hasJsonCreator && UNSUPPORTED_JSON_SERDE_CLASSES.contains(clazz)) {
+                classesWithJsonCreatorInUnsupportedList.add(clazz);
+            }
+            if (!hasJsonCreator && !UNSUPPORTED_JSON_SERDE_CLASSES.contains(clazz)) {
+                classesWithoutJsonCreator.add(clazz);
+            }
+        }
+
+        assertThat(classesWithoutJsonCreator)
+                .as(
+                        "%s do not support json serialization/deserialization, "
+                                + "please refer the implementation of the other StreamExecNodes.",
+                        classesWithoutJsonCreator.stream()
+                                .map(Class::getSimpleName)
+                                .collect(Collectors.joining(",")))
+                .isEmpty();
+        assertThat(classesWithJsonCreatorInUnsupportedList)
+                .as(
+                        "%s have support for json serialization/deserialization, "
+                                + "but still in UNSUPPORTED_JSON_SERDE_CLASSES list. "
+                                + "please move them from UNSUPPORTED_JSON_SERDE_CLASSES.",
+                        classesWithJsonCreatorInUnsupportedList.stream()
+                                .map(Class::getSimpleName)
+                                .collect(Collectors.joining(",")))
+                .isEmpty();
     }
 
     @MultipleExecNodeMetadata({

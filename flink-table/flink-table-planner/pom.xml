@@ -189,24 +189,6 @@ under the License.
 			<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
 		</dependency>
 
-		<dependency>
-			<!-- Utility to scan classpaths -->
-			<groupId>org.reflections</groupId>
-			<artifactId>reflections</artifactId>
-			<version>0.9.10</version>
-			<scope>compile</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>com.google.code.findbugs</groupId>
-					<artifactId>annotations</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
 		<!-- Test dependencies -->
 
 		<dependency>
@@ -372,9 +354,6 @@ under the License.
 
 							<!-- For legacy string expressions in Table API -->
 							<include>org.scala-lang.modules:scala-parser-combinators_${scala.binary.version}</include>
-
-							<!-- ReflectionsUtil -->
-							<include>org.reflections:reflections</include>
 						</includes>
 					</artifactSet>
 					<relocations>
@@ -410,11 +389,6 @@ under the License.
 							<shadedPattern>org.apache.flink.table.shaded.com.jayway</shadedPattern>
 						</relocation>
 
-						<!-- Other table dependencies -->
-						<relocation>
-							<pattern>org.reflections</pattern>
-							<shadedPattern>org.apache.flink.table.shaded.org.reflections</shadedPattern>
-						</relocation>
 						<relocation>
 							<!-- icu4j's dependencies -->
 							<pattern>com.ibm.icu</pattern>
