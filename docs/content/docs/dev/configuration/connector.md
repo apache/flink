@@ -38,8 +38,8 @@ core dependencies and must be added as dependencies to the application.
 
 ## Adding Dependencies 
 
-For more information on how to add dependencies, refer to the build tools sections on [Maven]({{< ref "docs/dev/configuration/maven" >}}),
-[Gradle]({{< ref "docs/dev/configuration/gradle" >}}), or [sbt]({{< ref "docs/dev/configuration/sbt" >}})..
+For more information on how to add dependencies, refer to the build tools sections on [Maven]({{< ref "docs/dev/configuration/maven" >}})
+and [Gradle]({{< ref "docs/dev/configuration/gradle" >}}). 
 
 ## Packaging Dependencies
 
