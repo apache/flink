@@ -32,7 +32,8 @@ import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.met
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.newArray;
 
 /** {@link LogicalTypeRoot#ARRAY} to {@link LogicalTypeRoot#ARRAY} cast rule. */
-class ArrayToArrayCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, ArrayData> {
+class ArrayToArrayCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, ArrayData>
+        implements CollectionToCollectionCastRule<ArrayData, ArrayData> {
 
     static final ArrayToArrayCastRule INSTANCE = new ArrayToArrayCastRule();
 
