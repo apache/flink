@@ -98,13 +98,6 @@ under the License.
 
 	<build>
 		<plugins>
-
-			<!-- activate API compatibility checks -->
-			<plugin>
-				<groupId>io.github.zentol.japicmp</groupId>
-				<artifactId>japicmp-maven-plugin</artifactId>
-			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
