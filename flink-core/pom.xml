@@ -139,12 +139,6 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- activate API compatibility checks -->
-			<plugin>
-				<groupId>io.github.zentol.japicmp</groupId>
-				<artifactId>japicmp-maven-plugin</artifactId>
-			</plugin>
-
 			<!-- publish some test base classes -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

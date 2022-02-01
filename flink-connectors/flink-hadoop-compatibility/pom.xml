@@ -115,11 +115,6 @@ under the License.
 					</scala>
 				</configuration>
 			</plugin>
-			<!-- activate API compatibility checks -->
-			<plugin>
-				<groupId>io.github.zentol.japicmp</groupId>
-				<artifactId>japicmp-maven-plugin</artifactId>
-			</plugin>
 			<!-- Scala Compiler -->
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>
