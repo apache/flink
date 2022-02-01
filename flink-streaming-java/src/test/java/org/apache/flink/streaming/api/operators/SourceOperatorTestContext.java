@@ -47,7 +47,7 @@ import java.util.Collections;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
-/** Base class for testing {@link SourceOperator}. */
+/** Helper class for testing {@link SourceOperator}. */
 @SuppressWarnings("serial")
 public class SourceOperatorTestContext implements AutoCloseable {
 
@@ -59,7 +59,11 @@ public class SourceOperatorTestContext implements AutoCloseable {
     private SourceOperator<Integer, MockSourceSplit> operator;
 
     public SourceOperatorTestContext() throws Exception {
-        mockSourceReader = new MockSourceReader();
+        this(false);
+    }
+
+    public SourceOperatorTestContext(boolean idle) throws Exception {
+        mockSourceReader = new MockSourceReader(idle, idle);
         mockGateway = new MockOperatorEventGateway();
         operator =
                 new TestingSourceOperator<>(
