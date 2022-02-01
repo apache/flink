@@ -31,6 +31,10 @@ under the License.
 	<artifactId>flink-dist-scala_${scala.binary.version}</artifactId>
 	<name>Flink : Dist-Scala</name>
 
+	<properties>
+		<japicmp.skip>true</japicmp.skip>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
