@@ -32,6 +32,10 @@ under the License.
 	<name>Flink : Examples : </name>
 	<packaging>pom</packaging>
 
+	<properties>
+		<japicmp.skip>true</japicmp.skip>
+	</properties>
+
 	<modules>
 		<module>flink-examples-batch</module>
 		<module>flink-examples-streaming</module>

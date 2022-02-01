@@ -36,6 +36,7 @@ under the License.
 
 	<properties>
 		<excludeE2E/>
+		<japicmp.skip>true</japicmp.skip>
 	</properties>
 
 	<modules>
