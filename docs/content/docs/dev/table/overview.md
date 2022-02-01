@@ -40,47 +40,13 @@ and later use the DataStream API to build alerting based on the matched patterns
 
 ## Table Program Dependencies
 
-Depending on the target programming language, you need to add the Table API to a project in order to
-use the Table API & SQL for defining data pipelines.
+You will need to add the Table API as a dependency to a project in order to use Table API & SQL for 
+defining data pipelines.
 
-{{< tabs "94f8aceb-507f-4c8f-977e-df00fe903203" >}}
-{{< tab "Java" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-api-java-bridge{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-api-scala-bridge{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-```
-{{< /tab >}}
-{{< tab "Python" >}}
-{{< stable >}}
-```bash
-$ python -m pip install apache-flink {{< version >}}
-```
-{{< /stable >}}
-{{< unstable >}}
-```bash
-$ python -m pip install apache-flink
-```
-{{< /unstable >}}
-{{< /tab >}}
-{{< /tabs >}}
+For more information on how to configure these dependencies for Java and Scala, please refer to the 
+[project configuration]({{< ref "docs/dev/configuration/overview" >}}) section.
 
-For more information on how to configure these dependencies, please refer to the [project configuration]({{< ref "docs/dev/configuration/overview" >}})
-section. 
-{{< top >}}
+If you are using Python, please refer to the documentation on the [Python API]({{< ref "docs/dev/python/overview" >}})
 
 Where to go next?
 -----------------
