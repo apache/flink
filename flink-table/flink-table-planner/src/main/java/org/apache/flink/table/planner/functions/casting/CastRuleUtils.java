@@ -43,6 +43,10 @@ final class CastRuleUtils {
         return legacyBehaviour ? strLiteral("null") : strLiteral("NULL");
     }
 
+    static String operator(Object left, String operator, Object right) {
+        return left + operator + right;
+    }
+
     static String staticCall(Class<?> clazz, String methodName, Object... args) {
         return methodCall(className(clazz), methodName, args);
     }
