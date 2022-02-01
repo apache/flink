@@ -36,6 +36,10 @@ under the License.
 	<name>Flink : Yarn Tests</name>
 	<packaging>jar</packaging>
 
+	<properties>
+		<japicmp.skip>true</japicmp.skip>
+	</properties>
+
 	<dependencies>
 		
 		<!-- test dependencies -->

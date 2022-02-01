@@ -33,6 +33,10 @@ under the License.
 	<version>1.16-SNAPSHOT</version>
 	<name>Flink : Tools : CI : Java</name>
 
+	<properties>
+		<japicmp.skip>true</japicmp.skip>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
