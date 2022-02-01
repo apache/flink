@@ -2157,6 +2157,9 @@ under the License.
 							<skipPomModules>true</skipPomModules>
 							<!-- Don't break build on newly added maven modules -->
 							<ignoreNonResolvableArtifacts>true</ignoreNonResolvableArtifacts>
+							<packagingSupporteds>
+								<packagingSupported>jar</packagingSupported>
+							</packagingSupporteds>
 						</parameter>
 						<projectBuildDir>${rootDir}/${japicmp.outputDir}/${project.artifactId}</projectBuildDir>
 						<dependencies>
