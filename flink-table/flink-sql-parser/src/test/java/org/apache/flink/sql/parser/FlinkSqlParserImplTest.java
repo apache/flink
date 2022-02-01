@@ -1607,6 +1607,20 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("RESET 'test-key'").ok("RESET 'test-key'");
     }
 
+    @Test
+    public void testTryCast() {
+        // Note that is expected that the unparsed value has the comma rather than AS, because we
+        // don't use a custom SqlNode for TryCast, but we rely on SqlBasicCall
+
+        // Simple types
+        expr("try_cast(a as timestamp)").ok("TRY_CAST(`A` AS TIMESTAMP)");
+        expr("try_cast('abc' as timestamp)").ok("TRY_CAST('abc' AS TIMESTAMP)");
+
+        // Complex types
+        expr("try_cast(a as row(f0 int, f1 varchar))")
+                .ok("TRY_CAST(`A` AS ROW(`F0` INTEGER, `F1` VARCHAR))");
+    }
+
     public static BaseMatcher<SqlNode> validated(String validatedSql) {
         return new TypeSafeDiagnosingMatcher<SqlNode>() {
             @Override

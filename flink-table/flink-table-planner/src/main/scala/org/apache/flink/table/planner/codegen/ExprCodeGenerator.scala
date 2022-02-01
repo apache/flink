@@ -702,8 +702,10 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       // casting
       case CAST =>
-        val operand = operands.head
-        generateCast(ctx, operand, resultType, nullOnFailure = false)
+        generateCast(ctx, operands.head, resultType, nullOnFailure = false)
+
+      case TRY_CAST =>
+        generateCast(ctx, operands.head, resultType, nullOnFailure = true)
 
       // Reinterpret
       case REINTERPRET =>
@@ -808,6 +810,9 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case bsf: BridgingSqlFunction =>
         bsf.getDefinition match {
+          case BuiltInFunctionDefinitions.TRY_CAST =>
+            generateCast(ctx, operands.head, resultType, nullOnFailure = true)
+
           case BuiltInFunctionDefinitions.CURRENT_WATERMARK =>
             generateWatermark(ctx, contextTerm, resultType)
 
