@@ -100,7 +100,6 @@ under the License.
 	<build>
 		<plugins>
 
-			<!-- activate API compatibility checks -->
 			<plugin>
 				<groupId>io.github.zentol.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
