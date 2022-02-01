@@ -153,6 +153,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TIMES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TO_BASE64;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRUNCATE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CAST;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_POP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_SAMP;
@@ -474,6 +475,15 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType cast(DataType toType) {
         return toApiSpecificExpression(unresolvedCall(CAST, toExpr(), typeLiteral(toType)));
+    }
+
+    /**
+     * Converts a value to a given data type.
+     *
+     * <p>e.g. "42".cast(DataTypes.INT()) leads to 42.
+     */
+    public OutType tryCast(DataType toType) {
+        return toApiSpecificExpression(unresolvedCall(TRY_CAST, toExpr(), typeLiteral(toType)));
     }
 
     /**

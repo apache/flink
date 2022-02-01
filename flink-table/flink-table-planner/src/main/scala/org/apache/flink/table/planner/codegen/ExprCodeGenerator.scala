@@ -50,9 +50,9 @@ import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import scala.collection.JavaConversions._
 
 /**
-  * This code generator is mainly responsible for generating codes for a given calcite [[RexNode]].
-  * It can also generate type conversion codes for the result converter.
-  */
+ * This code generator is mainly responsible for generating codes for a given calcite [[RexNode]].
+ * It can also generate type conversion codes for the result converter.
+ */
 class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   extends RexVisitor[GeneratedExpression] {
 
@@ -810,8 +810,6 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case bsf: BridgingSqlFunction =>
         bsf.getDefinition match {
-          case BuiltInFunctionDefinitions.TRY_CAST =>
-            generateCast(ctx, operands.head, resultType, nullOnFailure = true)
 
           case BuiltInFunctionDefinitions.CURRENT_WATERMARK =>
             generateWatermark(ctx, contextTerm, resultType)

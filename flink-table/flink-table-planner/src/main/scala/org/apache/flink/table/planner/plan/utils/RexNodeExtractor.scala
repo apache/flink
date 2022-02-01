@@ -25,7 +25,7 @@ import org.apache.flink.table.data.conversion.{DayTimeIntervalDurationConverter,
 import org.apache.flink.table.data.util.DataFormatConverters.{LocalDateConverter, LocalTimeConverter}
 import org.apache.flink.table.expressions.ApiExpressionUtils._
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, CAST, OR}
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, CAST, OR, TRY_CAST}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
@@ -41,6 +41,7 @@ import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.sql.{SqlFunction, SqlKind, SqlPostfixOperator}
 import org.apache.calcite.util.{TimestampString, Util}
 import org.apache.flink.table.functions.{BuiltInFunctionDefinition, FunctionIdentifier}
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 
 import java.util
 import java.util.{TimeZone, List => JList}
@@ -506,6 +507,12 @@ class RexNodeToExpressionConverter(
           Option(
             CallExpression.permanent(
               CAST,
+              Seq(operands.head, typeLiteral(outputType)),
+              outputType))
+        case FlinkSqlOperatorTable.TRY_CAST =>
+          Option(
+            CallExpression.permanent(
+              TRY_CAST,
               Seq(operands.head, typeLiteral(outputType)),
               outputType))
         case _: SqlFunction | _: SqlPostfixOperator =>
