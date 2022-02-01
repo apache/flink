@@ -160,7 +160,7 @@ public class CastRuleProvider {
      * Used by {@link CodeGeneratorCastRule}s which checks for nullability, rather than deferring
      * the check to the rules.
      */
-    static @Nullable CastCodeBlock generateAlwaysNonNullCodeBlock(
+    static CastCodeBlock generateAlwaysNonNullCodeBlock(
             CodeGeneratorCastRule.Context context,
             String inputTerm,
             LogicalType inputLogicalType,
@@ -213,7 +213,7 @@ public class CastRuleProvider {
             }
         }
 
-        if (predicate.getCustomPredicate() != null) {
+        if (predicate.getCustomPredicate().isPresent()) {
             rulesWithCustomPredicate.add(rule);
         }
 
@@ -225,7 +225,7 @@ public class CastRuleProvider {
         LogicalType targetType = unwrapDistinct(target);
 
         final Iterator<Object> targetTypeRootFamilyIterator =
-                Stream.<Object>concat(
+                Stream.concat(
                                 Stream.of(targetType),
                                 Stream.<Object>concat(
                                         Stream.of(targetType.getTypeRoot()),
@@ -261,7 +261,8 @@ public class CastRuleProvider {
                         r ->
                                 r.getPredicateDefinition()
                                         .getCustomPredicate()
-                                        .test(inputType, targetType))
+                                        .map(p -> p.test(inputType, targetType))
+                                        .orElse(false))
                 .findFirst()
                 .orElse(null);
     }

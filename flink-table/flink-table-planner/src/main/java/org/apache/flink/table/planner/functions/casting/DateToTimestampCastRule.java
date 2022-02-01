@@ -25,6 +25,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.utils.DateTimeUtils;
 
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.cast;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.operator;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
 /**
@@ -55,7 +56,7 @@ class DateToTimestampCastRule
         if (targetLogicalType.is(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
             return staticCall(
                     BuiltInMethods.TIMESTAMP_FROM_EPOCH_MILLIS(),
-                    cast("long", inputTerm) + "*" + DateTimeUtils.MILLIS_PER_DAY);
+                    operator(cast("long", inputTerm), "*", DateTimeUtils.MILLIS_PER_DAY));
         } else if (targetLogicalType.is(LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)) {
             return staticCall(
                     BuiltInMethods.DATE_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE(),
