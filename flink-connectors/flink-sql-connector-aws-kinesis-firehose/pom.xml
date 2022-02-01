@@ -30,6 +30,10 @@
 	<artifactId>flink-sql-connector-aws-kinesis-firehose</artifactId>
 	<name>Flink : Connectors : SQL : Amazon Kinesis Data Firehose</name>
 
+	<properties>
+		<japicmp.skip>true</japicmp.skip>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>

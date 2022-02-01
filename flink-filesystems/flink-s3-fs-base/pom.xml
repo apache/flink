@@ -32,6 +32,7 @@ under the License.
 
 	<properties>
 		<fs.s3.aws.version>1.11.951</fs.s3.aws.version>
+		<japicmp.skip>true</japicmp.skip>
 	</properties>
 
 	<dependencies>
