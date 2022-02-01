@@ -284,11 +284,11 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def tesInvalidCastBetweenNumericAndTimestampLtz(): Unit = {
-    val castFromTimestampLtzExceptionMsg = "The cast conversion from TIMESTAMP_LTZ type to" +
+    val castFromTimestampLtzExceptionMsg = "The cast from TIMESTAMP_LTZ type to" +
       " NUMERIC type is not allowed."
 
-    val castToTimestampLtzExceptionMsg = "The cast conversion from NUMERIC type to TIMESTAMP_LTZ" +
-      " type is not allowed, it's recommended to use" +
+    val castToTimestampLtzExceptionMsg = "The cast from NUMERIC type to TIMESTAMP_LTZ" +
+      " type is not allowed. It's recommended to use" +
       " TO_TIMESTAMP_LTZ(numeric_col, precision) instead."
 
     // TINYINT -> TIMESTAMP_LTZ
@@ -364,12 +364,12 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def tesInvalidCastBetweenNumericAndTimestamp(): Unit = {
-    val castFromTimestampExceptionMsg = "The cast conversion from TIMESTAMP type to NUMERIC type" +
-      " is not allowed, it's recommended to use" +
+    val castFromTimestampExceptionMsg = "The cast from TIMESTAMP type to NUMERIC type" +
+      " is not allowed. It's recommended to use" +
       " UNIX_TIMESTAMP(CAST(timestamp_col AS STRING)) instead."
 
-    val castToTimestampExceptionMsg = "The cast conversion from NUMERIC type to TIMESTAMP type" +
-      " is not allowed, it's recommended to use TO_TIMESTAMP(FROM_UNIXTIME(numeric_col))" +
+    val castToTimestampExceptionMsg = "The cast from NUMERIC type to TIMESTAMP type" +
+      " is not allowed. It's recommended to use TO_TIMESTAMP(FROM_UNIXTIME(numeric_col))" +
       " instead, note the numeric is in seconds."
 
     testExpectedSqlException(
