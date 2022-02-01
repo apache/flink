@@ -35,6 +35,7 @@ under the License.
 	<properties>
 		<generated.docs.dir>./docs/layouts/shortcodes/generated</generated.docs.dir>
 		<generated.static.dir>./docs/static/generated</generated.static.dir>
+		<japicmp.skip>true</japicmp.skip>
 	</properties>
 
 	<dependencies>

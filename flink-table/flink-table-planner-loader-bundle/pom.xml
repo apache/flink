@@ -35,6 +35,10 @@
 	<packaging>jar</packaging>
 	<description>Intermediate build artifact used by the flink-table-planner-loader.</description>
 
+	<properties>
+		<japicmp.skip>true</japicmp.skip>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
