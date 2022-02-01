@@ -31,6 +31,10 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<properties>
+		<japicmp.skip>true</japicmp.skip>
+	</properties>
+
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
