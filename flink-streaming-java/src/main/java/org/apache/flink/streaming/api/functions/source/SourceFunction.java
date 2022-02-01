@@ -94,7 +94,9 @@ import java.io.Serializable;
  * SourceContext#emitWatermark(Watermark)}.
  *
  * @param <T> The type of the elements produced by this source.
+ * @deprecated You should use {@link org.apache.flink.api.connector.source} instead.
  */
+@Deprecated
 @Public
 public interface SourceFunction<T> extends Function, Serializable {
 

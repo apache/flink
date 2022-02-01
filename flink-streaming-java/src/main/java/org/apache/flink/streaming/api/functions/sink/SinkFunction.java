@@ -27,7 +27,9 @@ import java.io.Serializable;
  * Interface for implementing user defined sink functionality.
  *
  * @param <IN> Input type parameter.
+ * @deprecated You should use {@link org.apache.flink.api.connector.sink2} instead.
  */
+@Deprecated
 @Public
 public interface SinkFunction<IN> extends Function, Serializable {
 
