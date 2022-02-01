@@ -960,7 +960,7 @@ object ScalarOperatorGens {
           targetType
         )
 
-        if (codeGeneratorCastRule.canFail) {
+        if (codeGeneratorCastRule.canFail(inputType, targetType)) {
           val resultTerm = ctx.addReusableLocalVariable(
             primitiveTypeTermForType(targetType),
             "castRuleResult"
