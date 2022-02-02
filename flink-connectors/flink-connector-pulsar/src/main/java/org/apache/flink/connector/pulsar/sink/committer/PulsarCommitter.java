@@ -19,7 +19,7 @@
 package org.apache.flink.connector.pulsar.sink.committer;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.common.utils.PulsarTransactionUtils;
 import org.apache.flink.connector.pulsar.sink.PulsarSink;
@@ -40,12 +40,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
 
-import static java.util.Collections.emptyList;
 import static org.apache.flink.connector.pulsar.common.config.PulsarClientFactory.createClient;
-import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.pulsar.common.naming.TopicName.TRANSACTION_COORDINATOR_ASSIGN;
 
@@ -68,17 +65,12 @@ public class PulsarCommitter implements Committer<PulsarCommittable>, Closeable 
     }
 
     @Override
-    public List<PulsarCommittable> commit(List<PulsarCommittable> committables)
+    public void commit(Collection<CommitRequest<PulsarCommittable>> requests)
             throws IOException, InterruptedException {
-        if (committables == null || committables.isEmpty()) {
-            return emptyList();
-        }
-
         TransactionCoordinatorClient client = transactionCoordinatorClient();
-        List<PulsarCommittable> retryableCommittables = new ArrayList<>();
-        Exception collected = null;
 
-        for (PulsarCommittable committable : committables) {
+        for (CommitRequest<PulsarCommittable> request : requests) {
+            PulsarCommittable committable = request.getCommittable();
             TxnID txnID = committable.getTxnID();
             String topic = committable.getTopic();
 
@@ -94,7 +86,7 @@ public class PulsarCommitter implements Committer<PulsarCommittable>, Closeable 
                                     + "Check your broker configuration.",
                             committable,
                             ex);
-                    collected = firstOrSuppressed(ex, collected);
+                    request.signalFailedWithKnownReason(ex);
                 } else if (ex instanceof InvalidTxnStatusException) {
                     LOG.error(
                             "Unable to commit transaction ({}) because it's in an invalid state. "
@@ -102,13 +94,18 @@ public class PulsarCommitter implements Committer<PulsarCommittable>, Closeable 
                                     + "Please check the Pulsar broker logs for more details.",
                             committable,
                             ex);
+                    request.signalAlreadyCommitted();
                 } else if (ex instanceof TransactionNotFoundException) {
-                    LOG.error(
-                            "Unable to commit transaction ({}) because it's not found on Pulsar broker. "
-                                    + "Most likely the checkpoint interval exceed the transaction timeout.",
-                            committable,
-                            ex);
-                    collected = firstOrSuppressed(ex, collected);
+                    if (request.getNumberOfRetries() == 0) {
+                        LOG.error(
+                                "Unable to commit transaction ({}) because it's not found on Pulsar broker. "
+                                        + "Most likely the checkpoint interval exceed the transaction timeout.",
+                                committable,
+                                ex);
+                        request.signalFailedWithKnownReason(ex);
+                    } else {
+                        request.signalAlreadyCommitted();
+                    }
                 } else if (ex instanceof MetaStoreHandlerNotExistsException) {
                     LOG.error(
                             "We can't find the meta store handler by the mostSigBits from TxnID {}. "
@@ -116,30 +113,32 @@ public class PulsarCommitter implements Committer<PulsarCommittable>, Closeable 
                             committable,
                             TRANSACTION_COORDINATOR_ASSIGN,
                             ex);
-                    collected = firstOrSuppressed(ex, collected);
+                    request.signalFailedWithKnownReason(ex);
                 } else {
                     LOG.error(
                             "Encountered retriable exception while committing transaction {} for topic {}.",
                             committable,
                             topic,
                             ex);
-                    retryableCommittables.add(committable);
+                    int maxRecommitTimes = sinkConfiguration.getMaxRecommitTimes();
+                    if (request.getNumberOfRetries() < maxRecommitTimes) {
+                        request.retryLater();
+                    } else {
+                        String message =
+                                String.format(
+                                        "Failed to commit transaction %s after retrying %d times",
+                                        txnID, maxRecommitTimes);
+                        request.signalFailedWithKnownReason(new FlinkRuntimeException(message, ex));
+                    }
                 }
             } catch (Exception e) {
                 LOG.error(
                         "Transaction ({}) encountered unknown error and data could be potentially lost.",
                         committable,
                         e);
-                collected = firstOrSuppressed(e, collected);
+                request.signalFailedWithUnknownReason(e);
             }
         }
-
-        if (collected != null) {
-            throw new FlinkRuntimeException(
-                    "Some committables were not committed and committing failed with:", collected);
-        }
-
-        return retryableCommittables;
     }
 
     /**

@@ -19,8 +19,8 @@
 package org.apache.flink.connector.pulsar.sink.writer.context;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.sink.Sink.InitContext;
-import org.apache.flink.api.connector.sink.SinkWriter.Context;
+import org.apache.flink.api.connector.sink2.Sink.InitContext;
+import org.apache.flink.api.connector.sink2.SinkWriter.Context;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 
 import javax.annotation.Nullable;

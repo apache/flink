@@ -19,10 +19,8 @@
 package org.apache.flink.connector.pulsar.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.connector.sink.Committer;
-import org.apache.flink.api.connector.sink.GlobalCommitter;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.sink.committer.PulsarCommittable;
 import org.apache.flink.connector.pulsar.sink.committer.PulsarCommittableSerializer;
@@ -37,9 +35,6 @@ import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializat
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicMetadataListener;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.function.SerializableFunction;
-
-import java.util.List;
-import java.util.Optional;
 
 /**
  * The Sink implementation of Pulsar. Please use a {@link PulsarSinkBuilder} to construct a {@link
@@ -79,7 +74,7 @@ import java.util.Optional;
  * @param <IN> The input type of the sink.
  */
 @PublicEvolving
-public class PulsarSink<IN> implements Sink<IN, PulsarCommittable, Void, Void> {
+public class PulsarSink<IN> implements TwoPhaseCommittingSink<IN, PulsarCommittable> {
     private static final long serialVersionUID = 4416714587951282119L;
 
     private final SinkConfiguration sinkConfiguration;
@@ -118,8 +113,7 @@ public class PulsarSink<IN> implements Sink<IN, PulsarCommittable, Void, Void> {
     }
 
     @Override
-    public SinkWriter<IN, PulsarCommittable, Void> createWriter(
-            InitContext initContext, List<Void> recoveredStates) {
+    public PrecommittingSinkWriter<IN, PulsarCommittable> createWriter(InitContext initContext) {
         return new PulsarWriter<>(
                 sinkConfiguration,
                 serializationSchema,
@@ -129,27 +123,12 @@ public class PulsarSink<IN> implements Sink<IN, PulsarCommittable, Void, Void> {
     }
 
     @Override
-    public Optional<SimpleVersionedSerializer<Void>> getWriterStateSerializer() {
-        return Optional.empty();
+    public Committer<PulsarCommittable> createCommitter() {
+        return new PulsarCommitter(sinkConfiguration);
     }
 
     @Override
-    public Optional<Committer<PulsarCommittable>> createCommitter() {
-        return Optional.of(new PulsarCommitter(sinkConfiguration));
-    }
-
-    @Override
-    public Optional<SimpleVersionedSerializer<PulsarCommittable>> getCommittableSerializer() {
-        return Optional.of(new PulsarCommittableSerializer());
-    }
-
-    @Override
-    public Optional<GlobalCommitter<PulsarCommittable, Void>> createGlobalCommitter() {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<SimpleVersionedSerializer<Void>> getGlobalCommittableSerializer() {
-        return Optional.empty();
+    public SimpleVersionedSerializer<PulsarCommittable> getCommittableSerializer() {
+        return new PulsarCommittableSerializer();
     }
 }

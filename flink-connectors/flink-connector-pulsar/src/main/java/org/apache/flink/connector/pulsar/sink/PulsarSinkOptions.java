@@ -119,6 +119,14 @@ public final class PulsarSinkOptions {
                                             code("Schema"))
                                     .build());
 
+    public static final ConfigOption<Integer> PULSAR_MAX_RECOMMIT_TIMES =
+            ConfigOptions.key(SINK_CONFIG_PREFIX + "maxRecommitTimes")
+                    .intType()
+                    .defaultValue(5)
+                    .withDescription(
+                            "The allowed transaction recommit times if we meet some retryable exception."
+                                    + " This is used in Pulsar Transaction.");
+
     ///////////////////////////////////////////////////////////////////////////////
     //
     // The configuration for ProducerConfigurationData part.

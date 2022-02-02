@@ -30,13 +30,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
 
-/**
- * A suit of workarounds for the Pulsar Transaction. We couldn't create the {@link Transaction}
- * directly from {@link PulsarClient#newTransaction()}, because it would add the transaction into a
- * netty timer which couldn't be GC before the transaction timeout. Since we have a proper
- * management on flink for the transaction, we have to fix this issue before Pulsar release a new
- * version.
- */
+/** A suit of workarounds for the Pulsar Transaction. */
 public final class PulsarTransactionUtils {
 
     private PulsarTransactionUtils() {

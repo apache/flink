@@ -19,7 +19,7 @@
 package org.apache.flink.connector.pulsar.sink.writer.topic;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.sink.Sink.ProcessingTimeService;
+import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Objects;
@@ -147,8 +147,7 @@ public class TopicMetadataListener implements Serializable, Closeable {
         // Register next timer.
         long currentProcessingTime = timeService.getCurrentProcessingTime();
         long triggerTime = currentProcessingTime + topicMetadataRefreshInterval;
-        timeService.registerProcessingTimer(
-                triggerTime, time -> triggerNextTopicMetadataUpdate(false));
+        timeService.registerTimer(triggerTime, time -> triggerNextTopicMetadataUpdate(false));
     }
 
     private void updateTopicMetadata() throws PulsarAdminException {

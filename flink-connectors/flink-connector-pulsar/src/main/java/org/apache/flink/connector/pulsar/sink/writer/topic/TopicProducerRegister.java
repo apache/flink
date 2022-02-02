@@ -124,7 +124,7 @@ public class TopicProducerRegister implements Closeable {
     }
 
     /** Clean these transactions. All transactions should be passed to Pulsar committer. */
-    public void clearTransactions() {
+    private void clearTransactions() {
         // Clear the transactions, we would create new transaction when new message comes.
         transactionRegister.clear();
     }

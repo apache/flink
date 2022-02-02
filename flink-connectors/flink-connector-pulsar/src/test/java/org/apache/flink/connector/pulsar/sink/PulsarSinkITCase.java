@@ -21,6 +21,7 @@ package org.apache.flink.connector.pulsar.sink;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestSuiteBase;
+import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime;
 import org.apache.flink.connector.pulsar.testutils.source.ControlSource;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -42,6 +43,11 @@ class PulsarSinkITCase extends PulsarTestSuiteBase {
 
     // Using this extension for creating shared reference which would be used in source function.
     @RegisterExtension final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
+
+    @Override
+    protected PulsarRuntime runtime() {
+        return PulsarRuntime.container();
+    }
 
     @Test
     void writeRecordsToPulsarWithAtLeastOnceGuarantee() throws Exception {

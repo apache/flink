@@ -32,6 +32,7 @@ import java.util.Objects;
 
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_BATCHING_MAX_MESSAGES;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
+import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_MAX_RECOMMIT_TIMES;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_MESSAGE_KEY_HASH;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_TOPIC_METADATA_REFRESH_INTERVAL;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WRITE_DELIVERY_GUARANTEE;
@@ -50,6 +51,7 @@ public class SinkConfiguration extends PulsarConfiguration {
     private final MessageKeyHash messageKeyHash;
     private final boolean enableSchemaEvolution;
     private final int maxPendingMessages;
+    private final int maxRecommitTimes;
 
     public SinkConfiguration(Configuration configuration) {
         super(configuration);
@@ -61,6 +63,7 @@ public class SinkConfiguration extends PulsarConfiguration {
         this.messageKeyHash = get(PULSAR_MESSAGE_KEY_HASH);
         this.enableSchemaEvolution = get(PULSAR_WRITE_SCHEMA_EVOLUTION);
         this.maxPendingMessages = get(PULSAR_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS);
+        this.maxRecommitTimes = get(PULSAR_MAX_RECOMMIT_TIMES);
     }
 
     /** The delivery guarantee changes the behavior of {@link PulsarWriter}. */
@@ -108,6 +111,11 @@ public class SinkConfiguration extends PulsarConfiguration {
         return maxPendingMessages;
     }
 
+    /** The maximum allowed recommit time for Pulsar transaction. */
+    public int getMaxRecommitTimes() {
+        return maxRecommitTimes;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -125,7 +133,8 @@ public class SinkConfiguration extends PulsarConfiguration {
                 && partitionSwitchSize == that.partitionSwitchSize
                 && enableSchemaEvolution == that.enableSchemaEvolution
                 && messageKeyHash == that.messageKeyHash
-                && maxPendingMessages == that.maxPendingMessages;
+                && maxPendingMessages == that.maxPendingMessages
+                && maxRecommitTimes == that.maxRecommitTimes;
     }
 
     @Override
@@ -137,6 +146,7 @@ public class SinkConfiguration extends PulsarConfiguration {
                 partitionSwitchSize,
                 messageKeyHash,
                 enableSchemaEvolution,
-                maxPendingMessages);
+                maxPendingMessages,
+                maxRecommitTimes);
     }
 }

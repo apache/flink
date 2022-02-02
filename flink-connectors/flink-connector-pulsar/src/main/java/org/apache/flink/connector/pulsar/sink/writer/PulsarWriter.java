@@ -19,10 +19,10 @@
 package org.apache.flink.connector.pulsar.sink.writer;
 
 import org.apache.flink.api.common.operators.MailboxExecutor;
-import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.connector.sink.Sink.InitContext;
-import org.apache.flink.api.connector.sink.Sink.ProcessingTimeService;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.common.operators.ProcessingTimeService;
+import org.apache.flink.api.common.serialization.SerializationSchema.InitializationContext;
+import org.apache.flink.api.connector.sink2.Sink.InitContext;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink.PrecommittingSinkWriter;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.sink.committer.PulsarCommittable;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
@@ -31,7 +31,6 @@ import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContextAd
 import org.apache.flink.connector.pulsar.sink.writer.message.RawMessage;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
-import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchemaInitializationContext;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicMetadataListener;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicProducerRegister;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -45,6 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
@@ -58,7 +58,7 @@ import static org.apache.flink.util.IOUtils.closeAll;
  *
  * @param <IN> The type of the input elements.
  */
-public class PulsarWriter<IN> implements SinkWriter<IN, PulsarCommittable, Void> {
+public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommittable> {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarWriter.class);
 
     private final SinkConfiguration sinkConfiguration;
@@ -75,8 +75,8 @@ public class PulsarWriter<IN> implements SinkWriter<IN, PulsarCommittable, Void>
      * Constructor creating a Pulsar writer.
      *
      * <p>It will throw a {@link RuntimeException} if {@link
-     * PulsarSerializationSchema#open(SerializationSchema.InitializationContext, PulsarSinkContext,
-     * SinkConfiguration)} fails.
+     * PulsarSerializationSchema#open(InitializationContext, PulsarSinkContext, SinkConfiguration)}
+     * fails.
      *
      * @param sinkConfiguration the configuration to configure the Pulsar producer.
      * @param serializationSchema serialize to transform the incoming records to {@link RawMessage}.
@@ -107,9 +107,9 @@ public class PulsarWriter<IN> implements SinkWriter<IN, PulsarCommittable, Void>
         topicRouter.open(sinkConfiguration);
 
         // Initialize the serialization schema.
-        PulsarSerializationSchemaInitializationContext initializationContext =
-                new PulsarSerializationSchemaInitializationContext(initContext);
         try {
+            InitializationContext initializationContext =
+                    initContext.asSerializationSchemaInitializationContext();
             serializationSchema.open(initializationContext, sinkContextAdapter, sinkConfiguration);
         } catch (Exception e) {
             throw new FlinkRuntimeException("Cannot initialize schema.", e);
@@ -177,30 +177,22 @@ public class PulsarWriter<IN> implements SinkWriter<IN, PulsarCommittable, Void>
     }
 
     @Override
-    public List<PulsarCommittable> prepareCommit(boolean flush) throws IOException {
-        if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE || flush) {
-            while (pendingMessages.availablePermits() < sinkConfiguration.getMaxPendingMessages()) {
-                producerRegister.flush();
-            }
-        }
-
-        if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
-            return producerRegister.prepareCommit();
-        } else {
-            return emptyList();
+    public void flush(boolean endOfInput) throws IOException {
+        while (pendingMessages.availablePermits() < sinkConfiguration.getMaxPendingMessages()) {
+            producerRegister.flush();
         }
     }
 
     @Override
-    public List<Void> snapshotState(long checkpointId) throws IOException {
+    public Collection<PulsarCommittable> prepareCommit() throws IOException {
         if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
             while (pendingMessages.availablePermits() < sinkConfiguration.getMaxPendingMessages()) {
                 producerRegister.flush();
             }
-            // Remove all the transactions. These transactions have been recorded in prepareCommit.
-            producerRegister.clearTransactions();
+            return producerRegister.prepareCommit();
+        } else {
+            return emptyList();
         }
-        return emptyList();
     }
 
     @Override
