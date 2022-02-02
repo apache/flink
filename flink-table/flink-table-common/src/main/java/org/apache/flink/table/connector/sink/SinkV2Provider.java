@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.connector.sink;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.data.RowData;
@@ -32,6 +33,7 @@ import java.util.Optional;
  * <p>{@code DataStreamSinkProvider} in {@code flink-table-api-java-bridge} is available for
  * advanced connector developers.
  */
+@PublicEvolving
 public interface SinkV2Provider extends DynamicTableSink.SinkRuntimeProvider, ParallelismProvider {
 
     /** Helper method for creating a static provider. */

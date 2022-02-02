@@ -20,7 +20,7 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
@@ -53,7 +53,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -464,9 +464,9 @@ public class KafkaDynamicTableFactoryTest {
         final KafkaDynamicSink actualKafkaSink = (KafkaDynamicSink) actualSink;
         DynamicTableSink.SinkRuntimeProvider provider =
                 actualKafkaSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        assertThat(provider).isInstanceOf(SinkProvider.class);
-        final SinkProvider sinkProvider = (SinkProvider) provider;
-        final Sink<RowData, ?, ?, ?> sinkFunction = sinkProvider.createSink();
+        assertThat(provider).isInstanceOf(SinkV2Provider.class);
+        final SinkV2Provider sinkProvider = (SinkV2Provider) provider;
+        final Sink<RowData> sinkFunction = sinkProvider.createSink();
         assertThat(sinkFunction).isInstanceOf(KafkaSink.class);
     }
 
@@ -573,8 +573,8 @@ public class KafkaDynamicTableFactoryTest {
 
         final DynamicTableSink.SinkRuntimeProvider provider =
                 actualSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        assertThat(provider).isInstanceOf(SinkProvider.class);
-        final SinkProvider sinkProvider = (SinkProvider) provider;
+        assertThat(provider).isInstanceOf(SinkV2Provider.class);
+        final SinkV2Provider sinkProvider = (SinkV2Provider) provider;
         assertThat(sinkProvider.getParallelism().isPresent()).isTrue();
         assertThat((long) sinkProvider.getParallelism().get()).isEqualTo(100);
     }
