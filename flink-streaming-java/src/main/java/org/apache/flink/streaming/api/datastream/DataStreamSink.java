@@ -64,7 +64,8 @@ public class DataStreamSink<T> {
         return new DataStreamSink<>(transformation);
     }
 
-    static <T> DataStreamSink<T> forSink(DataStream<T> inputStream, Sink<T> sink) {
+    @Internal
+    public static <T> DataStreamSink<T> forSink(DataStream<T> inputStream, Sink<T> sink) {
         final StreamExecutionEnvironment executionEnvironment =
                 inputStream.getExecutionEnvironment();
         SinkTransformation<T, T> transformation =
