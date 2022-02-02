@@ -105,4 +105,8 @@ public class CommitRequestImpl<CommT> implements Committer.CommitRequest<CommT> 
             state = CommitRequestState.COMMITTED;
         }
     }
+
+    CommitRequestImpl<CommT> copy() {
+        return new CommitRequestImpl<>(committable, numRetries, state);
+    }
 }

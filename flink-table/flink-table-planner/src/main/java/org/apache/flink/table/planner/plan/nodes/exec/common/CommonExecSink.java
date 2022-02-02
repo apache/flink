@@ -24,6 +24,7 @@ import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -31,7 +32,6 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
-import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
@@ -470,13 +470,16 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                     sinkDescription,
                     sinkParallelism);
         } else if (runtimeProvider instanceof SinkProvider) {
-            Transformation<?> transformation =
-                    new SinkTransformation<>(
-                            applyRowtimeTransformation(
-                                    inputTransform, rowtimeFieldIndex, sinkParallelism, config),
-                            ((SinkProvider) runtimeProvider).createSink(),
-                            sinkName,
-                            sinkParallelism);
+            Transformation<RowData> sinkTransformation =
+                    applyRowtimeTransformation(
+                            inputTransform, rowtimeFieldIndex, sinkParallelism, config);
+            final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
+            final Transformation<?> transformation =
+                    DataStreamSink.forSinkV1(
+                                    dataStream, ((SinkProvider) runtimeProvider).createSink())
+                            .getTransformation();
+            transformation.setParallelism(sinkParallelism);
+            transformation.setName(sinkName);
             transformation.setDescription(sinkDescription);
             return transformation;
         } else {

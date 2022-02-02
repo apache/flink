@@ -19,62 +19,62 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
-import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
+import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link org.apache.flink.streaming.api.operators.StreamOperatorFactory} for {@link
- * CommitterOperator}.
+ * SinkWriterOperator}.
  *
- * @param <CommT> the type of the committable
+ * @param <InputT> The input type of the {@link SinkWriter}.
+ * @param <CommT> The committable type of the {@link SinkWriter}.
  */
 @Internal
-public final class CommitterOperatorFactory<CommT>
+public final class SinkWriterOperatorFactory<InputT, CommT>
         extends AbstractStreamOperatorFactory<CommittableMessage<CommT>>
-        implements OneInputStreamOperatorFactory<
-                CommittableMessage<CommT>, CommittableMessage<CommT>> {
+        implements OneInputStreamOperatorFactory<InputT, CommittableMessage<CommT>>,
+                YieldingOperatorFactory<CommittableMessage<CommT>> {
 
-    private final TwoPhaseCommittingSink<?, CommT> sink;
+    private final Sink<InputT> sink;
 
-    public CommitterOperatorFactory(TwoPhaseCommittingSink<?, CommT> sink) {
+    public SinkWriterOperatorFactory(Sink<InputT> sink) {
         this.sink = checkNotNull(sink);
     }
 
-    @Override
-    @SuppressWarnings("unchecked")
     public <T extends StreamOperator<CommittableMessage<CommT>>> T createStreamOperator(
             StreamOperatorParameters<CommittableMessage<CommT>> parameters) {
-
         try {
-            final CommitterOperator<CommT> committerOperator =
-                    new CommitterOperator<>(
-                            processingTimeService,
-                            sink.getCommittableSerializer(),
-                            sink.createCommitter(),
-                            sink instanceof WithPostCommitTopology);
-            committerOperator.setup(
+            final SinkWriterOperator<InputT, CommT> writerOperator =
+                    new SinkWriterOperator<>(sink, processingTimeService, getMailboxExecutor());
+            writerOperator.setup(
                     parameters.getContainingTask(),
                     parameters.getStreamConfig(),
                     parameters.getOutput());
-            return (T) committerOperator;
+            return (T) writerOperator;
         } catch (Exception e) {
             throw new IllegalStateException(
-                    "Cannot create commit operator for "
+                    "Cannot create sink operator for "
                             + parameters.getStreamConfig().getOperatorName(),
                     e);
         }
     }
 
     @Override
-    @SuppressWarnings("rawtypes")
     public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-        return CommitterOperator.class;
+        return SinkWriterOperator.class;
+    }
+
+    @VisibleForTesting
+    public Sink<InputT> getSink() {
+        return sink;
     }
 }

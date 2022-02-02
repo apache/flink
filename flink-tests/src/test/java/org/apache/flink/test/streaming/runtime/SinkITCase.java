@@ -26,6 +26,7 @@ import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.Serializable;
@@ -114,6 +115,7 @@ public class SinkITCase extends AbstractTestBase {
         GLOBAL_COMMIT_QUEUE.clear();
     }
 
+    @Ignore("FLINK-25726")
     @Test
     public void writerAndCommitterAndGlobalCommitterExecuteInStreamingMode() throws Exception {
         final StreamExecutionEnvironment env = buildStreamEnv();
@@ -148,6 +150,7 @@ public class SinkITCase extends AbstractTestBase {
                 containsInAnyOrder(EXPECTED_GLOBAL_COMMITTED_DATA_IN_STREAMING_MODE.toArray()));
     }
 
+    @Ignore("FLINK-25726")
     @Test
     public void writerAndCommitterAndGlobalCommitterExecuteInBatchMode() throws Exception {
         final StreamExecutionEnvironment env = buildBatchEnv();
@@ -205,6 +208,7 @@ public class SinkITCase extends AbstractTestBase {
                 COMMIT_QUEUE, containsInAnyOrder(EXPECTED_COMMITTED_DATA_IN_BATCH_MODE.toArray()));
     }
 
+    @Ignore("FLINK-25726")
     @Test
     public void writerAndGlobalCommitterExecuteInStreamingMode() throws Exception {
         final StreamExecutionEnvironment env = buildStreamEnv();
@@ -235,6 +239,7 @@ public class SinkITCase extends AbstractTestBase {
                 containsInAnyOrder(EXPECTED_GLOBAL_COMMITTED_DATA_IN_STREAMING_MODE.toArray()));
     }
 
+    @Ignore("FLINK-25726")
     @Test
     public void writerAndGlobalCommitterExecuteInBatchMode() throws Exception {
         final StreamExecutionEnvironment env = buildBatchEnv();

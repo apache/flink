@@ -33,9 +33,10 @@ import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroSer
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.transformations.SinkV1Adapter;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
-import org.apache.flink.streaming.runtime.operators.sink.SinkOperatorFactory;
+import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
@@ -241,16 +242,19 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         sinkProvider.consumeDataStream(env.fromElements(new BinaryRowData(1)));
         final StreamOperatorFactory<?> sinkOperatorFactory =
                 env.getStreamGraph().getStreamNodes().stream()
-                        .filter(n -> n.getOperatorName().contains("Sink"))
+                        .filter(n -> n.getOperatorName().contains("Writer"))
                         .findFirst()
                         .orElseThrow(
                                 () ->
                                         new RuntimeException(
                                                 "Expected operator with name Sink in stream graph."))
                         .getOperatorFactory();
-        assertThat(sinkOperatorFactory, instanceOf(SinkOperatorFactory.class));
+        assertThat(sinkOperatorFactory, instanceOf(SinkWriterOperatorFactory.class));
+        org.apache.flink.api.connector.sink2.Sink sink =
+                ((SinkWriterOperatorFactory) sinkOperatorFactory).getSink();
+        assertThat(sink, instanceOf(SinkV1Adapter.PlainSinkAdapter.class));
         assertThat(
-                ((SinkOperatorFactory) sinkOperatorFactory).getSink(),
+                ((SinkV1Adapter.PlainSinkAdapter) sink).getSink(),
                 instanceOf(ReducingUpsertSink.class));
     }
 

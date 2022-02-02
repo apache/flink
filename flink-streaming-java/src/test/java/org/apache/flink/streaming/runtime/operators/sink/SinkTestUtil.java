@@ -18,6 +18,9 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.core.io.SimpleVersionedSerialization;
+import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
+import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
+import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -26,6 +29,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 class SinkTestUtil {
     static StreamRecord<byte[]> committableRecord(String element) {
@@ -57,13 +62,14 @@ class SinkTestUtil {
         return elements.stream().map(SinkTestUtil::fromRecord).collect(Collectors.toList());
     }
 
+    @SuppressWarnings("unchecked")
     static List<StreamElement> fromOutput(Collection<Object> elements) {
         return elements.stream()
                 .map(
                         element -> {
                             if (element instanceof StreamRecord) {
                                 return new StreamRecord<>(
-                                        fromRecord((StreamRecord<byte[]>) element));
+                                        ((StreamRecord<CommittableMessage<?>>) element).getValue());
                             }
                             return (StreamElement) element;
                         })
@@ -81,5 +87,17 @@ class SinkTestUtil {
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    public static CommittableSummary<?> toCommittableSummary(StreamElement element) {
+        final Object value = element.asRecord().getValue();
+        assertThat(value).isInstanceOf(CommittableSummary.class);
+        return (CommittableSummary<?>) value;
+    }
+
+    public static CommittableWithLineage<?> toCommittableWithLinage(StreamElement element) {
+        final Object value = element.asRecord().getValue();
+        assertThat(value).isInstanceOf(CommittableWithLineage.class);
+        return (CommittableWithLineage<?>) value;
     }
 }

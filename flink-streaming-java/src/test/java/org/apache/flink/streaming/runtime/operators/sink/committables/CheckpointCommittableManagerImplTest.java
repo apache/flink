@@ -50,19 +50,6 @@ class CheckpointCommittableManagerImplTest {
                             assertThat(s.getNumFailed()).isEqualTo(0);
                         });
 
-        // Update same subtask id
-        final CommittableSummary<Integer> second = new CommittableSummary<>(1, 1, 2L, 2, 1, 1);
-        checkpointCommittables.upsertSummary(second);
-        assertThat(checkpointCommittables.getSubtaskCommittableManagers())
-                .hasSize(1)
-                .satisfiesExactly(
-                        (s) -> {
-                            assertThat(s.getSubtaskId()).isEqualTo(2);
-                            assertThat(s.getCheckpointId()).isEqualTo(1L);
-                            assertThat(s.getNumPending()).isEqualTo(2);
-                            assertThat(s.getNumFailed()).isEqualTo(0);
-                        });
-
         // Add different subtask id
         final CommittableSummary<Integer> third = new CommittableSummary<>(2, 1, 2L, 2, 1, 1);
         checkpointCommittables.upsertSummary(third);
