@@ -357,8 +357,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                                                         artifactFilePath.getName()));
                                         filesToUpload.add(
                                                 new FileUpload(
-                                                        Paths.get(
-                                                                artifactFilePath.getPath()),
+                                                        Paths.get(artifactFilePath.getPath()),
                                                         RestConstants.CONTENT_TYPE_BINARY));
                                     }
                                 } catch (IOException e) {
