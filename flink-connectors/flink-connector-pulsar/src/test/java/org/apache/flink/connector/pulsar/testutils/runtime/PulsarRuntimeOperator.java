@@ -66,7 +66,6 @@ import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULS
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyAdmin;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyThrow;
-import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.isPartitioned;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicName;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicNameWithPartition;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -87,8 +86,8 @@ public class PulsarRuntimeOperator implements Closeable {
     private final String adminUrl;
     private final PulsarClient client;
     private final PulsarAdmin admin;
-    private final ConcurrentHashMap<String, Producer<?>> producers;
-    private final ConcurrentHashMap<String, Consumer<?>> consumers;
+    private final ConcurrentHashMap<String, ConcurrentHashMap<Integer, Producer<?>>> producers;
+    private final ConcurrentHashMap<String, ConcurrentHashMap<Integer, Consumer<?>>> consumers;
 
     public PulsarRuntimeOperator(String serviceUrl, String adminUrl) {
         this(serviceUrl, serviceUrl, adminUrl, adminUrl);
@@ -192,15 +191,11 @@ public class PulsarRuntimeOperator implements Closeable {
      * @param topic The topic name.
      */
     public void deleteTopic(String topic) {
-        if (isPartitioned(topic)) {
-            String topicName = topicName(topic);
-            sneakyAdmin(() -> admin().topics().deletePartitionedTopic(topicName));
-            return;
-        }
-
+        String topicName = topicName(topic);
         PartitionedTopicMetadata metadata;
+
         try {
-            metadata = admin().topics().getPartitionedTopicMetadata(topic);
+            metadata = admin().topics().getPartitionedTopicMetadata(topicName);
         } catch (NotFoundException e) {
             // This topic doesn't exist. Just skip deletion.
             return;
@@ -209,10 +204,12 @@ public class PulsarRuntimeOperator implements Closeable {
             return;
         }
 
+        removeConsumers(topic);
+        removeProducers(topic);
         if (metadata.partitions <= 0) {
-            sneakyAdmin(() -> admin().topics().delete(topic));
+            sneakyAdmin(() -> admin().topics().delete(topicName));
         } else {
-            sneakyAdmin(() -> admin().topics().deletePartitionedTopic(topic));
+            sneakyAdmin(() -> admin().topics().deletePartitionedTopic(topicName));
         }
     }
 
@@ -476,10 +473,16 @@ public class PulsarRuntimeOperator implements Closeable {
     @SuppressWarnings("unchecked")
     private <T> Producer<T> createProducer(String topic, Schema<T> schema)
             throws PulsarClientException {
+        TopicName topicName = TopicName.get(topic);
+        String name = topicName.getPartitionedTopicName();
+        int index = topicName.getPartitionIndex();
+        ConcurrentHashMap<Integer, Producer<?>> topicProducers =
+                producers.computeIfAbsent(name, d -> new ConcurrentHashMap<>());
+
         return (Producer<T>)
-                producers.computeIfAbsent(
-                        topic,
-                        t -> {
+                topicProducers.computeIfAbsent(
+                        index,
+                        i -> {
                             try {
                                 return client().newProducer(schema).topic(topic).create();
                             } catch (PulsarClientException e) {
@@ -492,10 +495,16 @@ public class PulsarRuntimeOperator implements Closeable {
     @SuppressWarnings("unchecked")
     private <T> Consumer<T> createConsumer(String topic, Schema<T> schema)
             throws PulsarClientException {
+        TopicName topicName = TopicName.get(topic);
+        String name = topicName.getPartitionedTopicName();
+        int index = topicName.getPartitionIndex();
+        ConcurrentHashMap<Integer, Consumer<?>> topicConsumers =
+                consumers.computeIfAbsent(name, d -> new ConcurrentHashMap<>());
+
         return (Consumer<T>)
-                consumers.computeIfAbsent(
-                        topic,
-                        t -> {
+                topicConsumers.computeIfAbsent(
+                        index,
+                        i -> {
                             try {
                                 return client().newConsumer(schema)
                                         .topic(topic)
@@ -510,6 +519,34 @@ public class PulsarRuntimeOperator implements Closeable {
                                 return null;
                             }
                         });
+    }
+
+    private void removeProducers(String topic) {
+        String topicName = topicName(topic);
+        ConcurrentHashMap<Integer, Producer<?>> integerProducers = producers.remove(topicName);
+        if (integerProducers != null) {
+            for (Producer<?> producer : integerProducers.values()) {
+                try {
+                    producer.close();
+                } catch (PulsarClientException e) {
+                    sneakyThrow(e);
+                }
+            }
+        }
+    }
+
+    private void removeConsumers(String topic) {
+        String topicName = topicName(topic);
+        ConcurrentHashMap<Integer, Consumer<?>> integerConsumers = consumers.remove(topicName);
+        if (integerConsumers != null) {
+            for (Consumer<?> consumer : integerConsumers.values()) {
+                try {
+                    consumer.close();
+                } catch (PulsarClientException e) {
+                    sneakyThrow(e);
+                }
+            }
+        }
     }
 
     private <T> Message<T> drainOneMessage(Consumer<T> consumer) throws PulsarClientException {

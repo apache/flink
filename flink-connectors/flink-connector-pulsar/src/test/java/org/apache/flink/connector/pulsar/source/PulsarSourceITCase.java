@@ -38,7 +38,7 @@ class PulsarSourceITCase extends SourceTestSuiteBase<String> {
 
     // Defines pulsar running environment
     @TestExternalSystem
-    PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.mock());
+    PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.embedded());
 
     // Defines an external context Factories,
     // so test cases will be invoked using this external contexts.

@@ -21,7 +21,6 @@ package org.apache.flink.connector.pulsar.testutils.runtime;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime;
 import org.apache.flink.connector.pulsar.testutils.runtime.embedded.PulsarEmbeddedRuntime;
-import org.apache.flink.connector.pulsar.testutils.runtime.mock.PulsarMockRuntime;
 
 import org.testcontainers.containers.GenericContainer;
 
@@ -42,14 +41,6 @@ public interface PulsarRuntime {
      * extremely useful methods for Pulsar. You can easily add new methods in this operator.
      */
     PulsarRuntimeOperator operator();
-
-    /**
-     * Create a mocked Pulsar instance. The backend zookeeper and bookkeeper would be mocked. This
-     * runtime is only used for lightweight test purpose. And Pulsar transaction is not supported.
-     */
-    static PulsarRuntime mock() {
-        return new PulsarMockRuntime();
-    }
 
     /**
      * Create a standalone Pulsar instance in test thread. We would start a embedded zookeeper and
