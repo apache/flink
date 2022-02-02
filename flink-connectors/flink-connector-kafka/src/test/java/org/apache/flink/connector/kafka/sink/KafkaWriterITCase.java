@@ -18,9 +18,10 @@
 package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.metrics.Counter;
@@ -55,12 +56,14 @@ import org.testcontainers.containers.Network;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.PriorityQueue;
 import java.util.Properties;
+import java.util.concurrent.ScheduledFuture;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.connector.kafka.testutils.KafkaUtil.createKafkaContainer;
@@ -167,9 +170,9 @@ public class KafkaWriterITCase extends TestLogger {
                                     writer.write(1, SINK_WRITER_CONTEXT);
                                     // Manually flush the records to generate a sendTime
                                     if (run % 10 == 0) {
-                                        writer.prepareCommit(false);
+                                        writer.flush(false);
                                     }
-                                } catch (IOException e) {
+                                } catch (IOException | InterruptedException e) {
                                     throw new RuntimeException("Failed writing Kafka record.");
                                 }
                             });
@@ -185,9 +188,11 @@ public class KafkaWriterITCase extends TestLogger {
                         getKafkaClientConfiguration(), DeliveryGuarantee.EXACTLY_ONCE);
 
         // create two lingering transactions
-        failedWriter.prepareCommit(false);
+        failedWriter.flush(false);
+        failedWriter.prepareCommit();
         failedWriter.snapshotState(1);
-        failedWriter.prepareCommit(false);
+        failedWriter.flush(false);
+        failedWriter.prepareCommit();
         failedWriter.snapshotState(2);
 
         try (final KafkaWriter<Integer> recoveredWriter =
@@ -195,12 +200,14 @@ public class KafkaWriterITCase extends TestLogger {
                         getKafkaClientConfiguration(), DeliveryGuarantee.EXACTLY_ONCE)) {
             recoveredWriter.write(1, SINK_WRITER_CONTEXT);
 
-            List<KafkaCommittable> committables = recoveredWriter.prepareCommit(false);
+            recoveredWriter.flush(false);
+            Collection<KafkaCommittable> committables = recoveredWriter.prepareCommit();
             recoveredWriter.snapshotState(1);
             assertThat(committables, hasSize(1));
-            assertThat(committables.get(0).getProducer().isPresent(), equalTo(true));
+            final KafkaCommittable committable = committables.stream().findFirst().get();
+            assertThat(committable.getProducer().isPresent(), equalTo(true));
 
-            committables.get(0).getProducer().get().getObject().commitTransaction();
+            committable.getProducer().get().getObject().commitTransaction();
 
             List<ConsumerRecord<byte[], byte[]>> records =
                     drainAllRecordsFromTopic(topic, getKafkaClientConfiguration(), true);
@@ -222,7 +229,8 @@ public class KafkaWriterITCase extends TestLogger {
             assertThat(writer.getProducerPool(), hasSize(0));
 
             FlinkKafkaInternalProducer<byte[], byte[]> firstProducer = writer.getCurrentProducer();
-            List<KafkaCommittable> committables = writer.prepareCommit(false);
+            writer.flush(false);
+            Collection<KafkaCommittable> committables = writer.prepareCommit();
             writer.snapshotState(0);
             assertThat(committables, hasSize(0));
 
@@ -242,13 +250,15 @@ public class KafkaWriterITCase extends TestLogger {
                         getKafkaClientConfiguration(), DeliveryGuarantee.EXACTLY_ONCE)) {
             assertThat(writer.getProducerPool(), hasSize(0));
 
-            List<KafkaCommittable> committables0 = writer.prepareCommit(false);
+            writer.flush(false);
+            Collection<KafkaCommittable> committables0 = writer.prepareCommit();
             writer.snapshotState(1);
             assertThat(committables0, hasSize(1));
-            assertThat(committables0.get(0).getProducer().isPresent(), equalTo(true));
+            final KafkaCommittable committable = committables0.stream().findFirst().get();
+            assertThat(committable.getProducer().isPresent(), equalTo(true));
 
             FlinkKafkaInternalProducer<?, ?> firstProducer =
-                    committables0.get(0).getProducer().get().getObject();
+                    committable.getProducer().get().getObject();
             assertThat(
                     "Expected different producer",
                     firstProducer,
@@ -257,13 +267,15 @@ public class KafkaWriterITCase extends TestLogger {
             // recycle first producer, KafkaCommitter would commit it and then return it
             assertThat(writer.getProducerPool(), hasSize(0));
             firstProducer.commitTransaction();
-            committables0.get(0).getProducer().get().close();
+            committable.getProducer().get().close();
             assertThat(writer.getProducerPool(), hasSize(1));
 
-            List<KafkaCommittable> committables1 = writer.prepareCommit(false);
+            writer.flush(false);
+            Collection<KafkaCommittable> committables1 = writer.prepareCommit();
             writer.snapshotState(2);
             assertThat(committables1, hasSize(1));
-            assertThat(committables1.get(0).getProducer().isPresent(), equalTo(true));
+            final KafkaCommittable committable1 = committables1.stream().findFirst().get();
+            assertThat(committable1.getProducer().isPresent(), equalTo(true));
 
             assertThat(
                     "Expected recycled producer",
@@ -288,16 +300,17 @@ public class KafkaWriterITCase extends TestLogger {
         try (final KafkaWriter<Integer> writer =
                 createWriterWithConfiguration(properties, DeliveryGuarantee.EXACTLY_ONCE)) {
             writer.write(2, SINK_WRITER_CONTEXT);
-            List<KafkaCommittable> committables = writer.prepareCommit(false);
+            writer.flush(false);
+            Collection<KafkaCommittable> committables = writer.prepareCommit();
             writer.snapshotState(1L);
 
             // manually commit here, which would only succeed if the first transaction was aborted
             assertThat(committables, hasSize(1));
-            String transactionalId = committables.get(0).getTransactionalId();
+            final KafkaCommittable committable = committables.stream().findFirst().get();
+            String transactionalId = committable.getTransactionalId();
             try (FlinkKafkaInternalProducer<byte[], byte[]> producer =
                     new FlinkKafkaInternalProducer<>(properties, transactionalId)) {
-                producer.resumeTransaction(
-                        committables.get(0).getProducerId(), committables.get(0).getEpoch());
+                producer.resumeTransaction(committable.getProducerId(), committable.getEpoch());
                 producer.commitTransaction();
             }
 
@@ -352,9 +365,9 @@ public class KafkaWriterITCase extends TestLogger {
     private static class SinkInitContext implements Sink.InitContext {
 
         private final SinkWriterMetricGroup metricGroup;
-        private final Sink.ProcessingTimeService timeService;
+        private final ProcessingTimeService timeService;
 
-        SinkInitContext(SinkWriterMetricGroup metricGroup, Sink.ProcessingTimeService timeService) {
+        SinkInitContext(SinkWriterMetricGroup metricGroup, ProcessingTimeService timeService) {
             this.metricGroup = metricGroup;
             this.timeService = timeService;
         }
@@ -370,7 +383,7 @@ public class KafkaWriterITCase extends TestLogger {
         }
 
         @Override
-        public Sink.ProcessingTimeService getProcessingTimeService() {
+        public ProcessingTimeService getProcessingTimeService() {
             return timeService;
         }
 
@@ -392,6 +405,12 @@ public class KafkaWriterITCase extends TestLogger {
         @Override
         public OptionalLong getRestoredCheckpointId() {
             return OptionalLong.empty();
+        }
+
+        @Override
+        public SerializationSchema.InitializationContext
+                asSerializationSchemaInitializationContext() {
+            return null;
         }
     }
 
@@ -428,7 +447,7 @@ public class KafkaWriterITCase extends TestLogger {
         }
     }
 
-    private static class TriggerTimeService implements Sink.ProcessingTimeService {
+    private static class TriggerTimeService implements ProcessingTimeService {
 
         private final PriorityQueue<Tuple2<Long, ProcessingTimeCallback>> registeredCallbacks =
                 new PriorityQueue<>(Comparator.comparingLong(o -> o.f0));
@@ -439,12 +458,13 @@ public class KafkaWriterITCase extends TestLogger {
         }
 
         @Override
-        public void registerProcessingTimer(
+        public ScheduledFuture<?> registerTimer(
                 long time, ProcessingTimeCallback processingTimerCallback) {
             registeredCallbacks.add(new Tuple2<>(time, processingTimerCallback));
+            return null;
         }
 
-        public void trigger() throws IOException, InterruptedException {
+        public void trigger() throws Exception {
             final Tuple2<Long, ProcessingTimeCallback> registered = registeredCallbacks.poll();
             if (registered == null) {
                 LOG.warn("Triggered time service but no callback was registered.");

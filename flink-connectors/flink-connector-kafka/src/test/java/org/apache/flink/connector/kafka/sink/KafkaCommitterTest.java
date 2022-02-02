@@ -17,7 +17,7 @@
 
 package org.apache.flink.connector.kafka.sink;
 
-import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -29,15 +29,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
-import java.util.List;
 import java.util.Properties;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link KafkaCommitter}. */
 @ExtendWith({TestLoggerExtension.class})
@@ -49,44 +43,44 @@ public class KafkaCommitterTest {
 
     /** Causes a network error by inactive broker and tests that a retry will happen. */
     @Test
-    public void testRetryCommittableOnRetriableError() throws IOException {
+    public void testRetryCommittableOnRetriableError() throws IOException, InterruptedException {
         Properties properties = getProperties();
         try (final KafkaCommitter committer = new KafkaCommitter(properties);
                 FlinkKafkaInternalProducer<Object, Object> producer =
                         new FlinkKafkaInternalProducer<>(properties, TRANSACTIONAL_ID);
                 Recyclable<FlinkKafkaInternalProducer<Object, Object>> recyclable =
                         new Recyclable<>(producer, p -> {})) {
-            final List<KafkaCommittable> committables =
-                    Collections.singletonList(
+            final MockCommitRequest request =
+                    new MockCommitRequest(
                             new KafkaCommittable(PRODUCER_ID, EPOCH, TRANSACTIONAL_ID, recyclable));
+
             producer.resumeTransaction(PRODUCER_ID, EPOCH);
-            List<KafkaCommittable> recovered = committer.commit(committables);
-            assertThat(recovered, contains(committables.toArray()));
-            assertThat(recyclable.isRecycled(), equalTo(false));
+            committer.commit(Collections.singletonList(request));
+
+            assertThat(request.getNumberOfRetries()).isEqualTo(1);
+            assertThat(recyclable.isRecycled()).isFalse();
             // FLINK-25531: force the producer to close immediately, else it would take 1 hour
             producer.close(Duration.ZERO);
         }
     }
 
     @Test
-    public void testFailJobOnUnknownFatalError() {
+    public void testFailJobOnUnknownFatalError() throws IOException, InterruptedException {
         Properties properties = getProperties();
         try (final KafkaCommitter committer = new KafkaCommitter(properties);
                 FlinkKafkaInternalProducer<Object, Object> producer =
                         new FlinkKafkaInternalProducer<>(properties, TRANSACTIONAL_ID);
                 Recyclable<FlinkKafkaInternalProducer<Object, Object>> recyclable =
                         new Recyclable<>(producer, p -> {})) {
-            final List<KafkaCommittable> committables =
-                    Collections.singletonList(
-                            new KafkaCommittable(PRODUCER_ID, EPOCH, TRANSACTIONAL_ID, recyclable));
             // will fail because transaction not started
-            final FlinkRuntimeException exception =
-                    assertThrows(FlinkRuntimeException.class, () -> committer.commit(committables));
-            assertThat(exception.getCause(), instanceOf(IllegalStateException.class));
-            assertThat(
-                    exception.getCause().getMessage(),
-                    containsString("Transaction was not started"));
-            assertThat(recyclable.isRecycled(), equalTo(true));
+            final MockCommitRequest request =
+                    new MockCommitRequest(
+                            new KafkaCommittable(PRODUCER_ID, EPOCH, TRANSACTIONAL_ID, recyclable));
+            committer.commit(Collections.singletonList(request));
+            assertThat(request.failedWithUnknownReason).isInstanceOf(IllegalStateException.class);
+            assertThat(request.failedWithUnknownReason.getMessage())
+                    .contains("Transaction was not started");
+            assertThat(recyclable.isRecycled()).isTrue();
         }
     }
 
@@ -98,5 +92,45 @@ public class KafkaCommitterTest {
         properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         return properties;
+    }
+
+    private static class MockCommitRequest implements Committer.CommitRequest<KafkaCommittable> {
+
+        private final KafkaCommittable committable;
+        private int retries = 0;
+        Throwable failedWithUnknownReason;
+
+        MockCommitRequest(KafkaCommittable committable) {
+            this.committable = committable;
+        }
+
+        @Override
+        public KafkaCommittable getCommittable() {
+            return committable;
+        }
+
+        @Override
+        public int getNumberOfRetries() {
+            return retries;
+        }
+
+        @Override
+        public void signalFailedWithKnownReason(Throwable t) {}
+
+        @Override
+        public void signalFailedWithUnknownReason(Throwable t) {
+            failedWithUnknownReason = t;
+        }
+
+        @Override
+        public void retryLater() {
+            retries++;
+        }
+
+        @Override
+        public void updateAndRetryLater(KafkaCommittable committable) {}
+
+        @Override
+        public void signalAlreadyCommitted() {}
     }
 }

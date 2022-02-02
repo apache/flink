@@ -34,7 +34,7 @@ import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.MapData;
@@ -239,7 +239,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                         return end;
                     };
         }
-        return SinkProvider.of(kafkaSink, parallelism);
+        return SinkV2Provider.of(kafkaSink, parallelism);
     }
 
     @Override

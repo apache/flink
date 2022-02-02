@@ -15,9 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.connector.sink;
+package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
 
@@ -26,8 +27,7 @@ import java.util.function.Supplier;
 /**
  * Adapter between {@link Sink.InitContext} and {@link SerializationSchema.InitializationContext}.
  */
-public class InitContextInitializationContextAdapter
-        implements SerializationSchema.InitializationContext {
+class InitContextInitializationContextAdapter implements SerializationSchema.InitializationContext {
 
     private final UserCodeClassLoader userCodeClassLoader;
     private final Supplier<MetricGroup> metricGroupSupplier;

@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
@@ -296,9 +295,7 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
     }
 
     /** Main class to simulate SinkV1 with SinkV2. */
-    @VisibleForTesting
-    @Internal
-    public class PlainSinkAdapter implements Sink<InputT> {
+    class PlainSinkAdapter implements Sink<InputT> {
         @Override
         public SinkWriterV1Adapter<InputT, CommT, WriterStateT> createWriter(InitContext context)
                 throws IOException {
