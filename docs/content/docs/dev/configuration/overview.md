@@ -87,19 +87,11 @@ To execute these build configuration scripts, run the `gradle` command in the di
 **build.gradle**
 
 ```gradle
-buildscript {
-    repositories {
-        jcenter() // this applies only to the Gradle 'Shadow' plugin
-    }
-    dependencies {
-        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.4'
-    }
-}
 plugins {
     id 'java'
     id 'application'
     // shadow plugin to produce fat JARs
-    id 'com.github.johnrengelman.shadow' version '2.0.4'
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
 }
 // artifact properties
 group = 'org.myorg.quickstart'
@@ -119,9 +111,7 @@ tasks.withType(JavaCompile) {
 	options.encoding = 'UTF-8'
 }
 applicationDefaultJvmArgs = ["-Dlog4j.configurationFile=log4j2.properties"]
-task wrapper(type: Wrapper) {
-    gradleVersion = '3.1'
-}
+
 // declare where to find the dependencies of your project
 repositories {
     mavenCentral()
@@ -227,8 +217,3 @@ Here is a table of artifact/dependency names:
 
 Check out the sections on [Datastream API]({{< ref "docs/dev/datastream/overview" >}}) and 
 [Table API & SQL]({{< ref "docs/dev/table/overview" >}}) to learn more.
-
-## Next steps
-
-Check out the sections on how to add these dependencies with [Maven]({{< ref "docs/dev/configuration/maven" >}}) 
-and [Gradle]({{< ref "docs/dev/configuration/gradle" >}}).

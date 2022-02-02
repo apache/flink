@@ -24,6 +24,8 @@ under the License.
 
 # Dependencies for Testing 
 
+Flink provides utilities for testing your job that you can add as dependencies.
+
 ## DataStream API Test Dependencies
 
 You need to add the following dependencies if you want to develop tests for a job built with the 
@@ -32,6 +34,7 @@ DataStream API:
 {{< artifact flink-test-utils withTestScope >}}
 {{< artifact flink-runtime withTestScope >}}
 
+For more information on how to use these utilities, check out the section on [DataStream API testing]({{< ref "docs/dev/datastream/testing" >}})
 
 ## Table Program Test Dependencies
 

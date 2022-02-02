@@ -22,11 +22,10 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Dependencies: Connectors and Formats
+# Connectors and Formats
 
-Flink can read from and write to various external systems via [connectors]({{< ref "docs/connectors/table/overview" >}})
-and define the [format]({{< ref "docs/connectors/table/formats/overview" >}}) in which to store the 
-data.  
+Flink can read from and write to various external systems via connectors and define the format in 
+which to store the data.
 
 The way that information is serialized is represented in the external system and that system needs
 to know how to read this data in a format that can be read by Flink.  This is done through format 
@@ -43,18 +42,18 @@ and [Gradle]({{< ref "docs/dev/configuration/gradle" >}}).
 
 ## Packaging Dependencies
 
-We recommend packaging the application code and all its required dependencies into one *JAR-with-dependencies*
-which we refer to as the *application JAR*. The application JAR can be submitted to an already running
-Flink cluster, or added to a Flink application container image.
+We recommend packaging the application code and all its required dependencies into one fat/uber JAR. 
+This job JAR can be submitted to an already running Flink cluster, or added to a Flink application 
+container image.
 
 On [Maven Central](https://search.maven.org), we publish connectors named "flink-connector-<NAME>" and
 "flink-sql-connector-<NAME>". The former are thin JARs while the latter are uber JARs.
 
 In order to use the uber JARs, you can shade them (including and renaming dependencies to create a 
-private copy) in the uber JAR of your application, or you can add them to the `/lib` folder of the 
-distribution (i.e. SQL client).
+private copy) in the uber JAR of your Flink job, or you can add them to the `/lib` folder of the 
+distribution.
 
-If you shade a dependency JAR, you will have more control over the dependency version in the job JAR. 
+If you shade a dependency, you will have more control over the dependency version in the job JAR. 
 In case of shading the thin JAR, you will have even more control over the transitive dependencies, 
 since you can change the versions without changing the connector version (binary compatibility permitting).
 

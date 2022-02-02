@@ -30,14 +30,13 @@ to automate tasks in the development process.
 
 ## Requirements
 
-- Gradle 3.x (or higher)
+- Gradle 7.x 
 - Java 8.x
 
 ## Importing the project into your IDE
 
 Once the project folder and files have been created, we recommend that you import this project into
 your IDE for developing and testing.
-
 
 IntelliJ IDEA supports Gradle projects via the `Gradle` plugin.
 
@@ -46,10 +45,15 @@ plugin (make sure to specify a Gradle version >= 3.0 in the last step of the imp
 plugin requires it). You may also use [Gradle's IDE integration](https://docs.gradle.org/current/userguide/userguide.html#ide-integration)
 to create project files with Gradle.
 
-*Note*: The default JVM heap size for Java may be too small for Flink and you have to manually increase it.
+**Note**: The default JVM heap size for Java may be too small for Flink and you have to manually increase it.
 In Eclipse, choose `Run Configurations -> Arguments` and write into the `VM Arguments` box: `-Xmx800m`.
 In IntelliJ IDEA recommended way to change JVM options is from the `Help | Edit Custom VM Options` menu.
 See [this article](https://intellij-support.jetbrains.com/hc/en-us/articles/206544869-Configuring-JVM-options-and-platform-properties) for details.
+
+**Note on IntelliJ:** To make the applications run within IntelliJ IDEA, it is necessary to tick the
+`Include dependencies with "Provided" scope` box in the run configuration. If this option is not available
+(possibly due to using an older IntelliJ IDEA version), then a workaround is to create a test that
+calls the application's `main()` method.
 
 ## Building the project
 
@@ -92,8 +96,8 @@ be set to the *compile* scope.
 
 ## Packaging the application
 
-Depending on your use case, you may need to package your Flink application in different ways before it
-gets deployed to a Flink environment.
+Depending on your use case, you may need to package your Flink application in different ways before 
+it gets deployed to a Flink environment.
 
 If you want to create a JAR for a Flink Job and use only Flink dependencies without any third-party
 dependencies (i.e. using the filesystem connector with JSON format), you do not need to create an
@@ -103,8 +107,14 @@ If you want to create a JAR for a Flink Job and use external dependencies not bu
 distribution, you can either add them to the classpath of the distribution or shade them into your
 uber/fat application JAR.
 
+To create an uber/fat JAR, you can use the command `gradle clean installDist` or `gradle clean installShadowDist`, 
+which will produce a single fat JAR in `/build/install/yourProject/lib`. If you are using a [Gradle 
+Wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html), this would be `./gradlew clean installDist` 
+or `./gradlew clean installShadowDist`.
+
 With the generated uber/fat JAR, you can submit it to a local or remote cluster with:
 
 ```sh
 bin/flink run -c org.example.MyJob myFatJar.jar
 ```
+To learn more about how to deploy Flink jobs, check out the [deployment guide]({{< ref "docs/deployment/cli" >}}).

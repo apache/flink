@@ -42,10 +42,15 @@ your IDE for developing and testing.
 IntelliJ IDEA supports Maven projects out-of-the-box. Eclipse offers the [m2e plugin](http://www.eclipse.org/m2e/) 
 to [import Maven projects](http://books.sonatype.com/m2eclipse-book/reference/creating-sect-importing-projects.html#fig-creating-import).
 
-*Note*: The default JVM heap size for Java may be too small for Flink and you have to manually increase it.
+**Note**: The default JVM heap size for Java may be too small for Flink and you have to manually increase it.
 In Eclipse, choose `Run Configurations -> Arguments` and write into the `VM Arguments` box: `-Xmx800m`.
 In IntelliJ IDEA recommended way to change JVM options is from the `Help | Edit Custom VM Options` menu.
 See [this article](https://intellij-support.jetbrains.com/hc/en-us/articles/206544869-Configuring-JVM-options-and-platform-properties) for details.
+
+**Note on IntelliJ:** To make the applications run within IntelliJ IDEA, it is necessary to tick the
+`Include dependencies with "Provided" scope` box in the run configuration. If this option is not available
+(possibly due to using an older IntelliJ IDEA version), then a workaround is to create a test that
+calls the application's `main()` method.
 
 ## Building the project
 
@@ -83,14 +88,14 @@ to automatically include the application dependencies into the application JAR w
 For projects that are not set up from those templates, we recommend adding the Maven Shade Plugin to
 build the application jar with all required dependencies.
 
-**Important:** Note that all these (core) dependencies should have their scope set to [*provided*](https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#dependency-scope). This means that
+**Important:** Note that all these core API dependencies should have their scope set to [*provided*](https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#dependency-scope). This means that
 they are needed to compile against, but that they should not be packaged into the project's resulting
 application JAR file. If not set to *provided*, the best case scenario is that the resulting JAR
 becomes excessively large, because it also contains all Flink core dependencies. The worst case scenario
 is that the Flink core dependencies that are added to the application's JAR file clash with some of
 your own dependency versions (which is normally avoided through inverted classloading).
 
-To correctly package the dependencies into the application JAR, these application dependencies must 
+To correctly package the dependencies into the application JAR, the Flink API dependencies must 
 be set to the *compile* scope.
 
 ## Packaging the application
@@ -112,7 +117,9 @@ With the generated uber/fat JAR, you can submit it to a local or remote cluster 
 bin/flink run -c org.example.MyJob myFatJar.jar
 ```
 
-## Template for building a JAR with dependencies
+To learn more about how to deploy Flink jobs, check out the [deployment guide]({{< ref "docs/deployment/cli" >}}).
+
+## Template for creating an uber/fat JAR with dependencies
 
 To build an application JAR that contains all dependencies required for declared connectors and libraries,
 you can use the following shade plugin definition:
@@ -123,7 +130,7 @@ you can use the following shade plugin definition:
         <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-shade-plugin</artifactId>
-            <version>3.1.1</version>
+            <version>3.2.4</version>
             <executions>
                 <execution>
                     <phase>package</phase>
@@ -152,6 +159,7 @@ you can use the following shade plugin definition:
                         </filters>
                         <transformers>
                             <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                <!-- Replace this with the main class of your job -->
                                 <mainClass>my.programs.main.clazz</mainClass>
                             </transformer>
                         </transformers>
@@ -162,3 +170,6 @@ you can use the following shade plugin definition:
     </plugins>
 </build>
 ```
+
+The [Maven shade plugin](https://maven.apache.org/plugins/maven-shade-plugin/index.html) will include, 
+by default, all the dependencies in the "runtime" and "compile" scope.
