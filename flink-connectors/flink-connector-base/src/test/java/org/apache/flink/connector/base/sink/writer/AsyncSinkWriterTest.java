@@ -17,7 +17,7 @@
 
 package org.apache.flink.connector.base.sink.writer;
 
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
 import org.junit.Before;
@@ -161,7 +161,7 @@ public class AsyncSinkWriterTest {
         for (int i = 0; i < 23; i++) {
             sink.write(String.valueOf(i));
         }
-        sink.prepareCommit(true);
+        sink.flush(true);
         assertEquals(23, res.size());
     }
 
@@ -177,7 +177,7 @@ public class AsyncSinkWriterTest {
                         .simulateFailures(false)
                         .build();
         sink.write(String.valueOf(0));
-        sink.prepareCommit(true);
+        sink.flush(true);
         assertEquals(1, res.size());
     }
 
@@ -200,7 +200,6 @@ public class AsyncSinkWriterTest {
 
         sink.write("75");
         assertThatBufferStatesAreEqual(BufferedRequestState.emptyState(), getWriterState(sink));
-
         assertEquals(3, res.size());
     }
 
@@ -221,7 +220,7 @@ public class AsyncSinkWriterTest {
         sink.write("95");
         sink.write("955");
         assertThatBufferStatesAreEqual(sink.wrapRequests(95, 955), getWriterState(sink));
-        sink.prepareCommit(true);
+        sink.flush(true);
         assertThatBufferStatesAreEqual(BufferedRequestState.emptyState(), getWriterState(sink));
     }
 
@@ -321,7 +320,7 @@ public class AsyncSinkWriterTest {
                 sink, "535", Arrays.asList(25, 55, 965, 75, 95, 45), Arrays.asList(35, 535));
 
         // Checkpoint occurs
-        sink.prepareCommit(true);
+        sink.flush(true);
 
         // Everything is saved
         assertEquals(Arrays.asList(25, 55, 965, 75, 95, 45, 955, 550, 35, 535), res);
@@ -356,7 +355,7 @@ public class AsyncSinkWriterTest {
         sink.write("505");
         assertTrue(res.contains(550));
         assertTrue(res.contains(645));
-        sink.prepareCommit(true);
+        sink.flush(true);
         assertTrue(res.contains(545));
         assertTrue(res.contains(535));
         assertTrue(res.contains(515));
@@ -468,7 +467,7 @@ public class AsyncSinkWriterTest {
         sink.write(String.valueOf(0));
         sink.write(String.valueOf(1));
         sink.write(String.valueOf(2));
-        sink.prepareCommit(false);
+        sink.flush(false);
         assertEquals(0, res.size());
     }
 
@@ -626,9 +625,9 @@ public class AsyncSinkWriterTest {
         sink.write(String.valueOf(2)); // flushing -- request should have [225,0,1], [225] fails,
         // buffer has [2]
         assertEquals(2, res.size());
-        sink.prepareCommit(false); // inflight should be added to  buffer still [225, 2]
+        sink.flush(false); // inflight should be added to  buffer still [225, 2]
         assertEquals(2, res.size());
-        sink.prepareCommit(true); // buffer now flushed []
+        sink.flush(true); // buffer now flushed []
         assertEquals(Arrays.asList(0, 1, 225, 2), res);
     }
 
@@ -654,9 +653,9 @@ public class AsyncSinkWriterTest {
         assertEquals(2, res.size()); // Request was [225, 1, 2], element 225 failed
 
         // buffer should be [3] with [225] inflight
-        sink.prepareCommit(false); // Buffer: [225,3] - > 8/110; 2/10 elements; 0 inflight
+        sink.flush(false); // Buffer: [225,3] - > 8/110; 2/10 elements; 0 inflight
         assertEquals(2, res.size()); //
-        List<BufferedRequestState<Integer>> states = sink.snapshotState();
+        List<BufferedRequestState<Integer>> states = sink.snapshotState(1);
         AsyncSinkWriterImpl newSink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
@@ -691,8 +690,8 @@ public class AsyncSinkWriterTest {
                         .build();
 
         sink.write(String.valueOf(225)); // Buffer: 100/110B; 1/10 elements; 0 inflight
-        sink.prepareCommit(false);
-        List<BufferedRequestState<Integer>> states = sink.snapshotState();
+        sink.flush(false);
+        List<BufferedRequestState<Integer>> states = sink.snapshotState(1);
         assertThatExceptionOfType(IllegalStateException.class)
                 .isThrownBy(
                         () ->
@@ -729,7 +728,7 @@ public class AsyncSinkWriterTest {
         sink.write("1"); // A timer is registered here to elapse at t=100
         assertEquals(0, res.size());
         tpts.setCurrentTime(10L);
-        sink.prepareCommit(true);
+        sink.flush(true);
         assertEquals(1, res.size());
         tpts.setCurrentTime(20L); // At t=20, we write a new element that should not trigger another
         sink.write("2"); // timer to be registered. If it is, it should elapse at t=120s.
@@ -791,7 +790,7 @@ public class AsyncSinkWriterTest {
         tpts.setCurrentTime(0L);
         sink.write("1");
         tpts.setCurrentTime(50L);
-        sink.prepareCommit(true);
+        sink.flush(true);
         assertEquals(1, res.size());
         tpts.setCurrentTime(200L);
     }
@@ -928,7 +927,7 @@ public class AsyncSinkWriterTest {
 
     private BufferedRequestState<Integer> getWriterState(
             AsyncSinkWriter<String, Integer> sinkWriter) {
-        List<BufferedRequestState<Integer>> states = sinkWriter.snapshotState();
+        List<BufferedRequestState<Integer>> states = sinkWriter.snapshotState(1);
         assertEquals(states.size(), 1);
         return states.get(0);
     }

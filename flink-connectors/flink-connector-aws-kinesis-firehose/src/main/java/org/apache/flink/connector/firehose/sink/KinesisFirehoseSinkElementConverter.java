@@ -19,7 +19,7 @@ package org.apache.flink.connector.firehose.sink;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.util.Preconditions;
 

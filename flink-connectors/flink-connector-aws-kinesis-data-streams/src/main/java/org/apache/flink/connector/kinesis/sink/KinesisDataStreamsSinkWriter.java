@@ -17,7 +17,7 @@
 
 package org.apache.flink.connector.kinesis.sink;
 
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.aws.util.AWSAsyncSinkUtil;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
@@ -37,6 +37,7 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 import software.amazon.awssdk.services.kinesis.model.ResourceNotFoundException;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -111,7 +112,7 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
             boolean failOnError,
             String streamName,
             Properties kinesisClientProperties,
-            List<BufferedRequestState<PutRecordsRequestEntry>> states) {
+            Collection<BufferedRequestState<PutRecordsRequestEntry>> states) {
         super(
                 elementConverter,
                 context,

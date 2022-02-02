@@ -19,8 +19,9 @@ package org.apache.flink.connector.base.sink.writer;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.operators.MailboxExecutor;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.common.operators.ProcessingTimeService;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.util.Preconditions;
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
@@ -49,10 +51,10 @@ import java.util.function.Consumer;
  */
 @PublicEvolving
 public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable>
-        implements SinkWriter<InputT, Void, BufferedRequestState<RequestEntryT>> {
+        implements StatefulSink.StatefulSinkWriter<InputT, BufferedRequestState<RequestEntryT>> {
 
     private final MailboxExecutor mailboxExecutor;
-    private final Sink.ProcessingTimeService timeService;
+    private final ProcessingTimeService timeService;
 
     /* The timestamp of the previous batch of records was sent from this sink. */
     private long lastSendTimestamp = 0;
@@ -227,7 +229,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
             long maxBatchSizeInBytes,
             long maxTimeInBufferMS,
             long maxRecordSizeInBytes,
-            List<BufferedRequestState<RequestEntryT>> states) {
+            Collection<BufferedRequestState<RequestEntryT>> states) {
         this.elementConverter = elementConverter;
         this.mailboxExecutor = context.getMailboxExecutor();
         this.timeService = context.getProcessingTimeService();
@@ -273,15 +275,14 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     }
 
     private void registerCallback() {
-        Sink.ProcessingTimeService.ProcessingTimeCallback ptc =
+        ProcessingTimeService.ProcessingTimeCallback ptc =
                 instant -> {
                     existsActiveTimerCallback = false;
                     while (!bufferedRequestEntries.isEmpty()) {
                         flush();
                     }
                 };
-        timeService.registerProcessingTimer(
-                timeService.getCurrentProcessingTime() + maxTimeInBufferMS, ptc);
+        timeService.registerTimer(timeService.getCurrentProcessingTime() + maxTimeInBufferMS, ptc);
         existsActiveTimerCallback = true;
     }
 
@@ -408,15 +409,13 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * <p>To this end, all in-flight requests need to completed before proceeding with the commit.
      */
     @Override
-    public List<Void> prepareCommit(boolean flush) {
+    public void flush(boolean flush) {
         while (inFlightRequestsCount > 0 || (bufferedRequestEntries.size() > 0 && flush)) {
             mailboxExecutor.tryYield();
             if (flush) {
                 flush();
             }
         }
-
-        return Collections.emptyList();
     }
 
     /**
@@ -426,11 +425,11 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * a failure/restart of the application.
      */
     @Override
-    public List<BufferedRequestState<RequestEntryT>> snapshotState() {
+    public List<BufferedRequestState<RequestEntryT>> snapshotState(long checkpointId) {
         return Collections.singletonList(new BufferedRequestState<>((bufferedRequestEntries)));
     }
 
-    protected void initialize(List<BufferedRequestState<RequestEntryT>> states) {
+    protected void initialize(Collection<BufferedRequestState<RequestEntryT>> states) {
         if (states.isEmpty()) {
             return;
         }
@@ -440,7 +439,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
                     "Writer failed to initialize due to multiple initial states.");
         }
 
-        BufferedRequestState<RequestEntryT> state = states.get(0);
+        BufferedRequestState<RequestEntryT> state = states.iterator().next();
         this.bufferedRequestEntries.addAll(state.getBufferedRequestEntries());
 
         for (RequestEntryWrapper<RequestEntryT> wrapper : bufferedRequestEntries) {
