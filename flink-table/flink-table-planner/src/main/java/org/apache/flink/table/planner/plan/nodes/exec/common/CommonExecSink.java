@@ -45,6 +45,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink.SinkRuntimeProvide
 import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.connectors.TransformationSinkProvider;
@@ -478,6 +479,19 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             final Transformation<?> transformation =
                     DataStreamSink.forSinkV1(
                                     dataStream, ((SinkProvider) runtimeProvider).createSink())
+                            .getTransformation();
+            transformation.setParallelism(sinkParallelism);
+            transformation.setName(sinkName);
+            transformation.setDescription(sinkDescription);
+            return transformation;
+        } else if (runtimeProvider instanceof SinkV2Provider) {
+            Transformation<RowData> sinkTransformation =
+                    applyRowtimeTransformation(
+                            inputTransform, rowtimeFieldIndex, sinkParallelism, config);
+            final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
+            final Transformation<?> transformation =
+                    DataStreamSink.forSink(
+                                    dataStream, ((SinkV2Provider) runtimeProvider).createSink())
                             .getTransformation();
             transformation.setParallelism(sinkParallelism);
             transformation.setName(sinkName);

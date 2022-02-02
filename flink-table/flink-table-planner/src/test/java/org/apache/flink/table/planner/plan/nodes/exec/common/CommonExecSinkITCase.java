@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.transformations.SinkV1Adapter;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.Schema;
@@ -32,6 +33,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
@@ -48,10 +50,13 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -69,9 +74,20 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 /** Test for {@link CommonExecSink}. */
+@RunWith(Parameterized.class)
 public class CommonExecSinkITCase extends AbstractTestBase {
 
+    private final boolean useSinkV2;
     private StreamExecutionEnvironment env;
+
+    @Parameterized.Parameters
+    public static Collection<Boolean> useSinkV2() {
+        return Arrays.asList(true, false);
+    }
+
+    public CommonExecSinkITCase(boolean useSinkV2) {
+        this.useSinkV2 = useSinkV2;
+    }
 
     @Before
     public void before() {
@@ -438,12 +454,16 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                 .build();
     }
 
-    private static TableFactoryHarness.SinkBase buildRuntimeSinkProvider(
+    private TableFactoryHarness.SinkBase buildRuntimeSinkProvider(
             TestSink.DefaultSinkWriter<RowData> writer) {
         return new TableFactoryHarness.SinkBase() {
             @Override
             public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-                return SinkProvider.of(buildRecordWriterTestSink(writer));
+                TestSink<RowData> sink = buildRecordWriterTestSink(writer);
+                if (useSinkV2) {
+                    return SinkV2Provider.of(SinkV1Adapter.wrap(sink));
+                }
+                return SinkProvider.of(sink);
             }
         };
     }
@@ -454,8 +474,13 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         return new TableFactoryHarness.SinkBase() {
             @Override
             public DataStreamSinkProvider getSinkRuntimeProvider(Context context) {
-                return dataStream ->
-                        dataStream.sinkTo(buildRecordWriterTestSink(new RecordWriter(fetched)));
+                return dataStream -> {
+                    TestSink<RowData> sink = buildRecordWriterTestSink(new RecordWriter(fetched));
+                    if (useSinkV2) {
+                        return dataStream.sinkTo(SinkV1Adapter.wrap(sink));
+                    }
+                    return dataStream.sinkTo(sink);
+                };
             }
         };
     }
