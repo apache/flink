@@ -27,7 +27,7 @@ import org.apache.flink.connector.firehose.sink.KinesisFirehoseSinkBuilder;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
@@ -104,7 +104,7 @@ public class KinesisFirehoseDynamicSink extends AsyncDynamicTableSink<Record> {
         Optional.ofNullable(failOnError).ifPresent(builder::setFailOnError);
         super.addAsyncOptionsToSinkBuilder(builder);
 
-        return SinkProvider.of(builder.build());
+        return SinkV2Provider.of(builder.build());
     }
 
     @Override

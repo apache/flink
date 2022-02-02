@@ -28,7 +28,7 @@ import org.apache.flink.connector.kinesis.sink.PartitionKeyGenerator;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
@@ -114,7 +114,8 @@ public class KinesisDynamicSink extends AsyncDynamicTableSink<PutRecordsRequestE
 
         Optional.ofNullable(failOnError).ifPresent(builder::setFailOnError);
         addAsyncOptionsToSinkBuilder(builder);
-        return SinkProvider.of(builder.build());
+        KinesisDataStreamsSink<RowData> kdsSink = builder.build();
+        return SinkV2Provider.of(kdsSink);
     }
 
     @Override

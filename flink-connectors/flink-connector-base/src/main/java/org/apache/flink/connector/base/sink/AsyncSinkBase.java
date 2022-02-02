@@ -18,16 +18,12 @@
 package org.apache.flink.connector.base.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.connector.sink.Committer;
-import org.apache.flink.api.connector.sink.GlobalCommitter;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
-import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
-import java.util.Optional;
 
 /**
  * A generic sink for destinations that provide an async client to persist data.
@@ -49,7 +45,7 @@ import java.util.Optional;
  */
 @PublicEvolving
 public abstract class AsyncSinkBase<InputT, RequestEntryT extends Serializable>
-        implements Sink<InputT, Void, BufferedRequestState<RequestEntryT>, Void> {
+        implements StatefulSink<InputT, BufferedRequestState<RequestEntryT>> {
 
     private final ElementConverter<InputT, RequestEntryT> elementConverter;
     private final int maxBatchSize;
@@ -77,26 +73,6 @@ public abstract class AsyncSinkBase<InputT, RequestEntryT extends Serializable>
         this.maxBatchSizeInBytes = maxBatchSizeInBytes;
         this.maxTimeInBufferMS = maxTimeInBufferMS;
         this.maxRecordSizeInBytes = maxRecordSizeInBytes;
-    }
-
-    @Override
-    public Optional<Committer<Void>> createCommitter() {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<GlobalCommitter<Void, Void>> createGlobalCommitter() {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<SimpleVersionedSerializer<Void>> getCommittableSerializer() {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<SimpleVersionedSerializer<Void>> getGlobalCommittableSerializer() {
-        return Optional.empty();
     }
 
     protected ElementConverter<InputT, RequestEntryT> getElementConverter() {
