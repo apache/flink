@@ -1926,10 +1926,11 @@ public class JobMasterTest extends TestLogger {
     }
 
     @Test
-    public void testJobMasterAcceptsExcessSlotsWhenJobIsRestarting() throws Exception {
+    public void testJobMasterAcceptsSlotsWhenJobIsRestarting() throws Exception {
         configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
         configuration.set(
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofDays(1));
+        final int numberSlots = 1;
         final JobMaster jobMaster =
                 new JobMasterBuilder(jobGraph, rpcService)
                         .withConfiguration(configuration)
@@ -1941,19 +1942,22 @@ public class JobMasterTest extends TestLogger {
             final JobMasterGateway jobMasterGateway =
                     jobMaster.getSelfGateway(JobMasterGateway.class);
 
-            assertThat(
-                    jobMasterGateway.requestJobStatus(testingTimeout).get(), is(JobStatus.RUNNING));
-
             final LocalUnresolvedTaskManagerLocation unresolvedTaskManagerLocation =
                     new LocalUnresolvedTaskManagerLocation();
             registerSlotsAtJobMaster(
-                    1,
+                    numberSlots,
                     jobMasterGateway,
                     jobGraph.getJobID(),
                     new TestingTaskExecutorGatewayBuilder()
                             .setAddress("firstTaskManager")
                             .createTestingTaskExecutorGateway(),
                     unresolvedTaskManagerLocation);
+
+            CommonTestUtils.waitUntilCondition(
+                    () ->
+                            jobMasterGateway.requestJobStatus(testingTimeout).get()
+                                    == JobStatus.RUNNING,
+                    Deadline.fromNow(TimeUtils.toDuration(testingTimeout)));
 
             jobMasterGateway.disconnectTaskManager(
                     unresolvedTaskManagerLocation.getResourceID(),
@@ -1965,7 +1969,6 @@ public class JobMasterTest extends TestLogger {
                                     == JobStatus.RESTARTING,
                     Deadline.fromNow(TimeUtils.toDuration(testingTimeout)));
 
-            final int numberSlots = 3;
             assertThat(
                     registerSlotsAtJobMaster(
                             numberSlots,
