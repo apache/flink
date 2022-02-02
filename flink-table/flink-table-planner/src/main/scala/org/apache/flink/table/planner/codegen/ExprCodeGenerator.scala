@@ -24,6 +24,7 @@ import org.apache.calcite.sql.{SqlKind, SqlOperator}
 import org.apache.calcite.util.{Sarg, TimestampString}
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.util.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
@@ -702,7 +703,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       // casting
       case CAST =>
-        generateCast(ctx, operands.head, resultType, nullOnFailure = false)
+        generateCast(ctx, operands.head, resultType, nullOnFailure = ctx.tableConfig
+          .getConfiguration.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR).isEnabled)
 
       case TRY_CAST =>
         generateCast(ctx, operands.head, resultType, nullOnFailure = true)
