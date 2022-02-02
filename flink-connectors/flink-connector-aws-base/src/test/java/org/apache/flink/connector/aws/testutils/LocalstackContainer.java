@@ -61,6 +61,11 @@ public class LocalstackContainer extends GenericContainer<LocalstackContainer> {
 
         @Override
         protected void waitUntilReady() {
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             Unreliables.retryUntilSuccess(
                     (int) startupTimeout.getSeconds(),
                     SECONDS,
