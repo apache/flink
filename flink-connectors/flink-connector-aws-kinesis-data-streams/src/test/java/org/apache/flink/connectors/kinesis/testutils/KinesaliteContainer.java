@@ -154,6 +154,7 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
                 Thread.sleep(10000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
+                throw new IllegalStateException("Kinesalite Container startup was interrupted");
             }
 
             retryUntilSuccessRunner(this::list);
