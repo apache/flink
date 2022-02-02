@@ -50,6 +50,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -86,6 +87,8 @@ public class PulsarRuntimeOperator implements Closeable {
     private final String adminUrl;
     private final PulsarClient client;
     private final PulsarAdmin admin;
+    private final ConcurrentHashMap<String, Producer<?>> producers;
+    private final ConcurrentHashMap<String, Consumer<?>> consumers;
 
     public PulsarRuntimeOperator(String serviceUrl, String adminUrl) {
         this(serviceUrl, serviceUrl, adminUrl, adminUrl);
@@ -100,6 +103,8 @@ public class PulsarRuntimeOperator implements Closeable {
         this.adminUrl = containerAdminUrl;
         this.client = sneakyClient(() -> PulsarClient.builder().serviceUrl(serviceUrl).build());
         this.admin = sneakyClient(() -> PulsarAdmin.builder().serviceHttpUrl(adminUrl).build());
+        this.producers = new ConcurrentHashMap<>();
+        this.consumers = new ConcurrentHashMap<>();
     }
 
     /**
@@ -302,7 +307,8 @@ public class PulsarRuntimeOperator implements Closeable {
      */
     public <T> List<MessageId> sendMessages(
             String topic, Schema<T> schema, String key, Collection<T> messages) {
-        try (Producer<T> producer = client().newProducer(schema).topic(topic).create()) {
+        try {
+            Producer<T> producer = createProducer(topic, schema);
             List<MessageId> messageIds = new ArrayList<>(messages.size());
 
             for (T message : messages) {
@@ -326,7 +332,8 @@ public class PulsarRuntimeOperator implements Closeable {
      * message from this topic.
      */
     public <T> Message<T> receiveMessage(String topic, Schema<T> schema) {
-        try (Consumer<T> consumer = createConsumer(topic, schema)) {
+        try {
+            Consumer<T> consumer = createConsumer(topic, schema);
             return drainOneMessage(consumer);
         } catch (PulsarClientException e) {
             sneakyThrow(e);
@@ -350,7 +357,8 @@ public class PulsarRuntimeOperator implements Closeable {
             return singletonList(message);
         } else {
             // Drain a fixed number of messages.
-            try (Consumer<T> consumer = createConsumer(topic, schema)) {
+            try {
+                Consumer<T> consumer = createConsumer(topic, schema);
                 List<Message<T>> messages = new ArrayList<>(counts);
                 for (int i = 0; i < counts; i++) {
                     Message<T> message = drainOneMessage(consumer);
@@ -369,7 +377,8 @@ public class PulsarRuntimeOperator implements Closeable {
         List<Message<T>> messages = new ArrayList<>();
 
         for (TopicPartition partition : topicInfo(topic)) {
-            try (Consumer<T> consumer = createConsumer(partition.getFullTopicName(), schema)) {
+            try {
+                Consumer<T> consumer = createConsumer(partition.getFullTopicName(), schema);
                 CursorStats cursorStats =
                         admin().topics()
                                 .getInternalStats(partition.getFullTopicName())
@@ -433,6 +442,9 @@ public class PulsarRuntimeOperator implements Closeable {
     /** This method is used for test framework. You can't close this operator manually. */
     @Override
     public void close() throws IOException {
+        producers.clear();
+        consumers.clear();
+
         if (admin != null) {
             admin.close();
         }
@@ -461,20 +473,48 @@ public class PulsarRuntimeOperator implements Closeable {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    private <T> Producer<T> createProducer(String topic, Schema<T> schema)
+            throws PulsarClientException {
+        return (Producer<T>)
+                producers.computeIfAbsent(
+                        topic,
+                        t -> {
+                            try {
+                                return client().newProducer(schema).topic(topic).create();
+                            } catch (PulsarClientException e) {
+                                sneakyThrow(e);
+                                return null;
+                            }
+                        });
+    }
+
+    @SuppressWarnings("unchecked")
     private <T> Consumer<T> createConsumer(String topic, Schema<T> schema)
             throws PulsarClientException {
-        return client().newConsumer(schema)
-                .topic(topic)
-                .subscriptionName(SUBSCRIPTION_NAME)
-                .subscriptionMode(Durable)
-                .subscriptionType(Exclusive)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscribe();
+        return (Consumer<T>)
+                consumers.computeIfAbsent(
+                        topic,
+                        t -> {
+                            try {
+                                return client().newConsumer(schema)
+                                        .topic(topic)
+                                        .subscriptionName(SUBSCRIPTION_NAME)
+                                        .subscriptionMode(Durable)
+                                        .subscriptionType(Exclusive)
+                                        .subscriptionInitialPosition(
+                                                SubscriptionInitialPosition.Earliest)
+                                        .subscribe();
+                            } catch (PulsarClientException e) {
+                                sneakyThrow(e);
+                                return null;
+                            }
+                        });
     }
 
     private <T> Message<T> drainOneMessage(Consumer<T> consumer) throws PulsarClientException {
         Message<T> message = consumer.receive();
-        consumer.acknowledge(message.getMessageId());
+        consumer.acknowledgeCumulative(message.getMessageId());
         return message;
     }
 }

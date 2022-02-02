@@ -43,6 +43,7 @@ import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULS
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ENABLE_TRANSACTION;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_SERVICE_URL;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_PRODUCER_NAME;
+import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_SEND_TIMEOUT_MS;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WRITE_DELIVERY_GUARANTEE;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WRITE_SCHEMA_EVOLUTION;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WRITE_TRANSACTION_TIMEOUT;
@@ -271,6 +272,7 @@ public class PulsarSinkBuilder<IN> {
             LOG.info(
                     "Exactly once require flink checkpoint and your pulsar cluster should support the transaction.");
             configBuilder.override(PULSAR_ENABLE_TRANSACTION, true);
+            configBuilder.override(PULSAR_SEND_TIMEOUT_MS, 0L);
 
             if (!configBuilder.contains(PULSAR_WRITE_TRANSACTION_TIMEOUT)) {
                 LOG.warn(

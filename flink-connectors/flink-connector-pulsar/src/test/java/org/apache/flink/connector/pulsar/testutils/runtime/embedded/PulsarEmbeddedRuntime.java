@@ -125,9 +125,9 @@ public class PulsarEmbeddedRuntime implements PulsarRuntime {
                 operator.close();
                 this.operator = null;
             }
+            standalone.close();
             releasePorts();
             removeTempDir(tempDir);
-            standalone.close();
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }

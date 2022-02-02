@@ -21,6 +21,7 @@ package org.apache.flink.connector.pulsar.sink.committer;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.connector.pulsar.common.utils.PulsarTransactionUtils;
 import org.apache.flink.connector.pulsar.sink.PulsarSink;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -84,40 +85,46 @@ public class PulsarCommitter implements Committer<PulsarCommittable>, Closeable 
             LOG.debug("Start committing the Pulsar transaction {} for topic {}", txnID, topic);
             try {
                 client.commit(txnID);
-            } catch (CoordinatorNotFoundException e) {
-                LOG.error(
-                        "We couldn't find the Transaction Coordinator from Pulsar broker {}. "
-                                + "Check your broker configuration.",
-                        committable,
-                        e);
-                collected = firstOrSuppressed(e, collected);
-            } catch (InvalidTxnStatusException e) {
-                LOG.error(
-                        "Unable to commit transaction ({}) because it's in an invalid state. "
-                                + "Most likely the transaction has been aborted for some reason. "
-                                + "Please check the Pulsar broker logs for more details.",
-                        committable,
-                        e);
-            } catch (TransactionNotFoundException e) {
-                LOG.error(
-                        "Unable to commit transaction ({}) because it's not found on Pulsar broker. "
-                                + "Most likely the checkpoint interval exceed the transaction timeout.",
-                        committable,
-                        e);
-                collected = firstOrSuppressed(e, collected);
-            } catch (MetaStoreHandlerNotExistsException e) {
-                LOG.error(
-                        "We can't find the meta store handler by the mostSigBits from TxnID {}. "
-                                + "Did you change the metadata for topic {}?",
-                        committable,
-                        TRANSACTION_COORDINATOR_ASSIGN);
-                collected = firstOrSuppressed(e, collected);
             } catch (TransactionCoordinatorClientException e) {
-                LOG.error(
-                        "Encountered retriable exception while committing transaction {} for topic {}.",
-                        committable,
-                        topic);
-                retryableCommittables.add(committable);
+                // This is a known bug for Pulsar Transaction. We have to use instance of.
+                TransactionCoordinatorClientException ex = PulsarTransactionUtils.unwrap(e);
+                if (ex instanceof CoordinatorNotFoundException) {
+                    LOG.error(
+                            "We couldn't find the Transaction Coordinator from Pulsar broker {}. "
+                                    + "Check your broker configuration.",
+                            committable,
+                            ex);
+                    collected = firstOrSuppressed(ex, collected);
+                } else if (ex instanceof InvalidTxnStatusException) {
+                    LOG.error(
+                            "Unable to commit transaction ({}) because it's in an invalid state. "
+                                    + "Most likely the transaction has been aborted for some reason. "
+                                    + "Please check the Pulsar broker logs for more details.",
+                            committable,
+                            ex);
+                } else if (ex instanceof TransactionNotFoundException) {
+                    LOG.error(
+                            "Unable to commit transaction ({}) because it's not found on Pulsar broker. "
+                                    + "Most likely the checkpoint interval exceed the transaction timeout.",
+                            committable,
+                            ex);
+                    collected = firstOrSuppressed(ex, collected);
+                } else if (ex instanceof MetaStoreHandlerNotExistsException) {
+                    LOG.error(
+                            "We can't find the meta store handler by the mostSigBits from TxnID {}. "
+                                    + "Did you change the metadata for topic {}?",
+                            committable,
+                            TRANSACTION_COORDINATOR_ASSIGN,
+                            ex);
+                    collected = firstOrSuppressed(ex, collected);
+                } else {
+                    LOG.error(
+                            "Encountered retriable exception while committing transaction {} for topic {}.",
+                            committable,
+                            topic,
+                            ex);
+                    retryableCommittables.add(committable);
+                }
             } catch (Exception e) {
                 LOG.error(
                         "Transaction ({}) encountered unknown error and data could be potentially lost.",

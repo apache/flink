@@ -39,13 +39,11 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.connector.pulsar.common.config.PulsarClientFactory.createClient;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
+import static org.apache.flink.connector.pulsar.common.utils.PulsarTransactionUtils.createTransaction;
 import static org.apache.flink.connector.pulsar.sink.config.PulsarSinkConfigUtils.createProducerBuilder;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -98,18 +96,7 @@ public class TopicProducerRegister implements Closeable {
                 topic,
                 t -> {
                     long timeoutMillis = sinkConfiguration.getTransactionTimeoutMillis();
-                    CompletableFuture<Transaction> future =
-                            sneakyClient(pulsarClient::newTransaction)
-                                    .withTransactionTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
-                                    .build();
-                    try {
-                        return future.get();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        throw new FlinkRuntimeException(e);
-                    } catch (ExecutionException e) {
-                        throw new FlinkRuntimeException(e);
-                    }
+                    return createTransaction(pulsarClient, timeoutMillis);
                 });
     }
 
@@ -154,6 +141,8 @@ public class TopicProducerRegister implements Closeable {
                     PulsarCommittable committable = new PulsarCommittable(txnID, topic);
                     committables.add(committable);
                 });
+
+        clearTransactions();
         return committables;
     }
 
