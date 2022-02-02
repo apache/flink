@@ -41,4 +41,22 @@ public class CommittableSummaryAssert
                 .isEqualTo(summary.getNumberOfFailedCommittables());
         return this;
     }
+
+    public CommittableSummaryAssert hasOverallCommittables(int committableNumber) {
+        isNotNull();
+        assertThat(actual.getNumberOfCommittables()).isEqualTo(committableNumber);
+        return this;
+    }
+
+    public CommittableSummaryAssert hasPendingCommittables(int committableNumber) {
+        isNotNull();
+        assertThat(actual.getNumberOfPendingCommittables()).isEqualTo(committableNumber);
+        return this;
+    }
+
+    public CommittableSummaryAssert hasFailedCommittables(int committableNumber) {
+        isNotNull();
+        assertThat(actual.getNumberOfFailedCommittables()).isEqualTo(committableNumber);
+        return this;
+    }
 }

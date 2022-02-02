@@ -925,5 +925,10 @@ public class StreamGraphGenerator {
         public ReadableConfig getGraphGeneratorConfig() {
             return config;
         }
+
+        @Override
+        public Collection<Integer> transform(Transformation<?> transformation) {
+            return streamGraphGenerator.transform(transformation);
+        }
     }
 }

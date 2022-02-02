@@ -24,4 +24,9 @@ public class SinkV2Assertions {
     public static CommittableSummaryAssert assertThat(CommittableSummary<?> summary) {
         return new CommittableSummaryAssert(summary);
     }
+
+    public static CommittableWithLinageAssert assertThat(
+            CommittableWithLineage<?> committableWithLineage) {
+        return new CommittableWithLinageAssert(committableWithLineage);
+    }
 }
