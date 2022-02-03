@@ -62,7 +62,7 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
     }
 
     @VisibleForTesting
-    DispatcherResourceCleanerFactory(
+    public DispatcherResourceCleanerFactory(
             Executor cleanupExecutor,
             JobManagerRunnerRegistry jobManagerRunnerRegistry,
             JobGraphWriter jobGraphWriter,

@@ -241,13 +241,9 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
             }
         }
         final TestingDispatcher dispatcher =
-                new TestingDispatcherBuilder()
-                        .setJobManagerRunnerFactory(
-                                JobMasterServiceLeadershipRunnerFactory.INSTANCE)
-                        .setJobGraphWriter(haServices.getJobGraphStore())
-                        .setJobResultStore(haServices.getJobResultStore())
-                        .setInitialJobGraphs(jobGraphs)
-                        .setDirtyJobResults(haServices.getJobResultStore().getDirtyResults())
+                createTestingDispatcherBuilder()
+                        .setRecoveredJobs(jobGraphs)
+                        .setRecoveredDirtyJobs(haServices.getJobResultStore().getDirtyResults())
                         .setFatalErrorHandler(
                                 fatalErrorHandler == null
                                         ? testingFatalErrorHandlerResource.getFatalErrorHandler()

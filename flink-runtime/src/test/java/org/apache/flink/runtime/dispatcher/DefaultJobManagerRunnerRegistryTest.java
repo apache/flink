@@ -20,7 +20,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.FlinkAssertions;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.util.FlinkException;
@@ -47,9 +46,7 @@ public class DefaultJobManagerRunnerRegistryTest {
 
     @BeforeEach
     public void setup() {
-        testInstance =
-                new DefaultJobManagerRunnerRegistry(
-                        4, ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        testInstance = new DefaultJobManagerRunnerRegistry(4);
     }
 
     @Test

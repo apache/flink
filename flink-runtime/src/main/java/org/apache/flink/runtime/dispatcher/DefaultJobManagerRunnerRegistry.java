@@ -20,7 +20,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -37,19 +36,15 @@ import java.util.concurrent.Executor;
 
 /**
  * {@code DefaultJobManagerRunnerRegistry} is the default implementation of the {@link
- * JobManagerRunnerRegistry} interface. All methods of this class are expected to be called from
- * within the main thread.
+ * JobManagerRunnerRegistry} interface.
  */
 public class DefaultJobManagerRunnerRegistry implements JobManagerRunnerRegistry {
 
     @VisibleForTesting final Map<JobID, JobManagerRunner> jobManagerRunners;
-    private final ComponentMainThreadExecutor mainThreadExecutor;
 
-    public DefaultJobManagerRunnerRegistry(
-            int initialCapacity, ComponentMainThreadExecutor mainThreadExecutor) {
+    public DefaultJobManagerRunnerRegistry(int initialCapacity) {
         Preconditions.checkArgument(initialCapacity > 0);
         jobManagerRunners = new HashMap<>(initialCapacity);
-        this.mainThreadExecutor = mainThreadExecutor;
     }
 
     @Override
@@ -59,7 +54,6 @@ public class DefaultJobManagerRunnerRegistry implements JobManagerRunnerRegistry
 
     @Override
     public void register(JobManagerRunner jobManagerRunner) {
-        mainThreadExecutor.assertRunningInMainThread();
         Preconditions.checkArgument(
                 !isRegistered(jobManagerRunner.getJobID()),
                 "A job with the ID %s is already registered.",
@@ -99,7 +93,6 @@ public class DefaultJobManagerRunnerRegistry implements JobManagerRunnerRegistry
     }
 
     private CompletableFuture<Void> cleanup(JobID jobId) {
-        mainThreadExecutor.assertRunningInMainThread();
         if (isRegistered(jobId)) {
             try {
                 unregister(jobId).close();
@@ -113,7 +106,6 @@ public class DefaultJobManagerRunnerRegistry implements JobManagerRunnerRegistry
 
     @Override
     public JobManagerRunner unregister(JobID jobId) {
-        mainThreadExecutor.assertRunningInMainThread();
         assertJobRegistered(jobId);
         return this.jobManagerRunners.remove(jobId);
     }
