@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -97,7 +98,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -113,6 +113,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     public static final String DISPATCHER_NAME = "dispatcher";
 
+    private static final int INITIAL_JOB_MANAGER_RUNNER_REGISTRY_CAPACITY = 16;
+
     private final Configuration configuration;
 
     private final JobGraphWriter jobGraphWriter;
@@ -126,7 +128,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     private final FatalErrorHandler fatalErrorHandler;
 
-    private final JobManagerRunnerRegistry jobManagerRunnerRegistry;
+    private final OnMainThreadJobManagerRunnerRegistry jobManagerRunnerRegistry;
 
     private final Collection<JobGraph> recoveredJobs;
 
@@ -139,8 +141,6 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     private final JobManagerMetricGroup jobManagerMetricGroup;
 
     private final HistoryServerArchivist historyServerArchivist;
-
-    private final Executor ioExecutor;
 
     @Nullable private final String metricServiceQueryAddress;
 
@@ -169,8 +169,48 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             DispatcherServices dispatcherServices)
             throws Exception {
+        this(
+                rpcService,
+                fencingToken,
+                recoveredJobs,
+                recoveredDirtyJobs,
+                dispatcherBootstrapFactory,
+                dispatcherServices,
+                new DefaultJobManagerRunnerRegistry(INITIAL_JOB_MANAGER_RUNNER_REGISTRY_CAPACITY));
+    }
+
+    private Dispatcher(
+            RpcService rpcService,
+            DispatcherId fencingToken,
+            Collection<JobGraph> recoveredJobs,
+            Collection<JobResult> globallyTerminatedJobs,
+            DispatcherBootstrapFactory dispatcherBootstrapFactory,
+            DispatcherServices dispatcherServices,
+            JobManagerRunnerRegistry jobManagerRunnerRegistry)
+            throws Exception {
+        this(
+                rpcService,
+                fencingToken,
+                recoveredJobs,
+                globallyTerminatedJobs,
+                dispatcherBootstrapFactory,
+                dispatcherServices,
+                jobManagerRunnerRegistry,
+                new DispatcherResourceCleanerFactory(jobManagerRunnerRegistry, dispatcherServices));
+    }
+
+    @VisibleForTesting
+    protected Dispatcher(
+            RpcService rpcService,
+            DispatcherId fencingToken,
+            Collection<JobGraph> recoveredJobs,
+            Collection<JobResult> recoveredDirtyJobs,
+            DispatcherBootstrapFactory dispatcherBootstrapFactory,
+            DispatcherServices dispatcherServices,
+            JobManagerRunnerRegistry jobManagerRunnerRegistry,
+            ResourceCleanerFactory resourceCleanerFactory)
+            throws Exception {
         super(rpcService, RpcServiceUtils.createRandomName(DISPATCHER_NAME), fencingToken);
-        checkNotNull(dispatcherServices);
         assertRecoveredJobsAndDirtyJobResults(recoveredJobs, recoveredDirtyJobs);
 
         this.configuration = dispatcherServices.getConfiguration();
@@ -184,14 +224,14 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         this.jobResultStore = dispatcherServices.getJobResultStore();
         this.jobManagerMetricGroup = dispatcherServices.getJobManagerMetricGroup();
         this.metricServiceQueryAddress = dispatcherServices.getMetricQueryServiceAddress();
-        this.ioExecutor = dispatcherServices.getIoExecutor();
 
         this.jobManagerSharedServices =
                 JobManagerSharedServices.fromConfiguration(
                         configuration, blobServer, fatalErrorHandler);
 
-        jobManagerRunnerRegistry =
-                new DefaultJobManagerRunnerRegistry(16, this.getMainThreadExecutor());
+        this.jobManagerRunnerRegistry =
+                new OnMainThreadJobManagerRunnerRegistry(
+                        jobManagerRunnerRegistry, this.getMainThreadExecutor());
 
         this.historyServerArchivist = dispatcherServices.getHistoryServerArchivist();
 
@@ -199,7 +239,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
         this.jobManagerRunnerFactory = dispatcherServices.getJobManagerRunnerFactory();
 
-        this.jobManagerRunnerTerminationFutures = new HashMap<>(2);
+        this.jobManagerRunnerTerminationFutures =
+                new HashMap<>(INITIAL_JOB_MANAGER_RUNNER_REGISTRY_CAPACITY);
 
         this.shutDownFuture = new CompletableFuture<>();
 
@@ -209,7 +250,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
         this.blobServer.retainJobs(
                 recoveredJobs.stream().map(JobGraph::getJobID).collect(Collectors.toSet()),
-                ioExecutor);
+                dispatcherServices.getIoExecutor());
 
         this.dispatcherCachedOperationsHandler =
                 new DispatcherCachedOperationsHandler(
@@ -217,8 +258,6 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                         this::triggerSavepointAndGetLocation,
                         this::stopWithSavepointAndGetLocation);
 
-        final ResourceCleanerFactory resourceCleanerFactory =
-                new DispatcherResourceCleanerFactory(jobManagerRunnerRegistry, dispatcherServices);
         this.localResourceCleaner =
                 resourceCleanerFactory.createLocalResourceCleaner(this.getMainThreadExecutor());
         this.globalResourceCleaner =
@@ -1119,7 +1158,11 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     private void registerDispatcherMetrics(MetricGroup jobManagerMetricGroup) {
         jobManagerMetricGroup.gauge(
-                MetricNames.NUM_RUNNING_JOBS, () -> (long) jobManagerRunnerRegistry.size());
+                MetricNames.NUM_RUNNING_JOBS,
+                // metrics can be called from anywhere and therefore, have to run without the main
+                // thread safeguard being triggered. For metrics, we can afford to be not 100%
+                // accurate
+                () -> (long) jobManagerRunnerRegistry.getWrappedDelegate().size());
     }
 
     public CompletableFuture<Void> onRemovedJobGraph(JobID jobId) {
