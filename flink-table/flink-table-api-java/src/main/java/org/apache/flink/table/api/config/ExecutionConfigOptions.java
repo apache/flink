@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.MemorySize;
@@ -413,6 +414,17 @@ public class ExecutionConfigOptions {
                     .withDescription(
                             "Determines whether CAST will operate following the legacy behaviour "
                                     + "or the new one that introduces various fixes and improvements.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Long> TABLE_EXEC_RANK_TOPN_CACHE_SIZE =
+            ConfigOptions.key("table.exec.rank.topn-cache-size")
+                    .longType()
+                    .defaultValue(10000L)
+                    .withDeprecatedKeys("table.exec.topn-cache-size")
+                    .withDescription(
+                            "Rank operators have a cache which caches partial state contents "
+                                    + "to reduce state access. Cache size is the number of records "
+                                    + "in each ranking task.");
 
     // ------------------------------------------------------------------------------------------
     // Enum option types
