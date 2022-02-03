@@ -1,0 +1,2 @@
+simple name of org.apache.flink.connector.jdbc.table.JdbcLookupTestBase does not end with 'ITCase' in (JdbcLookupTestBase.java:0)
+simple name of org.apache.flink.connector.jdbc.table.JdbcRowDataLookupFunctionTest does not end with 'ITCase' in (JdbcRowDataLookupFunctionTest.java:0)
