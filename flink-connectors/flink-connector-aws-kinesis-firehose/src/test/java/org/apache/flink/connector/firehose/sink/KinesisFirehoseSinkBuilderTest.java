@@ -19,9 +19,12 @@ package org.apache.flink.connector.firehose.sink;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.connector.aws.config.AWSConfigConstants;
 
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
+
+import java.util.Properties;
 
 /** Covers construction, defaults and sanity checking of {@link KinesisFirehoseSinkBuilder}. */
 public class KinesisFirehoseSinkBuilderTest {
@@ -64,5 +67,15 @@ public class KinesisFirehoseSinkBuilderTest {
                                         .build())
                 .withMessageContaining(
                         "The delivery stream name must be set when initializing the KDF Sink.");
+    }
+
+    @Test
+    public void defaultProtocolVersionInsertedToConfiguration() {
+        Properties expectedProps = new Properties();
+        expectedProps.setProperty(AWSConfigConstants.HTTP_PROTOCOL_VERSION, "HTTP1_1");
+        Properties defaultProperties =
+                KinesisFirehoseSink.<String>builder().getClientPropertiesWithDefaultHttpProtocol();
+
+        Assertions.assertThat(defaultProperties).isEqualTo(expectedProps);
     }
 }
