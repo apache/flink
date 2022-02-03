@@ -135,17 +135,17 @@ dependencies {
     // Compile-time dependencies that should NOT be part of the
     // shadow jar and are provided in the lib folder of Flink
     // --------------------------------------------------------------
-    compile "org.apache.flink:flink-streaming-java:${flinkVersion}"
-    compile "org.apache.flink:flink-clients:${flinkVersion}"
+    implementation "org.apache.flink:flink-streaming-java:${flinkVersion}"
+    implementation "org.apache.flink:flink-clients:${flinkVersion}"
     // --------------------------------------------------------------
     // Dependencies that should be part of the shadow jar, e.g.
     // connectors. These must be in the flinkShadowJar configuration!
     // --------------------------------------------------------------
     //flinkShadowJar "org.apache.flink:flink-connector-kafka:${flinkVersion}"
-    compile "org.apache.logging.log4j:log4j-api:${log4jVersion}"
-    compile "org.apache.logging.log4j:log4j-core:${log4jVersion}"
-    compile "org.apache.logging.log4j:log4j-slf4j-impl:${log4jVersion}"
-    compile "org.slf4j:slf4j-log4j12:${slf4jVersion}"
+    runtimeOnly "org.apache.logging.log4j:log4j-api:${log4jVersion}"
+    runtimeOnly "org.apache.logging.log4j:log4j-core:${log4jVersion}"
+    runtimeOnly "org.apache.logging.log4j:log4j-slf4j-impl:${log4jVersion}"
+    runtimeOnly "org.slf4j:slf4j-log4j12:${slf4jVersion}"
     // Add test dependencies here.
     // testCompile "junit:junit:4.12"
 }

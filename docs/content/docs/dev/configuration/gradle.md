@@ -103,14 +103,16 @@ If you want to create a JAR for a Flink Job and use only Flink dependencies with
 dependencies (i.e. using the filesystem connector with JSON format), you do not need to create an
 uber/fat JAR or shade any dependencies.
 
+You can use the command `gradle clean installDist`. If you are using a [Gradle
+Wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html), this would be `./gradlew clean installDist`.
+
 If you want to create a JAR for a Flink Job and use external dependencies not built into the Flink
 distribution, you can either add them to the classpath of the distribution or shade them into your
 uber/fat application JAR.
 
-To create an uber/fat JAR, you can use the command `gradle clean installDist` or `gradle clean installShadowDist`, 
-which will produce a single fat JAR in `/build/install/yourProject/lib`. If you are using a [Gradle 
-Wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html), this would be `./gradlew clean installDist` 
-or `./gradlew clean installShadowDist`.
+You can use the command `gradle clean installShadowDist`, which will produce a single fat JAR in `/build/install/yourProject/lib`. 
+If you are using a [Gradle Wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html), 
+this would be `./gradlew clean installShadowDist`.
 
 With the generated uber/fat JAR, you can submit it to a local or remote cluster with:
 
