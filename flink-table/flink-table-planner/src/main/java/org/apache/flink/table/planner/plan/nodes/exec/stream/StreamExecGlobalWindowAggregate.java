@@ -80,6 +80,8 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
 
     public static final String FIELD_NAME_LOCAL_AGG_INPUT_ROW_TYPE = "localAggInputRowType";
 
+    private static final String GLOBAL_WINDOW_AGGREGATE_OPERATOR = "global-window-aggregate";
+
     @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
 
@@ -232,8 +234,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorName(planner.getTableConfig()),
-                        getOperatorDescription(planner.getTableConfig()),
+                        getOperatorMeta(GLOBAL_WINDOW_AGGREGATE_OPERATOR, planner.getTableConfig()),
                         SimpleOperatorFactory.of(windowOperator),
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism(),

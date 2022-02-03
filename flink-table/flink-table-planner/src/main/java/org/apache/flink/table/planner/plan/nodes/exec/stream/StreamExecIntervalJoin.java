@@ -75,6 +75,13 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(StreamExecIntervalJoin.class);
+
+    private static final String FILTER_LEFT_OPERATOR = "filter-left";
+    private static final String FILTER_RIGHT_OPERATOR = "filter-right";
+    private static final String PAD_LEFT_OPERATOR = "pad-left";
+    private static final String PAD_RIGHT_OPERATOR = "pad-right";
+    private static final String INTERVAL_JOIN_OPERATOR = "interval-join";
+
     public static final String FIELD_NAME_INTERVAL_JOIN_SPEC = "intervalJoinSpec";
 
     @JsonProperty(FIELD_NAME_INTERVAL_JOIN_SPEC)
@@ -229,6 +236,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         new StreamFlatMap<>(allFilter),
                         returnTypeInfo,
                         leftParallelism);
+        filterAllLeftStream.setUid(getOperatorUid(FILTER_LEFT_OPERATOR));
         filterAllLeftStream.setDescription(
                 getFormattedOperatorDescription("filter all left input transformation", config));
         filterAllLeftStream.setName(
@@ -242,6 +250,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         new StreamFlatMap<>(allFilter),
                         returnTypeInfo,
                         rightParallelism);
+        filterAllRightStream.setUid(getOperatorUid(FILTER_RIGHT_OPERATOR));
         filterAllRightStream.setDescription(
                 getFormattedOperatorDescription("filter all right input transformation", config));
         filterAllRightStream.setName(
@@ -255,6 +264,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         new StreamMap<>(leftPadder),
                         returnTypeInfo,
                         leftParallelism);
+        padLeftStream.setUid(getOperatorUid(PAD_LEFT_OPERATOR));
         padLeftStream.setDescription(
                 getFormattedOperatorDescription("pad left input transformation", config));
         padLeftStream.setName(
@@ -267,26 +277,39 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         new StreamMap<>(rightPadder),
                         returnTypeInfo,
                         rightParallelism);
+        padRightStream.setUid(getOperatorUid(PAD_RIGHT_OPERATOR));
         padRightStream.setDescription(
                 getFormattedOperatorDescription("pad right input transformation", config));
         padRightStream.setName(
                 getFormattedOperatorName(padRightStream.getDescription(), "PadRight", config));
 
+        Transformation<RowData> transformation;
         switch (joinSpec.getJoinType()) {
             case INNER:
-                return new UnionTransformation<>(
-                        Lists.newArrayList(filterAllLeftStream, filterAllRightStream));
+                transformation =
+                        new UnionTransformation<>(
+                                Lists.newArrayList(filterAllLeftStream, filterAllRightStream));
+                break;
             case LEFT:
-                return new UnionTransformation<>(
-                        Lists.newArrayList(padLeftStream, filterAllRightStream));
+                transformation =
+                        new UnionTransformation<>(
+                                Lists.newArrayList(padLeftStream, filterAllRightStream));
+                break;
             case RIGHT:
-                return new UnionTransformation<>(
-                        Lists.newArrayList(filterAllLeftStream, padRightStream));
+                transformation =
+                        new UnionTransformation<>(
+                                Lists.newArrayList(filterAllLeftStream, padRightStream));
+                break;
             case FULL:
-                return new UnionTransformation<>(Lists.newArrayList(padLeftStream, padRightStream));
+                transformation =
+                        new UnionTransformation<>(
+                                Lists.newArrayList(padLeftStream, padRightStream));
+                break;
             default:
                 throw new TableException("should no reach here");
         }
+        transformation.setUid(getOperatorUid(INTERVAL_JOIN_OPERATOR));
+        return transformation;
     }
 
     private TwoInputTransformation<RowData, RowData, RowData> createProcTimeJoin(
@@ -313,8 +336,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,
-                getOperatorName(config),
-                getOperatorDescription(config),
+                getOperatorMeta(INTERVAL_JOIN_OPERATOR, config),
                 new KeyedCoProcessOperator<>(procJoinFunc),
                 returnTypeInfo,
                 leftInputTransform.getParallelism());
@@ -348,8 +370,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,
-                getOperatorName(config),
-                getOperatorDescription(config),
+                getOperatorMeta(INTERVAL_JOIN_OPERATOR, config),
                 new KeyedCoProcessOperatorWithWatermarkDelay<>(
                         rowJoinFunc, rowJoinFunc.getMaxOutputDelay()),
                 returnTypeInfo,

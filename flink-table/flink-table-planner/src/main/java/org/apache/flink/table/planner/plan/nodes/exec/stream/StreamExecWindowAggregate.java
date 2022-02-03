@@ -81,6 +81,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
 
+    private static final String WINDOW_AGGREGATE_OPERATOR = "window-aggregate";
+
     private static final long WINDOW_AGG_MEMORY_RATIO = 100;
 
     public static final String FIELD_NAME_WINDOWING = "windowing";
@@ -187,8 +189,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorName(planner.getTableConfig()),
-                        getOperatorDescription(planner.getTableConfig()),
+                        getOperatorMeta(WINDOW_AGGREGATE_OPERATOR, planner.getTableConfig()),
                         SimpleOperatorFactory.of(windowOperator),
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism(),

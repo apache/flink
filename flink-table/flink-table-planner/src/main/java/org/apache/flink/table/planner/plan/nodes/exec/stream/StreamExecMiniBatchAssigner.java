@@ -63,6 +63,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
+    private static final String MINI_BATCH_ASSIGNER_OPERATOR = "mini-batch-assigner";
+
     public static final String FIELD_NAME_MINI_BATCH_INTERVAL = "miniBatchInterval";
 
     @JsonProperty(FIELD_NAME_MINI_BATCH_INTERVAL)
@@ -114,8 +116,7 @@ public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(planner.getTableConfig()),
-                getOperatorDescription(planner.getTableConfig()),
+                getOperatorMeta(MINI_BATCH_ASSIGNER_OPERATOR, planner.getTableConfig()),
                 operator,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

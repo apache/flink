@@ -68,6 +68,8 @@ import java.util.List;
 public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
+    private static final String CHANGELOG_NORMALIZE_OPERATOR = "changelog-normalize";
+
     public static final String FIELD_NAME_UNIQUE_KEYS = "uniqueKeys";
     public static final String FIELD_NAME_GENERATE_UPDATE_BEFORE = "generateUpdateBefore";
 
@@ -157,8 +159,7 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorName(tableConfig),
-                        getOperatorDescription(tableConfig),
+                        getOperatorMeta(CHANGELOG_NORMALIZE_OPERATOR, tableConfig),
                         operator,
                         rowTypeInfo,
                         inputTransform.getParallelism());

@@ -113,6 +113,11 @@ public final class ExecNodeContext {
         return version;
     }
 
+    /** Returns a new {@code uid} for transformations. */
+    public String generateUid(String operatorName) {
+        return toString() + "_" + operatorName;
+    }
+
     /**
      * Set the unique ID of the node, so that the {@link ExecNodeContext}, together with the type
      * related {@link #name} and {@link #version}, stores all the necessary info to uniquely

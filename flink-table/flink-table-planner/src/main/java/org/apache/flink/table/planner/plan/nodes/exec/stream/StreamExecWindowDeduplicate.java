@@ -65,6 +65,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class StreamExecWindowDeduplicate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
+    private static final String WINDOW_DEDUPLICATE_OPERATOR = "window-deduplicate";
+
     private static final long WINDOW_RANK_MEMORY_RATIO = 100;
 
     public static final String FIELD_NAME_PARTITION_KEYS = "partitionKeys";
@@ -165,8 +167,7 @@ public class StreamExecWindowDeduplicate extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorName(tableConfig),
-                        getOperatorDescription(tableConfig),
+                        getOperatorMeta(WINDOW_DEDUPLICATE_OPERATOR, tableConfig),
                         SimpleOperatorFactory.of(operator),
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism(),

@@ -57,6 +57,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
@@ -89,6 +90,12 @@ import java.util.stream.IntStream;
  */
 public abstract class CommonExecSink extends ExecNodeBase<Object>
         implements MultipleTransformationTranslator<Object> {
+
+    private static final String CONSTRAINT_VALIDATOR_OPERATOR = "constraint-validator";
+    private static final String PARTITIONER_OPERATOR = "partitioner";
+    private static final String UPSERT_MATERIALIZE_OPERATOR = "upsert-materialize";
+    private static final String TIMESTAMP_INSERTER_OPERATOR = "timestamp-inserter";
+    private static final String SINK_OPERATOR = "sink";
 
     public static final String FIELD_NAME_DYNAMIC_TABLE_SINK = "dynamicTableSink";
 
@@ -258,8 +265,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                             config.getConfiguration());
             return ExecNodeUtil.createOneInputTransformation(
                     inputTransform,
-                    operatorName,
-                    operatorDesc,
+                    new TransformationMetadata(
+                            getOperatorUid(CONSTRAINT_VALIDATOR_OPERATOR),
+                            operatorName,
+                            operatorDesc),
                     constraintEnforcer,
                     getInputTypeInfo(),
                     inputTransform.getParallelism());
@@ -380,6 +389,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                         selector, KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM);
         Transformation<RowData> partitionedTransform =
                 new PartitionTransformation<>(inputTransform, partitioner);
+        partitionedTransform.setUid(getOperatorUid(PARTITIONER_OPERATOR));
         partitionedTransform.setParallelism(sinkParallelism);
         return partitionedTransform;
     }
@@ -414,8 +424,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         OneInputTransformation<RowData, RowData> materializeTransform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        operatorName,
-                        operatorDesc,
+                        new TransformationMetadata(
+                                getOperatorUid(UPSERT_MATERIALIZE_OPERATOR),
+                                operatorName,
+                                operatorDesc),
                         operator,
                         inputTransform.getOutputType(),
                         sinkParallelism);
@@ -434,7 +446,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             int rowtimeFieldIndex,
             int sinkParallelism,
             Configuration config) {
-        String sinkName = getOperatorName(config);
+        TransformationMetadata sinkMeta = getOperatorMeta(SINK_OPERATOR, config);
         String sinkDescription = getOperatorDescription(config);
         if (runtimeProvider instanceof DataStreamSinkProvider) {
             Transformation<RowData> sinkTransformation =
@@ -442,12 +454,18 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                             inputTransform, rowtimeFieldIndex, sinkParallelism, config);
             final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
             final DataStreamSinkProvider provider = (DataStreamSinkProvider) runtimeProvider;
-            return provider.consumeDataStream(dataStream).getTransformation();
+            return provider.consumeDataStream(dataStream)
+                    .uid(sinkMeta.getUid())
+                    .getTransformation();
         } else if (runtimeProvider instanceof TransformationSinkProvider) {
             final TransformationSinkProvider provider =
                     (TransformationSinkProvider) runtimeProvider;
-            return provider.createTransformation(
-                    TransformationSinkProvider.Context.of(inputTransform, rowtimeFieldIndex));
+            Transformation<?> transformation =
+                    provider.createTransformation(
+                            TransformationSinkProvider.Context.of(
+                                    inputTransform, rowtimeFieldIndex));
+            transformation.setUid(sinkMeta.getUid());
+            return transformation;
         } else if (runtimeProvider instanceof SinkFunctionProvider) {
             final SinkFunction<RowData> sinkFunction =
                     ((SinkFunctionProvider) runtimeProvider).createSinkFunction();
@@ -456,8 +474,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                     env,
                     inputTransform,
                     rowtimeFieldIndex,
-                    sinkName,
-                    sinkDescription,
+                    sinkMeta,
                     sinkParallelism);
         } else if (runtimeProvider instanceof OutputFormatProvider) {
             OutputFormat<RowData> outputFormat =
@@ -468,8 +485,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                     env,
                     inputTransform,
                     rowtimeFieldIndex,
-                    sinkName,
-                    sinkDescription,
+                    sinkMeta,
                     sinkParallelism);
         } else if (runtimeProvider instanceof SinkProvider) {
             Transformation<RowData> sinkTransformation =
@@ -481,8 +497,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                                     dataStream, ((SinkProvider) runtimeProvider).createSink())
                             .getTransformation();
             transformation.setParallelism(sinkParallelism);
-            transformation.setName(sinkName);
-            transformation.setDescription(sinkDescription);
+            sinkMeta.fill(transformation);
             return transformation;
         } else if (runtimeProvider instanceof SinkV2Provider) {
             Transformation<RowData> sinkTransformation =
@@ -507,8 +522,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             StreamExecutionEnvironment env,
             Transformation<RowData> inputTransformation,
             int rowtimeFieldIndex,
-            String sinkName,
-            String sinkDescription,
+            TransformationMetadata transformationMetadata,
             int sinkParallelism) {
         final SinkOperator operator = new SinkOperator(env.clean(sinkFunction), rowtimeFieldIndex);
 
@@ -520,10 +534,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         final Transformation<?> transformation =
                 new LegacySinkTransformation<>(
                         inputTransformation,
-                        sinkName,
+                        transformationMetadata.getName(),
                         SimpleOperatorFactory.of(operator),
                         sinkParallelism);
-        transformation.setDescription(sinkDescription);
+        transformationMetadata.fill(transformation);
         return transformation;
     }
 
@@ -544,8 +558,11 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                         config);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getFormattedOperatorName(description, "StreamRecordTimestampInserter", config),
-                description,
+                new TransformationMetadata(
+                        getOperatorUid(TIMESTAMP_INSERTER_OPERATOR),
+                        getFormattedOperatorName(
+                                description, "StreamRecordTimestampInserter", config),
+                        description),
                 new StreamRecordTimestampInserter(rowtimeFieldIndex),
                 inputTransform.getOutputType(),
                 sinkParallelism);

@@ -25,6 +25,7 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -157,6 +158,10 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
                                                 == InputProperty.DistributionType.SINGLETON);
     }
 
+    public String getOperatorUid(String operatorName) {
+        return context.generateUid(operatorName);
+    }
+
     public String getOperatorName(TableConfig config) {
         return getOperatorName(config.getConfiguration());
     }
@@ -176,6 +181,17 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
     protected String getOperatorDescription(Configuration config) {
         return getFormattedOperatorDescription(getDescription(), config);
+    }
+
+    public TransformationMetadata getOperatorMeta(String operatorName, TableConfig config) {
+        return getOperatorMeta(operatorName, config.getConfiguration());
+    }
+
+    public TransformationMetadata getOperatorMeta(String operatorName, Configuration config) {
+        return new TransformationMetadata(
+                getOperatorUid(operatorName),
+                getOperatorName(config),
+                getOperatorDescription(config));
     }
 
     protected String getFormattedOperatorDescription(String description, Configuration config) {

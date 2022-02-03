@@ -74,6 +74,8 @@ import java.util.Optional;
 public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
+    private static final String TEMPORAL_JOIN_OPERATOR = "temporal-join";
+
     public static final String FIELD_NAME_JOIN_SPEC = "joinSpec";
     public static final String FIELD_NAME_IS_TEMPORAL_FUNCTION_JOIN = "isTemporalFunctionJoin";
     public static final String FIELD_NAME_LEFT_TIME_ATTRIBUTE_INDEX = "leftTimeAttributeIndex";
@@ -177,8 +179,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
                 ExecNodeUtil.createTwoInputTransformation(
                         leftTransform,
                         rightTransform,
-                        getOperatorName(planner.getTableConfig()),
-                        getOperatorDescription(planner.getTableConfig()),
+                        getOperatorMeta(TEMPORAL_JOIN_OPERATOR, planner.getTableConfig()),
                         joinOperator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());

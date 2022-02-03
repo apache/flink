@@ -73,6 +73,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class StreamExecWindowRank extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
+    private static final String WINDOW_RANK_OPERATOR = "window-rank";
+
     private static final long WINDOW_RANK_MEMORY_RATIO = 100;
 
     public static final String FIELD_NAME_RANK_TYPE = "rankType";
@@ -242,8 +244,7 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorName(planner.getTableConfig()),
-                        getOperatorDescription(planner.getTableConfig()),
+                        getOperatorMeta(WINDOW_RANK_OPERATOR, planner.getTableConfig()),
                         SimpleOperatorFactory.of(operator),
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism(),

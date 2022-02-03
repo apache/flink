@@ -80,6 +80,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class StreamExecRank extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
+    private static final String RANK_OPERATOR = "rank";
+
     public static final String FIELD_NAME_RANK_TYPE = "rankType";
     public static final String FIELD_NAME_PARTITION_SPEC = "partition";
     public static final String FIELD_NAME_SORT_SPEC = "orderBy";
@@ -319,8 +321,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorName(tableConfig),
-                        getOperatorDescription(tableConfig),
+                        getOperatorMeta(RANK_OPERATOR, tableConfig),
                         operator,
                         InternalTypeInfo.of((RowType) getOutputType()),
                         inputTransform.getParallelism());

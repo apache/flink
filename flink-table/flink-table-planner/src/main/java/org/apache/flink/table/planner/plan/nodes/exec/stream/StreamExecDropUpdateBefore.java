@@ -52,6 +52,8 @@ import java.util.List;
 public class StreamExecDropUpdateBefore extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
+    private static final String DROP_UPDATE_BEFORE_OPERATOR = "drop-update-before";
+
     public StreamExecDropUpdateBefore(
             InputProperty inputProperty, RowType outputType, String description) {
         this(
@@ -81,8 +83,7 @@ public class StreamExecDropUpdateBefore extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(planner.getTableConfig()),
-                getOperatorDescription(planner.getTableConfig()),
+                getOperatorMeta(DROP_UPDATE_BEFORE_OPERATOR, planner.getTableConfig()),
                 operator,
                 inputTransform.getOutputType(),
                 inputTransform.getParallelism());

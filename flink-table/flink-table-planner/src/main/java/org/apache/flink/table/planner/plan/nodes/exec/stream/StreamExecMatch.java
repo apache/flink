@@ -51,6 +51,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTran
 import org.apache.flink.table.planner.plan.nodes.exec.spec.MatchSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.RexDefaultVisitor;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -95,6 +96,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecMatch extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
+
+    private static final String TIMESTAMP_INSERTER_OPERATOR = "timestamp-inserter";
+    private static final String MATCH_OPERATOR = "match";
 
     public static final String FIELD_NAME_MATCH_SPEC = "matchSpec";
 
@@ -203,8 +207,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         timestampedInputTransform,
-                        getOperatorName(config),
-                        getOperatorDescription(config),
+                        getOperatorMeta(MATCH_OPERATOR, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         timestampedInputTransform.getParallelism());
@@ -268,10 +271,12 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
             Transformation<RowData> transform =
                     ExecNodeUtil.createOneInputTransformation(
                             inputTransform,
-                            "StreamRecordTimestampInserter",
-                            String.format(
-                                    "StreamRecordTimestampInserter(rowtime field: %s)",
-                                    timeOrderFieldIdx),
+                            new TransformationMetadata(
+                                    getOperatorUid(TIMESTAMP_INSERTER_OPERATOR),
+                                    "StreamRecordTimestampInserter",
+                                    String.format(
+                                            "StreamRecordTimestampInserter(rowtime field: %s)",
+                                            timeOrderFieldIdx)),
                             new StreamRecordTimestampInserter(timeOrderFieldIdx, precision),
                             inputTransform.getOutputType(),
                             inputTransform.getParallelism());

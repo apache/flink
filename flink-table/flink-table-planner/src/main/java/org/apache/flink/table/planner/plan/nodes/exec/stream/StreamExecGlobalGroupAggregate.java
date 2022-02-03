@@ -81,7 +81,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
+
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecGlobalGroupAggregate.class);
+
+    private static final String GLOBAL_GROUP_AGGREGATE_OPERATOR = "global-group-aggregate";
 
     public static final String FIELD_NAME_LOCAL_AGG_INPUT_ROW_TYPE = "localAggInputRowType";
     public static final String FIELD_NAME_INDEX_OF_COUNT_STAR = "indexOfCountStar";
@@ -261,8 +264,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorName(tableConfig),
-                        getOperatorDescription(tableConfig),
+                        getOperatorMeta(GLOBAL_GROUP_AGGREGATE_OPERATOR, tableConfig),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
