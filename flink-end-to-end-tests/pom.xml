@@ -39,48 +39,6 @@ under the License.
 	</properties>
 
 	<modules>
-		<module>flink-cli-test</module>
-		<module>flink-parent-child-classloading-test-program</module>
-		<module>flink-parent-child-classloading-test-lib-package</module>
-		<module>flink-dataset-allround-test</module>
-		<module>flink-dataset-fine-grained-recovery-test</module>
-		<module>flink-datastream-allround-test</module>
-		<module>flink-batch-sql-test</module>
-		<module>flink-stream-sql-test</module>
-		<module>flink-distributed-cache-via-blob-test</module>
-		<module>flink-high-parallelism-iterations-test</module>
-		<module>flink-stream-stateful-job-upgrade-test</module>
-		<module>flink-queryable-state-test</module>
-		<module>flink-local-recovery-and-allocation-test</module>
-		<module>flink-elasticsearch6-test</module>
-		<module>flink-quickstart-test</module>
-		<module>flink-confluent-schema-registry</module>
-		<module>flink-stream-state-ttl-test</module>
-		<module>flink-sql-client-test</module>
-		<module>flink-file-sink-test</module>
-		<module>flink-state-evolution-test</module>
-		<module>flink-rocksdb-state-memory-control-test</module>
-		<module>flink-end-to-end-tests-common</module>
-		<module>flink-metrics-availability-test</module>
-		<module>flink-metrics-reporter-prometheus-test</module>
-		<module>flink-heavy-deployment-stress-test</module>
-		<module>flink-connector-gcp-pubsub-emulator-tests</module>
-		<module>flink-streaming-kafka-test-base</module>
-		<module>flink-streaming-kafka-test</module>
-		<module>flink-plugins-test</module>
-		<module>flink-tpch-test</module>
-		<module>flink-streaming-kinesis-test</module>
-		<module>flink-elasticsearch7-test</module>
-		<module>flink-end-to-end-tests-common-kafka</module>
-		<module>flink-tpcds-test</module>
-		<module>flink-netty-shuffle-memory-control-test</module>
-		<module>flink-python-test</module>
-		<module>flink-end-to-end-tests-hbase</module>
-		<module>flink-end-to-end-tests-pulsar</module>
-		<module>flink-glue-schema-registry-avro-test</module>
-		<module>flink-glue-schema-registry-json-test</module>
-		<module>flink-end-to-end-tests-scala</module>
-		<module>flink-end-to-end-tests-kinesis-streams</module>
 		<module>flink-end-to-end-tests-kinesis-firehose</module>
 	</modules>
 
