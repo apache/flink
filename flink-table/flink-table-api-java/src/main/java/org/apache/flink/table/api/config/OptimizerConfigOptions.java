@@ -38,6 +38,7 @@ public class OptimizerConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<String> TABLE_OPTIMIZER_AGG_PHASE_STRATEGY =
             key("table.optimizer.agg-phase-strategy")
+                    .stringType()
                     .defaultValue("AUTO")
                     .withDescription(
                             "Strategy for aggregate phase. Only AUTO, TWO_PHASE or ONE_PHASE can be set.\n"
@@ -50,6 +51,7 @@ public class OptimizerConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<Long> TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD =
             key("table.optimizer.join.broadcast-threshold")
+                    .longType()
                     .defaultValue(1024 * 1024L)
                     .withDescription(
                             "Configures the maximum size in bytes for a table that will be broadcast to all worker "
@@ -58,6 +60,7 @@ public class OptimizerConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED =
             key("table.optimizer.distinct-agg.split.enabled")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Tells the optimizer whether to split distinct aggregation "
@@ -70,6 +73,7 @@ public class OptimizerConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Integer> TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM =
             key("table.optimizer.distinct-agg.split.bucket-num")
+                    .intType()
                     .defaultValue(1024)
                     .withDescription(
                             "Configure the number of buckets when splitting distinct aggregation. "
@@ -79,6 +83,7 @@ public class OptimizerConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED =
             key("table.optimizer.reuse-sub-plan-enabled")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             "When it is true, the optimizer will try to find out duplicated sub-plans and reuse them.");
@@ -86,6 +91,7 @@ public class OptimizerConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED =
             key("table.optimizer.reuse-source-enabled")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             "When it is true, the optimizer will try to find out duplicated table sources and "
@@ -105,6 +111,7 @@ public class OptimizerConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED =
             key("table.optimizer.source.predicate-pushdown-enabled")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             "When it is true, the optimizer will push down predicates into the FilterableTableSource. "
@@ -113,12 +120,14 @@ public class OptimizerConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_JOIN_REORDER_ENABLED =
             key("table.optimizer.join-reorder-enabled")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription("Enables join reorder in optimizer. Default is disabled.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED =
             key("table.optimizer.multiple-input-enabled")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             "When it is true, the optimizer will merge the operators with pipelined shuffling "
@@ -127,6 +136,7 @@ public class OptimizerConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED =
             key("table.optimizer.simplify-operator-name-enabled")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             "When it is true, the optimizer will simplify the operator name with id and type of ExecNode and keep detail in description. Default value is true.");

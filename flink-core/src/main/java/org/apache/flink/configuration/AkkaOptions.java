@@ -278,6 +278,7 @@ public class AkkaOptions {
     @Deprecated
     public static final ConfigOption<String> WATCH_HEARTBEAT_INTERVAL =
             ConfigOptions.key("akka.watch.heartbeat.interval")
+                    .stringType()
                     .defaultValue(ASK_TIMEOUT.defaultValue())
                     .withDescription(
                             Description.builder()
@@ -299,6 +300,7 @@ public class AkkaOptions {
     @Deprecated
     public static final ConfigOption<String> WATCH_HEARTBEAT_PAUSE =
             ConfigOptions.key("akka.watch.heartbeat.pause")
+                    .stringType()
                     .defaultValue("60 s")
                     .withDescription(
                             Description.builder()
@@ -321,6 +323,7 @@ public class AkkaOptions {
     @Deprecated
     public static final ConfigOption<Integer> WATCH_THRESHOLD =
             ConfigOptions.key("akka.watch.threshold")
+                    .intType()
                     .defaultValue(12)
                     .withDescription(
                             Description.builder()

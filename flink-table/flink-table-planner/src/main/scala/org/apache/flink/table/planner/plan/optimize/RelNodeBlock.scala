@@ -389,6 +389,7 @@ object RelNodeBlockPlanBuilder {
   @Experimental
   val TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED: ConfigOption[JBoolean] =
     key("table.optimizer.union-all-as-breakpoint-enabled")
+        .booleanType()
         .defaultValue(JBoolean.valueOf(true))
         .withDescription("When true, the optimizer will breakup the graph at union-all node " +
           "when it's a breakpoint. When false, the optimizer will skip the union-all node " +
@@ -398,6 +399,7 @@ object RelNodeBlockPlanBuilder {
   @Experimental
   val TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED: ConfigOption[JBoolean] =
     key("table.optimizer.reuse-optimize-block-with-digest-enabled")
+        .booleanType()
         .defaultValue(JBoolean.valueOf(false))
         .withDescription("When true, the optimizer will try to find out duplicated sub-plan by " +
             "digest to build optimize block(a.k.a. common sub-graph). " +

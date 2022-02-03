@@ -109,6 +109,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
     public static final ConfigOption<String> INTERNAL_CLUSTER_EXECUTION_MODE =
             ConfigOptions.key("internal.cluster.execution-mode")
+                    .stringType()
                     .defaultValue(ExecutionMode.NORMAL.toString());
 
     protected static final Logger LOG = LoggerFactory.getLogger(ClusterEntrypoint.class);
