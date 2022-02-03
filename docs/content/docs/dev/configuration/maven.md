@@ -36,8 +36,8 @@ entire lifecycle of your software project.
 
 ## Importing the project into your IDE
 
-Once the project folder and files have been created, we recommend that you import this project into
-your IDE for developing and testing.
+Once the [project folder and files]({{< ref "docs/dev/configuration/overview#getting-started" >}}) 
+have been created, we recommend that you import this project into your IDE for developing and testing.
 
 IntelliJ IDEA supports Maven projects out-of-the-box. Eclipse offers the [m2e plugin](http://www.eclipse.org/m2e/) 
 to [import Maven projects](http://books.sonatype.com/m2eclipse-book/reference/creating-sect-importing-projects.html#fig-creating-import).
@@ -130,7 +130,7 @@ you can use the following shade plugin definition:
         <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-shade-plugin</artifactId>
-            <version>3.2.4</version>
+            <version>3.1.1</version>
             <executions>
                 <execution>
                     <phase>package</phase>
@@ -141,8 +141,6 @@ you can use the following shade plugin definition:
                         <artifactSet>
                             <excludes>
                                 <exclude>com.google.code.findbugs:jsr305</exclude>
-                                <exclude>org.slf4j:*</exclude>
-                                <exclude>log4j:*</exclude>
                             </excludes>
                         </artifactSet>
                         <filters>
@@ -162,6 +160,7 @@ you can use the following shade plugin definition:
                                 <!-- Replace this with the main class of your job -->
                                 <mainClass>my.programs.main.clazz</mainClass>
                             </transformer>
+                            <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                         </transformers>
                     </configuration>
                 </execution>

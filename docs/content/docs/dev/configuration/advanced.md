@@ -37,7 +37,7 @@ operators (such as windowing), resource management, etc.
 
 These core classes and dependencies are packaged in the `flink-dist` jar, are part of Flink's `lib`
 folder, and part of the basic Flink container images. You can think of these dependencies as similar
-to Java's core library (i.e. `rt.jar`, `charsets.jar`), which contains classes like `String` and `List`.
+to Java's core library, which contains classes like `String` and `List`.
 
 In order to keep the core dependencies as small as possible and avoid dependency clashes, the
 Flink Core Dependencies do not contain any connectors or libraries (i.e. CEP, SQL, ML) in order to

@@ -35,8 +35,8 @@ to automate tasks in the development process.
 
 ## Importing the project into your IDE
 
-Once the project folder and files have been created, we recommend that you import this project into
-your IDE for developing and testing.
+Once the [project folder and files]({{< ref "docs/dev/configuration/overview#getting-started" >}}) 
+have been created, we recommend that you import this project into your IDE for developing and testing.
 
 IntelliJ IDEA supports Gradle projects via the `Gradle` plugin.
 
@@ -70,7 +70,8 @@ can run the application from the JAR file without additionally specifying the ma
 
 Specify a dependency configuration in the dependencies block of your `build.gradle` file.
 
-For example, you can add the Kafka connector as a dependency like this:
+For example, if you created your project using our Gradle build script or quickstart script, you can 
+add the Kafka connector as a dependency like this:
 
 **build.gradle**
 

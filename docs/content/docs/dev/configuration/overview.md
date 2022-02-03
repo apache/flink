@@ -40,9 +40,7 @@ under the License.
 
 Every Flink application depends on a set of Flink libraries. At a minimum, the application depends
 on the Flink APIs and, in addition, on certain connector libraries (i.e. Kafka, Cassandra).
-When running Flink applications (either in a distributed deployment or locally for testing),
-the [Flink runtime library](https://ossindex.sonatype.org/component/pkg:maven/org.apache.flink/flink-runtime@1.14.3) 
-must be available.
+When running Flink applications in the IDE, add a provided dependency to the [Flink runtime library](https://mvnrepository.com/artifact/org.apache.flink/flink-runtime).
 
 The guides in this section will show you how to configure your projects via popular build tools
 ([Maven]({{< ref "docs/dev/configuration/maven" >}}), [Gradle]({{< ref "docs/dev/configuration/gradle" >}}),
@@ -94,14 +92,12 @@ plugins {
     id 'com.github.johnrengelman.shadow' version '7.1.2'
 }
 // artifact properties
-group = 'org.myorg.quickstart'
+group = 'org.quickstart'
 version = '0.1-SNAPSHOT'
-mainClassName = 'org.myorg.quickstart.StreamingJob'
+mainClassName = 'org.quickstart.StreamingJob'
+mainClassName = 'org.quickstart.StreamingJob'
 description = """Flink Quickstart Job"""
 ext {
-    javaVersion = '1.8'
-    flinkVersion = '{{< version >}}'
-    scalaBinaryVersion = '{{< scala_version >}}'
     slf4jVersion = '1.7.32'
     log4jVersion = '2.17.1'
 }
@@ -115,7 +111,6 @@ applicationDefaultJvmArgs = ["-Dlog4j.configurationFile=log4j2.properties"]
 // declare where to find the dependencies of your project
 repositories {
     mavenCentral()
-    maven { url "https://repository.apache.org/content/repositories/snapshots/" }
 }
 // NOTE: We cannot use "compileOnly" or "shadow" configurations since then we could not run code
 // in the IDE or with "gradle run". We also cannot exclude transitive dependencies from the
@@ -158,12 +153,7 @@ sourceSets {
     javadoc.classpath += configurations.flinkShadowJar
 }
 run.classpath = sourceSets.main.runtimeClasspath
-jar {
-    manifest {
-        attributes 'Built-By': System.getProperty('user.name'),
-                'Build-Jdk': System.getProperty('java.version')
-    }
-}
+
 shadowJar {
     configurations = [project.configurations.flinkShadowJar]
 }
@@ -179,22 +169,6 @@ rootProject.name = 'quickstart'
 
 ```bash
 bash -c "$(curl https://flink.apache.org/q/gradle-quickstart.sh)" -- {{< version >}} {{< scala_version >}}
-```
-{{< /tab >}}
-{{< tab "sbt" >}}
-You can scaffold a new Flink project with the following [giter8 template](https://github.com/tillrohrmann/flink-project.g8)
-and the `sbt new` command (which creates new build definitions from a template) or use the provided quickstart bash script.
-
-### sbt template
-
-```bash
-$ sbt new tillrohrmann/flink-project.g8
-```
-
-### Quickstart script
-
-```bash
-$ bash <(curl https://flink.apache.org/q/sbt-quickstart.sh)
 ```
 {{< /tab >}}
 {{< /tabs >}}
