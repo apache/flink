@@ -30,7 +30,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -1742,7 +1741,8 @@ public class CheckpointCoordinator {
                         checkpointLocation,
                         userClassLoader,
                         allowNonRestored,
-                        checkpointProperties);
+                        checkpointProperties,
+                        restoreSettings.getRestoreMode());
 
         // register shared state - even before adding the checkpoint to the store
         // because the latter might trigger subsumption so the ref counts must be up-to-date
