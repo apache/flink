@@ -397,14 +397,8 @@ under the License.
 					</relocations>
 				</configuration>
 				<executions>
-					<!-- The order on these executions matters, as the shade-flink-distribution overwrites the original jar -->
 					<execution>
-						<id>shade-flink</id>
-						<!-- Disabled to enforce shade-loader-bundle to run first -->
-						<phase>none</phase>
-					</execution>
-					<execution>
-						<!-- This configuration is essentially the same as shade-distribution,
+						<!-- This configuration is essentially the same as shade-flink,
 						but it writes another jar to a separate file and it includes scala.
 						This jar is used by flink-table-planner-loader -->
 						<id>shade-loader-bundle</id>
@@ -422,16 +416,6 @@ under the License.
 									<include>org.apache.flink:flink-scala_${scala.binary.version}</include>
 								</includes>
 							</artifactSet>
-						</configuration>
-					</execution>
-					<execution>
-						<id>shade-distribution</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadedArtifactAttached>false</shadedArtifactAttached>
 						</configuration>
 					</execution>
 				</executions>
