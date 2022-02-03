@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -1249,7 +1248,7 @@ public class DataStream<T> {
      * @param sink The user defined sink.
      * @return The closed DataStream.
      */
-    @Experimental
+    @PublicEvolving
     public DataStreamSink<T> sinkTo(org.apache.flink.api.connector.sink.Sink<T, ?, ?, ?> sink) {
         // read the output type of the input Transform to coax out errors about MissingTypeInfo
         transformation.getOutputType();
