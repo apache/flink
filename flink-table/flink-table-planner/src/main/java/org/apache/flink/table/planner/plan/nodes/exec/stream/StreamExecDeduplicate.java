@@ -44,7 +44,6 @@ import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
-import org.apache.flink.table.runtime.operators.bundle.MapBundleFunction;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
 import org.apache.flink.table.runtime.operators.deduplicate.ProcTimeDeduplicateKeepFirstRowFunction;
 import org.apache.flink.table.runtime.operators.deduplicate.ProcTimeDeduplicateKeepLastRowFunction;
@@ -307,9 +306,8 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
             checkArgument(rowtimeIndex >= 0);
             if (isMiniBatchEnabled()) {
                 CountBundleTrigger<RowData> trigger = new CountBundleTrigger<>(getMiniBatchSize());
-                MapBundleFunction processFunction;
                 if (isCompactChanges()) {
-                    processFunction =
+                    return new KeyedMapBundleOperator<>(
                             new RowTimeMiniBatchLatestChangeDeduplicateFunction(
                                     rowTypeInfo,
                                     typeSerializer,
@@ -317,9 +315,10 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                                     rowtimeIndex,
                                     generateUpdateBefore,
                                     generateInsert(),
-                                    keepLastRow);
+                                    keepLastRow),
+                            trigger);
                 } else {
-                    processFunction =
+                    return new KeyedMapBundleOperator<>(
                             new RowTimeMiniBatchDeduplicateFunction(
                                     rowTypeInfo,
                                     typeSerializer,
@@ -327,9 +326,9 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                                     rowtimeIndex,
                                     generateUpdateBefore,
                                     generateInsert(),
-                                    keepLastRow);
+                                    keepLastRow),
+                            trigger);
                 }
-                return new KeyedMapBundleOperator<>(processFunction, trigger);
             } else {
                 RowTimeDeduplicateFunction processFunction =
                         new RowTimeDeduplicateFunction(
