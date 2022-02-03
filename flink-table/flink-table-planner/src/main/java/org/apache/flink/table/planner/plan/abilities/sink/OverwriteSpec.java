@@ -23,6 +23,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -32,6 +33,7 @@ import java.util.Objects;
  * A sub-class of {@link SinkAbilitySpec} that can not only serialize/deserialize the overwrite flag
  * to/from JSON, but also can overwrite existing data for {@link SupportsOverwrite}.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("Overwrite")
 public final class OverwriteSpec implements SinkAbilitySpec {
     public static final String FIELD_NAME_OVERWRITE = "overwrite";

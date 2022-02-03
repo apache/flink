@@ -33,7 +33,6 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonGetter;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -48,7 +47,6 @@ import java.util.Objects;
  * and create {@link DynamicTableSource} from the deserialization result.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class DynamicTableSourceSpec extends DynamicTableSpecBase {
 
     public static final String FIELD_NAME_CATALOG_TABLE = "table";
@@ -57,7 +55,7 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
     private final ContextResolvedTable contextResolvedTable;
     private final @Nullable List<SourceAbilitySpec> sourceAbilities;
 
-    @JsonIgnore private DynamicTableSource tableSource;
+    private DynamicTableSource tableSource;
 
     @JsonCreator
     public DynamicTableSourceSpec(
@@ -136,6 +134,7 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
     }
 
     @JsonGetter(FIELD_NAME_SOURCE_ABILITIES)
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     @Nullable
     public List<SourceAbilitySpec> getSourceAbilities() {
         return sourceAbilities;
