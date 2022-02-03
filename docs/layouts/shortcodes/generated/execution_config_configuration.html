@@ -21,6 +21,18 @@
             <td>The async timeout for the asynchronous operation to complete.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.deduplicate.insert-update-after-sensitive-enabled</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Set whether the job (especially the sinks) is sensitive to INSERT messages and UPDATE_AFTER messages. If false, Flink may, sometimes (e.g. deduplication for last row), send UPDATE_AFTER instead of INSERT for the first row. If true, Flink will guarantee to send INSERT for the first row, in that case there will be additional overhead. Default is true.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.deduplicate.mini-batch.compact-changes-enabled</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Set whether to compact the changes sent downstream in row-time mini-batch. If true, Flink will compact changes and send only the latest change downstream. Note that if the downstream needs the details of versioned data, this optimization cannot be applied. If false, Flink will send all changes to downstream just like when the mini-batch is not enabled.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.disabled-operators</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
