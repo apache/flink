@@ -55,7 +55,6 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
-import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.util.ExceptionUtils;
@@ -627,34 +626,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testHABlobsAreNotRemovedIfHAJobGraphRemovalFails() throws Exception {
-        jobGraphWriter =
-                TestingJobGraphStore.newBuilder()
-                        .setGlobalCleanupConsumer(
-                                ignored -> {
-                                    throw new Exception("Failed to Remove future");
-                                })
-                        .withAutomaticStart()
-                        .build();
-
-        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
-                startDispatcherAndSubmitJob();
-
-        ArchivedExecutionGraph executionGraph =
-                new ArchivedExecutionGraphBuilder()
-                        .setJobID(jobId)
-                        .setState(JobStatus.CANCELED)
-                        .build();
-
-        final TestingJobManagerRunner testingJobManagerRunner =
-                jobManagerRunnerFactory.takeCreatedJobManagerRunner();
-        testingJobManagerRunner.completeResultFuture(new ExecutionGraphInfo(executionGraph));
-
-        assertLocalCleanupTriggered(jobId);
-        assertThat(deleteAllHABlobsFuture.isDone(), is(false));
-    }
-
-    @Test
     public void testHABlobsAreRemovedIfHAJobGraphRemovalSucceeds() throws Exception {
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
                 startDispatcherAndSubmitJob();
@@ -681,7 +652,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
     private void assertGlobalCleanupTriggered(JobID jobId)
             throws ExecutionException, InterruptedException, TimeoutException {
-        assertThat(localCleanupFuture.get(100, TimeUnit.MILLISECONDS), equalTo(jobId));
+        assertThat(localCleanupFuture.isDone(), is(false));
         assertThat(globalCleanupFuture.get(100, TimeUnit.MILLISECONDS), equalTo(jobId));
     }
 

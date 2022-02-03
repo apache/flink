@@ -20,11 +20,9 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.checkpoint.EmbeddedCompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -32,6 +30,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
@@ -41,6 +40,7 @@ import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.hamcrest.CoreMatchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -50,15 +50,19 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertFalse;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 /** An integration test for various fail-over scenarios of the {@link Dispatcher} component. */
@@ -73,10 +77,11 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
                 new PerJobCheckpointRecoveryFactory<EmbeddedCompletedCheckpointStore>(
                         (maxCheckpoints, previous, sharedStateRegistryFactory, ioExecutor) -> {
                             if (previous != null) {
-                                // First job attempt failed before cleaning up the checkpoint
-                                // store.
-                                assertFalse(previous.getShutdownStatus().isPresent());
-                                assertFalse(previous.getAllCheckpoints().isEmpty());
+                                // First job cleanup still succeeded for the
+                                // CompletedCheckpointStore because the JobGraph cleanup happens
+                                // after the JobManagerRunner closing
+                                assertTrue(previous.getShutdownStatus().isPresent());
+                                assertTrue(previous.getAllCheckpoints().isEmpty());
                                 return new EmbeddedCompletedCheckpointStore(
                                         maxCheckpoints,
                                         previous.getAllCheckpoints(),
@@ -110,12 +115,19 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
         final JobID jobId = jobGraph.getJobID();
 
         // Construct job graph store.
-        final Error jobGraphRemovalError = new Error("Unable to remove job graph.");
+        final Error temporaryError = new Error("Unable to remove job graph.");
+        final AtomicReference<? extends Error> temporaryErrorRef =
+                new AtomicReference<>(temporaryError);
         final TestingJobGraphStore jobGraphStore =
                 TestingJobGraphStore.newBuilder()
                         .setGlobalCleanupFunction(
                                 (ignoredJobId, ignoredExecutor) -> {
-                                    throw jobGraphRemovalError;
+                                    final Error error = temporaryErrorRef.getAndSet(null);
+                                    if (error != null) {
+                                        throw error;
+                                    }
+
+                                    return FutureUtils.completedVoidFuture();
                                 })
                         .build();
         jobGraphStore.start(null);
@@ -133,8 +145,7 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
                         throwable -> {
                             final Optional<Error> maybeError =
                                     ExceptionUtils.findThrowable(throwable, Error.class);
-                            if (maybeError.isPresent()
-                                    && jobGraphRemovalError.equals(maybeError.get())) {
+                            if (maybeError.isPresent() && temporaryError.equals(maybeError.get())) {
                                 jobGraphRemovalErrorReceived.countDown();
                             } else {
                                 testingFatalErrorHandlerResource
@@ -170,28 +181,30 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
         // This will clear internal state of election service, so a new contender can register.
         leaderElectionService.stop();
 
+        assertThat(
+                "The JobGraph is still stored in the JobGraphStore.",
+                haServices.getJobGraphStore().getJobIds(),
+                CoreMatchers.is(Collections.singleton(jobId)));
+        assertThat(
+                "The JobResultStore has this job marked as dirty.",
+                haServices.getJobResultStore().getDirtyResults().stream()
+                        .map(JobResult::getJobId)
+                        .collect(Collectors.toSet()),
+                CoreMatchers.is(Collections.singleton(jobId)));
+
         // Run a second dispatcher, that restores our finished job.
         final Dispatcher secondDispatcher = createRecoveredDispatcher(null);
         toTerminate.add(secondDispatcher);
-        final DispatcherGateway secondDispatcherGateway =
-                secondDispatcher.getSelfGateway(DispatcherGateway.class);
+
+        // new Dispatcher becomes new leader
         leaderElectionService.isLeader(UUID.randomUUID());
 
-        // Now make sure that restored job started from checkpoint.
-        final JobMasterGateway secondJobMasterGateway =
-                connectToLeadingJobMaster(leaderElectionService).get();
-        try (final JobMasterTester tester =
-                new JobMasterTester(rpcService, jobId, secondJobMasterGateway)) {
-            final CompletableFuture<List<TaskDeploymentDescriptor>> descriptorsFuture =
-                    tester.deployVertices(2);
-            awaitStatus(secondDispatcherGateway, jobId, JobStatus.RUNNING);
-            final Optional<JobManagerTaskRestore> maybeRestore =
-                    descriptorsFuture.get().stream()
-                            .map(TaskDeploymentDescriptor::getTaskRestore)
-                            .filter(Objects::nonNull)
-                            .findAny();
-            assertTrue("Job has recovered from checkpoint.", maybeRestore.isPresent());
-        }
+        assertThrows(
+                "No JobMaster will be instantiated because of the JobResult is already persisted in the JobResultStore",
+                TimeoutException.class,
+                () ->
+                        connectToLeadingJobMaster(leaderElectionService)
+                                .get(100, TimeUnit.MILLISECONDS));
     }
 
     private JobGraph createJobGraph() {
@@ -222,11 +235,11 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
             @Nullable FatalErrorHandler fatalErrorHandler) throws Exception {
         final List<JobGraph> jobGraphs = new ArrayList<>();
         for (JobID jobId : haServices.getJobGraphStore().getJobIds()) {
-            jobGraphs.add(haServices.getJobGraphStore().recoverJobGraph(jobId));
+            // there shouldn't be an overlap between dirty JobResults and recovered JobGraphs
+            if (!haServices.getJobResultStore().hasJobResultEntry(jobId)) {
+                jobGraphs.add(haServices.getJobGraphStore().recoverJobGraph(jobId));
+            }
         }
-        // we need to reinstantiate the JobResultStore here to simulate a not-persisting
-        // JobResultStore
-        haServices.setJobResultStore(new EmbeddedJobResultStore());
         final TestingDispatcher dispatcher =
                 new TestingDispatcherBuilder()
                         .setJobManagerRunnerFactory(
