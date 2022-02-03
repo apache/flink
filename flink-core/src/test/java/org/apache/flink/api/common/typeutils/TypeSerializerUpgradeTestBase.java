@@ -421,7 +421,13 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
                 readAndThenWriteData(dataInput, serializer, serializer, testDataMatcher);
         TypeSerializerSnapshot<T> snapshot = writeAndThenReadSerializerSnapshot(serializer);
         TypeSerializer<T> restoreSerializer = snapshot.restoreSerializer();
-        readAndThenWriteData(serializedData, restoreSerializer, restoreSerializer, testDataMatcher);
+        serializedData =
+                readAndThenWriteData(
+                        serializedData, restoreSerializer, restoreSerializer, testDataMatcher);
+
+        TypeSerializer<T> duplicateSerializer = snapshot.restoreSerializer().duplicate();
+        readAndThenWriteData(
+                serializedData, duplicateSerializer, duplicateSerializer, testDataMatcher);
     }
 
     // ------------------------------------------------------------------------------
