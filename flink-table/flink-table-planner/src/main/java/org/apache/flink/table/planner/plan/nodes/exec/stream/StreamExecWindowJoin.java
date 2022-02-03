@@ -60,10 +60,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-window-join",
         version = 1,
+        producedTransformations = StreamExecWindowJoin.WINDOW_JOIN_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecWindowJoin extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
+    public static final String WINDOW_JOIN_TRANSFORMATION = "window-join";
+
     public static final String FIELD_NAME_JOIN_SPEC = "joinSpec";
     public static final String FIELD_NAME_LEFT_WINDOWING = "leftWindowing";
     public static final String FIELD_NAME_RIGHT_WINDOWING = "rightWindowing";
@@ -172,8 +176,8 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
                 ExecNodeUtil.createTwoInputTransformation(
                         leftTransform,
                         rightTransform,
-                        getOperatorName(planner.getTableConfig()),
-                        getOperatorDescription(planner.getTableConfig()),
+                        createTransformationMeta(
+                                WINDOW_JOIN_TRANSFORMATION, planner.getTableConfig()),
                         operator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());

@@ -57,9 +57,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-local-group-aggregate",
         version = 1,
+        producedTransformations =
+                StreamExecLocalGroupAggregate.LOCAL_GROUP_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecLocalGroupAggregate extends StreamExecAggregateBase {
+
+    public static final String LOCAL_GROUP_AGGREGATE_TRANSFORMATION = "local-group-aggregate";
 
     @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
@@ -159,8 +163,8 @@ public class StreamExecLocalGroupAggregate extends StreamExecAggregateBase {
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(planner.getTableConfig()),
-                getOperatorDescription(planner.getTableConfig()),
+                createTransformationMeta(
+                        LOCAL_GROUP_AGGREGATE_TRANSFORMATION, planner.getTableConfig()),
                 operator,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

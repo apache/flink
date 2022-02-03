@@ -67,6 +67,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
+    public static final String PYTHON_CALC_TRANSFORMATION = "python-calc";
+
     public static final String FIELD_NAME_PROJECTION = "projection";
 
     private static final String PYTHON_SCALAR_FUNCTION_OPERATOR_NAME =
@@ -168,8 +170,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(mergedConfig),
-                getOperatorDescription(mergedConfig),
+                createTransformationMeta(PYTHON_CALC_TRANSFORMATION, mergedConfig),
                 pythonOperator,
                 pythonOperatorResultTyeInfo,
                 inputTransform.getParallelism());

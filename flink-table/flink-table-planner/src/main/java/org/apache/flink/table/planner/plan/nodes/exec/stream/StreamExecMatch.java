@@ -51,6 +51,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTran
 import org.apache.flink.table.planner.plan.nodes.exec.spec.MatchSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.RexDefaultVisitor;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -91,10 +92,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-match",
         version = 1,
+        producedTransformations = {
+            StreamExecMatch.TIMESTAMP_INSERTER_TRANSFORMATION,
+            StreamExecMatch.MATCH_TRANSFORMATION
+        },
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecMatch extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
+
+    public static final String TIMESTAMP_INSERTER_TRANSFORMATION = "timestamp-inserter";
+    public static final String MATCH_TRANSFORMATION = "match";
 
     public static final String FIELD_NAME_MATCH_SPEC = "matchSpec";
 
@@ -203,8 +211,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         timestampedInputTransform,
-                        getOperatorName(config),
-                        getOperatorDescription(config),
+                        createTransformationMeta(MATCH_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         timestampedInputTransform.getParallelism());
@@ -268,10 +275,12 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
             Transformation<RowData> transform =
                     ExecNodeUtil.createOneInputTransformation(
                             inputTransform,
-                            "StreamRecordTimestampInserter",
-                            String.format(
-                                    "StreamRecordTimestampInserter(rowtime field: %s)",
-                                    timeOrderFieldIdx),
+                            new TransformationMetadata(
+                                    createTransformationUid(TIMESTAMP_INSERTER_TRANSFORMATION),
+                                    "StreamRecordTimestampInserter",
+                                    String.format(
+                                            "StreamRecordTimestampInserter(rowtime field: %s)",
+                                            timeOrderFieldIdx)),
                             new StreamRecordTimestampInserter(timeOrderFieldIdx, precision),
                             inputTransform.getOutputType(),
                             inputTransform.getParallelism());
