@@ -122,7 +122,8 @@ public class KinesisFirehoseSinkITCase {
         env.execute("Integration Test");
 
         // use a new s3asyncClient
-        List<S3Object> objects = listBucketObjects(getS3Client(mockFirehoseContainer.getEndpoint()), BUCKET_NAME);
+        List<S3Object> objects =
+                listBucketObjects(getS3Client(mockFirehoseContainer.getEndpoint()), BUCKET_NAME);
         assertThat(objects.size()).isEqualTo(NUMBER_OF_ELEMENTS);
         assertThat(
                         readObjectsFromS3Bucket(
