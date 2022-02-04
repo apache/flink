@@ -469,18 +469,28 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Converts a value to a given data type.
+     * Returns a new value being cast to {@code toType}. A cast error throws an exception and fails
+     * the job. If you're performing a cast operation that may fail, like {@link DataTypes#INT()} to
+     * {@link DataTypes#STRING()}, you should rather use {@link #tryCast(DataType)}, in order to
+     * handle errors. If {@code table.exec.sink.legacy-cast-behaviour} is enabled, this function
+     * behaves like {@link #tryCast(DataType)}.
      *
-     * <p>e.g. "42".cast(DataTypes.INT()) leads to 42.
+     * <p>E.g., {@code "42".cast(DataTypes.INT())} returns {@code 42}; {@code
+     * null.cast(DataTypes.STRING())} returns {@code null} of type {@link DataTypes#STRING()};
+     * {@code "non-number".cast(DataTypes.INT())} throws an exception and fails the job.
      */
     public OutType cast(DataType toType) {
         return toApiSpecificExpression(unresolvedCall(CAST, toExpr(), typeLiteral(toType)));
     }
 
     /**
-     * Converts a value to a given data type.
+     * Like {@link #cast(DataType)}, but in case of error, returns {@code null} rather than failing
+     * the job.
      *
-     * <p>e.g. "42".cast(DataTypes.INT()) leads to 42.
+     * <p>E.g., {@code "42".tryCast(DataTypes.INT())} returns {@code 42}; {@code
+     * null.tryCast(DataTypes.STRING())} returns {@code null} of type {@link DataTypes#STRING()};
+     * {@code "non-number".tryCast(DataTypes.INT())} returns {@code null} of type {@link
+     * DataTypes#INT()}.
      */
     public OutType tryCast(DataType toType) {
         return toApiSpecificExpression(unresolvedCall(TRY_CAST, toExpr(), typeLiteral(toType)));

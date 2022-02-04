@@ -127,16 +127,7 @@ public abstract class BuiltInFunctionTestBase {
             Table inputTable,
             ResultTestItem<?> testItem) {
 
-        final Table resultTable;
-        if (testItem instanceof TableApiResultTestItem) {
-            resultTable =
-                    inputTable.select(
-                            ((TableApiResultTestItem) testItem)
-                                    .expression()
-                                    .toArray(new Expression[] {}));
-        } else {
-            resultTable = env.sqlQuery("SELECT " + testItem.expression() + " FROM " + inputTable);
-        }
+        final Table resultTable = testItem.query(env, inputTable);
 
         final List<DataType> expectedDataTypes =
                 createDataTypes(dataTypeFactory, testItem.dataTypes);
@@ -151,16 +142,11 @@ public abstract class BuiltInFunctionTestBase {
 
         for (int i = 0; i < row.getArity(); i++) {
             assertThat(result.getResolvedSchema().getColumnDataTypes().get(i).getLogicalType())
-                    .as(
-                            "Logical type for spec ["
-                                    + i
-                                    + "] of test ["
-                                    + testItem
-                                    + "] doesn't match.")
+                    .as("Logical type for spec [%d] of test [%s] doesn't match.", i, testItem)
                     .isEqualTo(expectedDataTypes.get(i).getLogicalType());
 
             assertThat(Row.of(row.getField(i)))
-                    .as("Result for spec [" + i + "] of test [" + testItem + "] doesn't match.")
+                    .as("Result for spec [%d] of test [%s] doesn't match.", i, testItem)
                     .isEqualTo(
                             // Use Row.equals() to enable equality for complex structure, i.e.
                             // byte[]
@@ -173,25 +159,7 @@ public abstract class BuiltInFunctionTestBase {
         AtomicReference<TableResult> tableResult = new AtomicReference<>();
 
         Throwable t =
-                catchThrowable(
-                        () -> {
-                            if (testItem instanceof TableApiErrorTestItem) {
-                                tableResult.set(
-                                        inputTable
-                                                .select(
-                                                        ((TableApiErrorTestItem) testItem)
-                                                                .expression())
-                                                .execute());
-                            } else {
-                                tableResult.set(
-                                        env.sqlQuery(
-                                                        "SELECT "
-                                                                + testItem.expression()
-                                                                + " FROM "
-                                                                + inputTable)
-                                                .execute());
-                            }
-                        });
+                catchThrowable(() -> tableResult.set(testItem.query(env, inputTable).execute()));
 
         if (testItem.expectedDuringValidation) {
             assertThat(t)
@@ -396,7 +364,7 @@ public abstract class BuiltInFunctionTestBase {
             this.dataTypes = dataTypes;
         }
 
-        abstract T expression();
+        abstract Table query(TableEnvironment env, Table inputTable);
     }
 
     private abstract static class ErrorTestItem<T> implements TestItem {
@@ -417,7 +385,7 @@ public abstract class BuiltInFunctionTestBase {
             this.expectedDuringValidation = expectedDuringValidation;
         }
 
-        abstract T expression();
+        abstract Table query(TableEnvironment env, Table inputTable);
 
         Consumer<? super Throwable> errorMatcher() {
             if (errorClass != null && errorMessage != null) {
@@ -440,8 +408,8 @@ public abstract class BuiltInFunctionTestBase {
         }
 
         @Override
-        List<Expression> expression() {
-            return expression;
+        Table query(TableEnvironment env, Table inputTable) {
+            return inputTable.select(expression.toArray(new Expression[] {}));
         }
 
         @Override
@@ -464,8 +432,8 @@ public abstract class BuiltInFunctionTestBase {
         }
 
         @Override
-        Expression expression() {
-            return expression;
+        Table query(TableEnvironment env, Table inputTable) {
+            return inputTable.select(expression);
         }
 
         @Override
@@ -482,8 +450,8 @@ public abstract class BuiltInFunctionTestBase {
         }
 
         @Override
-        String expression() {
-            return expression;
+        Table query(TableEnvironment env, Table inputTable) {
+            return env.sqlQuery("SELECT " + expression + " FROM " + inputTable);
         }
 
         @Override
@@ -503,8 +471,8 @@ public abstract class BuiltInFunctionTestBase {
         }
 
         @Override
-        String expression() {
-            return expression;
+        Table query(TableEnvironment env, Table inputTable) {
+            return env.sqlQuery("SELECT " + expression + " FROM " + inputTable);
         }
 
         @Override

@@ -83,7 +83,7 @@ public class FlinkConvertletTable implements SqlRexConvertletTable {
         final LogicalType fromLogicalType = FlinkTypeFactory.toLogicalType(valueRex.getType());
         final LogicalType toLogicalType = FlinkTypeFactory.toLogicalType(type);
 
-        // This is nullable only and only if the cast rule can fail
+        // This is nullable only if the cast rule can fail
         if (CastRuleProvider.canFail(fromLogicalType, toLogicalType)) {
             type = typeFactory.createTypeWithNullability(type, true);
         }

@@ -249,7 +249,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(INTERVAL(DAY()), 123456789L, "+1 10:17:36.789")
                         .fromCase(INTERVAL(DAY()), Duration.ofHours(36), "+1 12:00:00.000")
                         // https://issues.apache.org/jira/browse/FLINK-21456 Not supported currently
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
                         // MULTISET
                         // MAP
                         // ROW
@@ -266,13 +266,13 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(BOOLEAN(), true, true)
                         .fromCase(BOOLEAN(), false, false)
                         // Not supported - no fix
-                        .fail(BINARY(2), DEFAULT_BINARY)
-                        .fail(VARBINARY(5), DEFAULT_VARBINARY)
-                        .fail(BYTES(), DEFAULT_BYTES)
+                        .failValidation(BINARY(2), DEFAULT_BINARY)
+                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failValidation(BYTES(), DEFAULT_BYTES)
                         //
                         // https://issues.apache.org/jira/browse/FLINK-24576 should also fail for
                         // SQL
-                        .failTableApi(DECIMAL(4, 3), 4.3)
+                        .failTableApiValidation(DECIMAL(4, 3), 4.3)
                         .fromCase(TINYINT(), DEFAULT_POSITIVE_TINY_INT, true)
                         .fromCase(TINYINT(), DEFAULT_NEGATIVE_TINY_INT, true)
                         .fromCase(TINYINT(), 0, false)
@@ -287,17 +287,17 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(BIGINT(), 0, false)
                         // https://issues.apache.org/jira/browse/FLINK-24576 should also fail for
                         // SQL
-                        .failTableApi(FLOAT(), -123.456)
-                        .failTableApi(DOUBLE(), 0)
+                        .failTableApiValidation(FLOAT(), -123.456)
+                        .failTableApiValidation(DOUBLE(), 0)
                         // Not supported - no fix
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
                         // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
                         // MULTISET
                         // MAP
                         // ROW
@@ -311,7 +311,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(VARCHAR(4), "FC", new byte[] {-4, 0})
                         .fromCase(STRING(), "df", new byte[] {-33, 0})
                         // Not supported - no fix
-                        .fail(BOOLEAN(), true)
+                        .failValidation(BOOLEAN(), true)
                         //
                         .fromCase(BINARY(2), DEFAULT_BINARY, DEFAULT_BINARY)
                         .fromCase(VARBINARY(3), DEFAULT_VARBINARY, new byte[] {0, 1})
@@ -320,21 +320,21 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(VARBINARY(1), new byte[] {111}, new byte[] {111, 0})
                         .fromCase(BYTES(), new byte[] {11}, new byte[] {11, 0})
                         // Not supported - no fix
-                        .fail(DECIMAL(5, 3), 12.345)
-                        .fail(TINYINT(), DEFAULT_NEGATIVE_TINY_INT)
-                        .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
-                        .fail(INT(), DEFAULT_POSITIVE_INT)
-                        .fail(BIGINT(), DEFAULT_POSITIVE_BIGINT)
-                        .fail(FLOAT(), DEFAULT_POSITIVE_FLOAT)
-                        .fail(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        .failValidation(DECIMAL(5, 3), 12.345)
+                        .failValidation(TINYINT(), DEFAULT_NEGATIVE_TINY_INT)
+                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
+                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
+                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
+                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
                         // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
                         // MULTISET
                         // MAP
                         // ROW
@@ -347,28 +347,28 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(VARCHAR(8), "666f", new byte[] {102, 111})
                         .fromCase(STRING(), "AAbbCcDdEe", new byte[] {-86, -69, -52, -35})
                         // Not supported - no fix
-                        .fail(BOOLEAN(), true)
+                        .failValidation(BOOLEAN(), true)
                         //
                         .fromCase(BINARY(2), DEFAULT_BINARY, DEFAULT_BINARY)
                         .fromCase(VARBINARY(3), DEFAULT_VARBINARY, DEFAULT_VARBINARY)
                         .fromCase(VARBINARY(10), DEFAULT_VARBINARY, DEFAULT_VARBINARY)
                         .fromCase(BYTES(), DEFAULT_BYTES, new byte[] {0, 1, 2, 3})
                         // Not supported - no fix
-                        .fail(DECIMAL(5, 3), 12.345)
-                        .fail(TINYINT(), DEFAULT_NEGATIVE_TINY_INT)
-                        .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
-                        .fail(INT(), DEFAULT_POSITIVE_INT)
-                        .fail(BIGINT(), DEFAULT_POSITIVE_BIGINT)
-                        .fail(FLOAT(), DEFAULT_POSITIVE_FLOAT)
-                        .fail(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        .failValidation(DECIMAL(5, 3), 12.345)
+                        .failValidation(TINYINT(), DEFAULT_NEGATIVE_TINY_INT)
+                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
+                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
+                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
+                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
                         // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
                         // MULTISET
                         // MAP
                         // ROW
@@ -381,27 +381,27 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(VARCHAR(8), "666F", new byte[] {102, 111})
                         .fromCase(STRING(), "aaBBCcDdEe", new byte[] {-86, -69, -52, -35, -18})
                         // Not supported - no fix
-                        .fail(BOOLEAN(), true)
+                        .failValidation(BOOLEAN(), true)
                         //
                         .fromCase(BINARY(2), DEFAULT_BINARY, DEFAULT_BINARY)
                         .fromCase(VARBINARY(3), DEFAULT_VARBINARY, DEFAULT_VARBINARY)
                         .fromCase(BYTES(), DEFAULT_BYTES, DEFAULT_BYTES)
                         // Not supported - no fix
-                        .fail(DECIMAL(5, 3), 12.345)
-                        .fail(TINYINT(), DEFAULT_NEGATIVE_TINY_INT)
-                        .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
-                        .fail(INT(), DEFAULT_POSITIVE_INT)
-                        .fail(BIGINT(), DEFAULT_POSITIVE_BIGINT)
-                        .fail(FLOAT(), DEFAULT_POSITIVE_FLOAT)
-                        .fail(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        .failValidation(DECIMAL(5, 3), 12.345)
+                        .failValidation(TINYINT(), DEFAULT_NEGATIVE_TINY_INT)
+                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
+                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
+                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
+                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
                         // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
                         // MULTISET
                         // MAP
                         // ROW
@@ -418,9 +418,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(BOOLEAN(), true, new BigDecimal("1.000"))
                         .fromCase(BOOLEAN(), false, new BigDecimal("0.000"))
                         // Not supported - no fix
-                        .fail(BINARY(2), DEFAULT_BINARY)
-                        .fail(VARBINARY(5), DEFAULT_VARBINARY)
-                        .fail(BYTES(), DEFAULT_BYTES)
+                        .failValidation(BINARY(2), DEFAULT_BINARY)
+                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failValidation(BYTES(), DEFAULT_BYTES)
                         //
                         .fromCase(DECIMAL(4, 3), 9.87, new BigDecimal("9.870"))
                         .fromCase(TINYINT(), -1, new BigDecimal("-1.000"))
@@ -430,14 +430,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(FLOAT(), -12.345, new BigDecimal("-12.345"))
                         .fromCase(DOUBLE(), 12.678, new BigDecimal("12.678"))
                         // Not supported - no fix
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
                         // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
                         // MULTISET
                         // MAP
                         // ROW
@@ -454,9 +454,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(BOOLEAN(), true, (byte) 1)
                         .fromCase(BOOLEAN(), false, (byte) 0)
                         // Not supported - no fix
-                        .fail(BINARY(2), DEFAULT_BINARY)
-                        .fail(VARBINARY(5), DEFAULT_VARBINARY)
-                        .fail(BYTES(), DEFAULT_BYTES)
+                        .failValidation(BINARY(2), DEFAULT_BINARY)
+                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failValidation(BYTES(), DEFAULT_BYTES)
                         //
                         .fromCase(DECIMAL(4, 3), 9.87, (byte) 9)
                         // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
@@ -477,14 +477,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, (byte) 123)
                         .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, (byte) -123)
                         // Not supported - no fix
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
                         // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
                         // MULTISET
                         // MAP
                         // ROW
@@ -501,9 +501,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(BOOLEAN(), true, (short) 1)
                         .fromCase(BOOLEAN(), false, (short) 0)
                         // Not supported - no fix
-                        .fail(BINARY(2), DEFAULT_BINARY)
-                        .fail(VARBINARY(5), DEFAULT_VARBINARY)
-                        .fail(BYTES(), DEFAULT_BYTES)
+                        .failValidation(BINARY(2), DEFAULT_BINARY)
+                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failValidation(BYTES(), DEFAULT_BYTES)
                         //
                         .fromCase(DECIMAL(4, 3), 9.87, (short) 9)
                         // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
@@ -535,14 +535,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, (short) -123)
                         .fromCase(DOUBLE(), 123456.7890, (short) -7616)
                         // Not supported - no fix
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
                         // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
                         // MULTISET
                         // MAP
                         // ROW
@@ -559,9 +559,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(BOOLEAN(), true, 1)
                         .fromCase(BOOLEAN(), false, 0)
                         // Not supported - no fix
-                        .fail(BINARY(2), DEFAULT_BINARY)
-                        .fail(VARBINARY(5), DEFAULT_VARBINARY)
-                        .fail(BYTES(), DEFAULT_BYTES)
+                        .failValidation(BINARY(2), DEFAULT_BINARY)
+                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failValidation(BYTES(), DEFAULT_BYTES)
                         //
                         .fromCase(DECIMAL(4, 3), 9.87, 9)
                         // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
@@ -595,14 +595,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, -123)
                         .fromCase(DOUBLE(), 9234567891.12345, 644633299)
                         // Not supported - no fix
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
                         // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
                         // MULTISET
                         // MAP
                         // ROW
@@ -619,9 +619,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(BOOLEAN(), true, 1L)
                         .fromCase(BOOLEAN(), false, 0L)
                         // Not supported - no fix
-                        .fail(BINARY(2), DEFAULT_BINARY)
-                        .fail(VARBINARY(5), DEFAULT_VARBINARY)
-                        .fail(BYTES(), DEFAULT_BYTES)
+                        .failValidation(BINARY(2), DEFAULT_BINARY)
+                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failValidation(BYTES(), DEFAULT_BYTES)
                         //
                         .fromCase(DECIMAL(4, 3), 9.87, 9L)
                         .fromCase(DECIMAL(20, 3), 3276913443134.87, 3276913443134L)
@@ -652,14 +652,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, -123L)
                         .fromCase(DOUBLE(), 9234567891.12345, 9234567891L)
                         // Not supported - no fix
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
                         // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
                         // MULTISET
                         // MAP
                         // ROW
@@ -676,9 +676,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(BOOLEAN(), true, 1.0f)
                         .fromCase(BOOLEAN(), false, 0.0f)
                         // Not supported - no fix
-                        .fail(BINARY(2), DEFAULT_BINARY)
-                        .fail(VARBINARY(5), DEFAULT_VARBINARY)
-                        .fail(BYTES(), DEFAULT_BYTES)
+                        .failValidation(BINARY(2), DEFAULT_BINARY)
+                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failValidation(BYTES(), DEFAULT_BYTES)
                         //
                         .fromCase(DECIMAL(4, 3), 9.87, 9.87f)
                         // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
@@ -714,14 +714,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, -123.456789f)
                         .fromCase(DOUBLE(), 1239234567891.1234567891234, 1.23923451E12f)
                         // Not supported - no fix
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
                         // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
                         // MULTISET
                         // MAP
                         // ROW
@@ -738,9 +738,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(BOOLEAN(), true, 1.0d)
                         .fromCase(BOOLEAN(), false, 0.0d)
                         // Not supported - no fix
-                        .fail(BINARY(2), DEFAULT_BINARY)
-                        .fail(VARBINARY(5), DEFAULT_VARBINARY)
-                        .fail(BYTES(), DEFAULT_BYTES)
+                        .failValidation(BINARY(2), DEFAULT_BINARY)
+                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failValidation(BYTES(), DEFAULT_BYTES)
                         //
                         .fromCase(DECIMAL(4, 3), 9.87, 9.87d)
                         .fromCase(DECIMAL(20, 3), 3276913443134.87, 3.27691344313487E12d)
@@ -777,14 +777,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, DEFAULT_NEGATIVE_DOUBLE)
                         .fromCase(DOUBLE(), 1239234567891.1234567891234, 1.2392345678911235E12d)
                         // Not supported - no fix
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
                         // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
                         // MULTISET
                         // MAP
                         // ROW
@@ -802,21 +802,21 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 LocalDate.of(2021, 9, 27))
                         .failRuntime(STRING(), "2021/09/27", DateTimeException.class)
                         // Not supported - no fix
-                        .fail(BOOLEAN(), true)
-                        .failTableApi(BINARY(2), DEFAULT_BINARY)
-                        .failTableApi(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failTableApi(BYTES(), DEFAULT_BYTES)
-                        .fail(DECIMAL(5, 3), 12.345)
-                        .fail(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
-                        .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
-                        .fail(INT(), DEFAULT_POSITIVE_INT)
-                        .fail(BIGINT(), DEFAULT_POSITIVE_BIGINT)
-                        .fail(FLOAT(), DEFAULT_POSITIVE_FLOAT)
-                        .fail(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
+                        .failValidation(BOOLEAN(), true)
+                        .failTableApiValidation(BINARY(2), DEFAULT_BINARY)
+                        .failTableApiValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failTableApiValidation(BYTES(), DEFAULT_BYTES)
+                        .failValidation(DECIMAL(5, 3), 12.345)
+                        .failValidation(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
+                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
+                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
+                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
+                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
                         //
                         .fromCase(DATE(), DEFAULT_DATE, DEFAULT_DATE)
                         // Not supported - no fix
-                        .fail(TIME(), DEFAULT_TIME)
+                        .failValidation(TIME(), DEFAULT_TIME)
                         //
                         .fromCase(TIMESTAMP(), DEFAULT_TIMESTAMP, LocalDate.of(2021, 9, 24))
                         .fromCase(TIMESTAMP(4), DEFAULT_TIMESTAMP, LocalDate.of(2021, 9, 24))
@@ -828,9 +828,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP, LocalDate.of(2021, 9, 24))
                         .fromCase(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP, LocalDate.of(2021, 9, 24))
                         // Not supported - no fix
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
                         // MULTISET
                         // MAP
                         // ROW
@@ -851,18 +851,18 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failRuntime(
                                 STRING(), "2021-09-27 12:34:56.123456789", DateTimeException.class)
                         // Not supported - no fix
-                        .fail(BOOLEAN(), true)
-                        .failTableApi(BINARY(2), DEFAULT_BINARY)
-                        .failTableApi(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failTableApi(BYTES(), DEFAULT_BYTES)
-                        .fail(DECIMAL(5, 3), 12.345)
-                        .fail(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
-                        .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
-                        .fail(INT(), DEFAULT_POSITIVE_INT)
-                        .fail(BIGINT(), DEFAULT_POSITIVE_BIGINT)
-                        .fail(FLOAT(), DEFAULT_POSITIVE_FLOAT)
-                        .fail(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
-                        .fail(DATE(), DEFAULT_DATE)
+                        .failValidation(BOOLEAN(), true)
+                        .failTableApiValidation(BINARY(2), DEFAULT_BINARY)
+                        .failTableApiValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failTableApiValidation(BYTES(), DEFAULT_BYTES)
+                        .failValidation(DECIMAL(5, 3), 12.345)
+                        .failValidation(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
+                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
+                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
+                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
+                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
+                        .failValidation(DATE(), DEFAULT_DATE)
                         //
                         .fromCase(TIME(5), DEFAULT_TIME, LocalTime.of(12, 34, 56, 0))
                         .fromCase(TIMESTAMP(), DEFAULT_TIMESTAMP, LocalTime.of(12, 34, 56, 0))
@@ -876,9 +876,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(
                                 TIMESTAMP_LTZ(4), DEFAULT_TIMESTAMP_LTZ, LocalTime.of(7, 54, 56, 0))
                         // Not supported - no fix
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
                         // MULTISET
                         // MAP
                         // ROW
@@ -896,17 +896,17 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "2021-09-27 12:34:56.123456789",
                                 LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123456789))
                         // Not supported - no fix
-                        .fail(BOOLEAN(), true)
-                        .failTableApi(BINARY(2), DEFAULT_BINARY)
-                        .failTableApi(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failTableApi(BYTES(), DEFAULT_BYTES)
-                        .fail(DECIMAL(5, 3), 12.345)
-                        .fail(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
-                        .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
-                        .fail(INT(), DEFAULT_POSITIVE_INT)
-                        .fail(BIGINT(), DEFAULT_POSITIVE_BIGINT)
-                        .fail(FLOAT(), DEFAULT_POSITIVE_FLOAT)
-                        .fail(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
+                        .failValidation(BOOLEAN(), true)
+                        .failTableApiValidation(BINARY(2), DEFAULT_BINARY)
+                        .failTableApiValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failTableApiValidation(BYTES(), DEFAULT_BYTES)
+                        .failValidation(DECIMAL(5, 3), 12.345)
+                        .failValidation(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
+                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
+                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
+                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
+                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
                         //
                         .fromCase(DATE(), DEFAULT_DATE, LocalDateTime.of(2021, 9, 24, 0, 0, 0, 0))
 
@@ -942,9 +942,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 DEFAULT_TIMESTAMP_LTZ,
                                 LocalDateTime.of(2021, 9, 25, 7, 54, 56, 123400000))
                         // Not supported - no fix
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
                         // MULTISET
                         // MAP
                         // ROW
@@ -972,17 +972,17 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 fromLocalToUTC(LocalDateTime.of(2021, 9, 27, 12, 34, 56, 0)))
 
                         // Not supported - no fix
-                        .fail(BOOLEAN(), true)
-                        .failTableApi(BINARY(2), DEFAULT_BINARY)
-                        .failTableApi(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failTableApi(BYTES(), DEFAULT_BYTES)
-                        .fail(DECIMAL(5, 3), 12.345)
-                        .fail(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
-                        .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
-                        .fail(INT(), DEFAULT_POSITIVE_INT)
-                        .fail(BIGINT(), DEFAULT_POSITIVE_BIGINT)
-                        .fail(FLOAT(), DEFAULT_POSITIVE_FLOAT)
-                        .fail(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
+                        .failValidation(BOOLEAN(), true)
+                        .failTableApiValidation(BINARY(2), DEFAULT_BINARY)
+                        .failTableApiValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failTableApiValidation(BYTES(), DEFAULT_BYTES)
+                        .failValidation(DECIMAL(5, 3), 12.345)
+                        .failValidation(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
+                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
+                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
+                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
+                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
                         //
                         .fromCase(
                                 DATE(),
@@ -1027,9 +1027,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 DEFAULT_TIMESTAMP_LTZ,
                                 fromLocalToUTC(LocalDateTime.of(2021, 9, 25, 7, 54, 56, 123400000)))
                         // Not supported - no fix
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
                         // MULTISET
                         // MAP
                         // ROW
@@ -1240,17 +1240,17 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
             return this;
         }
 
-        private CastTestSpecBuilder failTableApi(DataType dataType, Object src) {
-            return fail(TestType.ERROR_TABLE_API, dataType, src);
+        private CastTestSpecBuilder failTableApiValidation(DataType dataType, Object src) {
+            return failValidation(TestType.ERROR_TABLE_API, dataType, src);
         }
 
-        private CastTestSpecBuilder failSQL(DataType dataType, Object src) {
-            return fail(TestType.ERROR_TABLE_API, dataType, src);
+        private CastTestSpecBuilder failSQLValidation(DataType dataType, Object src) {
+            return failValidation(TestType.ERROR_TABLE_API, dataType, src);
         }
 
-        private CastTestSpecBuilder fail(DataType dataType, Object src) {
-            fail(TestType.ERROR_TABLE_API, dataType, src);
-            return fail(TestType.ERROR_SQL, dataType, src);
+        private CastTestSpecBuilder failValidation(DataType dataType, Object src) {
+            failValidation(TestType.ERROR_TABLE_API, dataType, src);
+            return failValidation(TestType.ERROR_SQL, dataType, src);
         }
 
         private CastTestSpecBuilder failRuntime(
@@ -1262,14 +1262,13 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
             return this;
         }
 
-        private CastTestSpecBuilder fail(TestType type, DataType dataType, Object src) {
+        private CastTestSpecBuilder failValidation(TestType type, DataType dataType, Object src) {
             this.testTypes.add(type);
             this.columnTypes.add(dataType);
             this.columnData.add(src);
             return this;
         }
 
-        @SuppressWarnings("unchecked")
         private TestSpec build() {
             List<ResultSpec> testSpecs = new ArrayList<>(columnData.size());
             // expectedValues may contain less elements if there are also error test cases
@@ -1301,12 +1300,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         idxOffset++;
                         break;
                     case ERROR_RUNTIME:
+                        @SuppressWarnings("unchecked")
+                        Class<? extends Throwable> throwableClazz =
+                                (Class<? extends Throwable>) expectedValues.get(i - idxOffset);
                         testSpec.testSqlRuntimeError(
                                 "CAST(" + colName + " AS " + targetType.toString() + ")",
-                                (Class<? extends Throwable>) expectedValues.get(i - idxOffset));
+                                throwableClazz);
                         testSpec.testTableApiRuntimeError(
-                                $(colName).cast(targetType),
-                                (Class<? extends Throwable>) expectedValues.get(i - idxOffset));
+                                $(colName).cast(targetType), throwableClazz);
                         break;
                     case RESULT:
                         testSpecs.add(
