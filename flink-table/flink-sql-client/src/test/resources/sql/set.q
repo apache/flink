@@ -47,7 +47,7 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
-'table.exec.sink.legacy-cast-behaviour' = 'DISABLED'
+'table.exec.legacy-cast-behaviour' = 'DISABLED'
 'table.sql-dialect' = 'hive'
 !ok
 
@@ -66,7 +66,7 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
-'table.exec.sink.legacy-cast-behaviour' = 'DISABLED'
+'table.exec.legacy-cast-behaviour' = 'DISABLED'
 !ok
 
 # should fail because default dialect doesn't support hive dialect
@@ -100,7 +100,7 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
-'table.exec.sink.legacy-cast-behaviour' = 'DISABLED'
+'table.exec.legacy-cast-behaviour' = 'DISABLED'
 !ok
 
 set 'execution.attached' = 'false';
@@ -121,7 +121,7 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
-'table.exec.sink.legacy-cast-behaviour' = 'DISABLED'
+'table.exec.legacy-cast-behaviour' = 'DISABLED'
 !ok
 
 # test reset can work with add jar
@@ -143,7 +143,7 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = '$VAR_PIPELINE_JARS_URL'
 'rest.port' = '$VAR_REST_PORT'
-'table.exec.sink.legacy-cast-behaviour' = 'DISABLED'
+'table.exec.legacy-cast-behaviour' = 'DISABLED'
 !ok
 
 reset;

@@ -418,7 +418,7 @@ public class ExecutionConfigOptions {
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<LegacyCastBehaviour> TABLE_EXEC_LEGACY_CAST_BEHAVIOUR =
-            key("table.exec.sink.legacy-cast-behaviour")
+            key("table.exec.legacy-cast-behaviour")
                     .enumType(LegacyCastBehaviour.class)
                     .defaultValue(LegacyCastBehaviour.ENABLED)
                     .withDescription(
