@@ -116,7 +116,7 @@ public class SQLClientSchemaRegistryITCase {
         String testResultsTopic = "test-results-" + UUID.randomUUID().toString();
         kafkaClient.createTopic(1, 1, testCategoryTopic);
         Schema categoryRecord =
-                SchemaBuilder.record("record")
+                SchemaBuilder.record("org.apache.flink.avro.generated.record")
                         .fields()
                         .requiredLong("category_id")
                         .optionalString("name")
