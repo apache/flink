@@ -73,7 +73,7 @@ public class StopWithSavepointTest extends TestLogger {
                     new StateTrackingMockExecutionGraph();
             StopWithSavepoint sws = createStopWithSavepoint(ctx, mockExecutionGraph);
             ctx.setStopWithSavepoint(sws);
-            ctx.setHowToHandleFailure(Executing.FailureResult::canNotRestart);
+            ctx.setHowToHandleFailure(FailureResult::canNotRestart);
 
             ctx.setExpectFailing(
                     failingArguments -> {
@@ -102,7 +102,7 @@ public class StopWithSavepointTest extends TestLogger {
             StopWithSavepoint sws =
                     createStopWithSavepoint(ctx, mockExecutionGraph, savepointFuture);
             ctx.setStopWithSavepoint(sws);
-            ctx.setHowToHandleFailure(Executing.FailureResult::canNotRestart);
+            ctx.setHowToHandleFailure(FailureResult::canNotRestart);
 
             ctx.setExpectFailing(
                     failingArguments -> {
@@ -174,7 +174,7 @@ public class StopWithSavepointTest extends TestLogger {
             StopWithSavepoint sws = createStopWithSavepoint(ctx);
             ctx.setStopWithSavepoint(sws);
             ctx.setHowToHandleFailure(
-                    (throwable) -> Executing.FailureResult.canRestart(throwable, Duration.ZERO));
+                    (throwable) -> FailureResult.canRestart(throwable, Duration.ZERO));
 
             ctx.setExpectRestarting(assertNonNull());
 
@@ -188,7 +188,7 @@ public class StopWithSavepointTest extends TestLogger {
 
             StopWithSavepoint sws = createStopWithSavepoint(ctx);
             ctx.setStopWithSavepoint(sws);
-            ctx.setHowToHandleFailure(Executing.FailureResult::canNotRestart);
+            ctx.setHowToHandleFailure(FailureResult::canNotRestart);
 
             ctx.setExpectFailing(
                     failingArguments -> {
@@ -208,7 +208,7 @@ public class StopWithSavepointTest extends TestLogger {
             StopWithSavepoint sws =
                     createStopWithSavepoint(ctx, new StateTrackingMockExecutionGraph());
             ctx.setStopWithSavepoint(sws);
-            ctx.setHowToHandleFailure(Executing.FailureResult::canNotRestart);
+            ctx.setHowToHandleFailure(FailureResult::canNotRestart);
 
             ctx.setExpectFailing(
                     failingArguments -> {
@@ -229,7 +229,7 @@ public class StopWithSavepointTest extends TestLogger {
                     createStopWithSavepoint(ctx, new StateTrackingMockExecutionGraph());
             ctx.setStopWithSavepoint(sws);
             ctx.setHowToHandleFailure(
-                    (throwable) -> Executing.FailureResult.canRestart(throwable, Duration.ZERO));
+                    (throwable) -> FailureResult.canRestart(throwable, Duration.ZERO));
 
             ctx.setExpectRestarting(assertNonNull());
 
@@ -297,7 +297,7 @@ public class StopWithSavepointTest extends TestLogger {
             ctx.setStopWithSavepoint(sws);
 
             ctx.setHowToHandleFailure(
-                    (throwable) -> Executing.FailureResult.canRestart(throwable, Duration.ZERO));
+                    (throwable) -> FailureResult.canRestart(throwable, Duration.ZERO));
 
             ctx.setExpectRestarting(assertNonNull());
 
@@ -390,7 +390,7 @@ public class StopWithSavepointTest extends TestLogger {
     private static class MockStopWithSavepointContext extends MockStateWithExecutionGraphContext
             implements StopWithSavepoint.Context {
 
-        private Function<Throwable, Executing.FailureResult> howToHandleFailure;
+        private Function<Throwable, FailureResult> howToHandleFailure;
 
         private final StateValidator<ExecutingTest.FailingArguments> failingStateValidator =
                 new StateValidator<>("failing");
@@ -424,12 +424,12 @@ public class StopWithSavepointTest extends TestLogger {
             executingStateTransition.expectInput(asserter);
         }
 
-        public void setHowToHandleFailure(Function<Throwable, Executing.FailureResult> function) {
+        public void setHowToHandleFailure(Function<Throwable, FailureResult> function) {
             this.howToHandleFailure = function;
         }
 
         @Override
-        public Executing.FailureResult howToHandleFailure(Throwable failure) {
+        public FailureResult howToHandleFailure(Throwable failure) {
             return howToHandleFailure.apply(failure);
         }
 

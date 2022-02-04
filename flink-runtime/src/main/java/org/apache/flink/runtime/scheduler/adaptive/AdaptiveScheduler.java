@@ -1067,18 +1067,18 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public Executing.FailureResult howToHandleFailure(Throwable failure) {
+    public FailureResult howToHandleFailure(Throwable failure) {
         if (ExecutionFailureHandler.isUnrecoverableError(failure)) {
-            return Executing.FailureResult.canNotRestart(
+            return FailureResult.canNotRestart(
                     new JobException("The failure is not recoverable", failure));
         }
 
         restartBackoffTimeStrategy.notifyFailure(failure);
         if (restartBackoffTimeStrategy.canRestart()) {
-            return Executing.FailureResult.canRestart(
+            return FailureResult.canRestart(
                     failure, Duration.ofMillis(restartBackoffTimeStrategy.getBackoffTime()));
         } else {
-            return Executing.FailureResult.canNotRestart(
+            return FailureResult.canNotRestart(
                     new JobException(
                             "Recovery is suppressed by " + restartBackoffTimeStrategy, failure));
         }
