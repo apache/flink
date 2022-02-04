@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.pulsar.sink.writer;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema.InitializationContext;
@@ -28,29 +29,28 @@ import org.apache.flink.connector.pulsar.sink.committer.PulsarCommittable;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContext;
 import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContextAdapter;
-import org.apache.flink.connector.pulsar.sink.writer.message.RawMessage;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicMetadataListener;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicProducerRegister;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.function.SerializableFunction;
 
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
-import org.apache.pulsar.client.api.transaction.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 
 import static java.util.Collections.emptyList;
 import static org.apache.flink.util.IOUtils.closeAll;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This class is responsible to write records in a Pulsar topic and to handle the different delivery
@@ -58,15 +58,16 @@ import static org.apache.flink.util.IOUtils.closeAll;
  *
  * @param <IN> The type of the input elements.
  */
+@Internal
 public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommittable> {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarWriter.class);
 
     private final SinkConfiguration sinkConfiguration;
-    private final DeliveryGuarantee deliveryGuarantee;
     private final PulsarSerializationSchema<IN> serializationSchema;
+    private final TopicMetadataListener metadataListener;
+    private final DeliveryGuarantee deliveryGuarantee;
     private final TopicRouter<IN> topicRouter;
     private final PulsarSinkContextAdapter sinkContextAdapter;
-    private final TopicMetadataListener metadataListener;
     private final MailboxExecutor mailboxExecutor;
     private final TopicProducerRegister producerRegister;
     private final Semaphore pendingMessages;
@@ -79,66 +80,61 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
      * fails.
      *
      * @param sinkConfiguration the configuration to configure the Pulsar producer.
-     * @param serializationSchema serialize to transform the incoming records to {@link RawMessage}.
+     * @param serializationSchema transform the incoming records into different message properties.
      * @param metadataListener the listener for querying topic metadata.
-     * @param topicRouterProvider create related topic router to choose topic by incoming records.
+     * @param topicRouter topic router to choose topic by incoming records.
      * @param initContext context to provide information about the runtime environment.
      */
     public PulsarWriter(
             SinkConfiguration sinkConfiguration,
             PulsarSerializationSchema<IN> serializationSchema,
             TopicMetadataListener metadataListener,
-            SerializableFunction<SinkConfiguration, TopicRouter<IN>> topicRouterProvider,
+            TopicRouter<IN> topicRouter,
             InitContext initContext) {
-        this.sinkConfiguration = sinkConfiguration;
+        this.sinkConfiguration = checkNotNull(sinkConfiguration);
+        this.serializationSchema = checkNotNull(serializationSchema);
+        this.metadataListener = checkNotNull(metadataListener);
+        this.topicRouter = checkNotNull(topicRouter);
+        checkNotNull(initContext);
+
         this.deliveryGuarantee = sinkConfiguration.getDeliveryGuarantee();
-        this.serializationSchema = serializationSchema;
-        this.topicRouter = topicRouterProvider.apply(sinkConfiguration);
         this.sinkContextAdapter = new PulsarSinkContextAdapter(initContext, sinkConfiguration);
-        this.metadataListener = metadataListener;
         this.mailboxExecutor = initContext.getMailboxExecutor();
 
         // Initialize topic metadata listener.
         LOG.debug("Initialize topic metadata after creating Pulsar writer.");
         ProcessingTimeService timeService = initContext.getProcessingTimeService();
-        metadataListener.open(sinkConfiguration, timeService);
+        this.metadataListener.open(sinkConfiguration, timeService);
 
         // Initialize topic router.
-        topicRouter.open(sinkConfiguration);
+        this.topicRouter.open(sinkConfiguration);
 
         // Initialize the serialization schema.
         try {
             InitializationContext initializationContext =
                     initContext.asSerializationSchemaInitializationContext();
-            serializationSchema.open(initializationContext, sinkContextAdapter, sinkConfiguration);
+            this.serializationSchema.open(
+                    initializationContext, sinkContextAdapter, sinkConfiguration);
         } catch (Exception e) {
             throw new FlinkRuntimeException("Cannot initialize schema.", e);
         }
 
         // Create this producer register after opening serialization schema!
-        this.producerRegister = new TopicProducerRegister(sinkConfiguration, serializationSchema);
+        this.producerRegister = new TopicProducerRegister(sinkConfiguration);
         this.pendingMessages = new Semaphore(sinkConfiguration.getMaxPendingMessages());
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public void write(IN element, Context context) throws IOException, InterruptedException {
         // Serialize the incoming element.
         sinkContextAdapter.updateTimestamp(context);
-        RawMessage<byte[]> message = serializationSchema.serialize(element, sinkContextAdapter);
 
         // Choose the right topic to send.
         List<String> availableTopics = metadataListener.availableTopics();
-        String topic = topicRouter.route(element, message, availableTopics, sinkContextAdapter);
+        String topic = topicRouter.route(element, availableTopics, sinkContextAdapter);
 
         // Create message builder for sending message.
-        TypedMessageBuilder<?> builder = createMessageBuilder(topic, deliveryGuarantee);
-        if (sinkConfiguration.isEnableSchemaEvolution()) {
-            ((TypedMessageBuilder<IN>) builder).value(element);
-        } else {
-            ((TypedMessageBuilder<byte[]>) builder).value(message.getValue());
-        }
-        message.supplement(builder);
+        TypedMessageBuilder<?> builder = createMessageBuilder(topic, element, sinkContextAdapter);
 
         // Perform message sending.
         if (deliveryGuarantee == DeliveryGuarantee.NONE) {
@@ -166,20 +162,55 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
     }
 
     private TypedMessageBuilder<?> createMessageBuilder(
-            String topic, DeliveryGuarantee deliveryGuarantee) {
-        Producer<?> producer = producerRegister.getOrCreateProducer(topic);
-        if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
-            Transaction transaction = producerRegister.getOrCreateTransaction(topic);
-            return producer.newMessage(transaction);
+            String topic, IN element, PulsarSinkContextAdapter context) {
+        TypedMessageBuilder<?> builder;
+
+        if (sinkConfiguration.isEnableSchemaEvolution()) {
+            Schema<IN> schema = serializationSchema.schema();
+            builder = producerRegister.createMessageBuilder(topic, element, schema);
         } else {
-            return producer.newMessage();
+            byte[] bytes = serializationSchema.serialize(element, context);
+            builder = producerRegister.createMessageBuilder(topic, bytes, Schema.BYTES);
         }
+
+        byte[] orderingKey = serializationSchema.orderingKey(element, context);
+        if (orderingKey != null) {
+            builder.orderingKey(orderingKey);
+        }
+
+        builder.key(serializationSchema.key(element, context));
+
+        Map<String, String> properties = serializationSchema.properties(element, context);
+        if (properties != null) {
+            builder.properties(properties);
+        }
+
+        Long timestamp = serializationSchema.eventTime(element, context);
+        if (timestamp != null) {
+            builder.eventTime(timestamp);
+        }
+
+        List<String> clusters = serializationSchema.replicationClusters(element, context);
+        if (clusters != null) {
+            builder.replicationClusters(clusters);
+        }
+
+        if (serializationSchema.disableReplication(element, context)) {
+            builder.disableReplication();
+        }
+
+        return builder;
     }
 
     @Override
     public void flush(boolean endOfInput) throws IOException {
-        while (pendingMessages.availablePermits() < sinkConfiguration.getMaxPendingMessages()) {
+        if (endOfInput) {
+            // Try flush only once when we meet the end of the input.
             producerRegister.flush();
+        } else {
+            while (pendingMessages.availablePermits() < sinkConfiguration.getMaxPendingMessages()) {
+                producerRegister.flush();
+            }
         }
     }
 

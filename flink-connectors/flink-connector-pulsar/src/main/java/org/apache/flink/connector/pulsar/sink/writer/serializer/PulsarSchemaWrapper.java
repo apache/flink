@@ -21,7 +21,6 @@ package org.apache.flink.connector.pulsar.sink.writer.serializer;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.pulsar.common.schema.PulsarSchema;
 import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContext;
-import org.apache.flink.connector.pulsar.sink.writer.message.RawMessage;
 
 import org.apache.pulsar.client.api.Schema;
 
@@ -30,7 +29,6 @@ import org.apache.pulsar.client.api.Schema;
 public class PulsarSchemaWrapper<IN> implements PulsarSerializationSchema<IN> {
     private static final long serialVersionUID = -2567052498398184194L;
 
-    private static final byte[] EMPTY_BYTES = new byte[0];
     private final PulsarSchema<IN> pulsarSchema;
 
     public PulsarSchemaWrapper(PulsarSchema<IN> pulsarSchema) {
@@ -38,24 +36,8 @@ public class PulsarSchemaWrapper<IN> implements PulsarSerializationSchema<IN> {
     }
 
     @Override
-    public RawMessage<byte[]> serialize(IN element, PulsarSinkContext sinkContext) {
-        RawMessage<byte[]> message;
-
-        if (sinkContext.isEnableSchemaEvolution()) {
-            // We don't need to serialize incoming records in schema evolution.
-            message = new RawMessage<>(EMPTY_BYTES);
-        } else {
-            Schema<IN> schema = this.pulsarSchema.getPulsarSchema();
-            byte[] bytes = schema.encode(element);
-            message = new RawMessage<>(bytes);
-        }
-
-        Long eventTime = sinkContext.timestamp();
-        if (eventTime != null) {
-            message.setEventTime(eventTime);
-        }
-
-        return message;
+    public byte[] serialize(IN element, PulsarSinkContext sinkContext) {
+        return schema().encode(element);
     }
 
     @Override

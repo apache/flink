@@ -21,7 +21,6 @@ package org.apache.flink.connector.pulsar.sink.writer.router;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContext;
-import org.apache.flink.connector.pulsar.sink.writer.message.RawMessage;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -47,8 +46,7 @@ public class RoundRobinTopicRouter<IN> implements TopicRouter<IN> {
     }
 
     @Override
-    public String route(
-            IN in, RawMessage<byte[]> message, List<String> partitions, PulsarSinkContext context) {
+    public String route(IN in, List<String> partitions, PulsarSinkContext context) {
         long counts = counter.getAndAdd(1);
         long index = (counts % partitionSwitchSize) % partitions.size();
         // Avoid digit overflow for message counter.

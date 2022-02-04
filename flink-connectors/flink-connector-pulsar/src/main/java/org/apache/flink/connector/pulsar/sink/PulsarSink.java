@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.pulsar.sink;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
@@ -34,7 +35,8 @@ import org.apache.flink.connector.pulsar.sink.writer.router.TopicRoutingMode;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicMetadataListener;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.util.function.SerializableFunction;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The Sink implementation of Pulsar. Please use a {@link PulsarSinkBuilder} to construct a {@link
@@ -80,7 +82,7 @@ public class PulsarSink<IN> implements TwoPhaseCommittingSink<IN, PulsarCommitta
     private final SinkConfiguration sinkConfiguration;
     private final PulsarSerializationSchema<IN> serializationSchema;
     private final TopicMetadataListener metadataListener;
-    private final SerializableFunction<SinkConfiguration, TopicRouter<IN>> topicRouterProvider;
+    private final TopicRouter<IN> topicRouter;
 
     PulsarSink(
             SinkConfiguration sinkConfiguration,
@@ -88,17 +90,18 @@ public class PulsarSink<IN> implements TwoPhaseCommittingSink<IN, PulsarCommitta
             TopicMetadataListener metadataListener,
             TopicRoutingMode topicRoutingMode,
             TopicRouter<IN> topicRouter) {
-        this.sinkConfiguration = sinkConfiguration;
-        this.serializationSchema = serializationSchema;
-        this.metadataListener = metadataListener;
+        this.sinkConfiguration = checkNotNull(sinkConfiguration);
+        this.serializationSchema = checkNotNull(serializationSchema);
+        this.metadataListener = checkNotNull(metadataListener);
+        checkNotNull(topicRoutingMode);
 
         // Create topic router supplier.
         if (topicRoutingMode == TopicRoutingMode.CUSTOM) {
-            this.topicRouterProvider = c -> topicRouter;
+            this.topicRouter = checkNotNull(topicRouter);
         } else if (topicRoutingMode == TopicRoutingMode.ROUND_ROBIN) {
-            this.topicRouterProvider = RoundRobinTopicRouter::new;
+            this.topicRouter = new RoundRobinTopicRouter<>(sinkConfiguration);
         } else {
-            this.topicRouterProvider = KeyHashTopicRouter::new;
+            this.topicRouter = new KeyHashTopicRouter<>(sinkConfiguration, serializationSchema);
         }
     }
 
@@ -112,21 +115,20 @@ public class PulsarSink<IN> implements TwoPhaseCommittingSink<IN, PulsarCommitta
         return new PulsarSinkBuilder<>();
     }
 
+    @Internal
     @Override
     public PrecommittingSinkWriter<IN, PulsarCommittable> createWriter(InitContext initContext) {
         return new PulsarWriter<>(
-                sinkConfiguration,
-                serializationSchema,
-                metadataListener,
-                topicRouterProvider,
-                initContext);
+                sinkConfiguration, serializationSchema, metadataListener, topicRouter, initContext);
     }
 
+    @Internal
     @Override
     public Committer<PulsarCommittable> createCommitter() {
         return new PulsarCommitter(sinkConfiguration);
     }
 
+    @Internal
     @Override
     public SimpleVersionedSerializer<PulsarCommittable> getCommittableSerializer() {
         return new PulsarCommittableSerializer();

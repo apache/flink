@@ -24,12 +24,15 @@ import org.apache.flink.api.common.serialization.SerializationSchema.Initializat
 import org.apache.flink.connector.pulsar.common.schema.PulsarSchema;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContext;
-import org.apache.flink.connector.pulsar.sink.writer.message.RawMessage;
 
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.schema.KeyValue;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  * The serialization schema for how to serialize record into Pulsar.
@@ -58,12 +61,73 @@ public interface PulsarSerializationSchema<IN> extends Serializable {
             throws Exception {}
 
     /**
-     * Serializes given element and returns it as a {@link RawMessage}.
+     * Serializes given element into bytes. Property {@link TypedMessageBuilder#value(Object)}.
      *
      * @param element element to be serialized
      * @param sinkContext context to provide extra information.
      */
-    RawMessage<byte[]> serialize(IN element, PulsarSinkContext sinkContext);
+    byte[] serialize(IN element, PulsarSinkContext sinkContext);
+
+    /**
+     * Property {@link TypedMessageBuilder#orderingKey(byte[])}.
+     *
+     * @param element element to be serialized
+     * @param sinkContext context to provide extra information.
+     */
+    default byte[] orderingKey(IN element, PulsarSinkContext sinkContext) {
+        return new byte[0];
+    }
+
+    /**
+     * Property {@link TypedMessageBuilder#key(String)}.
+     *
+     * @param element element to be serialized
+     * @param sinkContext context to provide extra information.
+     */
+    default String key(IN element, PulsarSinkContext sinkContext) {
+        return null;
+    }
+
+    /**
+     * Property {@link TypedMessageBuilder#properties(Map)}.
+     *
+     * @param element element to be serialized
+     * @param sinkContext context to provide extra information.
+     */
+    default Map<String, String> properties(IN element, PulsarSinkContext sinkContext) {
+        return Collections.emptyMap();
+    }
+
+    /**
+     * Property {@link TypedMessageBuilder#eventTime(long)}. This value could be nullable if the
+     * element don't have a timestamp.
+     *
+     * @param element element to be serialized
+     * @param sinkContext context to provide extra information.
+     */
+    default Long eventTime(IN element, PulsarSinkContext sinkContext) {
+        return sinkContext.timestamp();
+    }
+
+    /**
+     * Property {@link TypedMessageBuilder#replicationClusters(List)}.
+     *
+     * @param element element to be serialized
+     * @param sinkContext context to provide extra information.
+     */
+    default List<String> replicationClusters(IN element, PulsarSinkContext sinkContext) {
+        return Collections.emptyList();
+    }
+
+    /**
+     * Property {@link TypedMessageBuilder#disableReplication()}.
+     *
+     * @param element element to be serialized
+     * @param sinkContext context to provide extra information.
+     */
+    default boolean disableReplication(IN element, PulsarSinkContext sinkContext) {
+        return false;
+    }
 
     /** @return The related Pulsar Schema for this serializer. */
     default Schema<IN> schema() {

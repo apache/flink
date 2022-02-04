@@ -61,7 +61,7 @@ public class PulsarCommitter implements Committer<PulsarCommittable>, Closeable 
     private TransactionCoordinatorClient coordinatorClient;
 
     public PulsarCommitter(SinkConfiguration sinkConfiguration) {
-        this.sinkConfiguration = sinkConfiguration;
+        this.sinkConfiguration = checkNotNull(sinkConfiguration);
     }
 
     @Override
@@ -78,7 +78,8 @@ public class PulsarCommitter implements Committer<PulsarCommittable>, Closeable 
             try {
                 client.commit(txnID);
             } catch (TransactionCoordinatorClientException e) {
-                // This is a known bug for Pulsar Transaction. We have to use instance of.
+                // This is a known bug for Pulsar Transaction.
+                // We have to use instanceof instead of catching them.
                 TransactionCoordinatorClientException ex = PulsarTransactionUtils.unwrap(e);
                 if (ex instanceof CoordinatorNotFoundException) {
                     LOG.error(
@@ -104,6 +105,12 @@ public class PulsarCommitter implements Committer<PulsarCommittable>, Closeable 
                                 ex);
                         request.signalFailedWithKnownReason(ex);
                     } else {
+                        LOG.warn(
+                                "We can't find the transaction {} after {} retry committing. "
+                                        + "This may mean that the transaction have been committed in previous but failed with timeout. "
+                                        + "So we just mark it as committed.",
+                                txnID,
+                                request.getNumberOfRetries());
                         request.signalAlreadyCommitted();
                     }
                 } else if (ex instanceof MetaStoreHandlerNotExistsException) {

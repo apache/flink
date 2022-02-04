@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
+import static org.apache.flink.util.ExceptionUtils.findThrowable;
 
 /** A suit of workarounds for the Pulsar Transaction. */
 public final class PulsarTransactionUtils {
@@ -56,17 +57,10 @@ public final class PulsarTransactionUtils {
 
     /**
      * This is a bug in original {@link TransactionCoordinatorClientException#unwrap(Throwable)}
-     * method. Pulsar wraps the {@link ExecutionException} which hides the read execution exception.
+     * method. Pulsar wraps the {@link ExecutionException} which hides the real execution exception.
      */
     public static TransactionCoordinatorClientException unwrap(
             TransactionCoordinatorClientException e) {
-        Throwable cause = e.getCause();
-        if (cause instanceof ExecutionException) {
-            Throwable throwable = cause.getCause();
-            if (throwable instanceof TransactionCoordinatorClientException) {
-                return (TransactionCoordinatorClientException) throwable;
-            }
-        }
-        return e;
+        return findThrowable(e.getCause(), TransactionCoordinatorClientException.class).orElse(e);
     }
 }

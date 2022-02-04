@@ -23,7 +23,6 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema.InitializationContext;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContext;
-import org.apache.flink.connector.pulsar.sink.writer.message.RawMessage;
 
 /** Wrap the Flink's SerializationSchema into PulsarSerializationSchema. */
 @Internal
@@ -46,15 +45,7 @@ public class PulsarSerializationSchemaWrapper<IN> implements PulsarSerialization
     }
 
     @Override
-    public RawMessage<byte[]> serialize(IN element, PulsarSinkContext sinkContext) {
-        byte[] bytes = serializationSchema.serialize(element);
-        RawMessage<byte[]> message = new RawMessage<>(bytes);
-
-        Long eventTime = sinkContext.timestamp();
-        if (eventTime != null) {
-            message.setEventTime(eventTime);
-        }
-
-        return message;
+    public byte[] serialize(IN element, PulsarSinkContext sinkContext) {
+        return serializationSchema.serialize(element);
     }
 }

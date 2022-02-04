@@ -21,8 +21,7 @@ package org.apache.flink.connector.pulsar.sink.writer.router;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContext;
-import org.apache.flink.connector.pulsar.sink.writer.message.MessageKeyHash;
-import org.apache.flink.connector.pulsar.sink.writer.message.RawMessage;
+import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
 
@@ -45,15 +44,18 @@ public class KeyHashTopicRouter<IN> implements TopicRouter<IN> {
     private static final long serialVersionUID = 2475614648095079804L;
 
     private final MessageKeyHash messageKeyHash;
+    private final PulsarSerializationSchema<IN> serializationSchema;
 
-    public KeyHashTopicRouter(SinkConfiguration sinkConfiguration) {
+    public KeyHashTopicRouter(
+            SinkConfiguration sinkConfiguration,
+            PulsarSerializationSchema<IN> serializationSchema) {
         this.messageKeyHash = sinkConfiguration.getMessageKeyHash();
+        this.serializationSchema = serializationSchema;
     }
 
     @Override
-    public String route(
-            IN in, RawMessage<byte[]> message, List<String> partitions, PulsarSinkContext context) {
-        String key = message.getKey();
+    public String route(IN in, List<String> partitions, PulsarSinkContext context) {
+        String key = serializationSchema.key(in, context);
         int topicIndex;
 
         if (Strings.isNullOrEmpty(key)) {

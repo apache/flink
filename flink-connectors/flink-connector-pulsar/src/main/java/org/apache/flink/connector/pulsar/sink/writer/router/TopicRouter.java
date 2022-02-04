@@ -22,7 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.pulsar.sink.PulsarSinkBuilder;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContext;
-import org.apache.flink.connector.pulsar.sink.writer.message.RawMessage;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 
 import java.io.Serializable;
@@ -45,7 +44,6 @@ public interface TopicRouter<IN> extends Serializable {
      * topic name if you need.
      *
      * @param in The record instance which need to be write to Pulsar.
-     * @param message The serialized message for Pulsar.
      * @param partitions The available partition list. This could be empty if you don't provide any
      *     topics in {@link PulsarSinkBuilder#setTopics(String...)}. You can return a custom topic,
      *     but make sure it should have partition index. Using {@link
@@ -54,8 +52,7 @@ public interface TopicRouter<IN> extends Serializable {
      * @param context The context which contains the useful information for determine the topic.
      * @return The topic name to use.
      */
-    String route(
-            IN in, RawMessage<byte[]> message, List<String> partitions, PulsarSinkContext context);
+    String route(IN in, List<String> partitions, PulsarSinkContext context);
 
     /** Implement this method if you have some non-serializable field. */
     default void open(SinkConfiguration sinkConfiguration) {
