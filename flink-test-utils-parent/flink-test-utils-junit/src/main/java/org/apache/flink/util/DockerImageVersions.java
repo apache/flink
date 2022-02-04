@@ -22,6 +22,9 @@ package org.apache.flink.util;
  * Utility class for defining the image names and versions of Docker containers used during the Java
  * tests. The names/versions are centralised here in order to make testing version updates easier,
  * as well as to provide a central file to use as a key when caching testing Docker files.
+ *
+ * <p>In order for an image to be cached it must be added to {@code
+ * cache_docker_images.sh#DOCKER_IMAGE_CACHE_PATTERN}.
  */
 public class DockerImageVersions {
 
