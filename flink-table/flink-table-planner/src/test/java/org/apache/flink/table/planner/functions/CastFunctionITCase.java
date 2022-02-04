@@ -847,12 +847,11 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "2021-09-27 12:34:56.123",
                                 fromLocalToUTC(
                                         LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123000000)))
-                        // https://issues.apache.org/jira/browse/FLINK-24446 Fractional seconds are
-                        // lost
                         .fromCase(
                                 STRING(),
                                 "2021-09-27 12:34:56.123456789",
-                                fromLocalToUTC(LocalDateTime.of(2021, 9, 27, 12, 34, 56, 0)))
+                                fromLocalToUTC(
+                                        LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123456789)))
 
                         // Not supported - no fix
                         .failValidation(BOOLEAN(), true)

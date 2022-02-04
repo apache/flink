@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.codegen.{ConstantCodeGeneratorContext, Exp
 import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.{BooleanType, DecimalType, LogicalType}
 
 import org.apache.calcite.rex.RexNode
@@ -179,9 +180,14 @@ object PartitionPruner {
         DecimalDataUtils.castFrom(v, decimalType.getPrecision, decimalType.getScale)
       case DATE => DateTimeUtils.parseDate(v)
       case TIME_WITHOUT_TIME_ZONE => DateTimeUtils.parseTime(v)
-      case TIMESTAMP_WITHOUT_TIME_ZONE => DateTimeUtils.parseTimestampData(v)
+      case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        DateTimeUtils.parseTimestampData(v, LogicalTypeChecks.getPrecision(t))
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE => TimestampData.fromInstant(
-        DateTimeUtils.parseTimestampData(v).toLocalDateTime.atZone(timeZone).toInstant)
+        DateTimeUtils
+          .parseTimestampData(v, LogicalTypeChecks.getPrecision(t))
+          .toLocalDateTime
+          .atZone(timeZone)
+          .toInstant)
       case _ =>
         throw new TableException(s"$t is not supported in PartitionPruner")
     }
