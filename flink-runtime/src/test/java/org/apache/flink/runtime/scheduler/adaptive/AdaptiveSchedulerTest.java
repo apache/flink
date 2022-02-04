@@ -100,6 +100,7 @@ import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -107,19 +108,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.futureFailedWith;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.streamingJobGraph;
 import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolTest.createSlotOffersForResourceRequirements;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.offerSlots;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.enableCheckpointing;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link AdaptiveScheduler}. */
 public class AdaptiveSchedulerTest extends TestLogger {
@@ -145,7 +139,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
 
-        assertThat(scheduler.getState(), instanceOf(Created.class));
+        assertThat(scheduler.getState()).isInstanceOf(Created.class);
     }
 
     @Test
@@ -171,8 +165,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         final State state = scheduler.getState();
 
-        assertThat(scheduler.isState(state), is(true));
-        assertThat(scheduler.isState(new DummyState()), is(false));
+        assertThat(scheduler.isState(state)).isTrue();
+        assertThat(scheduler.isState(new DummyState())).isFalse();
     }
 
     @Test
@@ -182,7 +176,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         AtomicBoolean ran = new AtomicBoolean(false);
         scheduler.runIfState(scheduler.getState(), () -> ran.set(true));
-        assertThat(ran.get(), is(true));
+        assertThat(ran.get()).isTrue();
     }
 
     @Test
@@ -192,7 +186,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         AtomicBoolean ran = new AtomicBoolean(false);
         scheduler.runIfState(new DummyState(), () -> ran.set(true));
-        assertThat(ran.get(), is(false));
+        assertThat(ran.get()).isFalse();
     }
 
     @Test
@@ -205,7 +199,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final ResourceCounter resourceRequirement =
                 ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1);
 
-        assertThat(scheduler.hasDesiredResources(resourceRequirement), is(false));
+        assertThat(scheduler.hasDesiredResources(resourceRequirement)).isFalse();
     }
 
     @Test
@@ -228,7 +222,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         offerSlots(
                 declarativeSlotPool, createSlotOffersForResourceRequirements(resourceRequirement));
 
-        assertThat(scheduler.hasDesiredResources(resourceRequirement), is(true));
+        assertThat(scheduler.hasDesiredResources(resourceRequirement)).isTrue();
     }
 
     @Test
@@ -254,7 +248,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         offerSlots(declarativeSlotPool, createSlotOffersForResourceRequirements(providedResources));
 
-        assertThat(scheduler.hasDesiredResources(requiredResources), is(true));
+        assertThat(scheduler.hasDesiredResources(requiredResources)).isTrue();
     }
 
     @Test
@@ -298,9 +292,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
                                 singleThreadMainThreadExecutor)
                         .join();
 
-        assertThat(
-                executionGraph.getJobVertex(JOB_VERTEX.getID()).getParallelism(),
-                is(numAvailableSlots));
+        assertThat(executionGraph.getJobVertex(JOB_VERTEX.getID()).getParallelism())
+                .isEqualTo(numAvailableSlots);
     }
 
     @Test
@@ -344,9 +337,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
                                 singleThreadMainThreadExecutor)
                         .join();
 
-        assertThat(
-                executionGraph.getStatusTimestamp(JobStatus.INITIALIZING),
-                is(initializationTimestamp));
+        assertThat(executionGraph.getStatusTimestamp(JobStatus.INITIALIZING))
+                .isEqualTo(initializationTimestamp);
     }
 
     @Test
@@ -364,7 +356,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                         .getArchivedExecutionGraph()
                         .getStatusTimestamp(JobStatus.INITIALIZING);
 
-        assertThat(initializationTimestamp, is(expectedInitializationTimestamp));
+        assertThat(initializationTimestamp).isEqualTo(expectedInitializationTimestamp);
     }
 
     @Test
@@ -384,7 +376,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                     throw exception;
                 });
 
-        assertThat(fatalErrorHandler.getException(), is(exception));
+        assertThat(fatalErrorHandler.getException()).isEqualTo(exception);
     }
 
     @Test
@@ -414,7 +406,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                                 scheduledTask ->
                                         scheduledTask.getDelay(TimeUnit.MINUTES)
                                                 == resourceTimeout.toMinutes());
-        assertThat(b, is(true));
+        assertThat(b).isTrue();
     }
 
     @Test
@@ -476,7 +468,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // wait for the first task submission
         taskManagerGateway.waitForSubmissions(1, Duration.ofSeconds(5));
 
-        assertThat(numRestartsMetric.getValue(), is(0L));
+        assertThat(numRestartsMetric.getValue()).isEqualTo(0L);
 
         singleThreadMainThreadExecutor.execute(
                 () -> {
@@ -492,7 +484,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // wait for the second task submissions
         taskManagerGateway.waitForSubmissions(PARALLELISM, Duration.ofSeconds(5));
 
-        assertThat(numRestartsMetric.getValue(), is(1L));
+        assertThat(numRestartsMetric.getValue()).isEqualTo(1L);
     }
 
     @Test
@@ -567,9 +559,9 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // sleep a bit to ensure uptime is > 0
         Thread.sleep(10L);
 
-        assertThat(upTimeGauge.getValue(), greaterThan(0L));
-        assertThat(downTimeGauge.getValue(), is(0L));
-        assertThat(restartTimeGauge.getValue(), is(0L));
+        assertThat(upTimeGauge.getValue()).isGreaterThan(0L);
+        assertThat(downTimeGauge.getValue()).isEqualTo(0L);
+        assertThat(restartTimeGauge.getValue()).isEqualTo(0L);
 
         singleThreadMainThreadExecutor.execute(
                 () -> {
@@ -587,10 +579,10 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // sleep a bit to ensure uptime is > 0
         Thread.sleep(10L);
 
-        assertThat(upTimeGauge.getValue(), greaterThan(0L));
-        assertThat(downTimeGauge.getValue(), is(0L));
+        assertThat(upTimeGauge.getValue()).isGreaterThan(0L);
+        assertThat(downTimeGauge.getValue()).isEqualTo(0L);
         // can be zero if the restart is very quick
-        assertThat(restartTimeGauge.getValue(), greaterThanOrEqualTo(0L));
+        assertThat(restartTimeGauge.getValue()).isGreaterThanOrEqualTo(0L);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -604,7 +596,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         scheduler.startScheduling();
 
-        assertThat(scheduler.getState(), instanceOf(WaitingForResources.class));
+        assertThat(scheduler.getState()).isInstanceOf(WaitingForResources.class);
     }
 
     @Test
@@ -621,9 +613,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         scheduler.startScheduling();
 
-        assertThat(
-                declarativeSlotPool.getResourceRequirements(),
-                contains(ResourceRequirement.create(ResourceProfile.UNKNOWN, PARALLELISM)));
+        assertThat(declarativeSlotPool.getResourceRequirements())
+                .contains(ResourceRequirement.create(ResourceProfile.UNKNOWN, PARALLELISM));
     }
 
     @Test
@@ -647,9 +638,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // should request the max possible resources
         final int expectedParallelism =
                 KeyGroupRangeAssignment.computeDefaultMaxParallelism(PARALLELISM);
-        assertThat(
-                declarativeSlotPool.getResourceRequirements(),
-                contains(ResourceRequirement.create(ResourceProfile.UNKNOWN, expectedParallelism)));
+        assertThat(declarativeSlotPool.getResourceRequirements())
+                .contains(ResourceRequirement.create(ResourceProfile.UNKNOWN, expectedParallelism));
     }
 
     /** Tests that the listener for new slots is properly set up. */
@@ -685,7 +675,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                             taskManagerGateway);
                 });
 
-        assertThat(startingStateFuture.get(), instanceOf(WaitingForResources.class));
+        assertThat(startingStateFuture.get()).isInstanceOf(WaitingForResources.class);
 
         // Wait for all tasks to be submitted
         taskManagerGateway.waitForSubmissions(PARALLELISM, Duration.ofSeconds(5));
@@ -696,8 +686,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
                                 singleThreadMainThreadExecutor)
                         .get();
 
-        assertThat(
-                executionGraph.getJobVertex(JOB_VERTEX.getID()).getParallelism(), is(PARALLELISM));
+        assertThat(executionGraph.getJobVertex(JOB_VERTEX.getID()).getParallelism())
+                .isEqualTo(PARALLELISM);
     }
 
     @Test
@@ -710,7 +700,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         scheduler.goToFinished(archivedExecutionGraph);
 
-        assertThat(scheduler.getState(), instanceOf(Finished.class));
+        assertThat(scheduler.getState()).isInstanceOf(Finished.class);
     }
 
     @Test
@@ -724,15 +714,14 @@ public class AdaptiveSchedulerTest extends TestLogger {
                         .build();
 
         // sanity check
-        assertThat(
-                "Assumption about job status for Scheduler@Created is incorrect.",
-                scheduler.requestJobStatus(),
-                is(JobStatus.INITIALIZING));
+        assertThat(scheduler.requestJobStatus())
+                .withFailMessage("Assumption about job status for Scheduler@Created is incorrect.")
+                .isEqualTo(JobStatus.INITIALIZING);
 
         // transition into next state, for which the job state is still INITIALIZING
         scheduler.transitionToState(new DummyState.Factory(JobStatus.INITIALIZING));
 
-        assertThat(numStatusUpdates.get(), is(0));
+        assertThat(numStatusUpdates.get()).isEqualTo(0);
     }
 
     @Test
@@ -799,7 +788,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         jobCreatedNotification.get();
         jobRunningNotification.get();
         jobFinishedNotification.get();
-        assertThat(unexpectedJobStatusNotification.isDone(), is(false));
+        assertThat(unexpectedJobStatusNotification.isDone()).isFalse();
     }
 
     @Test
@@ -838,8 +827,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
                     scheduler.closeAsync();
                 });
 
-        assertThat(completedCheckpointStoreShutdownFuture.get(), is(JobStatus.FAILED));
-        assertThat(checkpointIdCounterShutdownFuture.get(), is(JobStatus.FAILED));
+        assertThat(completedCheckpointStoreShutdownFuture.get()).isEqualTo(JobStatus.FAILED);
+        assertThat(checkpointIdCounterShutdownFuture.get()).isEqualTo(JobStatus.FAILED);
     }
 
     @Test
@@ -854,8 +843,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
         firstState.reset();
 
         scheduler.transitionToState(new DummyState.Factory());
-        assertThat(firstState.onLeaveCalled, is(true));
-        assertThat(firstState.onLeaveNewStateArgument.equals(DummyState.class), is(true));
+        assertThat(firstState.onLeaveCalled).isTrue();
+        assertThat(firstState.onLeaveNewStateArgument.equals(DummyState.class)).isTrue();
     }
 
     @Test
@@ -901,9 +890,9 @@ public class AdaptiveSchedulerTest extends TestLogger {
         ArchivedExecutionJobVertex archivedVertex = executionGraph.getJobVertex(vertex.getID());
 
         // ensure that the parallelism was submitted based on what is available
-        assertThat(archivedVertex.getParallelism(), is(1));
+        assertThat(archivedVertex.getParallelism()).isEqualTo(1);
         // and that the max parallelism was submitted based on what was configured
-        assertThat(archivedVertex.getMaxParallelism(), is(expectedMaxParallelism));
+        assertThat(archivedVertex.getMaxParallelism()).isEqualTo(expectedMaxParallelism);
 
         // offer the resources to run at full parallelism
         singleThreadMainThreadExecutor.execute(
@@ -925,9 +914,9 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 resubmittedExecutionGraph.getJobVertex(vertex.getID());
 
         // ensure that the parallelism was submitted based on what is available
-        assertThat(resubmittedArchivedVertex.getParallelism(), is(parallelism));
+        assertThat(resubmittedArchivedVertex.getParallelism()).isEqualTo(parallelism);
         // and that the max parallelism was submitted based on what was configured
-        assertThat(resubmittedArchivedVertex.getMaxParallelism(), is(expectedMaxParallelism));
+        assertThat(resubmittedArchivedVertex.getMaxParallelism()).isEqualTo(expectedMaxParallelism);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -941,7 +930,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                         .setRestartBackoffTimeStrategy(NoRestartBackoffTimeStrategy.INSTANCE)
                         .build();
 
-        assertThat(scheduler.howToHandleFailure(new Exception("test")).canRestart(), is(false));
+        assertThat(scheduler.howToHandleFailure(new Exception("test")).canRestart()).isFalse();
     }
 
     @Test
@@ -957,10 +946,9 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final Executing.FailureResult failureResult =
                 scheduler.howToHandleFailure(new Exception("test"));
 
-        assertThat(failureResult.canRestart(), is(true));
-        assertThat(
-                failureResult.getBackoffTime().toMillis(),
-                is(restartBackoffTimeStrategy.getBackoffTime()));
+        assertThat(failureResult.canRestart()).isTrue();
+        assertThat(failureResult.getBackoffTime().toMillis())
+                .isEqualTo(restartBackoffTimeStrategy.getBackoffTime());
     }
 
     @Test
@@ -969,10 +957,11 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
 
         assertThat(
-                scheduler
-                        .howToHandleFailure(new SuppressRestartsException(new Exception("test")))
-                        .canRestart(),
-                is(false));
+                        scheduler
+                                .howToHandleFailure(
+                                        new SuppressRestartsException(new Exception("test")))
+                                .canRestart())
+                .isFalse();
     }
 
     @Test(expected = IllegalStateException.class)
@@ -983,7 +972,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final State state = scheduler.getState();
 
         // safeguard for this test
-        assertThat(state, instanceOf(Created.class));
+        assertThat(state).isInstanceOf(Created.class);
 
         scheduler.transitionToState(new Created.Factory(scheduler, log));
     }
@@ -998,8 +987,11 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
 
         assertThat(
-                scheduler.triggerSavepoint("some directory", false, SavepointFormatType.CANONICAL),
-                futureFailedWith(CheckpointException.class));
+                        scheduler.triggerSavepoint(
+                                "some directory", false, SavepointFormatType.CANONICAL))
+                .failsWithin(1, TimeUnit.MILLISECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(CheckpointException.class);
     }
 
     @Test
@@ -1008,8 +1000,11 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
 
         assertThat(
-                scheduler.stopWithSavepoint("some directory", false, SavepointFormatType.CANONICAL),
-                futureFailedWith(CheckpointException.class));
+                        scheduler.triggerSavepoint(
+                                "some directory", false, SavepointFormatType.CANONICAL))
+                .failsWithin(1, TimeUnit.MILLISECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(CheckpointException.class);
     }
 
     @Test(expected = TaskNotRunningException.class)
@@ -1027,9 +1022,11 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
 
         assertThat(
-                scheduler.deliverCoordinationRequestToCoordinator(
-                        new OperatorID(), new CoordinationRequest() {}),
-                futureFailedWith(FlinkException.class));
+                        scheduler.deliverCoordinationRequestToCoordinator(
+                                new OperatorID(), new CoordinationRequest() {}))
+                .failsWithin(1, TimeUnit.MILLISECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(FlinkException.class);
     }
 
     @Test
@@ -1039,11 +1036,11 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor).build();
 
         assertThat(
-                scheduler.updateTaskExecutionState(
-                        new TaskExecutionStateTransition(
-                                new TaskExecutionState(
-                                        new ExecutionAttemptID(), ExecutionState.FAILED))),
-                is(false));
+                        scheduler.updateTaskExecutionState(
+                                new TaskExecutionStateTransition(
+                                        new TaskExecutionState(
+                                                new ExecutionAttemptID(), ExecutionState.FAILED))))
+                .isFalse();
     }
 
     @Test(expected = IOException.class)
@@ -1082,7 +1079,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                                 new StateTrackingMockExecutionGraph(),
                                 new CreatingExecutionGraphTest.TestingVertexParallelism()));
 
-        assertFalse(assignmentResult.isSuccess());
+        assertThat(assignmentResult.isSuccess()).isFalse();
     }
 
     @Test
@@ -1100,8 +1097,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
         for (JobVertex vertex : graph.getVertices()) {
             VertexParallelismInformation info = parallelismStore.getParallelismInfo(vertex.getID());
 
-            assertThat(info.getParallelism(), is(vertex.getParallelism()));
-            assertThat(info.getMaxParallelism(), is(vertex.getMaxParallelism()));
+            assertThat(info.getParallelism()).isEqualTo(vertex.getParallelism());
+            assertThat(info.getMaxParallelism()).isEqualTo(vertex.getMaxParallelism());
         }
     }
 
@@ -1118,8 +1115,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
         for (JobVertex vertex : graph.getVertices()) {
             VertexParallelismInformation info = parallelismStore.getParallelismInfo(vertex.getID());
 
-            assertThat(info.getParallelism(), is(vertex.getParallelism()));
-            assertThat(info.getMaxParallelism(), is(vertex.getMaxParallelism()));
+            assertThat(info.getParallelism()).isEqualTo(vertex.getParallelism());
+            assertThat(info.getMaxParallelism()).isEqualTo(vertex.getMaxParallelism());
         }
     }
 
