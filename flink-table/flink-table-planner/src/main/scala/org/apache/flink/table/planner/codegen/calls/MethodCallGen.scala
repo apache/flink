@@ -26,18 +26,21 @@ import org.apache.flink.table.types.logical.LogicalType
 import java.lang.reflect.Method
 import java.util.TimeZone
 
-class MethodCallGen(method: Method, argsNullable: Boolean = false) extends CallGenerator {
+class MethodCallGen(method: Method, argsNullable: Boolean = false, wrapTryCatch: Boolean = false)
+  extends CallGenerator {
 
   override def generate(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
       returnType: LogicalType): GeneratedExpression = {
     if (argsNullable) {
-      generateCallIfArgsNullable(ctx, returnType, operands, !method.getReturnType.isPrimitive) {
+      generateCallIfArgsNullable(
+        ctx, returnType, operands, !method.getReturnType.isPrimitive, wrapTryCatch) {
         originalTerms => convertResult(ctx, originalTerms)
       }
     } else {
-      generateCallIfArgsNotNull(ctx, returnType, operands, !method.getReturnType.isPrimitive) {
+      generateCallIfArgsNotNull(
+        ctx, returnType, operands, !method.getReturnType.isPrimitive, wrapTryCatch) {
         originalTerms => convertResult(ctx, originalTerms)
       }
     }

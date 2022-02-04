@@ -23,9 +23,13 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.STRING_DATA_TO_TIMESTAMP;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.STRING_DATA_TO_TIMESTAMP_WITH_ZONE;
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.TRUNCATE_SQL_TIMESTAMP;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
 /** {@link LogicalTypeFamily#CHARACTER_STRING} to {@link LogicalTypeFamily#TIMESTAMP} cast rule. */
@@ -48,12 +52,33 @@ class StringToTimestampCastRule
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
+        int targetPrecision = LogicalTypeChecks.getPrecision(targetLogicalType);
+        if (inputLogicalType.is(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)
+                && targetLogicalType.is(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
+            final TimestampKind inputTimestampKind = ((TimestampType) inputLogicalType).getKind();
+            final TimestampKind targetTimestampKind = ((TimestampType) targetLogicalType).getKind();
+            if (inputTimestampKind == TimestampKind.ROWTIME
+                    || inputTimestampKind == TimestampKind.PROCTIME
+                    || targetTimestampKind == TimestampKind.ROWTIME
+                    || targetTimestampKind == TimestampKind.PROCTIME) {
+                targetPrecision = 3;
+            }
+        }
+
         if (targetLogicalType.is(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
-            return staticCall(STRING_DATA_TO_TIMESTAMP(), inputTerm);
+            return staticCall(
+                    TRUNCATE_SQL_TIMESTAMP(),
+                    staticCall(STRING_DATA_TO_TIMESTAMP(), inputTerm),
+                    targetPrecision);
         }
 
         return staticCall(
-                STRING_DATA_TO_TIMESTAMP_WITH_ZONE(), inputTerm, context.getSessionTimeZoneTerm());
+                TRUNCATE_SQL_TIMESTAMP(),
+                staticCall(
+                        STRING_DATA_TO_TIMESTAMP_WITH_ZONE(),
+                        inputTerm,
+                        context.getSessionTimeZoneTerm()),
+                targetPrecision);
     }
 
     @Override

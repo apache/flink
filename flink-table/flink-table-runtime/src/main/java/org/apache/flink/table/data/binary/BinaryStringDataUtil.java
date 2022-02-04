@@ -31,7 +31,6 @@ import org.apache.flink.table.utils.EncodingUtils;
 import java.math.BigDecimal;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.text.ParseException;
 import java.time.DateTimeException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -605,18 +604,12 @@ public class BinaryStringDataUtil {
     }
 
     public static TimestampData toTimestamp(BinaryStringData input) throws DateTimeException {
-        TimestampData timestamp = DateTimeUtils.parseTimestampData(input.toString());
-        if (timestamp == null) {
-            throw new DateTimeException("For input string: '" + input + "'.");
-        }
-
-        return timestamp;
+        return DateTimeUtils.parseTimestampData(input.toString());
     }
 
     public static TimestampData toTimestamp(BinaryStringData input, TimeZone timeZone)
-            throws ParseException {
-        long timestamp = DateTimeUtils.parseTimestampMillis(input.toString(), timeZone);
-        return TimestampData.fromEpochMillis(timestamp);
+            throws DateTimeException {
+        return DateTimeUtils.parseTimestampData(input.toString(), timeZone);
     }
 
     /**

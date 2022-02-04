@@ -482,6 +482,16 @@ class CastRulesTest {
                         .fail(STRING(), fromString("2021/09/27"), TableException.class)
                         .fromCase(
                                 STRING(),
+                                fromString("2021-09-27 12:34:56.123"),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123000000)))
+                        .fromCase(
+                                STRING(),
+                                fromString("2021-09-27 12:34:56.123400000"),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123400000)))
+                        .fromCase(
+                                STRING(),
                                 fromString("2021-09-27 12:34:56.123456789"),
                                 timestampDataFromLocalDateTime(
                                         2021, 9, 27, 12, 34, 56, 123_456_789))
@@ -524,7 +534,15 @@ class CastRulesTest {
                         .fromCase(
                                 TIMESTAMP_LTZ(7),
                                 timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 123_456_700),
-                                timestampDataFromLocalDateTime(2021, 9, 26, 22, 0, 0, 123_400_000)),
+                                timestampDataFromLocalDateTime(2021, 9, 26, 22, 0, 0, 123_400_000))
+                        .fromCase(
+                                STRING(),
+                                fromString("2021-09-27 12:34:56.123"),
+                                timestampDataFromLocalDateTime(2021, 9, 27, 12, 34, 56, 123000000))
+                        .fromCase(
+                                STRING(),
+                                fromString("2021-09-27 12:34:56.12345"),
+                                timestampDataFromLocalDateTime(2021, 9, 27, 12, 34, 56, 123400000)),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(9))
                         .fail(CHAR(3), fromString("foo"), TableException.class)
                         .fail(VARCHAR(5), fromString("Flink"), TableException.class)
@@ -537,15 +555,23 @@ class CastRulesTest {
                         .fromCase(
                                 STRING(),
                                 CET_CONTEXT,
+                                fromString("2021-09-27 12:34:56"),
+                                timestampDataFromInstant(2021, 9, 27, 12, 34, 56, 0))
+                        .fromCase(
+                                STRING(),
+                                CET_CONTEXT,
                                 fromString("2021-09-27 12:34:56.123"),
                                 timestampDataFromInstant(2021, 9, 27, 12, 34, 56, 123_000_000))
-                        // https://issues.apache.org/jira/browse/FLINK-24446 Fractional seconds are
-                        // lost
+                        .fromCase(
+                                STRING(),
+                                CET_CONTEXT,
+                                fromString("2021-09-27 12:34:56.1234"),
+                                timestampDataFromInstant(2021, 9, 27, 12, 34, 56, 123400000))
                         .fromCase(
                                 STRING(),
                                 CET_CONTEXT,
                                 fromString("2021-09-27 12:34:56.123456789"),
-                                timestampDataFromInstant(2021, 9, 27, 12, 34, 56, 0))
+                                timestampDataFromInstant(2021, 9, 27, 12, 34, 56, 123456789))
                         .fromCase(
                                 DATE(),
                                 DateTimeUtils.toInternal(LocalDate.of(2022, 1, 4)),
@@ -584,7 +610,17 @@ class CastRulesTest {
                         .fromCase(
                                 TIMESTAMP_LTZ(7),
                                 timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 123_456_700),
-                                timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 123_400_000)),
+                                timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 123_400_000))
+                        .fromCase(
+                                STRING(),
+                                CET_CONTEXT,
+                                fromString("2021-09-27 12:34:56.123"),
+                                timestampDataFromInstant(2021, 9, 27, 12, 34, 56, 123000000))
+                        .fromCase(
+                                STRING(),
+                                CET_CONTEXT,
+                                fromString("2021-09-27 12:34:56.12345"),
+                                timestampDataFromInstant(2021, 9, 27, 12, 34, 56, 123400000)),
                 CastTestSpecBuilder.testCastTo(STRING())
                         .fromCase(STRING(), null, null)
                         .fromCase(NULL(), null, BinaryStringDataUtil.NULL_STRING)
