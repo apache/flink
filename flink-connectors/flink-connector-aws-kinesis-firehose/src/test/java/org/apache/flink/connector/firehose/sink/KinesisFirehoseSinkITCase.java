@@ -82,6 +82,9 @@ public class KinesisFirehoseSinkITCase {
     @After
     public void teardown() {
         System.clearProperty(SdkSystemSetting.CBOR_ENABLED.property());
+        s3AsyncClient.close();
+        firehoseAsyncClient.close();
+        iamAsyncClient.close();
     }
 
     @Test
