@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.elasticsearch.testutils.SourceSinkDataTestKit;
 import org.apache.flink.test.util.AbstractTestBase;
 
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.RestHighLevelClient;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -44,9 +44,7 @@ import static org.junit.Assert.fail;
 public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A>
         extends AbstractTestBase {
 
-    // It's not good that we're using a Client here instead of a Rest Client but we need this
-    // for compatibility with ES 5.3.x. As soon as we drop that we can use RestClient here.
-    protected abstract Client getClient();
+    protected abstract RestHighLevelClient getClient();
 
     protected abstract String getClusterName();
 
@@ -90,7 +88,7 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A>
         env.execute("Elasticsearch Sink Test");
 
         // verify the results
-        Client client = getClient();
+        RestHighLevelClient client = getClient();
 
         SourceSinkDataTestKit.verifyProducedSinkData(client, index);
 

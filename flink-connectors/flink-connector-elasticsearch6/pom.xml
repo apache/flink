@@ -139,24 +139,6 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!--
-   			 Including elasticsearch transport dependency for tests. Netty3 is not here anymore in 6.x
-		-->
-
-		<dependency>
-			<groupId>org.elasticsearch.client</groupId>
-			<artifactId>transport</artifactId>
-			<version>${elasticsearch.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
-			<artifactId>transport-netty4-client</artifactId>
-			<version>${elasticsearch.version}</version>
-			<scope>test</scope>
-		</dependency>
-
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-api</artifactId>

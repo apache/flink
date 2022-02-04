@@ -40,12 +40,13 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.DockerImageVersions;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.http.HttpHost;
 import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.search.SearchHits;
-import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
@@ -74,12 +75,9 @@ public class Elasticsearch7DynamicSinkITCase extends TestLogger {
             new ElasticsearchContainer(DockerImageName.parse(DockerImageVersions.ELASTICSEARCH_7));
 
     @SuppressWarnings("deprecation")
-    protected final Client getClient() {
-        TransportAddress transportAddress =
-                new TransportAddress(elasticsearchContainer.getTcpHost());
-        String expectedClusterName = "docker-cluster";
-        Settings settings = Settings.builder().put("cluster.name", expectedClusterName).build();
-        return new PreBuiltTransportClient(settings).addTransportAddress(transportAddress);
+    protected final RestHighLevelClient getClient() {
+        return new RestHighLevelClient(
+                RestClient.builder(HttpHost.create(elasticsearchContainer.getHttpHostAddress())));
     }
 
     @Test
@@ -142,9 +140,10 @@ public class Elasticsearch7DynamicSinkITCase extends TestLogger {
         environment.<RowData>fromElements(rowData).addSink(sinkFunction);
         environment.execute();
 
-        Client client = getClient();
+        RestHighLevelClient client = getClient();
         Map<String, Object> response =
-                client.get(new GetRequest(index, "1_2012-12-12T12:12:12")).actionGet().getSource();
+                client.get(new GetRequest(index, "1_2012-12-12T12:12:12"), RequestOptions.DEFAULT)
+                        .getSource();
         Map<Object, Object> expectedMap = new HashMap<>();
         expectedMap.put("a", 1);
         expectedMap.put("b", "00:00:12");
@@ -202,9 +201,10 @@ public class Elasticsearch7DynamicSinkITCase extends TestLogger {
                 .executeInsert("esTable")
                 .await();
 
-        Client client = getClient();
+        RestHighLevelClient client = getClient();
         Map<String, Object> response =
-                client.get(new GetRequest(index, "1_2012-12-12T12:12:12")).actionGet().getSource();
+                client.get(new GetRequest(index, "1_2012-12-12T12:12:12"), RequestOptions.DEFAULT)
+                        .getSource();
         Map<Object, Object> expectedMap = new HashMap<>();
         expectedMap.put("a", 1);
         expectedMap.put("b", "00:00:12");
@@ -268,14 +268,14 @@ public class Elasticsearch7DynamicSinkITCase extends TestLogger {
                 .executeInsert("esTable")
                 .await();
 
-        Client client = getClient();
+        RestHighLevelClient client = getClient();
 
         // search API does not return documents that were not indexed, we might need to query
         // the index a few times
         Deadline deadline = Deadline.fromNow(Duration.ofSeconds(30));
         SearchHits hits;
         do {
-            hits = client.prepareSearch(index).execute().actionGet().getHits();
+            hits = client.search(new SearchRequest(index), RequestOptions.DEFAULT).getHits();
             if (hits.getTotalHits().value < 2) {
                 Thread.sleep(200);
             }
@@ -342,9 +342,10 @@ public class Elasticsearch7DynamicSinkITCase extends TestLogger {
                 .executeInsert("esTable")
                 .await();
 
-        Client client = getClient();
+        RestHighLevelClient client = getClient();
         Map<String, Object> response =
-                client.get(new GetRequest("dynamic-index-2012-12-12", "1")).actionGet().getSource();
+                client.get(new GetRequest("dynamic-index-2012-12-12", "1"), RequestOptions.DEFAULT)
+                        .getSource();
         Map<Object, Object> expectedMap = new HashMap<>();
         expectedMap.put("a", 1);
         expectedMap.put("b", "2012-12-12 12:12:12");

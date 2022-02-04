@@ -26,11 +26,8 @@ import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkTest
 import org.apache.flink.util.DockerImageVersions;
 
 import org.apache.http.HttpHost;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -57,13 +54,9 @@ public class ElasticsearchSinkITCase
     }
 
     @Override
-    @SuppressWarnings("deprecation")
-    protected final Client getClient() {
-        TransportAddress transportAddress =
-                new TransportAddress(elasticsearchContainer.getTcpHost());
-        String expectedClusterName = getClusterName();
-        Settings settings = Settings.builder().put("cluster.name", expectedClusterName).build();
-        return new PreBuiltTransportClient(settings).addTransportAddress(transportAddress);
+    protected final RestHighLevelClient getClient() {
+        return new RestHighLevelClient(
+                RestClient.builder(HttpHost.create(elasticsearchContainer.getHttpHostAddress())));
     }
 
     @Test
