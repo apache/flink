@@ -467,6 +467,8 @@ import org.apache.flink.table.api.bridge.scala._
 {{< /tab >}}
 {{< /tabs >}}
 
+Please refer to the [configuration]({{< ref "docs/dev/configuration/overview" >}}) section for more information. 
+
 ### Configuration
 
 The `TableEnvironment` will adopt all configuration options from the passed `StreamExecutionEnvironment`.
