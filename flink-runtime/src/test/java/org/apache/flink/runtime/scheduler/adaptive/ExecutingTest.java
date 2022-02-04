@@ -175,7 +175,7 @@ public class ExecutingTest extends TestLogger {
                         assertThat(failingArguments.getExecutionGraph(), notNullValue());
                         assertThat(failingArguments.getFailureCause().getMessage(), is(failureMsg));
                     }));
-            ctx.setHowToHandleFailure(Executing.FailureResult::canNotRestart);
+            ctx.setHowToHandleFailure(FailureResult::canNotRestart);
             exec.handleGlobalFailure(new RuntimeException(failureMsg));
         }
     }
@@ -188,7 +188,7 @@ public class ExecutingTest extends TestLogger {
             ctx.setExpectRestarting(
                     (restartingArguments ->
                             assertThat(restartingArguments.getBackoffTime(), is(duration))));
-            ctx.setHowToHandleFailure((t) -> Executing.FailureResult.canRestart(t, duration));
+            ctx.setHowToHandleFailure((t) -> FailureResult.canRestart(t, duration));
             exec.handleGlobalFailure(new RuntimeException("Recoverable error"));
         }
     }
@@ -266,7 +266,7 @@ public class ExecutingTest extends TestLogger {
                             .setExecutionGraph(returnsFailedStateExecutionGraph)
                             .build(ctx);
 
-            ctx.setHowToHandleFailure(Executing.FailureResult::canNotRestart);
+            ctx.setHowToHandleFailure(FailureResult::canNotRestart);
             ctx.setExpectFailing(assertNonNull());
 
             exec.updateTaskExecutionState(createFailingStateTransition());
@@ -283,7 +283,7 @@ public class ExecutingTest extends TestLogger {
                             .setExecutionGraph(returnsFailedStateExecutionGraph)
                             .build(ctx);
             ctx.setHowToHandleFailure(
-                    (throwable) -> Executing.FailureResult.canRestart(throwable, Duration.ZERO));
+                    (throwable) -> FailureResult.canRestart(throwable, Duration.ZERO));
             ctx.setExpectRestarting(assertNonNull());
 
             exec.updateTaskExecutionState(createFailingStateTransition());
@@ -481,7 +481,7 @@ public class ExecutingTest extends TestLogger {
         private final StateValidator<CancellingArguments> cancellingStateValidator =
                 new StateValidator<>("cancelling");
 
-        private Function<Throwable, Executing.FailureResult> howToHandleFailure;
+        private Function<Throwable, FailureResult> howToHandleFailure;
         private Supplier<Boolean> canScaleUp = () -> false;
         private StateValidator<StopWithSavepointArguments> stopWithSavepointValidator =
                 new StateValidator<>("stopWithSavepoint");
@@ -504,7 +504,7 @@ public class ExecutingTest extends TestLogger {
             stopWithSavepointValidator.expectInput(asserter);
         }
 
-        public void setHowToHandleFailure(Function<Throwable, Executing.FailureResult> function) {
+        public void setHowToHandleFailure(Function<Throwable, FailureResult> function) {
             this.howToHandleFailure = function;
         }
 
@@ -526,7 +526,7 @@ public class ExecutingTest extends TestLogger {
         }
 
         @Override
-        public Executing.FailureResult howToHandleFailure(Throwable failure) {
+        public FailureResult howToHandleFailure(Throwable failure) {
             return howToHandleFailure.apply(failure);
         }
 

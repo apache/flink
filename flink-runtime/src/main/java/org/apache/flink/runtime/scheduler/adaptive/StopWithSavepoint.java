@@ -180,7 +180,7 @@ class StopWithSavepoint extends StateWithExecutionGraph {
 
     private void handleAnyFailure(Throwable cause) {
         operationFailureCause = cause;
-        final Executing.FailureResult failureResult = context.howToHandleFailure(cause);
+        final FailureResult failureResult = context.howToHandleFailure(cause);
 
         if (failureResult.canRestart()) {
             getLogger().info("Restarting job.", failureResult.getFailureCause());
@@ -214,9 +214,9 @@ class StopWithSavepoint extends StateWithExecutionGraph {
          * Asks how to handle the failure.
          *
          * @param failure failure describing the failure cause
-         * @return {@link Executing.FailureResult} which describes how to handle the failure
+         * @return {@link FailureResult} which describes how to handle the failure
          */
-        Executing.FailureResult howToHandleFailure(Throwable failure);
+        FailureResult howToHandleFailure(Throwable failure);
 
         /**
          * Runs the given action after the specified delay if the state is the expected state at

@@ -231,56 +231,6 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay);
     }
 
-    /**
-     * The {@link FailureResult} describes how a failure shall be handled. Currently, there are two
-     * alternatives: Either restarting the job or failing it.
-     */
-    static final class FailureResult {
-        @Nullable private final Duration backoffTime;
-
-        private final Throwable failureCause;
-
-        private FailureResult(Throwable failureCause, @Nullable Duration backoffTime) {
-            this.backoffTime = backoffTime;
-            this.failureCause = failureCause;
-        }
-
-        boolean canRestart() {
-            return backoffTime != null;
-        }
-
-        Duration getBackoffTime() {
-            Preconditions.checkState(
-                    canRestart(), "Failure result must be restartable to return a backoff time.");
-            return backoffTime;
-        }
-
-        Throwable getFailureCause() {
-            return failureCause;
-        }
-
-        /**
-         * Creates a FailureResult which allows to restart the job.
-         *
-         * @param failureCause failureCause for restarting the job
-         * @param backoffTime backoffTime to wait before restarting the job
-         * @return FailureResult which allows to restart the job
-         */
-        static FailureResult canRestart(Throwable failureCause, Duration backoffTime) {
-            return new FailureResult(failureCause, backoffTime);
-        }
-
-        /**
-         * Creates FailureResult which does not allow to restart the job.
-         *
-         * @param failureCause failureCause describes the reason why the job cannot be restarted
-         * @return FailureResult which does not allow to restart the job
-         */
-        static FailureResult canNotRestart(Throwable failureCause) {
-            return new FailureResult(failureCause, null);
-        }
-    }
-
     static class Factory implements StateFactory<Executing> {
 
         private final Context context;
