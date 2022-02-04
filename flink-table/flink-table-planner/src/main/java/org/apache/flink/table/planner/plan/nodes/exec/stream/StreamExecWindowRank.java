@@ -68,12 +68,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-window-rank",
         version = 1,
+        producedOperators = StreamExecWindowRank.WINDOW_RANK_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecWindowRank extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-    private static final String WINDOW_RANK_OPERATOR = "window-rank";
+    public static final String WINDOW_RANK_OPERATOR = "window-rank";
 
     private static final long WINDOW_RANK_MEMORY_RATIO = 100;
 

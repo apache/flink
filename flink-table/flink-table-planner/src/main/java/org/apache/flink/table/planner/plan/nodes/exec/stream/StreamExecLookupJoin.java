@@ -44,6 +44,7 @@ import java.util.Map;
 @ExecNodeMetadata(
         name = "stream-exec-lookup-join",
         version = 1,
+        producedOperators = CommonExecLookupJoin.LOOKUP_JOIN_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecLookupJoin extends CommonExecLookupJoin implements StreamExecNode<RowData> {

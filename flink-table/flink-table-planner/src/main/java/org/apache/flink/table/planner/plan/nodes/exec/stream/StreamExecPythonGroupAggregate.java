@@ -65,13 +65,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-python-group-aggregate",
         version = 1,
+        producedOperators = StreamExecPythonGroupAggregate.GROUP_AGGREGATE_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecPythonGroupAggregate.class);
 
-    private static final String GROUP_AGGREGATE_OPERATOR = "group-aggregate";
+    public static final String GROUP_AGGREGATE_OPERATOR = "group-aggregate";
 
     private static final String PYTHON_STREAM_AGGREAGTE_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.aggregate.PythonStreamGroupAggregateOperator";

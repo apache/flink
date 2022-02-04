@@ -47,12 +47,13 @@ import java.util.List;
 @ExecNodeMetadata(
         name = "stream-exec-drop-update-before",
         version = 1,
+        producedOperators = StreamExecDropUpdateBefore.DROP_UPDATE_BEFORE_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecDropUpdateBefore extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-    private static final String DROP_UPDATE_BEFORE_OPERATOR = "drop-update-before";
+    public static final String DROP_UPDATE_BEFORE_OPERATOR = "drop-update-before";
 
     public StreamExecDropUpdateBefore(
             InputProperty inputProperty, RowType outputType, String description) {

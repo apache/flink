@@ -105,6 +105,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-group-window-aggregate",
         version = 1,
+        producedOperators = StreamExecGroupWindowAggregate.GROUP_WINDOW_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
@@ -112,7 +113,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
     private static final Logger LOGGER =
             LoggerFactory.getLogger(StreamExecGroupWindowAggregate.class);
 
-    private static final String GROUP_WINDOW_OPERATOR = "group-window-aggregate";
+    public static final String GROUP_WINDOW_OPERATOR = "group-window-aggregate";
 
     public static final String FIELD_NAME_WINDOW = "window";
     public static final String FIELD_NAME_NAMED_WINDOW_PROPERTIES = "namedWindowProperties";

@@ -46,6 +46,7 @@ import java.util.List;
 @ExecNodeMetadata(
         name = "stream-exec-correlate",
         version = 1,
+        producedOperators = CommonExecCorrelate.CORRELATE_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecCorrelate extends CommonExecCorrelate implements StreamExecNode<RowData> {

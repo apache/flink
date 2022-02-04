@@ -75,12 +75,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-rank",
         version = 1,
+        producedOperators = StreamExecRank.RANK_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecRank extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-    private static final String RANK_OPERATOR = "rank";
+    public static final String RANK_OPERATOR = "rank";
 
     public static final String FIELD_NAME_RANK_TYPE = "rankType";
     public static final String FIELD_NAME_PARTITION_SPEC = "partition";

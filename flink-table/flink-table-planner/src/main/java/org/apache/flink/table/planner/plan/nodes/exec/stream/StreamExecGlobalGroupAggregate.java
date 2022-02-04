@@ -78,13 +78,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-global-group-aggregate",
         version = 1,
+        producedOperators = StreamExecGlobalGroupAggregate.GLOBAL_GROUP_AGGREGATE_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecGlobalGroupAggregate.class);
 
-    private static final String GLOBAL_GROUP_AGGREGATE_OPERATOR = "global-group-aggregate";
+    public static final String GLOBAL_GROUP_AGGREGATE_OPERATOR = "global-group-aggregate";
 
     public static final String FIELD_NAME_LOCAL_AGG_INPUT_ROW_TYPE = "localAggInputRowType";
     public static final String FIELD_NAME_INDEX_OF_COUNT_STAR = "indexOfCountStar";

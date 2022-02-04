@@ -50,7 +50,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class CommonExecWindowTableFunction extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-    private static final String WINDOW_TVF_OPERATOR = "window-tvf";
+    public static final String WINDOW_TVF_OPERATOR = "window-tvf";
 
     public static final String FIELD_NAME_WINDOWING = "windowing";
 

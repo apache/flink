@@ -74,12 +74,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-deduplicate",
         version = 1,
+        producedOperators = StreamExecDeduplicate.DEDUPLICATE_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-    private static final String DEDUPLICATE_OPERATOR = "deduplicate";
+    public static final String DEDUPLICATE_OPERATOR = "deduplicate";
 
     public static final String FIELD_NAME_UNIQUE_KEYS = "uniqueKeys";
     public static final String FIELD_NAME_IS_ROWTIME = "isRowtime";

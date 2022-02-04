@@ -92,13 +92,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-match",
         version = 1,
+        producedOperators = {
+            StreamExecMatch.TIMESTAMP_INSERTER_OPERATOR,
+            StreamExecMatch.MATCH_OPERATOR
+        },
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecMatch extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
 
-    private static final String TIMESTAMP_INSERTER_OPERATOR = "timestamp-inserter";
-    private static final String MATCH_OPERATOR = "match";
+    public static final String TIMESTAMP_INSERTER_OPERATOR = "timestamp-inserter";
+    public static final String MATCH_OPERATOR = "match";
 
     public static final String FIELD_NAME_MATCH_SPEC = "matchSpec";
 

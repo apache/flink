@@ -136,7 +136,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
-    private static final String LOOKUP_JOIN_OPERATOR = "lookup-join";
+    public static final String LOOKUP_JOIN_OPERATOR = "lookup-join";
 
     public static final String FIELD_NAME_JOIN_TYPE = "joinType";
     public static final String FIELD_NAME_JOIN_CONDITION = "joinCondition";

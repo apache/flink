@@ -57,6 +57,13 @@ import java.util.stream.Collectors;
 @ExecNodeMetadata(
         name = "stream-exec-sink",
         version = 1,
+        producedOperators = {
+            CommonExecSink.CONSTRAINT_VALIDATOR_OPERATOR,
+            CommonExecSink.PARTITIONER_OPERATOR,
+            CommonExecSink.UPSERT_MATERIALIZE_OPERATOR,
+            CommonExecSink.TIMESTAMP_INSERTER_OPERATOR,
+            CommonExecSink.SINK_OPERATOR
+        },
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecSink extends CommonExecSink implements StreamExecNode<Object> {

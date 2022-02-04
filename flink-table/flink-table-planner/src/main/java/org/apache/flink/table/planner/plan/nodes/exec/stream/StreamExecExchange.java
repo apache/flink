@@ -56,11 +56,12 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 @ExecNodeMetadata(
         name = "stream-exec-exchange",
         version = 1,
+        producedOperators = StreamExecExchange.EXCHANGE_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecExchange extends CommonExecExchange implements StreamExecNode<RowData> {
 
-    private static final String EXCHANGE_OPERATOR = "exchange";
+    public static final String EXCHANGE_OPERATOR = "exchange";
 
     public StreamExecExchange(InputProperty inputProperty, RowType outputType, String description) {
         this(

@@ -57,11 +57,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-local-group-aggregate",
         version = 1,
+        producedOperators = StreamExecLocalGroupAggregate.LOCAL_GROUP_AGGREGATE_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecLocalGroupAggregate extends StreamExecAggregateBase {
 
-    private static final String LOCAL_GROUP_AGGREGATE_OPERATOR = "local-group-aggregate";
+    public static final String LOCAL_GROUP_AGGREGATE_OPERATOR = "local-group-aggregate";
 
     @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;

@@ -73,6 +73,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-python-over-aggregate",
         version = 1,
+        producedOperators = StreamExecPythonOverAggregate.OVER_AGGREGATE_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
@@ -80,7 +81,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecPythonOverAggregate.class);
 
-    private static final String OVER_AGGREGATE_OPERATOR = "over-aggregate";
+    public static final String OVER_AGGREGATE_OPERATOR = "over-aggregate";
 
     private static final String
             ARROW_PYTHON_OVER_WINDOW_RANGE_ROW_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME =

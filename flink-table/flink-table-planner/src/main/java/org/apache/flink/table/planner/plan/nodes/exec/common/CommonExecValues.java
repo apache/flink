@@ -42,7 +42,7 @@ import java.util.List;
 public abstract class CommonExecValues extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
-    private static final String VALUES_OPERATOR = "values";
+    public static final String VALUES_OPERATOR = "values";
 
     public static final String FIELD_NAME_TUPLES = "tuples";
 

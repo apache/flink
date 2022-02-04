@@ -50,7 +50,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
-    private static final String CORRELATE_OPERATOR = "correlate";
+    public static final String CORRELATE_OPERATOR = "correlate";
 
     public static final String FIELD_NAME_JOIN_TYPE = "joinType";
     public static final String FIELD_NAME_FUNCTION_CALL = "functionCall";

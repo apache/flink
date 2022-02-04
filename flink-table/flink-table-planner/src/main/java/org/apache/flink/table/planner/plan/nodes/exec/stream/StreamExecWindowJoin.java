@@ -60,12 +60,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-window-join",
         version = 1,
+        producedOperators = StreamExecWindowJoin.WINDOW_JOIN_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecWindowJoin extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-    private static final String WINDOW_JOIN_OPERATOR = "window-join";
+    public static final String WINDOW_JOIN_OPERATOR = "window-join";
 
     public static final String FIELD_NAME_JOIN_SPEC = "joinSpec";
     public static final String FIELD_NAME_LEFT_WINDOWING = "leftWindowing";

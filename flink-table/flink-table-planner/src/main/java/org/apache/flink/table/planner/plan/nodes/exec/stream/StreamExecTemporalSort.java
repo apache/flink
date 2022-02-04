@@ -57,12 +57,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-temporal-sort",
         version = 1,
+        producedOperators = StreamExecTemporalSort.TEMPORAL_SORT_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecTemporalSort extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
 
-    private static final String TEMPORAL_SORT_OPERATOR = "temporal-sort";
+    public static final String TEMPORAL_SORT_OPERATOR = "temporal-sort";
 
     public static final String FIELD_NAME_SORT_SPEC = "orderBy";
 

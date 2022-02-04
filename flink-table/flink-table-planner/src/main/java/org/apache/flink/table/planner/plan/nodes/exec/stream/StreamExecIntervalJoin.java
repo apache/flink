@@ -69,6 +69,13 @@ import java.util.List;
 @ExecNodeMetadata(
         name = "stream-exec-interval-join",
         version = 1,
+        producedOperators = {
+            StreamExecIntervalJoin.FILTER_LEFT_OPERATOR,
+            StreamExecIntervalJoin.FILTER_RIGHT_OPERATOR,
+            StreamExecIntervalJoin.PAD_LEFT_OPERATOR,
+            StreamExecIntervalJoin.PAD_RIGHT_OPERATOR,
+            StreamExecIntervalJoin.INTERVAL_JOIN_OPERATOR
+        },
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
@@ -76,11 +83,11 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
 
     private static final Logger LOGGER = LoggerFactory.getLogger(StreamExecIntervalJoin.class);
 
-    private static final String FILTER_LEFT_OPERATOR = "filter-left";
-    private static final String FILTER_RIGHT_OPERATOR = "filter-right";
-    private static final String PAD_LEFT_OPERATOR = "pad-left";
-    private static final String PAD_RIGHT_OPERATOR = "pad-right";
-    private static final String INTERVAL_JOIN_OPERATOR = "interval-join";
+    public static final String FILTER_LEFT_OPERATOR = "filter-left";
+    public static final String FILTER_RIGHT_OPERATOR = "filter-right";
+    public static final String PAD_LEFT_OPERATOR = "pad-left";
+    public static final String PAD_RIGHT_OPERATOR = "pad-right";
+    public static final String INTERVAL_JOIN_OPERATOR = "interval-join";
 
     public static final String FIELD_NAME_INTERVAL_JOIN_SPEC = "intervalJoinSpec";
 

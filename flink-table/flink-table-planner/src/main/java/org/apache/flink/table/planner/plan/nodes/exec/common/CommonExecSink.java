@@ -91,11 +91,11 @@ import java.util.stream.IntStream;
 public abstract class CommonExecSink extends ExecNodeBase<Object>
         implements MultipleTransformationTranslator<Object> {
 
-    private static final String CONSTRAINT_VALIDATOR_OPERATOR = "constraint-validator";
-    private static final String PARTITIONER_OPERATOR = "partitioner";
-    private static final String UPSERT_MATERIALIZE_OPERATOR = "upsert-materialize";
-    private static final String TIMESTAMP_INSERTER_OPERATOR = "timestamp-inserter";
-    private static final String SINK_OPERATOR = "sink";
+    public static final String CONSTRAINT_VALIDATOR_OPERATOR = "constraint-validator";
+    public static final String PARTITIONER_OPERATOR = "partitioner";
+    public static final String UPSERT_MATERIALIZE_OPERATOR = "upsert-materialize";
+    public static final String TIMESTAMP_INSERTER_OPERATOR = "timestamp-inserter";
+    public static final String SINK_OPERATOR = "sink";
 
     public static final String FIELD_NAME_DYNAMIC_TABLE_SINK = "dynamicTableSink";
 

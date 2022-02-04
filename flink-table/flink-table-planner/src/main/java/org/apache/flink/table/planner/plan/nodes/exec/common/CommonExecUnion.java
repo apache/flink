@@ -40,7 +40,7 @@ import java.util.List;
 public abstract class CommonExecUnion extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
-    private static final String UNION_OPERATOR = "union";
+    public static final String UNION_OPERATOR = "union";
 
     public CommonExecUnion(
             int id,

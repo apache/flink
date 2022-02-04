@@ -73,13 +73,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-group-aggregate",
         version = 1,
+        producedOperators = StreamExecGroupAggregate.GROUP_AGGREGATE_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecGroupAggregate extends StreamExecAggregateBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecGroupAggregate.class);
 
-    private static final String GROUP_AGGREGATE_OPERATOR = "group-aggregate";
+    public static final String GROUP_AGGREGATE_OPERATOR = "group-aggregate";
 
     @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;

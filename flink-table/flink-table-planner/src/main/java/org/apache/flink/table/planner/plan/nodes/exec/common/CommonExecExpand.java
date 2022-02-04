@@ -47,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class CommonExecExpand extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
-    private static final String EXPAND_OPERATOR = "expand";
+    public static final String EXPAND_OPERATOR = "expand";
 
     public static final String FIELD_NAME_PROJECTS = "projects";
 

@@ -57,7 +57,8 @@ import java.util.Collections;
  */
 public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         implements MultipleTransformationTranslator<RowData> {
-    private static final String SOURCE_OPERATOR = "source";
+
+    public static final String SOURCE_OPERATOR = "source";
 
     public static final String FIELD_NAME_SCAN_TABLE_SOURCE = "scanTableSource";
 

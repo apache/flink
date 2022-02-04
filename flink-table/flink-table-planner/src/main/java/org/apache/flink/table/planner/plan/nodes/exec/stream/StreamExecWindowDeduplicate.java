@@ -60,12 +60,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-window-deduplicate",
         version = 1,
+        producedOperators = StreamExecWindowDeduplicate.WINDOW_DEDUPLICATE_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecWindowDeduplicate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-    private static final String WINDOW_DEDUPLICATE_OPERATOR = "window-deduplicate";
+    public static final String WINDOW_DEDUPLICATE_OPERATOR = "window-deduplicate";
 
     private static final long WINDOW_RANK_MEMORY_RATIO = 100;
 

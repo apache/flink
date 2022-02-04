@@ -77,11 +77,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-window-aggregate",
         version = 1,
+        producedOperators = StreamExecWindowAggregate.WINDOW_AGGREGATE_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
 
-    private static final String WINDOW_AGGREGATE_OPERATOR = "window-aggregate";
+    public static final String WINDOW_AGGREGATE_OPERATOR = "window-aggregate";
 
     private static final long WINDOW_AGG_MEMORY_RATIO = 100;
 

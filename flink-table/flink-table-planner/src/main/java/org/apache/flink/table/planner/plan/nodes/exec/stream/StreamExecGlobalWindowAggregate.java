@@ -74,13 +74,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-global-window-aggregate",
         version = 1,
+        producedOperators = StreamExecGlobalWindowAggregate.GLOBAL_WINDOW_AGGREGATE_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBase {
 
     public static final String FIELD_NAME_LOCAL_AGG_INPUT_ROW_TYPE = "localAggInputRowType";
 
-    private static final String GLOBAL_WINDOW_AGGREGATE_OPERATOR = "global-window-aggregate";
+    public static final String GLOBAL_WINDOW_AGGREGATE_OPERATOR = "global-window-aggregate";
 
     @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;

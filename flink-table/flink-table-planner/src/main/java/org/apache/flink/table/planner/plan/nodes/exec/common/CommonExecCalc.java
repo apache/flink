@@ -50,7 +50,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class CommonExecCalc extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
-    private static final String SUBSTITUTE_STREAM_OPERATOR = "substitute-stream";
+    public static final String SUBSTITUTE_STREAM_OPERATOR = "substitute-stream";
 
     public static final String FIELD_NAME_PROJECTION = "projection";
     public static final String FIELD_NAME_CONDITION = "condition";

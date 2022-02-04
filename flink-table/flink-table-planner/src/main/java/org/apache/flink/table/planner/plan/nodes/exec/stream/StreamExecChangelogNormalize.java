@@ -63,12 +63,13 @@ import java.util.List;
 @ExecNodeMetadata(
         name = "stream-exec-changelog-normalize",
         version = 1,
+        producedOperators = StreamExecChangelogNormalize.CHANGELOG_NORMALIZE_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-    private static final String CHANGELOG_NORMALIZE_OPERATOR = "changelog-normalize";
+    public static final String CHANGELOG_NORMALIZE_OPERATOR = "changelog-normalize";
 
     public static final String FIELD_NAME_UNIQUE_KEYS = "uniqueKeys";
     public static final String FIELD_NAME_GENERATE_UPDATE_BEFORE = "generateUpdateBefore";

@@ -58,12 +58,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-mini-batch-assigner",
         version = 1,
+        producedOperators = StreamExecMiniBatchAssigner.MINI_BATCH_ASSIGNER_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-    private static final String MINI_BATCH_ASSIGNER_OPERATOR = "mini-batch-assigner";
+    public static final String MINI_BATCH_ASSIGNER_OPERATOR = "mini-batch-assigner";
 
     public static final String FIELD_NAME_MINI_BATCH_INTERVAL = "miniBatchInterval";
 

@@ -43,6 +43,7 @@ import java.util.List;
 @ExecNodeMetadata(
         name = "stream-exec-window-table-function",
         version = 1,
+        producedOperators = CommonExecWindowTableFunction.WINDOW_TVF_OPERATOR,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecWindowTableFunction extends CommonExecWindowTableFunction
