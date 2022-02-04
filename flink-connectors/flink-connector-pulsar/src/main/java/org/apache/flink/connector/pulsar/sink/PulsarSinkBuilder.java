@@ -25,7 +25,6 @@ import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.common.config.PulsarConfigBuilder;
 import org.apache.flink.connector.pulsar.common.config.PulsarOptions;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
-import org.apache.flink.connector.pulsar.sink.writer.message.RawMessage;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRoutingMode;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
@@ -75,8 +74,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <p>To specify the delivery guarantees of PulsarSink, one can call {@link
  * #setDeliveryGuarantee(DeliveryGuarantee)}. The default value of the delivery guarantee is {@link
- * DeliveryGuarantee#EXACTLY_ONCE}, and it requires the Pulsar broker to turn on transaction
- * support.
+ * DeliveryGuarantee#NONE}, and it wouldn't promise the consistence when write the message into
+ * Pulsar.
  *
  * <pre>{@code
  * PulsarSink<String> sink = PulsarSink.builder()
@@ -194,8 +193,7 @@ public class PulsarSinkBuilder<IN> {
     }
 
     /**
-     * Sets the {@link PulsarSerializationSchema} that transforms incoming records to {@link
-     * RawMessage}s.
+     * Sets the {@link PulsarSerializationSchema} that transforms incoming records to bytes.
      *
      * @param serializationSchema Pulsar specified serialize logic.
      * @return this PulsarSinkBuilder.

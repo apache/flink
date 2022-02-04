@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.pulsar.sink.writer.router;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.description.InlineElement;
@@ -73,6 +74,7 @@ public enum TopicRoutingMode implements DescribedEnum {
         this.desc = desc;
     }
 
+    @Internal
     @Override
     public InlineElement getDescription() {
         return desc;

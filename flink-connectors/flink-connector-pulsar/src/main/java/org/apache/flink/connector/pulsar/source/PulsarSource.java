@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.pulsar.source;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -124,6 +125,7 @@ public final class PulsarSource<OUT>
         return boundedness;
     }
 
+    @Internal
     @Override
     public SourceReader<OUT, PulsarPartitionSplit> createReader(SourceReaderContext readerContext)
             throws Exception {
@@ -136,6 +138,7 @@ public final class PulsarSource<OUT>
                 readerContext, deserializationSchema, sourceConfiguration);
     }
 
+    @Internal
     @Override
     public SplitEnumerator<PulsarPartitionSplit, PulsarSourceEnumState> createEnumerator(
             SplitEnumeratorContext<PulsarPartitionSplit> enumContext) {
@@ -150,6 +153,7 @@ public final class PulsarSource<OUT>
                 assignmentState);
     }
 
+    @Internal
     @Override
     public SplitEnumerator<PulsarPartitionSplit, PulsarSourceEnumState> restoreEnumerator(
             SplitEnumeratorContext<PulsarPartitionSplit> enumContext,
@@ -165,11 +169,13 @@ public final class PulsarSource<OUT>
                 assignmentState);
     }
 
+    @Internal
     @Override
     public SimpleVersionedSerializer<PulsarPartitionSplit> getSplitSerializer() {
         return PulsarPartitionSplitSerializer.INSTANCE;
     }
 
+    @Internal
     @Override
     public SimpleVersionedSerializer<PulsarSourceEnumState> getEnumeratorCheckpointSerializer() {
         return PulsarSourceEnumStateSerializer.INSTANCE;

@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.pulsar.source.config;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.description.InlineElement;
@@ -40,6 +41,7 @@ public enum CursorVerification implements DescribedEnum {
         this.desc = desc;
     }
 
+    @Internal
     @Override
     public InlineElement getDescription() {
         return desc;
