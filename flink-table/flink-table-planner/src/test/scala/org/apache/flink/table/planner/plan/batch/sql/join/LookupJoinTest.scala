@@ -45,7 +45,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
   def before(): Unit = {
     testUtil.addDataStream[(Int, String, Long)]("T0", 'a, 'b, 'c)
     testUtil.addDataStream[(Int, String, Long, Double)]("T1", 'a, 'b, 'c, 'd)
-    testUtil.addDataStream[(Int, String, Int)]("nonTemporal", 'id, 'name, 'age)
+    testUtil.addDataStream[(Int, String, Int, String)]("nonTemporal", 'id, 'name, 'age, 'info)
     val myTable = testUtil.tableEnv.sqlQuery("SELECT *, PROCTIME() as proctime FROM T0")
     testUtil.tableEnv.createTemporaryView("MyTable", myTable)
     if (legacyTableSource) {
@@ -55,10 +55,12 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
                           |CREATE TABLE LookupTable (
                           |  `id` INT,
                           |  `name` STRING,
-                          |  `age` INT
+                          |  `age` INT,
+                          |  `info` STRING
                           |) WITH (
                           |  'connector' = 'values',
-                          |  'bounded' = 'true'
+                          |  'bounded' = 'true',
+                          |  'filterable-fields' =  'info'
                           |)
                           |""".stripMargin)
 
@@ -355,6 +357,32 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
          |WHERE T1.a = T2.a
          |GROUP BY T1.b, T2.b
       """.stripMargin
+
+    testUtil.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testTemporalTableFilterPartialPushDown(): Unit = {
+    val sql =
+      """
+        |SELECT * FROM MyTable as T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.a = D.id
+        |WHERE D.info = 'flink' AND D.age > 10
+        |""".stripMargin
+
+    testUtil.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testTemporalTableFilterPushDownWithUdf(): Unit ={
+    val sql =
+      """
+        |SELECT * FROM MyTable as T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.a = D.id
+        |WHERE UPPER(D.info) = 'flink'
+        |""".stripMargin
 
     testUtil.verifyExecPlan(sql)
   }

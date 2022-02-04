@@ -410,6 +410,7 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
           CONSTANT,
           CONSTANT,
           CONSTANT,
+          CONSTANT,
           CONSTANT)),
       mq.getRelModifiedMonotonicity(streamLookupJoin)
     )

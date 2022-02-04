@@ -106,6 +106,14 @@ abstract class CommonPhysicalLookupJoin(
         "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
   }
 
+  lazy val tableDigest: Array[String] = temporalTable match {
+    case t: TableSourceTable =>
+      val qualifiedName = t.getQualifiedName
+      // qualifiedName has table identifier which occupied three array space
+      qualifiedName.subList(3, qualifiedName.size()).asScala.toArray
+    case _: LegacyTableSourceTable[_] => Array.empty
+  }
+
   override def deriveRowType(): RelDataType = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val rightType = if (calcOnTemporalTable.isDefined) {
@@ -168,7 +176,7 @@ abstract class CommonPhysicalLookupJoin(
 
     super
       .explainTerms(pw)
-      .item("table", tableIdentifier.asSummaryString())
+      .item("table", (tableIdentifier.asSummaryString() +: tableDigest).mkString(", "))
       .item("joinType", JoinTypeUtil.getFlinkJoinType(joinType))
       .item("async", isAsyncEnabled)
       .item("lookup", lookupKeys)

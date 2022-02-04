@@ -133,7 +133,9 @@ object FlinkBatchRuleSets {
     // push a filter past a project
     CoreRules.FILTER_PROJECT_TRANSPOSE,
     CoreRules.FILTER_SET_OP_TRANSPOSE,
-    CoreRules.FILTER_MERGE
+    CoreRules.FILTER_MERGE,
+    // push a filter past LogicalSnapshot
+    FlinkFilterSnapshotTransposeRule.INSTANCE
   )
 
   val JOIN_NULL_FILTER_RULES: RuleSet = RuleSets.ofList(

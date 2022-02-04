@@ -53,17 +53,17 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     rowOf(9L, 12, "Hello world!"))
 
   val userData = List(
-    rowOf(11, 1L, "Julian"),
-    rowOf(22, 2L, "Jark"),
-    rowOf(33, 3L, "Fabian"),
-    rowOf(11, 4L, "Hello world"),
-    rowOf(11, 5L, "Hello world"))
+    rowOf(11, 1L, "Julian", "dog"),
+    rowOf(22, 2L, "Jark", "cat"),
+    rowOf(33, 3L, "Fabian", "golden fish"),
+    rowOf(11, 4L, "Hello world", "tiger"),
+    rowOf(11, 5L, "Hello world", "ant"))
 
   val userDataWithNull = List(
-    rowOf(11, 1L, "Julian"),
-    rowOf(22, null, "Hello"),
-    rowOf(33, 3L, "Fabian"),
-    rowOf(44, null, "Hello world"))
+    rowOf(11, 1L, "Julian", "dog"),
+    rowOf(22, null, "Hello", "cat"),
+    rowOf(33, 3L, "Fabian", "golden fish"),
+    rowOf(44, null, "Hello world", "tiger"))
 
   @Before
   override def before(): Unit = {
@@ -91,6 +91,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
         .field("age", Types.INT)
         .field("id", Types.LONG)
         .field("name", Types.STRING)
+        .field("pets", Types.STRING())
         .build()
       InMemoryLookupableTableSource.createTemporaryTable(
         tEnv,
@@ -104,10 +105,12 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
                          |CREATE TABLE $tableName (
                          |  `age` INT,
                          |  `id` BIGINT,
-                         |  `name` STRING
+                         |  `name` STRING,
+                         |  `pets` STRING
                          |) WITH (
                          |  'connector' = 'values',
-                         |  'data-id' = '$dataId'
+                         |  'data-id' = '$dataId',
+                         |  'filterable-fields' = 'pets'
                          |)
                          |""".stripMargin)
     }
@@ -528,6 +531,46 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
     assertEquals(Seq(), sink.getAppendResults)
+  }
+
+  @Test
+  def testJoinTemporalTableWithFilterPushDown(): Unit = {
+    val sql =
+      """
+        |SELECT T.id, T.len, D.name FROM src AS T
+        |JOIN user_table FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.content = D.name
+        |WHERE D.pets = 'dog' AND D.age < 10
+        |""".stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq()
+    assertEquals(expected, sink.getAppendResults)
+  }
+
+  @Test
+  def testJoinTemporalTableWithFilterPushDownWithUdf(): Unit = {
+    val sql =
+      """
+        |SELECT T.id, T.len, D.name, D.pets FROM nullable_src as T
+        |JOIN nullable_user_table FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.content = D.name
+        |WHERE UPPER(D.pets) <> 'DOG'
+        |""".stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "3,15,Fabian,golden fish",
+      "null,11,Hello world,tiger",
+      "null,15,Hello,cat"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 }
 

@@ -170,6 +170,8 @@ object FlinkStreamRuleSets {
 
   /** RuleSet to push down filters into table source */
   val PUSH_FILTER_DOWN_RULES: RuleSet = RuleSets.ofList(
+    // transpose a filter and snapshot
+    FlinkFilterSnapshotTransposeRule.INSTANCE,
     // push a filter down into the table scan
     PushFilterIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE
@@ -228,6 +230,7 @@ object FlinkStreamRuleSets {
   /** RuleSet to do logical optimize. This RuleSet is a sub-set of [[LOGICAL_OPT_RULES]]. */
   private val LOGICAL_RULES: RuleSet = RuleSets.ofList(
     // scan optimization
+    FlinkFilterSnapshotTransposeRule.INSTANCE,
     PushProjectIntoTableSourceScanRule.INSTANCE,
     PushProjectIntoLegacyTableSourceScanRule.INSTANCE,
     PushFilterIntoTableSourceScanRule.INSTANCE,
