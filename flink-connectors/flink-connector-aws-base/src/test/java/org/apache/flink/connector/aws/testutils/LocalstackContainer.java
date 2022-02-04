@@ -62,7 +62,7 @@ public class LocalstackContainer extends GenericContainer<LocalstackContainer> {
         @Override
         protected void waitUntilReady() {
             try {
-                Thread.sleep(5000);
+                Thread.sleep(10000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
