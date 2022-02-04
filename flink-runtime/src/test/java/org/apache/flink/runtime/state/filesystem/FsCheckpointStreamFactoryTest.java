@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.core.fs.EntropyInjectingFileSystem;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
@@ -117,6 +119,20 @@ public class FsCheckpointStreamFactoryTest {
     }
 
     @Test
+    public void testFSWithDisabledEntropyHasRelativePaths() throws IOException {
+        final FsCheckpointStreamFactory factory = createFactory(new DisabledEntropyFS(), 0);
+
+        final FsCheckpointStreamFactory.FsCheckpointStateOutputStream stream =
+                factory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
+        stream.write(0);
+        final StreamStateHandle handle = stream.closeAndGetHandle();
+
+        assertThat(handle, instanceOf(RelativeFileStateHandle.class));
+        assertPathsEqual(
+                exclusiveStateDir, ((RelativeFileStateHandle) handle).getFilePath().getParent());
+    }
+
+    @Test
     public void testFlushUnderThreshold() throws IOException {
         flushAndVerify(10, 10, true);
     }
@@ -155,5 +171,18 @@ public class FsCheckpointStreamFactoryTest {
             FileSystem fs, int fileSizeThreshold, int bufferSize) {
         return new FsCheckpointStreamFactory(
                 fs, exclusiveStateDir, sharedStateDir, fileSizeThreshold, bufferSize);
+    }
+
+    private static final class DisabledEntropyFS extends LocalFileSystem
+            implements EntropyInjectingFileSystem {
+        @Override
+        public String getEntropyInjectionKey() {
+            return null;
+        }
+
+        @Override
+        public String generateEntropy() {
+            return null;
+        }
     }
 }

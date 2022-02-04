@@ -20,6 +20,8 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import javax.annotation.Nullable;
+
 /**
  * An interface to be implemented by a {@link FileSystem} that is aware of entropy injection.
  *
@@ -39,7 +41,10 @@ public interface EntropyInjectingFileSystem {
     /**
      * Gets the marker string that represents the substring of a path to be replaced by the entropy
      * characters.
+     *
+     * <p>You can disable entropy injection if you return null here.
      */
+    @Nullable
     String getEntropyInjectionKey();
 
     /** Creates a string with random entropy to be injected into a path. */
