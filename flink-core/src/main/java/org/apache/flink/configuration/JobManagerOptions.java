@@ -287,6 +287,22 @@ public class JobManagerOptions {
                                                             "here")))
                                     .build());
 
+    /** The minimum delay for the exponentially-increasing job cleanup retry interval. */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<Duration> JOB_CLEANUP_MINIMUM_DELAY =
+            key("jobmanager.cleanup.min-delay")
+                    .defaultValue(Duration.ofSeconds(1))
+                    .withDescription(
+                            "The cleanup of each job is retried up to the point where it succeeds. The minimum delay is used for the first retry of a cleanup task. The delay will increase exponentially.");
+
+    /** The minimum delay for the exponentially-increasing job cleanup retry interval. */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<Duration> JOB_CLEANUP_MAXIMUM_DELAY =
+            key("jobmanager.cleanup.max-delay")
+                    .defaultValue(Duration.ofHours(1))
+                    .withDescription(
+                            "The cleanup of each job is retried up to the point where it succeeds. The maximum delay marks the maximum amount of time used for a retry interval up to which the retry interval increases exponentially.");
+
     /** The location where the JobManager stores the archives of completed jobs. */
     @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
     public static final ConfigOption<String> ARCHIVE_DIR =
