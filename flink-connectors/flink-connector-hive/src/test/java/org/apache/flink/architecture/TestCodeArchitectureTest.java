@@ -44,11 +44,11 @@ public class TestCodeArchitectureTest {
 
     /** Include locations that are hive related. */
     public static final class IncludeHiveImportOption implements ImportOption {
-        private static final Pattern SCALA = Pattern.compile(".*/hive/.*");
+        private static final Pattern HIVE = Pattern.compile(".*/hive/.*");
 
         @Override
         public boolean includes(Location location) {
-            return location.matches(SCALA);
+            return location.matches(HIVE);
         }
     }
 }
