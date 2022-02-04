@@ -98,6 +98,8 @@ mainClassName = 'org.quickstart.StreamingJob'
 mainClassName = 'org.quickstart.StreamingJob'
 description = """Flink Quickstart Job"""
 ext {
+    javaVersion = '1.8'
+    flinkVersion = '{{< version >}}'
     slf4jVersion = '1.7.32'
     log4jVersion = '2.17.1'
 }
