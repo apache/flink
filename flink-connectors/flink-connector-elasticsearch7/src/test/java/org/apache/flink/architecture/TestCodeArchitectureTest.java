@@ -47,7 +47,7 @@ public class TestCodeArchitectureTest {
 
     /** Only include ES7 related locations. */
     public static final class IncludeES7ImportOption implements ImportOption {
-        private static final Pattern ES7 = Pattern.compile(".*elasticsearch6.*");
+        private static final Pattern ES7 = Pattern.compile(".*elasticsearch7.*");
 
         @Override
         public boolean includes(Location location) {
