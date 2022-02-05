@@ -1080,10 +1080,28 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                         slotId, jobId, targetAddress, allocationId, resourceProfile));
 
         try {
-            allocateSlot(slotId, jobId, allocationId, resourceProfile);
-        } catch (SlotAllocationException sae) {
-            return FutureUtils.completedExceptionally(sae);
+            final boolean isConnected =
+                    allocateSlotForJob(jobId, slotId, allocationId, resourceProfile, targetAddress);
+
+            if (isConnected) {
+                offerSlotsToJobManager(jobId);
+            }
+
+            return CompletableFuture.completedFuture(Acknowledge.get());
+        } catch (SlotAllocationException e) {
+            log.debug("Could not allocate slot for allocation id {}.", allocationId, e);
+            return FutureUtils.completedExceptionally(e);
         }
+    }
+
+    private boolean allocateSlotForJob(
+            JobID jobId,
+            SlotID slotId,
+            AllocationID allocationId,
+            ResourceProfile resourceProfile,
+            String targetAddress)
+            throws SlotAllocationException {
+        allocateSlot(slotId, jobId, allocationId, resourceProfile);
 
         final JobTable.Job job;
 
@@ -1109,15 +1127,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 onFatalError(new Exception("Could not free slot " + slotId));
             }
 
-            return FutureUtils.completedExceptionally(
-                    new SlotAllocationException("Could not create new job.", e));
+            throw new SlotAllocationException("Could not create new job.", e);
         }
 
-        if (job.isConnected()) {
-            offerSlotsToJobManager(jobId);
-        }
-
-        return CompletableFuture.completedFuture(Acknowledge.get());
+        return job.isConnected();
     }
 
     private TaskExecutorJobServices registerNewJobAndCreateServices(
@@ -2052,19 +2065,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         final Set<AllocationID> allocatedSlots = new HashSet<>();
         for (SlotAllocationSnapshot slotAllocationSnapshot : slotAllocationSnapshots) {
             try {
-                allocateSlot(
+                allocateSlotForJob(
+                        slotAllocationSnapshot.getJobId(),
                         slotAllocationSnapshot.getSlotID(),
-                        slotAllocationSnapshot.getJobId(),
                         slotAllocationSnapshot.getAllocationId(),
-                        slotAllocationSnapshot.getResourceProfile());
+                        slotAllocationSnapshot.getResourceProfile(),
+                        slotAllocationSnapshot.getJobTargetAddress());
 
-                jobTable.getOrCreateJob(
-                        slotAllocationSnapshot.getJobId(),
-                        () ->
-                                registerNewJobAndCreateServices(
-                                        slotAllocationSnapshot.getJobId(),
-                                        slotAllocationSnapshot.getJobTargetAddress()));
-            } catch (Exception e) {
+            } catch (SlotAllocationException e) {
                 log.debug("Cannot reallocate restored slot {}.", slotAllocationSnapshot, e);
             }
 
