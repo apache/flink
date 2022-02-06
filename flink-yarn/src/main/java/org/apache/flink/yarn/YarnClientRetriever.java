@@ -21,8 +21,12 @@ package org.apache.flink.yarn;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.FlinkException;
 
-/** Factory for getting {@link org.apache.hadoop.yarn.client.api.YarnClient}. */
+/** Interface which allows to retrieve {@link YarnClientWrapper}. */
 @Internal
 public interface YarnClientRetriever {
+    /**
+     * This method to get the {@link YarnClientWrapper}, it will throw {@link FlinkException} when
+     * the yarn client is closed.
+     */
     YarnClientWrapper getYarnClient() throws FlinkException;
 }

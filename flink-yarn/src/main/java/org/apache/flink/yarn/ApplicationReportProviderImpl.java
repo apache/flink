@@ -26,6 +26,8 @@ import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /** The implementation of {@link ApplicationReportProvider}. */
@@ -33,23 +35,32 @@ import java.io.IOException;
 public class ApplicationReportProviderImpl implements ApplicationReportProvider {
     private final YarnClientRetriever yarnClientRetriever;
     private final ApplicationId appId;
+    @Nullable private ApplicationReport submissionFinishedAppReport;
 
     private ApplicationReportProviderImpl(
-            YarnClientRetriever yarnClientRetriever, ApplicationId applicationId) {
+            YarnClientRetriever yarnClientRetriever, ApplicationReport submissionAppReport) {
         this.yarnClientRetriever = yarnClientRetriever;
-        this.appId = applicationId;
+        this.appId = submissionAppReport.getApplicationId();
+        if (submissionAppReport.getYarnApplicationState() == YarnApplicationState.RUNNING) {
+            this.submissionFinishedAppReport = submissionAppReport;
+        }
     }
 
     @Override
-    public ApplicationReport waitTillSubmissionFinish() throws FlinkException {
+    public ApplicationReport waitUntilSubmissionFinishes() throws FlinkException {
+        if (submissionFinishedAppReport != null) {
+            return submissionFinishedAppReport;
+        }
+
         try (final YarnClientWrapper yarnClient = yarnClientRetriever.getYarnClient()) {
-            return YarnClusterDescriptor.waitTillTargetState(
+            return YarnClusterDescriptor.waitUntilTargetState(
                     yarnClient, appId, YarnApplicationState.RUNNING);
         } catch (YarnException | IOException e) {
             throw new FlinkException(
                     "Errors on getting YARN application report. Maybe application has finished.",
                     e);
         } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
             throw new FlinkException(
                     "Errors on getting YARN application report. Maybe the thread is interrupted.",
                     interruptedException);
@@ -59,7 +70,7 @@ public class ApplicationReportProviderImpl implements ApplicationReportProvider 
     }
 
     static ApplicationReportProviderImpl of(
-            YarnClientRetriever retriever, ApplicationId applicationId) {
-        return new ApplicationReportProviderImpl(retriever, applicationId);
+            YarnClientRetriever retriever, ApplicationReport submissionAppReport) {
+        return new ApplicationReportProviderImpl(retriever, submissionAppReport);
     }
 }

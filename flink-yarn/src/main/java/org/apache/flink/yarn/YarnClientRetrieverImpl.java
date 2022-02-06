@@ -30,37 +30,41 @@ import javax.annotation.Nullable;
 /**
  * The implementation of {@link YarnClientRetriever} which is used to get a wrapper of yarn client
  * for {@link ApplicationReportProviderImpl}. When external yarn client is closed or nullable, it
- * will create a dedicated yarn client wrapper.
+ * will create a dedicated yarn client.
  */
 @Internal
 public final class YarnClientRetrieverImpl implements YarnClientRetriever {
     private static final Logger LOG = LoggerFactory.getLogger(YarnClientRetrieverImpl.class);
 
-    @Nullable private final YarnClientWrapper externalYarnClient;
+    @Nullable private final YarnClientWrapper externallyCreatedYarnClient;
     private final YarnConfiguration yarnConfiguration;
     @Nullable private YarnClientWrapper dedicatedYarnClient;
 
     private YarnClientRetrieverImpl(
-            @Nullable YarnClientWrapper externalCreatedYarnClient,
+            @Nullable YarnClientWrapper externallyCreatedYarnClient,
             YarnConfiguration yarnConfiguration) {
-        this.externalYarnClient = externalCreatedYarnClient;
+        this.externallyCreatedYarnClient = externallyCreatedYarnClient;
         this.yarnConfiguration = yarnConfiguration;
     }
 
     @Override
     public YarnClientWrapper getYarnClient() throws FlinkException {
 
-        if (externalYarnClient != null && !externalYarnClient.isClosed()) {
-            return externalYarnClient;
+        if (isRunning(externallyCreatedYarnClient)) {
+            return externallyCreatedYarnClient;
         }
 
-        if (dedicatedYarnClient != null && !dedicatedYarnClient.isClosed()) {
+        if (isRunning(dedicatedYarnClient)) {
             return dedicatedYarnClient;
         }
 
-        this.dedicatedYarnClient = YarnClientWrapper.of(yarnConfiguration, true);
+        this.dedicatedYarnClient = YarnClientWrapper.fromNewlyCreated(yarnConfiguration);
 
         return dedicatedYarnClient;
+    }
+
+    private boolean isRunning(YarnClientWrapper yarnClient) {
+        return yarnClient != null && !yarnClient.isClosed();
     }
 
     public static YarnClientRetrieverImpl from(

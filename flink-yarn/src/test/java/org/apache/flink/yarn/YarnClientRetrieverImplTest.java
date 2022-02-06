@@ -56,7 +56,7 @@ public class YarnClientRetrieverImplTest {
 
         YarnClientRetrieverImpl retriever =
                 YarnClientRetrieverImpl.from(
-                        YarnClientWrapper.of(externalYarnClient, false), yarnConfiguration);
+                        YarnClientWrapper.fromBorrowed(externalYarnClient), yarnConfiguration);
         retriever.getYarnClient().close();
 
         assertFalse(externalYarnClient.isInState(Service.STATE.STOPPED));
@@ -67,7 +67,7 @@ public class YarnClientRetrieverImplTest {
         final YarnConfiguration yarnConfiguration = new YarnConfiguration();
         final YarnClient yarnClient = createYarnClient(yarnConfiguration);
 
-        final YarnClientWrapper wrapper = YarnClientWrapper.of(yarnClient, false);
+        final YarnClientWrapper wrapper = YarnClientWrapper.fromBorrowed(yarnClient);
 
         YarnClientRetrieverImpl retriever =
                 YarnClientRetrieverImpl.from(wrapper, yarnConfiguration);
@@ -81,7 +81,7 @@ public class YarnClientRetrieverImplTest {
         YarnClient yarnClient = createYarnClient(yarnConfiguration);
         yarnClient.stop();
 
-        final YarnClientWrapper wrapper = YarnClientWrapper.of(yarnClient, false);
+        final YarnClientWrapper wrapper = YarnClientWrapper.fromBorrowed(yarnClient);
 
         YarnClientRetrieverImpl retriever =
                 YarnClientRetrieverImpl.from(wrapper, yarnConfiguration);

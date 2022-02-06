@@ -102,7 +102,7 @@ public class YarnClusterClientProviderTest {
         }
 
         @Override
-        public ApplicationReport waitTillSubmissionFinish() throws FlinkException {
+        public ApplicationReport waitUntilSubmissionFinishes() throws FlinkException {
             invokeNumber++;
             return buildMockedAppReport(applicationId, YarnApplicationState.RUNNING, host, rpcHost);
         }

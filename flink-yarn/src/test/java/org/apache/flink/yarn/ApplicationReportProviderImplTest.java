@@ -46,22 +46,26 @@ public class ApplicationReportProviderImplTest {
     @Test
     public void testReturnAppReportFromAppAccepted() throws Exception {
         final ApplicationId appId = ApplicationId.newInstance(System.currentTimeMillis(), 10);
+        final ApplicationReport initialAppAcceptedReport =
+                createApplicationReport(
+                        appId, YarnApplicationState.ACCEPTED, FinalApplicationStatus.UNDEFINED);
 
-        final ApplicationReport applicationReport =
+        final ApplicationReport submissionFinishedAppReport =
                 createApplicationReport(
                         appId, YarnApplicationState.RUNNING, FinalApplicationStatus.UNDEFINED);
-
         YarnClient yarnClient =
-                new TestingYarnClient(Collections.singletonMap(appId, applicationReport));
+                new TestingYarnClient(Collections.singletonMap(appId, submissionFinishedAppReport));
+
         YarnConfiguration yarnConfiguration = new YarnConfiguration();
         yarnClient.init(yarnConfiguration);
         yarnClient.start();
 
         ApplicationReportProvider provider =
                 ApplicationReportProviderImpl.of(
-                        YarnClientRetrieverImpl.from(YarnClientWrapper.of(yarnClient, true), null),
-                        appId);
-        ApplicationReport report = provider.waitTillSubmissionFinish();
+                        YarnClientRetrieverImpl.from(
+                                YarnClientWrapper.fromBorrowed(yarnClient), null),
+                        initialAppAcceptedReport);
+        ApplicationReport report = provider.waitUntilSubmissionFinishes();
 
         assertEquals(YarnApplicationState.RUNNING, report.getYarnApplicationState());
     }

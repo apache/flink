@@ -19,6 +19,7 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.Reference;
 
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -28,60 +29,40 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 
 import java.io.IOException;
-import java.util.Objects;
 
 /** Wrapper class for {@link YarnClient}. */
 @Internal
 public class YarnClientWrapper implements AutoCloseable {
-    private YarnClient yarnClient;
-    private boolean allowToStop;
+    private Reference<YarnClient> yarnClientRef;
 
-    public YarnClientWrapper(YarnClient yarnClient, boolean allowToStop) {
-        this.yarnClient = yarnClient;
-        this.allowToStop = allowToStop;
+    public YarnClientWrapper(Reference<YarnClient> yarnClientRef) {
+        this.yarnClientRef = yarnClientRef;
     }
 
     public ApplicationReport getApplicationReport(ApplicationId appId)
             throws YarnException, IOException {
-        return yarnClient.getApplicationReport(appId);
+        return yarnClientRef.deref().getApplicationReport(appId);
     }
 
     @Override
     public void close() throws Exception {
-        if (allowToStop) {
-            yarnClient.close();
+        if (yarnClientRef.isOwned()) {
+            yarnClientRef.deref().close();
         }
     }
 
     public boolean isClosed() {
-        return yarnClient.isInState(Service.STATE.STOPPED);
+        return yarnClientRef.deref().isInState(Service.STATE.STOPPED);
     }
 
-    public static YarnClientWrapper of(YarnClient yarnClient, boolean allowToStop) {
-        return new YarnClientWrapper(yarnClient, allowToStop);
+    public static YarnClientWrapper fromBorrowed(YarnClient yarnClient) {
+        return new YarnClientWrapper(Reference.borrowed(yarnClient));
     }
 
-    public static YarnClientWrapper of(YarnConfiguration yarnConfiguration, boolean allowToStop) {
+    public static YarnClientWrapper fromNewlyCreated(YarnConfiguration yarnConfiguration) {
         final YarnClient newlyCreatedYarnClient = YarnClient.createYarnClient();
         newlyCreatedYarnClient.init(yarnConfiguration);
         newlyCreatedYarnClient.start();
-        return of(newlyCreatedYarnClient, allowToStop);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        YarnClientWrapper that = (YarnClientWrapper) o;
-        return allowToStop == that.allowToStop && yarnClient.equals(that.yarnClient);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(yarnClient, allowToStop);
+        return new YarnClientWrapper(Reference.owned(newlyCreatedYarnClient));
     }
 }

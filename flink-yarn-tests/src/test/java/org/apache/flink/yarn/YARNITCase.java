@@ -169,7 +169,7 @@ public class YARNITCase extends YarnTestBase {
 
                             report = yarnClient.getApplicationReport(applicationId);
                             assertEquals(RUNNING, report.getYarnApplicationState());
-                            checkApplicationFinished(
+                            waitUntilApplicationFinishes(
                                     clusterClient, yarnClusterDescriptor, jobGraph, configuration);
                         }
                     }
@@ -189,7 +189,8 @@ public class YARNITCase extends YarnTestBase {
 
             ClusterClient<ApplicationId> clusterClient = clusterClientProvider.getClusterClient();
 
-            checkApplicationFinished(clusterClient, yarnClusterDescriptor, jobGraph, configuration);
+            waitUntilApplicationFinishes(
+                    clusterClient, yarnClusterDescriptor, jobGraph, configuration);
         }
     }
 
@@ -214,7 +215,7 @@ public class YARNITCase extends YarnTestBase {
         return yarnClusterDescriptor.deployJobCluster(clusterSpecification, jobGraph, false);
     }
 
-    private void checkApplicationFinished(
+    private void waitUntilApplicationFinishes(
             ClusterClient<ApplicationId> appClusterClient,
             YarnClusterDescriptor yarnClusterDescriptor,
             JobGraph jobGraph,

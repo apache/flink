@@ -58,7 +58,7 @@ public class YarnClusterClientProvider implements ClusterClientProvider {
     public ClusterClient getClusterClient() {
         try {
             if (!submissionFinished) {
-                ApplicationReport report = appReportProvider.waitTillSubmissionFinish();
+                ApplicationReport report = appReportProvider.waitUntilSubmissionFinishes();
                 setClusterEntrypointInfoToConfig(flinkConf, report);
                 submissionFinished = true;
             }

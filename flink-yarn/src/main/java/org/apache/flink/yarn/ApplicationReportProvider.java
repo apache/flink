@@ -31,5 +31,5 @@ public interface ApplicationReportProvider {
      * when Yarn client is closed or encountering any connection error, it will throw {@link
      * FlinkException}.
      */
-    ApplicationReport waitTillSubmissionFinish() throws FlinkException;
+    ApplicationReport waitUntilSubmissionFinishes() throws FlinkException;
 }
