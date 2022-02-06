@@ -26,6 +26,7 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -299,7 +300,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
         // construct classpath, we always want resource directories to go first, we also sort
         // both resources and archives in order to make classpath deterministic
         final ArrayList<String> classPaths = new ArrayList<>();
-        resources.stream().sorted().forEach(classPaths::add);
+        resources.stream().filter(StringUtils::isNoneEmpty).sorted().forEach(classPaths::add);
         archives.stream().sorted().forEach(classPaths::add);
         return classPaths;
     }
