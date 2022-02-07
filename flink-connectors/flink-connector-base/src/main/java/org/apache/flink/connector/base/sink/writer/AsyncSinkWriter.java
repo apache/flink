@@ -267,18 +267,31 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
     @Override
     public void write(InputT element, Context context) throws IOException, InterruptedException {
+        while (mailboxExecutor.tryYield()) {}
         while (bufferedRequestEntries.size() >= maxBufferedRequests) {
-            mailboxExecutor.tryYield();
+            flush();
         }
 
         addEntryToBuffer(elementConverter.apply(element, context), false);
 
-        flushIfAble();
+        nonBlockingFlush();
     }
 
-    private void flushIfAble() {
-        while (bufferedRequestEntries.size() >= maxBatchSize
-                || bufferedRequestEntriesTotalSizeInBytes >= maxBatchSizeInBytes) {
+    /**
+     * Determines if a call to flush will be non-blocking (i.e. {@code inFlightRequestsCount} is
+     * strictly smaller than {@code maxInFlightRequests}). Also requires one of the following
+     * requirements to be met:
+     *
+     * <ul>
+     *   <li>The number of elements buffered is greater than or equal to the {@code maxBatchSize}
+     *   <li>The sum of the size in bytes of all records in the buffer is greater than or equal to
+     *       {@code maxBatchSizeInBytes}
+     * </ul>
+     */
+    private void nonBlockingFlush() {
+        while (inFlightRequestsCount < maxInFlightRequests
+                && (bufferedRequestEntries.size() >= maxBatchSize
+                        || bufferedRequestEntriesTotalSizeInBytes >= maxBatchSizeInBytes)) {
             flush();
         }
     }
