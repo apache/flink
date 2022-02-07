@@ -62,7 +62,7 @@ import static org.junit.Assert.assertTrue;
  * with Parquet.
  */
 @SuppressWarnings("serial")
-public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
+public class AvroParquetStreamingFileSinkITCase extends AbstractTestBase {
 
     @Rule public final Timeout timeoutPerTest = Timeout.seconds(20);
 
@@ -87,7 +87,7 @@ public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
         stream.addSink(
                 StreamingFileSink.forBulkFormat(
                                 Path.fromLocalFile(folder),
-                                ParquetAvroWriters.forSpecificRecord(Address.class))
+                                AvroParquetWriters.forSpecificRecord(Address.class))
                         .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .build());
 
@@ -115,7 +115,7 @@ public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
         stream.addSink(
                 StreamingFileSink.forBulkFormat(
                                 Path.fromLocalFile(folder),
-                                ParquetAvroWriters.forGenericRecord(schema))
+                                AvroParquetWriters.forGenericRecord(schema))
                         .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .build());
 
@@ -147,7 +147,7 @@ public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
         stream.addSink(
                 StreamingFileSink.forBulkFormat(
                                 Path.fromLocalFile(folder),
-                                ParquetAvroWriters.forReflectRecord(Datum.class))
+                                AvroParquetWriters.forReflectRecord(Datum.class))
                         .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .build());
 
