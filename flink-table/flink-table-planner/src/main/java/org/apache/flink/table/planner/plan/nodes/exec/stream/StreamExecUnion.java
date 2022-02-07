@@ -39,7 +39,6 @@ import java.util.List;
 @ExecNodeMetadata(
         name = "stream-exec-union",
         version = 1,
-        producedTransformations = CommonExecUnion.UNION_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecUnion extends CommonExecUnion implements StreamExecNode<RowData> {

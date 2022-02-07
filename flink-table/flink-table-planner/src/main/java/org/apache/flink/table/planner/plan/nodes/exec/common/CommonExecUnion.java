@@ -40,8 +40,6 @@ import java.util.List;
 public abstract class CommonExecUnion extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
-    public static final String UNION_TRANSFORMATION = "union";
-
     public CommonExecUnion(
             int id,
             ExecNodeContext context,
@@ -58,7 +56,6 @@ public abstract class CommonExecUnion extends ExecNodeBase<RowData>
         for (ExecEdge inputEdge : getInputEdges()) {
             inputTransforms.add((Transformation<RowData>) inputEdge.translateToPlan(planner));
         }
-        return createTransformationMeta(UNION_TRANSFORMATION, planner.getTableConfig())
-                .fill(new UnionTransformation(inputTransforms));
+        return new UnionTransformation(inputTransforms);
     }
 }
