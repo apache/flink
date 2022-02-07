@@ -142,16 +142,6 @@ public class StatementSetImpl<E extends TableEnvironmentInternal> implements Sta
         }
     }
 
-    /**
-     * Get the {@link CompiledPlan} of the all statements and Tables as a batch.
-     *
-     * <p>The added statements and Tables will NOT be cleared when executing this method.
-     *
-     * <p><b>Note:</b> This API is <b>experimental</b> and subject to change in future releases.
-     *
-     * @return the string json representation of an optimized ExecNode plan for the statements and
-     *     Tables.
-     */
     @Experimental
     public CompiledPlan compilePlan() {
         return tableEnvironment.compilePlan(operations);

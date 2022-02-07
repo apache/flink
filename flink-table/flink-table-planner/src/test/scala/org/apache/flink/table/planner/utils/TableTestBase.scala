@@ -1567,6 +1567,8 @@ class TestingStatementSet(tEnv: TestingTableEnvironment) extends StatementSet {
       operations.clear()
     }
   }
+
+  override def compilePlan(): CompiledPlan = null
 }
 
 object TestingTableEnvironment {
