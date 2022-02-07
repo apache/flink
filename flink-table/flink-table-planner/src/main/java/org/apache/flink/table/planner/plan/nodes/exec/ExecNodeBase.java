@@ -158,43 +158,45 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
                                                 == InputProperty.DistributionType.SINGLETON);
     }
 
-    public String getTransformationUid(String operatorName) {
-        return context.generateUid(operatorName);
-    }
-
-    public String getTransformationName(TableConfig config) {
-        return getTransformationName(config.getConfiguration());
-    }
-
-    public String getTransformationName(Configuration config) {
-        return getFormattedTransformationName(getDescription(), getSimplifiedName(), config);
-    }
-
     @JsonIgnore
     protected String getSimplifiedName() {
         return getClass().getSimpleName().replace("StreamExec", "").replace("BatchExec", "");
     }
 
-    protected String getTransformationDescription(TableConfig config) {
-        return getTransformationDescription(config.getConfiguration());
+    public String createTransformationUid(String operatorName) {
+        return context.generateUid(operatorName);
     }
 
-    protected String getTransformationDescription(Configuration config) {
-        return getFormattedTransformationDescription(getDescription(), config);
+    public String createTransformationName(TableConfig config) {
+        return createTransformationName(config.getConfiguration());
     }
 
-    public TransformationMetadata getTransformationMeta(String operatorName, TableConfig config) {
-        return getTransformationMeta(operatorName, config.getConfiguration());
+    public String createTransformationName(Configuration config) {
+        return createFormattedTransformationName(getDescription(), getSimplifiedName(), config);
     }
 
-    public TransformationMetadata getTransformationMeta(String operatorName, Configuration config) {
+    protected String createTransformationDescription(TableConfig config) {
+        return createTransformationDescription(config.getConfiguration());
+    }
+
+    protected String createTransformationDescription(Configuration config) {
+        return createFormattedTransformationDescription(getDescription(), config);
+    }
+
+    public TransformationMetadata createTransformationMeta(
+            String operatorName, TableConfig config) {
+        return createTransformationMeta(operatorName, config.getConfiguration());
+    }
+
+    public TransformationMetadata createTransformationMeta(
+            String operatorName, Configuration config) {
         return new TransformationMetadata(
-                getTransformationUid(operatorName),
-                getTransformationName(config),
-                getTransformationDescription(config));
+                createTransformationUid(operatorName),
+                createTransformationName(config),
+                createTransformationDescription(config));
     }
 
-    protected String getFormattedTransformationDescription(
+    protected String createFormattedTransformationDescription(
             String description, Configuration config) {
         if (config.getBoolean(
                 OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
@@ -203,7 +205,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return description;
     }
 
-    protected String getFormattedTransformationName(
+    protected String createFormattedTransformationName(
             String detailName, String simplifiedName, Configuration config) {
         if (config.getBoolean(
                 OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {

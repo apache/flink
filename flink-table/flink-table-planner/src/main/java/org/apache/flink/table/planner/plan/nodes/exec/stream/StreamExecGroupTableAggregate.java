@@ -158,7 +158,7 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getTransformationMeta(
+                        createTransformationMeta(
                                 GROUP_TABLE_AGGREGATE_TRANSFORMATION, planner.getTableConfig()),
                         operator,
                         InternalTypeInfo.of(getOutputType()),

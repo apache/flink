@@ -118,17 +118,17 @@ public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
                             (RowType) getOutputType(),
                             qualifiedName,
                             (detailName, simplifyName) ->
-                                    getFormattedTransformationName(
+                                    createFormattedTransformationName(
                                             detailName, simplifyName, config),
                             (description) ->
-                                    getFormattedTransformationDescription(description, config),
+                                    createFormattedTransformationDescription(description, config),
                             JavaScalaConversionUtil.toScala(rowtimeExpr),
                             extractElement,
                             resetElement);
         } else {
             transformation = (Transformation<RowData>) sourceTransform;
         }
-        transformation.setUid(getTransformationUid(DATA_STREAM_SOURCE_TRANSFORMATION));
+        transformation.setUid(createTransformationUid(DATA_STREAM_SOURCE_TRANSFORMATION));
         return transformation;
     }
 

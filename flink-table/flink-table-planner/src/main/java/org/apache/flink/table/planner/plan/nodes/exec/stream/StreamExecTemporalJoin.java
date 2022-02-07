@@ -180,7 +180,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
                 ExecNodeUtil.createTwoInputTransformation(
                         leftTransform,
                         rightTransform,
-                        getTransformationMeta(
+                        createTransformationMeta(
                                 TEMPORAL_JOIN_TRANSFORMATION, planner.getTableConfig()),
                         joinOperator,
                         InternalTypeInfo.of(returnType),

@@ -142,7 +142,7 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getTransformationMeta(GROUP_TABLE_AGGREGATE_TRANSFORMATION, config),
+                        createTransformationMeta(GROUP_TABLE_AGGREGATE_TRANSFORMATION, config),
                         pythonOperator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

@@ -275,7 +275,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getTransformationMeta(
+                        createTransformationMeta(
                                 GROUP_WINDOW_TRANSFORMATION, planner.getTableConfig()),
                         operator,
                         InternalTypeInfo.of(getOutputType()),

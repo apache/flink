@@ -245,7 +245,8 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getTransformationMeta(WINDOW_RANK_TRANSFORMATION, planner.getTableConfig()),
+                        createTransformationMeta(
+                                WINDOW_RANK_TRANSFORMATION, planner.getTableConfig()),
                         SimpleOperatorFactory.of(operator),
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism(),

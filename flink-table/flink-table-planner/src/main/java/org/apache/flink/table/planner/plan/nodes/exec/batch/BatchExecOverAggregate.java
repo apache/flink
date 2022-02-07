@@ -172,8 +172,8 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
         }
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getTransformationName(planner.getTableConfig()),
-                getTransformationDescription(planner.getTableConfig()),
+                createTransformationName(planner.getTableConfig()),
+                createTransformationDescription(planner.getTableConfig()),
                 SimpleOperatorFactory.of(operator),
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism(),

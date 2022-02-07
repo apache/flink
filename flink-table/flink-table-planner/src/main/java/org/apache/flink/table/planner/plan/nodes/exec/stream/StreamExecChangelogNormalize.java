@@ -160,7 +160,7 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getTransformationMeta(CHANGELOG_NORMALIZE_TRANSFORMATION, tableConfig),
+                        createTransformationMeta(CHANGELOG_NORMALIZE_TRANSFORMATION, tableConfig),
                         operator,
                         rowTypeInfo,
                         inputTransform.getParallelism());

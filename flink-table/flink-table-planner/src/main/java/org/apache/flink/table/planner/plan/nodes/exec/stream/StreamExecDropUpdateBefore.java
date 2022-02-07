@@ -84,7 +84,8 @@ public class StreamExecDropUpdateBefore extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getTransformationMeta(DROP_UPDATE_BEFORE_TRANSFORMATION, planner.getTableConfig()),
+                createTransformationMeta(
+                        DROP_UPDATE_BEFORE_TRANSFORMATION, planner.getTableConfig()),
                 operator,
                 inputTransform.getOutputType(),
                 inputTransform.getParallelism());

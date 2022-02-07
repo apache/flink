@@ -265,7 +265,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransformation,
-                getTransformationMeta(LOOKUP_JOIN_TRANSFORMATION, planner.getTableConfig()),
+                createTransformationMeta(LOOKUP_JOIN_TRANSFORMATION, planner.getTableConfig()),
                 operatorFactory,
                 InternalTypeInfo.of(resultRowType),
                 inputTransformation.getParallelism());

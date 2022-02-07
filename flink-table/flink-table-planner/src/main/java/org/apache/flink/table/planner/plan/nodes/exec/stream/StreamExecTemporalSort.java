@@ -144,7 +144,7 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
             OneInputTransformation<RowData, RowData> transform =
                     ExecNodeUtil.createOneInputTransformation(
                             inputTransform,
-                            getTransformationMeta(TEMPORAL_SORT_TRANSFORMATION, tableConfig),
+                            createTransformationMeta(TEMPORAL_SORT_TRANSFORMATION, tableConfig),
                             sortOperator,
                             InternalTypeInfo.of(inputType),
                             inputTransform.getParallelism());
@@ -185,7 +185,7 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getTransformationMeta(TEMPORAL_SORT_TRANSFORMATION, tableConfig),
+                        createTransformationMeta(TEMPORAL_SORT_TRANSFORMATION, tableConfig),
                         sortOperator,
                         InternalTypeInfo.of(inputType),
                         inputTransform.getParallelism());

@@ -70,7 +70,8 @@ public abstract class CommonExecValues extends ExecNodeBase<RowData>
                 planner.getExecEnv()
                         .createInput(inputFormat, inputFormat.getProducedType())
                         .getTransformation();
-        getTransformationMeta(VALUES_TRANSFORMATION, planner.getTableConfig()).fill(transformation);
+        createTransformationMeta(VALUES_TRANSFORMATION, planner.getTableConfig())
+                .fill(transformation);
         transformation.setParallelism(1);
         transformation.setMaxParallelism(1);
         return transformation;

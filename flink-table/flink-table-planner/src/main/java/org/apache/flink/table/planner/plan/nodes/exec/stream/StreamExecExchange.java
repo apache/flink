@@ -118,7 +118,7 @@ public class StreamExecExchange extends CommonExecExchange implements StreamExec
 
         final Transformation<RowData> transformation =
                 new PartitionTransformation<>(inputTransform, partitioner);
-        getTransformationMeta(EXCHANGE_TRANSFORMATION, planner.getTableConfig())
+        createTransformationMeta(EXCHANGE_TRANSFORMATION, planner.getTableConfig())
                 .fill(transformation);
         transformation.setParallelism(parallelism);
         transformation.setOutputType(InternalTypeInfo.of(getOutputType()));

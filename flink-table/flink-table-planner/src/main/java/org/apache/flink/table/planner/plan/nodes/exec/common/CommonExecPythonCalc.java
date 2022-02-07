@@ -170,7 +170,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getTransformationMeta(PYTHON_CALC_TRANSFORMATION, mergedConfig),
+                createTransformationMeta(PYTHON_CALC_TRANSFORMATION, mergedConfig),
                 pythonOperator,
                 pythonOperatorResultTyeInfo,
                 inputTransform.getParallelism());

@@ -88,7 +88,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final StreamExecutionEnvironment env = planner.getExecEnv();
         final TransformationMetadata meta =
-                getTransformationMeta(SOURCE_TRANSFORMATION, planner.getTableConfig());
+                createTransformationMeta(SOURCE_TRANSFORMATION, planner.getTableConfig());
         final InternalTypeInfo<RowData> outputTypeInfo =
                 InternalTypeInfo.of((RowType) getOutputType());
         final ScanTableSource tableSource =

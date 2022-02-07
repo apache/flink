@@ -58,7 +58,7 @@ public abstract class CommonExecUnion extends ExecNodeBase<RowData>
         for (ExecEdge inputEdge : getInputEdges()) {
             inputTransforms.add((Transformation<RowData>) inputEdge.translateToPlan(planner));
         }
-        return getTransformationMeta(UNION_TRANSFORMATION, planner.getTableConfig())
+        return createTransformationMeta(UNION_TRANSFORMATION, planner.getTableConfig())
                 .fill(new UnionTransformation(inputTransforms));
     }
 }

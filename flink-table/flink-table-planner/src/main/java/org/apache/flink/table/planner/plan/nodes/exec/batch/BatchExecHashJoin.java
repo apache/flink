@@ -219,8 +219,8 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
         return ExecNodeUtil.createTwoInputTransformation(
                 buildTransform,
                 probeTransform,
-                getTransformationName(config),
-                getTransformationDescription(config),
+                createTransformationName(config),
+                createTransformationDescription(config),
                 operator,
                 InternalTypeInfo.of(getOutputType()),
                 probeTransform.getParallelism(),

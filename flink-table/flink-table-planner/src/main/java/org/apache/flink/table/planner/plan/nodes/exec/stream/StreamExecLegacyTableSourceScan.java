@@ -116,10 +116,10 @@ public class StreamExecLegacyTableSourceScan extends CommonExecLegacyTableSource
                             outputType,
                             qualifiedName,
                             (detailName, simplifyName) ->
-                                    getFormattedTransformationName(
+                                    createFormattedTransformationName(
                                             detailName, simplifyName, config),
                             (description) ->
-                                    getFormattedTransformationDescription(description, config),
+                                    createFormattedTransformationDescription(description, config),
                             JavaScalaConversionUtil.toScala(Optional.ofNullable(rowtimeExpression)),
                             extractElement,
                             resetElement);

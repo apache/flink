@@ -234,7 +234,7 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getTransformationMeta(GROUP_AGGREGATE_TRANSFORMATION, tableConfig),
+                        createTransformationMeta(GROUP_AGGREGATE_TRANSFORMATION, tableConfig),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

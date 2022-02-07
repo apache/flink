@@ -202,7 +202,8 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getTransformationMeta(DEDUPLICATE_TRANSFORMATION, planner.getTableConfig()),
+                        createTransformationMeta(
+                                DEDUPLICATE_TRANSFORMATION, planner.getTableConfig()),
                         operator,
                         rowTypeInfo,
                         inputTransform.getParallelism());

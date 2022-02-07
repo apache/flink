@@ -168,7 +168,7 @@ public class StreamExecWindowDeduplicate extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getTransformationMeta(WINDOW_DEDUPLICATE_TRANSFORMATION, tableConfig),
+                        createTransformationMeta(WINDOW_DEDUPLICATE_TRANSFORMATION, tableConfig),
                         SimpleOperatorFactory.of(operator),
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism(),

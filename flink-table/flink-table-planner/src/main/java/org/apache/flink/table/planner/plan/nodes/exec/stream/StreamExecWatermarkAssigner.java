@@ -130,7 +130,8 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getTransformationMeta(WATERMARK_ASSIGNER_TRANSFORMATION, planner.getTableConfig()),
+                createTransformationMeta(
+                        WATERMARK_ASSIGNER_TRANSFORMATION, planner.getTableConfig()),
                 operatorFactory,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

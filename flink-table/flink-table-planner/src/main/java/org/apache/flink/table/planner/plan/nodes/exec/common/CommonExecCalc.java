@@ -103,7 +103,8 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
                         getClass().getSimpleName());
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getTransformationMeta(SUBSTITUTE_STREAM_TRANSFORMATION, planner.getTableConfig()),
+                createTransformationMeta(
+                        SUBSTITUTE_STREAM_TRANSFORMATION, planner.getTableConfig()),
                 substituteStreamOperator,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

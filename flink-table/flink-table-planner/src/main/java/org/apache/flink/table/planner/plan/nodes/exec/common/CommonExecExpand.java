@@ -92,7 +92,7 @@ public abstract class CommonExecExpand extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getTransformationMeta(EXPAND_TRANSFORMATION, planner.getTableConfig()),
+                createTransformationMeta(EXPAND_TRANSFORMATION, planner.getTableConfig()),
                 operatorFactory,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

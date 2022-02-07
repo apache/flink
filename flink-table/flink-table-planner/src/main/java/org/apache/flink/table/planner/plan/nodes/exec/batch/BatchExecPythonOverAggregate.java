@@ -187,8 +187,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                         pythonFunctionInfos);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getTransformationName(mergedConfig),
-                getTransformationDescription(mergedConfig),
+                createTransformationName(mergedConfig),
+                createTransformationDescription(mergedConfig),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());

@@ -226,7 +226,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getTransformationMeta(
+                        createTransformationMeta(
                                 INCREMENTAL_GROUP_AGGREGATE_TRANSFORMATION,
                                 planner.getTableConfig()),
                         operator,

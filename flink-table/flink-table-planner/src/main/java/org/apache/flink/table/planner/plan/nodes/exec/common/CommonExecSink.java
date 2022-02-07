@@ -256,17 +256,17 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         ConstraintEnforcer constraintEnforcer = validatorBuilder.build();
         if (constraintEnforcer != null) {
             final String operatorDesc =
-                    getFormattedTransformationDescription(
+                    createFormattedTransformationDescription(
                             constraintEnforcer.getOperatorName(), config.getConfiguration());
             final String operatorName =
-                    getFormattedTransformationName(
+                    createFormattedTransformationName(
                             constraintEnforcer.getOperatorName(),
                             "ConstraintEnforcer",
                             config.getConfiguration());
             return ExecNodeUtil.createOneInputTransformation(
                     inputTransform,
                     new TransformationMetadata(
-                            getTransformationUid(CONSTRAINT_VALIDATOR_TRANSFORMATION),
+                            createTransformationUid(CONSTRAINT_VALIDATOR_TRANSFORMATION),
                             operatorName,
                             operatorDesc),
                     constraintEnforcer,
@@ -389,7 +389,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                         selector, KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM);
         Transformation<RowData> partitionedTransform =
                 new PartitionTransformation<>(inputTransform, partitioner);
-        partitionedTransform.setUid(getTransformationUid(PARTITIONER_TRANSFORMATION));
+        partitionedTransform.setUid(createTransformationUid(PARTITIONER_TRANSFORMATION));
         partitionedTransform.setParallelism(sinkParallelism);
         return partitionedTransform;
     }
@@ -415,17 +415,17 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                         .mapToObj(idx -> fieldNames[idx])
                         .collect(Collectors.toList());
         final String operatorDesc =
-                getFormattedTransformationDescription(
+                createFormattedTransformationDescription(
                         String.format("SinkMaterializer(pk=[%s])", String.join(", ", pkFieldNames)),
                         tableConfig.getConfiguration());
         final String operatorName =
-                getFormattedTransformationName(
+                createFormattedTransformationName(
                         operatorDesc, "SinkMaterializer", tableConfig.getConfiguration());
         OneInputTransformation<RowData, RowData> materializeTransform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
                         new TransformationMetadata(
-                                getTransformationUid(UPSERT_MATERIALIZE_TRANSFORMATION),
+                                createTransformationUid(UPSERT_MATERIALIZE_TRANSFORMATION),
                                 operatorName,
                                 operatorDesc),
                         operator,
@@ -446,8 +446,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             int rowtimeFieldIndex,
             int sinkParallelism,
             Configuration config) {
-        TransformationMetadata sinkMeta = getTransformationMeta(SINK_TRANSFORMATION, config);
-        String sinkDescription = getTransformationDescription(config);
+        TransformationMetadata sinkMeta = createTransformationMeta(SINK_TRANSFORMATION, config);
+        String sinkDescription = createTransformationDescription(config);
         if (runtimeProvider instanceof DataStreamSinkProvider) {
             Transformation<RowData> sinkTransformation =
                     applyRowtimeTransformation(
@@ -551,7 +551,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             return inputTransform;
         }
         final String description =
-                getFormattedTransformationDescription(
+                createFormattedTransformationDescription(
                         String.format(
                                 "StreamRecordTimestampInserter(rowtime field: %s)",
                                 rowtimeFieldIndex),
@@ -559,8 +559,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
                 new TransformationMetadata(
-                        getTransformationUid(TIMESTAMP_INSERTER_TRANSFORMATION),
-                        getFormattedTransformationName(
+                        createTransformationUid(TIMESTAMP_INSERTER_TRANSFORMATION),
+                        createFormattedTransformationName(
                                 description, "StreamRecordTimestampInserter", config),
                         description),
                 new StreamRecordTimestampInserter(rowtimeFieldIndex),

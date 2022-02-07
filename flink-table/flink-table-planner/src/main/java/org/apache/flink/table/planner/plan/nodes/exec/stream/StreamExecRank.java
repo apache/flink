@@ -322,7 +322,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getTransformationMeta(RANK_TRANSFORMATION, tableConfig),
+                        createTransformationMeta(RANK_TRANSFORMATION, tableConfig),
                         operator,
                         InternalTypeInfo.of((RowType) getOutputType()),
                         inputTransform.getParallelism());

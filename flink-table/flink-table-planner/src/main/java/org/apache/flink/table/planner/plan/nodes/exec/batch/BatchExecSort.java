@@ -81,8 +81,8 @@ public class BatchExecSort extends ExecNodeBase<RowData> implements BatchExecNod
                         .getBytes();
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getTransformationName(config),
-                getTransformationDescription(config),
+                createTransformationName(config),
+                createTransformationDescription(config),
                 SimpleOperatorFactory.of(operator),
                 InternalTypeInfo.of((RowType) getOutputType()),
                 inputTransform.getParallelism(),

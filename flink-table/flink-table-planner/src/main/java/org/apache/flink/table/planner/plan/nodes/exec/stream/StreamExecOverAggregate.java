@@ -234,7 +234,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getTransformationMeta(OVER_AGGREGATE_TRANSFORMATION, tableConfig),
+                        createTransformationMeta(OVER_AGGREGATE_TRANSFORMATION, tableConfig),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

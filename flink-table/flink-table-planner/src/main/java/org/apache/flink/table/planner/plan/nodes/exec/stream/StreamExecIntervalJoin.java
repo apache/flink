@@ -243,12 +243,12 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         new StreamFlatMap<>(allFilter),
                         returnTypeInfo,
                         leftParallelism);
-        filterAllLeftStream.setUid(getTransformationUid(FILTER_LEFT_TRANSFORMATION));
+        filterAllLeftStream.setUid(createTransformationUid(FILTER_LEFT_TRANSFORMATION));
         filterAllLeftStream.setDescription(
-                getFormattedTransformationDescription(
+                createFormattedTransformationDescription(
                         "filter all left input transformation", config));
         filterAllLeftStream.setName(
-                getFormattedTransformationName(
+                createFormattedTransformationName(
                         filterAllLeftStream.getDescription(), "FilterLeft", config));
 
         OneInputTransformation<RowData, RowData> filterAllRightStream =
@@ -258,12 +258,12 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         new StreamFlatMap<>(allFilter),
                         returnTypeInfo,
                         rightParallelism);
-        filterAllRightStream.setUid(getTransformationUid(FILTER_RIGHT_TRANSFORMATION));
+        filterAllRightStream.setUid(createTransformationUid(FILTER_RIGHT_TRANSFORMATION));
         filterAllRightStream.setDescription(
-                getFormattedTransformationDescription(
+                createFormattedTransformationDescription(
                         "filter all right input transformation", config));
         filterAllRightStream.setName(
-                getFormattedTransformationName(
+                createFormattedTransformationName(
                         filterAllRightStream.getDescription(), "FilterRight", config));
 
         OneInputTransformation<RowData, RowData> padLeftStream =
@@ -273,11 +273,12 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         new StreamMap<>(leftPadder),
                         returnTypeInfo,
                         leftParallelism);
-        padLeftStream.setUid(getTransformationUid(PAD_LEFT_TRANSFORMATION));
+        padLeftStream.setUid(createTransformationUid(PAD_LEFT_TRANSFORMATION));
         padLeftStream.setDescription(
-                getFormattedTransformationDescription("pad left input transformation", config));
+                createFormattedTransformationDescription("pad left input transformation", config));
         padLeftStream.setName(
-                getFormattedTransformationName(padLeftStream.getDescription(), "PadLeft", config));
+                createFormattedTransformationName(
+                        padLeftStream.getDescription(), "PadLeft", config));
 
         OneInputTransformation<RowData, RowData> padRightStream =
                 new OneInputTransformation<>(
@@ -286,11 +287,11 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         new StreamMap<>(rightPadder),
                         returnTypeInfo,
                         rightParallelism);
-        padRightStream.setUid(getTransformationUid(PAD_RIGHT_TRANSFORMATION));
+        padRightStream.setUid(createTransformationUid(PAD_RIGHT_TRANSFORMATION));
         padRightStream.setDescription(
-                getFormattedTransformationDescription("pad right input transformation", config));
+                createFormattedTransformationDescription("pad right input transformation", config));
         padRightStream.setName(
-                getFormattedTransformationName(
+                createFormattedTransformationName(
                         padRightStream.getDescription(), "PadRight", config));
 
         Transformation<RowData> transformation;
@@ -318,7 +319,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
             default:
                 throw new TableException("should no reach here");
         }
-        transformation.setUid(getTransformationUid(INTERVAL_JOIN_TRANSFORMATION));
+        transformation.setUid(createTransformationUid(INTERVAL_JOIN_TRANSFORMATION));
         return transformation;
     }
 
@@ -346,7 +347,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,
-                getTransformationMeta(INTERVAL_JOIN_TRANSFORMATION, config),
+                createTransformationMeta(INTERVAL_JOIN_TRANSFORMATION, config),
                 new KeyedCoProcessOperator<>(procJoinFunc),
                 returnTypeInfo,
                 leftInputTransform.getParallelism());
@@ -380,7 +381,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,
-                getTransformationMeta(INTERVAL_JOIN_TRANSFORMATION, config),
+                createTransformationMeta(INTERVAL_JOIN_TRANSFORMATION, config),
                 new KeyedCoProcessOperatorWithWatermarkDelay<>(
                         rowJoinFunc, rowJoinFunc.getMaxOutputDelay()),
                 returnTypeInfo,

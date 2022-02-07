@@ -151,8 +151,8 @@ public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getTransformationName(tableConfig),
-                getTransformationDescription(tableConfig),
+                createTransformationName(tableConfig),
+                createTransformationDescription(tableConfig),
                 new CodeGenOperatorFactory<>(generatedOperator),
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

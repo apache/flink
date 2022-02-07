@@ -163,7 +163,7 @@ public class StreamExecLocalGroupAggregate extends StreamExecAggregateBase {
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getTransformationMeta(
+                createTransformationMeta(
                         LOCAL_GROUP_AGGREGATE_TRANSFORMATION, planner.getTableConfig()),
                 operator,
                 InternalTypeInfo.of(getOutputType()),

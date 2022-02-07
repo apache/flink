@@ -182,7 +182,7 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getTransformationMeta(GROUP_AGGREGATE_TRANSFORMATION, config),
+                        createTransformationMeta(GROUP_AGGREGATE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

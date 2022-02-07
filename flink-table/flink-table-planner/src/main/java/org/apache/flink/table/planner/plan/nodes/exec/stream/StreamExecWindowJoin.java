@@ -176,7 +176,8 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
                 ExecNodeUtil.createTwoInputTransformation(
                         leftTransform,
                         rightTransform,
-                        getTransformationMeta(WINDOW_JOIN_TRANSFORMATION, planner.getTableConfig()),
+                        createTransformationMeta(
+                                WINDOW_JOIN_TRANSFORMATION, planner.getTableConfig()),
                         operator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());

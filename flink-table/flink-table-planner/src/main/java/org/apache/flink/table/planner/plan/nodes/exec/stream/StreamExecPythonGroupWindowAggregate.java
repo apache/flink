@@ -408,7 +408,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                         shiftTimeZone);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getTransformationMeta(GROUP_WINDOW_AGGREGATE_TRANSFORMATION, tableConfig),
+                createTransformationMeta(GROUP_WINDOW_AGGREGATE_TRANSFORMATION, tableConfig),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());
@@ -448,7 +448,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getTransformationMeta(GROUP_WINDOW_AGGREGATE_TRANSFORMATION, config),
+                createTransformationMeta(GROUP_WINDOW_AGGREGATE_TRANSFORMATION, config),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());

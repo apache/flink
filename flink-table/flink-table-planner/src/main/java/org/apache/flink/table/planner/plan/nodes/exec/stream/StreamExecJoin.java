@@ -187,7 +187,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                 ExecNodeUtil.createTwoInputTransformation(
                         leftTransform,
                         rightTransform,
-                        getTransformationMeta(JOIN_TRANSFORMATION, tableConfig),
+                        createTransformationMeta(JOIN_TRANSFORMATION, tableConfig),
                         operator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());

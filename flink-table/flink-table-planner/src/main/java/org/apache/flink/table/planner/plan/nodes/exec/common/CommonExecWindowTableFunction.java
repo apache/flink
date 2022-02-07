@@ -84,7 +84,7 @@ public abstract class CommonExecWindowTableFunction extends ExecNodeBase<RowData
                         windowAssigner, windowingStrategy.getTimeAttributeIndex(), shiftTimeZone);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getTransformationMeta(WINDOW_TVF_TRANSFORMATION, planner.getTableConfig()),
+                createTransformationMeta(WINDOW_TVF_TRANSFORMATION, planner.getTableConfig()),
                 windowTableFunctionOperator,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());
