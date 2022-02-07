@@ -451,7 +451,7 @@ object FlinkRelMdRowCount {
     key("table.optimizer.rows-per-local-agg")
         .longType()
         .defaultValue(JLong.valueOf(1000000L))
-        .withDescription("Sets estimated number of records that one local-agg processes. "
-            + "Optimizer will infer whether to use local/global aggregate according to it.")
+        .withDescription("Sets estimated number of records that one local-agg processes. " +
+            "Optimizer will infer whether to use local/global aggregate according to it.")
 
 }
