@@ -23,6 +23,8 @@ import org.apache.flink.annotation.Experimental;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
@@ -61,6 +63,40 @@ public final class PlanReference {
     /** Create a reference starting from a JSON string. */
     public static PlanReference fromJsonString(String jsonString) {
         return new PlanReference(null, jsonString);
+    }
+
+    /**
+     * Create a reference from a file in the classpath, using {@code
+     * Thread.currentThread().getContextClassLoader()} as {@link ClassLoader}.
+     *
+     * @throws TableException if the classpath resource cannot be found
+     */
+    public static PlanReference fromClasspath(String classpathFilePath) {
+        return fromClasspath(Thread.currentThread().getContextClassLoader(), classpathFilePath);
+    }
+
+    /**
+     * Create a reference from a file in the classpath.
+     *
+     * @throws TableException if the classpath resource cannot be found
+     */
+    public static PlanReference fromClasspath(ClassLoader classLoader, String classpathFilePath)
+            throws TableException {
+        URL url = classLoader.getResource(classpathFilePath);
+        if (url == null) {
+            throw new TableException(
+                    "Cannot load the plan reference from classpath, resource not found: "
+                            + classpathFilePath);
+        }
+
+        try {
+            return PlanReference.fromFile(new File(url.toURI()));
+        } catch (URISyntaxException e) {
+            throw new TableException(
+                    "Cannot load the plan reference from classpath, invalid URI: "
+                            + classpathFilePath,
+                    e);
+        }
     }
 
     public Optional<File> getFile() {

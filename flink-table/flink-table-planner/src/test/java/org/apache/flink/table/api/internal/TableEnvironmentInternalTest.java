@@ -21,6 +21,7 @@ package org.apache.flink.table.api.internal;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
@@ -97,7 +98,7 @@ public class TableEnvironmentInternalTest extends JsonPlanTestBase {
         String actual =
                 tableEnv.explainPlan(
                         tableEnv.loadPlan(
-                                planReferenceFromClasspath("/jsonplan/testGetJsonPlan.out")),
+                                PlanReference.fromClasspath("/jsonplan/testGetJsonPlan.out")),
                         ExplainDetail.JSON_EXECUTION_PLAN);
         String expected = TableTestUtil.readFromResource("/explain/testExplainJsonPlan.out");
         assertThat(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
