@@ -112,6 +112,7 @@ import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
+import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
@@ -773,6 +774,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return planner.compilePlan(Collections.singletonList((ModifyOperation) operations.get(0)));
     }
 
+    private TableResultInternal executePlan(String filePath) {
+        try {
+            return (TableResultInternal) executePlan(PlanReference.fromFile(filePath));
+        } catch (IOException e) {
+            throw new TableException(String.format("Cannot load plan '%s'", filePath), e);
+        }
+    }
+
     @Override
     public TableResult executePlan(CompiledPlan plan) {
         CompiledPlanInternal planInternal = (CompiledPlanInternal) plan;
@@ -1350,6 +1359,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             CreateTableASOperation createTableASOperation = (CreateTableASOperation) operation;
             executeInternal(createTableASOperation.getCreateTableOperation());
             return executeInternal(createTableASOperation.toSinkModifyOperation(catalogManager));
+        } else if (operation instanceof ExecutePlanOperation) {
+            return executePlan(((ExecutePlanOperation) operation).getFilePath());
         } else if (operation instanceof NopOperation) {
             return TableResultImpl.TABLE_RESULT_OK;
         } else {
