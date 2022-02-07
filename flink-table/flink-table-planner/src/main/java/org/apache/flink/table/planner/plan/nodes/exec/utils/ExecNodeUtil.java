@@ -78,7 +78,7 @@ public class ExecNodeUtil {
             int parallelism) {
         return createOneInputTransformation(
                 input,
-                new TransformationMetadata(null, name, desc),
+                new TransformationMetadata(name, desc),
                 operator,
                 outputType,
                 parallelism,
@@ -123,7 +123,7 @@ public class ExecNodeUtil {
             int parallelism) {
         return createOneInputTransformation(
                 input,
-                new TransformationMetadata(null, name, desc),
+                new TransformationMetadata(name, desc),
                 operatorFactory,
                 outputType,
                 parallelism,
@@ -141,7 +141,7 @@ public class ExecNodeUtil {
             long memoryBytes) {
         return createOneInputTransformation(
                 input,
-                new TransformationMetadata(null, name, desc),
+                new TransformationMetadata(name, desc),
                 operatorFactory,
                 outputType,
                 parallelism,
@@ -192,7 +192,7 @@ public class ExecNodeUtil {
         return createTwoInputTransformation(
                 input1,
                 input2,
-                new TransformationMetadata(null, name, desc),
+                new TransformationMetadata(name, desc),
                 operator,
                 outputType,
                 parallelism,
@@ -231,7 +231,7 @@ public class ExecNodeUtil {
         return createTwoInputTransformation(
                 input1,
                 input2,
-                new TransformationMetadata(null, name, desc),
+                new TransformationMetadata(name, desc),
                 SimpleOperatorFactory.of(operator),
                 outputType,
                 parallelism,
@@ -273,7 +273,7 @@ public class ExecNodeUtil {
         return createTwoInputTransformation(
                 input1,
                 input2,
-                new TransformationMetadata(null, name, desc),
+                new TransformationMetadata(name, desc),
                 operatorFactory,
                 outputType,
                 parallelism,

@@ -31,7 +31,11 @@ public class TransformationMetadata {
     private final String name;
     private final String desc;
 
-    public TransformationMetadata(@Nullable String uid, String name, String desc) {
+    TransformationMetadata(String name, String desc) {
+        this(null, name, desc);
+    }
+
+    public TransformationMetadata(String uid, String name, String desc) {
         this.uid = uid;
         this.name = name;
         this.desc = desc;
