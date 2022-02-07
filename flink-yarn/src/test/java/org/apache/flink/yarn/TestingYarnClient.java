@@ -33,7 +33,7 @@ import java.io.IOException;
 import java.util.Map;
 
 /** Mock Yarn client to get application report. */
-public final class TestingYarnClient extends YarnClientImpl {
+public class TestingYarnClient extends YarnClientImpl {
     private final Map<ApplicationId, ApplicationReport> applicationReports;
 
     protected TestingYarnClient(Map<ApplicationId, ApplicationReport> applicationReports) {

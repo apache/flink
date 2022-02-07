@@ -26,10 +26,13 @@ import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.io.IOException;
 import java.util.Collections;
+import java.util.Map;
 
 import static org.apache.flink.yarn.TestingYarnClient.createApplicationReport;
 import static org.junit.Assert.assertEquals;
@@ -37,6 +40,33 @@ import static org.junit.Assert.assertEquals;
 /** Tests for the {@link ApplicationReportProviderImpl}. */
 @ExtendWith(TestLoggerExtension.class)
 public class ApplicationReportProviderImplTest {
+
+    /**
+     * When the state of Yarn app master is RUNNING in {@link YarnClusterDescriptor}, the {@link
+     * ApplicationReportProvider} will not retrieve app report again and return directly.
+     */
+    @Test
+    public void testReturnAppReportDirectlyFromAppRunning() throws Exception {
+        final ApplicationId appId = ApplicationId.newInstance(System.currentTimeMillis(), 10);
+        final ApplicationReport initialAppRunningReport =
+                createApplicationReport(
+                        appId, YarnApplicationState.RUNNING, FinalApplicationStatus.UNDEFINED);
+
+        final YarnClient yarnClient =
+                new NoSupportedYarnClient(Collections.singletonMap(appId, initialAppRunningReport));
+        YarnConfiguration yarnConfiguration = new YarnConfiguration();
+        yarnClient.init(yarnConfiguration);
+        yarnClient.start();
+
+        final ApplicationReportProvider provider =
+                ApplicationReportProviderImpl.of(
+                        YarnClientRetrieverImpl.from(
+                                YarnClientWrapper.fromBorrowed(yarnClient), null),
+                        initialAppRunningReport);
+        final ApplicationReport report = provider.waitUntilSubmissionFinishes();
+
+        assertEquals(YarnApplicationState.RUNNING, report.getYarnApplicationState());
+    }
 
     /**
      * When Yarn app master has been accepted in {@link YarnClusterDescriptor} and then retrieving
@@ -53,20 +83,33 @@ public class ApplicationReportProviderImplTest {
         final ApplicationReport submissionFinishedAppReport =
                 createApplicationReport(
                         appId, YarnApplicationState.RUNNING, FinalApplicationStatus.UNDEFINED);
-        YarnClient yarnClient =
+        final YarnClient yarnClient =
                 new TestingYarnClient(Collections.singletonMap(appId, submissionFinishedAppReport));
 
-        YarnConfiguration yarnConfiguration = new YarnConfiguration();
+        final YarnConfiguration yarnConfiguration = new YarnConfiguration();
         yarnClient.init(yarnConfiguration);
         yarnClient.start();
 
-        ApplicationReportProvider provider =
+        final ApplicationReportProvider provider =
                 ApplicationReportProviderImpl.of(
                         YarnClientRetrieverImpl.from(
                                 YarnClientWrapper.fromBorrowed(yarnClient), null),
                         initialAppAcceptedReport);
-        ApplicationReport report = provider.waitUntilSubmissionFinishes();
+        final ApplicationReport report = provider.waitUntilSubmissionFinishes();
 
         assertEquals(YarnApplicationState.RUNNING, report.getYarnApplicationState());
+    }
+
+    private class NoSupportedYarnClient extends TestingYarnClient {
+
+        protected NoSupportedYarnClient(Map<ApplicationId, ApplicationReport> applicationReports) {
+            super(applicationReports);
+        }
+
+        @Override
+        public ApplicationReport getApplicationReport(ApplicationId appId)
+                throws YarnException, IOException {
+            throw new YarnException("GetApplicationReport is not supported.");
+        }
     }
 }
