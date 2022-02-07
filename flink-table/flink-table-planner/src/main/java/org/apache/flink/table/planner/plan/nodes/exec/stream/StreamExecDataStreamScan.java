@@ -56,8 +56,6 @@ import static org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.ROWTIME_STR
 public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
 
-    private static final String DATA_STREAM_SOURCE_TRANSFORMATION = "data-stream-source";
-
     private final DataStream<?> dataStream;
     private final DataType sourceType;
     private final int[] fieldIndexes;
@@ -128,7 +126,6 @@ public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
         } else {
             transformation = (Transformation<RowData>) sourceTransform;
         }
-        transformation.setUid(createTransformationUid(DATA_STREAM_SOURCE_TRANSFORMATION));
         return transformation;
     }
 
