@@ -1787,6 +1787,24 @@ SqlNode SqlExecute() :
     }
 }
 
+/**
+* Parses a execute plan statement.
+*/
+SqlNode SqlExecutePlan() :
+{
+    SqlCharStringLiteral filePath;
+}
+{
+    <EXECUTE> <PLAN> <QUOTED_STRING>
+    {
+        String path = SqlParserUtil.parseString(token.image);
+        filePath = SqlLiteral.createCharString(path, getPos());
+    }
+    {
+        return new SqlExecutePlan(getPos(), filePath);
+    }
+}
+
 void ParseExplainDetail(Set<String> explainDetails):
 {
 }

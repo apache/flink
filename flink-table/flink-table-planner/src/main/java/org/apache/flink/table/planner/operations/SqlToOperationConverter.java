@@ -58,6 +58,7 @@ import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.sql.parser.dml.SqlBeginStatementSet;
 import org.apache.flink.sql.parser.dml.SqlEndStatementSet;
 import org.apache.flink.sql.parser.dml.SqlExecute;
+import org.apache.flink.sql.parser.dml.SqlExecutePlan;
 import org.apache.flink.sql.parser.dml.SqlStatementSet;
 import org.apache.flink.sql.parser.dql.SqlLoadModule;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
@@ -131,6 +132,7 @@ import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
+import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
@@ -328,6 +330,8 @@ public class SqlToOperationConverter {
         } else if (validated instanceof SqlExecute) {
             return convertValidatedSqlNode(
                     flinkPlanner, catalogManager, ((SqlExecute) validated).getStatement());
+        } else if (validated instanceof SqlExecutePlan) {
+            return Optional.of(converter.convertExecutePlan((SqlExecutePlan) validated));
         } else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
             return Optional.of(converter.convertSqlQuery(validated));
         } else {
@@ -1144,6 +1148,10 @@ public class SqlToOperationConverter {
     /** Fallback method for sql query. */
     private Operation convertSqlQuery(SqlNode node) {
         return toQueryOperation(flinkPlanner, node);
+    }
+
+    private Operation convertExecutePlan(SqlExecutePlan sqlExecutePlan) {
+        return new ExecutePlanOperation(sqlExecutePlan.getPlanFile());
     }
 
     private void validateTableConstraint(SqlTableConstraint constraint) {

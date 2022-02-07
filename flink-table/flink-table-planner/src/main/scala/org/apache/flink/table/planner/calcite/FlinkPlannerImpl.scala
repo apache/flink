@@ -19,10 +19,11 @@
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.sql.parser.ExtendedSqlNode
-import org.apache.flink.sql.parser.dml.{RichSqlInsert, SqlBeginStatementSet, SqlEndStatementSet, SqlExecute, SqlStatementSet}
+import org.apache.flink.sql.parser.dml.{RichSqlInsert, SqlBeginStatementSet, SqlEndStatementSet, SqlExecute, SqlExecutePlan, SqlStatementSet}
 import org.apache.flink.sql.parser.dql._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader
+
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan._
@@ -40,9 +41,11 @@ import org.apache.flink.sql.parser.ddl.{SqlReset, SqlSet, SqlUseModules}
 import org.apache.flink.table.planner.parse.CalciteParser
 
 import javax.annotation.Nullable
+
 import java.lang.{Boolean => JBoolean}
 import java.util
 import java.util.function.{Function => JFunction}
+
 import scala.collection.JavaConverters._
 
 /**
@@ -140,7 +143,8 @@ class FlinkPlannerImpl(
         || sqlNode.isInstanceOf[SqlBeginStatementSet]
         || sqlNode.isInstanceOf[SqlEndStatementSet]
         || sqlNode.isInstanceOf[SqlSet]
-        || sqlNode.isInstanceOf[SqlReset]) {
+        || sqlNode.isInstanceOf[SqlReset]
+        || sqlNode.isInstanceOf[SqlExecutePlan]) {
         return sqlNode
       }
       sqlNode match {

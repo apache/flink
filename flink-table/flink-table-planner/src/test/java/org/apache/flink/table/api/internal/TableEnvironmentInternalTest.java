@@ -26,11 +26,15 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
+import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
@@ -89,6 +93,23 @@ public class TableEnvironmentInternalTest extends JsonPlanTestBase {
 
         CompiledPlan plan = tableEnv.compilePlanSql("insert into sink select * from src");
         tableEnv.executePlan(plan).await();
+
+        assertResult(data, sinkPath);
+    }
+
+    @Test
+    public void testExecutePlanSql() throws Exception {
+        Path planPath = Paths.get(URI.create(getTempDirPath("plan")).getPath(), "plan.json");
+        FileUtils.createParentDirectories(planPath.toFile());
+
+        List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
+        createTestCsvSourceTable("src", data, "a bigint", "b int", "c varchar");
+        File sinkPath = createTestCsvSinkTable("sink", "a bigint", "b int", "c varchar");
+
+        CompiledPlan plan = tableEnv.compilePlanSql("insert into sink select * from src");
+        plan.writeToFile(planPath);
+
+        tableEnv.executeSql(String.format("EXECUTE PLAN '%s'", planPath.toAbsolutePath())).await();
 
         assertResult(data, sinkPath);
     }

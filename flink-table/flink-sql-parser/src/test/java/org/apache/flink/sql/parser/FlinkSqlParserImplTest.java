@@ -1490,6 +1490,13 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testExecutePlan() {
+        sql("execute plan './test.json'").ok("EXECUTE PLAN './test.json'");
+        sql("execute plan '/some/absolute/dir/plan.json'")
+                .ok("EXECUTE PLAN '/some/absolute/dir/plan.json'");
+    }
+
+    @Test
     public void testExplainUpsert() {
         String sql = "explain plan for upsert into emps1 values (1, 2)";
         String expected = "EXPLAIN UPSERT INTO `EMPS1`\n" + "VALUES (ROW(1, 2))";
