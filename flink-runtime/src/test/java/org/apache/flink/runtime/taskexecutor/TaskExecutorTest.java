@@ -63,6 +63,7 @@ import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -134,6 +135,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -141,6 +143,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -206,7 +210,7 @@ public class TaskExecutorTest extends TestLogger {
 
     private TestingFatalErrorHandler testingFatalErrorHandler;
 
-    private TestingHighAvailabilityServices haServices;
+    private TestingHighAvailabilityServices.EmptyBuilder haServicesBuilder;
 
     private SettableLeaderRetrievalService resourceManagerLeaderRetriever;
 
@@ -228,13 +232,20 @@ public class TaskExecutorTest extends TestLogger {
 
         testingFatalErrorHandler = new TestingFatalErrorHandler();
 
-        haServices = new TestingHighAvailabilityServices();
         resourceManagerLeaderRetriever = new SettableLeaderRetrievalService();
         jobManagerLeaderRetriever = new SettableLeaderRetrievalService();
         jobManagerLeaderRetriever2 = new SettableLeaderRetrievalService();
-        haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
-        haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetriever);
-        haServices.setJobMasterLeaderRetriever(jobId2, jobManagerLeaderRetriever2);
+
+        final ConcurrentMap<JobID, LeaderRetrievalService> retrievers = new ConcurrentHashMap<>();
+        retrievers.put(jobId, jobManagerLeaderRetriever);
+        retrievers.put(jobId2, jobManagerLeaderRetriever2);
+        haServicesBuilder =
+                TestingHighAvailabilityServices.newBuilder()
+                        .setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever)
+                        .setJobMasterLeaderRetrieverFunction(
+                                jobId ->
+                                        Objects.requireNonNull(
+                                                retrievers.get(jobId), "Retriever not found."));
 
         nettyShuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
     }
@@ -1643,7 +1654,11 @@ public class TaskExecutorTest extends TestLogger {
 
             final StartStopNotifyingLeaderRetrievalService jobMasterLeaderRetriever =
                     new StartStopNotifyingLeaderRetrievalService(startFuture, stopFuture);
-            haServices.setJobMasterLeaderRetriever(jobId, jobMasterLeaderRetriever);
+            haServicesBuilder.setJobMasterLeaderRetrieverFunction(
+                    jobId -> {
+                        assertEquals(this.jobId, jobId);
+                        return jobMasterLeaderRetriever;
+                    });
 
             taskExecutor.start();
             taskExecutor.waitUntilStarted();
@@ -2750,7 +2765,7 @@ public class TaskExecutorTest extends TestLogger {
                         TM_RESOURCE_SPEC,
                         InetAddress.getLoopbackAddress().getHostAddress(),
                         TestFileUtils.createTempDir()),
-                haServices,
+                haServicesBuilder.build(),
                 taskManagerServices,
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
                 heartbeatServices,
@@ -2785,7 +2800,7 @@ public class TaskExecutorTest extends TestLogger {
                         TM_RESOURCE_SPEC,
                         InetAddress.getLoopbackAddress().getHostAddress(),
                         TestFileUtils.createTempDir()),
-                haServices,
+                haServicesBuilder.build(),
                 taskManagerServices,
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
                 heartbeatServices,

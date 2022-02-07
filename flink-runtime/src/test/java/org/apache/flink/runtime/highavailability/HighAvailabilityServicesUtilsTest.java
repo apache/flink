@@ -49,7 +49,7 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
     public void testCreateCustomHAServices() throws Exception {
         Configuration config = new Configuration();
 
-        HighAvailabilityServices haServices = new TestingHighAvailabilityServices();
+        HighAvailabilityServices haServices = TestingHighAvailabilityServices.newBuilder().build();
         TestHAFactory.haServices = haServices;
 
         Executor executor = Executors.directExecutor();

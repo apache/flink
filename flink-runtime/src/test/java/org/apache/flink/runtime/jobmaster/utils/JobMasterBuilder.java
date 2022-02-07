@@ -88,16 +88,13 @@ public class JobMasterBuilder {
             DefaultExecutionDeploymentReconciler::new;
 
     public JobMasterBuilder(JobGraph jobGraph, RpcService rpcService) {
-        TestingHighAvailabilityServices testingHighAvailabilityServices =
-                new TestingHighAvailabilityServices();
-        testingHighAvailabilityServices.setCheckpointRecoveryFactory(
-                new StandaloneCheckpointRecoveryFactory());
-
-        SettableLeaderRetrievalService rmLeaderRetrievalService =
+        final SettableLeaderRetrievalService rmLeaderRetrievalService =
                 new SettableLeaderRetrievalService(null, null);
-        testingHighAvailabilityServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
-
-        this.highAvailabilityServices = testingHighAvailabilityServices;
+        this.highAvailabilityServices =
+                TestingHighAvailabilityServices.newBuilder()
+                        .setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory())
+                        .setResourceManagerLeaderRetriever(rmLeaderRetrievalService)
+                        .build();
         this.jobGraph = jobGraph;
         this.rpcService = rpcService;
     }

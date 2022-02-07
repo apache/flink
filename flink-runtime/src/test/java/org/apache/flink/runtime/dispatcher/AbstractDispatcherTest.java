@@ -85,19 +85,28 @@ public class AbstractDispatcherTest extends TestLogger {
 
     BlobServer blobServer;
 
-    TestingHighAvailabilityServices haServices;
+    TestingHighAvailabilityServices.EmptyBuilder haServicesBuilder;
+    private TestingHighAvailabilityServices myHaServices = null;
 
     HeartbeatServices heartbeatServices;
+
+    TestingHighAvailabilityServices getOrCreateHaServices() {
+        if (myHaServices == null) {
+            myHaServices = haServicesBuilder.build();
+        }
+        return myHaServices;
+    }
 
     @Before
     public void setUp() throws Exception {
         heartbeatServices = new HeartbeatServices(1000L, 10000L);
 
-        haServices = new TestingHighAvailabilityServices();
-        haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
-        haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
-        haServices.setJobGraphStore(new StandaloneJobGraphStore());
-        haServices.setJobResultStore(new EmbeddedJobResultStore());
+        haServicesBuilder =
+                TestingHighAvailabilityServices.newBuilder()
+                        .setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory())
+                        .setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService())
+                        .setJobGraphStore(new StandaloneJobGraphStore())
+                        .setJobResultStore(new EmbeddedJobResultStore());
 
         configuration = new Configuration();
         blobServer =
@@ -105,6 +114,7 @@ public class AbstractDispatcherTest extends TestLogger {
     }
 
     protected TestingDispatcher.Builder createTestingDispatcherBuilder() {
+        final TestingHighAvailabilityServices haServices = getOrCreateHaServices();
         return TestingDispatcher.builder()
                 .setRpcService(rpcService)
                 .setConfiguration(configuration)
@@ -120,8 +130,8 @@ public class AbstractDispatcherTest extends TestLogger {
 
     @After
     public void tearDown() throws Exception {
-        if (haServices != null) {
-            haServices.closeAndCleanupAllData();
+        if (myHaServices != null) {
+            myHaServices.closeAndCleanupAllData();
         }
         if (blobServer != null) {
             blobServer.close();

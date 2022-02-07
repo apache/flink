@@ -112,11 +112,14 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -162,7 +165,11 @@ public class DispatcherTest extends AbstractDispatcherTest {
         jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
         jobId = jobGraph.getJobID();
         jobMasterLeaderElectionService = new TestingLeaderElectionService();
-        haServices.setJobMasterLeaderElectionService(jobId, jobMasterLeaderElectionService);
+        haServicesBuilder.setJobMasterLeaderElectionServiceFunction(
+                jobId -> {
+                    assertEquals(jobGraph.getJobID(), jobId);
+                    return jobMasterLeaderElectionService;
+                });
         createdJobManagerRunnerLatch = new CountDownLatch(2);
     }
 
@@ -200,7 +207,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
-                        haServices,
+                        getOrCreateHaServices(),
                         new ExpectedJobIdJobManagerRunnerFactory(
                                 jobId, createdJobManagerRunnerLatch));
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
@@ -219,11 +226,13 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final JobResult jobResult =
                 TestingJobResultStore.createJobResult(
                         jobGraph.getJobID(), ApplicationStatus.UNKNOWN);
-        haServices.getJobResultStore().createDirtyResult(new JobResultEntry(jobResult));
+        getOrCreateHaServices()
+                .getJobResultStore()
+                .createDirtyResult(new JobResultEntry(jobResult));
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
-                        haServices,
+                        getOrCreateHaServices(),
                         new ExpectedJobIdJobManagerRunnerFactory(
                                 jobId, createdJobManagerRunnerLatch));
         final DispatcherGateway dispatcherGateway =
@@ -280,7 +289,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
-                        haServices,
+                        getOrCreateHaServices(),
                         new ExpectedJobIdJobManagerRunnerFactory(
                                 jobId, createdJobManagerRunnerLatch));
 
@@ -301,7 +310,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
     public void testNonBlockingJobSubmission() throws Exception {
         JobManagerRunnerWithBlockingJobMasterFactory blockingJobMaster =
                 new JobManagerRunnerWithBlockingJobMasterFactory();
-        dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices, getOrCreateHaServices(), blockingJobMaster);
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
@@ -330,7 +341,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
     public void testInvalidCallDuringInitialization() throws Exception {
         JobManagerRunnerWithBlockingJobMasterFactory blockingJobMaster =
                 new JobManagerRunnerWithBlockingJobMasterFactory();
-        dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices, getOrCreateHaServices(), blockingJobMaster);
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
@@ -360,7 +373,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
-                        haServices,
+                        getOrCreateHaServices(),
                         new ExpectedJobIdJobManagerRunnerFactory(
                                 jobId, createdJobManagerRunnerLatch));
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
@@ -398,7 +411,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
-                        haServices,
+                        getOrCreateHaServices(),
                         new FinishingJobManagerRunnerFactory(jobTerminationFuture, () -> {}));
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
@@ -432,7 +445,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
-                        haServices,
+                        getOrCreateHaServices(),
                         new FinishingJobManagerRunnerFactory(jobTerminationFuture, () -> {}));
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
@@ -510,7 +523,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         dispatcher =
                 createAndStartDispatcher(
-                        heartbeatServices, haServices, testingJobManagerRunnerFactory);
+                        heartbeatServices, getOrCreateHaServices(), testingJobManagerRunnerFactory);
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
@@ -560,7 +573,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
-                        haServices,
+                        getOrCreateHaServices(),
                         new ExpectedJobIdJobManagerRunnerFactory(
                                 jobId, createdJobManagerRunnerLatch));
 
@@ -594,7 +607,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
-                        haServices,
+                        getOrCreateHaServices(),
                         new ExpectedJobIdJobManagerRunnerFactory(
                                 jobId, createdJobManagerRunnerLatch));
 
@@ -617,7 +630,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
-                        haServices,
+                        getOrCreateHaServices(),
                         new ExpectedJobIdJobManagerRunnerFactory(
                                 jobId, createdJobManagerRunnerLatch));
 
@@ -771,7 +784,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final TestingJobGraphStore submittedJobGraphStore =
                 TestingJobGraphStore.newBuilder().build();
         submittedJobGraphStore.start(null);
-        haServices.setJobGraphStore(submittedJobGraphStore);
+        haServicesBuilder.setJobGraphStore(submittedJobGraphStore);
 
         dispatcher =
                 createTestingDispatcherBuilder().setJobGraphWriter(submittedJobGraphStore).build();
@@ -795,7 +808,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
-                        haServices,
+                        getOrCreateHaServices(),
                         new ExpectedJobIdJobManagerRunnerFactory(
                                 jobId, createdJobManagerRunnerLatch));
 
@@ -817,12 +830,16 @@ public class DispatcherTest extends AbstractDispatcherTest {
     @Test
     public void testJobStatusIsShownDuringTermination() throws Exception {
         final JobID blockingId = new JobID();
-        haServices.setJobMasterLeaderElectionService(
-                blockingId, new TestingLeaderElectionService());
+        final ConcurrentMap<JobID, LeaderElectionService> services = new ConcurrentHashMap<>();
+        services.put(jobId, jobMasterLeaderElectionService);
+        services.put(blockingId, new TestingLeaderElectionService());
+        haServicesBuilder.setJobMasterLeaderElectionServiceFunction(
+                jobId -> Objects.requireNonNull(services.get(jobId)));
         final JobManagerRunnerWithBlockingTerminationFactory jobManagerRunnerFactory =
                 new JobManagerRunnerWithBlockingTerminationFactory(blockingId);
         dispatcher =
-                createAndStartDispatcher(heartbeatServices, haServices, jobManagerRunnerFactory);
+                createAndStartDispatcher(
+                        heartbeatServices, getOrCreateHaServices(), jobManagerRunnerFactory);
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
         final JobGraph blockedJobGraph = JobGraphTestUtils.singleNoOpJobGraph();
@@ -861,7 +878,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
-                        haServices,
+                        getOrCreateHaServices(),
                         JobMasterServiceLeadershipRunnerFactory.INSTANCE);
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
@@ -918,7 +935,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
-                        haServices,
+                        getOrCreateHaServices(),
                         new InitializationTimestampCapturingJobManagerRunnerFactory(
                                 initializationTimestampQueue));
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
@@ -938,7 +955,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 new QueuedJobManagerRunnerFactory(
                         completedJobManagerRunnerWithJobStatus(JobStatus.SUSPENDED));
 
-        dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices, getOrCreateHaServices(), blockingJobMaster);
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
 
@@ -956,7 +975,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         completedJobManagerRunnerWithJobStatus(JobStatus.SUSPENDED),
                         runningJobManagerRunnerWithJobStatus(JobStatus.RUNNING));
 
-        dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices, getOrCreateHaServices(), blockingJobMaster);
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
 
@@ -978,7 +999,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         completedJobManagerRunnerWithJobStatus(JobStatus.SUSPENDED),
                         completedJobManagerRunnerWithJobStatus(JobStatus.FINISHED));
 
-        dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices, getOrCreateHaServices(), blockingJobMaster);
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
 
@@ -999,7 +1022,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 new QueuedJobManagerRunnerFactory(
                         completedJobManagerRunnerWithJobStatus(JobStatus.SUSPENDED));
 
-        dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices, getOrCreateHaServices(), blockingJobMaster);
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
 
@@ -1086,7 +1111,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
-                        haServices,
+                        getOrCreateHaServices(),
                         new ExpectedJobIdJobManagerRunnerFactory(
                                 jobId, createdJobManagerRunnerLatch));
         final DispatcherGateway dispatcherGateway =
@@ -1118,7 +1143,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         // Track cleanup - ha-services
         final CompletableFuture<JobID> cleanupJobData = new CompletableFuture<>();
-        haServices.setGlobalCleanupFuture(cleanupJobData);
+        haServicesBuilder.setGlobalCleanupFuture(cleanupJobData);
         cleanupJobData.thenAccept(jobId -> cleanUpEvents.add(CLEANUP_HA_SERVICES));
 
         // Track cleanup - job-graph
@@ -1136,10 +1161,10 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                 })
                         .build();
         jobGraphStore.start(null);
-        haServices.setJobGraphStore(jobGraphStore);
+        haServicesBuilder.setJobGraphStore(jobGraphStore);
 
         // Track cleanup - job result store
-        haServices.setJobResultStore(
+        haServicesBuilder.setJobResultStore(
                 TestingJobResultStore.builder()
                         .withMarkResultAsCleanConsumer(
                                 jobID ->
@@ -1156,7 +1181,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
-                        haServices,
+                        getOrCreateHaServices(),
                         new FinishingJobManagerRunnerFactory(
                                 resultFuture, () -> cleanUpEvents.add(CLEANUP_JOB_MANAGER_RUNNER)));
 

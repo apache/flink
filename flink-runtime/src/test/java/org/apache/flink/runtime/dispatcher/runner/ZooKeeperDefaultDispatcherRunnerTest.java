@@ -37,7 +37,6 @@ import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -151,7 +150,7 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                 ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler)
                         .asCuratorFramework();
         try (final TestingHighAvailabilityServices highAvailabilityServices =
-                new TestingHighAvailabilityServicesBuilder()
+                TestingHighAvailabilityServices.newStandaloneBuilder()
                         .setDispatcherLeaderElectionService(dispatcherLeaderElectionService)
                         .setJobMasterLeaderRetrieverFunction(
                                 jobId -> ZooKeeperUtils.createLeaderRetrievalService(client))

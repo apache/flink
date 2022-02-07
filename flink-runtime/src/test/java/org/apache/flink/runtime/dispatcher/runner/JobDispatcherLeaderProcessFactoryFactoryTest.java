@@ -21,7 +21,7 @@ package org.apache.flink.runtime.dispatcher.runner;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.TestingPartialDispatcherServices;
-import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
@@ -124,7 +124,7 @@ class JobDispatcherLeaderProcessFactoryFactoryTest {
                 new TestingRpcService(),
                 TestingPartialDispatcherServices.builder()
                         .withHighAvailabilityServices(
-                                new TestingHighAvailabilityServicesBuilder()
+                                TestingHighAvailabilityServices.newStandaloneBuilder()
                                         .setJobGraphStore(jobGraphStore)
                                         .setJobResultStore(jobResultStore)
                                         .build())

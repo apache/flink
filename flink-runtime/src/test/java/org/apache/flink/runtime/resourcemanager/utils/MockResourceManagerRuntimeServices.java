@@ -63,9 +63,11 @@ public class MockResourceManagerRuntimeServices {
         this.rpcService = checkNotNull(rpcService);
         this.timeout = checkNotNull(timeout);
         this.slotManager = slotManager;
-        highAvailabilityServices = new TestingHighAvailabilityServices();
         rmLeaderElectionService = new TestingLeaderElectionService();
-        highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
+        highAvailabilityServices =
+                TestingHighAvailabilityServices.newBuilder()
+                        .setResourceManagerLeaderElectionService(rmLeaderElectionService)
+                        .build();
         heartbeatServices = new TestingHeartbeatServices();
         jobLeaderIdService =
                 new DefaultJobLeaderIdService(

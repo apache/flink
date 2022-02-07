@@ -203,7 +203,7 @@ public class JobMasterTest extends TestLogger {
 
     private JobMasterId jobMasterId;
 
-    private TestingHighAvailabilityServices haServices;
+    private TestingHighAvailabilityServices.EmptyBuilder haServicesBuilder;
 
     private SettableLeaderRetrievalService rmLeaderRetrievalService;
 
@@ -221,16 +221,16 @@ public class JobMasterTest extends TestLogger {
     @Before
     public void setup() throws IOException {
         configuration = new Configuration();
-        haServices = new TestingHighAvailabilityServices();
+        haServicesBuilder = TestingHighAvailabilityServices.newBuilder();
         jobMasterId = JobMasterId.generate();
         jmResourceId = ResourceID.generate();
 
         testingFatalErrorHandler = new TestingFatalErrorHandler();
 
-        haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
+        haServicesBuilder.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
 
         rmLeaderRetrievalService = new SettableLeaderRetrievalService(null, null);
-        haServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
+        haServicesBuilder.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
 
         configuration.setString(
                 BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -273,7 +273,7 @@ public class JobMasterTest extends TestLogger {
                 new JobMasterBuilder(jobGraph, rpcService)
                         .withResourceId(jmResourceId)
                         .withConfiguration(configuration)
-                        .withHighAvailabilityServices(haServices)
+                        .withHighAvailabilityServices(haServicesBuilder.build())
                         .withHeartbeatServices(new HeartbeatServices(1L, 10000L))
                         .createJobMaster();
 
@@ -331,7 +331,7 @@ public class JobMasterTest extends TestLogger {
                 new JobMasterBuilder(jobGraph, rpcService)
                         .withResourceId(jmResourceId)
                         .withConfiguration(configuration)
-                        .withHighAvailabilityServices(haServices)
+                        .withHighAvailabilityServices(haServicesBuilder.build())
                         .withHeartbeatServices(heartbeatServices)
                         .createJobMaster();
 
@@ -686,7 +686,7 @@ public class JobMasterTest extends TestLogger {
                         .withJobMasterId(jobMasterId)
                         .withResourceId(jmResourceId)
                         .withConfiguration(configuration)
-                        .withHighAvailabilityServices(haServices)
+                        .withHighAvailabilityServices(haServicesBuilder.build())
                         .withHeartbeatServices(fastHeartbeatServices)
                         .createJobMaster();
 
@@ -761,7 +761,7 @@ public class JobMasterTest extends TestLogger {
                         .withJobMasterId(jobMasterId)
                         .withResourceId(jmResourceId)
                         .withConfiguration(configuration)
-                        .withHighAvailabilityServices(haServices)
+                        .withHighAvailabilityServices(haServicesBuilder.build())
                         .withHeartbeatServices(heartbeatServices)
                         .createJobMaster();
 
@@ -814,11 +814,11 @@ public class JobMasterTest extends TestLogger {
         final CheckpointRecoveryFactory testingCheckpointRecoveryFactory =
                 PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(
                         maxCheckpoints -> completedCheckpointStore);
-        haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
+        haServicesBuilder.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
 
         final JobMaster jobMaster =
                 new JobMasterBuilder(jobGraph, rpcService)
-                        .withHighAvailabilityServices(haServices)
+                        .withHighAvailabilityServices(haServicesBuilder.build())
                         .createJobMaster();
 
         try {
@@ -889,7 +889,7 @@ public class JobMasterTest extends TestLogger {
         final CheckpointRecoveryFactory testingCheckpointRecoveryFactory =
                 PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(
                         maxCheckpoints -> completedCheckpointStore);
-        haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
+        haServicesBuilder.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
 
         final JobMaster jobMaster = new JobMasterBuilder(jobGraph, rpcService).createJobMaster();
 
@@ -912,7 +912,7 @@ public class JobMasterTest extends TestLogger {
         final JobMaster jobMaster =
                 new JobMasterBuilder(jobGraph, rpcService)
                         .withConfiguration(configuration)
-                        .withHighAvailabilityServices(haServices)
+                        .withHighAvailabilityServices(haServicesBuilder.build())
                         .createJobMaster();
 
         try {
@@ -962,7 +962,7 @@ public class JobMasterTest extends TestLogger {
                 new JobMasterBuilder(jobGraph, rpcService)
                         .withJobMasterId(jobMasterId)
                         .withConfiguration(configuration)
-                        .withHighAvailabilityServices(haServices)
+                        .withHighAvailabilityServices(haServicesBuilder.build())
                         .withHeartbeatServices(heartbeatServices)
                         .createJobMaster();
 
@@ -1009,7 +1009,7 @@ public class JobMasterTest extends TestLogger {
                 new JobMasterBuilder(jobGraph, rpcService)
                         .withJobMasterId(jobMasterId)
                         .withConfiguration(configuration)
-                        .withHighAvailabilityServices(haServices)
+                        .withHighAvailabilityServices(haServicesBuilder.build())
                         .withHeartbeatServices(heartbeatServices)
                         .createJobMaster();
 
@@ -1101,7 +1101,7 @@ public class JobMasterTest extends TestLogger {
         final JobMaster jobMaster =
                 new JobMasterBuilder(inputSplitJobGraph, rpcService)
                         .withConfiguration(configuration)
-                        .withHighAvailabilityServices(haServices)
+                        .withHighAvailabilityServices(haServicesBuilder.build())
                         .withHeartbeatServices(heartbeatServices)
                         .createJobMaster();
 
@@ -1359,7 +1359,7 @@ public class JobMasterTest extends TestLogger {
         final JobMaster jobMaster =
                 new JobMasterBuilder(producerConsumerJobGraph, rpcService)
                         .withConfiguration(configuration)
-                        .withHighAvailabilityServices(haServices)
+                        .withHighAvailabilityServices(haServicesBuilder.build())
                         .withHeartbeatServices(heartbeatServices)
                         .createJobMaster();
 
@@ -1528,7 +1528,7 @@ public class JobMasterTest extends TestLogger {
         final JobMaster jobMaster =
                 new JobMasterBuilder(jobGraph, rpcService)
                         .withConfiguration(configuration)
-                        .withHighAvailabilityServices(haServices)
+                        .withHighAvailabilityServices(haServicesBuilder.build())
                         .withHeartbeatServices(heartbeatServices)
                         .createJobMaster();
 
@@ -1599,7 +1599,7 @@ public class JobMasterTest extends TestLogger {
         final JobMaster jobMaster =
                 new JobMasterBuilder(jobGraph, rpcService)
                         .withConfiguration(configuration)
-                        .withHighAvailabilityServices(haServices)
+                        .withHighAvailabilityServices(haServicesBuilder.build())
                         .withJobManagerSharedServices(jobManagerSharedServices)
                         .withHeartbeatServices(heartbeatServices)
                         .withPartitionTrackerFactory(ignored -> partitionTracker)
@@ -1660,7 +1660,7 @@ public class JobMasterTest extends TestLogger {
         final JobMaster jobMaster =
                 new JobMasterBuilder(jobGraph, rpcService)
                         .withConfiguration(configuration)
-                        .withHighAvailabilityServices(haServices)
+                        .withHighAvailabilityServices(haServicesBuilder.build())
                         .withHeartbeatServices(heartbeatServices)
                         .createJobMaster();
 
@@ -2000,7 +2000,7 @@ public class JobMasterTest extends TestLogger {
         final JobMaster jobMaster =
                 new JobMasterBuilder(jobGraph, rpcService)
                         .withResourceId(jmResourceId)
-                        .withHighAvailabilityServices(haServices)
+                        .withHighAvailabilityServices(haServicesBuilder.build())
                         .withHeartbeatServices(heartbeatServices)
                         .withOnCompletionActions(onCompletionActions)
                         .createJobMaster();

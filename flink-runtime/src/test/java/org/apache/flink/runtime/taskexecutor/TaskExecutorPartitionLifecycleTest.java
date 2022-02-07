@@ -98,6 +98,7 @@ import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the partition-lifecycle logic in the {@link TaskExecutor}. */
@@ -107,8 +108,6 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
     private static TestingRpcService rpc;
 
-    private final TestingHighAvailabilityServices haServices =
-            new TestingHighAvailabilityServices();
     private final SettableLeaderRetrievalService jobManagerLeaderRetriever =
             new SettableLeaderRetrievalService();
     private final SettableLeaderRetrievalService resourceManagerLeaderRetriever =
@@ -121,10 +120,19 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
     public static final TestExecutorResource<?> TEST_EXECUTOR_SERVICE_RESOURCE =
             new TestExecutorResource<>(() -> java.util.concurrent.Executors.newFixedThreadPool(1));
 
+    private TestingHighAvailabilityServices haServices;
+
     @Before
     public void setup() {
-        haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
-        haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetriever);
+        haServices =
+                TestingHighAvailabilityServices.newBuilder()
+                        .setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever)
+                        .setJobMasterLeaderRetrieverFunction(
+                                jobId -> {
+                                    assertEquals(this.jobId, jobId);
+                                    return jobManagerLeaderRetriever;
+                                })
+                        .build();
     }
 
     @After

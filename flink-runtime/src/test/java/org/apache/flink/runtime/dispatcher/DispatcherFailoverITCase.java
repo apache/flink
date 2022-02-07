@@ -64,6 +64,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /** An integration test for various fail-over scenarios of the {@link Dispatcher} component. */
@@ -74,7 +75,7 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
     @Before
     public void setUp() throws Exception {
         super.setUp();
-        haServices.setCheckpointRecoveryFactory(
+        haServicesBuilder.setCheckpointRecoveryFactory(
                 new PerJobCheckpointRecoveryFactory<EmbeddedCompletedCheckpointStore>(
                         (maxCheckpoints, previous, sharedStateRegistryFactory, ioExecutor) -> {
                             if (previous != null) {
@@ -132,12 +133,16 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
                                 })
                         .build();
         jobGraphStore.start(null);
-        haServices.setJobGraphStore(jobGraphStore);
+        haServicesBuilder.setJobGraphStore(jobGraphStore);
 
         // Construct leader election service.
         final TestingLeaderElectionService leaderElectionService =
                 new TestingLeaderElectionService();
-        haServices.setJobMasterLeaderElectionService(jobId, leaderElectionService);
+        haServicesBuilder.setJobMasterLeaderElectionServiceFunction(
+                innerJobId -> {
+                    assertEquals(jobId, innerJobId);
+                    return leaderElectionService;
+                });
 
         // Start the first dispatcher and submit the job.
         final CountDownLatch jobGraphRemovalErrorReceived = new CountDownLatch(1);
@@ -184,11 +189,11 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
 
         assertThat(
                 "The JobGraph is still stored in the JobGraphStore.",
-                haServices.getJobGraphStore().getJobIds(),
+                getOrCreateHaServices().getJobGraphStore().getJobIds(),
                 CoreMatchers.is(Collections.singleton(jobId)));
         assertThat(
                 "The JobResultStore has this job marked as dirty.",
-                haServices.getJobResultStore().getDirtyResults().stream()
+                getOrCreateHaServices().getJobResultStore().getDirtyResults().stream()
                         .map(JobResult::getJobId)
                         .collect(Collectors.toSet()),
                 CoreMatchers.is(Collections.singleton(jobId)));
@@ -199,16 +204,16 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
         leaderElectionService.isLeader(UUID.randomUUID());
 
         CommonTestUtils.waitUntilCondition(
-                () -> haServices.getJobResultStore().getDirtyResults().isEmpty(),
+                () -> getOrCreateHaServices().getJobResultStore().getDirtyResults().isEmpty(),
                 Deadline.fromNow(TimeUtils.toDuration(TIMEOUT)));
 
         assertThat(
                 "The JobGraph is not stored in the JobGraphStore.",
-                haServices.getJobGraphStore().getJobIds(),
+                getOrCreateHaServices().getJobGraphStore().getJobIds(),
                 IsEmptyCollection.empty());
         assertTrue(
                 "The JobResultStore has the job listed as clean.",
-                haServices.getJobResultStore().hasJobResultEntry(jobId));
+                getOrCreateHaServices().getJobResultStore().hasJobResultEntry(jobId));
     }
 
     private JobGraph createJobGraph() {
@@ -238,16 +243,17 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
     private TestingDispatcher createRecoveredDispatcher(
             @Nullable FatalErrorHandler fatalErrorHandler) throws Exception {
         final List<JobGraph> jobGraphs = new ArrayList<>();
-        for (JobID jobId : haServices.getJobGraphStore().getJobIds()) {
+        for (JobID jobId : getOrCreateHaServices().getJobGraphStore().getJobIds()) {
             // there shouldn't be an overlap between dirty JobResults and recovered JobGraphs
-            if (!haServices.getJobResultStore().hasJobResultEntry(jobId)) {
-                jobGraphs.add(haServices.getJobGraphStore().recoverJobGraph(jobId));
+            if (!getOrCreateHaServices().getJobResultStore().hasJobResultEntry(jobId)) {
+                jobGraphs.add(getOrCreateHaServices().getJobGraphStore().recoverJobGraph(jobId));
             }
         }
         final TestingDispatcher dispatcher =
                 createTestingDispatcherBuilder()
                         .setRecoveredJobs(jobGraphs)
-                        .setRecoveredDirtyJobs(haServices.getJobResultStore().getDirtyResults())
+                        .setRecoveredDirtyJobs(
+                                getOrCreateHaServices().getJobResultStore().getDirtyResults())
                         .setFatalErrorHandler(
                                 fatalErrorHandler == null
                                         ? testingFatalErrorHandlerResource.getFatalErrorHandler()

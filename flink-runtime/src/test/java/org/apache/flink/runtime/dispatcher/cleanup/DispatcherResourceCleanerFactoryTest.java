@@ -135,9 +135,9 @@ public class DispatcherResourceCleanerFactoryTest {
 
     private HighAvailabilityServices createHighAvailabilityServices() {
         highAvailabilityServicesGlobalCleanupFuture = new CompletableFuture<>();
-        final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
-        haServices.setGlobalCleanupFuture(highAvailabilityServicesGlobalCleanupFuture);
-        return haServices;
+        return TestingHighAvailabilityServices.newBuilder()
+                .setGlobalCleanupFuture(highAvailabilityServicesGlobalCleanupFuture)
+                .build();
     }
 
     @Test

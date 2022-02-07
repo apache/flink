@@ -78,6 +78,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link ResourceManager}. */
@@ -101,6 +102,7 @@ public class ResourceManagerTest extends TestLogger {
 
     private static TestingRpcService rpcService;
 
+    private TestingHighAvailabilityServices.EmptyBuilder highAvailabilityServicesBuilder;
     private TestingHighAvailabilityServices highAvailabilityServices;
 
     private TestingFatalErrorHandler testingFatalErrorHandler;
@@ -118,9 +120,10 @@ public class ResourceManagerTest extends TestLogger {
 
     @Before
     public void setup() throws Exception {
-        highAvailabilityServices = new TestingHighAvailabilityServices();
-        highAvailabilityServices.setResourceManagerLeaderElectionService(
-                new TestingLeaderElectionService());
+        highAvailabilityServicesBuilder =
+                TestingHighAvailabilityServices.newBuilder()
+                        .setResourceManagerLeaderElectionService(
+                                new TestingLeaderElectionService());
         testingFatalErrorHandler = new TestingFatalErrorHandler();
         resourceManagerResourceId = ResourceID.generate();
     }
@@ -317,7 +320,7 @@ public class ResourceManagerTest extends TestLogger {
                 new SettableLeaderRetrievalService(
                         jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
 
-        highAvailabilityServices.setJobMasterLeaderRetrieverFunction(
+        highAvailabilityServicesBuilder.setJobMasterLeaderRetrieverFunction(
                 requestedJobId -> {
                     assertThat(requestedJobId, is(equalTo(jobId)));
                     return jobMasterLeaderRetrievalService;
@@ -373,7 +376,7 @@ public class ResourceManagerTest extends TestLogger {
                 new SettableLeaderRetrievalService(
                         jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
 
-        highAvailabilityServices.setJobMasterLeaderRetrieverFunction(
+        highAvailabilityServicesBuilder.setJobMasterLeaderRetrieverFunction(
                 requestedJobId -> {
                     assertThat(requestedJobId, is(equalTo(jobId)));
                     return jobMasterLeaderRetrievalService;
@@ -532,7 +535,7 @@ public class ResourceManagerTest extends TestLogger {
                         .withJobLeaderIdService(jobLeaderIdService)
                         .buildAndStart();
 
-        highAvailabilityServices.setJobMasterLeaderRetrieverFunction(
+        highAvailabilityServicesBuilder.setJobMasterLeaderRetrieverFunction(
                 requestedJobId ->
                         new SettableLeaderRetrievalService(
                                 jobMasterGateway.getAddress(),
@@ -630,6 +633,8 @@ public class ResourceManagerTest extends TestLogger {
             }
 
             if (jobLeaderIdService == null) {
+                assertNull(highAvailabilityServices);
+                highAvailabilityServices = highAvailabilityServicesBuilder.build();
                 jobLeaderIdService =
                         new DefaultJobLeaderIdService(
                                 highAvailabilityServices,

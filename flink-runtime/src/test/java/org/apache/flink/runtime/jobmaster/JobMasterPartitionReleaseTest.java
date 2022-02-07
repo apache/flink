@@ -223,11 +223,12 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 
             temporaryFolder.create();
 
-            TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
-            haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
-
-            haServices.setResourceManagerLeaderRetriever(
-                    new SettableLeaderRetrievalService(null, null));
+            TestingHighAvailabilityServices haServices =
+                    TestingHighAvailabilityServices.newBuilder()
+                            .setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory())
+                            .setResourceManagerLeaderRetriever(
+                                    new SettableLeaderRetrievalService(null, null))
+                            .build();
 
             partitionTracker = new TestingJobMasterPartitionTracker();
 

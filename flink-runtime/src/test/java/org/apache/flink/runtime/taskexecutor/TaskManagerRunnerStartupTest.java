@@ -92,9 +92,10 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 
     @Before
     public void setupTest() {
-        highAvailabilityServices = new TestingHighAvailabilityServices();
-        highAvailabilityServices.setResourceManagerLeaderRetriever(
-                new SettableLeaderRetrievalService());
+        highAvailabilityServices =
+                TestingHighAvailabilityServices.newBuilder()
+                        .setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService())
+                        .build();
     }
 
     @After

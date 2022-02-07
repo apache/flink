@@ -77,6 +77,7 @@ import java.util.stream.StreamSupport;
 
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.hamcrest.core.IsCollectionContaining.hasItem;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -85,8 +86,6 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
 
     private static final Time timeout = Time.seconds(10L);
 
-    private final TestingHighAvailabilityServices haServices =
-            new TestingHighAvailabilityServices();
     private final SettableLeaderRetrievalService jobManagerLeaderRetriever =
             new SettableLeaderRetrievalService();
     private final SettableLeaderRetrievalService resourceManagerLeaderRetriever =
@@ -101,10 +100,19 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
     public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource =
             new TestingFatalErrorHandlerResource();
 
+    private TestingHighAvailabilityServices haServices;
+
     @Before
     public void setup() {
-        haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
-        haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetriever);
+        haServices =
+                TestingHighAvailabilityServices.newBuilder()
+                        .setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever)
+                        .setJobMasterLeaderRetrieverFunction(
+                                jobId -> {
+                                    assertEquals(this.jobId, jobId);
+                                    return jobManagerLeaderRetriever;
+                                })
+                        .build();
     }
 
     @After

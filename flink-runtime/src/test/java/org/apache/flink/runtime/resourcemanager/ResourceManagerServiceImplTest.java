@@ -63,7 +63,6 @@ public class ResourceManagerServiceImplTest extends TestLogger {
     private static final MetricRegistry metricRegistry = TestingMetricRegistry.builder().build();
 
     private static TestingRpcService rpcService;
-    private static TestingHighAvailabilityServices haService;
     private static TestingFatalErrorHandler fatalErrorHandler;
 
     private TestingResourceManagerFactory.Builder rmFactoryBuilder;
@@ -71,11 +70,11 @@ public class ResourceManagerServiceImplTest extends TestLogger {
     private ResourceManagerServiceImpl resourceManagerService;
 
     private Properties sysProps;
+    private TestingHighAvailabilityServices haService;
 
     @BeforeClass
     public static void setupClass() {
         rpcService = new TestingRpcService();
-        haService = new TestingHighAvailabilityServices();
         fatalErrorHandler = new TestingFatalErrorHandler();
     }
 
@@ -89,7 +88,10 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         rmFactoryBuilder = new TestingResourceManagerFactory.Builder();
 
         leaderElectionService = new TestingLeaderElectionService();
-        haService.setResourceManagerLeaderElectionService(leaderElectionService);
+        haService =
+                TestingHighAvailabilityServices.newBuilder()
+                        .setResourceManagerLeaderElectionService(leaderElectionService)
+                        .build();
     }
 
     @After

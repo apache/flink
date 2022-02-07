@@ -72,8 +72,6 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
     private final HeartbeatServices heartbeatServices =
             new HeartbeatServices(Integer.MAX_VALUE, Integer.MAX_VALUE);
 
-    private final TestingHighAvailabilityServices haServices =
-            new TestingHighAvailabilityServices();
     private final SettableLeaderRetrievalService resourceManagerLeaderRetriever =
             new SettableLeaderRetrievalService();
     private final TestingLeaderElectionService resourceManagerLeaderElectionService =
@@ -87,11 +85,17 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
     public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource =
             new TestingFatalErrorHandlerResource();
 
+    private TestingHighAvailabilityServices haServices;
+
     @Before
     public void setup() {
-        haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
-        haServices.setResourceManagerLeaderElectionService(resourceManagerLeaderElectionService);
-        haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
+        haServices =
+                TestingHighAvailabilityServices.newBuilder()
+                        .setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever)
+                        .setResourceManagerLeaderElectionService(
+                                resourceManagerLeaderElectionService)
+                        .setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory())
+                        .build();
     }
 
     /** Tests how the job master handles unknown/missing executions. */

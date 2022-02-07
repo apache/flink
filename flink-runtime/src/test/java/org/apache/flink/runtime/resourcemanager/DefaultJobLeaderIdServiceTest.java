@@ -67,12 +67,16 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
         final JobID jobId = new JobID();
         final String address = "foobar";
         final JobMasterId leaderId = JobMasterId.generate();
-        TestingHighAvailabilityServices highAvailabilityServices =
-                new TestingHighAvailabilityServices();
-        SettableLeaderRetrievalService leaderRetrievalService =
+        final SettableLeaderRetrievalService leaderRetrievalService =
                 new SettableLeaderRetrievalService(null, null);
-
-        highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
+        final TestingHighAvailabilityServices highAvailabilityServices =
+                TestingHighAvailabilityServices.newBuilder()
+                        .setJobMasterLeaderRetrieverFunction(
+                                innerJobId -> {
+                                    assertEquals(jobId, innerJobId);
+                                    return leaderRetrievalService;
+                                })
+                        .build();
 
         ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
         Time timeout = Time.milliseconds(5000L);
@@ -99,12 +103,16 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
     @Test(timeout = 10000)
     public void testRemovingJob() throws Exception {
         final JobID jobId = new JobID();
-        TestingHighAvailabilityServices highAvailabilityServices =
-                new TestingHighAvailabilityServices();
-        SettableLeaderRetrievalService leaderRetrievalService =
+        final SettableLeaderRetrievalService leaderRetrievalService =
                 new SettableLeaderRetrievalService(null, null);
-
-        highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
+        final TestingHighAvailabilityServices highAvailabilityServices =
+                TestingHighAvailabilityServices.newBuilder()
+                        .setJobMasterLeaderRetrieverFunction(
+                                innerJobId -> {
+                                    assertEquals(jobId, innerJobId);
+                                    return leaderRetrievalService;
+                                })
+                        .build();
 
         ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
         Time timeout = Time.milliseconds(5000L);
@@ -140,12 +148,16 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
     @Test
     public void testInitialJobTimeout() throws Exception {
         final JobID jobId = new JobID();
-        TestingHighAvailabilityServices highAvailabilityServices =
-                new TestingHighAvailabilityServices();
-        SettableLeaderRetrievalService leaderRetrievalService =
+        final SettableLeaderRetrievalService leaderRetrievalService =
                 new SettableLeaderRetrievalService(null, null);
-
-        highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
+        final TestingHighAvailabilityServices highAvailabilityServices =
+                TestingHighAvailabilityServices.newBuilder()
+                        .setJobMasterLeaderRetrieverFunction(
+                                innerJobId -> {
+                                    assertEquals(jobId, innerJobId);
+                                    return leaderRetrievalService;
+                                })
+                        .build();
 
         ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
         Time timeout = Time.milliseconds(5000L);
@@ -184,12 +196,16 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
         final JobID jobId = new JobID();
         final String address = "foobar";
         final JobMasterId leaderId = JobMasterId.generate();
-        TestingHighAvailabilityServices highAvailabilityServices =
-                new TestingHighAvailabilityServices();
-        SettableLeaderRetrievalService leaderRetrievalService =
+        final SettableLeaderRetrievalService leaderRetrievalService =
                 new SettableLeaderRetrievalService(null, null);
-
-        highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
+        final TestingHighAvailabilityServices highAvailabilityServices =
+                TestingHighAvailabilityServices.newBuilder()
+                        .setJobMasterLeaderRetrieverFunction(
+                                innerJobId -> {
+                                    assertEquals(jobId, innerJobId);
+                                    return leaderRetrievalService;
+                                })
+                        .build();
 
         ScheduledFuture<?> timeout1 = mock(ScheduledFuture.class);
         ScheduledFuture<?> timeout2 = mock(ScheduledFuture.class);
@@ -287,12 +303,16 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
     @Test(timeout = 10000)
     public void testLeaderFutureWaitsForValidLeader() throws Exception {
         final JobID jobId = new JobID();
-        TestingHighAvailabilityServices highAvailabilityServices =
-                new TestingHighAvailabilityServices();
-        SettableLeaderRetrievalService leaderRetrievalService =
+        final SettableLeaderRetrievalService leaderRetrievalService =
                 new SettableLeaderRetrievalService(null, null);
-
-        highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
+        final TestingHighAvailabilityServices highAvailabilityServices =
+                TestingHighAvailabilityServices.newBuilder()
+                        .setJobMasterLeaderRetrieverFunction(
+                                innerJobId -> {
+                                    assertEquals(jobId, innerJobId);
+                                    return leaderRetrievalService;
+                                })
+                        .build();
 
         JobLeaderIdService jobLeaderIdService =
                 new DefaultJobLeaderIdService(
@@ -324,11 +344,17 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
     @Test
     public void testIsStarted() throws Exception {
         final JobID jobId = new JobID();
-        TestingHighAvailabilityServices highAvailabilityServices =
-                new TestingHighAvailabilityServices();
-        SettableLeaderRetrievalService leaderRetrievalService =
+        final SettableLeaderRetrievalService leaderRetrievalService =
                 new SettableLeaderRetrievalService(null, null);
-        highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
+        final TestingHighAvailabilityServices highAvailabilityServices =
+                TestingHighAvailabilityServices.newBuilder()
+                        .setJobMasterLeaderRetrieverFunction(
+                                innerJobId -> {
+                                    assertEquals(jobId, innerJobId);
+                                    return leaderRetrievalService;
+                                })
+                        .build();
+
         ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
         Time timeout = Time.milliseconds(5000L);
         JobLeaderIdActions jobLeaderIdActions = mock(JobLeaderIdActions.class);

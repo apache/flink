@@ -181,7 +181,7 @@ class TestingDispatcher extends Dispatcher {
         private Collection<JobGraph> recoveredJobs = Collections.emptyList();
         private Collection<JobResult> recoveredDirtyJobs = Collections.emptyList();
         private HighAvailabilityServices highAvailabilityServices =
-                new TestingHighAvailabilityServices();
+                TestingHighAvailabilityServices.newBuilder().build();
 
         private TestingResourceManagerGateway resourceManagerGateway =
                 new TestingResourceManagerGateway();

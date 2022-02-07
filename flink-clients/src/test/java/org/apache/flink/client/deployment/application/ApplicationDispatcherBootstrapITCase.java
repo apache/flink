@@ -43,6 +43,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
@@ -182,14 +183,10 @@ public class ApplicationDispatcherBootstrapITCase {
                 new JobResultEntry(
                         TestingJobResultStore.createSuccessfulJobResult(
                                 ApplicationDispatcherBootstrap.ZERO_JOB_ID)));
-        final EmbeddedHaServicesWithLeadershipControl haServices =
-                new EmbeddedHaServicesWithLeadershipControl(TestingUtils.defaultExecutor()) {
-
-                    @Override
-                    public JobResultStore getJobResultStore() {
-                        return jobResultStore;
-                    }
-                };
+        final TestingHighAvailabilityServices haServices =
+                TestingHighAvailabilityServices.newEmbeddedBuilder(TestingUtils.defaultExecutor())
+                        .setJobResultStore(jobResultStore)
+                        .build();
 
         final TestingMiniCluster.Builder clusterBuilder =
                 TestingMiniCluster.newBuilder(clusterConfiguration)

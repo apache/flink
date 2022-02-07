@@ -25,7 +25,7 @@ import org.apache.flink.runtime.blob.TestingBlobStoreBuilder;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
@@ -81,7 +81,7 @@ public class TestingPartialDispatcherServices extends PartialDispatcherServices 
     public static class Builder {
 
         private HighAvailabilityServices highAvailabilityServices =
-                new TestingHighAvailabilityServicesBuilder().build();
+                TestingHighAvailabilityServices.newStandaloneBuilder().build();
         private GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever =
                 CompletableFuture::new;
         private BlobStore blobStore = new TestingBlobStoreBuilder().createTestingBlobStore();

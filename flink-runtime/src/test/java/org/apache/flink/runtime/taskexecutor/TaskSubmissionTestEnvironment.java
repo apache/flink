@@ -114,9 +114,19 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
             ShuffleEnvironment<?, ?> shuffleEnvironment)
             throws Exception {
 
-        this.haServices = new TestingHighAvailabilityServices();
-        this.haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
-        this.haServices.setJobMasterLeaderRetriever(jobId, new SettableLeaderRetrievalService());
+        this.haServices =
+                TestingHighAvailabilityServices.newBuilder()
+                        .setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService())
+                        .setJobMasterLeaderRetrieverFunction(
+                                innerJobId -> {
+                                    if (!jobId.equals(innerJobId)) {
+                                        throw new IllegalArgumentException(
+                                                String.format(
+                                                        "Expected %s, got %s.", jobId, innerJobId));
+                                    }
+                                    return new SettableLeaderRetrievalService();
+                                })
+                        .build();
 
         this.temporaryFolder = new TemporaryFolder();
         this.temporaryFolder.create();

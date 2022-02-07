@@ -31,7 +31,6 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
 import org.apache.flink.runtime.io.network.partition.TestingTaskExecutorPartitionTracker;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
@@ -127,7 +126,7 @@ public class TaskExecutorSlotLifetimeTest extends TestLogger {
                         jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
 
         final TestingHighAvailabilityServices haServices =
-                new TestingHighAvailabilityServicesBuilder()
+                TestingHighAvailabilityServices.newStandaloneBuilder()
                         .setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever)
                         .setJobMasterLeaderRetrieverFunction(ignored -> jobMasterLeaderRetriever)
                         .build();

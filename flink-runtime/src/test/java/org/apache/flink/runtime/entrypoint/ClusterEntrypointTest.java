@@ -34,7 +34,7 @@ import org.apache.flink.runtime.dispatcher.runner.TestingDispatcherRunner;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
@@ -103,7 +103,7 @@ public class ClusterEntrypointTest extends TestLogger {
         final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         final CompletableFuture<Void> closeAndCleanupAllDataFuture = new CompletableFuture<>();
         final HighAvailabilityServices testingHaService =
-                new TestingHighAvailabilityServicesBuilder()
+                TestingHighAvailabilityServices.newStandaloneBuilder()
                         .setCloseFuture(closeFuture)
                         .setCloseAndCleanupAllDataFuture(closeAndCleanupAllDataFuture)
                         .build();
@@ -156,7 +156,7 @@ public class ClusterEntrypointTest extends TestLogger {
                 new CompletableFuture<>();
 
         final HighAvailabilityServices testingHaService =
-                new TestingHighAvailabilityServicesBuilder()
+                TestingHighAvailabilityServices.newStandaloneBuilder()
                         .setCloseAndCleanupAllDataFuture(closeAndCleanupAllDataFuture)
                         .build();
         final TestingResourceManagerFactory testingResourceManagerFactory =
@@ -366,7 +366,7 @@ public class ClusterEntrypointTest extends TestLogger {
 
         public static final class Builder {
             private HighAvailabilityServices haService =
-                    new TestingHighAvailabilityServicesBuilder().build();
+                    TestingHighAvailabilityServices.newStandaloneBuilder().build();
 
             private ResourceManagerFactory<ResourceID> resourceManagerFactory =
                     StandaloneResourceManagerFactory.getInstance();

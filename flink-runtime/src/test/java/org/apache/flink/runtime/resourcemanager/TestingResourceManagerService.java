@@ -172,8 +172,8 @@ public class TestingResourceManagerService implements ResourceManagerService {
                             ? rmLeaderElectionService
                             : new TestingLeaderElectionService();
 
-            final TestingHighAvailabilityServices haServices =
-                    new TestingHighAvailabilityServices();
+            final TestingHighAvailabilityServices.EmptyBuilder haServices =
+                    TestingHighAvailabilityServices.newBuilder();
             haServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
             if (jmLeaderRetrieverFunction != null) {
                 haServices.setJobMasterLeaderRetrieverFunction(jmLeaderRetrieverFunction);
@@ -187,7 +187,7 @@ public class TestingResourceManagerService implements ResourceManagerService {
                             new Configuration(),
                             ResourceID.generate(),
                             rpcService,
-                            haServices,
+                            haServices.build(),
                             new TestingHeartbeatServices(),
                             fatalErrorHandler,
                             new ClusterInformation("localhost", 1234),

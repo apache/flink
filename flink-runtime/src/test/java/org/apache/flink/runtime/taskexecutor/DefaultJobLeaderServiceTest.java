@@ -23,7 +23,6 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationRejection;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -76,7 +75,7 @@ public class DefaultJobLeaderServiceTest extends TestLogger {
                 new ArrayBlockingQueue<>(numberOperations);
 
         final HighAvailabilityServices haServices =
-                new TestingHighAvailabilityServicesBuilder()
+                TestingHighAvailabilityServices.newStandaloneBuilder()
                         .setJobMasterLeaderRetrieverFunction(
                                 leaderForJobId -> {
                                     final SettableLeaderRetrievalService leaderRetrievalService =
@@ -124,7 +123,7 @@ public class DefaultJobLeaderServiceTest extends TestLogger {
         final SettableLeaderRetrievalService leaderRetrievalService =
                 new SettableLeaderRetrievalService();
         final TestingHighAvailabilityServices haServices =
-                new TestingHighAvailabilityServicesBuilder()
+                TestingHighAvailabilityServices.newStandaloneBuilder()
                         .setJobMasterLeaderRetrieverFunction(ignored -> leaderRetrievalService)
                         .build();
         final TestingJobMasterGateway jobMasterGateway = registerJobMaster();
@@ -164,7 +163,7 @@ public class DefaultJobLeaderServiceTest extends TestLogger {
         final SettableLeaderRetrievalService leaderRetrievalService =
                 new SettableLeaderRetrievalService();
         final TestingHighAvailabilityServices haServices =
-                new TestingHighAvailabilityServicesBuilder()
+                TestingHighAvailabilityServices.newStandaloneBuilder()
                         .setJobMasterLeaderRetrieverFunction(ignored -> leaderRetrievalService)
                         .build();
 
@@ -207,7 +206,7 @@ public class DefaultJobLeaderServiceTest extends TestLogger {
         final FailingSettableLeaderRetrievalService leaderRetrievalService =
                 new FailingSettableLeaderRetrievalService();
         final TestingHighAvailabilityServices haServices =
-                new TestingHighAvailabilityServicesBuilder()
+                TestingHighAvailabilityServices.newStandaloneBuilder()
                         .setJobMasterLeaderRetrieverFunction(ignored -> leaderRetrievalService)
                         .build();
 
@@ -248,7 +247,7 @@ public class DefaultJobLeaderServiceTest extends TestLogger {
         final SettableLeaderRetrievalService leaderRetrievalService =
                 new SettableLeaderRetrievalService();
         final TestingHighAvailabilityServices haServices =
-                new TestingHighAvailabilityServicesBuilder()
+                TestingHighAvailabilityServices.newStandaloneBuilder()
                         .setJobMasterLeaderRetrieverFunction(ignored -> leaderRetrievalService)
                         .build();
 
