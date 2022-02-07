@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -156,4 +157,19 @@ public interface StatementSet {
      * {@link TableConfigOptions#TABLE_DML_SYNC} for always synchronous execution.
      */
     TableResult execute();
+
+    /**
+     * Compile this {@link StatementSet} into a {@link CompiledPlan}.
+     *
+     * <p>Compiled plans can be persisted and reloaded across Flink versions. They describe static
+     * pipelines to ensure backwards compatibility and enable stateful streaming job upgrades. See
+     * {@link CompiledPlan} and the website documentation for more information.
+     *
+     * @throws TableException if any of the statements is invalid or if the plan cannot be
+     *     persisted.
+     * @throws UnsupportedOperationException if the {@link EnvironmentSettings} is configured in
+     *     batch mode.
+     */
+    @Experimental
+    CompiledPlan compilePlan() throws TableException;
 }
