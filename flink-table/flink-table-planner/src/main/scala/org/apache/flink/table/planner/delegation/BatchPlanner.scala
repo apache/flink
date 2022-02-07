@@ -133,15 +133,15 @@ class BatchPlanner(
     new BatchPlanner(executor, config, moduleManager, functionCatalog, catalogManager)
   }
 
-  override def compile(modifyOperations: util.List[ModifyOperation]): CompiledPlan =
+  override def compilePlan(modifyOperations: util.List[ModifyOperation]): CompiledPlan =
     throw new UnsupportedOperationException(
       "The batch planner doesn't support the persisted plan feature.")
 
-  override def translate(plan: CompiledPlan): util.List[Transformation[_]] =
+  override def translatePlan(plan: CompiledPlan): util.List[Transformation[_]] =
     throw new UnsupportedOperationException(
       "The batch planner doesn't support the persisted plan feature.")
 
-  override def explain(plan: CompiledPlan, extraDetails: ExplainDetail*): String =
+  override def explainPlan(plan: CompiledPlan, extraDetails: ExplainDetail*): String =
     throw new UnsupportedOperationException(
       "The batch planner doesn't support the persisted plan feature.")
 

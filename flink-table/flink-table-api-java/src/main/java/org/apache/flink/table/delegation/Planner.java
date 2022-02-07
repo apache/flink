@@ -89,17 +89,17 @@ public interface Planner {
      */
     String explain(List<Operation> operations, ExplainDetail... extraDetails);
 
-    // FLIP-190 methods
+    // --- Plan compilation and restore
 
     @Experimental
-    CompiledPlan load(PlanReference planReference) throws IOException;
+    CompiledPlan loadPlan(PlanReference planReference) throws IOException;
 
     @Experimental
-    CompiledPlan compile(List<ModifyOperation> modifyOperations);
+    CompiledPlan compilePlan(List<ModifyOperation> modifyOperations);
 
     @Experimental
-    List<Transformation<?>> translate(CompiledPlan plan);
+    List<Transformation<?>> translatePlan(CompiledPlan plan);
 
     @Experimental
-    String explain(CompiledPlan plan, ExplainDetail... extraDetails);
+    String explainPlan(CompiledPlan plan, ExplainDetail... extraDetails);
 }

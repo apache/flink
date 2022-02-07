@@ -759,7 +759,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public CompiledPlan loadPlan(PlanReference planReference) throws IOException {
-        return planner.load(planReference);
+        return planner.loadPlan(planReference);
     }
 
     @Override
@@ -770,12 +770,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             throw new TableException(UNSUPPORTED_QUERY_IN_COMPILE_PLAN_SQL_MSG);
         }
 
-        return planner.compile(Collections.singletonList((ModifyOperation) operations.get(0)));
+        return planner.compilePlan(Collections.singletonList((ModifyOperation) operations.get(0)));
     }
 
     @Override
     public TableResult executePlan(CompiledPlan plan) {
-        List<Transformation<?>> transformations = planner.translate(plan);
+        List<Transformation<?>> transformations = planner.translatePlan(plan);
         List<String> sinkIdentifierNames = new ArrayList<>();
         for (int i = 0; i < transformations.size(); ++i) {
             // TODO serialize the sink table names to json plan ?
@@ -786,7 +786,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public CompiledPlan compilePlan(List<ModifyOperation> operations) {
-        return planner.compile(operations);
+        return planner.compilePlan(operations);
     }
 
     @Override
@@ -1898,6 +1898,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public String explainPlan(CompiledPlan compiledPlan, ExplainDetail... extraDetails) {
-        return planner.explain(compiledPlan, extraDetails);
+        return planner.explainPlan(compiledPlan, extraDetails);
     }
 }

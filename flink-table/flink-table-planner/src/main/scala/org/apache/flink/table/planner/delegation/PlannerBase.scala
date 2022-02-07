@@ -471,7 +471,7 @@ abstract class PlannerBase(
     }
   }
 
-  override def load(planReference: PlanReference): CompiledPlan = {
+  override def loadPlan(planReference: PlanReference): CompiledPlan = {
     val ctx = createSerdeContext
     val objectReader: ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
     val execNodeGraph = planReference match {

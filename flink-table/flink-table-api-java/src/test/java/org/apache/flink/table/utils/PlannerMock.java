@@ -49,22 +49,22 @@ public class PlannerMock implements Planner {
     }
 
     @Override
-    public CompiledPlan load(PlanReference planReference) throws IOException {
+    public CompiledPlan loadPlan(PlanReference planReference) throws IOException {
         return null;
     }
 
     @Override
-    public CompiledPlan compile(List<ModifyOperation> modifyOperations) {
+    public CompiledPlan compilePlan(List<ModifyOperation> modifyOperations) {
         return null;
     }
 
     @Override
-    public List<Transformation<?>> translate(CompiledPlan plan) {
+    public List<Transformation<?>> translatePlan(CompiledPlan plan) {
         return null;
     }
 
     @Override
-    public String explain(CompiledPlan plan, ExplainDetail... extraDetails) {
+    public String explainPlan(CompiledPlan plan, ExplainDetail... extraDetails) {
         return null;
     }
 }
