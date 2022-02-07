@@ -447,16 +447,13 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             int sinkParallelism,
             Configuration config) {
         TransformationMetadata sinkMeta = createTransformationMeta(SINK_TRANSFORMATION, config);
-        String sinkDescription = createTransformationDescription(config);
         if (runtimeProvider instanceof DataStreamSinkProvider) {
             Transformation<RowData> sinkTransformation =
                     applyRowtimeTransformation(
                             inputTransform, rowtimeFieldIndex, sinkParallelism, config);
             final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
             final DataStreamSinkProvider provider = (DataStreamSinkProvider) runtimeProvider;
-            return provider.consumeDataStream(dataStream)
-                    .uid(sinkMeta.getUid())
-                    .getTransformation();
+            return provider.consumeDataStream(dataStream).getTransformation();
         } else if (runtimeProvider instanceof TransformationSinkProvider) {
             final TransformationSinkProvider provider =
                     (TransformationSinkProvider) runtimeProvider;
@@ -464,7 +461,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                     provider.createTransformation(
                             TransformationSinkProvider.Context.of(
                                     inputTransform, rowtimeFieldIndex));
-            transformation.setUid(sinkMeta.getUid());
             return transformation;
         } else if (runtimeProvider instanceof SinkFunctionProvider) {
             final SinkFunction<RowData> sinkFunction =
