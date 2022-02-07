@@ -80,9 +80,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBase {
 
-    public static final String FIELD_NAME_LOCAL_AGG_INPUT_ROW_TYPE = "localAggInputRowType";
-
     public static final String GLOBAL_WINDOW_AGGREGATE_TRANSFORMATION = "global-window-aggregate";
+
+    public static final String FIELD_NAME_LOCAL_AGG_INPUT_ROW_TYPE = "localAggInputRowType";
 
     @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
