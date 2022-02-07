@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.source.coordinator;
 
+import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
@@ -26,7 +27,6 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.operators.coordination.EventReceivingTasks;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
-import org.apache.flink.runtime.source.coordinator.SourceCoordinator.WatermarkAlignmentParams;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -149,7 +149,7 @@ public abstract class SourceCoordinatorTestBase {
     // ------------------------------------------------------------------------
 
     protected SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>> getNewSourceCoordinator() {
-        return getNewSourceCoordinator(SourceCoordinator.WATERMARK_ALIGNMENT_DISABLED);
+        return getNewSourceCoordinator(WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
     }
 
     protected SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>> getNewSourceCoordinator(

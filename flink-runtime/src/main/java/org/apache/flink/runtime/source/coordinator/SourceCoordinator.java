@@ -21,6 +21,7 @@ package org.apache.flink.runtime.source.coordinator;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceEvent;
@@ -84,9 +85,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         implements OperatorCoordinator {
-    public static final WatermarkAlignmentParams WATERMARK_ALIGNMENT_DISABLED =
-            new WatermarkAlignmentParams(Long.MAX_VALUE, "", 0);
-
     private static final Logger LOG = LoggerFactory.getLogger(SourceCoordinator.class);
 
     private final WatermarkAggregator<Integer> combinedWatermark = new WatermarkAggregator<>();
@@ -125,7 +123,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                 source,
                 context,
                 coordinatorStore,
-                WATERMARK_ALIGNMENT_DISABLED);
+                WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
     }
 
     public SourceCoordinator(
@@ -145,22 +143,23 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
         if (watermarkAlignmentParams.isEnabled()) {
             coordinatorStore.putIfAbsent(
-                    watermarkAlignmentParams.watermarkGroup, new WatermarkAggregator<>());
+                    watermarkAlignmentParams.getWatermarkGroup(), new WatermarkAggregator<>());
             coordinatorExecutor.scheduleAtFixedRate(
                     this::announceCombinedWatermark,
-                    watermarkAlignmentParams.updateInterval,
-                    watermarkAlignmentParams.updateInterval,
+                    watermarkAlignmentParams.getUpdateInterval(),
+                    watermarkAlignmentParams.getUpdateInterval(),
                     TimeUnit.MILLISECONDS);
         }
     }
 
     @VisibleForTesting
     void announceCombinedWatermark() {
-        checkState(watermarkAlignmentParams != WATERMARK_ALIGNMENT_DISABLED);
+        checkState(
+                watermarkAlignmentParams != WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
 
         Watermark globalCombinedWatermark =
                 coordinatorStore.apply(
-                        watermarkAlignmentParams.watermarkGroup,
+                        watermarkAlignmentParams.getWatermarkGroup(),
                         (value) -> {
                             WatermarkAggregator aggregator = (WatermarkAggregator) value;
                             return new Watermark(
@@ -169,7 +168,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
         long maxAllowedWatermark =
                 globalCombinedWatermark.getTimestamp()
-                        + watermarkAlignmentParams.maxAllowedWatermarkDrift;
+                        + watermarkAlignmentParams.getMaxAllowedWatermarkDrift();
         Set<Integer> subTaskIds = combinedWatermark.keySet();
         LOG.info(
                 "Distributing maxAllowedWatermark={} to subTaskIds={}",
@@ -522,7 +521,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                 .ifPresent(
                         newCombinedWatermark ->
                                 coordinatorStore.computeIfPresent(
-                                        watermarkAlignmentParams.watermarkGroup,
+                                        watermarkAlignmentParams.getWatermarkGroup(),
                                         (key, oldValue) -> {
                                             WatermarkAggregator<String> watermarkAggregator =
                                                     (WatermarkAggregator<String>) oldValue;
@@ -568,28 +567,6 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
         public Watermark getAggregatedWatermark() {
             return aggregatedWatermark;
-        }
-    }
-
-    /** Configuration parameters for watermark alignemnt. */
-    public static class WatermarkAlignmentParams {
-        private final long maxAllowedWatermarkDrift;
-        private final String watermarkGroup;
-        private final long updateInterval;
-
-        public WatermarkAlignmentParams(
-                long maxAllowedWatermarkDrift, String watermarkGroup, long updateInterval) {
-            this.maxAllowedWatermarkDrift = maxAllowedWatermarkDrift;
-            this.watermarkGroup = watermarkGroup;
-            this.updateInterval = updateInterval;
-        }
-
-        public boolean isEnabled() {
-            return maxAllowedWatermarkDrift < Long.MAX_VALUE;
-        }
-
-        public long getUpdateInterval() {
-            return updateInterval;
         }
     }
 }
