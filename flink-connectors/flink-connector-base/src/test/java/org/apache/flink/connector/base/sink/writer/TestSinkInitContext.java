@@ -48,6 +48,24 @@ public class TestSinkInitContext implements Sink.InitContext {
     private final SinkWriterMetricGroup metricGroup =
             InternalSinkWriterMetricGroup.mock(
                     metricListener.getMetricGroup(), operatorIOMetricGroup);
+    StreamTaskActionExecutor streamTaskActionExecutor =
+            new StreamTaskActionExecutor() {
+                @Override
+                public void run(RunnableWithException e) throws Exception {
+                    e.run();
+                }
+
+                @Override
+                public <E extends Throwable> void runThrowing(ThrowingRunnable<E> throwingRunnable)
+                        throws E {
+                    throwingRunnable.run();
+                }
+
+                @Override
+                public <R> R call(Callable<R> callable) throws Exception {
+                    return callable.call();
+                }
+            };
 
     static {
         processingTimeService = new TestProcessingTimeService();
@@ -60,24 +78,6 @@ public class TestSinkInitContext implements Sink.InitContext {
 
     @Override
     public MailboxExecutor getMailboxExecutor() {
-        StreamTaskActionExecutor streamTaskActionExecutor =
-                new StreamTaskActionExecutor() {
-                    @Override
-                    public void run(RunnableWithException e) throws Exception {
-                        e.run();
-                    }
-
-                    @Override
-                    public <E extends Throwable> void runThrowing(
-                            ThrowingRunnable<E> throwingRunnable) throws E {
-                        throwingRunnable.run();
-                    }
-
-                    @Override
-                    public <R> R call(Callable<R> callable) throws Exception {
-                        return callable.call();
-                    }
-                };
         return new MailboxExecutorImpl(
                 new TaskMailboxImpl(Thread.currentThread()),
                 Integer.MAX_VALUE,

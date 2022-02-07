@@ -20,13 +20,13 @@ package org.apache.flink.connector.firehose.sink;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
+import org.apache.flink.connector.aws.testutils.AWSServicesTestUtils;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.connector.base.sink.writer.TestSinkInitContext;
 
 import org.junit.Before;
 import org.junit.Test;
 import software.amazon.awssdk.core.SdkBytes;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.firehose.model.Record;
 
 import java.io.IOException;
@@ -35,7 +35,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Properties;
 
-import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ENDPOINT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Covers construction, defaults and sanity checking of {@link KinesisFirehoseSinkWriter}. */
@@ -76,17 +75,14 @@ public class KinesisFirehoseSinkWriterTest {
                 .isEqualTo(testString.getBytes(StandardCharsets.US_ASCII).length);
     }
 
-    @Test
+    @Test(expected = KinesisFirehoseException.KinesisFirehoseFailFastException.class)
     public void getNumRecordsOutErrorsCounterRecordsCorrectNumberOfFailures()
             throws IOException, InterruptedException {
-        Properties prop = new Properties();
-        prop.setProperty(AWSConfigConstants.AWS_REGION, Region.EU_WEST_1.toString());
-        prop.setProperty(AWS_ENDPOINT, "https://fake_aws_endpoint");
         TestSinkInitContext ctx = new TestSinkInitContext();
         KinesisFirehoseSink<String> kinesisFirehoseSink =
                 new KinesisFirehoseSink<>(
                         ELEMENT_CONVERTER_PLACEHOLDER,
-                        6,
+                        12,
                         16,
                         10000,
                         4 * 1024 * 1024L,
@@ -94,13 +90,14 @@ public class KinesisFirehoseSinkWriterTest {
                         1000 * 1024L,
                         true,
                         "test-stream",
-                        prop);
+                        AWSServicesTestUtils.createConfig("https://localhost"));
         SinkWriter<String, Void, Collection<Record>> writer =
                 kinesisFirehoseSink.createWriter(ctx, new ArrayList<>());
 
         for (int i = 0; i < 12; i++) {
             writer.write("data_bytes", null);
         }
+        writer.prepareCommit(true);
 
         assertThat(ctx.metricGroup().getNumRecordsOutErrorsCounter().getCount()).isEqualTo(12);
     }

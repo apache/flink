@@ -50,11 +50,13 @@ public class AsyncSinkWriterTest {
 
     private final List<Integer> res = new ArrayList<>();
     private TestSinkInitContext sinkInitContext;
+    private TestSinkInitContextAnyThreadMailbox sinkInitContextAnyThreadMailbox;
 
     @Before
     public void before() {
         res.clear();
         sinkInitContext = new TestSinkInitContext();
+        sinkInitContextAnyThreadMailbox = new TestSinkInitContextAnyThreadMailbox();
     }
 
     private void performNormalWriteOfEightyRecordsToMock()
@@ -283,10 +285,10 @@ public class AsyncSinkWriterTest {
                 sink, "965", Arrays.asList(25, 55), Arrays.asList());
 
         writeXToSinkAssertDestinationIsInStateYAndBufferHasZ(
-                sink, "75", Arrays.asList(25, 55), Arrays.asList(75));
+                sink, "75", Arrays.asList(25, 55), Arrays.asList(965, 75));
 
         writeXToSinkAssertDestinationIsInStateYAndBufferHasZ(
-                sink, "95", Arrays.asList(25, 55), Arrays.asList(75, 95));
+                sink, "95", Arrays.asList(25, 55, 965, 75, 95), Arrays.asList());
 
         /*
          * Writing 955 to the sink increases the buffer to size 3 containing [75, 95, 955]. This
@@ -307,14 +309,17 @@ public class AsyncSinkWriterTest {
                 sink, "45", Arrays.asList(25, 55, 965, 75, 95, 45), Arrays.asList());
 
         writeXToSinkAssertDestinationIsInStateYAndBufferHasZ(
-                sink, "35", Arrays.asList(25, 55, 965, 75, 95, 45), Arrays.asList(35));
+                sink, "35", Arrays.asList(25, 55, 965, 75, 95, 45, 955, 550, 35), Arrays.asList());
 
         /* [35, 535] should be in the bufferedRequestEntries
          * [955, 550] should be in the inFlightRequest, ready to be added
          * [25, 55, 965, 75, 95, 45] should be downstream already
          */
         writeXToSinkAssertDestinationIsInStateYAndBufferHasZ(
-                sink, "535", Arrays.asList(25, 55, 965, 75, 95, 45), Arrays.asList(35, 535));
+                sink,
+                "535",
+                Arrays.asList(25, 55, 965, 75, 95, 45, 955, 550, 35),
+                Arrays.asList(535));
 
         // Checkpoint occurs
         sink.prepareCommit(true);
@@ -325,8 +330,9 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testFailedEntriesAreRetriedInTheNextPossiblePersistRequestAndNoLater()
-            throws IOException, InterruptedException {
+    public void
+            testFailedEntriesAreRetriedInTheNextPossiblePersistRequestIfPrepareCommitIsTriggered()
+                    throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
@@ -335,27 +341,43 @@ public class AsyncSinkWriterTest {
                         .maxBufferedRequests(100)
                         .simulateFailures(true)
                         .build();
+        testFailedEntriesAreRetriedInTheNextPossiblePersistRequestAndNoLater(sink);
+    }
 
+    @Test
+    public void testFailedEntriesAreRetriedInTheNextPossiblePersistRequestIfBufferFillsToFull()
+            throws IOException, InterruptedException {
+        AsyncSinkWriterImpl sink =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(3)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(8)
+                        .simulateFailures(true)
+                        .build();
+        testFailedEntriesAreRetriedInTheNextPossiblePersistRequestAndNoLater(sink);
+    }
+
+    private void testFailedEntriesAreRetriedInTheNextPossiblePersistRequestAndNoLater(
+            AsyncSinkWriterImpl sink) throws IOException, InterruptedException {
         sink.write("25");
         sink.write("55");
-        sink.write("965");
+        sink.write("965"); // Flush, 25, 55 succeeds, 965 fails and is moved in flight
         sink.write("75");
         sink.write("95");
         sink.write("955");
-        assertTrue(res.contains(965));
+        // Buffer has filled up to size 3, does not flush since there is an in flight request and
+        // the buffer still has space - in terms of both number of records and bytes
         sink.write("550");
         sink.write("645");
         sink.write("545");
         sink.write("535");
         sink.write("515");
-        assertTrue(res.contains(955));
         sink.write("505");
-        assertTrue(res.contains(550));
-        assertTrue(res.contains(645));
+        // Buffer continues to fill up without blocking on write, until eventually yield is called
+        // on the mailbox thread during the prepare commit
         sink.prepareCommit(true);
-        assertTrue(res.contains(545));
-        assertTrue(res.contains(535));
-        assertTrue(res.contains(515));
+        assertEquals(Arrays.asList(25, 55, 965, 75, 95, 955, 550, 645, 545, 535, 515, 505), res);
     }
 
     @Test
@@ -442,13 +464,10 @@ public class AsyncSinkWriterTest {
          * should occur once 7 elements have been written - an 8th element cannot be added since
          * that would make the buffer 32 bytes, which is over the threshold.
          */
-        for (int i = 0; i < 13; i++) {
+        for (int i = 0; i < 100; i++) {
             sink.write(String.valueOf(i));
+            assertEquals((i / 7) * 7, res.size());
         }
-        assertEquals(7, res.size());
-        sink.write(String.valueOf(13));
-        sink.write(String.valueOf(14));
-        assertEquals(14, res.size());
     }
 
     @Test
@@ -740,7 +759,7 @@ public class AsyncSinkWriterTest {
         CountDownLatch delayedStartLatch = new CountDownLatch(1);
         AsyncSinkWriterImpl sink =
                 new AsyncSinkReleaseAndBlockWriterImpl(
-                        sinkInitContext,
+                        sinkInitContextAnyThreadMailbox,
                         3,
                         1,
                         20,
@@ -776,7 +795,7 @@ public class AsyncSinkWriterTest {
         CountDownLatch delayedStartLatch = new CountDownLatch(1);
         AsyncSinkWriterImpl sink =
                 new AsyncSinkReleaseAndBlockWriterImpl(
-                        sinkInitContext,
+                        sinkInitContextAnyThreadMailbox,
                         3,
                         2,
                         20,
