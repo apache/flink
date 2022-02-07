@@ -65,11 +65,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.connector.testframe.utils.TestDataMatchers.matchesMultipleSplitTestData;
+import static org.apache.flink.connector.testframe.utils.CollectIteratorAssertions.assertThat;
 import static org.apache.flink.connector.testframe.utils.TestUtils.timeoutAssert;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.terminateJob;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForJobStatus;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /**
  * Base class for all test suites.
@@ -434,13 +433,12 @@ public abstract class SourceTestSuiteBase<T> {
                     executorService,
                     () ->
                             assertThat(resultIterator)
-                                    .satisfies(
-                                            matchesMultipleSplitTestData(
-                                                    testData, limit, semantic)),
+                                    .withNumRecordsLimit(limit)
+                                    .matchesRecordsFromSource(testData, semantic),
                     30,
                     TimeUnit.SECONDS);
         } else {
-            assertThat(resultIterator).satisfies(matchesMultipleSplitTestData(testData, semantic));
+            assertThat(resultIterator).matchesRecordsFromSource(testData, semantic);
         }
     }
 
