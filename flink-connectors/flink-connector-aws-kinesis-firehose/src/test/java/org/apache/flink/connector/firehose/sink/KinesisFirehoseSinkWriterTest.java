@@ -20,6 +20,7 @@ package org.apache.flink.connector.firehose.sink;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.connector.aws.testutils.AWSServicesTestUtils;
+import org.apache.flink.connector.aws.testutils.AWSServicesTestUtils;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.connector.base.sink.writer.TestSinkInitContext;
 
@@ -71,15 +72,14 @@ public class KinesisFirehoseSinkWriterTest {
                 .isEqualTo(testString.getBytes(StandardCharsets.US_ASCII).length);
     }
 
-    @Test
+    @Test(expected = KinesisFirehoseException.KinesisFirehoseFailFastException.class)
     public void getNumRecordsOutErrorsCounterRecordsCorrectNumberOfFailures()
             throws IOException, InterruptedException {
-        Properties prop = AWSServicesTestUtils.createConfig("https://fake_aws_endpoint");
         TestSinkInitContext ctx = new TestSinkInitContext();
         KinesisFirehoseSink<String> kinesisFirehoseSink =
                 new KinesisFirehoseSink<>(
                         ELEMENT_CONVERTER_PLACEHOLDER,
-                        6,
+                        12,
                         16,
                         10000,
                         4 * 1024 * 1024L,
@@ -87,12 +87,13 @@ public class KinesisFirehoseSinkWriterTest {
                         1000 * 1024L,
                         true,
                         "test-stream",
-                        prop);
+                        AWSServicesTestUtils.createConfig("https://localhost"));
         SinkWriter<String> writer = kinesisFirehoseSink.createWriter(ctx);
 
         for (int i = 0; i < 12; i++) {
             writer.write("data_bytes", null);
         }
+        writer.flush(true);
 
         assertThat(ctx.metricGroup().getNumRecordsOutErrorsCounter().getCount()).isEqualTo(12);
     }
