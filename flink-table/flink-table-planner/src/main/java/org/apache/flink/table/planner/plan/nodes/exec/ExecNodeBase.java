@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
+import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
@@ -163,15 +164,15 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return getClass().getSimpleName().replace("StreamExec", "").replace("BatchExec", "");
     }
 
-    public String createTransformationUid(String operatorName) {
+    protected String createTransformationUid(String operatorName) {
         return context.generateUid(operatorName);
     }
 
-    public String createTransformationName(TableConfig config) {
+    protected String createTransformationName(TableConfig config) {
         return createTransformationName(config.getConfiguration());
     }
 
-    public String createTransformationName(Configuration config) {
+    protected String createTransformationName(Configuration config) {
         return createFormattedTransformationName(getDescription(), getSimplifiedName(), config);
     }
 
@@ -183,17 +184,35 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return createFormattedTransformationDescription(getDescription(), config);
     }
 
-    public TransformationMetadata createTransformationMeta(
+    protected TransformationMetadata createTransformationMeta(
             String operatorName, TableConfig config) {
         return createTransformationMeta(operatorName, config.getConfiguration());
     }
 
-    public TransformationMetadata createTransformationMeta(
+    protected TransformationMetadata createTransformationMeta(
             String operatorName, Configuration config) {
-        return new TransformationMetadata(
-                createTransformationUid(operatorName),
-                createTransformationName(config),
-                createTransformationDescription(config));
+        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())) {
+            return new TransformationMetadata(
+                    createTransformationName(config), createTransformationDescription(config));
+        } else {
+            // Only classes supporting metadata util needs to set the uid
+            return new TransformationMetadata(
+                    createTransformationUid(operatorName),
+                    createTransformationName(config),
+                    createTransformationDescription(config));
+        }
+    }
+
+    protected TransformationMetadata createTransformationMeta(
+            String operatorName, String detailName, String simplifiedName, Configuration config) {
+        final String name = createFormattedTransformationName(detailName, simplifiedName, config);
+        final String desc = createFormattedTransformationDescription(detailName, config);
+        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())) {
+            return new TransformationMetadata(name, desc);
+        } else {
+            // Only classes supporting metadata util needs to set the uid
+            return new TransformationMetadata(createTransformationUid(operatorName), name, desc);
+        }
     }
 
     protected String createFormattedTransformationDescription(

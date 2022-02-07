@@ -19,6 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.utils;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 
 import javax.annotation.Nullable;
 
@@ -31,10 +33,12 @@ public class TransformationMetadata {
     private final String name;
     private final String desc;
 
-    TransformationMetadata(String name, String desc) {
+    /** Used by {@link BatchExecNode}, as they don't require the uid. */
+    public TransformationMetadata(String name, String desc) {
         this(null, name, desc);
     }
 
+    /** Used by {@link StreamExecNode}, as they require the uid. */
     public TransformationMetadata(String uid, String name, String desc) {
         this.uid = uid;
         this.name = name;
