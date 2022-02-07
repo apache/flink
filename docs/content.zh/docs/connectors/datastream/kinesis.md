@@ -593,7 +593,7 @@ KinesisDataStreamsSink<String> kdsSink =
         .setStreamName("your-stream-name")                                        // Required
         .setFailOnError(false)                                                    // Optional
         .setMaxBatchSize(500)                                                     // Optional
-        .setMaxInFlightRequests(16)                                               // Optional
+        .setMaxInFlightRequests(50)                                               // Optional
         .setMaxBufferedRequests(10_000)                                           // Optional
         .setMaxBatchSizeInBytes(5 * 1024 * 1024)                                  // Optional
         .setMaxTimeInBufferMS(5000)                                               // Optional
@@ -621,7 +621,7 @@ val kdsSink = KinesisDataStreamsSink.<String>builder()
     .setStreamName("your-stream-name")                                        // Required
     .setFailOnError(false)                                                    // Optional
     .setMaxBatchSize(500)                                                     // Optional
-    .setMaxInFlightRequests(16)                                               // Optional
+    .setMaxInFlightRequests(50)                                               // Optional
     .setMaxBufferedRequests(10000)                                            // Optional
     .setMaxBatchSizeInBytes(5 * 1024 * 1024)                                  // Optional
     .setMaxTimeInBufferMS(5000)                                               // Optional
