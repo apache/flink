@@ -62,8 +62,6 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
     private static final Logger LOG =
             LoggerFactory.getLogger(StreamExecPythonGroupTableAggregate.class);
 
-    private static final String GROUP_TABLE_AGGREGATE_TRANSFORMATION = "group-table-aggregate";
-
     private static final String PYTHON_STREAM_TABLE_AGGREGATE_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.aggregate."
                     + "PythonStreamGroupTableAggregateOperator";
@@ -142,7 +140,8 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        createTransformationMeta(GROUP_TABLE_AGGREGATE_TRANSFORMATION, config),
+                        createTransformationName(config),
+                        createTransformationDescription(config),
                         pythonOperator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
