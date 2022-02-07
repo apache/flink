@@ -33,6 +33,7 @@ import org.apache.flink.connector.testframe.external.source.DataStreamSourceExte
 import org.apache.flink.connector.testframe.external.source.TestingSourceSettings;
 import org.apache.flink.connector.testframe.junit.extensions.ConnectorTestingExtension;
 import org.apache.flink.connector.testframe.junit.extensions.TestCaseInvocationContextProvider;
+import org.apache.flink.connector.testframe.utils.CollectIteratorAssertions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -60,15 +61,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.connector.testframe.utils.CollectIteratorAssertions.assertThat;
-import static org.apache.flink.connector.testframe.utils.TestUtils.timeoutAssert;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.terminateJob;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForJobStatus;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Base class for all test suites.
@@ -429,16 +429,18 @@ public abstract class SourceTestSuiteBase<T> {
             CheckpointingMode semantic,
             Integer limit) {
         if (limit != null) {
-            timeoutAssert(
-                    executorService,
-                    () ->
-                            assertThat(resultIterator)
-                                    .withNumRecordsLimit(limit)
-                                    .matchesRecordsFromSource(testData, semantic),
-                    30,
-                    TimeUnit.SECONDS);
+            assertThat(
+                            CompletableFuture.supplyAsync(
+                                    () -> {
+                                        CollectIteratorAssertions.assertThat(resultIterator)
+                                                .withNumRecordsLimit(limit)
+                                                .matchesRecordsFromSource(testData, semantic);
+                                        return true;
+                                    }))
+                    .succeedsWithin(Duration.ofSeconds(30));
         } else {
-            assertThat(resultIterator).matchesRecordsFromSource(testData, semantic);
+            CollectIteratorAssertions.assertThat(resultIterator)
+                    .matchesRecordsFromSource(testData, semantic);
         }
     }
 
