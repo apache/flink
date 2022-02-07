@@ -114,7 +114,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
     private static final Logger LOGGER =
             LoggerFactory.getLogger(StreamExecPythonGroupWindowAggregate.class);
 
-    private static final String GROUP_WINDOW_AGGREGATE_OPERATOR = "group-window-aggregate";
+    private static final String GROUP_WINDOW_AGGREGATE_TRANSFORMATION = "group-window-aggregate";
 
     private static final String ARROW_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream."
@@ -408,7 +408,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                         shiftTimeZone);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorMeta(GROUP_WINDOW_AGGREGATE_OPERATOR, tableConfig),
+                getTransformationMeta(GROUP_WINDOW_AGGREGATE_TRANSFORMATION, tableConfig),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());
@@ -448,7 +448,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorMeta(GROUP_WINDOW_AGGREGATE_OPERATOR, config),
+                getTransformationMeta(GROUP_WINDOW_AGGREGATE_TRANSFORMATION, config),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());

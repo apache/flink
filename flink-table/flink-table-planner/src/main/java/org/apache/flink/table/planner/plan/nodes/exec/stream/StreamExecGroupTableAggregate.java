@@ -60,7 +60,7 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecGroupTableAggregate.class);
 
-    private static final String GROUP_TABLE_AGGREGATE_OPERATOR = "group-table-aggregate";
+    private static final String GROUP_TABLE_AGGREGATE_TRANSFORMATION = "group-table-aggregate";
 
     private final int[] grouping;
     private final AggregateCall[] aggCalls;
@@ -158,7 +158,8 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorMeta(GROUP_TABLE_AGGREGATE_OPERATOR, planner.getTableConfig()),
+                        getTransformationMeta(
+                                GROUP_TABLE_AGGREGATE_TRANSFORMATION, planner.getTableConfig()),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

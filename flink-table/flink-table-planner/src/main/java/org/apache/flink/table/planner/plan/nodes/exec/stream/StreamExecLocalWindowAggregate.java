@@ -70,12 +70,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-local-window-aggregate",
         version = 1,
-        producedOperators = StreamExecLocalWindowAggregate.LOCAL_WINDOW_AGGREGATE_OPERATOR,
+        producedTransformations =
+                StreamExecLocalWindowAggregate.LOCAL_WINDOW_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBase {
 
-    public static final String LOCAL_WINDOW_AGGREGATE_OPERATOR = "local-window-aggregate";
+    public static final String LOCAL_WINDOW_AGGREGATE_TRANSFORMATION = "local-window-aggregate";
 
     private static final long WINDOW_AGG_MEMORY_RATIO = 100;
 
@@ -169,7 +170,8 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorMeta(LOCAL_WINDOW_AGGREGATE_OPERATOR, planner.getTableConfig()),
+                getTransformationMeta(
+                        LOCAL_WINDOW_AGGREGATE_TRANSFORMATION, planner.getTableConfig()),
                 SimpleOperatorFactory.of(localAggOperator),
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism(),

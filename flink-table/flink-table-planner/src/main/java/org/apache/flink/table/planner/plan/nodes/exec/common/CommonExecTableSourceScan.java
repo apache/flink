@@ -58,7 +58,7 @@ import java.util.Collections;
 public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         implements MultipleTransformationTranslator<RowData> {
 
-    public static final String SOURCE_OPERATOR = "source";
+    public static final String SOURCE_TRANSFORMATION = "source";
 
     public static final String FIELD_NAME_SCAN_TABLE_SOURCE = "scanTableSource";
 
@@ -88,7 +88,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final StreamExecutionEnvironment env = planner.getExecEnv();
         final TransformationMetadata meta =
-                getOperatorMeta(SOURCE_OPERATOR, planner.getTableConfig());
+                getTransformationMeta(SOURCE_TRANSFORMATION, planner.getTableConfig());
         final InternalTypeInfo<RowData> outputTypeInfo =
                 InternalTypeInfo.of((RowType) getOutputType());
         final ScanTableSource tableSource =

@@ -40,7 +40,7 @@ import java.util.List;
 @ExecNodeMetadata(
         name = "stream-exec-python-correlate",
         version = 1,
-        producedOperators = CommonExecPythonCorrelate.PYTHON_CORRELATE_OPERATOR,
+        producedTransformations = CommonExecPythonCorrelate.PYTHON_CORRELATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecPythonCorrelate extends CommonExecPythonCorrelate

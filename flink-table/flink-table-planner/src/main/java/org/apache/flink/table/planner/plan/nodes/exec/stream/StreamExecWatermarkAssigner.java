@@ -55,13 +55,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-watermark-assigner",
         version = 1,
-        producedOperators = StreamExecWatermarkAssigner.WATERMARK_ASSIGNER_OPERATOR,
+        producedTransformations = StreamExecWatermarkAssigner.WATERMARK_ASSIGNER_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-    public static final String WATERMARK_ASSIGNER_OPERATOR = "watermark-assigner";
+    public static final String WATERMARK_ASSIGNER_TRANSFORMATION = "watermark-assigner";
 
     public static final String FIELD_NAME_WATERMARK_EXPR = "watermarkExpr";
     public static final String FIELD_NAME_ROWTIME_FIELD_INDEX = "rowtimeFieldIndex";
@@ -130,7 +130,7 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorMeta(WATERMARK_ASSIGNER_OPERATOR, planner.getTableConfig()),
+                getTransformationMeta(WATERMARK_ASSIGNER_TRANSFORMATION, planner.getTableConfig()),
                 operatorFactory,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

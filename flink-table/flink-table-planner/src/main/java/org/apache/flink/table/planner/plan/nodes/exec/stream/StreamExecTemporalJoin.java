@@ -69,13 +69,13 @@ import java.util.Optional;
 @ExecNodeMetadata(
         name = "stream-exec-temporal-join",
         version = 1,
-        producedOperators = StreamExecTemporalJoin.TEMPORAL_JOIN_OPERATOR,
+        producedTransformations = StreamExecTemporalJoin.TEMPORAL_JOIN_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-    public static final String TEMPORAL_JOIN_OPERATOR = "temporal-join";
+    public static final String TEMPORAL_JOIN_TRANSFORMATION = "temporal-join";
 
     public static final String FIELD_NAME_JOIN_SPEC = "joinSpec";
     public static final String FIELD_NAME_IS_TEMPORAL_FUNCTION_JOIN = "isTemporalFunctionJoin";
@@ -180,7 +180,8 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
                 ExecNodeUtil.createTwoInputTransformation(
                         leftTransform,
                         rightTransform,
-                        getOperatorMeta(TEMPORAL_JOIN_OPERATOR, planner.getTableConfig()),
+                        getTransformationMeta(
+                                TEMPORAL_JOIN_TRANSFORMATION, planner.getTableConfig()),
                         joinOperator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());

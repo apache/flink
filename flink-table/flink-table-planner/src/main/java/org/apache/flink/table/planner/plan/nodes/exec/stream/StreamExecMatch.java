@@ -92,17 +92,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-match",
         version = 1,
-        producedOperators = {
-            StreamExecMatch.TIMESTAMP_INSERTER_OPERATOR,
-            StreamExecMatch.MATCH_OPERATOR
+        producedTransformations = {
+            StreamExecMatch.TIMESTAMP_INSERTER_TRANSFORMATION,
+            StreamExecMatch.MATCH_TRANSFORMATION
         },
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecMatch extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
 
-    public static final String TIMESTAMP_INSERTER_OPERATOR = "timestamp-inserter";
-    public static final String MATCH_OPERATOR = "match";
+    public static final String TIMESTAMP_INSERTER_TRANSFORMATION = "timestamp-inserter";
+    public static final String MATCH_TRANSFORMATION = "match";
 
     public static final String FIELD_NAME_MATCH_SPEC = "matchSpec";
 
@@ -211,7 +211,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         timestampedInputTransform,
-                        getOperatorMeta(MATCH_OPERATOR, config),
+                        createTransformationMeta(MATCH_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         timestampedInputTransform.getParallelism());
@@ -276,7 +276,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
                     ExecNodeUtil.createOneInputTransformation(
                             inputTransform,
                             new TransformationMetadata(
-                                    getOperatorUid(TIMESTAMP_INSERTER_OPERATOR),
+                                    createTransformationUid(TIMESTAMP_INSERTER_TRANSFORMATION),
                                     "StreamRecordTimestampInserter",
                                     String.format(
                                             "StreamRecordTimestampInserter(rowtime field: %s)",

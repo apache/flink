@@ -57,13 +57,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-temporal-sort",
         version = 1,
-        producedOperators = StreamExecTemporalSort.TEMPORAL_SORT_OPERATOR,
+        producedTransformations = StreamExecTemporalSort.TEMPORAL_SORT_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecTemporalSort extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
 
-    public static final String TEMPORAL_SORT_OPERATOR = "temporal-sort";
+    public static final String TEMPORAL_SORT_TRANSFORMATION = "temporal-sort";
 
     public static final String FIELD_NAME_SORT_SPEC = "orderBy";
 
@@ -144,7 +144,7 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
             OneInputTransformation<RowData, RowData> transform =
                     ExecNodeUtil.createOneInputTransformation(
                             inputTransform,
-                            getOperatorMeta(TEMPORAL_SORT_OPERATOR, tableConfig),
+                            getTransformationMeta(TEMPORAL_SORT_TRANSFORMATION, tableConfig),
                             sortOperator,
                             InternalTypeInfo.of(inputType),
                             inputTransform.getParallelism());
@@ -185,7 +185,7 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorMeta(TEMPORAL_SORT_OPERATOR, tableConfig),
+                        getTransformationMeta(TEMPORAL_SORT_TRANSFORMATION, tableConfig),
                         sortOperator,
                         InternalTypeInfo.of(inputType),
                         inputTransform.getParallelism());

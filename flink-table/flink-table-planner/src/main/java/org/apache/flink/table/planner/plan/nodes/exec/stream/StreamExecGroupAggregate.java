@@ -73,14 +73,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-group-aggregate",
         version = 1,
-        producedOperators = StreamExecGroupAggregate.GROUP_AGGREGATE_OPERATOR,
+        producedTransformations = StreamExecGroupAggregate.GROUP_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecGroupAggregate extends StreamExecAggregateBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecGroupAggregate.class);
 
-    public static final String GROUP_AGGREGATE_OPERATOR = "group-aggregate";
+    public static final String GROUP_AGGREGATE_TRANSFORMATION = "group-aggregate";
 
     @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
@@ -234,7 +234,7 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorMeta(GROUP_AGGREGATE_OPERATOR, tableConfig),
+                        getTransformationMeta(GROUP_AGGREGATE_TRANSFORMATION, tableConfig),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

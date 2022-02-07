@@ -115,7 +115,7 @@ public final class ExecNodeContext {
 
     /** Returns a new {@code uid} for transformations. */
     public String generateUid(String operatorName) {
-        return toString() + "_" + operatorName;
+        return String.format("%s-%s-%s", getId(), getTypeAsString(), operatorName);
     }
 
     /**

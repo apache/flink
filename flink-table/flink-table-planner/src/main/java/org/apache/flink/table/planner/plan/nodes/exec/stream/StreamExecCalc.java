@@ -42,7 +42,7 @@ import java.util.List;
 @ExecNodeMetadata(
         name = "stream-exec-calc",
         version = 1,
-        producedOperators = CommonExecCalc.SUBSTITUTE_STREAM_OPERATOR,
+        producedTransformations = CommonExecCalc.SUBSTITUTE_STREAM_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<RowData> {

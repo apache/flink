@@ -65,14 +65,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-python-group-aggregate",
         version = 1,
-        producedOperators = StreamExecPythonGroupAggregate.GROUP_AGGREGATE_OPERATOR,
+        producedTransformations = StreamExecPythonGroupAggregate.GROUP_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecPythonGroupAggregate.class);
 
-    public static final String GROUP_AGGREGATE_OPERATOR = "group-aggregate";
+    public static final String GROUP_AGGREGATE_TRANSFORMATION = "group-aggregate";
 
     private static final String PYTHON_STREAM_AGGREAGTE_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.aggregate.PythonStreamGroupAggregateOperator";
@@ -182,7 +182,7 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorMeta(GROUP_AGGREGATE_OPERATOR, config),
+                        getTransformationMeta(GROUP_AGGREGATE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

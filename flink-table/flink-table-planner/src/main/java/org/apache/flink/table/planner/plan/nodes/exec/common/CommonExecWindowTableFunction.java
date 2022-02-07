@@ -50,7 +50,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class CommonExecWindowTableFunction extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-    public static final String WINDOW_TVF_OPERATOR = "window-tvf";
+    public static final String WINDOW_TVF_TRANSFORMATION = "window-tvf";
 
     public static final String FIELD_NAME_WINDOWING = "windowing";
 
@@ -84,7 +84,7 @@ public abstract class CommonExecWindowTableFunction extends ExecNodeBase<RowData
                         windowAssigner, windowingStrategy.getTimeAttributeIndex(), shiftTimeZone);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorMeta(WINDOW_TVF_OPERATOR, planner.getTableConfig()),
+                getTransformationMeta(WINDOW_TVF_TRANSFORMATION, planner.getTableConfig()),
                 windowTableFunctionOperator,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

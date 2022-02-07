@@ -50,7 +50,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
-    public static final String CORRELATE_OPERATOR = "correlate";
+    public static final String CORRELATE_TRANSFORMATION = "correlate";
 
     public static final String FIELD_NAME_JOIN_TYPE = "joinType";
     public static final String FIELD_NAME_FUNCTION_CALL = "functionCall";
@@ -109,6 +109,6 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
                 inputTransform.getParallelism(),
                 retainHeader,
                 getClass().getSimpleName(),
-                getOperatorMeta(CORRELATE_OPERATOR, planner.getTableConfig()));
+                getTransformationMeta(CORRELATE_TRANSFORMATION, planner.getTableConfig()));
     }
 }

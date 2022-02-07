@@ -57,12 +57,12 @@ import java.util.stream.Collectors;
 @ExecNodeMetadata(
         name = "stream-exec-sink",
         version = 1,
-        producedOperators = {
-            CommonExecSink.CONSTRAINT_VALIDATOR_OPERATOR,
-            CommonExecSink.PARTITIONER_OPERATOR,
-            CommonExecSink.UPSERT_MATERIALIZE_OPERATOR,
-            CommonExecSink.TIMESTAMP_INSERTER_OPERATOR,
-            CommonExecSink.SINK_OPERATOR
+        producedTransformations = {
+            CommonExecSink.CONSTRAINT_VALIDATOR_TRANSFORMATION,
+            CommonExecSink.PARTITIONER_TRANSFORMATION,
+            CommonExecSink.UPSERT_MATERIALIZE_TRANSFORMATION,
+            CommonExecSink.TIMESTAMP_INSERTER_TRANSFORMATION,
+            CommonExecSink.SINK_TRANSFORMATION
         },
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)

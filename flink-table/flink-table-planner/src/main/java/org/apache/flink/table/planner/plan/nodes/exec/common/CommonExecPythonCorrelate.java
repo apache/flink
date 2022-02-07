@@ -61,7 +61,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
-    public static final String PYTHON_CORRELATE_OPERATOR = "python-correlate";
+    public static final String PYTHON_CORRELATE_TRANSFORMATION = "python-correlate";
 
     public static final String FIELD_NAME_JOIN_TYPE = "joinType";
     public static final String FIELD_NAME_FUNCTION_CALL = "functionCall";
@@ -127,7 +127,7 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                         pythonUdtfInputOffsets);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorMeta(PYTHON_CORRELATE_OPERATOR, mergedConfig),
+                getTransformationMeta(PYTHON_CORRELATE_TRANSFORMATION, mergedConfig),
                 pythonOperator,
                 pythonOperatorOutputRowType,
                 inputTransform.getParallelism());

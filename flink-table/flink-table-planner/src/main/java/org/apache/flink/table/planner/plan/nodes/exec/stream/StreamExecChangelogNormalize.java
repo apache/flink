@@ -63,13 +63,13 @@ import java.util.List;
 @ExecNodeMetadata(
         name = "stream-exec-changelog-normalize",
         version = 1,
-        producedOperators = StreamExecChangelogNormalize.CHANGELOG_NORMALIZE_OPERATOR,
+        producedTransformations = StreamExecChangelogNormalize.CHANGELOG_NORMALIZE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-    public static final String CHANGELOG_NORMALIZE_OPERATOR = "changelog-normalize";
+    public static final String CHANGELOG_NORMALIZE_TRANSFORMATION = "changelog-normalize";
 
     public static final String FIELD_NAME_UNIQUE_KEYS = "uniqueKeys";
     public static final String FIELD_NAME_GENERATE_UPDATE_BEFORE = "generateUpdateBefore";
@@ -160,7 +160,7 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorMeta(CHANGELOG_NORMALIZE_OPERATOR, tableConfig),
+                        getTransformationMeta(CHANGELOG_NORMALIZE_TRANSFORMATION, tableConfig),
                         operator,
                         rowTypeInfo,
                         inputTransform.getParallelism());

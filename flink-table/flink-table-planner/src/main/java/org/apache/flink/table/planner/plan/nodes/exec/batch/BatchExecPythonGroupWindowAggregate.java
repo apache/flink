@@ -175,8 +175,8 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                         pythonFunctionInfos);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(mergedConfig),
-                getOperatorDescription(mergedConfig),
+                getTransformationName(mergedConfig),
+                getTransformationDescription(mergedConfig),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());

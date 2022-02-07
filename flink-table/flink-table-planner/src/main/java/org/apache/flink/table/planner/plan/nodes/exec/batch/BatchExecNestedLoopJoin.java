@@ -114,8 +114,8 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,
-                getOperatorName(config),
-                getOperatorDescription(config),
+                getTransformationName(config),
+                getTransformationDescription(config),
                 operator,
                 InternalTypeInfo.of(getOutputType()),
                 parallelism,

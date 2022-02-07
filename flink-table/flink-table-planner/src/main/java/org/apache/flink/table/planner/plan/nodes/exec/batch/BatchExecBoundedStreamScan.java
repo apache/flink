@@ -80,8 +80,8 @@ public class BatchExecBoundedStreamScan extends ExecNodeBase<RowData>
                     (RowType) getOutputType(),
                     qualifiedName,
                     (detailName, simplifyName) ->
-                            getFormattedOperatorName(detailName, simplifyName, config),
-                    (description) -> getFormattedOperatorDescription(description, config),
+                            getFormattedTransformationName(detailName, simplifyName, config),
+                    (description) -> getFormattedTransformationDescription(description, config),
                     JavaScalaConversionUtil.toScala(Optional.empty()),
                     "",
                     "");

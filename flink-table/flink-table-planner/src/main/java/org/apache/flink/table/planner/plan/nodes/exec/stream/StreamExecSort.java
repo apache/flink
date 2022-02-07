@@ -48,7 +48,7 @@ import java.util.Collections;
  */
 public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
 
-    private static final String SORT_OPERATOR = "sort";
+    private static final String SORT_TRANSFORMATION = "sort";
 
     @Experimental
     public static final ConfigOption<Boolean> TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED =
@@ -96,7 +96,7 @@ public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecN
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorMeta(SORT_OPERATOR, config),
+                createTransformationMeta(SORT_TRANSFORMATION, config),
                 sortOperator,
                 InternalTypeInfo.of(inputType),
                 inputTransform.getParallelism());
