@@ -18,35 +18,49 @@
 
 package org.apache.flink.api.common.eventtime;
 
+import org.apache.flink.annotation.Internal;
+
 import java.time.Duration;
 
-/** A {@link WatermarkStrategy} that adds idleness detection on top of the wrapped strategy. */
-final class WatermarkStrategyWithIdleness<T> implements WatermarkStrategy<T> {
+/** A helper class to pass a watermark group and max allowed watermark drift to the runtime. */
+@Internal
+public final class WatermarksWithWatermarkAlignment<T> implements WatermarkStrategy<T> {
 
-    private static final long serialVersionUID = 1L;
+    static final Duration DEFAULT_UPDATE_INTERVAL = Duration.ofMillis(1000);
 
-    private final WatermarkStrategy<T> baseStrategy;
-    private final Duration idlenessTimeout;
+    private final WatermarkStrategy<T> strategy;
 
-    WatermarkStrategyWithIdleness(WatermarkStrategy<T> baseStrategy, Duration idlenessTimeout) {
-        this.baseStrategy = baseStrategy;
-        this.idlenessTimeout = idlenessTimeout;
+    private final String watermarkGroup;
+
+    private final Duration maxAllowedWatermarkDrift;
+
+    private final Duration updateInterval;
+
+    public WatermarksWithWatermarkAlignment(
+            WatermarkStrategy<T> strategy,
+            String watermarkGroup,
+            Duration maxAllowedWatermarkDrift,
+            Duration updateInterval) {
+        this.strategy = strategy;
+        this.watermarkGroup = watermarkGroup;
+        this.maxAllowedWatermarkDrift = maxAllowedWatermarkDrift;
+        this.updateInterval = updateInterval;
     }
 
     @Override
     public TimestampAssigner<T> createTimestampAssigner(TimestampAssignerSupplier.Context context) {
-        return baseStrategy.createTimestampAssigner(context);
+        return strategy.createTimestampAssigner(context);
     }
 
     @Override
     public WatermarkGenerator<T> createWatermarkGenerator(
             WatermarkGeneratorSupplier.Context context) {
-        return new WatermarksWithIdleness<>(
-                baseStrategy.createWatermarkGenerator(context), idlenessTimeout);
+        return strategy.createWatermarkGenerator(context);
     }
 
     @Override
     public WatermarkAlignmentParams getAlignmentParameters() {
-        return baseStrategy.getAlignmentParameters();
+        return new WatermarkAlignmentParams(
+                maxAllowedWatermarkDrift.toMillis(), watermarkGroup, updateInterval.toMillis());
     }
 }

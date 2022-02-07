@@ -32,8 +32,6 @@ import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.source.coordinator.SourceCoordinator;
-import org.apache.flink.runtime.source.coordinator.SourceCoordinator.WatermarkAlignmentParams;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
@@ -68,16 +66,10 @@ public class SourceOperatorTestContext implements AutoCloseable {
     }
 
     public SourceOperatorTestContext(boolean idle) throws Exception {
-        this(
-                idle,
-                WatermarkStrategy.noWatermarks(),
-                SourceCoordinator.WATERMARK_ALIGNMENT_DISABLED);
+        this(idle, WatermarkStrategy.noWatermarks());
     }
 
-    public SourceOperatorTestContext(
-            boolean idle,
-            WatermarkStrategy<Integer> watermarkStrategy,
-            WatermarkAlignmentParams watermarkAlignmentParams)
+    public SourceOperatorTestContext(boolean idle, WatermarkStrategy<Integer> watermarkStrategy)
             throws Exception {
 
         mockSourceReader = new MockSourceReader(idle, idle);
@@ -91,8 +83,7 @@ public class SourceOperatorTestContext implements AutoCloseable {
                         mockGateway,
                         SUBTASK_INDEX,
                         5,
-                        true,
-                        watermarkAlignmentParams);
+                        true);
         Environment env = getTestingEnvironment();
         operator.setup(
                 new SourceOperatorStreamTask<Integer>(env),

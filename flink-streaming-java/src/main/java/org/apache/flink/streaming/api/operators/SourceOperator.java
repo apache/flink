@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -39,8 +40,6 @@ import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
-import org.apache.flink.runtime.source.coordinator.SourceCoordinator;
-import org.apache.flink.runtime.source.coordinator.SourceCoordinator.WatermarkAlignmentParams;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
@@ -183,40 +182,17 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             Configuration configuration,
             String localHostname,
             boolean emitProgressiveWatermarks) {
-        this(
-                readerFactory,
-                operatorEventGateway,
-                splitSerializer,
-                watermarkStrategy,
-                timeService,
-                configuration,
-                localHostname,
-                emitProgressiveWatermarks,
-                SourceCoordinator.WATERMARK_ALIGNMENT_DISABLED);
-    }
-
-    public SourceOperator(
-            FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
-                    readerFactory,
-            OperatorEventGateway operatorEventGateway,
-            SimpleVersionedSerializer<SplitT> splitSerializer,
-            WatermarkStrategy<OUT> watermarkStrategy,
-            ProcessingTimeService timeService,
-            Configuration configuration,
-            String localHostname,
-            boolean emitProgressiveWatermarks,
-            WatermarkAlignmentParams watermarkAlignmentParams) {
 
         this.readerFactory = checkNotNull(readerFactory);
         this.operatorEventGateway = checkNotNull(operatorEventGateway);
         this.splitSerializer = checkNotNull(splitSerializer);
         this.watermarkStrategy = checkNotNull(watermarkStrategy);
-        this.watermarkAlignmentParams = watermarkAlignmentParams;
         this.processingTimeService = timeService;
         this.configuration = checkNotNull(configuration);
         this.localHostname = checkNotNull(localHostname);
         this.emitProgressiveWatermarks = emitProgressiveWatermarks;
         this.operatingMode = OperatingMode.OUTPUT_NOT_INITIALIZED;
+        this.watermarkAlignmentParams = watermarkStrategy.getAlignmentParameters();
     }
 
     @Override
