@@ -294,33 +294,21 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                 createFormattedTransformationName(
                         padRightStream.getDescription(), "PadRight", config));
 
-        Transformation<RowData> transformation;
         switch (joinSpec.getJoinType()) {
             case INNER:
-                transformation =
-                        new UnionTransformation<>(
-                                Lists.newArrayList(filterAllLeftStream, filterAllRightStream));
-                break;
+                return new UnionTransformation<>(
+                        Lists.newArrayList(filterAllLeftStream, filterAllRightStream));
             case LEFT:
-                transformation =
-                        new UnionTransformation<>(
-                                Lists.newArrayList(padLeftStream, filterAllRightStream));
-                break;
+                return new UnionTransformation<>(
+                        Lists.newArrayList(padLeftStream, filterAllRightStream));
             case RIGHT:
-                transformation =
-                        new UnionTransformation<>(
-                                Lists.newArrayList(filterAllLeftStream, padRightStream));
-                break;
+                return new UnionTransformation<>(
+                        Lists.newArrayList(filterAllLeftStream, padRightStream));
             case FULL:
-                transformation =
-                        new UnionTransformation<>(
-                                Lists.newArrayList(padLeftStream, padRightStream));
-                break;
+                return new UnionTransformation<>(Lists.newArrayList(padLeftStream, padRightStream));
             default:
                 throw new TableException("should no reach here");
         }
-        transformation.setUid(createTransformationUid(INTERVAL_JOIN_TRANSFORMATION));
-        return transformation;
     }
 
     private TwoInputTransformation<RowData, RowData, RowData> createProcTimeJoin(
