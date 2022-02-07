@@ -50,7 +50,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class CommonExecCalc extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
-    public static final String SUBSTITUTE_STREAM_TRANSFORMATION = "substitute-stream";
+    public static final String SUBSTITUTE_TRANSFORMATION = "substitute";
 
     public static final String FIELD_NAME_PROJECTION = "projection";
     public static final String FIELD_NAME_CONDITION = "condition";
@@ -103,8 +103,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
                         getClass().getSimpleName());
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                createTransformationMeta(
-                        SUBSTITUTE_STREAM_TRANSFORMATION, planner.getTableConfig()),
+                createTransformationMeta(SUBSTITUTE_TRANSFORMATION, planner.getTableConfig()),
                 substituteStreamOperator,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());
