@@ -384,7 +384,7 @@ The latter rolls on every checkpoint. A policy can roll additionally based on si
 ##### Parquet format
 
 Flink contains built in convenience methods for creating Parquet writer factories for Avro data. These methods
-and their associated documentation can be found in the ParquetAvroWriters class.
+and their associated documentation can be found in the AvroParquetWriters class.
 
 For writing to other Parquet compatible data formats, users need to create the ParquetWriterFactory with a custom implementation of the ParquetBuilder interface.
 
@@ -398,7 +398,7 @@ A `FileSink` that writes Avro data to Parquet format can be created like this:
 {{< tab "Java" >}}
 ```java
 import org.apache.flink.connector.file.sink.FileSink;
-import org.apache.flink.formats.parquet.avro.ParquetAvroWriters;
+import org.apache.flink.formats.parquet.avro.AvroParquetWriters;
 import org.apache.avro.Schema;
 
 
@@ -406,7 +406,7 @@ Schema schema = ...;
 DataStream<GenericRecord> input = ...;
 
 final FileSink<GenericRecord> sink = FileSink
-	.forBulkFormat(outputBasePath, ParquetAvroWriters.forGenericRecord(schema))
+	.forBulkFormat(outputBasePath, AvroParquetWriters.forGenericRecord(schema))
 	.build();
 
 input.sinkTo(sink);
@@ -416,14 +416,14 @@ input.sinkTo(sink);
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.connector.file.sink.FileSink;
-import org.apache.flink.formats.parquet.avro.ParquetAvroWriters
+import org.apache.flink.formats.parquet.avro.AvroParquetWriters
 import org.apache.avro.Schema
 
 val schema: Schema = ...
 val input: DataStream[GenericRecord] = ...
 
 val sink: FileSink[GenericRecord] = FileSink
-    .forBulkFormat(outputBasePath, ParquetAvroWriters.forGenericRecord(schema))
+    .forBulkFormat(outputBasePath, AvroParquetWriters.forGenericRecord(schema))
     .build()
 
 input.sinkTo(sink)
