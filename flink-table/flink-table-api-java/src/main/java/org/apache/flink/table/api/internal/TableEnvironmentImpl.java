@@ -779,7 +779,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         List<String> sinkIdentifierNames = new ArrayList<>();
         for (int i = 0; i < transformations.size(); ++i) {
             // TODO serialize the sink table names to json plan ?
-            sinkIdentifierNames.add("sink" + i);
+            sinkIdentifierNames.add(transformations.get(i).getName());
         }
         return executeInternal(transformations, sinkIdentifierNames);
     }

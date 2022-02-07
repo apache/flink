@@ -23,6 +23,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.StreamGraph
+import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
 import org.apache.flink.table.catalog.ManagedTableListener.isManagedTable
@@ -68,6 +69,7 @@ import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalTableModify
 import org.apache.calcite.tools.FrameworkConfig
 
+import java.io.{File, IOException}
 import java.lang.{Long => JLong}
 import java.util
 import java.util.{Collections, TimeZone}
@@ -471,15 +473,24 @@ abstract class PlannerBase(
 
   override def load(planReference: PlanReference): CompiledPlan = {
     val ctx = createSerdeContext
-    val objectReader:  ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
-    val execNodeGraph =
-      if (planReference.getContent.isPresent) {
-        objectReader.readValue(planReference.getContent.get(), classOf[ExecNodeGraph])
-      } else if (planReference.getFile.isPresent) {
-        objectReader.readValue(planReference.getFile.get(), classOf[ExecNodeGraph])
-      } else {
-        throw new IllegalStateException("PlanReference doesn't contain content, nor a file path")
+    val objectReader: ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
+    val execNodeGraph = planReference match {
+      case filePlanReference: FilePlanReference =>
+        objectReader.readValue(filePlanReference.getFile, classOf[ExecNodeGraph])
+      case contentPlanReference: ContentPlanReference =>
+        objectReader.readValue(contentPlanReference.getContent, classOf[ExecNodeGraph])
+      case resourcePlanReference: ResourcePlanReference => {
+        val url = resourcePlanReference.getClassLoader
+          .getResource(resourcePlanReference.getResourcePath)
+        if (url == null) {
+          throw new IOException(
+            "Cannot load the plan reference from classpath: " + planReference);
+        }
+        objectReader.readValue(new File(url.toURI), classOf[ExecNodeGraph])
       }
+      case _ => throw new IllegalStateException(
+        "Unknown PlanReference. This is a bug, please contact the developers")
+    }
 
     new ExecNodeGraphCompiledPlan(ctx, execNodeGraph)
   }

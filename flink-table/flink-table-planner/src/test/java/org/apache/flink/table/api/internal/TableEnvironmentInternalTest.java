@@ -98,7 +98,7 @@ public class TableEnvironmentInternalTest extends JsonPlanTestBase {
         String actual =
                 tableEnv.explainPlan(
                         tableEnv.loadPlan(
-                                PlanReference.fromClasspath("/jsonplan/testGetJsonPlan.out")),
+                                PlanReference.fromResource("/jsonplan/testGetJsonPlan.out")),
                         ExplainDetail.JSON_EXECUTION_PLAN);
         String expected = TableTestUtil.readFromResource("/explain/testExplainJsonPlan.out");
         assertThat(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))

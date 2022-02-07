@@ -20,14 +20,10 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Experimental;
 
-import javax.annotation.Nullable;
-
 import java.io.File;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Optional;
+import java.util.Objects;
 
 /**
  * Pointer to a persisted plan. You can load the content of this reference into a {@link
@@ -35,15 +31,9 @@ import java.util.Optional;
  * it with {@link TableEnvironment#executePlan(PlanReference)}.
  */
 @Experimental
-public final class PlanReference {
+public abstract class PlanReference {
 
-    private final @Nullable File file;
-    private final @Nullable String content;
-
-    private PlanReference(@Nullable File file, @Nullable String content) {
-        this.file = file;
-        this.content = content;
-    }
+    private PlanReference() {}
 
     /** @see #fromFile(File) */
     public static PlanReference fromFile(String path) {
@@ -57,53 +47,140 @@ public final class PlanReference {
 
     /** Create a reference starting from a file path. */
     public static PlanReference fromFile(File file) {
-        return new PlanReference(file, null);
+        return new FilePlanReference(file);
     }
 
     /** Create a reference starting from a JSON string. */
     public static PlanReference fromJsonString(String jsonString) {
-        return new PlanReference(null, jsonString);
+        return new ContentPlanReference(jsonString);
     }
 
     /**
      * Create a reference from a file in the classpath, using {@code
      * Thread.currentThread().getContextClassLoader()} as {@link ClassLoader}.
-     *
-     * @throws TableException if the classpath resource cannot be found
      */
-    public static PlanReference fromClasspath(String classpathFilePath) {
-        return fromClasspath(Thread.currentThread().getContextClassLoader(), classpathFilePath);
+    public static PlanReference fromResource(String resourcePath) {
+        return fromResource(Thread.currentThread().getContextClassLoader(), resourcePath);
     }
 
-    /**
-     * Create a reference from a file in the classpath.
-     *
-     * @throws TableException if the classpath resource cannot be found
-     */
-    public static PlanReference fromClasspath(ClassLoader classLoader, String classpathFilePath)
-            throws TableException {
-        URL url = classLoader.getResource(classpathFilePath);
-        if (url == null) {
-            throw new TableException(
-                    "Cannot load the plan reference from classpath, resource not found: "
-                            + classpathFilePath);
+    /** Create a reference from a file in the classpath. */
+    public static PlanReference fromResource(ClassLoader classLoader, String resourcePath) {
+        return new ResourcePlanReference(classLoader, resourcePath);
+    }
+
+    /** Plan reference to a file in the local filesystem. */
+    public static class FilePlanReference extends PlanReference {
+
+        private final File file;
+
+        private FilePlanReference(File file) {
+            this.file = file;
         }
 
-        try {
-            return PlanReference.fromFile(new File(url.toURI()));
-        } catch (URISyntaxException e) {
-            throw new TableException(
-                    "Cannot load the plan reference from classpath, invalid URI: "
-                            + classpathFilePath,
-                    e);
+        public File getFile() {
+            return file;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            FilePlanReference that = (FilePlanReference) o;
+            return Objects.equals(file, that.file);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(file);
+        }
+
+        @Override
+        public String toString() {
+            return "Plan from file '" + file + "'";
         }
     }
 
-    public Optional<File> getFile() {
-        return Optional.ofNullable(file);
+    /** Plan reference to a string containing the serialized persisted plan in JSON. */
+    public static class ContentPlanReference extends PlanReference {
+
+        private final String content;
+
+        public ContentPlanReference(String content) {
+            this.content = content;
+        }
+
+        public String getContent() {
+            return content;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ContentPlanReference that = (ContentPlanReference) o;
+            return Objects.equals(content, that.content);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(content);
+        }
+
+        @Override
+        public String toString() {
+            return "Plan '" + content + "'";
+        }
     }
 
-    public Optional<String> getContent() {
-        return Optional.ofNullable(content);
+    /** Plan reference to a file in the provided {@link ClassLoader}. */
+    public static class ResourcePlanReference extends PlanReference {
+
+        private final ClassLoader classLoader;
+        private final String resourcePath;
+
+        public ResourcePlanReference(ClassLoader classLoader, String resourcePath) {
+            this.classLoader = classLoader;
+            this.resourcePath =
+                    resourcePath.startsWith("/") ? resourcePath.substring(1) : resourcePath;
+        }
+
+        public ClassLoader getClassLoader() {
+            return classLoader;
+        }
+
+        public String getResourcePath() {
+            return resourcePath;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ResourcePlanReference that = (ResourcePlanReference) o;
+            return Objects.equals(classLoader, that.classLoader)
+                    && Objects.equals(resourcePath, that.resourcePath);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(classLoader, resourcePath);
+        }
+
+        @Override
+        public String toString() {
+            return "Plan from resource '" + resourcePath + "' in classloader '" + classLoader + "'";
+        }
     }
 }
