@@ -264,7 +264,7 @@ public class StreamExecutionEnvironment {
                 userClassloader == null ? getClass().getClassLoader() : userClassloader;
 
         // the configuration of a job or an operator can be specified at the following places:
-        //     i) at the operator level using e.g. parallelism using the
+        //     i) at the operator level via e.g. parallelism by using the
         // SingleOutputStreamOperator.setParallelism().
         //     ii) programmatically by using e.g. the env.setRestartStrategy() method
         //     iii) in the configuration passed here
@@ -481,7 +481,7 @@ public class StreamExecutionEnvironment {
      * <p>The job draws checkpoints periodically, in the given interval. The state will be stored in
      * the configured state backend.
      *
-     * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at the moment.
+     * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
      * For that reason, iterative jobs will not be started if used with enabled checkpointing. To
      * override this mechanism, use the {@link #enableCheckpointing(long, CheckpointingMode,
      * boolean)} method.
@@ -502,7 +502,7 @@ public class StreamExecutionEnvironment {
      * {@link CheckpointingMode} for the checkpointing ("exactly once" vs "at least once"). The
      * state will be stored in the configured state backend.
      *
-     * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at the moment.
+     * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
      * For that reason, iterative jobs will not be started if used with enabled checkpointing. To
      * override this mechanism, use the {@link #enableCheckpointing(long, CheckpointingMode,
      * boolean)} method.
@@ -525,7 +525,7 @@ public class StreamExecutionEnvironment {
      * <p>The job draws checkpoints periodically, in the given interval. The state will be stored in
      * the configured state backend.
      *
-     * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at the moment.
+     * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
      * If the "force" parameter is set to true, the system will execute the job nonetheless.
      *
      * @param interval Time interval between state checkpoints in millis.
@@ -555,7 +555,7 @@ public class StreamExecutionEnvironment {
      * <p>The job draws checkpoints periodically, in the default interval. The state will be stored
      * in the configured state backend.
      *
-     * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at the moment.
+     * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
      * For that reason, iterative jobs will not be started if used with enabled checkpointing. To
      * override this mechanism, use the {@link #enableCheckpointing(long, CheckpointingMode,
      * boolean)} method.
@@ -1140,7 +1140,7 @@ public class StreamExecutionEnvironment {
     }
 
     /**
-     * Creates a new data set that contains the given elements. The framework will determine the
+     * Creates a new data stream that contains the given elements. The framework will determine the
      * type according to the based type user supplied. The elements should be the same or be the
      * subclass to the based type. The sequence of elements must not be empty. Note that this
      * operation will result in a non-parallel data stream source, i.e. a data stream source with a
