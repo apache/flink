@@ -514,8 +514,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                                     dataStream, ((SinkV2Provider) runtimeProvider).createSink())
                             .getTransformation();
             transformation.setParallelism(sinkParallelism);
-            transformation.setName(sinkName);
-            transformation.setDescription(sinkDescription);
+            sinkMeta.fill(transformation);
             return transformation;
         } else {
             throw new TableException("Unsupported sink runtime provider.");
