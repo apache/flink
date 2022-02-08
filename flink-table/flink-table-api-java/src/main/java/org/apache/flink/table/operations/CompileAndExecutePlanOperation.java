@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,27 +16,38 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations.command;
+package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.operations.Operation;
+import org.apache.flink.util.Preconditions;
 
-/** Operation to describe an EXECUTE PLAN statement. */
+/** Operation to describe an {@code COMPILE AND EXECUTE PLAN} statement. */
 @Internal
-public class ExecutePlanOperation implements Operation {
+public class CompileAndExecutePlanOperation implements Operation {
 
     private final String filePath;
+    private final Operation operation;
 
-    public ExecutePlanOperation(String filePath) {
+    public CompileAndExecutePlanOperation(String filePath, Operation operation) {
+        Preconditions.checkArgument(
+                operation instanceof StatementSetOperation || operation instanceof ModifyOperation,
+                "Child operation of CompileAndExecuteOperation must be either a "
+                        + "ModifyOperation or a StatementSetOperation.");
         this.filePath = filePath;
+        this.operation = operation;
     }
 
     public String getFilePath() {
         return filePath;
     }
 
+    public Operation getOperation() {
+        return operation;
+    }
+
     @Override
     public String asSummaryString() {
-        return String.format("EXECUTE PLAN '%s'", filePath);
+        return String.format(
+                "COMPILE AND EXECUTE PLAN '%s' FOR %s", filePath, operation.asSummaryString());
     }
 }

@@ -35,18 +35,24 @@ import javax.annotation.Nonnull;
 import java.util.Collections;
 import java.util.List;
 
-/** AST node for {@code EXECUTE PLAN 'planfile'}. */
+/**
+ * AST node for {@code COMPILE AND EXECUTE PLAN 'planfile' FOR [DML]}. DML can be either a {@link
+ * RichSqlInsert} or a {@link SqlStatementSet}.
+ */
 @Internal
-public class SqlExecutePlan extends SqlCall {
+public class SqlCompileAndExecutePlan extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("EXECUTE PLAN", SqlKind.OTHER);
+            new SqlSpecialOperator("COMPILE AND EXECUTE PLAN", SqlKind.OTHER);
 
     private final SqlNode planFile;
+    private SqlNode operand;
 
-    public SqlExecutePlan(SqlParserPos pos, SqlNode planFile) {
+    public SqlCompileAndExecutePlan(SqlParserPos pos, SqlNode planFile, SqlNode operand) {
+
         super(pos);
         this.planFile = planFile;
+        this.operand = checkOperand(operand);
     }
 
     public String getPlanFile() {
@@ -62,13 +68,35 @@ public class SqlExecutePlan extends SqlCall {
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return Collections.emptyList();
+        return Collections.singletonList(operand);
     }
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("COMPILE");
+        writer.keyword("AND");
         writer.keyword("EXECUTE");
         writer.keyword("PLAN");
         planFile.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("FOR");
+        operand.unparse(writer, leftPrec, rightPrec);
+    }
+
+    @Override
+    public void setOperand(int i, SqlNode operand) {
+        if (i == 0) {
+            this.operand = checkOperand(operand);
+        } else {
+            throw new UnsupportedOperationException(
+                    "SqlCompileAndExecutePlan supports only one operand with index 0");
+        }
+    }
+
+    private SqlNode checkOperand(SqlNode operand) {
+        if (!(operand instanceof RichSqlInsert || operand instanceof SqlStatementSet)) {
+            throw new UnsupportedOperationException(
+                    "SqlCompileAndExecutePlan supports only RichSqlInsert or SqlStatementSet as operand");
+        }
+        return operand;
     }
 }

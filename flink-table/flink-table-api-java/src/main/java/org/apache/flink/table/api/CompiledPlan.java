@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.table.api.config.TableConfigOptions;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -64,22 +63,22 @@ public interface CompiledPlan {
     String asJsonString();
 
     /** @see #writeToFile(File) */
-    default void writeToFile(String path) throws IOException {
+    default void writeToFile(String path) {
         writeToFile(Paths.get(path));
     }
 
     /** @see #writeToFile(File, boolean) */
-    default void writeToFile(String path, boolean ignoreIfExists) throws IOException {
+    default void writeToFile(String path, boolean ignoreIfExists) {
         writeToFile(Paths.get(path), ignoreIfExists);
     }
 
     /** @see #writeToFile(File) */
-    default void writeToFile(Path path) throws IOException {
+    default void writeToFile(Path path) {
         writeToFile(path.toFile());
     }
 
     /** @see #writeToFile(File, boolean) */
-    default void writeToFile(Path path, boolean ignoreIfExists) throws IOException {
+    default void writeToFile(Path path, boolean ignoreIfExists) {
         writeToFile(path.toFile(), ignoreIfExists);
     }
 
@@ -88,9 +87,9 @@ public interface CompiledPlan {
      * file already exists, even if the content is different from this plan.
      *
      * @param file the target file
-     * @throws IOException if the file cannot be written.
+     * @throws TableException if the file cannot be written.
      */
-    default void writeToFile(File file) throws IOException {
+    default void writeToFile(File file) {
         writeToFile(file, false);
     }
 
@@ -99,11 +98,13 @@ public interface CompiledPlan {
      *
      * @param file the target file
      * @param ignoreIfExists If a plan exists in the given file and this flag is set, no operation
-     *     is executed and the plan is not overwritten. An exception is thrown otherwise.
-     * @throws IOException if the file cannot be written.
-     * @throws TableException if {@code ignoreIfExists} is false and a plan already exists.
+     *     is executed and the plan is not overwritten. An exception is thrown otherwise. If this
+     *     flag is not set and {@link TableConfigOptions#PLAN_FORCE_RECOMPILE} is set, the plan file
+     *     will be overwritten.
+     * @throws TableException if the file cannot be written or if {@code ignoreIfExists} is false
+     *     and a plan already exists.
      */
-    void writeToFile(File file, boolean ignoreIfExists) throws IOException;
+    void writeToFile(File file, boolean ignoreIfExists);
 
     // --- Accessors
 

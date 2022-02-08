@@ -22,15 +22,18 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.CompiledPlanInternal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink;
-import org.apache.flink.util.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -59,15 +62,31 @@ public class ExecNodeGraphCompiledPlan implements CompiledPlanInternal {
     }
 
     @Override
-    public void writeToFile(File file, boolean ignoreIfExists) throws IOException {
-        if (!ignoreIfExists && file.exists()) {
-            throw new TableException(
-                    "The plan file '"
-                            + file
-                            + "' already exists. "
-                            + "If you want to recompile the plan, please manually remove the file.");
+    public void writeToFile(File file, boolean ignoreIfExists) {
+        if (file.exists()) {
+            if (ignoreIfExists) {
+                return;
+            }
+
+            if (!planner.getConfiguration().get(TableConfigOptions.PLAN_FORCE_RECOMPILE)) {
+                throw new TableException(
+                        String.format(
+                                "Cannot overwrite the plan file '%s'. "
+                                        + "Either manually remove the file or, "
+                                        + "if you're debugging your job, "
+                                        + "set the option '%s' to true.",
+                                file, TableConfigOptions.PLAN_FORCE_RECOMPILE.key()));
+            }
         }
-        FileUtils.writeFileUtf8(file, serializedPlan);
+        try {
+            Files.write(
+                    file.toPath(),
+                    serializedPlan.getBytes(StandardCharsets.UTF_8),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE);
+        } catch (IOException e) {
+            throw new TableException("Cannot write the compiled plan to file '" + file + "'.", e);
+        }
     }
 
     @Override
