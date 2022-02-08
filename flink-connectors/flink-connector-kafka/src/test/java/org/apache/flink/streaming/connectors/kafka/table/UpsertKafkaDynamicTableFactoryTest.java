@@ -71,6 +71,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Consumer;
 
@@ -238,7 +239,8 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         assertThat(provider, instanceOf(DataStreamSinkProvider.class));
         final DataStreamSinkProvider sinkProvider = (DataStreamSinkProvider) provider;
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        sinkProvider.consumeDataStream(env.fromElements(new BinaryRowData(1)));
+        sinkProvider.consumeDataStream(
+                n -> Optional.empty(), env.fromElements(new BinaryRowData(1)));
         final StreamOperatorFactory<?> sinkOperatorFactory =
                 env.getStreamGraph().getStreamNodes().stream()
                         .filter(n -> n.getOperatorName().contains("Writer"))
@@ -650,7 +652,9 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         final DataStreamScanProvider dataStreamScanProvider = (DataStreamScanProvider) provider;
         final Transformation<RowData> transformation =
                 dataStreamScanProvider
-                        .produceDataStream(StreamExecutionEnvironment.createLocalEnvironment())
+                        .produceDataStream(
+                                n -> Optional.empty(),
+                                StreamExecutionEnvironment.createLocalEnvironment())
                         .getTransformation();
         assertThat(transformation, instanceOf(SourceTransformation.class));
         SourceTransformation<RowData, KafkaPartitionSplit, KafkaSourceEnumState>
