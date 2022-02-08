@@ -20,10 +20,10 @@ package org.apache.flink.connector.file.sink.writer;
 
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.connector.sink2.Committer.CommitRequest;
+import org.apache.flink.api.connector.sink2.mocks.MockCommitRequest;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
 import org.apache.flink.connector.file.sink.committer.FileCommitter;
-import org.apache.flink.connector.file.sink.utils.TestCommitRequest;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
@@ -225,7 +225,7 @@ public class FileWriterBucketStateSerializerMigrationTest {
             bucket.snapshotState();
             Collection<CommitRequest<FileSinkCommittable>> committables =
                     bucket.prepareCommit(false).stream()
-                            .map(TestCommitRequest::new)
+                            .map(MockCommitRequest::new)
                             .collect(Collectors.toList());
             FileCommitter committer = new FileCommitter(createBucketWriter());
             committer.commit(committables);

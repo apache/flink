@@ -27,7 +27,7 @@ import org.apache.flink.api.common.operators.{ResourceSpec, SlotSharingGroup}
 import org.apache.flink.api.common.serialization.SerializationSchema
 import org.apache.flink.api.common.state.MapStateDescriptor
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.connector.sink.Sink
+import org.apache.flink.api.connector.sink2.Sink
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.{Tuple => JavaTuple}
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
@@ -1154,7 +1154,15 @@ class DataStream[T](stream: JavaStream[T]) {
    * will be executed once the StreamExecutionEnvironment.execute(...)
    * method is called.
    */
-  def sinkTo(sink: Sink[T, _, _, _]): DataStreamSink[T] = stream.sinkTo(sink)
+  def sinkTo(sink: org.apache.flink.api.connector.sink.Sink[T, _, _, _]): DataStreamSink[T] =
+    stream.sinkTo(sink)
+
+  /**
+   * Adds the given sink to this DataStream. Only streams with sinks added
+   * will be executed once the StreamExecutionEnvironment.execute(...)
+   * method is called.
+   */
+  def sinkTo(sink: Sink[T]): DataStreamSink[T] = stream.sinkTo(sink)
 
   /**
    * Triggers the distributed execution of the streaming dataflow and returns an iterator over the

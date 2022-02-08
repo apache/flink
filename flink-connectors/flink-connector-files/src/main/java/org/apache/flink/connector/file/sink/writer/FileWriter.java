@@ -186,8 +186,7 @@ public class FileWriter<IN>
     }
 
     @Override
-    public void write(IN element, SinkWriter.Context context)
-            throws IOException, InterruptedException {
+    public void write(IN element, Context context) throws IOException, InterruptedException {
         // setting the values in the bucketer context
         bucketerContext.update(
                 context.timestamp(),

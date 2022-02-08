@@ -191,9 +191,9 @@ class FileWriterBucket<IN> {
         inProgressPart.write(element, currentTime);
     }
 
-    List<FileSinkCommittable> prepareCommit(boolean flush) throws IOException {
+    List<FileSinkCommittable> prepareCommit(boolean endOfInput) throws IOException {
         if (inProgressPart != null
-                && (rollingPolicy.shouldRollOnCheckpoint(inProgressPart) || flush)) {
+                && (rollingPolicy.shouldRollOnCheckpoint(inProgressPart) || endOfInput)) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug(
                         "Closing in-progress part file for bucket id={} on checkpoint.", bucketId);

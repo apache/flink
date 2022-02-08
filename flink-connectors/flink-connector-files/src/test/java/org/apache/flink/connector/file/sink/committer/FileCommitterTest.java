@@ -19,10 +19,10 @@
 package org.apache.flink.connector.file.sink.committer;
 
 import org.apache.flink.api.connector.sink2.Committer.CommitRequest;
+import org.apache.flink.api.connector.sink2.mocks.MockCommitRequest;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
 import org.apache.flink.connector.file.sink.utils.FileSinkTestUtils;
 import org.apache.flink.connector.file.sink.utils.NoOpBucketWriter;
-import org.apache.flink.connector.file.sink.utils.TestCommitRequest;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWriter;
 
@@ -47,8 +47,8 @@ public class FileCommitterTest {
         StubBucketWriter stubBucketWriter = new StubBucketWriter();
         FileCommitter fileCommitter = new FileCommitter(stubBucketWriter);
 
-        TestCommitRequest<FileSinkCommittable> fileSinkCommittable =
-                new TestCommitRequest<>(
+        MockCommitRequest<FileSinkCommittable> fileSinkCommittable =
+                new MockCommitRequest<>(
                         new FileSinkCommittable(
                                 new FileSinkTestUtils.TestPendingFileRecoverable()));
         fileCommitter.commit(Collections.singletonList(fileSinkCommittable));
@@ -64,8 +64,8 @@ public class FileCommitterTest {
         StubBucketWriter stubBucketWriter = new StubBucketWriter();
         FileCommitter fileCommitter = new FileCommitter(stubBucketWriter);
 
-        TestCommitRequest<FileSinkCommittable> fileSinkCommittable =
-                new TestCommitRequest<>(
+        MockCommitRequest<FileSinkCommittable> fileSinkCommittable =
+                new MockCommitRequest<>(
                         new FileSinkCommittable(
                                 new FileSinkTestUtils.TestInProgressFileRecoverable()));
         fileCommitter.commit(Collections.singletonList(fileSinkCommittable));
@@ -92,7 +92,7 @@ public class FileCommitterTest {
                                         new FileSinkTestUtils.TestPendingFileRecoverable()),
                                 new FileSinkCommittable(
                                         new FileSinkTestUtils.TestInProgressFileRecoverable()))
-                        .map(TestCommitRequest::new)
+                        .map(MockCommitRequest::new)
                         .collect(Collectors.toList());
         fileCommitter.commit(committables);
 
