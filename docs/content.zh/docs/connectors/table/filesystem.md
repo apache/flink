@@ -1,5 +1,5 @@
 ---
-title: FileSystem
+title: 文件系统
 weight: 8
 type: docs
 aliases:
@@ -24,16 +24,16 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# FileSystem SQL Connector
+# 文件系统 SQL 连接器
 
-This connector provides access to partitioned files in filesystems
-supported by the [Flink FileSystem abstraction]({{< ref "docs/deployment/filesystems/overview" >}}).
+此连接器提供对文件系统中分区文件的访问，
+由 [Flink FileSystem abstraction]({{< ref "docs/deployment/filesystems/overview" >}}) 提供支持。
 
-The file system connector itself is included in Flink and does not require an additional dependency.
-The corresponding jar can be found in the Flink distribution inside the `/lib` directory.
-A corresponding format needs to be specified for reading and writing rows from and to a file system.
+在 Flink 中包含了该文件系统连接器，不需要添加额外的依赖。
+相应的 jar 包可以在 Flink 工程项目的 `/lib` 目录下找到。
+从文件系统中读取或者写入行时，需要指定相应的格式。
 
-The file system connector allows for reading and writing from a local or distributed filesystem. A filesystem table can be defined as:
+文件系统连接器允许从本地或分布式文件系统进行读写。文件系统表可以定义为：
 
 ```sql
 CREATE TABLE MyUserTable (
@@ -59,21 +59,21 @@ CREATE TABLE MyUserTable (
 ```
 
 {{< hint info >}}
-Make sure to include [Flink File System specific dependencies]({{< ref "docs/deployment/filesystems/overview" >}}).
+确定包含 [Flink File System specific dependencies]({{< ref "docs/deployment/filesystems/overview" >}}).
 {{< /hint >}}
 
 {{< hint info >}}
-File system sources for streaming is still under development. In the future, the community will add support for common streaming use cases, i.e., partition and directory monitoring.
+基于流的文件系统源仍在开发中。未来，社区将增加对常见的流式用例的支持，例如，分区和目录监控。
 {{< /hint >}}
 
 {{< hint warning >}}
-The behaviour of file system connector is much different from `previous legacy filesystem connector`:
-the path parameter is specified for a directory not for a file and you can't get a human-readable file in the path that you declare.
+文件系统连接器的行为与 `previous legacy filesystem connector` 有很大不同：
+路径参数是指定目录，而不是指定文件，并且在你声明的路径中无法获取人们可以读懂的文件。
 {{< /hint >}}
 
-## Partition Files
+## 分区文件
 
-Flink's file system partition support uses the standard hive format. However, it does not require partitions to be pre-registered with a table catalog. Partitions are discovered and inferred based on directory structure. For example, a table partitioned based on the directory below would be inferred to contain `datetime` and `hour` partitions.
+ Flink 的文件系统分区支持标准的 Hive 格式。但是，它不要求分区预先注册到表目录中。分区是根据目录结构发现和推断的。 例如，根据下面的目录进行分区的表将被推断为包含 `datetime` 和 `hour` 分区。
 
 ```
 path
@@ -88,95 +88,93 @@ path
         ├── part-0.parquet
 ```
 
-The file system table supports both partition inserting and overwrite inserting. See [INSERT Statement]({{< ref "docs/dev/table/sql/insert" >}}). When you insert overwrite to a partitioned table, only the corresponding partition will be overwritten, not the entire table.
+文件系统表支持分区插入和覆盖插入。 请参考 [INSERT Statement]({{< ref "docs/dev/table/sql/insert" >}})。当你在分区表中覆盖插入时，只会覆盖相应的分区，而不会覆盖整个表。
 
-## File Formats
+## 文件格式
 
-The file system connector supports multiple formats:
+文件系统连接器支持多种文件格式：
 
-- CSV: [RFC-4180](https://tools.ietf.org/html/rfc4180). Uncompressed.
-- JSON: Note JSON format for file system connector is not a typical JSON file but uncompressed [newline delimited JSON](http://jsonlines.org/).
-- Avro: [Apache Avro](http://avro.apache.org). Support compression by configuring `avro.codec`.
-- Parquet: [Apache Parquet](http://parquet.apache.org). Compatible with Hive.
-- Orc: [Apache Orc](http://orc.apache.org). Compatible with Hive.
-- Debezium-JSON: [debezium-json]({{< ref "docs/connectors/table/formats/debezium" >}}).
-- Canal-JSON: [canal-json]({{< ref "docs/connectors/table/formats/canal" >}}).
-- Raw: [raw]({{< ref "docs/connectors/table/formats/raw" >}}).
+- CSV： [RFC-4180](https://tools.ietf.org/html/rfc4180) 。 未压缩。
+- JSON：注意，文件系统连接器的 JSON 格式不是典型的 JSON 文件，而是未压缩的。[换行符分割的 JSON](http://jsonlines.org/) 。
+- Avro：[Apache Avro](http://avro.apache.org) 。通过配置参数 `avro.codec` 支持压缩。
+- Parquet：[Apache Parquet](http://parquet.apache.org) 。兼容 Hive 。
+- Orc：[Apache Orc](http://orc.apache.org) 。兼容 Hive 。
+- Debezium-JSON：[debezium-json]({{< ref "docs/connectors/table/formats/debezium" >}}) 。
+- Canal-JSON：[canal-json]({{< ref "docs/connectors/table/formats/canal" >}}) 。
+- Raw：[raw]({{< ref "docs/connectors/table/formats/raw" >}}) 。
 
-## Source
+## 数据源
 
-The file system connector can be used to read single files or entire directories into a single table.
+文件系统连接器可用于将当个文件或整个目录的数据读取到单个表中。
 
-When using a directory as the source path, there is **no defined order of ingestion** for the files inside the directory.
+当使用目录作为源路径时，对目录中的文件进行 **无序的读取** 。
 
-### Directory watching
+### 目录监控
 
-The file system connector automatically watches the input directory when the runtime mode is configured as STREAMING.
+当运行模式配置为流模式时，文件系统连接器会自动监控输入目录。
 
-You can modify the watch interval using the following option.
+你可以使用以下选项修改监控时间间隔。
 
 <table class="table table-bordered">
   <thead>
     <tr>
-        <th class="text-left" style="width: 20%">Key</th>
-        <th class="text-left" style="width: 15%">Default</th>
-        <th class="text-left" style="width: 10%">Type</th>
-        <th class="text-left" style="width: 55%">Description</th>
+        <th class="text-left" style="width: 20%">键</th>
+        <th class="text-left" style="width: 15%">默认值</th>
+        <th class="text-left" style="width: 10%">类型</th>
+        <th class="text-left" style="width: 55%">描述</th>
     </tr>
   </thead>
   <tbody>
     <tr>
         <td><h5>source.monitor-interval</h5></td>
-        <td style="word-wrap: break-word;">(none)</td>
+        <td style="word-wrap: break-word;">(无)</td>
         <td>Duration</td>
-        <td>The interval in which the source checks for new files. The interval must be greater than 0. 
-        Each file is uniquely identified by its path, and will be processed once, as soon as it's discovered. 
-        The set of files already processed is kept in state during the whole lifecycle of the source, 
-        so it's persisted in checkpoints and savepoints together with the source state. 
-        Shorter intervals mean that files are discovered more quickly, 
-        but also imply more frequent listing or directory traversal of the file system / object store. 
-        If this config option is not set, the provided path will be scanned once, hence the source will be bounded.</td>
+        <td>设置监控新文件的时间间隔，并且必须大于0。 
+        每个文件都由其路径唯一标识，一旦被发现，就会被处理一次。 
+        已处理的文件在数据源的整个生命周期内保持某种状态，因此，它与数据源的状态一起保存在检查点和保存点中。 
+        更短的时间间隔意味着文件被更快地发现，但也意味着更频繁地遍历文件系统/对象存储。 
+        如果未设置此配置选项，则提供的路径被扫描一次，因此数据源将是被绑定的。</td>
     </tr>
   </tbody>
 </table>
 
-### Available Metadata
+### 可用元数据
 
-The following connector metadata can be accessed as metadata columns in a table definition. All the metadata are read only.
+以下连接器元数据可以作为表定义中对元数据进行访问。所有元数据都是只读的。
 
 <table class="table table-bordered">
     <thead>
     <tr>
-      <th class="text-left" style="width: 25%">Key</th>
-      <th class="text-center" style="width: 30%">Data Type</th>
-      <th class="text-center" style="width: 40%">Description</th>
+      <th class="text-left" style="width: 25%">键</th>
+      <th class="text-center" style="width: 30%">数据类型</th>
+      <th class="text-center" style="width: 40%">描述</th>
     </tr>
     </thead>
     <tbody>
     <tr>
       <td><code>file.path</code></td>
       <td><code>STRING NOT NULL</code></td>
-      <td>Full path of the input file.</td>
+      <td>输入文件的完整路径。</td>
     </tr>
     <tr>
       <td><code>file.name</code></td>
       <td><code>STRING NOT NULL</code></td>
-      <td>Name of the file, that is the farthest element from the root of the filepath.</td>
+      <td>文件名，即距离文件跟路径最远的元素。</td>
     </tr>
     <tr>
       <td><code>file.size</code></td>
       <td><code>BIGINT NOT NULL</code></td>
-      <td>Byte count of the file.</td>
+      <td>文件的字节数。</td>
     </tr>
     <tr>
       <td><code>file.modification-time</code></td>
       <td><code>TIMESTAMP_LTZ(3) NOT NULL</code></td>
-      <td>Modification time of the file.</td>
+      <td>文件的修改时间。</td>
     </tr>
     </tbody>
 </table>
 
-The extended `CREATE TABLE` example demonstrates the syntax for exposing these metadata fields:
+扩展的 `CREATE TABLE` 示例演示了标识某个字段为元数据的语法：
 
 ```sql
 CREATE TABLE MyUserTableWithFilepath (
@@ -190,28 +188,25 @@ CREATE TABLE MyUserTableWithFilepath (
 )
 ```
 
-## Streaming Sink
+## 基于流的 Sink
 
-The file system connector supports streaming writes, based on Flink's [FileSystem]({{< ref "docs/connectors/datastream/filesystem" >}}),
-to write records to file. Row-encoded Formats are CSV and JSON. Bulk-encoded Formats are Parquet, ORC and Avro.
+文件系统连接器支持流写入，是基于 Flink 的 [文件系统]({{< ref "docs/connectors/datastream/filesystem" >}}) ，
+写入文件的。使用行编码格式的包含 CSV 和 JSON 。 使用块编码格式的包含 Parquet、ORC 和 Avro 。
 
-You can write SQL directly, insert the stream data into the non-partitioned table.
-If it is a partitioned table, you can configure partition related operations. See [Partition Commit](filesystem.html#partition-commit) for details.
+你可以直接写 SQL 语句，插入流数据到非分区的表中。
+如果是分区表你可以配置分区相关的操作。请参考 [分区提交](filesystem.html#partition-commit) 了解更多详情。
 
-### Rolling Policy
+### 回滚策略
 
-Data within the partition directories are split into part files. Each partition will contain at least one part file for
-each subtask of the sink that has received data for that partition. The in-progress part file will be closed and additional
-part file will be created according to the configurable rolling policy. The policy rolls part files based on size,
-a timeout that specifies the maximum duration for which a file can be open.
+数据通过分区目录被分割成了多个文件。 对于接收到该分区数据的接收器的每个子任务，每个分区将至少包含一个文件。正在进行中的文件将被关闭，并根据配置的滚动策略创建其他文件。策略根据大小回滚文件，超时配置指定了文件可以打开的最长时间。
 
 <table class="table table-bordered">
   <thead>
     <tr>
-        <th class="text-left" style="width: 20%">Key</th>
-        <th class="text-left" style="width: 15%">Default</th>
-        <th class="text-left" style="width: 10%">Type</th>
-        <th class="text-left" style="width: 55%">Description</th>
+        <th class="text-left" style="width: 20%">键</th>
+        <th class="text-left" style="width: 15%">默认值</th>
+        <th class="text-left" style="width: 10%">类型</th>
+        <th class="text-left" style="width: 55%">描述</th>
     </tr>
   </thead>
   <tbody>
@@ -219,41 +214,40 @@ a timeout that specifies the maximum duration for which a file can be open.
         <td><h5>sink.rolling-policy.file-size</h5></td>
         <td style="word-wrap: break-word;">128MB</td>
         <td>MemorySize</td>
-        <td>The maximum part file size before rolling.</td>
+        <td>回滚之前最大文件大小。</td>
     </tr>
     <tr>
         <td><h5>sink.rolling-policy.rollover-interval</h5></td>
         <td style="word-wrap: break-word;">30 min</td>
         <td>Duration</td>
-        <td>The maximum time duration a part file can stay open before rolling (by default 30 min to avoid to many small files).
-        The frequency at which this is checked is controlled by the 'sink.rolling-policy.check-interval' option.</td>
+        <td>回滚前文件可以保持打开状态的最长时间（默认30分钟，为了避免产生过多小文件）。
+        检查频率是由配置 'sink.rolling-policy.check-interval' 参数进行控制的。</td>
     </tr>
     <tr>
         <td><h5>sink.rolling-policy.check-interval</h5></td>
         <td style="word-wrap: break-word;">1 min</td>
         <td>Duration</td>
-        <td>The interval for checking time based rolling policies. This controls the frequency to check whether a part file should rollover based on 'sink.rolling-policy.rollover-interval'.</td>
+        <td>基于回滚策略的检查时间间隔。控制一个文件基于参数 'sink.rolling-policy.rollover-interval' 判断是否回滚的检查频率。</td>
     </tr>
   </tbody>
 </table>
 
-**NOTE:** For bulk formats (parquet, orc, avro), the rolling policy in combination with the checkpoint interval(pending files
-become finished on the next checkpoint) control the size and number of these parts.
+**注意：** 对于块格式数据 ( parquet、 orc、 avro )，回滚策略与检查点间隔（挂起的文件在下一个检查点完成）相结合，控制这些文件的大小和数量。
 
-**NOTE:** For row formats (csv, json), you can set the parameter `sink.rolling-policy.file-size` or `sink.rolling-policy.rollover-interval` in the connector properties and parameter `execution.checkpointing.interval` in flink-conf.yaml together
-if you don't want to wait a long period before observe the data exists in file system. For other formats (avro, orc), you can just set parameter `execution.checkpointing.interval` in flink-conf.yaml.
+**注意：** 对于行格式数据 (csv、 json)，你可以在连接器配置文件中配置  `sink.rolling-policy.file-size` 或 `sink.rolling-policy.rollover-interval` 参数并且在 flink-conf.yaml 文件中配置 `execution.checkpointing.interval` 参数。
+如果不想在文件系统中观察到数据出现之前等待很长时间。对于其他数据格式 (avro, orc)， 你可以仅在 flink-conf.yaml 文件中配置 `execution.checkpointing.interval` 参数即可。
 
-### File Compaction
+### 文件压缩
 
-The file sink supports file compactions, which allows applications to have smaller checkpoint intervals without generating a large number of files.
+输出文件算子支持文件压缩，它允许应用程序在不生成大量文件的情况下拥有较小的检查点间隔。
 
 <table class="table table-bordered">
   <thead>
     <tr>
-        <th class="text-left" style="width: 20%">Key</th>
-        <th class="text-left" style="width: 15%">Default</th>
-        <th class="text-left" style="width: 10%">Type</th>
-        <th class="text-left" style="width: 55%">Description</th>
+        <th class="text-left" style="width: 20%">键</th>
+        <th class="text-left" style="width: 15%">默认值</th>
+        <th class="text-left" style="width: 10%">类型</th>
+        <th class="text-left" style="width: 55%">描述</th>
     </tr>
   </thead>
   <tbody>
@@ -261,43 +255,43 @@ The file sink supports file compactions, which allows applications to have small
         <td><h5>auto-compaction</h5></td>
         <td style="word-wrap: break-word;">false</td>
         <td>Boolean</td>
-        <td>Whether to enable automatic compaction in streaming sink or not. The data will be written to temporary files. After the checkpoint is completed, the temporary files generated by a checkpoint will be compacted. The temporary files are invisible before compaction.</td>
+        <td>不论是否在流式 Sink 中启用自动压缩。数据都将被写入临时文件。当检查点完成后，将生成压缩的临时文件。压缩之前临时文件不可见。</td>
     </tr>
     <tr>
         <td><h5>compaction.file-size</h5></td>
-        <td style="word-wrap: break-word;">(none)</td>
+        <td style="word-wrap: break-word;">(无)</td>
         <td>MemorySize</td>
-        <td>The compaction target file size, the default value is the rolling file size.</td>
+        <td>压缩的目标文件大小，默认值为回滚文件大小。</td>
     </tr>
   </tbody>
 </table>
 
-If enabled, file compaction will merge multiple small files into larger files based on the target file size.
-When running file compaction in production, please be aware that:
-- Only files in a single checkpoint are compacted, that is, at least the same number of files as the number of checkpoints is generated.
-- The file before merging is invisible, so the visibility of the file may be: checkpoint interval + compaction time.
-- If the compaction takes too long, it will backpressure the job and extend the time period of checkpoint.
+如果启用文件压缩，将根据目标文件大小将多个小文件合并为更大的文件。
+在生产环境中运行文件压缩时，请注意以下几点：
+- 仅压缩单个检查点的文件，即生成文件数至少与检查点数相同。
+- 合并前的文件是不可见的，那么文件的可见时间可能是：检查点间隔时间 + 压缩时间。
+- 如果压缩时间过长，将导致反压并且延长检查点时间。
 
-### Partition Commit
+### 分区提交
 
-After writing a partition, it is often necessary to notify downstream applications. For example, add the partition to a Hive metastore or writing a `_SUCCESS` file in the directory. The file system sink contains a partition commit feature that allows configuring custom policies. Commit actions are based on a combination of `triggers` and `policies`.
+写入分区之后，通常需要通知下游应用程序。例如，添加分区信息到 Hive 元数据中或者在目录中添加 `_SUCCESS` 文件。 文件系统接收器包含一个分区提交功能，允许配置自定义策略。提交操作是基于 `触发器` 和 `策略` 的共同作用。
 
-- Trigger: The timing of the commit of the partition can be determined by the watermark with the time extracted from the partition, or by processing time.
-- Policy: How to commit a partition, built-in policies support for the commit of success files and metastore, you can also implement your own policies, such as triggering hive's analysis to generate statistics, or merging small files, etc.
+- 触发器：提交分区的时间可以通过水印和从分区提取的时间来确定，也可以通过处理时间来确定。
+- 策略：如何提交分区，内置策略支持提交成功文件和元数据，你还可以实现自己的策略，例如触发配置单元分析来生成统计信息，或合并小文件，等等。
 
-**NOTE:** Partition Commit only works in dynamic partition inserting.
+**注意：** 分区提交仅在动态分区插入情况下使用。
 
-#### Partition commit trigger
+#### 分区提交触发器
 
-To define when to commit a partition, providing partition commit trigger:
+当提交分区时需要提供分区提交触发器：
 
 <table class="table table-bordered">
   <thead>
     <tr>
-        <th class="text-left" style="width: 20%">Key</th>
-        <th class="text-left" style="width: 15%">Default</th>
-        <th class="text-left" style="width: 10%">Type</th>
-        <th class="text-left" style="width: 55%">Description</th>
+        <th class="text-left" style="width: 20%">键</th>
+        <th class="text-left" style="width: 15%">默认值</th>
+        <th class="text-left" style="width: 10%">类型</th>
+        <th class="text-left" style="width: 55%">描述</th>
     </tr>
   </thead>
   <tbody>
@@ -305,61 +299,57 @@ To define when to commit a partition, providing partition commit trigger:
         <td><h5>sink.partition-commit.trigger</h5></td>
         <td style="word-wrap: break-word;">process-time</td>
         <td>String</td>
-        <td>Trigger type for partition commit: 'process-time': based on the time of the machine, it neither requires partition time extraction nor watermark generation. Commit partition once the 'current system time' passes 'partition creation system time' plus 'delay'. 'partition-time': based on the time that extracted from partition values, it requires watermark generation. Commit partition once the 'watermark' passes 'time extracted from partition values' plus 'delay'.</td>
+        <td>分区提交的触发器类型：'process-time'： 基于机器时间，它既不要求分区时间提取也不要求水印生成。一旦当前系统时间大于 分区创建时间+延迟时间 的值立即提交分区。'partition-time'： 基于提取的分区时间，它要求水印生成。一旦水印时间大于 分区提取时间+延迟时间 的值立即提交分区。</td>
     </tr>
     <tr>
         <td><h5>sink.partition-commit.delay</h5></td>
         <td style="word-wrap: break-word;">0 s</td>
         <td>Duration</td>
-        <td>The partition will not commit until the delay time. If it is a daily partition, should be '1 d', if it is a hourly partition, should be '1 h'.</td>
+        <td>分区提交的延迟时间。如果是按天分区，可以设置为 '1 d'，如果是按小时分区，可以设置为 '1 h'。</td>
     </tr>
     <tr>
         <td><h5>sink.partition-commit.watermark-time-zone</h5></td>
         <td style="word-wrap: break-word;">UTC</td>
         <td>String</td>
-        <td>The time zone to parse the long watermark value to TIMESTAMP value, the parsed watermark timestamp is used to compare with partition time to decide the partition should commit or not. This option is only take effect when `sink.partition-commit.trigger` is set to 'partition-time'. If this option is not configured correctly, e.g. source rowtime is defined on TIMESTAMP_LTZ column, but this config is not configured, then users may see the partition committed after a few hours. The default value is 'UTC', which means the watermark is defined on TIMESTAMP column or not defined. If the watermark is defined on TIMESTAMP_LTZ column, the time zone of watermark is the session time zone. The option value is either a full name such as 'America/Los_Angeles', or a custom timezone id such as 'GMT-08:00'.</td>
+        <td>解析 Long 类型的水印值为时间戳时的所在时区，解析水印时间戳是为了和分区时间进行比较进而决定是否提交分区。这个选项仅当 `sink.partition-commit.trigger` 被设置为 'partition-time' 时有效。如果这个选项不能正确配置，例如，source rowtime 被定义为 TIMESTAMP_LTZ 类型的列，但是这个选项没有配置，那么用户可能会看到延迟几个小时后才提交的分区。 默认值为 'UTC'，意味着水印被定义在 TIMESTAMP 类型的列上或者没有被定义。如果水印被定义在 TIMESTAMP_LTZ 类型的列上，水印时区必须是会话时区（session time zone）。该选项可以配置成全名，例如 'America/Los_Angeles'，也可以自定义时区，例如 'GMT-08:00'。</td>
     </tr>    
   </tbody>
 </table>
 
-There are two types of trigger:
-- The first is partition processing time. It neither requires partition time extraction nor watermark
-  generation. The trigger of partition commit according to partition creation time and current system time. This trigger
-  is more universal, but not so precise. For example, data delay or failover will lead to premature partition commit.
-- The second is the trigger of partition commit according to the time that extracted from partition values and watermark.
-  This requires that your job has watermark generation, and the partition is divided according to time, such as
-  hourly partition or daily partition.
+触发器有两种类型：
+- 第一种是分区处理时间。它既不要求额外的分区时间，也不需要水印生成。这种分区提交触发器基于分区创建时间和当前系统时间。
+  这种触发器更具普遍性，但不是很精确。例如，数据延迟或故障将导致过早提交分区。
+- 第二种提交分区触发器是根据在分区值提取的时间和水印共同触发。
+  这种要求任务中有水印生成，并且根据时间进行分区，例如，按小时分区或按天分区。
 
-If you want to let downstream see the partition as soon as possible, no matter whether its data is complete or not:
-- 'sink.partition-commit.trigger'='process-time' (Default value)
-- 'sink.partition-commit.delay'='0s' (Default value)
-  Once there is data in the partition, it will immediately commit. Note: the partition may be committed multiple times.
+如果你想让下游尽快看到分区，不论数据处理是否完成：
+- 'sink.partition-commit.trigger'='process-time' (默认值)
+- 'sink.partition-commit.delay'='0s' (默认值)
+  一旦数据进入分区，将立即提交。注意：这个分区将被多次提交。
 
-If you want to let downstream see the partition only when its data is complete, and your job has watermark generation, and you can extract the time from partition values:
+如果你想当数据处理完成时下游才看到分区，你的任务中有水印生成以及从分区值中提取的时间：
 - 'sink.partition-commit.trigger'='partition-time'
-- 'sink.partition-commit.delay'='1h' ('1h' if your partition is hourly partition, depends on your partition type)
-  This is the most accurate way to commit partition, and it will try to ensure that the committed partitions are as data complete as possible.
+- 'sink.partition-commit.delay'='1h' ('1h' 如果你的分区所依赖的分区类型是按小时分区)
+  这是提交分区的最准确方法，它将尝试确保提交的分区数据尽可能完整。
 
-If you want to let downstream see the partition only when its data is complete, but there is no watermark, or the time cannot be extracted from partition values:
-- 'sink.partition-commit.trigger'='process-time' (Default value)
-- 'sink.partition-commit.delay'='1h' ('1h' if your partition is hourly partition, depends on your partition type)
-  Try to commit partition accurately, but data delay or failover will lead to premature partition commit.
+如果你想当数据处理完成时下游才看到分区，但是没有水印生成或者不能从分区值中提取时间：
+- 'sink.partition-commit.trigger'='process-time' (默认值)
+- 'sink.partition-commit.delay'='1h' ('1h' 如果你的分区所依赖的分区类型是按小时分区)
+  能够比较精确的提交分区，但是数据延迟或者故障将导致过早提交分区。
 
-Late data processing: The record will be written into its partition when a record is supposed to be
-written into a partition that has already been committed, and then the committing of this partition
-will be triggered again.
+迟到数据的处理: 当一条记录被写入已经提交的分区时，该记录被写入其分区，然后该分区的提交将被再次触发。
 
-#### Partition Time Extractor
+#### 分区时间提取器
 
-Time extractors define extracting time from partition values.
+时间提取器从分区中提取时间。
 
 <table class="table table-bordered">
   <thead>
     <tr>
-        <th class="text-left" style="width: 20%">Key</th>
-        <th class="text-left" style="width: 15%">Default</th>
-        <th class="text-left" style="width: 10%">Type</th>
-        <th class="text-left" style="width: 55%">Description</th>
+        <th class="text-left" style="width: 20%">键</th>
+        <th class="text-left" style="width: 15%">默认值</th>
+        <th class="text-left" style="width: 10%">类型</th>
+        <th class="text-left" style="width: 55%">描述</th>
     </tr>
   </thead>
   <tbody>
@@ -367,32 +357,32 @@ Time extractors define extracting time from partition values.
         <td><h5>partition.time-extractor.kind</h5></td>
         <td style="word-wrap: break-word;">default</td>
         <td>String</td>
-        <td>Time extractor to extract time from partition values. Support default and custom. For default, can configure timestamp pattern\formatter. For custom, should configure extractor class.</td>
+        <td>时间提取器从分区中提取时间。支持 default 和 custom。 默认情况下，可以配置时间戳模式/格式。对于 custom，应该配置自定义的提取器类。</td>
     </tr>
     <tr>
         <td><h5>partition.time-extractor.class</h5></td>
-        <td style="word-wrap: break-word;">(none)</td>
+        <td style="word-wrap: break-word;">(无)</td>
         <td>String</td>
-        <td>The extractor class for implement PartitionTimeExtractor interface.</td>
+        <td>实现 PartitionTimeExtractor 接口的提取器类。</td>
     </tr>
     <tr>
         <td><h5>partition.time-extractor.timestamp-pattern</h5></td>
-        <td style="word-wrap: break-word;">(none)</td>
+        <td style="word-wrap: break-word;">(无)</td>
         <td>String</td>
-        <td>The 'default' construction way allows users to use partition fields to get a legal timestamp pattern. Default support 'yyyy-MM-dd hh:mm:ss' from first field. If timestamp should be extracted from a single partition field 'dt', can configure: '$dt'. If timestamp should be extracted from multiple partition fields, say 'year', 'month', 'day' and 'hour', can configure: '$year-$month-$day $hour:00:00'. If timestamp should be extracted from two partition fields 'dt' and 'hour', can configure: '$dt $hour:00:00'.</td>
+        <td>允许用户使用分区字段来获取合法的时间戳模式的默认格式化方式。默认支持来自第一个字段采用 'yyyy-MM-dd hh:mm:ss' 这种格式。 如果时间提取来自单一分区字段 'dt'， 可以配置成：'$dt'。如果时间提取来自多个分区字段， 例如 'year'、 'month'、 'day' 和 'hour'，可以配置成: '$year-$month-$day $hour:00:00'。如果时间提取来自两个分区字段 'dt' 和 'hour'，可以配置成： '$dt $hour:00:00'。</td>
     </tr>
     <tr>
         <td><h5>partition.time-extractor.timestamp-formatter</h5></td>
         <td style="word-wrap: break-word;">yyyy-MM-dd&nbsp;HH:mm:ss</td>
         <td>String</td>
-        <td>The formatter that formats the partition timestamp string value to timestamp, the partition timestamp string value is expressed by 'partition.time-extractor.timestamp-pattern'. For example, the partition timestamp is extracted from multiple partition fields, say 'year', 'month' and 'day', you can configure 'partition.time-extractor.timestamp-pattern' to '$year$month$day', and configure `partition.time-extractor.timestamp-formatter` to 'yyyyMMdd'. By default the formatter is 'yyyy-MM-dd HH:mm:ss'.
-            <br>The timestamp-formatter is compatible with Java's <a href="https://docs.oracle.com/javase/8/docs/api/java/time/format/DateTimeFormatter.html">DateTimeFormatter</a>
+        <td>转换分区时间字符串值为时间戳的格式化类型，分区时间字符串值通过 'partition.time-extractor.timestamp-pattern' 参数表达。例如，分区时间提取来自多个分区字段，比如 'year'、 'month' 和 'day'，你可以配置 'partition.time-extractor.timestamp-pattern' 参数为 '$year$month$day'，并且配置 `partition.time-extractor.timestamp-formatter` 参数为 'yyyyMMdd'。默认的格式是 'yyyy-MM-dd HH:mm:ss'。
+            <br>这的时间戳格式化和 Java 的 <a href="https://docs.oracle.com/javase/8/docs/api/java/time/format/DateTimeFormatter.html">DateTimeFormatter</a> 是通用的。
  				</td>
     </tr>
   </tbody>
 </table>
 
-The default extractor is based on a timestamp pattern composed of your partition fields. You can also specify an implementation for fully custom partition extraction based on the `PartitionTimeExtractor` interface.
+默认提取器基于由分区字段组成的时间戳模式。你也可以指定一个实现接口 `PartitionTimeExtractor` 的完全自定义的分区提取器。
 
 ```java
 
@@ -407,45 +397,45 @@ public class HourPartTimeExtractor implements PartitionTimeExtractor {
 
 ```
 
-#### Partition Commit Policy
+#### 分区提交策略
 
-The partition commit policy defines what action is taken when partitions are committed.
+分区提交策略定义了提交分区时采取的操作。
 
-- The first is metastore, only hive table supports metastore policy, file system manages partitions through directory structure.
-- The second is the success file, which will write an empty file in the directory corresponding to the partition.
+- 第一种是元数据存储（metastore）， 仅 Hive 表支持的元数据存储策略，文件系统通过目录结构管理分区。
+- 第二种是成功文件，它是一个即将在分区对应的目录中写入的空文件。
 
 <table class="table table-bordered">
   <thead>
     <tr>
-        <th class="text-left" style="width: 20%">Key</th>
-        <th class="text-left" style="width: 15%">Default</th>
-        <th class="text-left" style="width: 10%">Type</th>
-        <th class="text-left" style="width: 55%">Description</th>
+        <th class="text-left" style="width: 20%">键</th>
+        <th class="text-left" style="width: 15%">默认值</th>
+        <th class="text-left" style="width: 10%">类型</th>
+        <th class="text-left" style="width: 55%">描述</th>
     </tr>
   </thead>
   <tbody>
     <tr>
         <td><h5>sink.partition-commit.policy.kind</h5></td>
-        <td style="word-wrap: break-word;">(none)</td>
+        <td style="word-wrap: break-word;">(无)</td>
         <td>String</td>
-        <td>Policy to commit a partition is to notify the downstream application that the partition has finished writing, the partition is ready to be read. metastore: add partition to metastore. Only hive table supports metastore policy, file system manages partitions through directory structure. success-file: add '_success' file to directory. Both can be configured at the same time: 'metastore,success-file'. custom: use policy class to create a commit policy. Support to configure multiple policies: 'metastore,success-file'.</td>
+        <td>提交分区策略通知下游该分区已完成写，该分区可以被读取。 metastore：向元数据存储添加分区。 仅 Hive 支持 metastore 策略，文件系统通过目录结构管理分区。success-file： 在目录中增加 '_success' 文件。 两者可以同时设置：'metastore,success-file'。 自定义: 通过策略类创建提交策略。 也是支持多个设置的：'metastore,success-file'。</td>
     </tr>
     <tr>
         <td><h5>sink.partition-commit.policy.class</h5></td>
-        <td style="word-wrap: break-word;">(none)</td>
+        <td style="word-wrap: break-word;">(无)</td>
         <td>String</td>
-        <td>The partition commit policy class for implement PartitionCommitPolicy interface. Only work in custom commit policy.</td>
+        <td>实现 PartitionCommitPolicy 接口的分区提交策略类。仅在自定义提交策略时生效。</td>
     </tr>
     <tr>
         <td><h5>sink.partition-commit.success-file.name</h5></td>
         <td style="word-wrap: break-word;">_SUCCESS</td>
         <td>String</td>
-        <td>The file name for success-file partition commit policy, default is '_SUCCESS'.</td>
+        <td>分区提交策略添加的成功文件名，默认值为 '_SUCCESS'。</td>
     </tr>
   </tbody>
 </table>
 
-You can extend the implementation of commit policy, The custom commit policy implementation like:
+你可以扩展提交策略的实现，可以参考如下方式进行自定义提交策略的实现：
 
 ```java
 
@@ -474,36 +464,36 @@ public class AnalysisCommitPolicy implements PartitionCommitPolicy {
 
 ```
 
-## Sink Parallelism
+## Sink 并行度
 
-The parallelism of writing files into external file system (including Hive) can be configured by the corresponding table option, which is supported both in streaming mode and in batch mode. By default, the parallelism is configured to being the same as the parallelism of its last upstream chained operator. When the parallelism which is different from the parallelism of the upstream parallelism is configured, the operator of writing files and the operator compacting files (if used) will apply the parallelism.
+将文件写入外部文件系统（包括 Hive）的并行度可以通过相应的表选项进行配置，在流模式和批模式下都是支持的。 默认情况下，Sink 并行度配置与上游链式算子的并行度相同。当配置的 Sink 并行度不同于上游算子的并行度时，写入文件操作和压缩文件操作（如果启用压缩）将使用该配置的 Sink 并行度。
 
 
 <table class="table table-bordered">
   <thead>
     <tr>
-        <th class="text-left" style="width: 20%">Key</th>
-        <th class="text-left" style="width: 15%">Default</th>
-        <th class="text-left" style="width: 10%">Type</th>
-        <th class="text-left" style="width: 55%">Description</th>
+        <th class="text-left" style="width: 20%">键</th>
+        <th class="text-left" style="width: 15%">默认值</th>
+        <th class="text-left" style="width: 10%">类型</th>
+        <th class="text-left" style="width: 55%">描述</th>
     </tr>
   </thead>
   <tbody>
     <tr>
         <td><h5>sink.parallelism</h5></td>
-        <td style="word-wrap: break-word;">(none)</td>
+        <td style="word-wrap: break-word;">(无)</td>
         <td>Integer</td>
-        <td>Parallelism of writing files into external file system. The value should greater than zero otherwise exception will be thrown.</td>
+        <td>将文件写入外部文件系统的并行度。这个值应该大于0否则抛异常。</td>
     </tr>
 
   </tbody>
 </table>
 
-**NOTE:** Currently, Configuring sink parallelism is supported if and only if the changelog mode of upstream is **INSERT-ONLY**. Otherwise, exception will be thrown.
+**注意：** 目前，当且仅当上游的 changelog 模式为 **INSERT-ONLY** 时，才支持配置 Sink 并行度。否则，程序将会抛出异常。
 
-## Full Example
+## 完整示例
 
-The below examples show how the file system connector can be used to write a streaming query to write data from Kafka into a file system and runs a batch query to read that data back out.
+以下示例展示了如何使用文件系统连接器编写流式查询，将数据从 Kafka 写入文件系统，然后运行批式查询将数据读回。
 
 ```sql
 
@@ -540,7 +530,7 @@ FROM kafka_table;
 SELECT * FROM fs_table WHERE dt='2020-05-20' and `hour`='12';
 ```
 
-If the watermark is defined on TIMESTAMP_LTZ column and used `partition-time` to commit, the `sink.partition-commit.watermark-time-zone` is required to set to the session time zone, otherwise the partition committed may happen after a few hours.
+如果水印被定义在 TIMESTAMP_LTZ 类型的列上并且使用 `partition-time` 模式进行提交， `sink.partition-commit.watermark-time-zone` 这个参数要求设置成会话时区，否则分区提交可能会延迟几个小时。
 ```sql
 
 CREATE TABLE kafka_table (
