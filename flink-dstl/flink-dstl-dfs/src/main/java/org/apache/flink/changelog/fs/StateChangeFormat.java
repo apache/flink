@@ -41,8 +41,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
 
 import static java.util.Comparator.comparing;
 
@@ -51,6 +49,7 @@ import static java.util.Comparator.comparing;
 public class StateChangeFormat
         implements StateChangelogHandleStreamHandleReader.StateChangeIterator {
     private static final Logger LOG = LoggerFactory.getLogger(StateChangeFormat.class);
+    public static final int NUM_PER_GROUP = 1;
 
     Map<StateChangeSet, Long> write(OutputStreamWithPos os, Collection<StateChangeSet> changeSets)
             throws IOException {
@@ -70,18 +69,21 @@ public class StateChangeFormat
 
     private void writeChangeSet(DataOutputViewStreamWrapper output, List<StateChange> changes)
             throws IOException {
-        // write in groups to output kg id only once
-        Map<Integer, List<StateChange>> byKeyGroup =
-                changes.stream().collect(Collectors.groupingBy(StateChange::getKeyGroup));
-        // sort groups to output metadata first (see StateChangeLoggerImpl.COMMON_KEY_GROUP)
-        Map<Integer, List<StateChange>> sorted = new TreeMap<>(byKeyGroup);
-        output.writeInt(sorted.size());
-        for (Map.Entry<Integer, List<StateChange>> entry : sorted.entrySet()) {
-            output.writeInt(entry.getValue().size());
-            output.writeInt(entry.getKey());
-            for (StateChange stateChange : entry.getValue()) {
-                output.writeInt(stateChange.getChange().length);
-                output.write(stateChange.getChange());
+        // do NOT reorder groups, so that PriorityQueue operations don't interleave
+        // only output -1 (metadata) group first (see StateChangeLoggerImpl.COMMON_KEY_GROUP)
+        output.writeInt(changes.size());
+        for (StateChange change : changes) {
+            if (change.getKeyGroup() < 0) {
+                output.writeInt(change.getKeyGroup());
+                output.writeInt(change.getChange().length);
+                output.write(change.getChange());
+            }
+        }
+        for (StateChange change : changes) {
+            if (change.getKeyGroup() >= 0) {
+                output.writeInt(change.getKeyGroup());
+                output.writeInt(change.getChange().length);
+                output.write(change.getChange());
             }
         }
     }
@@ -97,8 +99,8 @@ public class StateChangeFormat
         }
         return new CloseableIterator<StateChange>() {
             int numUnreadGroups = input.readInt();
-            int numLeftInGroup = numUnreadGroups-- == 0 ? 0 : input.readInt();
-            int keyGroup = numLeftInGroup == 0 ? 0 : input.readInt();
+            int numLeftInGroup = numUnreadGroups-- == 0 ? 0 : NUM_PER_GROUP;
+            int keyGroup = numUnreadGroups == 0 ? 0 : input.readInt();
 
             @Override
             public boolean hasNext() {
@@ -110,7 +112,7 @@ public class StateChangeFormat
                 if (numLeftInGroup == 0 && numUnreadGroups > 0) {
                     numUnreadGroups--;
                     try {
-                        numLeftInGroup = input.readInt();
+                        numLeftInGroup = NUM_PER_GROUP;
                         keyGroup = input.readInt();
                     } catch (IOException e) {
                         ExceptionUtils.rethrow(e);
