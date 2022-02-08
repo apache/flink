@@ -47,4 +47,6 @@ public class DockerImageVersions {
     public static final String CASSANDRA_3 = "cassandra:3.0";
 
     public static final String MINIO = "minio/minio:RELEASE.2022-02-07T08-17-33Z";
+
+    public static final String ZOOKEEPER = "zookeeper:3.4.14";
 }

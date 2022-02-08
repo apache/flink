@@ -29,7 +29,6 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
-import kafka.server.KafkaServer;
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.junit.Before;
 import org.junit.Test;
@@ -761,32 +760,8 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
     // -----------------------------------------------------------------------------------------------------------------
 
     // shut down a Kafka broker
-    private void failBroker(int brokerId) {
-        KafkaServer toShutDown = null;
-        for (KafkaServer server : kafkaServer.getBrokers()) {
-
-            if (kafkaServer.getBrokerId(server) == brokerId) {
-                toShutDown = server;
-                break;
-            }
-        }
-
-        if (toShutDown == null) {
-            StringBuilder listOfBrokers = new StringBuilder();
-            for (KafkaServer server : kafkaServer.getBrokers()) {
-                listOfBrokers.append(kafkaServer.getBrokerId(server));
-                listOfBrokers.append(" ; ");
-            }
-
-            throw new IllegalArgumentException(
-                    "Cannot find broker to shut down: "
-                            + brokerId
-                            + " ; available brokers: "
-                            + listOfBrokers.toString());
-        } else {
-            toShutDown.shutdown();
-            toShutDown.awaitShutdown();
-        }
+    private void failBroker(int brokerId) throws Exception {
+        kafkaServer.stopBroker(brokerId);
     }
 
     private void closeIgnoringProducerFenced(AutoCloseable autoCloseable) throws Exception {

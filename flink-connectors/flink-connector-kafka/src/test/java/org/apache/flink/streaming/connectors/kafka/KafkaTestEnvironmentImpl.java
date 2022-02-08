@@ -28,64 +28,65 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
-import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.DockerImageVersions;
 
-import kafka.server.KafkaConfig;
-import kafka.server.KafkaServer;
 import org.apache.commons.collections.list.UnmodifiableList;
-import org.apache.commons.io.FileUtils;
-import org.apache.curator.test.TestingServer;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
+import org.apache.kafka.clients.admin.TopicListing;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.network.ListenerName;
-import org.apache.kafka.common.security.auth.SecurityProtocol;
-import org.apache.kafka.common.utils.Time;
+import org.apache.kafka.common.serialization.VoidDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.DockerClientFactory;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.containers.Network;
+import org.testcontainers.utility.DockerImageName;
 
-import java.io.File;
-import java.net.BindException;
+import javax.annotation.Nullable;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
-import java.util.UUID;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
-import static org.apache.flink.util.NetUtils.hostAndPortToUrlString;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** An implementation of the KafkaServerProvider. */
 public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
     protected static final Logger LOG = LoggerFactory.getLogger(KafkaTestEnvironmentImpl.class);
-    private final List<KafkaServer> brokers = new ArrayList<>();
-    private File tmpZkDir;
-    private File tmpKafkaParent;
-    private List<File> tmpKafkaDirs;
-    private TestingServer zookeeper;
-    private String zookeeperConnectionString;
+
+    private static final String ZOOKEEPER_HOSTNAME = "zookeeper";
+    private static final int ZOOKEEPER_PORT = 2181;
+
+    private final Map<Integer, KafkaContainer> brokers = new HashMap<>();
+    private final Set<Integer> pausedBroker = new HashSet<>();
+    private @Nullable GenericContainer<?> zookeeper;
     private String brokerConnectionString = "";
     private Properties standardProps;
     private FlinkKafkaProducer.Semantic producerSemantic = FlinkKafkaProducer.Semantic.EXACTLY_ONCE;
     // 6 seconds is default. Seems to be too small for travis. 30 seconds
     private int zkTimeout = 30000;
     private Config config;
-    private static final int DELETE_TIMEOUT_SECONDS = 30;
+    private static final int REQUEST_TIMEOUT_SECONDS = 30;
 
     public void setProducerSemantic(FlinkKafkaProducer.Semantic producerSemantic) {
         this.producerSemantic = producerSemantic;
@@ -101,49 +102,11 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
             zkTimeout = zkTimeout * 15;
         }
         this.config = config;
-
-        File tempDir = new File(System.getProperty("java.io.tmpdir"));
-        tmpZkDir = new File(tempDir, "kafkaITcase-zk-dir-" + (UUID.randomUUID()));
-        assertTrue("cannot create zookeeper temp dir", tmpZkDir.mkdirs());
-
-        tmpKafkaParent = new File(tempDir, "kafkaITcase-kafka-dir-" + (UUID.randomUUID()));
-        assertTrue("cannot create kafka temp dir", tmpKafkaParent.mkdirs());
-
-        tmpKafkaDirs = new ArrayList<>(config.getKafkaServersNumber());
-        for (int i = 0; i < config.getKafkaServersNumber(); i++) {
-            File tmpDir = new File(tmpKafkaParent, "server-" + i);
-            assertTrue("cannot create kafka temp dir", tmpDir.mkdir());
-            tmpKafkaDirs.add(tmpDir);
-        }
-
-        zookeeper = null;
         brokers.clear();
 
-        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
-            zookeeper = new TestingServer(port.getPort(), tmpZkDir);
-        }
-
-        zookeeperConnectionString = zookeeper.getConnectString();
-        LOG.info(
-                "Starting Zookeeper with zookeeperConnectionString: {}", zookeeperConnectionString);
-
         LOG.info("Starting KafkaServer");
-
-        ListenerName listenerName =
-                ListenerName.forSecurityProtocol(
-                        config.isSecureMode()
-                                ? SecurityProtocol.SASL_PLAINTEXT
-                                : SecurityProtocol.PLAINTEXT);
-        for (int i = 0; i < config.getKafkaServersNumber(); i++) {
-            KafkaServer kafkaServer = getKafkaServer(i, tmpKafkaDirs.get(i));
-            brokers.add(kafkaServer);
-            brokerConnectionString +=
-                    hostAndPortToUrlString(
-                            KAFKA_HOST, kafkaServer.socketServer().boundPort(listenerName));
-            brokerConnectionString += ",";
-        }
-
-        LOG.info("ZK and KafkaServer started.");
+        startKafkaContainerCluster(config.getKafkaServersNumber());
+        LOG.info("KafkaServer started.");
 
         standardProps = new Properties();
         standardProps.setProperty("bootstrap.servers", brokerConnectionString);
@@ -183,24 +146,31 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
             adminClient
                     .deleteTopics(Collections.singleton(topic))
                     .all()
-                    .get(DELETE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-
-            for (KafkaServer kafkaServer : brokers) {
-                CommonTestUtils.waitUtil(
-                        () -> !kafkaServer.metadataCache().contains(topic),
-                        Duration.ofSeconds(10),
-                        "The topic metadata failed to propagate to Kafka broker for deleted topics.");
-            }
+                    .get(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            CommonTestUtils.waitUtil(
+                    () -> {
+                        try {
+                            return adminClient.listTopics().listings()
+                                    .get(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS).stream()
+                                    .map(TopicListing::name)
+                                    .noneMatch((name) -> name.equals(topic));
+                        } catch (Exception e) {
+                            LOG.warn("Exception caught when listing Kafka topics", e);
+                            return false;
+                        }
+                    },
+                    Duration.ofSeconds(REQUEST_TIMEOUT_SECONDS),
+                    String.format("Topic \"%s\" was not deleted within timeout", topic));
         } catch (TimeoutException e) {
             LOG.info(
                     "Did not receive delete topic response within {} seconds. Checking if it succeeded",
-                    DELETE_TIMEOUT_SECONDS);
+                    REQUEST_TIMEOUT_SECONDS);
             if (adminClient
                     .listTopics()
                     .names()
-                    .get(DELETE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .get(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                     .contains(topic)) {
-                throw new Exception("Topic still exists after timeout");
+                throw new Exception("Topic still exists after timeout", e);
             }
         }
     }
@@ -212,12 +182,27 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
         try (AdminClient adminClient = AdminClient.create(getStandardProperties())) {
             NewTopic topicObj = new NewTopic(topic, numberOfPartitions, (short) replicationFactor);
             adminClient.createTopics(Collections.singleton(topicObj)).all().get();
-            for (KafkaServer kafkaServer : brokers) {
-                CommonTestUtils.waitUtil(
-                        () -> kafkaServer.metadataCache().contains(topic),
-                        Duration.ofSeconds(10),
-                        "The topic metadata failed to propagate to Kafka broker.");
-            }
+            CommonTestUtils.waitUtil(
+                    () -> {
+                        Map<String, TopicDescription> topicDescriptions;
+                        try {
+                            topicDescriptions =
+                                    adminClient
+                                            .describeTopics(Collections.singleton(topic))
+                                            .all()
+                                            .get(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                        } catch (Exception e) {
+                            LOG.warn("Exception caught when describing Kafka topics", e);
+                            return false;
+                        }
+                        if (topicDescriptions == null || !topicDescriptions.containsKey(topic)) {
+                            return false;
+                        }
+                        TopicDescription topicDescription = topicDescriptions.get(topic);
+                        return topicDescription.partitions().size() == numberOfPartitions;
+                    },
+                    Duration.ofSeconds(30),
+                    String.format("New topic \"%s\" is not ready within timeout", topicObj));
         } catch (Exception e) {
             e.printStackTrace();
             fail("Create test topic : " + topic + " failed, " + e.getMessage());
@@ -252,12 +237,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
     @Override
     public String getVersion() {
-        return "2.0";
-    }
-
-    @Override
-    public List<KafkaServer> getBrokers() {
-        return brokers;
+        return DockerImageVersions.KAFKA;
     }
 
     @Override
@@ -348,7 +328,12 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
     @Override
     public void restartBroker(int leaderId) throws Exception {
-        brokers.set(leaderId, getKafkaServer(leaderId, tmpKafkaDirs.get(leaderId)));
+        unpause(leaderId);
+    }
+
+    @Override
+    public void stopBroker(int brokerId) throws Exception {
+        pause(brokerId);
     }
 
     @Override
@@ -361,110 +346,18 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
     }
 
     @Override
-    public int getBrokerId(KafkaServer server) {
-        return server.config().brokerId();
-    }
-
-    @Override
     public boolean isSecureRunSupported() {
         return true;
     }
 
     @Override
     public void shutdown() throws Exception {
-        for (KafkaServer broker : brokers) {
-            if (broker != null) {
-                broker.shutdown();
-                broker.awaitShutdown();
-            }
-        }
+        brokers.values().forEach(GenericContainer::stop);
         brokers.clear();
 
         if (zookeeper != null) {
-            try {
-                zookeeper.stop();
-            } catch (Exception e) {
-                LOG.warn("ZK.stop() failed", e);
-            }
-            zookeeper = null;
+            zookeeper.stop();
         }
-
-        // clean up the temp spaces
-
-        if (tmpKafkaParent != null && tmpKafkaParent.exists()) {
-            try {
-                FileUtils.deleteDirectory(tmpKafkaParent);
-            } catch (Exception e) {
-                // ignore
-            }
-        }
-        if (tmpZkDir != null && tmpZkDir.exists()) {
-            try {
-                FileUtils.deleteDirectory(tmpZkDir);
-            } catch (Exception e) {
-                // ignore
-            }
-        }
-    }
-
-    protected KafkaServer getKafkaServer(int brokerId, File tmpFolder) throws Exception {
-        Properties kafkaProperties = new Properties();
-
-        // properties have to be Strings
-        kafkaProperties.put("advertised.host.name", KAFKA_HOST);
-        kafkaProperties.put("broker.id", Integer.toString(brokerId));
-        kafkaProperties.put("log.dir", tmpFolder.toString());
-        kafkaProperties.put("zookeeper.connect", zookeeperConnectionString);
-        kafkaProperties.put("message.max.bytes", String.valueOf(50 * 1024 * 1024));
-        kafkaProperties.put("replica.fetch.max.bytes", String.valueOf(50 * 1024 * 1024));
-        kafkaProperties.put(
-                "transaction.max.timeout.ms", Integer.toString(1000 * 60 * 60 * 2)); // 2hours
-        // Disable log deletion to prevent records from being deleted during test run
-        kafkaProperties.put("log.retention.ms", "-1");
-
-        // for CI stability, increase zookeeper session timeout
-        kafkaProperties.put("zookeeper.session.timeout.ms", zkTimeout);
-        kafkaProperties.put("zookeeper.connection.timeout.ms", zkTimeout);
-        if (config.getKafkaServerProperties() != null) {
-            kafkaProperties.putAll(config.getKafkaServerProperties());
-        }
-
-        final int numTries = 5;
-
-        for (int i = 1; i <= numTries; i++) {
-            try (NetUtils.Port port = NetUtils.getAvailablePort()) {
-                int kafkaPort = port.getPort();
-                kafkaProperties.put("port", Integer.toString(kafkaPort));
-
-                // to support secure kafka cluster
-                if (config.isSecureMode()) {
-                    LOG.info("Adding Kafka secure configurations");
-                    kafkaProperties.put(
-                            "listeners", "SASL_PLAINTEXT://" + KAFKA_HOST + ":" + kafkaPort);
-                    kafkaProperties.put(
-                            "advertised.listeners",
-                            "SASL_PLAINTEXT://" + KAFKA_HOST + ":" + kafkaPort);
-                    kafkaProperties.putAll(getSecureProperties());
-                }
-
-                KafkaConfig kafkaConfig = new KafkaConfig(kafkaProperties);
-
-                scala.Option<String> stringNone = scala.Option.apply(null);
-                KafkaServer server = new KafkaServer(kafkaConfig, Time.SYSTEM, stringNone, false);
-                server.startup();
-                return server;
-            } catch (KafkaException e) {
-                if (e.getCause() instanceof BindException) {
-                    // port conflict, retry...
-                    LOG.info("Port conflict when starting Kafka Broker. Retrying...");
-                } else {
-                    throw e;
-                }
-            }
-        }
-
-        throw new Exception(
-                "Could not start Kafka after " + numTries + " retries due to port conflicts.");
     }
 
     private class KafkaOffsetHandlerImpl implements KafkaOffsetHandler {
@@ -503,5 +396,117 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
         public void close() {
             offsetClient.close();
         }
+    }
+
+    private void startKafkaContainerCluster(int numBrokers) {
+        Network network = Network.newNetwork();
+        if (numBrokers > 1) {
+            zookeeper = createZookeeperContainer(network);
+            zookeeper.start();
+            LOG.info("Zookeeper container started");
+        }
+        for (int brokerID = 0; brokerID < numBrokers; brokerID++) {
+            KafkaContainer broker = createKafkaContainer(network, brokerID, zookeeper);
+            brokers.put(brokerID, broker);
+        }
+        new ArrayList<>(brokers.values()).parallelStream().forEach(GenericContainer::start);
+        LOG.info("{} brokers started", numBrokers);
+        brokerConnectionString =
+                brokers.values().stream()
+                        .map(KafkaContainer::getBootstrapServers)
+                        // Here we have URL like "PLAINTEXT://127.0.0.1:15213", and we only keep the
+                        // "127.0.0.1:15213" part in broker connection string
+                        .map(server -> server.split("://")[1])
+                        .collect(Collectors.joining(","));
+    }
+
+    private GenericContainer<?> createZookeeperContainer(Network network) {
+        return new GenericContainer<>(DockerImageName.parse(DockerImageVersions.ZOOKEEPER))
+                .withNetwork(network)
+                .withNetworkAliases(ZOOKEEPER_HOSTNAME)
+                .withEnv("ZOOKEEPER_CLIENT_PORT", String.valueOf(ZOOKEEPER_PORT));
+    }
+
+    private KafkaContainer createKafkaContainer(
+            Network network, int brokerID, @Nullable GenericContainer<?> zookeeper) {
+        String brokerName = String.format("Kafka-%d", brokerID);
+        KafkaContainer broker =
+                KafkaUtil.createKafkaContainer(DockerImageVersions.KAFKA, LOG, brokerName)
+                        .withNetwork(network)
+                        .withNetworkAliases(brokerName)
+                        .withEnv("KAFKA_BROKER_ID", String.valueOf(brokerID))
+                        .withEnv("KAFKA_MESSAGE_MAX_BYTES", String.valueOf(50 * 1024 * 1024))
+                        .withEnv("KAFKA_REPLICA_FETCH_MAX_BYTES", String.valueOf(50 * 1024 * 1024))
+                        .withEnv(
+                                "KAFKA_TRANSACTION_MAX_TIMEOUT_MS",
+                                Integer.toString(1000 * 60 * 60 * 2))
+                        // Disable log deletion to prevent records from being deleted during test
+                        // run
+                        .withEnv("KAFKA_LOG_RETENTION_MS", "-1")
+                        .withEnv("KAFKA_ZOOKEEPER_SESSION_TIMEOUT_MS", String.valueOf(zkTimeout))
+                        .withEnv(
+                                "KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS", String.valueOf(zkTimeout));
+
+        if (zookeeper != null) {
+            broker.dependsOn(zookeeper)
+                    .withExternalZookeeper(
+                            String.format("%s:%d", ZOOKEEPER_HOSTNAME, ZOOKEEPER_PORT));
+        } else {
+            broker.withEmbeddedZookeeper();
+        }
+        return broker;
+    }
+
+    private void pause(int brokerId) {
+        if (pausedBroker.contains(brokerId)) {
+            LOG.warn("Broker {} is already paused. Skipping pause operation", brokerId);
+            return;
+        }
+        DockerClientFactory.instance()
+                .client()
+                .pauseContainerCmd(brokers.get(brokerId).getContainerId())
+                .exec();
+        pausedBroker.add(brokerId);
+        LOG.info("Broker {} is paused", brokerId);
+    }
+
+    private void unpause(int brokerId) throws Exception {
+        if (!pausedBroker.contains(brokerId)) {
+            LOG.warn("Broker {} is already running. Skipping unpause operation", brokerId);
+            return;
+        }
+        DockerClientFactory.instance()
+                .client()
+                .unpauseContainerCmd(brokers.get(brokerId).getContainerId())
+                .exec();
+        try (AdminClient adminClient = AdminClient.create(getStandardProperties())) {
+            CommonTestUtils.waitUtil(
+                    () -> {
+                        try {
+                            return adminClient.describeCluster().nodes().get().stream()
+                                    .anyMatch((node) -> node.id() == brokerId);
+                        } catch (Exception e) {
+                            return false;
+                        }
+                    },
+                    Duration.ofSeconds(30),
+                    String.format(
+                            "The paused broker %d is not recovered within timeout", brokerId));
+        }
+        pausedBroker.remove(brokerId);
+        LOG.info("Broker {} is resumed", brokerId);
+    }
+
+    private KafkaConsumer<Void, Void> createTempConsumer() {
+        Properties consumerProps = new Properties();
+        consumerProps.putAll(getStandardProperties());
+        consumerProps.setProperty(
+                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+                VoidDeserializer.class.getCanonicalName());
+        consumerProps.setProperty(
+                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+                VoidDeserializer.class.getCanonicalName());
+        consumerProps.setProperty(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, "false");
+        return new KafkaConsumer<>(consumerProps);
     }
 }
