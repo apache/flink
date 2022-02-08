@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -33,6 +35,7 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkProvider;
@@ -134,6 +137,13 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                         Row.of(3, "foo", Instant.parse("2020-11-11T10:11:22.777Z")),
                         Row.of(4, "foo", Instant.parse("2020-11-11T10:11:23.888Z")));
 
+        final SinkFunction<RowData> sinkFunction =
+                new SinkFunction<RowData>() {
+                    @Override
+                    public void invoke(RowData value, Context context) {
+                        addElement(timestamps, context.timestamp());
+                    }
+                };
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(schemaStreamRecordTimestampInserter(true))
@@ -143,18 +153,14 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                                     @Override
                                     public DataStreamSinkProvider getSinkRuntimeProvider(
                                             DynamicTableSink.Context context) {
-                                        return dataStream ->
-                                                dataStream.addSink(
-                                                        new SinkFunction<RowData>() {
-                                                            @Override
-                                                            public void invoke(
-                                                                    RowData value,
-                                                                    Context context) {
-                                                                addElement(
-                                                                        timestamps,
-                                                                        context.timestamp());
-                                                            }
-                                                        });
+                                        return new DataStreamSinkProvider() {
+                                            @Override
+                                            public DataStreamSink<?> consumeDataStream(
+                                                    ProviderContext providerContext,
+                                                    DataStream<RowData> dataStream) {
+                                                return dataStream.addSink(sinkFunction);
+                                            }
+                                        };
                                     }
                                 })
                         .build();
@@ -445,6 +451,14 @@ public class CommonExecSinkITCase extends AbstractTestBase {
     public void testFromValuesWatermarkPropagation() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
         final SharedReference<List<Long>> watermarks = sharedObjects.add(new ArrayList<>());
+        final SinkFunction<RowData> sinkFunction =
+                new SinkFunction<RowData>() {
+                    @Override
+                    public void writeWatermark(
+                            org.apache.flink.api.common.eventtime.Watermark watermark) {
+                        addElement(watermarks, watermark.getTimestamp());
+                    }
+                };
         final TableDescriptor sinkDescriptor =
                 TableFactoryHarness.newBuilder()
                         .sink(
@@ -452,20 +466,14 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                                     @Override
                                     public DataStreamSinkProvider getSinkRuntimeProvider(
                                             DynamicTableSink.Context context) {
-                                        return dataStream ->
-                                                dataStream.addSink(
-                                                        new SinkFunction<RowData>() {
-                                                            @Override
-                                                            public void writeWatermark(
-                                                                    org.apache.flink.api.common
-                                                                                    .eventtime
-                                                                                    .Watermark
-                                                                            watermark) {
-                                                                addElement(
-                                                                        watermarks,
-                                                                        watermark.getTimestamp());
-                                                            }
-                                                        });
+                                        return new DataStreamSinkProvider() {
+                                            @Override
+                                            public DataStreamSink<?> consumeDataStream(
+                                                    ProviderContext providerContext,
+                                                    DataStream<RowData> dataStream) {
+                                                return dataStream.addSink(sinkFunction);
+                                            }
+                                        };
                                     }
                                 })
                         .build();
@@ -515,12 +523,17 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         return new TableFactoryHarness.SinkBase() {
             @Override
             public DataStreamSinkProvider getSinkRuntimeProvider(Context context) {
-                return dataStream -> {
-                    TestSink<RowData> sink = buildRecordWriterTestSink(new RecordWriter(fetched));
-                    if (useSinkV2) {
-                        return dataStream.sinkTo(SinkV1Adapter.wrap(sink));
+                return new DataStreamSinkProvider() {
+                    @Override
+                    public DataStreamSink<?> consumeDataStream(
+                            ProviderContext providerContext, DataStream<RowData> dataStream) {
+                        TestSink<RowData> sink =
+                                buildRecordWriterTestSink(new RecordWriter(fetched));
+                        if (useSinkV2) {
+                            return dataStream.sinkTo(SinkV1Adapter.wrap(sink));
+                        }
+                        return dataStream.sinkTo(sink);
                     }
-                    return dataStream.sinkTo(sink);
                 };
             }
         };

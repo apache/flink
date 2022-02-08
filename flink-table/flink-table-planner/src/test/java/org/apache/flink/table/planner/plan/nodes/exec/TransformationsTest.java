@@ -100,7 +100,7 @@ public class TransformationsTest extends TableTestBase {
                         .<RowData>map(r -> new GenericRowData(0))
                         .getTransformation();
 
-        assertFalse(TransformationScanProvider.of(transformation).isBounded());
+        assertFalse(TransformationScanProvider.of(transformation, "scan").isBounded());
     }
 
     @Test
@@ -120,7 +120,7 @@ public class TransformationsTest extends TableTestBase {
                         .<RowData>map(r -> new GenericRowData(0))
                         .getTransformation();
 
-        assertTrue(TransformationScanProvider.of(transformation).isBounded());
+        assertTrue(TransformationScanProvider.of(transformation, "scan").isBounded());
     }
 
     @Test

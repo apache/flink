@@ -43,6 +43,8 @@ import java.util.Map;
 final class ExternalDynamicSource<E>
         implements ScanTableSource, SupportsReadingMetadata, SupportsSourceWatermark {
 
+    private static final String EXTERNAL_DATASTREAM_TRANSFORMATION = "external-datastream";
+
     private static final String ROWTIME_METADATA_KEY = "rowtime";
 
     private static final DataType ROWTIME_METADATA_DATA_TYPE = DataTypes.TIMESTAMP_LTZ(3).notNull();
@@ -117,7 +119,8 @@ final class ExternalDynamicSource<E>
                         null, // will be filled by the framework
                         externalTransformation.getParallelism());
 
-        return TransformationScanProvider.of(conversionTransformation);
+        return TransformationScanProvider.of(
+                conversionTransformation, EXTERNAL_DATASTREAM_TRANSFORMATION);
     }
 
     private String generateOperatorName() {
