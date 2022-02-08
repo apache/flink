@@ -39,6 +39,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.ParallelismProvider;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.DynamicTableSink.SinkRuntimeProvider;
@@ -56,6 +57,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -82,6 +84,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -462,15 +465,28 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                             inputTransform, rowtimeFieldIndex, sinkParallelism, config);
             final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
             final DataStreamSinkProvider provider = (DataStreamSinkProvider) runtimeProvider;
-            return provider.consumeDataStream(dataStream).getTransformation();
+            return provider.consumeDataStream(createProviderContext(), dataStream)
+                    .getTransformation();
         } else if (runtimeProvider instanceof TransformationSinkProvider) {
             final TransformationSinkProvider provider =
                     (TransformationSinkProvider) runtimeProvider;
-            Transformation<?> transformation =
-                    provider.createTransformation(
-                            TransformationSinkProvider.Context.of(
-                                    inputTransform, rowtimeFieldIndex));
-            return transformation;
+            return provider.createTransformation(
+                    new TransformationSinkProvider.Context() {
+                        @Override
+                        public Transformation<RowData> getInputTransformation() {
+                            return inputTransform;
+                        }
+
+                        @Override
+                        public int getRowtimeIndex() {
+                            return rowtimeFieldIndex;
+                        }
+
+                        @Override
+                        public Optional<String> generateUid(String name) {
+                            return createProviderContext().generateUid(name);
+                        }
+                    });
         } else if (runtimeProvider instanceof SinkFunctionProvider) {
             final SinkFunction<RowData> sinkFunction =
                     ((SinkFunctionProvider) runtimeProvider).createSinkFunction();
@@ -519,6 +535,15 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         } else {
             throw new TableException("Unsupported sink runtime provider.");
         }
+    }
+
+    private ProviderContext createProviderContext() {
+        return name -> {
+            if (this instanceof StreamExecNode) {
+                return Optional.of(createTransformationUid(name));
+            }
+            return Optional.empty();
+        };
     }
 
     private Transformation<?> createSinkFunctionTransformation(

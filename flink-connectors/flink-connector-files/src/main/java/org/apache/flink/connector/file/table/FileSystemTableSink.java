@@ -52,6 +52,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
@@ -134,10 +135,12 @@ public class FileSystemTableSink extends AbstractFileSystemTable
 
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context sinkContext) {
-        return (DataStreamSinkProvider) dataStream -> consume(dataStream, sinkContext);
+        return (DataStreamSinkProvider)
+                (providerContext, dataStream) -> consume(providerContext, dataStream, sinkContext);
     }
 
-    private DataStreamSink<?> consume(DataStream<RowData> dataStream, Context sinkContext) {
+    private DataStreamSink<?> consume(
+            ProviderContext providerContext, DataStream<RowData> dataStream, Context sinkContext) {
         final int inputParallelism = dataStream.getParallelism();
         final int parallelism = Optional.ofNullable(configuredParallelism).orElse(inputParallelism);
 
@@ -148,7 +151,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                 throw new IllegalStateException("Streaming mode not support overwrite.");
             }
 
-            return createStreamingSink(dataStream, sinkContext, parallelism);
+            return createStreamingSink(providerContext, dataStream, sinkContext, parallelism);
         }
     }
 
@@ -182,7 +185,10 @@ public class FileSystemTableSink extends AbstractFileSystemTable
     }
 
     private DataStreamSink<?> createStreamingSink(
-            DataStream<RowData> dataStream, Context sinkContext, final int parallelism) {
+            ProviderContext providerContext,
+            DataStream<RowData> dataStream,
+            Context sinkContext,
+            final int parallelism) {
         FileSystemFactory fsFactory = FileSystem::get;
         RowDataPartitionComputer computer = partitionComputer();
 
@@ -246,6 +252,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
 
             writerStream =
                     StreamingSink.compactionWriter(
+                            providerContext,
                             dataStream,
                             bucketCheckInterval,
                             bucketsBuilder,
@@ -257,6 +264,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         } else {
             writerStream =
                     StreamingSink.writer(
+                            providerContext,
                             dataStream,
                             bucketCheckInterval,
                             bucketsBuilder,
@@ -266,6 +274,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         }
 
         return StreamingSink.sink(
+                providerContext,
                 writerStream,
                 path,
                 tableIdentifier,

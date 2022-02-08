@@ -20,6 +20,8 @@ package org.apache.flink.table.planner.connectors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.api.CompiledPlan;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
@@ -37,26 +39,21 @@ import org.apache.flink.table.data.RowData;
 @Internal
 public interface TransformationSinkProvider extends DynamicTableSink.SinkRuntimeProvider {
 
-    /** Creates a transformation for transforming the input provided in the context. */
+    /**
+     * Creates a transformation for transforming the input provided in the context.
+     *
+     * <p>Note: If the {@link CompiledPlan} feature should be supported, this method MUST set a
+     * unique identifier for each transformation/operator in the data stream. This enables stateful
+     * Flink version upgrades for streaming jobs. The identifier is used to map state back from a
+     * savepoint to an actual operator in the topology. The framework can generate topology-wide
+     * unique identifiers with {@link ProviderContext#generateUid(String)}.
+     *
+     * @see Transformation#setUid(String)
+     */
     Transformation<?> createTransformation(Context context);
 
     /** Context for {@link #createTransformation(Context)}. */
-    interface Context {
-
-        /** Helper method for creating the default implementation of {@link Context}. */
-        static Context of(Transformation<RowData> inputTransformation, int rowtimeIndex) {
-            return new Context() {
-                @Override
-                public Transformation<RowData> getInputTransformation() {
-                    return inputTransformation;
-                }
-
-                @Override
-                public int getRowtimeIndex() {
-                    return rowtimeIndex;
-                }
-            };
-        }
+    interface Context extends ProviderContext {
 
         /** Input transformation to transform. */
         Transformation<RowData> getInputTransformation();

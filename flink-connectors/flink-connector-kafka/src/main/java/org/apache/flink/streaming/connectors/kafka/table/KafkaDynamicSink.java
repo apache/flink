@@ -65,6 +65,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetadata {
 
+    private static final String UPSERT_KAFKA_TRANSFORMATION = "upsert-kafka";
+
     // --------------------------------------------------------------------------------------------
     // Mutable attributes
     // --------------------------------------------------------------------------------------------
@@ -214,7 +216,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                         .build();
         if (flushMode.isEnabled() && upsertMode) {
             return (DataStreamSinkProvider)
-                    dataStream -> {
+                    (providerContext, dataStream) -> {
                         final boolean objectReuse =
                                 dataStream
                                         .getExecutionEnvironment()
@@ -233,6 +235,9 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                                                         ::copy
                                                 : rowData -> rowData);
                         final DataStreamSink<RowData> end = dataStream.sinkTo(sink);
+                        providerContext
+                                .generateUid(UPSERT_KAFKA_TRANSFORMATION)
+                                .ifPresent(end::uid);
                         if (parallelism != null) {
                             end.setParallelism(parallelism);
                         }
