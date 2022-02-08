@@ -160,7 +160,7 @@ public class CommonPythonUtil {
 
     @SuppressWarnings("unchecked")
     public static boolean isPythonWorkerInProcessMode(Configuration config) {
-        Class clazz = loadClass("org.apache.flink.python.PythonOptions");
+        Class clazz = loadClass(PYTHON_OPTIONS_CLASS);
         try {
             return config.getString(
                             (ConfigOption<String>)

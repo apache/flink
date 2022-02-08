@@ -105,6 +105,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-group-window-aggregate",
         version = 1,
+        consumedOptions = {
+            "table.local-time-zone",
+            "table.exec.state.ttl",
+            "table.exec.mini-batch.enabled",
+            "table.exec.mini-batch.size"
+        },
         producedTransformations = StreamExecGroupWindowAggregate.GROUP_WINDOW_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)

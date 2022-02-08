@@ -44,6 +44,10 @@ import java.util.Map;
 @ExecNodeMetadata(
         name = "stream-exec-lookup-join",
         version = 1,
+        consumedOptions = {
+            "table.exec.async-lookup.buffer-capacity",
+            "table.exec.async-lookup.timeout"
+        },
         producedTransformations = CommonExecLookupJoin.LOOKUP_JOIN_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
