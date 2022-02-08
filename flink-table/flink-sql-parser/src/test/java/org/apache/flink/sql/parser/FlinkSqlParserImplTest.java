@@ -1497,6 +1497,70 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testCompilePlan() {
+        sql("compile plan './test.json' for insert into t1 select * from t2")
+                .ok(
+                        "COMPILE PLAN './test.json' FOR INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)");
+        sql("compile plan './test.json' if not exists for insert into t1 select * from t2")
+                .ok(
+                        "COMPILE PLAN './test.json' IF NOT EXISTS FOR INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)");
+
+        sql("compile plan './test.json' for statement set "
+                        + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                .ok(
+                        "COMPILE PLAN './test.json' FOR STATEMENT SET BEGIN\n"
+                                + "INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)\n"
+                                + ";\n"
+                                + "INSERT INTO `T2`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T3`)\n"
+                                + ";\n"
+                                + "END");
+        sql("compile plan './test.json' if not exists for statement set "
+                        + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                .ok(
+                        "COMPILE PLAN './test.json' IF NOT EXISTS FOR STATEMENT SET BEGIN\n"
+                                + "INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)\n"
+                                + ";\n"
+                                + "INSERT INTO `T2`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T3`)\n"
+                                + ";\n"
+                                + "END");
+    }
+
+    @Test
+    public void testCompileAndExecutePlan() {
+        sql("compile and execute plan './test.json' for insert into t1 select * from t2")
+                .ok(
+                        "COMPILE AND EXECUTE PLAN './test.json' FOR INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)");
+
+        sql("compile and execute plan './test.json' for statement set "
+                        + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                .ok(
+                        "COMPILE AND EXECUTE PLAN './test.json' FOR STATEMENT SET BEGIN\n"
+                                + "INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)\n"
+                                + ";\n"
+                                + "INSERT INTO `T2`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T3`)\n"
+                                + ";\n"
+                                + "END");
+    }
+
+    @Test
     public void testExplainUpsert() {
         String sql = "explain plan for upsert into emps1 values (1, 2)";
         String expected = "EXPLAIN UPSERT INTO `EMPS1`\n" + "VALUES (ROW(1, 2))";

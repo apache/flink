@@ -1805,6 +1805,69 @@ SqlNode SqlExecutePlan() :
     }
 }
 
+/**
+* Parses a compile plan statement.
+*/
+SqlNode SqlCompileAndExecutePlan() :
+{
+    SqlParserPos startPos;
+    SqlCharStringLiteral filePath;
+    SqlNode operand;
+}
+{
+    <COMPILE> <AND> <EXECUTE> <PLAN> { startPos = getPos(); }
+
+    <QUOTED_STRING> {
+        String path = SqlParserUtil.parseString(token.image);
+        filePath = SqlLiteral.createCharString(path, getPos());
+    }
+
+    <FOR>
+
+    (
+        operand = SqlStatementSet()
+    |
+        operand = RichSqlInsert()
+    )
+
+    {
+        return new SqlCompileAndExecutePlan(startPos, filePath, operand);
+    }
+}
+
+/**
+* Parses a compile plan statement.
+*/
+SqlNode SqlCompilePlan() :
+{
+    SqlParserPos startPos;
+    SqlCharStringLiteral filePath;
+    boolean ifNotExists;
+    SqlNode operand;
+}
+{
+    <COMPILE> <PLAN> { startPos = getPos(); }
+
+    <QUOTED_STRING> {
+        String path = SqlParserUtil.parseString(token.image);
+        filePath = SqlLiteral.createCharString(path, getPos());
+    }
+
+    ifNotExists = IfNotExistsOpt()
+
+    <FOR>
+
+    (
+        operand = SqlStatementSet()
+    |
+        operand = RichSqlInsert()
+    )
+
+    {
+        return new SqlCompilePlan(startPos, filePath, ifNotExists, operand);
+    }
+}
+
 void ParseExplainDetail(Set<String> explainDetails):
 {
 }
