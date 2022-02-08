@@ -21,13 +21,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.base.sink.AsyncSinkBase;
+import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
 
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -113,8 +113,8 @@ public class KinesisDataStreamsSink<InputT> extends AsyncSinkBase<InputT, PutRec
 
     @Internal
     @Override
-    public SinkWriter<InputT, Void, Collection<PutRecordsRequestEntry>> createWriter(
-            InitContext context, List<Collection<PutRecordsRequestEntry>> states) {
+    public SinkWriter<InputT, Void, BufferedRequestState<PutRecordsRequestEntry>> createWriter(
+            InitContext context, List<BufferedRequestState<PutRecordsRequestEntry>> states) {
         return new KinesisDataStreamsSinkWriter<>(
                 getElementConverter(),
                 context,
@@ -126,13 +126,14 @@ public class KinesisDataStreamsSink<InputT> extends AsyncSinkBase<InputT, PutRec
                 getMaxRecordSizeInBytes(),
                 failOnError,
                 streamName,
-                kinesisClientProperties);
+                kinesisClientProperties,
+                states);
     }
 
     @Internal
     @Override
-    public Optional<SimpleVersionedSerializer<Collection<PutRecordsRequestEntry>>>
+    public Optional<SimpleVersionedSerializer<BufferedRequestState<PutRecordsRequestEntry>>>
             getWriterStateSerializer() {
-        return Optional.empty();
+        return Optional.of(new KinesisDataStreamsStateSerializer());
     }
 }

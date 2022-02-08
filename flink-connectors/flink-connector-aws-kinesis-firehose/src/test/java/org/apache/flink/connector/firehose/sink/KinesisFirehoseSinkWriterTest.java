@@ -20,6 +20,7 @@ package org.apache.flink.connector.firehose.sink;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
+import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.connector.base.sink.writer.TestSinkInitContext;
 
@@ -32,7 +33,6 @@ import software.amazon.awssdk.services.firehose.model.Record;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Properties;
 
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ENDPOINT;
@@ -95,7 +95,7 @@ public class KinesisFirehoseSinkWriterTest {
                         true,
                         "test-stream",
                         prop);
-        SinkWriter<String, Void, Collection<Record>> writer =
+        SinkWriter<String, Void, BufferedRequestState<Record>> writer =
                 kinesisFirehoseSink.createWriter(ctx, new ArrayList<>());
 
         for (int i = 0; i < 12; i++) {

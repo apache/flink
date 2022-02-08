@@ -29,14 +29,11 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 /**
  * A generic sink writer that handles the general behaviour of a sink such as batching and flushing,
@@ -52,7 +49,7 @@ import java.util.stream.Collectors;
  */
 @PublicEvolving
 public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable>
-        implements SinkWriter<InputT, Void, Collection<RequestEntryT>> {
+        implements SinkWriter<InputT, Void, BufferedRequestState<RequestEntryT>> {
 
     private final MailboxExecutor mailboxExecutor;
     private final Sink.ProcessingTimeService timeService;
@@ -209,6 +206,28 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
             long maxBatchSizeInBytes,
             long maxTimeInBufferMS,
             long maxRecordSizeInBytes) {
+        this(
+                elementConverter,
+                context,
+                maxBatchSize,
+                maxInFlightRequests,
+                maxBufferedRequests,
+                maxBatchSizeInBytes,
+                maxTimeInBufferMS,
+                maxRecordSizeInBytes,
+                Collections.emptyList());
+    }
+
+    public AsyncSinkWriter(
+            ElementConverter<InputT, RequestEntryT> elementConverter,
+            Sink.InitContext context,
+            int maxBatchSize,
+            int maxInFlightRequests,
+            int maxBufferedRequests,
+            long maxBatchSizeInBytes,
+            long maxTimeInBufferMS,
+            long maxRecordSizeInBytes,
+            List<BufferedRequestState<RequestEntryT>> states) {
         this.elementConverter = elementConverter;
         this.mailboxExecutor = context.getMailboxExecutor();
         this.timeService = context.getProcessingTimeService();
@@ -250,6 +269,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
                                     throw exception;
                                 },
                                 "A fatal exception occurred in the sink that cannot be recovered from or should not be retried.");
+        initialize(states);
     }
 
     private void registerCallback() {
@@ -406,11 +426,33 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * a failure/restart of the application.
      */
     @Override
-    public List<Collection<RequestEntryT>> snapshotState() {
-        return Arrays.asList(
-                bufferedRequestEntries.stream()
-                        .map(RequestEntryWrapper::getRequestEntry)
-                        .collect(Collectors.toList()));
+    public List<BufferedRequestState<RequestEntryT>> snapshotState() {
+        return Collections.singletonList(new BufferedRequestState<>((bufferedRequestEntries)));
+    }
+
+    protected void initialize(List<BufferedRequestState<RequestEntryT>> states) {
+        if (states.isEmpty()) {
+            return;
+        }
+
+        if (states.size() > 1) {
+            throw new IllegalStateException(
+                    "Writer failed to initialize due to multiple initial states.");
+        }
+
+        BufferedRequestState<RequestEntryT> state = states.get(0);
+        this.bufferedRequestEntries.addAll(state.getBufferedRequestEntries());
+
+        for (RequestEntryWrapper<RequestEntryT> wrapper : bufferedRequestEntries) {
+            if (wrapper.getSize() > maxRecordSizeInBytes) {
+                throw new IllegalStateException(
+                        String.format(
+                                "State contains record of size %d which exceeds sink maximum record size %d.",
+                                wrapper.getSize(), maxRecordSizeInBytes));
+            }
+        }
+
+        this.bufferedRequestEntriesTotalSizeInBytes = state.getStateSize();
     }
 
     @Override

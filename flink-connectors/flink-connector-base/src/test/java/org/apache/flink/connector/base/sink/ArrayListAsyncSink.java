@@ -19,10 +19,10 @@ package org.apache.flink.connector.base.sink;
 
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
+import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -52,8 +52,8 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
     }
 
     @Override
-    public SinkWriter<String, Void, Collection<Integer>> createWriter(
-            InitContext context, List<Collection<Integer>> states) {
+    public SinkWriter<String, Void, BufferedRequestState<Integer>> createWriter(
+            InitContext context, List<BufferedRequestState<Integer>> states) {
         /* SinkWriter implementing {@code submitRequestEntries} that is used to define the persistence
          * logic into {@code ArrayListDestination}.
          */
@@ -86,7 +86,8 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
     }
 
     @Override
-    public Optional<SimpleVersionedSerializer<Collection<Integer>>> getWriterStateSerializer() {
+    public Optional<SimpleVersionedSerializer<BufferedRequestState<Integer>>>
+            getWriterStateSerializer() {
         return Optional.empty();
     }
 }
