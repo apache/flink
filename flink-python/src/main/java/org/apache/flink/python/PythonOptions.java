@@ -32,6 +32,7 @@ public class PythonOptions {
     /** The maximum number of elements to include in a bundle. */
     public static final ConfigOption<Integer> MAX_BUNDLE_SIZE =
             ConfigOptions.key("python.fn-execution.bundle.size")
+                    .intType()
                     .defaultValue(100000)
                     .withDescription(
                             "The maximum number of elements to include in a bundle for Python "
@@ -42,6 +43,7 @@ public class PythonOptions {
     /** The maximum time to wait before finalising a bundle (in milliseconds). */
     public static final ConfigOption<Long> MAX_BUNDLE_TIME_MILLS =
             ConfigOptions.key("python.fn-execution.bundle.time")
+                    .longType()
                     .defaultValue(1000L)
                     .withDescription(
                             "Sets the waiting timeout(in milliseconds) before processing a bundle for "
@@ -51,6 +53,7 @@ public class PythonOptions {
     /** The maximum number of elements to include in an arrow batch. */
     public static final ConfigOption<Integer> MAX_ARROW_BATCH_SIZE =
             ConfigOptions.key("python.fn-execution.arrow.batch.size")
+                    .intType()
                     .defaultValue(10000)
                     .withDescription(
                             "The maximum number of elements to include in an arrow batch for Python "
@@ -60,6 +63,7 @@ public class PythonOptions {
     /** The configuration to enable or disable metric for Python execution. */
     public static final ConfigOption<Boolean> PYTHON_METRIC_ENABLED =
             ConfigOptions.key("python.metric.enabled")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             "When it is false, metric for Python will be disabled. You can "
@@ -162,6 +166,7 @@ public class PythonOptions {
     /** Whether the memory used by the Python framework is managed memory. */
     public static final ConfigOption<Boolean> USE_MANAGED_MEMORY =
             ConfigOptions.key("python.fn-execution.memory.managed")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             String.format(
@@ -175,6 +180,7 @@ public class PythonOptions {
     @Experimental
     public static final ConfigOption<Integer> STATE_CACHE_SIZE =
             ConfigOptions.key("python.state.cache-size")
+                    .intType()
                     .defaultValue(1000)
                     .withDescription(
                             "The maximum number of states cached in a Python UDF worker. Note that this "
@@ -184,6 +190,7 @@ public class PythonOptions {
     @Experimental
     public static final ConfigOption<Integer> MAP_STATE_READ_CACHE_SIZE =
             ConfigOptions.key("python.map-state.read-cache-size")
+                    .intType()
                     .defaultValue(1000)
                     .withDescription(
                             "The maximum number of cached entries for a single Python MapState. "
@@ -193,6 +200,7 @@ public class PythonOptions {
     @Experimental
     public static final ConfigOption<Integer> MAP_STATE_WRITE_CACHE_SIZE =
             ConfigOptions.key("python.map-state.write-cache-size")
+                    .intType()
                     .defaultValue(1000)
                     .withDescription(
                             "The maximum number of cached write requests for a single Python "
@@ -208,6 +216,7 @@ public class PythonOptions {
     @Experimental
     public static final ConfigOption<Integer> MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE =
             ConfigOptions.key("python.map-state.iterate-response-batch-size")
+                    .intType()
                     .defaultValue(1000)
                     .withDescription(
                             "The maximum number of the MapState keys/entries sent to Python UDF worker "
@@ -219,6 +228,7 @@ public class PythonOptions {
     @Experimental
     public static final ConfigOption<String> PYTHON_EXECUTION_MODE =
             ConfigOptions.key("python.execution-mode")
+                    .stringType()
                     .defaultValue("process")
                     .withDescription(
                             "Specify the python runtime execution mode. The optional values are `process`, `multi-thread` and `sub-interpreter`. "
