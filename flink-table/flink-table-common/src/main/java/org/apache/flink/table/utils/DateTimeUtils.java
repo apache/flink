@@ -403,6 +403,7 @@ public class DateTimeUtils {
 
     public static TimestampData parseTimestampData(String dateStr) throws DateTimeException {
         // Precision is hardcoded to match signature of TO_TIMESTAMP
+        //  https://issues.apache.org/jira/browse/FLINK-14925
         return parseTimestampData(dateStr, 3);
     }
 
@@ -412,7 +413,7 @@ public class DateTimeUtils {
                 fromTemporalAccessor(DEFAULT_TIMESTAMP_FORMATTER.parse(dateStr), precision));
     }
 
-    public static TimestampData parseTimestampData(String dateStr, TimeZone timeZone, int precision)
+    public static TimestampData parseTimestampData(String dateStr, int precision, TimeZone timeZone)
             throws DateTimeException {
         return TimestampData.fromInstant(
                 fromTemporalAccessor(DEFAULT_TIMESTAMP_FORMATTER.parse(dateStr), precision)
@@ -426,6 +427,7 @@ public class DateTimeUtils {
         try {
             TemporalAccessor accessor = formatter.parse(dateStr);
             // Precision is hardcoded to match signature of TO_TIMESTAMP
+            //  https://issues.apache.org/jira/browse/FLINK-14925
             LocalDateTime ldt = fromTemporalAccessor(accessor, 3);
             return TimestampData.fromLocalDateTime(ldt);
         } catch (DateTimeParseException e) {

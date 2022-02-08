@@ -548,8 +548,8 @@ object BuiltInMethods {
     classOf[BinaryStringDataUtil],
     "toTimestamp",
     classOf[BinaryStringData],
-    classOf[TimeZone],
-    classOf[Int])
+    classOf[Int],
+    classOf[TimeZone])
 
   val STRING_LIKE = Types.lookupMethod(
     classOf[SqlLikeUtils], "like", classOf[String], classOf[String])

@@ -67,8 +67,8 @@ class StringToTimestampCastRule
         return staticCall(
                 STRING_DATA_TO_TIMESTAMP_WITH_ZONE(),
                 inputTerm,
-                context.getSessionTimeZoneTerm(),
-                targetPrecision);
+                targetPrecision,
+                context.getSessionTimeZoneTerm());
     }
 
     @Override

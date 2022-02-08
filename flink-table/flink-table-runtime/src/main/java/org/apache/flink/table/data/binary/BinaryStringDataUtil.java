@@ -611,8 +611,8 @@ public class BinaryStringDataUtil {
 
     /** Used by {@code CAST(x as TIMESTAMP_LTZ)}. */
     public static TimestampData toTimestamp(
-            BinaryStringData input, TimeZone timeZone, int precision) throws DateTimeException {
-        return DateTimeUtils.parseTimestampData(input.toString(), timeZone, precision);
+            BinaryStringData input, int precision, TimeZone timeZone) throws DateTimeException {
+        return DateTimeUtils.parseTimestampData(input.toString(), precision, timeZone);
     }
 
     /**
