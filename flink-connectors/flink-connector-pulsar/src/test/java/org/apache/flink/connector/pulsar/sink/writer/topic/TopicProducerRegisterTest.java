@@ -21,7 +21,9 @@ package org.apache.flink.connector.pulsar.sink.writer.topic;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.sink.committer.PulsarCommittable;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
+import org.apache.flink.connector.pulsar.sink.writer.metrics.PulsarSinkWriterMetrics;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestSuiteBase;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
@@ -49,7 +51,8 @@ class TopicProducerRegisterTest extends PulsarTestSuiteBase {
         operator().createTopic(topic, 8);
 
         SinkConfiguration configuration = sinkConfiguration(deliveryGuarantee);
-        TopicProducerRegister register = new TopicProducerRegister(configuration);
+        TopicProducerRegister register =
+                new TopicProducerRegister(configuration, pulsarSinkWriterMetrics());
 
         String message = randomAlphabetic(10);
         register.createMessageBuilder(topic, Schema.STRING).value(message).send();
@@ -76,7 +79,8 @@ class TopicProducerRegisterTest extends PulsarTestSuiteBase {
         operator().createTopic(topic, 8);
 
         SinkConfiguration configuration = sinkConfiguration(deliveryGuarantee);
-        TopicProducerRegister register = new TopicProducerRegister(configuration);
+        TopicProducerRegister register =
+                new TopicProducerRegister(configuration, pulsarSinkWriterMetrics());
 
         String message = randomAlphabetic(10);
         register.createMessageBuilder(topic, Schema.STRING).value(message).sendAsync();
@@ -87,5 +91,9 @@ class TopicProducerRegisterTest extends PulsarTestSuiteBase {
 
     private SinkConfiguration sinkConfiguration(DeliveryGuarantee deliveryGuarantee) {
         return new SinkConfiguration(operator().sinkConfig(deliveryGuarantee));
+    }
+
+    private PulsarSinkWriterMetrics pulsarSinkWriterMetrics() {
+        return new PulsarSinkWriterMetrics(UnregisteredMetricsGroup.createSinkWriterMetricGroup());
     }
 }

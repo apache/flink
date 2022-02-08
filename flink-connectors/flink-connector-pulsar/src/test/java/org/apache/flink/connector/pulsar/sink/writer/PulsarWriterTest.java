@@ -29,10 +29,12 @@ import org.apache.flink.connector.pulsar.sink.committer.PulsarCommittable;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.delayer.FixedMessageDelayer;
 import org.apache.flink.connector.pulsar.sink.writer.delayer.MessageDelayer;
+import org.apache.flink.connector.pulsar.sink.writer.metrics.PulsarSinkWriterMetrics;
 import org.apache.flink.connector.pulsar.sink.writer.router.RoundRobinTopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicMetadataListener;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestSuiteBase;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
@@ -44,17 +46,24 @@ import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
+import org.assertj.core.data.Offset;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.Collection;
 import java.util.OptionalLong;
+import java.util.concurrent.TimeUnit;
 
 import static java.util.Collections.singletonList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
+import static org.apache.flink.connector.base.DeliveryGuarantee.AT_LEAST_ONCE;
 import static org.apache.flink.connector.base.DeliveryGuarantee.EXACTLY_ONCE;
+import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_STATS_INTERVAL_SECONDS;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WRITE_SCHEMA_EVOLUTION;
 import static org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema.pulsarSchema;
+import static org.apache.flink.shaded.guava30.com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static org.apache.pulsar.client.api.Schema.STRING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -63,6 +72,147 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class PulsarWriterTest extends PulsarTestSuiteBase {
 
     private static final SinkWriter.Context CONTEXT = new MockSinkWriterContext();
+    private static final String EXPECTED_PRODUCER_METRIC_NAME = "PulsarSink.numAcksReceived";
+    private static final String GLOBAL_MAX_LATENCY_METRIC_NAME = "PulsarSink.sendLatencyMax";
+    private static final String CURRENT_SEND_TIME_METRIC_NAME = "currentSendTime";
+    private static final String NUM_ACKS_RECEIVED_METRIC_NAME = "PulsarSink.numAcksReceived";
+    private static final long TEST_PULSAR_STATS_INTERVAL_SECONDS = 1L;
+
+    private MetricListener metricListener;
+    private TestProcessingTimeService timeService;
+    private MockInitContext initContext;
+
+    @BeforeEach
+    void setup() throws Exception {
+        metricListener = new MetricListener();
+        timeService = new TestProcessingTimeService();
+        timeService.setCurrentTime(0L);
+        initContext = new MockInitContext(metricListener, timeService);
+    }
+
+
+    @Test
+    void metricsPresentAfterWriterCreated() throws Exception {
+        String topic = randomAlphabetic(10);
+        operator().createTopic(topic, 8);
+
+        try (final PulsarWriter<String> ignored = createWriter(topic, initContext)) {
+            assertThat(metricListener.getCounter(EXPECTED_PRODUCER_METRIC_NAME)).isPresent();
+        }
+    }
+
+    @Test
+    void maxSendLatencyGauge() throws Exception {
+        String topic = randomAlphabetic(10);
+        operator().createTopic(topic, 8);
+
+        try (final PulsarWriter<String> writer = createWriter(topic, initContext)) {
+            String message = randomAlphabetic(10);
+            // No producer is present, max latency should be INVALID_LATENCY
+            assertThat(metricListener.getGauge(GLOBAL_MAX_LATENCY_METRIC_NAME)).isPresent();
+            Double latencyBeforeProducerCreation =
+                    metricListener
+                            .<Double>getGauge(GLOBAL_MAX_LATENCY_METRIC_NAME)
+                            .get()
+                            .getValue();
+            assertThat(latencyBeforeProducerCreation)
+                    .isCloseTo(PulsarSinkWriterMetrics.INVALID_LATENCY, Offset.offset(0.01));
+            // Write a message
+            writer.write(message, CONTEXT);
+            // Advance Timer to trigger the metrics update
+            timeService.advance(
+                    TimeUnit.SECONDS.toMillis(TEST_PULSAR_STATS_INTERVAL_SECONDS) + 100);
+
+            Double latencyAfterProducerCreation =
+                    metricListener
+                            .<Double>getGauge(GLOBAL_MAX_LATENCY_METRIC_NAME)
+                            .get()
+                            .getValue();
+            assertThat(latencyAfterProducerCreation).isGreaterThanOrEqualTo(0.0);
+        }
+    }
+
+    @Test
+    void currentSendTimeGauge() throws Exception {
+        String topic = randomAlphabetic(10);
+        operator().createTopic(topic, 8);
+
+        try (final PulsarWriter<String> writer = createWriter(topic, initContext)) {
+            String message = randomAlphabetic(10);
+            // No producer is present, currentSendTime should be INVALID_LAST_SEND_TIME
+            assertThat(metricListener.getGauge(CURRENT_SEND_TIME_METRIC_NAME)).isPresent();
+            Long sendTimeBeforeProducerCreation =
+                    metricListener.<Long>getGauge(CURRENT_SEND_TIME_METRIC_NAME).get().getValue();
+            assertThat(sendTimeBeforeProducerCreation)
+                    .isEqualTo(PulsarSinkWriterMetrics.INVALID_LAST_SEND_TIME);
+
+            // Write a message
+            writer.write(message, CONTEXT);
+            writer.flush(false);
+
+            // After send success, send time should be updated
+            Long sendTimeAfterProducerCreation =
+                    metricListener.<Long>getGauge(CURRENT_SEND_TIME_METRIC_NAME).get().getValue();
+            assertThat(sendTimeAfterProducerCreation).isEqualTo(0);
+        }
+    }
+
+    @Test
+    void numAcksReceived() throws Exception {
+        String topic = randomAlphabetic(10);
+        operator().createTopic(topic, 8);
+
+        try (final PulsarWriter<String> writer = createWriter(topic, initContext)) {
+            String message = randomAlphabetic(10);
+
+            // Write and flush a  message
+            writer.write(message, CONTEXT);
+            writer.flush(false);
+            // Advance Timer to reflect the time change after flush
+            sleepUninterruptibly(TEST_PULSAR_STATS_INTERVAL_SECONDS + 1, TimeUnit.SECONDS);
+            timeService.advance(
+                    TimeUnit.SECONDS.toMillis(TEST_PULSAR_STATS_INTERVAL_SECONDS) + 100);
+
+            Long numAcks =
+                    metricListener.<Long>getCounter(NUM_ACKS_RECEIVED_METRIC_NAME).get().getCount();
+            assertThat(numAcks).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void standardMetricsFromIOMetricsGroup() throws Exception {
+        String topic = randomAlphabetic(10);
+        operator().createTopic(topic, 8);
+
+        try (final PulsarWriter<String> writer = createWriter(topic, initContext)) {
+            String message = randomAlphabetic(10);
+            Counter recordsOutCounter =
+                    initContext.metricGroup().getIOMetricGroup().getNumRecordsOutCounter();
+            Counter bytesOutCounter =
+                    initContext.metricGroup().getIOMetricGroup().getNumBytesOutCounter();
+            // Write and flush a  message
+            writer.write(message, CONTEXT);
+            writer.flush(false);
+            // Advance Timer to update counter metrics
+            sleepUninterruptibly(TEST_PULSAR_STATS_INTERVAL_SECONDS + 1, TimeUnit.SECONDS);
+            timeService.advance(
+                    TimeUnit.SECONDS.toMillis(TEST_PULSAR_STATS_INTERVAL_SECONDS) + 100);
+
+            // Validate the counter is updated
+            assertThat(recordsOutCounter.getCount()).isEqualTo(1);
+            assertThat(bytesOutCounter.getCount()).isGreaterThanOrEqualTo(10);
+
+            // Write and flush another message
+            writer.write(message, CONTEXT);
+            writer.flush(false);
+            // Advance Timer and system time to update counter metrics
+            sleepUninterruptibly(TEST_PULSAR_STATS_INTERVAL_SECONDS + 1, TimeUnit.SECONDS);
+            timeService.advance(
+                    TimeUnit.SECONDS.toMillis(TEST_PULSAR_STATS_INTERVAL_SECONDS) + 100);
+            assertThat(recordsOutCounter.getCount()).isEqualTo(2);
+            assertThat(bytesOutCounter.getCount()).isGreaterThanOrEqualTo(20);
+        }
+    }
 
     @ParameterizedTest
     @EnumSource(DeliveryGuarantee.class)
@@ -107,8 +257,19 @@ class PulsarWriterTest extends PulsarTestSuiteBase {
     private SinkConfiguration sinkConfiguration(DeliveryGuarantee deliveryGuarantee) {
         Configuration configuration = operator().sinkConfig(deliveryGuarantee);
         configuration.set(PULSAR_WRITE_SCHEMA_EVOLUTION, true);
+        configuration.set(PULSAR_STATS_INTERVAL_SECONDS, TEST_PULSAR_STATS_INTERVAL_SECONDS);
 
         return new SinkConfiguration(configuration);
+    }
+
+    private PulsarWriter<String> createWriter(String topic, MockInitContext initContext) {
+        SinkConfiguration configuration = sinkConfiguration(AT_LEAST_ONCE);
+        PulsarSerializationSchema<String> schema = pulsarSchema(STRING);
+        TopicMetadataListener listener = new TopicMetadataListener(singletonList(topic));
+        RoundRobinTopicRouter<String> router = new RoundRobinTopicRouter<>(configuration);
+        FixedMessageDelayer<String> delayer = MessageDelayer.never();
+
+        return new PulsarWriter<>(configuration, schema, listener, router, delayer, initContext);
     }
 
     private static class MockInitContext implements InitContext {
@@ -126,6 +287,16 @@ class PulsarWriterTest extends PulsarTestSuiteBase {
             MetricGroup metricGroup = metricListener.getMetricGroup();
             this.metricGroup = InternalSinkWriterMetricGroup.mock(metricGroup, ioMetricGroup);
             this.timeService = new TestProcessingTimeService();
+        }
+
+        private MockInitContext(MetricListener metricListener, ProcessingTimeService timeService) {
+            this.metricListener = metricListener;
+            this.ioMetricGroup =
+                    UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup()
+                            .getIOMetricGroup();
+            MetricGroup metricGroup = metricListener.getMetricGroup();
+            this.metricGroup = InternalSinkWriterMetricGroup.mock(metricGroup, ioMetricGroup);
+            this.timeService = timeService;
         }
 
         @Override

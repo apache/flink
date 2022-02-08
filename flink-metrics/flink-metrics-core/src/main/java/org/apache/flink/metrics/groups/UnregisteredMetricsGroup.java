@@ -108,6 +108,10 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         return new UnregisteredSplitEnumeratorMetricGroup();
     }
 
+    public static SinkWriterMetricGroup createSinkWriterMetricGroup() {
+        return new UnregisteredSinkWriterMetricGroup();
+    }
+
     private static class UnregisteredOperatorMetricGroup extends UnregisteredMetricsGroup
             implements OperatorMetricGroup {
         @Override
@@ -177,5 +181,21 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         public <G extends Gauge<Long>> G setUnassignedSplitsGauge(G unassignedSplitsGauge) {
             return null;
         }
+    }
+
+    private static class UnregisteredSinkWriterMetricGroup extends UnregisteredMetricsGroup
+            implements SinkWriterMetricGroup {
+        @Override
+        public OperatorIOMetricGroup getIOMetricGroup() {
+            return new UnregisteredOperatorIOMetricGroup();
+        }
+
+        @Override
+        public Counter getNumRecordsOutErrorsCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public void setCurrentSendTimeGauge(Gauge<Long> currentSendTimeGauge) {}
     }
 }
