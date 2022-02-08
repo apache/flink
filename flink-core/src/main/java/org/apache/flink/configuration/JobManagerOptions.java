@@ -321,7 +321,33 @@ public class JobManagerOptions {
                     .intType()
                     .defaultValue(Integer.MAX_VALUE)
                     .withDescription(
-                            "The max number of completed jobs that can be kept in the job store.");
+                            "The max number of completed jobs that can be kept in the job store. "
+                                    + "NOTICE: if memory store keeps too many jobs in session cluster, it may cause FullGC or OOM in jm.");
+
+    /** Config parameter determining the job store implementation in session cluster. */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<JobStoreType> JOB_STORE_TYPE =
+            key("jobstore.type")
+                    .enumType(JobStoreType.class)
+                    .defaultValue(JobStoreType.File)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Determines which job store implementation is used in session cluster. Accepted values are:")
+                                    .list(
+                                            text(
+                                                    "'File': the file job store keeps the archived execution graphs in files"),
+                                            text(
+                                                    "'Memory': the memory job store keeps the archived execution graphs in memory. You"
+                                                            + " may need to limit the %s to mitigate FullGC or OOM when there are too many graphs",
+                                                    code(JOB_STORE_MAX_CAPACITY.key())))
+                                    .build());
+
+    /** Type of job store implementation. */
+    public enum JobStoreType {
+        File,
+        Memory
+    }
 
     /**
      * Flag indicating whether JobManager would retrieve canonical host name of TaskManager during

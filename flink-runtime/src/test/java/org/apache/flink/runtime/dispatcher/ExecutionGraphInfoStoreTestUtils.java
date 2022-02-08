@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -203,8 +204,26 @@ public class ExecutionGraphInfoStoreTestUtils {
                                     .createSessionComponentFactory(
                                             StandaloneResourceManagerFactory.getInstance());
 
-            final ExecutionGraphInfoStore executionGraphInfoStore =
-                    createDefaultExecutionGraphInfoStore(rootDir);
+            JobManagerOptions.JobStoreType jobStoreType =
+                    configuration.get(JobManagerOptions.JOB_STORE_TYPE);
+            final ExecutionGraphInfoStore executionGraphInfoStore;
+            switch (jobStoreType) {
+                case File:
+                    {
+                        executionGraphInfoStore = createDefaultExecutionGraphInfoStore(rootDir);
+                        break;
+                    }
+                case Memory:
+                    {
+                        executionGraphInfoStore = new MemoryExecutionGraphInfoStore();
+                        break;
+                    }
+                default:
+                    {
+                        throw new UnsupportedOperationException(
+                                "Unsupported job store type " + jobStoreType);
+                    }
+            }
 
             return Collections.singleton(
                     dispatcherResourceManagerComponentFactory.create(
