@@ -54,6 +54,7 @@ public class YarnConfigOptions {
      * (LAST), or be positioned based on their name (ORDER). DISABLED means the user-jars are
      * excluded from the system class path.
      */
+    @Deprecated
     public static final ConfigOption<UserJarInclusion> CLASSPATH_INCLUDE_USER_JAR =
             key("yarn.per-job-cluster.include-user-jar")
                     .enumType(UserJarInclusion.class)
