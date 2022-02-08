@@ -27,10 +27,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
+import org.apache.flink.runtime.source.coordinator.SourceCoordinator;
+import org.apache.flink.runtime.source.coordinator.SourceCoordinator.WatermarkAlignmentParams;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 
 /** A SourceOperator extension to simplify test setup. */
@@ -54,23 +55,8 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
                 new MockOperatorEventGateway(),
                 1,
                 5,
-                emitProgressiveWatermarks);
-    }
-
-    public TestingSourceOperator(
-            SourceReader<T, MockSourceSplit> reader,
-            OperatorEventGateway eventGateway,
-            int subtaskIndex,
-            boolean emitProgressiveWatermarks) {
-
-        this(
-                reader,
-                WatermarkStrategy.noWatermarks(),
-                new TestProcessingTimeService(),
-                eventGateway,
-                subtaskIndex,
-                5,
-                emitProgressiveWatermarks);
+                emitProgressiveWatermarks,
+                SourceCoordinator.WATERMARK_ALIGNMENT_DISABLED);
     }
 
     public TestingSourceOperator(
@@ -80,7 +66,8 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
             OperatorEventGateway eventGateway,
             int subtaskIndex,
             int parallelism,
-            boolean emitProgressiveWatermarks) {
+            boolean emitProgressiveWatermarks,
+            WatermarkAlignmentParams watermarkAlignmentParams) {
 
         super(
                 (context) -> reader,
@@ -90,7 +77,8 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
                 timeService,
                 new Configuration(),
                 "localhost",
-                emitProgressiveWatermarks);
+                emitProgressiveWatermarks,
+                watermarkAlignmentParams);
 
         this.subtaskIndex = subtaskIndex;
         this.parallelism = parallelism;
