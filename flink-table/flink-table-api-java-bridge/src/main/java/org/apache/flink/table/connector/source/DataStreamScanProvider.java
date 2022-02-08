@@ -21,6 +21,7 @@ package org.apache.flink.table.connector.source;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.data.RowData;
 
 /**
@@ -34,6 +35,22 @@ import org.apache.flink.table.data.RowData;
 @PublicEvolving
 public interface DataStreamScanProvider extends ScanTableSource.ScanRuntimeProvider {
 
+    /**
+     * Creates a scan Java {@link DataStream} from a {@link StreamExecutionEnvironment}.
+     *
+     * <p>This method MUST set an uid to each node of the transformation source, when the job is
+     * unbounded, which can be generated with {@link ProviderContext#generateUid(String)}.
+     */
+    default DataStream<RowData> produceDataStream(
+            ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
+        return produceDataStream(execEnv);
+    }
+
     /** Creates a scan Java {@link DataStream} from a {@link StreamExecutionEnvironment}. */
-    DataStream<RowData> produceDataStream(StreamExecutionEnvironment execEnv);
+    @Deprecated
+    default DataStream<RowData> produceDataStream(StreamExecutionEnvironment execEnv) {
+        throw new UnsupportedOperationException(
+                "This method is deprecated. You should use "
+                        + "produceDataStream(ProviderContext, StreamExecutionEnvironment) instead");
+    }
 }

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
@@ -41,11 +42,13 @@ import org.apache.flink.util.Preconditions;
 public interface TransformationScanProvider extends ScanTableSource.ScanRuntimeProvider {
 
     /** Helper method for creating a static provider. The boundedness is derived automatically. */
-    static TransformationScanProvider of(Transformation<RowData> transformation) {
+    static TransformationScanProvider of(
+            Transformation<RowData> transformation, String transformationName) {
         Preconditions.checkNotNull(transformation, "Transformation must not be null.");
         return new TransformationScanProvider() {
             @Override
-            public Transformation<RowData> createTransformation() {
+            public Transformation<RowData> createTransformation(ProviderContext providerContext) {
+                providerContext.generateUid(transformationName).ifPresent(transformation::setUid);
                 return transformation;
             }
 
@@ -64,6 +67,11 @@ public interface TransformationScanProvider extends ScanTableSource.ScanRuntimeP
         };
     }
 
-    /** Creates a {@link Transformation} instance. */
-    Transformation<RowData> createTransformation();
+    /**
+     * Creates a {@link Transformation} instance.
+     *
+     * <p>This method MUST set an uid to each node of the data stream source, when the job is
+     * unbounded, which can be generated with {@link ProviderContext#generateUid(String)}.
+     */
+    Transformation<RowData> createTransformation(ProviderContext providerContext);
 }

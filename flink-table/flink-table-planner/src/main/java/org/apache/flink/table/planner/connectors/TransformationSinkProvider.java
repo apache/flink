@@ -20,11 +20,14 @@ package org.apache.flink.table.planner.connectors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.connector.sink.SinkProvider;
 import org.apache.flink.table.data.RowData;
+
+import java.util.Optional;
 
 /**
  * Provider that produces a {@link Transformation} as a runtime implementation for {@link
@@ -37,15 +40,24 @@ import org.apache.flink.table.data.RowData;
 @Internal
 public interface TransformationSinkProvider extends DynamicTableSink.SinkRuntimeProvider {
 
-    /** Creates a transformation for transforming the input provided in the context. */
+    /**
+     * Creates a transformation for transforming the input provided in the context.
+     *
+     * <p>This method MUST set an uid for each node of the transformation sink, when the job is
+     * unbounded, which can be generated with {@link Context#generateUid(String)}.
+     */
     Transformation<?> createTransformation(Context context);
 
     /** Context for {@link #createTransformation(Context)}. */
-    interface Context {
+    interface Context extends ProviderContext {
 
         /** Helper method for creating the default implementation of {@link Context}. */
-        static Context of(Transformation<RowData> inputTransformation, int rowtimeIndex) {
+        static Context of(
+                Transformation<RowData> inputTransformation,
+                int rowtimeIndex,
+                ProviderContext providerContext) {
             return new Context() {
+
                 @Override
                 public Transformation<RowData> getInputTransformation() {
                     return inputTransformation;
@@ -54,6 +66,11 @@ public interface TransformationSinkProvider extends DynamicTableSink.SinkRuntime
                 @Override
                 public int getRowtimeIndex() {
                     return rowtimeIndex;
+                }
+
+                @Override
+                public Optional<String> generateUid(String name) {
+                    return providerContext.generateUid(name);
                 }
             };
         }

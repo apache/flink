@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.table.connector.ParallelismProvider;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.data.RowData;
 
 import java.util.Optional;
@@ -42,15 +43,36 @@ public interface DataStreamSinkProvider
     /**
      * Consumes the given Java {@link DataStream} and returns the sink transformation {@link
      * DataStreamSink}.
+     *
+     * <p>This method MUST set an uid for each node of the data stream sink, when the job is
+     * unbounded, which can be generated with {@link ProviderContext#generateUid(String)}.
      */
-    DataStreamSink<?> consumeDataStream(DataStream<RowData> dataStream);
+    default DataStreamSink<?> consumeDataStream(
+            ProviderContext providerContext, DataStream<RowData> dataStream) {
+        return consumeDataStream(dataStream);
+    }
+
+    /**
+     * Consumes the given Java {@link DataStream} and returns the sink transformation {@link
+     * DataStreamSink}.
+     *
+     * @deprecated You should implement {@link
+     *     DataStreamSinkProvider#consumeDataStream(ProviderContext, DataStream)} and correctly set
+     *     uid for each data stream transformation.
+     */
+    @Deprecated
+    default DataStreamSink<?> consumeDataStream(DataStream<RowData> dataStream) {
+        throw new UnsupportedOperationException(
+                "This method is deprecated. You should use "
+                        + "consumeDataStream(ProviderContext, DataStream<RowData>) instead");
+    }
 
     /**
      * {@inheritDoc}
      *
-     * <p>Note: If a custom parallelism is returned and {@link #consumeDataStream(DataStream)}
-     * applies multiple transformations, make sure to set the same custom parallelism to each
-     * operator to not mess up the changelog.
+     * <p>Note: If a custom parallelism is returned and {@link #consumeDataStream(ProviderContext,
+     * DataStream)} applies multiple transformations, make sure to set the same custom parallelism
+     * to each operator to not mess up the changelog.
      */
     @Override
     default Optional<Integer> getParallelism() {
