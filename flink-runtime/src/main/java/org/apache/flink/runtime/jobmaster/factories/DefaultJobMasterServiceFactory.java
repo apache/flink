@@ -37,11 +37,15 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.util.function.FunctionUtils;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
+
+    private final Object lock = new Object();
 
     private final Executor executor;
     private final RpcService rpcService;
@@ -88,16 +92,21 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
     @Override
     public CompletableFuture<JobMasterService> createJobMasterService(
             UUID leaderSessionId, OnCompletionActions onCompletionActions) {
-
         return CompletableFuture.supplyAsync(
                 FunctionUtils.uncheckedSupplier(
-                        () -> internalCreateJobMasterService(leaderSessionId, onCompletionActions)),
+                        () -> {
+                            synchronized (lock) {
+                                // Execute inside the synchronized lock to ensure memory safety.
+                                return internalCreateJobMasterService(
+                                        leaderSessionId, onCompletionActions);
+                            }
+                        }),
                 executor);
     }
 
+    @GuardedBy("lock")
     private JobMasterService internalCreateJobMasterService(
             UUID leaderSessionId, OnCompletionActions onCompletionActions) throws Exception {
-
         final JobMaster jobMaster =
                 new JobMaster(
                         rpcService,
