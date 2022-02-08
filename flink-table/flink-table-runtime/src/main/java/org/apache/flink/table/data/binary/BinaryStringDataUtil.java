@@ -603,13 +603,16 @@ public class BinaryStringDataUtil {
         return date;
     }
 
-    public static TimestampData toTimestamp(BinaryStringData input) throws DateTimeException {
-        return DateTimeUtils.parseTimestampData(input.toString());
+    /** Used by {@code CAST(x as TIMESTAMP)}. */
+    public static TimestampData toTimestamp(BinaryStringData input, int precision)
+            throws DateTimeException {
+        return DateTimeUtils.parseTimestampData(input.toString(), precision);
     }
 
-    public static TimestampData toTimestamp(BinaryStringData input, TimeZone timeZone)
-            throws DateTimeException {
-        return DateTimeUtils.parseTimestampData(input.toString(), timeZone);
+    /** Used by {@code CAST(x as TIMESTAMP_LTZ)}. */
+    public static TimestampData toTimestamp(
+            BinaryStringData input, TimeZone timeZone, int precision) throws DateTimeException {
+        return DateTimeUtils.parseTimestampData(input.toString(), timeZone, precision);
     }
 
     /**

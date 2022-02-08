@@ -142,20 +142,6 @@ public class DateTimeUtils {
                     .optionalEnd()
                     .toFormatter();
 
-    private static final String[] DEFAULT_DATETIME_FORMATS =
-            new String[] {
-                "yyyy-MM-dd HH:mm:ss",
-                "yyyy-MM-dd HH:mm:ss.S",
-                "yyyy-MM-dd HH:mm:ss.SS",
-                "yyyy-MM-dd HH:mm:ss.SSS",
-                "yyyy-MM-dd HH:mm:ss.SSSS",
-                "yyyy-MM-dd HH:mm:ss.SSSSS",
-                "yyyy-MM-dd HH:mm:ss.SSSSSS",
-                "yyyy-MM-dd HH:mm:ss.SSSSSSS",
-                "yyyy-MM-dd HH:mm:ss.SSSSSSSS",
-                "yyyy-MM-dd HH:mm:ss.SSSSSSSSS"
-            };
-
     /**
      * A ThreadLocal cache map for SimpleDateFormat, because SimpleDateFormat is not thread-safe.
      * (string_format) => formatter
@@ -415,17 +401,23 @@ public class DateTimeUtils {
     // Parsing functions
     // --------------------------------------------------------------------------------------------
 
-    public static TimestampData parseTimestampData(String dateStr, TimeZone timeZone)
-            throws DateTimeException {
-        return TimestampData.fromInstant(
-                fromTemporalAccessor(DEFAULT_TIMESTAMP_FORMATTER.parse(dateStr))
-                        .atZone(timeZone.toZoneId())
-                        .toInstant());
+    public static TimestampData parseTimestampData(String dateStr) throws DateTimeException {
+        // Precision is hardcoded to match signature of TO_TIMESTAMP
+        return parseTimestampData(dateStr, 3);
     }
 
-    public static TimestampData parseTimestampData(String dateStr) throws DateTimeException {
+    public static TimestampData parseTimestampData(String dateStr, int precision)
+            throws DateTimeException {
         return TimestampData.fromLocalDateTime(
-                fromTemporalAccessor(DEFAULT_TIMESTAMP_FORMATTER.parse(dateStr)));
+                fromTemporalAccessor(DEFAULT_TIMESTAMP_FORMATTER.parse(dateStr), precision));
+    }
+
+    public static TimestampData parseTimestampData(String dateStr, TimeZone timeZone, int precision)
+            throws DateTimeException {
+        return TimestampData.fromInstant(
+                fromTemporalAccessor(DEFAULT_TIMESTAMP_FORMATTER.parse(dateStr), precision)
+                        .atZone(timeZone.toZoneId())
+                        .toInstant());
     }
 
     public static TimestampData parseTimestampData(String dateStr, String format) {
@@ -433,7 +425,8 @@ public class DateTimeUtils {
 
         try {
             TemporalAccessor accessor = formatter.parse(dateStr);
-            LocalDateTime ldt = fromTemporalAccessor(accessor);
+            // Precision is hardcoded to match signature of TO_TIMESTAMP
+            LocalDateTime ldt = fromTemporalAccessor(accessor, 3);
             return TimestampData.fromLocalDateTime(ldt);
         } catch (DateTimeParseException e) {
             // fall back to support cases like '1999-9-10 05:20:10' or '1999-9-10'
@@ -458,7 +451,7 @@ public class DateTimeUtils {
      * This is similar to {@link LocalDateTime#from(TemporalAccessor)}, but it's less strict and
      * introduces default values.
      */
-    private static LocalDateTime fromTemporalAccessor(TemporalAccessor accessor) {
+    private static LocalDateTime fromTemporalAccessor(TemporalAccessor accessor, int precision) {
         // complement year with 1970
         int year = accessor.isSupported(YEAR) ? accessor.get(YEAR) : 1970;
         // complement month with 1
@@ -473,6 +466,12 @@ public class DateTimeUtils {
         int second = accessor.isSupported(SECOND_OF_MINUTE) ? accessor.get(SECOND_OF_MINUTE) : 0;
         // complement nano_of_second with 0
         int nanoOfSecond = accessor.isSupported(NANO_OF_SECOND) ? accessor.get(NANO_OF_SECOND) : 0;
+
+        if (precision == 0) {
+            nanoOfSecond = 0;
+        } else if (precision != 9) {
+            nanoOfSecond = (int) floor(nanoOfSecond, powerX(10, 9 - precision));
+        }
 
         return LocalDateTime.of(year, month, day, hour, minute, second, nanoOfSecond);
     }
