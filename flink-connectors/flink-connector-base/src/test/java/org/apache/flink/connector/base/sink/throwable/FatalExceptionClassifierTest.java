@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.base.sink.util;
+package org.apache.flink.connector.base.sink.throwable;
 
 import org.apache.flink.util.ExceptionUtils;
 
@@ -27,21 +27,21 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-/** Tests the RetryableExceptionClassifier of the Async Sink Writer. */
-public class RetryableExceptionClassifierTest {
+/** Tests the FatalExceptionClassifier of the Async Sink Writer. */
+public class FatalExceptionClassifierTest {
 
     private static Integer nullReference;
 
-    private static final RetryableExceptionClassifier ARITHMETIC_EXCEPTION_STRATEGY =
-            new RetryableExceptionClassifier(
+    private static final FatalExceptionClassifier ARITHMETIC_EXCEPTION_STRATEGY =
+            new FatalExceptionClassifier(
                     err -> ExceptionUtils.findThrowable(err, ArithmeticException.class).isPresent(),
                     err ->
                             new RuntimeException(
                                     "Buffer manipulation calculations resulted in a calculation exception",
                                     err));
 
-    private static final RetryableExceptionClassifier NULL_POINTER_EXCEPTION_STRATEGY =
-            new RetryableExceptionClassifier(
+    private static final FatalExceptionClassifier NULL_POINTER_EXCEPTION_STRATEGY =
+            new FatalExceptionClassifier(
                     err ->
                             ExceptionUtils.findThrowable(err, NullPointerException.class)
                                     .isPresent(),
@@ -54,7 +54,7 @@ public class RetryableExceptionClassifierTest {
     public void exceptionsAreWrappedInTheContainingExceptionWhenAMatchIsFound() {
         AtomicReference<Exception> caughtExceptionReference = new AtomicReference<>();
 
-        ARITHMETIC_EXCEPTION_STRATEGY.shouldSuppress(
+        ARITHMETIC_EXCEPTION_STRATEGY.isFatal(
                 new ArithmeticException("Base arithmetic exception"),
                 caughtExceptionReference::set);
 
@@ -68,19 +68,19 @@ public class RetryableExceptionClassifierTest {
         try {
             System.out.print(nullReference.toString());
         } catch (Exception e) {
-            ARITHMETIC_EXCEPTION_STRATEGY.shouldSuppress(e, caughtException::set);
+            ARITHMETIC_EXCEPTION_STRATEGY.isFatal(e, caughtException::set);
         }
         assertThat(caughtException.get()).isNull();
     }
 
     @Test
-    public void chainedRetryStrategiesAcceptExceptionsOnTheFirstItemOfChain() {
-        RetryableExceptionClassifier retryableExceptionClassifier =
-                RetryableExceptionClassifier.createChain(
+    public void chainedFatalExceptionClassifierAcceptExceptionsOnTheFirstItemOfChain() {
+        FatalExceptionClassifier fatalExceptionClassifier =
+                FatalExceptionClassifier.createChain(
                         ARITHMETIC_EXCEPTION_STRATEGY, NULL_POINTER_EXCEPTION_STRATEGY);
         AtomicReference<Exception> caughtExceptionReference = new AtomicReference<>();
 
-        retryableExceptionClassifier.shouldSuppress(
+        fatalExceptionClassifier.isFatal(
                 new ArithmeticException("Base arithmetic exception"),
                 caughtExceptionReference::set);
 
@@ -89,13 +89,13 @@ public class RetryableExceptionClassifierTest {
     }
 
     @Test
-    public void chainedRetryStrategiesAcceptExceptionsOnTheLastItemOfChain() {
-        RetryableExceptionClassifier retryableExceptionClassifier =
-                RetryableExceptionClassifier.createChain(
+    public void chainedFatalExceptionClassifierAcceptExceptionsOnTheLastItemOfChain() {
+        FatalExceptionClassifier fatalExceptionClassifier =
+                FatalExceptionClassifier.createChain(
                         ARITHMETIC_EXCEPTION_STRATEGY, NULL_POINTER_EXCEPTION_STRATEGY);
         AtomicReference<Exception> caughtException = new AtomicReference<>();
 
-        retryableExceptionClassifier.shouldSuppress(
+        fatalExceptionClassifier.isFatal(
                 new NullPointerException("Base NullPointerException"), caughtException::set);
 
         assertThat(caughtException.get())
@@ -107,16 +107,23 @@ public class RetryableExceptionClassifierTest {
     }
 
     @Test
-    public void circularChainStrategyThrowsException() {
+    public void circularChainedFatalExceptionClassifierThrowsException() {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(
                         () ->
-                                RetryableExceptionClassifier.createChain(
+                                FatalExceptionClassifier.createChain(
                                         ARITHMETIC_EXCEPTION_STRATEGY,
                                         NULL_POINTER_EXCEPTION_STRATEGY,
                                         ARITHMETIC_EXCEPTION_STRATEGY))
                 .withMessageContaining(
                         "Wrong classifier chain; Circular chain of classifiers detected");
+    }
+
+    @Test
+    public void emptyChainedFatalExceptionClassifierThrowsException() {
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(FatalExceptionClassifier::createChain)
+                .withMessageContaining("Cannot create empty classifier chain.");
     }
 
     private void assertThatCaughtExceptionIsWrappedArithmeticDivByZeroException(

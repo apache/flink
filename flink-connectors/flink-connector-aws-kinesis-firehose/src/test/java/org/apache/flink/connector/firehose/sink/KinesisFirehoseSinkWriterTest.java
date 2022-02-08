@@ -19,21 +19,19 @@ package org.apache.flink.connector.firehose.sink;
 
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.connector.sink2.SinkWriter;
-import org.apache.flink.connector.aws.config.AWSConfigConstants;
+import org.apache.flink.connector.aws.testutils.AWSServicesTestUtils;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.connector.base.sink.writer.TestSinkInitContext;
 
 import org.junit.Before;
 import org.junit.Test;
 import software.amazon.awssdk.core.SdkBytes;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.firehose.model.Record;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
-import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ENDPOINT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Covers construction, defaults and sanity checking of {@link KinesisFirehoseSinkWriter}. */
@@ -49,8 +47,7 @@ public class KinesisFirehoseSinkWriterTest {
     @Before
     public void setup() {
         TestSinkInitContext sinkInitContext = new TestSinkInitContext();
-        Properties sinkProperties = new Properties();
-        sinkProperties.put(AWSConfigConstants.AWS_REGION, "eu-west-1");
+        Properties sinkProperties = AWSServicesTestUtils.createConfig("https://fake_aws_endpoint");
         sinkWriter =
                 new KinesisFirehoseSinkWriter<>(
                         ELEMENT_CONVERTER_PLACEHOLDER,
@@ -77,9 +74,7 @@ public class KinesisFirehoseSinkWriterTest {
     @Test
     public void getNumRecordsOutErrorsCounterRecordsCorrectNumberOfFailures()
             throws IOException, InterruptedException {
-        Properties prop = new Properties();
-        prop.setProperty(AWSConfigConstants.AWS_REGION, Region.EU_WEST_1.toString());
-        prop.setProperty(AWS_ENDPOINT, "https://fake_aws_endpoint");
+        Properties prop = AWSServicesTestUtils.createConfig("https://fake_aws_endpoint");
         TestSinkInitContext ctx = new TestSinkInitContext();
         KinesisFirehoseSink<String> kinesisFirehoseSink =
                 new KinesisFirehoseSink<>(

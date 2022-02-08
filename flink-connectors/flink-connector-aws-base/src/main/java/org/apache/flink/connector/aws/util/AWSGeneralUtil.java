@@ -49,8 +49,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
-import static org.apache.flink.connector.aws.config.AWSConfigConstants.CredentialProvider.WEB_IDENTITY_TOKEN;
-
 /** Some general utilities specific to Amazon Web Service. */
 @Internal
 public class AWSGeneralUtil {
@@ -93,7 +91,7 @@ public class AWSGeneralUtil {
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException(
                         String.format(
-                                "Invalid AWS Credential Provider type %s.",
+                                "Invalid AWS Credential Provider Type %s.",
                                 configProps.getProperty(configPrefix)),
                         e);
             }
@@ -373,20 +371,9 @@ public class AWSGeneralUtil {
         }
     }
 
-
-    public static void validateWebIdentityTokenFileCredentialsProvider(Properties config) {
-        validateCredentialProvider(config);
-        try {
-            CredentialProvider credentialProviderType =
-                    getCredentialProviderType(config, AWSConfigConstants.AWS_CREDENTIALS_PROVIDER);
-            if (credentialProviderType.equals(WEB_IDENTITY_TOKEN)) {
-                getCredentialsProvider(config).resolveCredentials();
-            }
-        } catch (Throwable e) {
-            throw new AWSAuthenticationException(
-                    String.format("Failed to create client using %s provider", WEB_IDENTITY_TOKEN),
-                    e);
-        }
+    public static void validateAwsCredentials(Properties config) {
+        validateAwsConfiguration(config);
+        getCredentialsProvider(config).resolveCredentials();
     }
 
     private static void validateCredentialProvider(Properties config) {

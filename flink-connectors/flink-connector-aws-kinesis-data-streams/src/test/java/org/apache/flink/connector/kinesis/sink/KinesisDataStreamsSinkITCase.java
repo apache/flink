@@ -209,9 +209,9 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
     private void badRegionShouldResultInFailureWhenInFailOnErrorIs(boolean failOnError) {
         Properties properties = getDefaultProperties();
         properties.setProperty(AWS_REGION, "some-bad-region");
-        String streamName = "do-not-create-new-stream";
+
         assertRunWithPropertiesAndStreamShouldFailWithExceptionOfType(
-                streamName, failOnError, properties, "Invalid AWS region set in config");
+                failOnError, properties, "Invalid AWS region");
     }
 
     @Test
@@ -227,9 +227,8 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
     private void missingRegionShouldResultInFailureWhenInFailOnErrorIs(boolean failOnError) {
         Properties properties = getDefaultProperties();
         properties.remove(AWS_REGION);
-        String streamName = "do-not-create-new-stream";
         assertRunWithPropertiesAndStreamShouldFailWithExceptionOfType(
-                streamName, failOnError, properties, "region must not be null.");
+                failOnError, properties, "region must not be null.");
     }
 
     @Test
@@ -245,12 +244,8 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
     private void noURIEndpointShouldResultInFailureWhenInFailOnErrorIs(boolean failOnError) {
         Properties properties = getDefaultProperties();
         properties.setProperty(AWS_ENDPOINT, "bad-endpoint-no-uri");
-        String streamName = "do-not-create-new-stream";
         assertRunWithPropertiesAndStreamShouldFailWithExceptionOfType(
-                streamName,
-                failOnError,
-                properties,
-                "The URI scheme of endpointOverride must not be null.");
+                failOnError, properties, "The URI scheme of endpointOverride must not be null.");
     }
 
     @Test
@@ -266,12 +261,10 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
     private void badEndpointShouldResultInFailureWhenInFailOnErrorIs(boolean failOnError) {
         Properties properties = getDefaultProperties();
         properties.setProperty(AWS_ENDPOINT, "https://bad-endpoint-with-uri");
-        String streamName = "do-not-create-new-stream";
         assertRunWithPropertiesAndStreamShouldFailWithExceptionOfType(
-                streamName,
                 failOnError,
                 properties,
-                "Encountered non-recoverable exception relating to mis-configured client");
+                "UnknownHostException when attempting to interact with a service.");
     }
 
     @Test
@@ -279,7 +272,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
                 true,
                 AWSConfigConstants.CredentialProvider.ENV_VAR.toString(),
-                "Encountered non-recoverable exception relating to mis-configured client");
+                "Access key must be specified either via environment variable");
     }
 
     @Test
@@ -287,7 +280,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
                 false,
                 AWSConfigConstants.CredentialProvider.ENV_VAR.toString(),
-                "Encountered non-recoverable exception relating to mis-configured client");
+                "Access key must be specified either via environment variable");
     }
 
     @Test
@@ -295,7 +288,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
                 true,
                 AWSConfigConstants.CredentialProvider.SYS_PROP.toString(),
-                "Encountered non-recoverable exception relating to mis-configured client");
+                "Unable to load credentials from system settings");
     }
 
     @Test
@@ -303,7 +296,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
                 false,
                 AWSConfigConstants.CredentialProvider.SYS_PROP.toString(),
-                "Encountered non-recoverable exception relating to mis-configured client");
+                "Unable to load credentials from system settings");
     }
 
     @Test
@@ -311,12 +304,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
                 true,
                 AWSConfigConstants.CredentialProvider.BASIC.toString(),
-                "Please set values for AWS Access Key ID ('"
-                        + AWSConfigConstants.AWS_ACCESS_KEY_ID
-                        + "') "
-                        + "and Secret Key ('"
-                        + AWSConfigConstants.AWS_SECRET_ACCESS_KEY
-                        + "') when using the BASIC AWS credential provider type.");
+                "Please set values for AWS Access Key ID ('aws.credentials.provider.basic.accesskeyid') and Secret Key ('aws.credentials.provider.basic.secretkey') when using the BASIC AWS credential provider type.");
     }
 
     @Test
@@ -324,12 +312,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
                 false,
                 AWSConfigConstants.CredentialProvider.BASIC.toString(),
-                "Please set values for AWS Access Key ID ('"
-                        + AWSConfigConstants.AWS_ACCESS_KEY_ID
-                        + "') "
-                        + "and Secret Key ('"
-                        + AWSConfigConstants.AWS_SECRET_ACCESS_KEY
-                        + "') when using the BASIC AWS credential provider type.");
+                "Please set values for AWS Access Key ID ('aws.credentials.provider.basic.accesskeyid') and Secret Key ('aws.credentials.provider.basic.secretkey') when using the BASIC AWS credential provider type.");
     }
 
     @Test
@@ -337,7 +320,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
                 true,
                 AWSConfigConstants.CredentialProvider.WEB_IDENTITY_TOKEN.toString(),
-                "Failed to create client using WEB_IDENTITY_TOKEN provider");
+                "Either the environment variable AWS_WEB_IDENTITY_TOKEN_FILE or the javaproperty aws.webIdentityTokenFile must be set");
     }
 
     @Test
@@ -345,7 +328,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
                 false,
                 AWSConfigConstants.CredentialProvider.WEB_IDENTITY_TOKEN.toString(),
-                "Failed to create client using WEB_IDENTITY_TOKEN provider");
+                "Either the environment variable AWS_WEB_IDENTITY_TOKEN_FILE or the javaproperty aws.webIdentityTokenFile must be set");
     }
 
     @Test
@@ -371,26 +354,24 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                 AWSConfigConstants.profilePath(AWS_CREDENTIALS_PROVIDER),
                 credentialsProfileLocation);
         assertRunWithPropertiesAndStreamShouldFailWithExceptionOfType(
-                "do-not-create-new-stream", failOnError, properties, expectedMessage);
+                failOnError, properties, expectedMessage);
     }
 
     private void noCredentialsProvidedAndCredentialsProviderSpecifiedShouldResultInFailure(
             boolean failOnError, String credentialsProvider, String expectedMessage) {
         assertRunWithPropertiesAndStreamShouldFailWithExceptionOfType(
-                "do-not-create-new-stream",
                 failOnError,
                 getDefaultPropertiesWithoutCredentialsSetAndCredentialProvider(credentialsProvider),
                 expectedMessage);
     }
 
     private void assertRunWithPropertiesAndStreamShouldFailWithExceptionOfType(
-            String streamName, boolean failOnError, Properties properties, String expectedMessage) {
+            boolean failOnError, Properties properties, String expectedMessage) {
         Assertions.assertThatExceptionOfType(JobExecutionException.class)
                 .isThrownBy(
                         () ->
                                 new Scenario()
-                                        .withKinesaliteStreamName(streamName)
-                                        .withSinkConnectionStreamName(streamName)
+                                        .withSinkConnectionStreamName("default-stream-name")
                                         .withFailOnError(failOnError)
                                         .withProperties(properties)
                                         .runScenario())
@@ -425,7 +406,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         private int maxBatchSize = 50;
         private int expectedElements = 50;
         private boolean failOnError = false;
-        private String kinesaliteStreamName;
+        private String kinesaliteStreamName = null;
         private String sinkConnectionStreamName;
         private SerializationSchema<String> serializationSchema =
                 KinesisDataStreamsSinkITCase.this.serializationSchema;
@@ -434,7 +415,10 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         private Properties properties = KinesisDataStreamsSinkITCase.this.getDefaultProperties();
 
         public void runScenario() throws Exception {
-            prepareStream(kinesaliteStreamName);
+            if (kinesaliteStreamName != null) {
+                prepareStream(kinesaliteStreamName);
+            }
+
             properties.setProperty(TRUST_ALL_CERTIFICATES, "true");
             properties.setProperty(HTTP_PROTOCOL_VERSION, "HTTP1_1");
 
@@ -549,9 +533,6 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         }
 
         private void prepareStream(String streamName) throws Exception {
-            if (streamName.equals("do-not-create-new-stream")) {
-                return;
-            }
             final RateLimiter rateLimiter =
                     RateLimiterBuilder.newBuilder()
                             .withRate(1, SECONDS)

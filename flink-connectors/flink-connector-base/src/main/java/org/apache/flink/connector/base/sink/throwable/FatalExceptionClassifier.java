@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.base.sink.util;
+package org.apache.flink.connector.base.sink.throwable;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.ExceptionUtils;
@@ -29,43 +29,46 @@ import java.util.function.Predicate;
 
 /** Classifier class for retryable exceptions on request submission failure. */
 @Internal
-public class RetryableExceptionClassifier {
+public class FatalExceptionClassifier {
     private final Function<Throwable, Exception> throwableMapper;
     private final Predicate<Throwable> validator;
-    private RetryableExceptionClassifier chainedClassifier;
+    private FatalExceptionClassifier chainedClassifier;
 
-    public RetryableExceptionClassifier(
+    public FatalExceptionClassifier(
             Predicate<Throwable> validator, Function<Throwable, Exception> throwableMapper) {
         this.throwableMapper = throwableMapper;
         this.validator = validator;
         this.chainedClassifier = null;
     }
 
-    public boolean shouldSuppress(Throwable err, Consumer<Exception> throwableConsumer) {
+    public boolean isFatal(Throwable err, Consumer<Exception> throwableConsumer) {
         if (validator.test(err)) {
             throwableConsumer.accept(throwableMapper.apply(err));
             return false;
         }
 
         if (chainedClassifier != null) {
-            return chainedClassifier.shouldSuppress(err, throwableConsumer);
+            return chainedClassifier.isFatal(err, throwableConsumer);
         } else {
             return true;
         }
     }
 
-    public static RetryableExceptionClassifier withRootCauseOfType(
+    public static FatalExceptionClassifier withRootCauseOfType(
             Class<? extends Throwable> type, Function<Throwable, Exception> mapper) {
-        return new RetryableExceptionClassifier(
+        return new FatalExceptionClassifier(
                 err -> ExceptionUtils.findThrowable(err, type).isPresent(), mapper);
     }
 
-    public static RetryableExceptionClassifier createChain(
-            RetryableExceptionClassifier... classifiers) {
-        Set<RetryableExceptionClassifier> importedClassifiers = new HashSet<>();
+    public static FatalExceptionClassifier createChain(FatalExceptionClassifier... classifiers) {
+        Set<FatalExceptionClassifier> importedClassifiers = new HashSet<>();
 
-        RetryableExceptionClassifier taleClassifier = classifiers[0];
-        importedClassifiers.add(taleClassifier);
+        if (classifiers.length == 0) {
+            throw new IllegalArgumentException("Cannot create empty classifier chain.");
+        }
+
+        FatalExceptionClassifier tailClassifier = classifiers[0];
+        importedClassifiers.add(tailClassifier);
 
         for (int i = 1; i < classifiers.length; ++i) {
             if (importedClassifiers.contains(classifiers[i])) {
@@ -73,9 +76,9 @@ public class RetryableExceptionClassifier {
                         "Wrong classifier chain; Circular chain of classifiers detected.");
             }
 
-            taleClassifier.chainedClassifier = classifiers[i];
-            taleClassifier = classifiers[i];
-            importedClassifiers.add(taleClassifier);
+            tailClassifier.chainedClassifier = classifiers[i];
+            tailClassifier = classifiers[i];
+            importedClassifiers.add(tailClassifier);
         }
 
         return classifiers[0];

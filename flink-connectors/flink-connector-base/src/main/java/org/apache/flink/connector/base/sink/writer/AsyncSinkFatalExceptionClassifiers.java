@@ -19,20 +19,15 @@
 package org.apache.flink.connector.base.sink.writer;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.connector.base.sink.util.RetryableExceptionClassifier;
+import org.apache.flink.connector.base.sink.throwable.FatalExceptionClassifier;
 import org.apache.flink.util.FlinkException;
 
 /** Common retry exception classifiers needed for common errors. */
 @Internal
-public class AsyncSinkRetryableExceptionClassifiers {
-    public static RetryableExceptionClassifier getInterruptedExceptionClassifier() {
-        return RetryableExceptionClassifier.withRootCauseOfType(
-                InterruptedException.class, err -> new FlinkException("Thread was interrupted"));
-    }
-
-    public static RetryableExceptionClassifier getGeneralExceptionClassifier() {
-        return RetryableExceptionClassifier.withRootCauseOfType(
-                Error.class,
-                err -> new RuntimeException("Encountered non-recoverable exception", err));
+public class AsyncSinkFatalExceptionClassifiers {
+    public static FatalExceptionClassifier getInterruptedExceptionClassifier() {
+        return FatalExceptionClassifier.withRootCauseOfType(
+                InterruptedException.class,
+                err -> new FlinkException("Thread was interrupted", err));
     }
 }

@@ -21,10 +21,12 @@ package org.apache.flink.connector.aws.util;
 import org.apache.flink.annotation.Internal;
 
 /**
- * A {@link IllegalStateException} wrapper indicating the exception was thrown from AWS credentials.
+ * Exception thrown on failure of authentication of Aws Credentials, this includes missing
+ * configuration, illegal access and unreachable endpoints. All {@code AWSAuthenticationException}
+ * should be non-retryable.
  */
 @Internal
-public class AWSAuthenticationException extends IllegalStateException {
+public class AWSAuthenticationException extends RuntimeException {
 
     public AWSAuthenticationException(final String message) {
         super(message);
