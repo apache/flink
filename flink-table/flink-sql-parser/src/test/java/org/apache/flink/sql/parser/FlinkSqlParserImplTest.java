@@ -29,13 +29,17 @@ import org.apache.calcite.sql.parser.SqlParserTest;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** FlinkSqlParserImpl tests. * */
+@Execution(CONCURRENT)
 public class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Override
@@ -64,7 +68,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
      * Here we override the super method to avoid test error from `describe schema` supported in
      * original calcite.
      */
-    @Ignore
+    @Disabled
     @Test
     public void testDescribeSchema() {}
 
@@ -254,7 +258,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
      * Here we override the super method to avoid test error from `describe statement` supported in
      * original calcite.
      */
-    @Ignore
+    @Disabled
     @Test
     public void testDescribeStatement() {}
 
@@ -1058,13 +1062,16 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("insert into emps(z boolean) partition (z='ab') (x,y) select * from emps").ok(expected);
     }
 
-    @Test(expected = SqlParseException.class)
+    @Test
     public void testInsertExtendedColumnAsStaticPartition2() {
-        sql("insert into emps(x, y, z boolean) partition (z='ab') select * from emps")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "Extended columns not allowed under the current SQL conformance level"));
+        assertThatThrownBy(
+                        () ->
+                                sql("insert into emps(x, y, z boolean) partition (z='ab') select * from emps")
+                                        .node(
+                                                new ValidationMatcher()
+                                                        .fails(
+                                                                "Extended columns not allowed under the current SQL conformance level")))
+                .isInstanceOf(SqlParseException.class);
     }
 
     @Test
