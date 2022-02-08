@@ -17,7 +17,7 @@
 
 package org.apache.flink.quickstarts.test
 
-import org.apache.flink.api.connector.sink.SinkWriter
+import org.apache.flink.api.connector.sink2.SinkWriter
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.connector.elasticsearch.sink.{Elasticsearch7SinkBuilder, RequestIndexer}
 import org.apache.flink.streaming.api.datastream.DataStream
