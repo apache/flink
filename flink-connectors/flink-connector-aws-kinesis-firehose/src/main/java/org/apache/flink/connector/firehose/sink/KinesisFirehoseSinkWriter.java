@@ -22,7 +22,6 @@ import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.connector.aws.util.AWSAsyncSinkUtil;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.connector.base.sink.util.RetryableExceptionClassifier;
-import org.apache.flink.connector.base.sink.util.RetryableExceptionClassifier;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.metrics.Counter;
@@ -50,11 +49,6 @@ import static org.apache.flink.connector.aws.util.AWSCredentialRetryableExceptio
 import static org.apache.flink.connector.base.sink.writer.AsyncSinkRetryableExceptionClassifiers.getGeneralExceptionClassifier;
 import static org.apache.flink.connector.base.sink.writer.AsyncSinkRetryableExceptionClassifiers.getInterruptedExceptionClassifier;
 
-import static org.apache.flink.connector.aws.util.AWSCredentialRetryableExceptionClassifiers.getInvalidCredentialsExceptionClassifier;
-import static org.apache.flink.connector.aws.util.AWSCredentialRetryableExceptionClassifiers.getSdkClientMisconfiguredExceptionClassifier;
-import static org.apache.flink.connector.base.sink.writer.AsyncSinkRetryableExceptionClassifiers.getGeneralExceptionClassifier;
-import static org.apache.flink.connector.base.sink.writer.AsyncSinkRetryableExceptionClassifiers.getInterruptedExceptionClassifier;
-
 /**
  * Sink writer created by {@link KinesisFirehoseSink} to write to Kinesis Data Firehose. More
  * details on the operation of this sink writer may be found in the doc for {@link
@@ -76,6 +70,7 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
 
     private static FirehoseAsyncClient createFirehoseClient(
             Properties firehoseClientProperties, SdkAsyncHttpClient httpClient) {
+        AWSGeneralUtil.validateAwsCredentials(firehoseClientProperties);
         return AWSAsyncSinkUtil.createAwsAsyncClient(
                 firehoseClientProperties,
                 httpClient,
@@ -154,20 +149,6 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
         this.numRecordsOutErrorsCounter = metrics.getNumRecordsOutErrorsCounter();
         this.httpClient = createHttpClient(firehoseClientProperties);
         this.firehoseClient = createFirehoseClient(firehoseClientProperties, httpClient);
-    }
-
-    private FirehoseAsyncClient buildClient(Properties firehoseClientProperties) {
-        AWSGeneralUtil.validateAwsConfiguration(firehoseClientProperties);
-        AWSGeneralUtil.validateWebIdentityTokenFileCredentialsProvider(firehoseClientProperties);
-        final SdkAsyncHttpClient httpClient =
-                AWSGeneralUtil.createAsyncHttpClient(firehoseClientProperties);
-
-        return AWSAsyncSinkUtil.createAwsAsyncClient(
-                firehoseClientProperties,
-                httpClient,
-                FirehoseAsyncClient.builder(),
-                KinesisFirehoseConfigConstants.BASE_FIREHOSE_USER_AGENT_PREFIX_FORMAT,
-                KinesisFirehoseConfigConstants.FIREHOSE_CLIENT_USER_AGENT_PREFIX);
     }
 
     @Override

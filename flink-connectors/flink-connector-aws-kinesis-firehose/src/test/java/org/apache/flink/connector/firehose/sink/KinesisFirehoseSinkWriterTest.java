@@ -19,8 +19,8 @@ package org.apache.flink.connector.firehose.sink;
 
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.connector.sink.SinkWriter;
-import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.connector.aws.testutils.AWSServicesTestUtils;
+import org.apache.flink.connector.aws.util.AWSAuthenticationException;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.connector.base.sink.writer.TestSinkInitContext;
 
@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -50,8 +49,6 @@ public class KinesisFirehoseSinkWriterTest {
     @Before
     public void setup() {
         TestSinkInitContext sinkInitContext = new TestSinkInitContext();
-        Properties sinkProperties = new Properties();
-        sinkProperties.put(AWSConfigConstants.AWS_REGION, "eu-west-1");
         sinkWriter =
                 new KinesisFirehoseSinkWriter<>(
                         ELEMENT_CONVERTER_PLACEHOLDER,
@@ -64,7 +61,7 @@ public class KinesisFirehoseSinkWriterTest {
                         1000 * 1024,
                         true,
                         "streamName",
-                        sinkProperties);
+                        AWSServicesTestUtils.createConfig("https://localhost"));
     }
 
     @Test
@@ -75,7 +72,7 @@ public class KinesisFirehoseSinkWriterTest {
                 .isEqualTo(testString.getBytes(StandardCharsets.US_ASCII).length);
     }
 
-    @Test(expected = KinesisFirehoseException.KinesisFirehoseFailFastException.class)
+    @Test(expected = AWSAuthenticationException.class)
     public void getNumRecordsOutErrorsCounterRecordsCorrectNumberOfFailures()
             throws IOException, InterruptedException {
         TestSinkInitContext ctx = new TestSinkInitContext();
