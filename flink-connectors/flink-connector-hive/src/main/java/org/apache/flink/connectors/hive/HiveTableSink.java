@@ -57,6 +57,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
@@ -143,12 +144,20 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
         DataStructureConverter converter =
                 context.createDataStructureConverter(tableSchema.toRowDataType());
-        return (DataStreamSinkProvider)
-                dataStream -> consume(dataStream, context.isBounded(), converter);
+        return new DataStreamSinkProvider() {
+            @Override
+            public DataStreamSink<?> consumeDataStream(
+                    ProviderContext providerContext, DataStream<RowData> dataStream) {
+                return consume(providerContext, dataStream, context.isBounded(), converter);
+            }
+        };
     }
 
     private DataStreamSink<?> consume(
-            DataStream<RowData> dataStream, boolean isBounded, DataStructureConverter converter) {
+            ProviderContext providerContext,
+            DataStream<RowData> dataStream,
+            boolean isBounded,
+            DataStructureConverter converter) {
         checkAcidTable(catalogTable.getOptions(), identifier.toObjectPath());
 
         try (HiveMetastoreClientWrapper client =
@@ -194,7 +203,13 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
                 Properties tableProps = HiveReflectionUtils.getTableMetadata(hiveShim, table);
                 return createStreamSink(
-                        dataStream, sd, tableProps, writerFactory, fileNamingBuilder, parallelism);
+                        providerContext,
+                        dataStream,
+                        sd,
+                        tableProps,
+                        writerFactory,
+                        fileNamingBuilder,
+                        parallelism);
             }
         } catch (TException e) {
             throw new CatalogException("Failed to query Hive metaStore", e);
@@ -240,6 +255,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
     }
 
     private DataStreamSink<?> createStreamSink(
+            ProviderContext providerContext,
             DataStream<RowData> dataStream,
             StorageDescriptor sd,
             Properties tableProps,
@@ -322,6 +338,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
             writerStream =
                     StreamingSink.compactionWriter(
+                            providerContext,
                             dataStream,
                             bucketCheckInterval,
                             builder,
@@ -333,6 +350,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         } else {
             writerStream =
                     StreamingSink.writer(
+                            providerContext,
                             dataStream,
                             bucketCheckInterval,
                             builder,
@@ -342,7 +360,14 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         }
 
         return StreamingSink.sink(
-                writerStream, path, identifier, getPartitionKeys(), msFactory(), fsFactory(), conf);
+                providerContext,
+                writerStream,
+                path,
+                identifier,
+                getPartitionKeys(),
+                msFactory(),
+                fsFactory(),
+                conf);
     }
 
     private CompactReader.Factory<RowData> createCompactReaderFactory(
