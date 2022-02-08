@@ -34,6 +34,7 @@ import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.dispatcher.cleanup.TestingCleanupRunnerFactory;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
@@ -504,8 +505,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
     @Test
     public void testJobManagerRunnerInitializationFailureFailsJob() throws Exception {
-        final TestingJobManagerRunnerFactory testingJobManagerRunnerFactory =
-                new TestingJobManagerRunnerFactory();
+        final TestingJobMasterServiceLeadershipRunnerFactory testingJobManagerRunnerFactory =
+                new TestingJobMasterServiceLeadershipRunnerFactory();
 
         dispatcher =
                 createAndStartDispatcher(
@@ -666,8 +667,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final FlinkException testException = new FlinkException("Test exception");
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
 
-        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
-                new TestingJobManagerRunnerFactory();
+        final TestingJobMasterServiceLeadershipRunnerFactory jobManagerRunnerFactory =
+                new TestingJobMasterServiceLeadershipRunnerFactory();
         dispatcher =
                 createTestingDispatcherBuilder()
                         .setJobManagerRunnerFactory(jobManagerRunnerFactory)
@@ -718,6 +719,51 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         .setRecoveredJobs(Collections.singleton(jobGraph))
                         .setRecoveredDirtyJobs(Collections.singleton(jobResult))
                         .build();
+    }
+
+    @Test
+    public void testJobCleanupWithoutRecoveredJobGraph() throws Exception {
+        final JobID jobIdOfRecoveredDirtyJobs = new JobID();
+        final TestingJobMasterServiceLeadershipRunnerFactory jobManagerRunnerFactory =
+                new TestingJobMasterServiceLeadershipRunnerFactory();
+        final TestingCleanupRunnerFactory cleanupRunnerFactory = new TestingCleanupRunnerFactory();
+
+        final OneShotLatch dispatcherBootstrapLatch = new OneShotLatch();
+        dispatcher =
+                createTestingDispatcherBuilder()
+                        .setJobManagerRunnerFactory(jobManagerRunnerFactory)
+                        .setCleanupRunnerFactory(cleanupRunnerFactory)
+                        .setRecoveredDirtyJobs(
+                                Collections.singleton(
+                                        new JobResult.Builder()
+                                                .jobId(jobIdOfRecoveredDirtyJobs)
+                                                .applicationStatus(ApplicationStatus.SUCCEEDED)
+                                                .netRuntime(1)
+                                                .build()))
+                        .setDispatcherBootstrapFactory(
+                                (ignoredDispatcherGateway,
+                                        ignoredScheduledExecutor,
+                                        ignoredFatalErrorHandler) -> {
+                                    dispatcherBootstrapLatch.trigger();
+                                    return new NoOpDispatcherBootstrap();
+                                })
+                        .build();
+
+        dispatcher.start();
+
+        dispatcherBootstrapLatch.await();
+
+        final TestingJobManagerRunner cleanupRunner =
+                cleanupRunnerFactory.takeCreatedJobManagerRunner();
+        assertThat(
+                "The CleanupJobManagerRunner has the wrong job ID attached.",
+                cleanupRunner.getJobID(),
+                is(jobIdOfRecoveredDirtyJobs));
+
+        assertThat(
+                "No JobMaster should have been started.",
+                jobManagerRunnerFactory.getQueueSize(),
+                is(0));
     }
 
     @Test

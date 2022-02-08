@@ -34,6 +34,7 @@ import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.dispatcher.cleanup.CleanupRunnerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.DispatcherResourceCleanerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleaner;
 import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleanerFactory;
@@ -98,6 +99,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -132,15 +134,20 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     private final Collection<JobGraph> recoveredJobs;
 
+    private final Collection<JobResult> recoveredDirtyJobs;
+
     private final DispatcherBootstrapFactory dispatcherBootstrapFactory;
 
     private final ExecutionGraphInfoStore executionGraphInfoStore;
 
     private final JobManagerRunnerFactory jobManagerRunnerFactory;
+    private final CleanupRunnerFactory cleanupRunnerFactory;
 
     private final JobManagerMetricGroup jobManagerMetricGroup;
 
     private final HistoryServerArchivist historyServerArchivist;
+
+    private final Executor ioExecutor;
 
     @Nullable private final String metricServiceQueryAddress;
 
@@ -183,7 +190,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             RpcService rpcService,
             DispatcherId fencingToken,
             Collection<JobGraph> recoveredJobs,
-            Collection<JobResult> globallyTerminatedJobs,
+            Collection<JobResult> recoveredDirtyJobs,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             DispatcherServices dispatcherServices,
             JobManagerRunnerRegistry jobManagerRunnerRegistry)
@@ -192,7 +199,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                 rpcService,
                 fencingToken,
                 recoveredJobs,
-                globallyTerminatedJobs,
+                recoveredDirtyJobs,
                 dispatcherBootstrapFactory,
                 dispatcherServices,
                 jobManagerRunnerRegistry,
@@ -224,6 +231,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         this.jobResultStore = dispatcherServices.getJobResultStore();
         this.jobManagerMetricGroup = dispatcherServices.getJobManagerMetricGroup();
         this.metricServiceQueryAddress = dispatcherServices.getMetricQueryServiceAddress();
+        this.ioExecutor = dispatcherServices.getIoExecutor();
 
         this.jobManagerSharedServices =
                 JobManagerSharedServices.fromConfiguration(
@@ -238,6 +246,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         this.executionGraphInfoStore = dispatcherServices.getArchivedExecutionGraphStore();
 
         this.jobManagerRunnerFactory = dispatcherServices.getJobManagerRunnerFactory();
+        this.cleanupRunnerFactory = dispatcherServices.getCleanupRunnerFactory();
 
         this.jobManagerRunnerTerminationFutures =
                 new HashMap<>(INITIAL_JOB_MANAGER_RUNNER_REGISTRY_CAPACITY);
@@ -247,6 +256,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         this.dispatcherBootstrapFactory = checkNotNull(dispatcherBootstrapFactory);
 
         this.recoveredJobs = new HashSet<>(recoveredJobs);
+
+        this.recoveredDirtyJobs = new HashSet<>(recoveredDirtyJobs);
 
         this.blobServer.retainJobs(
                 recoveredJobs.stream().map(JobGraph::getJobID).collect(Collectors.toSet()),
@@ -288,7 +299,9 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             throw exception;
         }
 
+        startCleanupRetries();
         startRecoveredJobs();
+
         this.dispatcherBootstrap =
                 this.dispatcherBootstrapFactory.create(
                         getSelfGateway(DispatcherGateway.class),
@@ -333,12 +346,32 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     private void runRecoveredJob(final JobGraph recoveredJob) {
         checkNotNull(recoveredJob);
         try {
-            runJob(recoveredJob, ExecutionType.RECOVERY);
+            runJob(createJobMasterRunner(recoveredJob), ExecutionType.RECOVERY);
         } catch (Throwable throwable) {
             onFatalError(
                     new DispatcherException(
                             String.format(
                                     "Could not start recovered job %s.", recoveredJob.getJobID()),
+                            throwable));
+        }
+    }
+
+    private void startCleanupRetries() {
+        recoveredDirtyJobs.forEach(this::runCleanupRetry);
+        recoveredDirtyJobs.clear();
+    }
+
+    private void runCleanupRetry(final JobResult jobResult) {
+        checkNotNull(jobResult);
+
+        try {
+            runJob(createJobCleanupRunner(jobResult), ExecutionType.RECOVERY);
+        } catch (Throwable throwable) {
+            onFatalError(
+                    new DispatcherException(
+                            String.format(
+                                    "Could not start cleanup retry for job %s.",
+                                    jobResult.getJobId()),
                             throwable));
         }
     }
@@ -515,18 +548,38 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     private void persistAndRunJob(JobGraph jobGraph) throws Exception {
         jobGraphWriter.putJobGraph(jobGraph);
-        runJob(jobGraph, ExecutionType.SUBMISSION);
+        runJob(createJobMasterRunner(jobGraph), ExecutionType.SUBMISSION);
     }
 
-    private void runJob(JobGraph jobGraph, ExecutionType executionType) throws Exception {
+    private JobManagerRunner createJobMasterRunner(JobGraph jobGraph) throws Exception {
         Preconditions.checkState(!jobManagerRunnerRegistry.isRegistered(jobGraph.getJobID()));
-        long initializationTimestamp = System.currentTimeMillis();
-        JobManagerRunner jobManagerRunner =
-                createJobManagerRunner(jobGraph, initializationTimestamp);
+        return jobManagerRunnerFactory.createJobManagerRunner(
+                jobGraph,
+                configuration,
+                getRpcService(),
+                highAvailabilityServices,
+                heartbeatServices,
+                jobManagerSharedServices,
+                new DefaultJobManagerJobMetricGroupFactory(jobManagerMetricGroup),
+                fatalErrorHandler,
+                System.currentTimeMillis());
+    }
 
+    private JobManagerRunner createJobCleanupRunner(JobResult dirtyJobResult) throws Exception {
+        Preconditions.checkState(!jobManagerRunnerRegistry.isRegistered(dirtyJobResult.getJobId()));
+        return cleanupRunnerFactory.create(
+                dirtyJobResult,
+                highAvailabilityServices.getCheckpointRecoveryFactory(),
+                configuration,
+                ioExecutor);
+    }
+
+    private void runJob(JobManagerRunner jobManagerRunner, ExecutionType executionType)
+            throws Exception {
+        jobManagerRunner.start();
         jobManagerRunnerRegistry.register(jobManagerRunner);
 
-        final JobID jobId = jobGraph.getJobID();
+        final JobID jobId = jobManagerRunner.getJobID();
 
         final CompletableFuture<CleanupJobState> cleanupJobStateFuture =
                 jobManagerRunner
@@ -577,25 +630,6 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     private CleanupJobState jobManagerRunnerFailed(JobID jobId, Throwable throwable) {
         jobMasterFailed(jobId, throwable);
         return CleanupJobState.LOCAL;
-    }
-
-    JobManagerRunner createJobManagerRunner(JobGraph jobGraph, long initializationTimestamp)
-            throws Exception {
-        final RpcService rpcService = getRpcService();
-
-        JobManagerRunner runner =
-                jobManagerRunnerFactory.createJobManagerRunner(
-                        jobGraph,
-                        configuration,
-                        rpcService,
-                        highAvailabilityServices,
-                        heartbeatServices,
-                        jobManagerSharedServices,
-                        new DefaultJobManagerJobMetricGroupFactory(jobManagerMetricGroup),
-                        fatalErrorHandler,
-                        initializationTimestamp);
-        runner.start();
-        return runner;
     }
 
     @Override

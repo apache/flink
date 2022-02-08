@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.runtime.groupwindow.WindowReference;
 import org.apache.flink.table.types.DataType;
@@ -130,6 +131,7 @@ public class JsonSerdeUtil {
     }
 
     private static void registerSerializers(SimpleModule module) {
+        module.addSerializer(new ExecNodeGraphJsonSerializer());
         // ObjectIdentifierJsonSerializer is needed for LogicalType serialization
         module.addSerializer(new ObjectIdentifierJsonSerializer());
         // LogicalTypeJsonSerializer is needed for RelDataType serialization
@@ -154,6 +156,7 @@ public class JsonSerdeUtil {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static void registerDeserializers(SimpleModule module) {
+        module.addDeserializer(ExecNodeGraph.class, new ExecNodeGraphJsonDeserializer());
         // ObjectIdentifierJsonDeserializer is needed for LogicalType deserialization
         module.addDeserializer(ObjectIdentifier.class, new ObjectIdentifierJsonDeserializer());
         // LogicalTypeJsonSerializer is needed for RelDataType serialization

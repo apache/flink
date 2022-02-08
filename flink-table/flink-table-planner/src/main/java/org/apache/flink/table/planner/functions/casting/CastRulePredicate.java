@@ -23,10 +23,9 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import javax.annotation.Nullable;
-
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiPredicate;
 
@@ -105,8 +104,8 @@ public class CastRulePredicate {
         return targetTypeFamilies;
     }
 
-    public @Nullable BiPredicate<LogicalType, LogicalType> getCustomPredicate() {
-        return customPredicate;
+    public Optional<BiPredicate<LogicalType, LogicalType>> getCustomPredicate() {
+        return Optional.ofNullable(customPredicate);
     }
 
     public static Builder builder() {

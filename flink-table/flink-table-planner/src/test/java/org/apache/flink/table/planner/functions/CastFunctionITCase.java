@@ -1300,11 +1300,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
         private String specificErrorMsg(LogicalType colType, String defaultMsg) {
             if (isTimestampLtzToNumeric(colType, targetType.getLogicalType())) {
-                return "The cast conversion from TIMESTAMP_LTZ type to NUMERIC type is not allowed.";
+                return "The cast from TIMESTAMP_LTZ type to NUMERIC type is not allowed.";
             } else if (isNumericToTimestamp(colType, targetType.getLogicalType())) {
-                return "type is not allowed, it's recommended to use TO_TIMESTAMP";
+                return "type is not allowed. It's recommended to use TO_TIMESTAMP";
             } else if (isTimestampToNumeric(colType, targetType.getLogicalType())) {
-                return "type is not allowed, it's recommended to use UNIX_TIMESTAMP(CAST(timestamp_col AS STRING)) instead.";
+                return "type is not allowed. It's recommended to use "
+                        + "UNIX_TIMESTAMP(CAST(timestamp_col AS STRING)) instead.";
             } else {
                 return defaultMsg;
             }

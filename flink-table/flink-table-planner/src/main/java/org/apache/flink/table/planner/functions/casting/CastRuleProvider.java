@@ -76,6 +76,14 @@ public class CastRuleProvider {
                 .addRule(StringToTimeCastRule.INSTANCE)
                 .addRule(StringToTimestampCastRule.INSTANCE)
                 .addRule(StringToBinaryCastRule.INSTANCE)
+                // Date/Time/Timestamp rules
+                .addRule(TimestampToTimestampCastRule.INSTANCE)
+                .addRule(TimestampToDateCastRule.INSTANCE)
+                .addRule(TimestampToTimeCastRule.INSTANCE)
+                .addRule(DateToTimestampCastRule.INSTANCE)
+                .addRule(TimeToTimestampCastRule.INSTANCE)
+                .addRule(NumericToTimestampCastRule.INSTANCE)
+                .addRule(TimestampToNumericCastRule.INSTANCE)
                 // To binary rules
                 .addRule(BinaryToBinaryCastRule.INSTANCE)
                 .addRule(RawToBinaryCastRule.INSTANCE)
@@ -152,7 +160,7 @@ public class CastRuleProvider {
      * Used by {@link CodeGeneratorCastRule}s which checks for nullability, rather than deferring
      * the check to the rules.
      */
-    static @Nullable CastCodeBlock generateAlwaysNonNullCodeBlock(
+    static CastCodeBlock generateAlwaysNonNullCodeBlock(
             CodeGeneratorCastRule.Context context,
             String inputTerm,
             LogicalType inputLogicalType,
@@ -205,7 +213,7 @@ public class CastRuleProvider {
             }
         }
 
-        if (predicate.getCustomPredicate() != null) {
+        if (predicate.getCustomPredicate().isPresent()) {
             rulesWithCustomPredicate.add(rule);
         }
 
@@ -217,7 +225,7 @@ public class CastRuleProvider {
         LogicalType targetType = unwrapDistinct(target);
 
         final Iterator<Object> targetTypeRootFamilyIterator =
-                Stream.<Object>concat(
+                Stream.concat(
                                 Stream.of(targetType),
                                 Stream.<Object>concat(
                                         Stream.of(targetType.getTypeRoot()),
@@ -253,7 +261,8 @@ public class CastRuleProvider {
                         r ->
                                 r.getPredicateDefinition()
                                         .getCustomPredicate()
-                                        .test(inputType, targetType))
+                                        .map(p -> p.test(inputType, targetType))
+                                        .orElse(false))
                 .findFirst()
                 .orElse(null);
     }

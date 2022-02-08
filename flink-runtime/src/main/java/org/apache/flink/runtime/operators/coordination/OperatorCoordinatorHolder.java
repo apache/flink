@@ -423,7 +423,8 @@ public class OperatorCoordinatorHolder
     public static OperatorCoordinatorHolder create(
             SerializedValue<OperatorCoordinator.Provider> serializedProvider,
             ExecutionJobVertex jobVertex,
-            ClassLoader classLoader)
+            ClassLoader classLoader,
+            CoordinatorStore coordinatorStore)
             throws Exception {
 
         try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
@@ -437,6 +438,7 @@ public class OperatorCoordinatorHolder
             return create(
                     opId,
                     provider,
+                    coordinatorStore,
                     jobVertex.getName(),
                     jobVertex.getGraph().getUserClassLoader(),
                     jobVertex.getParallelism(),
@@ -449,6 +451,7 @@ public class OperatorCoordinatorHolder
     static OperatorCoordinatorHolder create(
             final OperatorID opId,
             final OperatorCoordinator.Provider coordinatorProvider,
+            final CoordinatorStore coordinatorStore,
             final String operatorName,
             final ClassLoader userCodeClassLoader,
             final int operatorParallelism,
@@ -458,7 +461,11 @@ public class OperatorCoordinatorHolder
 
         final LazyInitializedCoordinatorContext context =
                 new LazyInitializedCoordinatorContext(
-                        opId, operatorName, userCodeClassLoader, operatorParallelism);
+                        opId,
+                        operatorName,
+                        userCodeClassLoader,
+                        operatorParallelism,
+                        coordinatorStore);
 
         final OperatorCoordinator coordinator = coordinatorProvider.create(context);
 
@@ -494,6 +501,7 @@ public class OperatorCoordinatorHolder
         private final String operatorName;
         private final ClassLoader userCodeClassLoader;
         private final int operatorParallelism;
+        private final CoordinatorStore coordinatorStore;
 
         private Consumer<Throwable> globalFailureHandler;
         private Executor schedulerExecutor;
@@ -504,11 +512,13 @@ public class OperatorCoordinatorHolder
                 final OperatorID operatorId,
                 final String operatorName,
                 final ClassLoader userCodeClassLoader,
-                final int operatorParallelism) {
+                final int operatorParallelism,
+                final CoordinatorStore coordinatorStore) {
             this.operatorId = checkNotNull(operatorId);
             this.operatorName = checkNotNull(operatorName);
             this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
             this.operatorParallelism = operatorParallelism;
+            this.coordinatorStore = checkNotNull(coordinatorStore);
         }
 
         void lazyInitialize(Consumer<Throwable> globalFailureHandler, Executor schedulerExecutor) {
@@ -571,6 +581,11 @@ public class OperatorCoordinatorHolder
         @Override
         public ClassLoader getUserCodeClassloader() {
             return userCodeClassLoader;
+        }
+
+        @Override
+        public CoordinatorStore getCoordinatorStore() {
+            return coordinatorStore;
         }
     }
 }

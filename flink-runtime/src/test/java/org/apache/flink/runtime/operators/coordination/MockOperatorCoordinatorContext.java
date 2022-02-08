@@ -26,6 +26,7 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
     private final OperatorID operatorID;
     private final ClassLoader userCodeClassLoader;
     private final int numSubtasks;
+    private final CoordinatorStore coordinatorStore = new CoordinatorStoreImpl();
 
     private boolean jobFailed;
     private Throwable jobFailureReason;
@@ -66,6 +67,11 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
     @Override
     public ClassLoader getUserCodeClassloader() {
         return userCodeClassLoader;
+    }
+
+    @Override
+    public CoordinatorStore getCoordinatorStore() {
+        return coordinatorStore;
     }
 
     // -------------------------------
