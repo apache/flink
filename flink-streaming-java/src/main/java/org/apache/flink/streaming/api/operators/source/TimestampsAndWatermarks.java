@@ -42,11 +42,18 @@ import java.time.Duration;
 @Internal
 public interface TimestampsAndWatermarks<T> {
 
+    /** Lets the owner/creator of the output know about latest emitted watermark. */
+    @Internal
+    interface OnWatermarkEmitted {
+        void watermarkEmitted(long watermark);
+    }
+
     /**
      * Creates the ReaderOutput for the source reader, than internally runs the timestamp extraction
      * and watermark generation.
      */
-    ReaderOutput<T> createMainOutput(PushingAsyncDataInput.DataOutput<T> output);
+    ReaderOutput<T> createMainOutput(
+            PushingAsyncDataInput.DataOutput<T> output, OnWatermarkEmitted watermarkCallback);
 
     /**
      * Starts emitting periodic watermarks, if this implementation produces watermarks, and if

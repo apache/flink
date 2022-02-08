@@ -19,6 +19,7 @@ limitations under the License.
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
@@ -31,6 +32,8 @@ import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.source.coordinator.SourceCoordinator;
+import org.apache.flink.runtime.source.coordinator.SourceCoordinator.WatermarkAlignmentParams;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
@@ -39,6 +42,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.operators.source.TestingSourceOperator;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.MockOutput;
 import org.apache.flink.streaming.util.MockStreamConfig;
 
@@ -56,6 +60,7 @@ public class SourceOperatorTestContext implements AutoCloseable {
 
     private MockSourceReader mockSourceReader;
     private MockOperatorEventGateway mockGateway;
+    private TestProcessingTimeService timeService;
     private SourceOperator<Integer, MockSourceSplit> operator;
 
     public SourceOperatorTestContext() throws Exception {
@@ -63,14 +68,31 @@ public class SourceOperatorTestContext implements AutoCloseable {
     }
 
     public SourceOperatorTestContext(boolean idle) throws Exception {
+        this(
+                idle,
+                WatermarkStrategy.noWatermarks(),
+                SourceCoordinator.WATERMARK_ALIGNMENT_DISABLED);
+    }
+
+    public SourceOperatorTestContext(
+            boolean idle,
+            WatermarkStrategy<Integer> watermarkStrategy,
+            WatermarkAlignmentParams watermarkAlignmentParams)
+            throws Exception {
+
         mockSourceReader = new MockSourceReader(idle, idle);
         mockGateway = new MockOperatorEventGateway();
+        timeService = new TestProcessingTimeService();
         operator =
                 new TestingSourceOperator<>(
                         mockSourceReader,
+                        watermarkStrategy,
+                        timeService,
                         mockGateway,
                         SUBTASK_INDEX,
-                        true /* emit progressive watermarks */);
+                        5,
+                        true,
+                        watermarkAlignmentParams);
         Environment env = getTestingEnvironment();
         operator.setup(
                 new SourceOperatorStreamTask<Integer>(env),
@@ -83,6 +105,10 @@ public class SourceOperatorTestContext implements AutoCloseable {
     public void close() throws Exception {
         operator.close();
         checkState(mockSourceReader.isClosed());
+    }
+
+    public TestProcessingTimeService getTimeService() {
+        return timeService;
     }
 
     public SourceOperator<Integer, MockSourceSplit> getOperator() {

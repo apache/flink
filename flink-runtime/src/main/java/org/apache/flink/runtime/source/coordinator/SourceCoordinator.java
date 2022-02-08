@@ -587,5 +587,9 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         public boolean isEnabled() {
             return maxAllowedWatermarkDrift < Long.MAX_VALUE;
         }
+
+        public long getUpdateInterval() {
+            return updateInterval;
+        }
     }
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators.source;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
@@ -35,12 +36,21 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public final class WatermarkToDataOutput implements WatermarkOutput {
 
     private final PushingAsyncDataInput.DataOutput<?> output;
+    private final TimestampsAndWatermarks.OnWatermarkEmitted watermarkEmitted;
     private long maxWatermarkSoFar;
     private boolean isIdle;
 
-    /** Creates a new WatermarkOutput against the given DataOutput. */
+    @VisibleForTesting
     public WatermarkToDataOutput(PushingAsyncDataInput.DataOutput<?> output) {
+        this(output, watermark -> {});
+    }
+
+    /** Creates a new WatermarkOutput against the given DataOutput. */
+    public WatermarkToDataOutput(
+            PushingAsyncDataInput.DataOutput<?> output,
+            TimestampsAndWatermarks.OnWatermarkEmitted watermarkEmitted) {
         this.output = checkNotNull(output);
+        this.watermarkEmitted = checkNotNull(watermarkEmitted);
         this.maxWatermarkSoFar = Long.MIN_VALUE;
     }
 
@@ -52,6 +62,7 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
         }
 
         maxWatermarkSoFar = newWatermark;
+        watermarkEmitted.watermarkEmitted(maxWatermarkSoFar);
 
         try {
             markActiveInternally();
