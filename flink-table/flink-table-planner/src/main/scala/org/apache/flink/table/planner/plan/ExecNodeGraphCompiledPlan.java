@@ -21,15 +21,19 @@ package org.apache.flink.table.planner.plan;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.SerdeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /** Implementation of {@link CompiledPlan} backed by an {@link ExecNodeGraph}. */
 @Internal
@@ -65,5 +69,24 @@ public class ExecNodeGraphCompiledPlan implements CompiledPlan {
         }
         JsonSerdeUtil.createObjectWriter(serdeContext)
                 .writeValue(new FileWriter(file, false), execNodeGraph);
+    }
+
+    @Override
+    public String getFlinkVersion() {
+        return this.execNodeGraph.getFlinkVersion();
+    }
+
+    @Override
+    public List<String> getSinkIdentifiers() {
+        return this.execNodeGraph.getRootNodes().stream()
+                .filter(execNode -> execNode instanceof StreamExecSink)
+                .map(
+                        execNode ->
+                                ((StreamExecSink) execNode)
+                                        .getTableSinkSpec()
+                                        .getContextResolvedTable()
+                                        .getIdentifier())
+                .map(ObjectIdentifier::asSummaryString)
+                .collect(Collectors.toList());
     }
 }

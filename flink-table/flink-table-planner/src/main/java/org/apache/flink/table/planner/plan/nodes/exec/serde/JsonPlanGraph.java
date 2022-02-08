@@ -162,6 +162,6 @@ class JsonPlanGraph {
                 rootNodes.add(node);
             }
         }
-        return new ExecNodeGraph(rootNodes);
+        return new ExecNodeGraph(flinkVersion, rootNodes);
     }
 }

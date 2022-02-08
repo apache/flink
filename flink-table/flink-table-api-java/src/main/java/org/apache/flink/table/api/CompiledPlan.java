@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Experimental;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
 /**
  * This interface represents a compiled plan that can be executed using {@link
@@ -34,6 +35,8 @@ import java.nio.file.Paths;
  */
 @Experimental
 public interface CompiledPlan {
+
+    // --- Writer methods
 
     /** Convert the plan to a JSON string representation. */
     String asJsonString();
@@ -59,4 +62,12 @@ public interface CompiledPlan {
     /** Write this plan to a file using the JSON representation. */
     void writeToFile(Path path, boolean ignoreIfExists)
             throws IOException, UnsupportedOperationException;
+
+    // --- Accessors
+
+    /** Get the flink version used to compile the plan. */
+    String getFlinkVersion();
+
+    /** This returns an ordered list of sink identifiers, if any. */
+    List<String> getSinkIdentifiers();
 }

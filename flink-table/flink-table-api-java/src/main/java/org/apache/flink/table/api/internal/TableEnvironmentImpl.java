@@ -776,11 +776,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public TableResult executePlan(CompiledPlan plan) {
         List<Transformation<?>> transformations = planner.translatePlan(plan);
-        List<String> sinkIdentifierNames = new ArrayList<>();
-        for (int i = 0; i < transformations.size(); ++i) {
-            // TODO serialize the sink table names to json plan ?
-            sinkIdentifierNames.add(transformations.get(i).getName());
-        }
+        List<String> sinkIdentifierNames =
+                deduplicateSinkIdentifierNames(plan.getSinkIdentifiers());
         return executeInternal(transformations, sinkIdentifierNames);
     }
 
@@ -1531,14 +1528,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     /**
-     * extract sink identifier names from {@link ModifyOperation}s.
-     *
-     * <p>If there are multiple ModifyOperations have same name, an index suffix will be added at
-     * the end of the name to ensure each name is unique.
+     * extract sink identifier names from {@link ModifyOperation}s and deduplicate them with {@link
+     * #deduplicateSinkIdentifierNames(List)}.
      */
     private List<String> extractSinkIdentifierNames(List<ModifyOperation> operations) {
         List<String> tableNames = new ArrayList<>(operations.size());
-        Map<String, Integer> tableNameToCount = new HashMap<>();
         for (ModifyOperation operation : operations) {
             if (operation instanceof SinkModifyOperation) {
                 String fullName =
@@ -1547,11 +1541,23 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 .getIdentifier()
                                 .asSummaryString();
                 tableNames.add(fullName);
-                tableNameToCount.put(fullName, tableNameToCount.getOrDefault(fullName, 0) + 1);
             } else {
                 throw new UnsupportedOperationException("Unsupported operation: " + operation);
             }
         }
+        return deduplicateSinkIdentifierNames(tableNames);
+    }
+
+    /**
+     * Deduplicate sink identifier names. If there are multiple tables with the same name, an index
+     * suffix will be added at the end of the name to ensure each name is unique.
+     */
+    private List<String> deduplicateSinkIdentifierNames(List<String> tableNames) {
+        Map<String, Integer> tableNameToCount = new HashMap<>();
+        for (String fullName : tableNames) {
+            tableNameToCount.put(fullName, tableNameToCount.getOrDefault(fullName, 0) + 1);
+        }
+
         Map<String, Integer> tableNameToIndex = new HashMap<>();
         return tableNames.stream()
                 .map(
