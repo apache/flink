@@ -20,13 +20,13 @@ package org.apache.flink.connector.firehose.sink;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.base.sink.AsyncSinkBase;
+import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
 
 import software.amazon.awssdk.services.firehose.model.Record;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -92,8 +92,8 @@ public class KinesisFirehoseSink<InputT> extends AsyncSinkBase<InputT, Record> {
     }
 
     @Override
-    public SinkWriter<InputT, Void, Collection<Record>> createWriter(
-            InitContext context, List<Collection<Record>> states) {
+    public SinkWriter<InputT, Void, BufferedRequestState<Record>> createWriter(
+            InitContext context, List<BufferedRequestState<Record>> states) {
         return new KinesisFirehoseSinkWriter<>(
                 getElementConverter(),
                 context,
@@ -105,11 +105,13 @@ public class KinesisFirehoseSink<InputT> extends AsyncSinkBase<InputT, Record> {
                 getMaxRecordSizeInBytes(),
                 failOnError,
                 deliveryStreamName,
-                firehoseClientProperties);
+                firehoseClientProperties,
+                states);
     }
 
     @Override
-    public Optional<SimpleVersionedSerializer<Collection<Record>>> getWriterStateSerializer() {
-        return Optional.empty();
+    public Optional<SimpleVersionedSerializer<BufferedRequestState<Record>>>
+            getWriterStateSerializer() {
+        return Optional.of(new KinesisFirehoseStateSerializer());
     }
 }

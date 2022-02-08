@@ -22,6 +22,7 @@ import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.connector.aws.util.AWSAsyncSinkUtil;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
+import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
@@ -103,6 +104,34 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
             boolean failOnError,
             String deliveryStreamName,
             Properties firehoseClientProperties) {
+        this(
+                elementConverter,
+                context,
+                maxBatchSize,
+                maxInFlightRequests,
+                maxBufferedRequests,
+                maxBatchSizeInBytes,
+                maxTimeInBufferMS,
+                maxRecordSizeInBytes,
+                failOnError,
+                deliveryStreamName,
+                firehoseClientProperties,
+                Collections.emptyList());
+    }
+
+    KinesisFirehoseSinkWriter(
+            ElementConverter<InputT, Record> elementConverter,
+            Sink.InitContext context,
+            int maxBatchSize,
+            int maxInFlightRequests,
+            int maxBufferedRequests,
+            long maxBatchSizeInBytes,
+            long maxTimeInBufferMS,
+            long maxRecordSizeInBytes,
+            boolean failOnError,
+            String deliveryStreamName,
+            Properties firehoseClientProperties,
+            List<BufferedRequestState<Record>> initialStates) {
         super(
                 elementConverter,
                 context,
@@ -111,7 +140,8 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
                 maxBufferedRequests,
                 maxBatchSizeInBytes,
                 maxTimeInBufferMS,
-                maxRecordSizeInBytes);
+                maxRecordSizeInBytes,
+                initialStates);
         this.failOnError = failOnError;
         this.deliveryStreamName = deliveryStreamName;
         this.metrics = context.metricGroup();
