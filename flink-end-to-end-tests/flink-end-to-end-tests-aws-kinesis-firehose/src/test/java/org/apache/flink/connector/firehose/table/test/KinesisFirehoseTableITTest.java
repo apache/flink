@@ -66,7 +66,7 @@ import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.crea
 import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.listBucketObjects;
 import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.readObjectsFromS3Bucket;
 import static org.apache.flink.connector.firehose.sink.testutils.KinesisFirehoseTestUtils.createDeliveryStream;
-import static org.apache.flink.connector.firehose.sink.testutils.KinesisFirehoseTestUtils.getFirehoseClient;
+import static org.apache.flink.connector.firehose.sink.testutils.KinesisFirehoseTestUtils.createFirehoseClient;
 
 /** End to End test for Kinesis Firehose Table sink API. */
 public class KinesisFirehoseTableITTest extends TestLogger {
@@ -114,7 +114,7 @@ public class KinesisFirehoseTableITTest extends TestLogger {
         httpClient = createHttpClient(mockFirehoseContainer.getEndpoint());
 
         s3AsyncClient = createS3Client(mockFirehoseContainer.getEndpoint(), httpClient);
-        firehoseAsyncClient = getFirehoseClient(mockFirehoseContainer.getEndpoint(), httpClient);
+        firehoseAsyncClient = createFirehoseClient(mockFirehoseContainer.getEndpoint(), httpClient);
         iamAsyncClient = createIamClient(mockFirehoseContainer.getEndpoint(), httpClient);
 
         LOG.info("1 - Creating the bucket for Firehose to deliver into...");
