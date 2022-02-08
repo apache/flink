@@ -57,6 +57,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-local-group-aggregate",
         version = 1,
+        consumedOptions = {
+            "table.exec.mini-batch.enabled",
+            "table.exec.mini-batch.size",
+        },
         producedTransformations =
                 StreamExecLocalGroupAggregate.LOCAL_GROUP_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
