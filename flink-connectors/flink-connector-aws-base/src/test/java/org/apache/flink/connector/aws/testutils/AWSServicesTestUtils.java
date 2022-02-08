@@ -61,18 +61,20 @@ public class AWSServicesTestUtils {
     private static final String ACCESS_KEY_ID = "accessKeyId";
     private static final String SECRET_ACCESS_KEY = "secretAccessKey";
 
-    public static S3AsyncClient createS3Client(String endpoint, SdkAsyncHttpClient httpClient) {
+    public static S3AsyncClient createS3Client(
+            String endpoint, SdkAsyncHttpClient asyncHttpClient) {
         return S3AsyncClient.builder()
-                .httpClient(httpClient)
+                .httpClient(asyncHttpClient)
                 .region(Region.AP_SOUTHEAST_1)
                 .endpointOverride(URI.create(endpoint))
                 .credentialsProvider(createDefaultCredentials())
                 .build();
     }
 
-    public static IamAsyncClient createIamClient(String endpoint, SdkAsyncHttpClient httpClient) {
+    public static IamAsyncClient createIamClient(
+            String endpoint, SdkAsyncHttpClient asyncHttpClient) {
         return IamAsyncClient.builder()
-                .httpClient(httpClient)
+                .httpClient(asyncHttpClient)
                 .region(Region.AWS_GLOBAL)
                 .endpointOverride(URI.create(endpoint))
                 .credentialsProvider(createDefaultCredentials())

@@ -30,6 +30,7 @@ import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsPro
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.http.Protocol;
 import software.amazon.awssdk.http.SdkHttpConfigurationOption;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
@@ -48,8 +49,6 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
-
-import static org.apache.flink.connector.aws.config.AWSConfigConstants.CredentialProvider.WEB_IDENTITY_TOKEN;
 
 /** Some general utilities specific to Amazon Web Service. */
 @Internal
@@ -93,7 +92,7 @@ public class AWSGeneralUtil {
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException(
                         String.format(
-                                "Invalid AWS Credential Provider type %s.",
+                                "Invalid AWS Credential Provider Type %s.",
                                 configProps.getProperty(configPrefix)),
                         e);
             }
@@ -368,18 +367,16 @@ public class AWSGeneralUtil {
         }
     }
 
-
-    public static void validateWebIdentityTokenFileCredentialsProvider(Properties config) {
-        validateCredentialProvider(config);
+    public static void validateAwsCredentials(Properties config) {
         try {
-            CredentialProvider credentialProviderType =
-                    getCredentialProviderType(config, AWSConfigConstants.AWS_CREDENTIALS_PROVIDER);
-            if (credentialProviderType.equals(WEB_IDENTITY_TOKEN)) {
-                getCredentialsProvider(config).resolveCredentials();
-            }
-        } catch (Throwable e) {
+            validateAwsConfiguration(config);
+            getCredentialsProvider(config).resolveCredentials();
+        } catch (IllegalStateException | IllegalArgumentException | SdkClientException e) {
             throw new AWSAuthenticationException(
-                    String.format("Failed to create client using %s provider", WEB_IDENTITY_TOKEN),
+                    String.format(
+                            "Failed to create client using %s provider",
+                            getCredentialProviderType(
+                                    config, AWSConfigConstants.AWS_CREDENTIALS_PROVIDER)),
                     e);
         }
     }
