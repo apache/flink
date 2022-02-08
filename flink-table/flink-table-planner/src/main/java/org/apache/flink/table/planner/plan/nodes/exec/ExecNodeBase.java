@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
@@ -217,7 +217,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
     protected String createFormattedTransformationDescription(
             String description, ReadableConfig config) {
-        if (config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
+        if (config.get(ExecutionConfigOptions.TABLE_EXEC_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
             return String.format("[%d]:%s", getId(), description);
         }
         return description;
@@ -225,7 +225,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
     protected String createFormattedTransformationName(
             String detailName, String simplifiedName, ReadableConfig config) {
-        if (config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
+        if (config.get(ExecutionConfigOptions.TABLE_EXEC_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
             return String.format("%s[%d]", simplifiedName, getId());
         }
         return detailName;
