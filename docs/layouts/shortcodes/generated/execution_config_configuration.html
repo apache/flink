@@ -71,6 +71,12 @@ By default no operator is disabled.</td>
             <td>Sets default parallelism for all operators (such as aggregate, join, filter) to run with parallel instances. This config has a higher priority than parallelism of StreamExecutionEnvironment (actually, this config overrides the parallelism of StreamExecutionEnvironment). A value of -1 indicates that no default parallelism is set, then it will fallback to use the parallelism of StreamExecutionEnvironment.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.simplify-operator-name-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When it is true, the optimizer will simplify the operator name with id and type of ExecNode and keep detail in description. Default value is true.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.sink.keyed-shuffle</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">AUTO</td>
             <td><p>Enum</p></td>
