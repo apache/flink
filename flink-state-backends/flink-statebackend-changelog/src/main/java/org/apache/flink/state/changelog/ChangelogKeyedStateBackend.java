@@ -189,10 +189,9 @@ public class ChangelogKeyedStateBackend<K>
     @Nullable private SequenceNumber lastUploadedFrom;
     /**
      * {@link SequenceNumber} denoting last upload range <b>end</b>, exclusive. Updated to {@link
-     * org.apache.flink.runtime.state.changelog.StateChangelogWriter#lastAppendedSequenceNumber}
-     * when {@link #snapshot(long, long, CheckpointStreamFactory, CheckpointOptions) starting
-     * snapshot}. Used to notify {@link #stateChangelogWriter} about changelog ranges that were
-     * confirmed or aborted by JM.
+     * StateChangelogWriter#lastAppendedSequenceNumber()} when {@link #snapshot(long, long,
+     * CheckpointStreamFactory, CheckpointOptions) starting snapshot}. Used to notify {@link
+     * #stateChangelogWriter} about changelog ranges that were confirmed or aborted by JM.
      */
     @Nullable private SequenceNumber lastUploadedTo;
 
@@ -374,7 +373,6 @@ public class ChangelogKeyedStateBackend<K>
         // have to split it somehow for the former option, so the latter is used.
         lastCheckpointId = checkpointId;
         lastUploadedFrom = changelogSnapshotState.lastMaterializedTo();
-        lastUploadedTo = stateChangelogWriter.lastAppendedSequenceNumber().next();
 
         LOG.info(
                 "snapshot of {} for checkpoint {}, change range: {}..{}",
@@ -389,12 +387,15 @@ public class ChangelogKeyedStateBackend<K>
                 checkpointId, changelogStateBackendStateCopy.materializationID);
 
         return toRunnableFuture(
-                stateChangelogWriter
-                        .persist(lastUploadedFrom)
-                        .thenApply(
-                                delta ->
-                                        buildSnapshotResult(
-                                                delta, changelogStateBackendStateCopy)));
+                stateChangelogWriter.lastAppendedSequenceNumber().isPresent()
+                        ? stateChangelogWriter
+                                .persist(lastUploadedFrom)
+                                .thenApply(
+                                        delta ->
+                                                buildSnapshotResult(
+                                                        delta, changelogStateBackendStateCopy))
+                        : CompletableFuture.completedFuture(
+                                buildSnapshotResult(null, changelogSnapshotState)));
     }
 
     private SnapshotResult<KeyedStateHandle> buildSnapshotResult(
@@ -629,7 +630,11 @@ public class ChangelogKeyedStateBackend<K>
      *     SequenceNumber} identifying the latest change in the changelog
      */
     public Optional<MaterializationRunnable> initMaterialization() throws Exception {
-        SequenceNumber upTo = stateChangelogWriter.lastAppendedSequenceNumber().next();
+        Optional<SequenceNumber> lastAppended = stateChangelogWriter.lastAppendedSequenceNumber();
+        if (!lastAppended.isPresent()) {
+            return Optional.empty();
+        }
+        SequenceNumber upTo = lastAppended.get().next();
         SequenceNumber lastMaterializedTo = changelogSnapshotState.lastMaterializedTo();
 
         LOG.info(

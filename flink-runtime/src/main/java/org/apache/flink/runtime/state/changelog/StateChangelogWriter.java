@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /** Allows to write data to the log. Scoped to a single writer (e.g. state backend). */
@@ -33,7 +34,7 @@ public interface StateChangelogWriter<Handle extends ChangelogStateHandle> exten
     /**
      * Get {@link SequenceNumber} of the last element added by {@link #append(int, byte[]) append}.
      */
-    SequenceNumber lastAppendedSequenceNumber();
+    Optional<SequenceNumber> lastAppendedSequenceNumber();
 
     /** Appends the provided data to this log. No persistency guarantees. */
     void append(int keyGroup, byte[] value) throws IOException;

@@ -224,7 +224,7 @@ public class FsStateChangelogWriterTest {
 
     private SequenceNumber append(FsStateChangelogWriter writer, byte[] bytes) throws IOException {
         writer.append(KEY_GROUP, bytes);
-        return writer.lastAppendedSequenceNumber();
+        return writer.lastAppendedSequenceNumber().get();
     }
 
     private byte[] getBytes() {

@@ -62,7 +62,7 @@ public class ChangelogStorageMetricsTest {
             int numUploads = 5;
             for (int i = 0; i < numUploads; i++) {
                 writer.append(0, new byte[] {0, 1, 2, 3});
-                writer.persist(writer.lastAppendedSequenceNumber()).get();
+                writer.persist(writer.lastAppendedSequenceNumber().get()).get();
             }
             assertEquals(numUploads, metrics.getUploadsCounter().getCount());
             assertTrue(metrics.getUploadLatenciesNanos().getStatistics().getMin() > 0);
@@ -81,13 +81,13 @@ public class ChangelogStorageMetricsTest {
 
             // upload single byte to infer header size
             writer.append(0, new byte[] {0});
-            writer.persist(writer.lastAppendedSequenceNumber()).get();
+            writer.persist(writer.lastAppendedSequenceNumber().get()).get();
             long headerSize = metrics.getUploadSizes().getStatistics().getMin() - 1;
 
             byte[] upload = new byte[33];
             for (int i = 0; i < 5; i++) {
                 writer.append(0, upload);
-                writer.persist(writer.lastAppendedSequenceNumber()).get();
+                writer.persist(writer.lastAppendedSequenceNumber().get()).get();
             }
             long expected = upload.length + headerSize;
             assertEquals(expected, metrics.getUploadSizes().getStatistics().getMax());
@@ -107,7 +107,7 @@ public class ChangelogStorageMetricsTest {
             for (int i = 0; i < numUploads; i++) {
                 writer.append(0, new byte[] {0, 1, 2, 3});
                 try {
-                    writer.persist(writer.lastAppendedSequenceNumber()).get();
+                    writer.persist(writer.lastAppendedSequenceNumber().get()).get();
                 } catch (IOException e) {
                     // ignore
                 }
@@ -151,7 +151,7 @@ public class ChangelogStorageMetricsTest {
                     // cause
                     // actual uploads
                     writers[writer].append(0, new byte[] {0, 1, 2, 3});
-                    writers[writer].persist(writers[writer].lastAppendedSequenceNumber());
+                    writers[writer].persist(writers[writer].lastAppendedSequenceNumber().get());
                 }
                 // now the uploads should be grouped and executed at once
                 scheduler.triggerScheduledTasks();
@@ -187,7 +187,7 @@ public class ChangelogStorageMetricsTest {
         try {
             for (int upload = 0; upload < numUploads; upload++) {
                 writer.append(0, new byte[] {0, 1, 2, 3});
-                writer.persist(writer.lastAppendedSequenceNumber()).get();
+                writer.persist(writer.lastAppendedSequenceNumber().get()).get();
             }
             HistogramStatistics histogram = metrics.getAttemptsPerUpload().getStatistics();
             assertEquals(maxAttempts, histogram.getMin());
@@ -237,7 +237,7 @@ public class ChangelogStorageMetricsTest {
             int numUploads = 11;
             for (int i = 0; i < numUploads; i++) {
                 writer.append(0, new byte[] {0});
-                writer.persist(writer.lastAppendedSequenceNumber());
+                writer.persist(writer.lastAppendedSequenceNumber().get());
             }
             assertEquals(numUploads, (int) queueSizeGauge.get().getValue());
             scheduler.triggerScheduledTasks();

@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Optional;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
@@ -71,8 +72,8 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
     }
 
     @Override
-    public SequenceNumber lastAppendedSequenceNumber() {
-        return sqn;
+    public Optional<SequenceNumber> lastAppendedSequenceNumber() {
+        return sqn == INITIAL_SQN ? Optional.empty() : Optional.of(sqn);
     }
 
     @Override
@@ -109,7 +110,7 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
                 .filter(map -> !map.isEmpty())
                 .map(SortedMap::firstKey)
                 .min(Comparator.naturalOrder())
-                .orElse(lastAppendedSequenceNumber().next());
+                .orElse(sqn.next());
     }
 
     @Override

@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -105,7 +106,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     /** Current {@link SequenceNumber}. */
     private SequenceNumber activeSequenceNumber = INITIAL_SQN;
 
-    private SequenceNumber lastAppendedSequenceNumber = INITIAL_SQN;
+    private SequenceNumber lastAppendedSequenceNumber = null;
 
     /**
      * {@link SequenceNumber} before which changes will NOT be requested, exclusive. Increased after
@@ -157,6 +158,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     public void append(int keyGroup, byte[] value) throws IOException {
         LOG.trace("append to {}: keyGroup={} {} bytes", logId, keyGroup, value.length);
         checkState(!closed, "%s is closed", logId);
+        lastAppendedSequenceNumber = activeSequenceNumber;
         activeChangeSet.add(new StateChange(keyGroup, value));
         activeChangeSetSize += value.length;
         if (activeChangeSetSize >= preEmptivePersistThresholdInBytes) {
@@ -173,7 +175,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     }
 
     @Override
-    public SequenceNumber lastAppendedSequenceNumber() {
+    public Optional<SequenceNumber> lastAppendedSequenceNumber() {
         // the returned current sequence number must be able to distinguish between the changes
         // appended before and after this call so we need to use the next sequence number
         // At the same time, we don't want to increment SQN on each append (to avoid too many
@@ -184,7 +186,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
                 logId,
                 lastAppendedSequenceNumber,
                 activeSequenceNumber);
-        return lastAppendedSequenceNumber;
+        return Optional.ofNullable(lastAppendedSequenceNumber);
     }
 
     @Override

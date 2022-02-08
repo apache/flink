@@ -19,7 +19,6 @@ package org.apache.flink.changelog.fs;
 
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
-import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.Test;
@@ -43,10 +42,16 @@ public class FsStateChangelogWriterSqnTest {
     @Parameterized.Parameters(name = "{0}")
     public static List<WriterSqnTestSettings> getSettings() {
         return asList(
-                of(StateChangelogWriter::lastAppendedSequenceNumber, "lastAppendedSequenceNumber")
+                of(
+                                fsStateChangelogWriter1 ->
+                                        fsStateChangelogWriter1.lastAppendedSequenceNumber(),
+                                "lastAppendedSequenceNumber")
                         .withAppendCall(false)
                         .expectIncrement(false),
-                of(StateChangelogWriter::lastAppendedSequenceNumber, "lastAppendedSequenceNumber")
+                of(
+                                fsStateChangelogWriter ->
+                                        fsStateChangelogWriter.lastAppendedSequenceNumber().get(),
+                                "lastAppendedSequenceNumber")
                         .withAppendCall(true)
                         .expectIncrement(true),
                 of(FsStateChangelogWriterSqnTest::persistAll, "persist")
@@ -146,7 +151,7 @@ public class FsStateChangelogWriterSqnTest {
     }
 
     private static void truncateLast(FsStateChangelogWriter writer) {
-        writer.truncate(writer.lastAppendedSequenceNumber());
+        writer.truncate(writer.lastAppendedSequenceNumber().get());
     }
 
     private static void truncateAll(FsStateChangelogWriter writer) {

@@ -115,7 +115,7 @@ abstract class StateChangeLoggerTestBase<Namespace> {
         }
 
         @Override
-        public SequenceNumber lastAppendedSequenceNumber() {
+        public Optional<SequenceNumber> lastAppendedSequenceNumber() {
             throw new UnsupportedOperationException();
         }
 

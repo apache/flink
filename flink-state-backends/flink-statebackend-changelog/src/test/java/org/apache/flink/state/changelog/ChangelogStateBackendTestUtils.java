@@ -250,7 +250,7 @@ public class ChangelogStateBackendTestUtils {
             PeriodicMaterializationManager periodicMaterializationManager) {
         StateChangelogWriter<? extends ChangelogStateHandle> writer =
                 keyedBackend.getChangelogWriter();
-        SequenceNumber sqnBefore = writer.lastAppendedSequenceNumber();
+        SequenceNumber sqnBefore = writer.lastAppendedSequenceNumber().get();
         periodicMaterializationManager.triggerMaterialization();
         assertTrue(
                 "Materialization didn't truncate the changelog",
