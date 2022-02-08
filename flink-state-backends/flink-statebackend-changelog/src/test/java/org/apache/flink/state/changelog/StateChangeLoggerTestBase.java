@@ -120,6 +120,11 @@ abstract class StateChangeLoggerTestBase<Namespace> {
         }
 
         @Override
+        public SequenceNumber nextAppendedSequenceNumber() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public CompletableFuture<?> persist(SequenceNumber from) throws IOException {
             throw new UnsupportedOperationException();
         }

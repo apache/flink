@@ -76,6 +76,11 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
     }
 
     @Override
+    public SequenceNumber nextAppendedSequenceNumber() {
+        return sqn.next();
+    }
+
+    @Override
     public CompletableFuture<InMemoryChangelogStateHandle> persist(SequenceNumber from) {
         LOG.debug("Persist after {}", from);
         Preconditions.checkNotNull(from);
@@ -109,7 +114,7 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
                 .filter(map -> !map.isEmpty())
                 .map(SortedMap::firstKey)
                 .min(Comparator.naturalOrder())
-                .orElse(lastAppendedSequenceNumber().next());
+                .orElse(nextAppendedSequenceNumber());
     }
 
     @Override

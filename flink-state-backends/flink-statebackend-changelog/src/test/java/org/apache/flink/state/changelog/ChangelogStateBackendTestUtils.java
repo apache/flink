@@ -172,6 +172,8 @@ public class ChangelogStateBackendTestUtils {
                     keyedBackend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
+            materialize(keyedBackend, periodicMaterializationManager);
+
             keyedBackend.setCurrentKey(1);
             state.update(new StateBackendTestBase.TestPojo("u1", 1));
 

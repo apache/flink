@@ -374,7 +374,7 @@ public class ChangelogKeyedStateBackend<K>
         // have to split it somehow for the former option, so the latter is used.
         lastCheckpointId = checkpointId;
         lastUploadedFrom = changelogSnapshotState.lastMaterializedTo();
-        lastUploadedTo = stateChangelogWriter.lastAppendedSequenceNumber().next();
+        lastUploadedTo = stateChangelogWriter.nextAppendedSequenceNumber();
 
         LOG.info(
                 "snapshot of {} for checkpoint {}, change range: {}..{}",
@@ -629,7 +629,7 @@ public class ChangelogKeyedStateBackend<K>
      *     SequenceNumber} identifying the latest change in the changelog
      */
     public Optional<MaterializationRunnable> initMaterialization() throws Exception {
-        SequenceNumber upTo = stateChangelogWriter.lastAppendedSequenceNumber().next();
+        SequenceNumber upTo = stateChangelogWriter.nextAppendedSequenceNumber();
         SequenceNumber lastMaterializedTo = changelogSnapshotState.lastMaterializedTo();
 
         LOG.info(

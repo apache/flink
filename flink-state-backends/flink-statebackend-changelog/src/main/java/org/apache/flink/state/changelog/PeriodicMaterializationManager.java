@@ -160,7 +160,7 @@ class PeriodicMaterializationManager implements Closeable {
 
                                 mailboxExecutor.execute(
                                         () ->
-                                                keyedStateBackend.updateChangelogSnapshotState(
+                                                updateChangelogSnapshotState(
                                                         snapshotResult, materializationID, upTo),
                                         "Task {} update materializedSnapshot up to changelog sequence number: {}",
                                         subtaskName,
@@ -181,15 +181,30 @@ class PeriodicMaterializationManager implements Closeable {
 
                                     scheduleNextMaterialization();
                                 } else {
-                                    // Fail the task externally, this causes task failover
-                                    asyncExceptionHandler.handleAsyncException(
-                                            "Task "
-                                                    + subtaskName
-                                                    + " fails to complete the asynchronous part of materialization",
-                                            throwable);
+                                    asyncMaterializationExceptionHandler(throwable);
                                 }
                             }
                         });
+    }
+
+    private void asyncMaterializationExceptionHandler(Throwable throwable) {
+        // Fail the task externally, this causes task failover
+        asyncExceptionHandler.handleAsyncException(
+                "Task "
+                        + subtaskName
+                        + " fails to complete the asynchronous part of materialization",
+                throwable);
+    }
+
+    private void updateChangelogSnapshotState(
+            SnapshotResult<KeyedStateHandle> snapshotResult,
+            long materializationID,
+            SequenceNumber upTo) {
+        try {
+            keyedStateBackend.updateChangelogSnapshotState(snapshotResult, materializationID, upTo);
+        } catch (Exception ex) {
+            asyncMaterializationExceptionHandler(ex);
+        }
     }
 
     private CompletableFuture<SnapshotResult<KeyedStateHandle>> uploadSnapshot(

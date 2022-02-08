@@ -35,6 +35,11 @@ public interface StateChangelogWriter<Handle extends ChangelogStateHandle> exten
      */
     SequenceNumber lastAppendedSequenceNumber();
 
+    /**
+     * Get {@link SequenceNumber} of the next element added by {@link #append(int, byte[]) append}.
+     */
+    SequenceNumber nextAppendedSequenceNumber();
+
     /** Appends the provided data to this log. No persistency guarantees. */
     void append(int keyGroup, byte[] value) throws IOException;
 

@@ -188,6 +188,12 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     }
 
     @Override
+    public SequenceNumber nextAppendedSequenceNumber() {
+        lastAppendedSequenceNumber();
+        return activeSequenceNumber;
+    }
+
+    @Override
     public CompletableFuture<ChangelogStateHandleStreamImpl> persist(SequenceNumber from)
             throws IOException {
         LOG.debug(
