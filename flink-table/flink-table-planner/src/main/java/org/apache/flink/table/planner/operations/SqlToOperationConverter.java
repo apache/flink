@@ -35,6 +35,7 @@ import org.apache.flink.sql.parser.ddl.SqlAlterViewAs;
 import org.apache.flink.sql.parser.ddl.SqlAlterViewProperties;
 import org.apache.flink.sql.parser.ddl.SqlAlterViewRename;
 import org.apache.flink.sql.parser.ddl.SqlChangeColumn;
+import org.apache.flink.sql.parser.ddl.SqlCompilePlan;
 import org.apache.flink.sql.parser.ddl.SqlCreateCatalog;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateFunction;
@@ -56,6 +57,7 @@ import org.apache.flink.sql.parser.ddl.SqlUseModules;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.sql.parser.dml.SqlBeginStatementSet;
+import org.apache.flink.sql.parser.dml.SqlCompileAndExecutePlan;
 import org.apache.flink.sql.parser.dml.SqlEndStatementSet;
 import org.apache.flink.sql.parser.dml.SqlExecute;
 import org.apache.flink.sql.parser.dml.SqlExecutePlan;
@@ -104,6 +106,7 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
+import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
@@ -148,6 +151,7 @@ import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
 import org.apache.flink.table.operations.ddl.AlterViewPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterViewRenameOperation;
+import org.apache.flink.table.operations.ddl.CompilePlanOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
@@ -332,11 +336,26 @@ public class SqlToOperationConverter {
                     flinkPlanner, catalogManager, ((SqlExecute) validated).getStatement());
         } else if (validated instanceof SqlExecutePlan) {
             return Optional.of(converter.convertExecutePlan((SqlExecutePlan) validated));
+        } else if (validated instanceof SqlCompilePlan) {
+            return Optional.of(converter.convertCompilePlan((SqlCompilePlan) validated));
+        } else if (validated instanceof SqlCompileAndExecutePlan) {
+            return Optional.of(
+                    converter.convertCompileAndExecutePlan((SqlCompileAndExecutePlan) validated));
         } else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
             return Optional.of(converter.convertSqlQuery(validated));
         } else {
             return Optional.empty();
         }
+    }
+
+    private static Operation convertValidatedSqlNodeOrFail(
+            FlinkPlannerImpl flinkPlanner, CatalogManager catalogManager, SqlNode validated) {
+        return convertValidatedSqlNode(flinkPlanner, catalogManager, validated)
+                .orElseThrow(
+                        () ->
+                                new TableException(
+                                        "Unsupported node type "
+                                                + validated.getClass().getSimpleName()));
     }
 
     // ~ Tools ------------------------------------------------------------------
@@ -741,14 +760,8 @@ public class SqlToOperationConverter {
 
         PlannerQueryOperation query =
                 (PlannerQueryOperation)
-                        convertValidatedSqlNode(flinkPlanner, catalogManager, insert.getSource())
-                                .orElseThrow(
-                                        () ->
-                                                new TableException(
-                                                        "Unsupported node type "
-                                                                + insert.getSource()
-                                                                        .getClass()
-                                                                        .getSimpleName()));
+                        convertValidatedSqlNodeOrFail(
+                                flinkPlanner, catalogManager, insert.getSource());
 
         return new SinkModifyOperation(
                 contextResolvedTable,
@@ -1152,6 +1165,23 @@ public class SqlToOperationConverter {
 
     private Operation convertExecutePlan(SqlExecutePlan sqlExecutePlan) {
         return new ExecutePlanOperation(sqlExecutePlan.getPlanFile());
+    }
+
+    private Operation convertCompilePlan(SqlCompilePlan compilePlan) {
+        return new CompilePlanOperation(
+                compilePlan.getPlanFile(),
+                compilePlan.isIfNotExists(),
+                convertValidatedSqlNodeOrFail(
+                        flinkPlanner, catalogManager, compilePlan.getOperandList().get(0)));
+    }
+
+    private Operation convertCompileAndExecutePlan(SqlCompileAndExecutePlan compileAndExecutePlan) {
+        return new CompileAndExecutePlanOperation(
+                compileAndExecutePlan.getPlanFile(),
+                convertValidatedSqlNodeOrFail(
+                        flinkPlanner,
+                        catalogManager,
+                        compileAndExecutePlan.getOperandList().get(0)));
     }
 
     private void validateTableConstraint(SqlTableConstraint constraint) {
