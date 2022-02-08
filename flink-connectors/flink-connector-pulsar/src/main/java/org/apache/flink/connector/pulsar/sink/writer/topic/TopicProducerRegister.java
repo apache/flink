@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.sink.committer.PulsarCommittable;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
+import org.apache.flink.connector.pulsar.sink.writer.metrics.PulsarSinkWriterMetrics;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
@@ -60,12 +61,19 @@ public class TopicProducerRegister implements Closeable {
     private final SinkConfiguration sinkConfiguration;
     private final Map<String, Producer<?>> producerRegister;
     private final Map<String, Transaction> transactionRegister;
+    private final PulsarSinkWriterMetrics pulsarSinkWriterMetrics;
+    private long lastNumBytesSentSum;
+    private long lastNumRecordsSentSum;
 
-    public TopicProducerRegister(SinkConfiguration sinkConfiguration) {
+    public TopicProducerRegister(
+            SinkConfiguration sinkConfiguration, PulsarSinkWriterMetrics pulsarSinkWriterMetrics) {
         this.pulsarClient = createClient(sinkConfiguration);
         this.sinkConfiguration = sinkConfiguration;
         this.producerRegister = new HashMap<>();
         this.transactionRegister = new HashMap<>();
+        this.pulsarSinkWriterMetrics = pulsarSinkWriterMetrics;
+        this.lastNumBytesSentSum = 0;
+        this.lastNumRecordsSentSum = 0;
     }
 
     /**
@@ -112,6 +120,7 @@ public class TopicProducerRegister implements Closeable {
         for (Producer<?> producer : producerRegister.values()) {
             producer.flush();
         }
+        updateProducerStats();
     }
 
     @Override
@@ -188,5 +197,17 @@ public class TopicProducerRegister implements Closeable {
     private void clearTransactions() {
         // Clear the transactions, we would create new transaction when new message comes.
         transactionRegister.clear();
+    }
+
+    /** Retrieve the producer metrics and map to Flink SinkWriterMetrics. */
+    private void updateProducerStats() {
+        long numBytesOutSum = 0;
+        long numRecordsOutSum = 0;
+        for (Producer<?> producer : producerRegister.values()) {
+            numBytesOutSum += producer.getStats().getNumBytesSent();
+            numRecordsOutSum += producer.getStats().getNumMsgsSent();
+        }
+        pulsarSinkWriterMetrics.recordNumBytesOut(numBytesOutSum);
+        pulsarSinkWriterMetrics.recordNumRecordsOut(numRecordsOutSum);
     }
 }

@@ -29,6 +29,7 @@ import org.apache.flink.connector.pulsar.sink.committer.PulsarCommittable;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContext;
 import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContextAdapter;
+import org.apache.flink.connector.pulsar.sink.writer.metrics.PulsarSinkWriterMetrics;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicMetadataListener;
@@ -71,6 +72,9 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
     private final MailboxExecutor mailboxExecutor;
     private final TopicProducerRegister producerRegister;
     private final Semaphore pendingMessages;
+    private final PulsarSinkWriterMetrics pulsarSinkWriterMetrics;
+    private final ProcessingTimeService timeService;
+    private volatile long lastSendTime;
 
     /**
      * Constructor creating a Pulsar writer.
@@ -103,7 +107,7 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
 
         // Initialize topic metadata listener.
         LOG.debug("Initialize topic metadata after creating Pulsar writer.");
-        ProcessingTimeService timeService = initContext.getProcessingTimeService();
+        this.timeService = initContext.getProcessingTimeService();
         this.metadataListener.open(sinkConfiguration, timeService);
 
         // Initialize topic router.
@@ -119,8 +123,13 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
             throw new FlinkRuntimeException("Cannot initialize schema.", e);
         }
 
+        // Initialize metrics
+        this.pulsarSinkWriterMetrics = new PulsarSinkWriterMetrics(initContext.metricGroup());
+        this.lastSendTime = 0;
+        setupFlinkMetrics(pulsarSinkWriterMetrics);
         // Create this producer register after opening serialization schema!
-        this.producerRegister = new TopicProducerRegister(sinkConfiguration);
+        this.producerRegister =
+                new TopicProducerRegister(sinkConfiguration, pulsarSinkWriterMetrics);
         this.pendingMessages = new Semaphore(sinkConfiguration.getMaxPendingMessages());
     }
 
@@ -143,11 +152,15 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
         } else {
             // Waiting for permits to write message.
             pendingMessages.acquire();
+            long sendStartTime = timeService.getCurrentProcessingTime();
             CompletableFuture<MessageId> sender = builder.sendAsync();
             sender.whenComplete(
                     (id, ex) -> {
+                        long sendEndTime = timeService.getCurrentProcessingTime();
+                        this.lastSendTime = sendEndTime - sendStartTime;
                         pendingMessages.release();
                         if (ex != null) {
+                            pulsarSinkWriterMetrics.recordNumRecordOutErrors();
                             mailboxExecutor.execute(
                                     () -> {
                                         throw new FlinkRuntimeException(
@@ -230,5 +243,9 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
     public void close() throws Exception {
         // Close all the resources and throw the exception at last.
         closeAll(metadataListener, producerRegister);
+    }
+
+    private void setupFlinkMetrics(PulsarSinkWriterMetrics pulsarSinkWriterMetrics) {
+        pulsarSinkWriterMetrics.setCurrentSendTimeGauge(() -> lastSendTime);
     }
 }
