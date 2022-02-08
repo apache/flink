@@ -111,15 +111,6 @@ $ ./bin/taskmanager.sh stop
 $ ./bin/standalone-job.sh stop
 ```
 
-
-### Per-Job Mode
-
-{{< hint info >}}
-For high-level intuition behind the per-job mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#per-job-mode" >}}).
-{{< /hint >}}
-
-Per-Job Mode is not supported by the Standalone Cluster.
-
 ### Session Mode
 
 {{< hint info >}}
