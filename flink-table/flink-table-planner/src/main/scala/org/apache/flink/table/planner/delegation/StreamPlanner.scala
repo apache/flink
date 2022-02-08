@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.processor.ExecNodeGraphProcessor
+import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
@@ -131,7 +132,9 @@ class StreamPlanner(
 
   override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
     validateAndOverrideConfiguration()
-    val execGraph = ExecNodeGraph.createExecNodeGraph(jsonPlan, createSerdeContext)
+    val execGraph = JsonSerdeUtil
+      .createObjectReader(createSerdeContext)
+      .readValue(jsonPlan, classOf[ExecNodeGraph])
     val transformations = translateToPlan(execGraph)
     cleanupInternalConfigurations()
 

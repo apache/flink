@@ -23,6 +23,7 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorCheckpointSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.operators.coordination.EventReceivingTasks;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
@@ -153,7 +154,11 @@ public abstract class SourceCoordinatorTestBase {
                         new MockSplitEnumeratorCheckpointSerializer());
 
         return new SourceCoordinator<>(
-                OPERATOR_NAME, coordinatorExecutor, mockSource, getNewSourceCoordinatorContext());
+                OPERATOR_NAME,
+                coordinatorExecutor,
+                mockSource,
+                getNewSourceCoordinatorContext(),
+                new CoordinatorStoreImpl());
     }
 
     protected SourceCoordinatorContext<MockSourceSplit> getNewSourceCoordinatorContext() {

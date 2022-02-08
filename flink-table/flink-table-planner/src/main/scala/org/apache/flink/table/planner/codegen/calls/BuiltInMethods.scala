@@ -269,6 +269,11 @@ object BuiltInMethods {
     "timestampWithLocalZoneToTimestamp",
     classOf[TimestampData], classOf[TimeZone])
 
+  val TIMESTAMP_FROM_EPOCH_MILLIS = Types.lookupMethod(
+    classOf[TimestampData],
+    "fromEpochMillis",
+    classOf[Long])
+
   val STRING_TO_DATE_WITH_FORMAT = Types.lookupMethod(
     classOf[DateTimeUtils],
     "parseDate",

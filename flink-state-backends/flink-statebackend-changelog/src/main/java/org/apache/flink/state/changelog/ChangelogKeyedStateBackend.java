@@ -374,7 +374,7 @@ public class ChangelogKeyedStateBackend<K>
         // have to split it somehow for the former option, so the latter is used.
         lastCheckpointId = checkpointId;
         lastUploadedFrom = changelogSnapshotState.lastMaterializedTo();
-        lastUploadedTo = getLastAppendedTo();
+        lastUploadedTo = stateChangelogWriter.lastAppendedSequenceNumber().next();
 
         LOG.info(
                 "snapshot of {} for checkpoint {}, change range: {}..{}",
@@ -629,7 +629,7 @@ public class ChangelogKeyedStateBackend<K>
      *     SequenceNumber} identifying the latest change in the changelog
      */
     public Optional<MaterializationRunnable> initMaterialization() throws Exception {
-        SequenceNumber upTo = getLastAppendedTo();
+        SequenceNumber upTo = stateChangelogWriter.lastAppendedSequenceNumber().next();
         SequenceNumber lastMaterializedTo = changelogSnapshotState.lastMaterializedTo();
 
         LOG.info(
@@ -675,14 +675,6 @@ public class ChangelogKeyedStateBackend<K>
 
             return Optional.empty();
         }
-    }
-
-    // TODO: Remove after fix FLINK-24436
-    //  FsStateChangelogWriter#lastAppendedSequenceNumber returns different seq number
-    //  the first time called vs called after the first time.
-    private SequenceNumber getLastAppendedTo() {
-        stateChangelogWriter.lastAppendedSequenceNumber();
-        return stateChangelogWriter.lastAppendedSequenceNumber();
     }
 
     /**
