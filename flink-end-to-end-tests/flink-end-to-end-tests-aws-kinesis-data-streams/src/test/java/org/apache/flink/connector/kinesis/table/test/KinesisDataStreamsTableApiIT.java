@@ -19,6 +19,7 @@
 package org.apache.flink.connector.kinesis.table.test;
 
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
@@ -45,6 +46,7 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.core.SdkSystemSetting;
+import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.CreateStreamRequest;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
@@ -75,6 +77,8 @@ public class KinesisDataStreamsTableApiIT {
     private static final String ORDERS_STREAM = "orders";
     private static final String INTER_CONTAINER_KINESALITE_ALIAS = "kinesalite";
     private static final String DEFAULT_FIRST_SHARD_NAME = "shardId-000000000000";
+    private SdkAsyncHttpClient httpClient;
+    private KinesisAsyncClient kinesisClient;
 
     private final Path sqlConnectorKinesisJar = TestUtils.getResource(".*kinesis-streams.jar");
     private static final Network network = Network.newNetwork();
@@ -110,13 +114,16 @@ public class KinesisDataStreamsTableApiIT {
 
     @Before
     public void setUp() throws Exception {
-        prepareStream(ORDERS_STREAM);
         System.setProperty(SdkSystemSetting.CBOR_ENABLED.property(), "false");
+        httpClient = KINESALITE.buildSdkAsyncHttpClient();
+        kinesisClient = KINESALITE.createHostClient(httpClient);
+        prepareStream(ORDERS_STREAM);
     }
 
     @After
     public void teardown() {
         System.clearProperty(SdkSystemSetting.CBOR_ENABLED.property());
+        AWSGeneralUtil.closeResources(httpClient, kinesisClient);
     }
 
     @Test
@@ -141,7 +148,6 @@ public class KinesisDataStreamsTableApiIT {
                         .withConstantThroughput()
                         .build();
 
-        KinesisAsyncClient kinesisClient = KINESALITE.getHostClient();
         kinesisClient
                 .createStream(
                         CreateStreamRequest.builder().streamName(streamName).shardCount(1).build())
@@ -157,8 +163,7 @@ public class KinesisDataStreamsTableApiIT {
 
     private boolean streamExists(final String streamName) {
         try {
-            return KINESALITE
-                            .getHostClient()
+            return kinesisClient
                             .describeStream(
                                     DescribeStreamRequest.builder().streamName(streamName).build())
                             .get()
@@ -204,8 +209,7 @@ public class KinesisDataStreamsTableApiIT {
 
     private <T> List<T> readMessagesFromStream(Function<byte[], T> deserialiser) throws Exception {
         String shardIterator =
-                KINESALITE
-                        .getHostClient()
+                kinesisClient
                         .getShardIterator(
                                 GetShardIteratorRequest.builder()
                                         .shardId(DEFAULT_FIRST_SHARD_NAME)
@@ -216,8 +220,7 @@ public class KinesisDataStreamsTableApiIT {
                         .shardIterator();
 
         List<Record> records =
-                KINESALITE
-                        .getHostClient()
+                kinesisClient
                         .getRecords(
                                 GetRecordsRequest.builder().shardIterator(shardIterator).build())
                         .get()

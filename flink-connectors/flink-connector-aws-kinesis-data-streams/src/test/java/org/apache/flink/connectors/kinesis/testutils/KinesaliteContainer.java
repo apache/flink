@@ -100,22 +100,25 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
     }
 
     /** Returns the client to access the container from outside the docker network. */
-    public KinesisAsyncClient getContainerClient() throws URISyntaxException {
-        return getClient(getContainerEndpointUrl());
+    public KinesisAsyncClient createContainerClient(SdkAsyncHttpClient httpClient)
+            throws URISyntaxException {
+        return createClient(getContainerEndpointUrl(), httpClient);
     }
 
     /** Returns the client to access the host from inside the docker network. */
-    public KinesisAsyncClient getHostClient() throws URISyntaxException {
-        return getClient(getHostEndpointUrl());
+    public KinesisAsyncClient createHostClient(SdkAsyncHttpClient httpClient)
+            throws URISyntaxException {
+        return createClient(getHostEndpointUrl(), httpClient);
     }
 
-    public KinesisAsyncClient getClient(String endPoint) throws URISyntaxException {
+    public KinesisAsyncClient createClient(String endPoint, SdkAsyncHttpClient httpClient)
+            throws URISyntaxException {
         return KinesisAsyncClient.builder()
                 .endpointOverride(new URI(endPoint))
                 .region(REGION)
                 .credentialsProvider(
                         () -> AwsBasicCredentials.create(getAccessKey(), getSecretKey()))
-                .httpClient(buildSdkAsyncHttpClient())
+                .httpClient(httpClient)
                 .build();
     }
 
@@ -170,12 +173,14 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
 
         private ListStreamsResponse list()
                 throws ExecutionException, InterruptedException, URISyntaxException {
-
-            return getContainerClient().listStreams().get();
+            try (SdkAsyncHttpClient httpClient = buildSdkAsyncHttpClient();
+                    KinesisAsyncClient containerClient = createContainerClient(httpClient)) {
+                return containerClient.listStreams().get();
+            }
         }
     }
 
-    private SdkAsyncHttpClient buildSdkAsyncHttpClient() {
+    public SdkAsyncHttpClient buildSdkAsyncHttpClient() {
         return NettyNioAsyncHttpClient.builder()
                 .eventLoopGroupBuilder(SdkEventLoopGroup.builder())
                 .buildWithDefaults(
