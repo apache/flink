@@ -1467,7 +1467,7 @@ Note that the metrics are only available via reporters.
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="3"><strong>Operator</strong></th>
+      <th rowspan="4"><strong>Operator</strong></th>
       <td>currentInput<strong>N</strong>Watermark</td>
       <td>
         The last watermark this operator has received in its <strong>N'th</strong> input (in milliseconds), with index <strong>N</strong> starting from 1. For example currentInput<strong>1</strong>Watermark, currentInput<strong>2</strong>Watermark, ...
@@ -1479,6 +1479,17 @@ Note that the metrics are only available via reporters.
       <td>currentOutputWatermark</td>
       <td>
         The last watermark this operator has emitted (in milliseconds).
+      </td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>watermarkAlignmentDrift</td>
+      <td>
+        The current drift from the minimal watermark emitted by all sources/tasks/splits that belong
+        to the same watermark group.
+
+        Note: Available only when watermark alignment is enabled and the first common watermark is
+        announced. You can configure the update interval in the WatermarkStrategy.
       </td>
       <td>Gauge</td>
     </tr>

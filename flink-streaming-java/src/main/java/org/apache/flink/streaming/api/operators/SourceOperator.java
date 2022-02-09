@@ -536,7 +536,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     @SuppressWarnings("unchecked")
     public void handleOperatorEvent(OperatorEvent event) {
         if (event instanceof WatermarkAlignmentEvent) {
-            currentMaxDesiredWatermark = ((WatermarkAlignmentEvent) event).getMaxWatermark();
+            updateMaxDesiredWatermark((WatermarkAlignmentEvent) event);
             checkWatermarkAlignment();
         } else if (event instanceof AddSplitEvent) {
             try {
@@ -551,6 +551,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         } else {
             throw new IllegalStateException("Received unexpected operator event " + event);
         }
+    }
+
+    private void updateMaxDesiredWatermark(WatermarkAlignmentEvent event) {
+        currentMaxDesiredWatermark = event.getMaxWatermark();
+        sourceMetricGroup.updateMaxDesiredWatermark(currentMaxDesiredWatermark);
     }
 
     private void onWatermarkEmitted(long emittedWatermark) {

@@ -95,4 +95,7 @@ public class MetricNames {
     public static final String PENDING_RECORDS = "pendingRecords";
     public static final String PENDING_BYTES = "pendingBytes";
     public static final String SOURCE_IDLE_TIME = "sourceIdleTime";
+
+    // FLIP-182 (watermark alignment)
+    public static final String WATERMARK_ALIGNMENT_DRIFT = "watermarkAlignmentDrift";
 }
