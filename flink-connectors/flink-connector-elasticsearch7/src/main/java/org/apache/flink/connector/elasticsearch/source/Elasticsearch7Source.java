@@ -43,8 +43,7 @@ import org.apache.flink.util.UserCodeClassLoader;
 /**
  * The Source implementation for Elasticsearch. Please use a {@link Elasticsearch7SourceBuilder} to
  * construct a {@link Elasticsearch7Source}. The following example shows how to create a
- * ElasticsearchSource emitting records of <code>
- * String</code> type.
+ * ElasticsearchSource emitting records of {@code String} type.
  *
  * <pre>{@code
  * Elasticsearch7Source<String> source = new Elasticsearch7Source.builder()
