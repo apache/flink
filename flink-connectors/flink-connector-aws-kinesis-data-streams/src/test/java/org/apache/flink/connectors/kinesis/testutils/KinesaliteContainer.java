@@ -99,23 +99,39 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
     }
 
     /** Returns the client to access the container from outside the docker network. */
-    public KinesisAsyncClient getContainerClient() throws URISyntaxException {
-        return getClient(getContainerEndpointUrl());
+    public KinesisAsyncClient getContainerClient(SdkAsyncHttpClient httpClient)
+            throws URISyntaxException {
+        return getClient(getContainerEndpointUrl(), httpClient);
+    }
+
+    /** Returns the client with the default async http client. */
+    public KinesisAsyncClient getHostClient() throws URISyntaxException {
+        return getHostClient(buildSdkAsyncHttpClient());
     }
 
     /** Returns the client to access the host from inside the docker network. */
-    public KinesisAsyncClient getHostClient() throws URISyntaxException {
-        return getClient(getHostEndpointUrl());
+    public KinesisAsyncClient getHostClient(SdkAsyncHttpClient httpClient)
+            throws URISyntaxException {
+        return getClient(getHostEndpointUrl(), httpClient);
     }
 
-    public KinesisAsyncClient getClient(String endPoint) throws URISyntaxException {
+    public KinesisAsyncClient getClient(String endPoint, SdkAsyncHttpClient httpClient)
+            throws URISyntaxException {
         return KinesisAsyncClient.builder()
                 .endpointOverride(new URI(endPoint))
                 .region(REGION)
                 .credentialsProvider(
                         () -> AwsBasicCredentials.create(getAccessKey(), getSecretKey()))
-                .httpClient(buildSdkAsyncHttpClient())
+                .httpClient(httpClient)
                 .build();
+    }
+
+    public SdkAsyncHttpClient buildSdkAsyncHttpClient() {
+        return NettyNioAsyncHttpClient.builder()
+                .buildWithDefaults(
+                        AttributeMap.builder()
+                                .put(SdkHttpConfigurationOption.TRUST_ALL_CERTIFICATES, true)
+                                .build());
     }
 
     private void startContainer() {
@@ -169,16 +185,10 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
 
         private ListStreamsResponse list()
                 throws ExecutionException, InterruptedException, URISyntaxException {
-
-            return getContainerClient().listStreams().get();
+            try (SdkAsyncHttpClient httpClient = buildSdkAsyncHttpClient();
+                    KinesisAsyncClient containerClient = getContainerClient(httpClient)) {
+                return containerClient.listStreams().get();
+            }
         }
-    }
-
-    private SdkAsyncHttpClient buildSdkAsyncHttpClient() {
-        return NettyNioAsyncHttpClient.builder()
-                .buildWithDefaults(
-                        AttributeMap.builder()
-                                .put(SdkHttpConfigurationOption.TRUST_ALL_CERTIFICATES, true)
-                                .build());
     }
 }
