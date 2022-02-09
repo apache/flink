@@ -214,7 +214,7 @@ public class Elasticsearch7SourceBuilder<OUT> {
     }
 
     /**
-     * Sets the timeout for establishing a connection of the Elasticsearch cluster.
+     * Sets the timeout for establishing a connection to the Elasticsearch cluster.
      *
      * @param connectionTimeout timeout for the connection
      * @return this builder
