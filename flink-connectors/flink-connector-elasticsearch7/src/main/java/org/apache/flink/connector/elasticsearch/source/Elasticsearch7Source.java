@@ -44,7 +44,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The Source implementation for Elasticsearch. Please use a {@link Elasticsearch7SourceBuilder} to
- * construct a {@link Elasticsearch7Source}. The following example shows how to create a
+ * construct an {@link Elasticsearch7Source}. The following example shows how to create an
  * ElasticsearchSource emitting records of {@code String} type.
  *
  * <pre>{@code
