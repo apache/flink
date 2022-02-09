@@ -39,6 +39,7 @@ import org.rnorth.ducttape.ratelimits.RateLimiterBuilder;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.core.SdkSystemSetting;
+import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.CreateStreamRequest;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
@@ -75,6 +76,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                     .withNetworkAliases("kinesalite");
 
     private StreamExecutionEnvironment env;
+    private SdkAsyncHttpClient httpClient;
     private KinesisAsyncClient kinesisClient;
 
     @Before
@@ -84,12 +86,15 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-        kinesisClient = KINESALITE.getHostClient();
+        httpClient = KINESALITE.buildSdkAsyncHttpClient();
+        kinesisClient = KINESALITE.getHostClient(httpClient);
     }
 
     @After
     public void teardown() {
         System.clearProperty(SdkSystemSetting.CBOR_ENABLED.property());
+        httpClient.close();
+        kinesisClient.close();
     }
 
     @Test
@@ -312,7 +317,6 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                             .withConstantThroughput()
                             .build();
 
-            KinesisAsyncClient kinesisClient = KINESALITE.getHostClient();
             kinesisClient
                     .createStream(
                             CreateStreamRequest.builder()
