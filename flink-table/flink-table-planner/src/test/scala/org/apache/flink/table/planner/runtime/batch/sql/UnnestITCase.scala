@@ -251,4 +251,22 @@ class UnnestITCase extends BatchTestBase {
     )
   }
 
+  @Test
+  def testUnnestMapWithDifferentKeyValueType(): Unit = {
+    val data = List(
+      row(1, Map("a" -> 10, "b" -> 11).asJava),
+      row(2, Map("c" -> 20, "d" -> 21).asJava)
+    )
+
+    registerCollection("T", data,
+      new RowTypeInfo(Types.INT, Types.MAP(Types.STRING, Types.INT)),
+      "a, b")
+
+    checkResult(
+      "SELECT a, k, v FROM T, UNNEST(T.b) as A(k, v)",
+      Seq(row(1, "a", 10), row(1, "b", 11), row(2, "c", 20),
+        row(2, "d", 21))
+    )
+  }
+
 }

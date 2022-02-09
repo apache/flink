@@ -125,6 +125,15 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
     verifyPlan("SELECT a, b, A._1, A._2 FROM MyTable, UNNEST(MyTable.b) AS A where A._1 > 1")
   }
 
+  @Test
+  def testUnnestMapWithDifferentKeyValueType(): Unit = {
+    util.addTableSource("MyTable",
+      Array[TypeInformation[_]](Types.INT,
+        Types.MAP(Types.STRING, Types.INT)),
+      Array("a", "b"))
+    verifyPlan("SELECT a, k, v FROM MyTable, UNNEST(b) as A(k, v)")
+  }
+
   private def verifyPlan(sql: String): Unit = {
     if (withExecPlan) {
       util.verifyExecPlan(sql)

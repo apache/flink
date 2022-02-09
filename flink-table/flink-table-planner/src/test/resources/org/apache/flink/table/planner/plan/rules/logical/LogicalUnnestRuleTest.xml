@@ -105,6 +105,31 @@ LogicalProject(a=[$0], b=[$1], v=[$4])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testUnnestMapWithDifferentKeyValueType">
+    <Resource name="sql">
+      <![CDATA[SELECT a, k, v FROM MyTable, UNNEST(b) as A(k, v)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], k=[$2], v=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]])
+   +- LogicalProject(k=[$0], v=[$1])
+      +- Uncollect
+         +- LogicalProject(b=[$cor0.b])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], k=[$2], v=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]])
+   +- LogicalProject(k=[$0], v=[$1])
+      +- LogicalTableFunctionScan(invocation=[UNNEST($cor0.b)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0, INTEGER f1)])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testJoinWithUnnestOfTuple">
     <Resource name="sql">
       <![CDATA[

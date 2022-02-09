@@ -326,4 +326,45 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
+  @Test
+  def testUnnestMapWithDifferentKeyValueType(): Unit = {
+    val data = List(
+      Row.of(Int.box(1), {
+        val map = new java.util.HashMap[String, Integer]()
+        map.put("a", 10)
+        map.put("b", 11)
+        map
+      }),
+      Row.of(Int.box(2), {
+        val map = new java.util.HashMap[String, Integer]()
+        map.put("c", 20)
+        map.put("d", 21)
+        map
+      })
+    )
+    implicit val typeInfo = Types.ROW(
+      Array("a", "b"),
+      Array[TypeInformation[_]](Types.INT, Types.MAP(Types.STRING, Types.INT))
+    )
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b)
+    tEnv.registerTable("T", t)
+
+    val sqlQuery = "SELECT a, k, v FROM T, UNNEST(T.b) AS A(k, v)"
+    val result = tEnv.sqlQuery(sqlQuery)
+
+    val sink = new TestingRetractTableSink().configure(
+      Array("a", "k", "v"),
+      Array(Types.INT, Types.STRING, Types.INT))
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    result.executeInsert("MySink").await()
+
+    val expected = List(
+      "1,a,10",
+      "1,b,11",
+      "2,c,20",
+      "2,d,21"
+    )
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
 }
