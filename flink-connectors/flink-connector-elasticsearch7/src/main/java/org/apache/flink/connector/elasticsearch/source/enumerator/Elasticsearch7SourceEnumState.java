@@ -25,6 +25,8 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** The state of {@link Elasticsearch7SourceEnumerator}. */
 @PublicEvolving
 public class Elasticsearch7SourceEnumState {
@@ -32,7 +34,7 @@ public class Elasticsearch7SourceEnumState {
     private final Set<Elasticsearch7Split> assignedSplits;
 
     Elasticsearch7SourceEnumState(Set<Elasticsearch7Split> assignedSplits) {
-        this.assignedSplits = assignedSplits;
+        this.assignedSplits = checkNotNull(assignedSplits);
     }
 
     public Set<Elasticsearch7Split> getAssignedSplits() {
