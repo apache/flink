@@ -29,6 +29,7 @@ import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.FullRangeGenerator;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator;
@@ -195,7 +196,8 @@ public final class PulsarSourceBuilder<OUT> {
      */
     public PulsarSourceBuilder<OUT> setTopics(List<String> topics) {
         ensureSubscriberIsNull("topics");
-        this.subscriber = PulsarSubscriber.getTopicListSubscriber(topics);
+        List<String> distinctTopics = TopicNameUtils.distinctTopics(topics);
+        this.subscriber = PulsarSubscriber.getTopicListSubscriber(distinctTopics);
         return this;
     }
 
