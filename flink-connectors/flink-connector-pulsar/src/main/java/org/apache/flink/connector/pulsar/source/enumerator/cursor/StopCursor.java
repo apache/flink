@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.pulsar.source.enumerator.cursor;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.stop.LatestMessageStopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.stop.MessageIdStopCursor;
@@ -41,6 +42,7 @@ import java.io.Serializable;
 public interface StopCursor extends Serializable {
 
     /** The open method for the cursor initializer. This method could be executed multiple times. */
+    @Internal
     default void open(PulsarAdmin admin, TopicPartition partition) {}
 
     /**

@@ -26,32 +26,38 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema.pulsarSchema;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Unit tests for {@link PulsarSourceBuilder}. */
-@SuppressWarnings("java:S5778")
 class PulsarSourceBuilderTest {
 
     @Test
     void someSetterMethodCouldOnlyBeCalledOnce() {
-        PulsarSourceBuilder<String> builder = new PulsarSourceBuilder<>();
-        assertThatThrownBy(() -> builder.setAdminUrl("admin-url").setAdminUrl("admin-url2"))
-                .isInstanceOf(IllegalArgumentException.class);
-
-        assertThatThrownBy(() -> builder.setServiceUrl("service-url").setServiceUrl("service-url2"))
-                .isInstanceOf(IllegalArgumentException.class);
-
-        assertThatThrownBy(
-                        () ->
-                                builder.setSubscriptionName("set_subscription_name")
-                                        .setSubscriptionName("set_subscription_name2"))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(
-                        () ->
-                                builder.setSubscriptionType(SubscriptionType.Exclusive)
-                                        .setSubscriptionType(SubscriptionType.Shared))
-                .isInstanceOf(IllegalArgumentException.class);
+        PulsarSourceBuilder<String> builder =
+                new PulsarSourceBuilder<String>()
+                        .setAdminUrl("admin-url")
+                        .setServiceUrl("service-url")
+                        .setSubscriptionName("set_subscription_name")
+                        .setSubscriptionType(SubscriptionType.Exclusive);
+        assertAll(
+                () ->
+                        assertThrows(
+                                IllegalArgumentException.class,
+                                () -> builder.setAdminUrl("admin-url2")),
+                () ->
+                        assertThrows(
+                                IllegalArgumentException.class,
+                                () -> builder.setServiceUrl("service-url2")),
+                () ->
+                        assertThrows(
+                                IllegalArgumentException.class,
+                                () -> builder.setSubscriptionName("set_subscription_name2")),
+                () ->
+                        assertThrows(
+                                IllegalArgumentException.class,
+                                () -> builder.setSubscriptionType(SubscriptionType.Shared)));
     }
 
     @Test
@@ -67,31 +73,10 @@ class PulsarSourceBuilderTest {
     void rangeGeneratorRequiresKeyShared() {
         PulsarSourceBuilder<String> builder = new PulsarSourceBuilder<>();
         builder.setSubscriptionType(SubscriptionType.Shared);
+        UniformRangeGenerator rangeGenerator = new UniformRangeGenerator();
 
-        assertThatThrownBy(() -> builder.setRangeGenerator(new UniformRangeGenerator()))
+        assertThatThrownBy(() -> builder.setRangeGenerator(rangeGenerator))
                 .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    void missingRequiredField() {
-        PulsarSourceBuilder<String> builder = new PulsarSourceBuilder<>();
-        assertThatThrownBy(builder::build).isInstanceOf(IllegalArgumentException.class);
-        builder.setAdminUrl("admin-url");
-        assertThatThrownBy(builder::build).isInstanceOf(IllegalArgumentException.class);
-        builder.setServiceUrl("service-url");
-        assertThatThrownBy(builder::build).isInstanceOf(IllegalArgumentException.class);
-        builder.setSubscriptionName("subscription-name");
-        assertThatThrownBy(builder::build).isInstanceOf(NullPointerException.class);
-        builder.setTopics("topic");
-        assertThatThrownBy(builder::build).isInstanceOf(NullPointerException.class);
-        builder.setDeserializationSchema(pulsarSchema(Schema.STRING));
-        assertThatCode(builder::build).doesNotThrowAnyException();
-    }
-
-    @Test
-    void defaultBuilder() {
-        PulsarSourceBuilder<String> builder = new PulsarSourceBuilder<>();
-        assertThatThrownBy(builder::build).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
