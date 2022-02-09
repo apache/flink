@@ -91,7 +91,7 @@ public class Elasticsearch7Source<OUT>
     }
 
     /**
-     * Create an {@link Elasticsearch7SourceBuilder} to construct a new {@link
+     * Creates an {@link Elasticsearch7SourceBuilder} for constructing a new {@link
      * Elasticsearch7Source}.
      *
      * @param <OUT> the produced output type
