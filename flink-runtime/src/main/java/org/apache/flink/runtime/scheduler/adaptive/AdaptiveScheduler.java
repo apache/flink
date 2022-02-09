@@ -168,7 +168,6 @@ public class AdaptiveScheduler
 
     private final Executor ioExecutor;
     private final ClassLoader userCodeClassLoader;
-    private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
 
     private final CheckpointsCleaner checkpointsCleaner;
     private final CompletedCheckpointStore completedCheckpointStore;
@@ -192,7 +191,6 @@ public class AdaptiveScheduler
     private final Duration resourceStabilizationTimeout;
 
     private final ExecutionGraphFactory executionGraphFactory;
-    private final JobStatusStore jobStatusStore;
 
     private State state = new Created(this, LOG);
 
@@ -243,7 +241,6 @@ public class AdaptiveScheduler
         this.ioExecutor = ioExecutor;
         this.userCodeClassLoader = userCodeClassLoader;
         this.restartBackoffTimeStrategy = restartBackoffTimeStrategy;
-        this.jobManagerJobMetricGroup = jobManagerJobMetricGroup;
         this.fatalErrorHandler = fatalErrorHandler;
         this.checkpointsCleaner = checkpointsCleaner;
         this.completedCheckpointStore =
@@ -259,8 +256,6 @@ public class AdaptiveScheduler
 
         this.componentMainThreadExecutor = mainThreadExecutor;
 
-        this.jobStatusStore = new JobStatusStore(initializationTimestamp);
-
         this.scaleUpController = new ReactiveScaleUpController(configuration);
 
         this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
@@ -269,6 +264,7 @@ public class AdaptiveScheduler
 
         this.executionGraphFactory = executionGraphFactory;
 
+        final JobStatusStore jobStatusStore = new JobStatusStore(initializationTimestamp);
         final Collection<JobStatusListener> tmpJobStatusListeners = new ArrayList<>();
         tmpJobStatusListeners.add(Preconditions.checkNotNull(jobStatusListener));
         tmpJobStatusListeners.add(jobStatusStore);

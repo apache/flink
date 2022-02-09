@@ -31,8 +31,7 @@ import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Test;
 
@@ -239,7 +238,7 @@ public class CreatingExecutionGraphTest extends TestLogger {
 
         @Override
         public Executor getIOExecutor() {
-            return MoreExecutors.directExecutor();
+            return Executors.directExecutor();
         }
 
         @Override

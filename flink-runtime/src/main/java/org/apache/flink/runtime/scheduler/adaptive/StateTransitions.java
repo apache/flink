@@ -33,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface StateTransitions {
 
+    /** Interface covering transition to the {@link Canceling} state. */
     interface ToCancelling extends StateTransitions {
 
         /**
@@ -49,12 +50,14 @@ public interface StateTransitions {
                 OperatorCoordinatorHandler operatorCoordinatorHandler);
     }
 
+    /** Interface covering transition to the {@link CreatingExecutionGraph} state. */
     interface ToCreatingExecutionGraph extends StateTransitions {
 
         /** Transitions into the {@link CreatingExecutionGraph} state. */
         void goToCreatingExecutionGraph();
     }
 
+    /** Interface covering transition to the {@link Executing} state. */
     interface ToExecuting extends StateTransitions {
 
         /**
@@ -71,6 +74,7 @@ public interface StateTransitions {
                 OperatorCoordinatorHandler operatorCoordinatorHandler);
     }
 
+    /** Interface covering transition to the {@link Finished} state. */
     interface ToFinished extends StateTransitions {
 
         /**
@@ -82,6 +86,7 @@ public interface StateTransitions {
         void goToFinished(ArchivedExecutionGraph archivedExecutionGraph);
     }
 
+    /** Interface covering transition to the {@link Failing} state. */
     interface ToFailing extends StateTransitions {
 
         /**
@@ -100,6 +105,7 @@ public interface StateTransitions {
                 Throwable failureCause);
     }
 
+    /** Interface covering transition to the {@link Restarting} state. */
     interface ToRestarting extends StateTransitions {
 
         /**
@@ -120,6 +126,7 @@ public interface StateTransitions {
                 Duration backoffTime);
     }
 
+    /** Interface covering transition to the {@link StopWithSavepoint} state. */
     interface ToStopWithSavepoint extends StateTransitions {
 
         /**
@@ -141,6 +148,7 @@ public interface StateTransitions {
                 CompletableFuture<String> savepointFuture);
     }
 
+    /** Interface covering transition to the {@link WaitingForResources} state. */
     interface ToWaitingForResources extends StateTransitions {
 
         /** Transitions into the {@link WaitingForResources} state. */

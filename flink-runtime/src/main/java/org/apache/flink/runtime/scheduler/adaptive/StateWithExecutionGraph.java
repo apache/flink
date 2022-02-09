@@ -28,7 +28,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -62,6 +61,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 
 /**
  * Abstract state class which contains an {@link ExecutionGraph} and the required handlers to
@@ -348,6 +348,6 @@ abstract class StateWithExecutionGraph implements State {
          *
          * @return the main thread executor
          */
-        ComponentMainThreadExecutor getMainThreadExecutor();
+        Executor getMainThreadExecutor();
     }
 }
