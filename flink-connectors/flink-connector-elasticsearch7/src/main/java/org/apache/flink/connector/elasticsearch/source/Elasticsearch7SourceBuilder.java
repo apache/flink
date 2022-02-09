@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.elasticsearch.common.NetworkClientConfig;
 import org.apache.flink.connector.elasticsearch.source.reader.Elasticsearch7SearchHitDeserializationSchema;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.http.HttpHost;
 import org.slf4j.Logger;
@@ -155,6 +156,7 @@ public class Elasticsearch7SourceBuilder<OUT> {
     public Elasticsearch7SourceBuilder<OUT> setHosts(HttpHost... hosts) {
         checkNotNull(hosts);
         checkState(hosts.length > 0, "Hosts cannot be empty.");
+        Arrays.stream(hosts).forEach(Preconditions::checkNotNull);
         this.hosts = Arrays.asList(hosts);
         return this;
     }
@@ -239,6 +241,7 @@ public class Elasticsearch7SourceBuilder<OUT> {
     private void checkRequiredParameters() {
         checkNotNull(hosts);
         checkArgument(!hosts.isEmpty(), "Hosts cannot be empty.");
+        hosts.forEach(Preconditions::checkNotNull);
         checkArgument(!indexName.isEmpty(), "Index name cannot be empty.");
         checkArgument(numberOfSearchSlices >= 2, "Number of search slices must be at least 2.");
         checkArgument(
