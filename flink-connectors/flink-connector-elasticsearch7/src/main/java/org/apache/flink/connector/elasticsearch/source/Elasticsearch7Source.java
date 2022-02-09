@@ -63,7 +63,7 @@ import org.apache.flink.util.UserCodeClassLoader;
  *     .build();
  * }</pre>
  *
- * <p>The ElasticsearchSource runs in a {@link Boundedness#BOUNDED} mode and stops when the entire *
+ * <p>The ElasticsearchSource runs in a {@link Boundedness#BOUNDED} mode and stops when the entire
  * index has been read.
  *
  * <p>See {@link Elasticsearch7SourceBuilder} for more details.
