@@ -67,7 +67,7 @@ Flink 具有监控 API ，可用于查询正在运行的作业以及最近完成
 
 ### JobManager
 
-[OpenAPI specification](/generated/rest_v1_dispatcher.yml)
+[OpenAPI specification]({{< ref_static "generated/rest_v1_dispatcher.yml" >}})
 
 {{< hint warning >}}
 The OpenAPI specification is still experimental.
