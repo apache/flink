@@ -24,7 +24,7 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 
-/** This class encapsulates information on how to connect against an Elasticsearch cluster. */
+/** This class encapsulates information on how to connect to an Elasticsearch cluster. */
 @Internal
 public class NetworkClientConfig implements Serializable {
 
