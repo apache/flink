@@ -9,4 +9,3 @@ The following dependencies all share the same BSD license which you find under l
 - org.scala-lang:scala-compiler:2.12.7
 - org.scala-lang:scala-library:2.12.7
 - org.scala-lang:scala-reflect:2.12.7
-- org.scala-lang.modules:scala-xml_2.12:1.0.6
