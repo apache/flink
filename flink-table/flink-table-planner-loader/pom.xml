@@ -55,7 +55,7 @@
 		<dependency>
 			<!-- Ensures that flink-table-planner is built beforehand, in order to bundle the jar -->
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner-loader-helper</artifactId>
+			<artifactId>flink-table-planner-loader-bundle</artifactId>
 			<version>${project.version}</version>
 			<!-- We don't want any production code from flink-table-planner-loader to reference flink-table-planner directly -->
 			<scope>runtime</scope>
@@ -94,7 +94,7 @@
 						we need to exclude the planner_${scala.binary.version} from the test classpath
 						in order to execute the loader tests correctly.
 						-->
-						<exclude>org.apache.flink:flink-table-planner-loader-helper</exclude>
+						<exclude>org.apache.flink:flink-table-planner-loader-bundle</exclude>
 					</classpathDependencyExcludes>
 				</configuration>
 			</plugin>
@@ -112,7 +112,7 @@
 							<artifactItems>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-table-planner-loader-helper</artifactId>
+									<artifactId>flink-table-planner-loader-bundle</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
 									<overWrite>true</overWrite>
@@ -137,7 +137,7 @@
 						<configuration>
 							<filters>
 								<filter>
-									<artifact>org.apache.flink:flink-table-planner-loader-helper</artifact>
+									<artifact>org.apache.flink:flink-table-planner-loader-bundle</artifact>
 									<includes>
 										<include>META-INF/NOTICE</include>
 										<include>META-INF/licenses/**</include>
@@ -146,7 +146,7 @@
 							</filters>
 							<artifactSet>
 								<includes>
-									<include>org.apache.flink:flink-table-planner-loader-helper</include>
+									<include>org.apache.flink:flink-table-planner-loader-bundle</include>
 								</includes>
 							</artifactSet>
 						</configuration>

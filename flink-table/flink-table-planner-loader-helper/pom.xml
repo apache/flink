@@ -30,7 +30,7 @@
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-table-planner-loader-helper</artifactId>
+	<artifactId>flink-table-planner-loader-bundle</artifactId>
 	<name>Flink : Table : Planner Loader Helper</name>
 	<packaging>jar</packaging>
 	<description>Intermediate build artifact use by the planner-loader.</description>
