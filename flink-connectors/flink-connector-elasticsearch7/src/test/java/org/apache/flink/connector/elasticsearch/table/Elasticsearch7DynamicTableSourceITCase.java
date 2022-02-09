@@ -51,12 +51,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Tests for {@link Elasticsearch7DynamicSource}. */
+/** Tests for {@link Elasticsearch7DynamicTableSource}. */
 @Testcontainers
 @ExtendWith(TestLoggerExtension.class)
-public class Elasticsearch7DynamicSourceITCase {
+public class Elasticsearch7DynamicTableSourceITCase {
     private static final Logger LOG =
-            LoggerFactory.getLogger(Elasticsearch7DynamicSourceITCase.class);
+            LoggerFactory.getLogger(Elasticsearch7DynamicTableSourceITCase.class);
     private static final int NUM_RECORDS = 10;
     private static final String INDEX = "my-index";
 
@@ -100,7 +100,7 @@ public class Elasticsearch7DynamicSourceITCase {
                                 + "'%s' = '%s',\n "
                                 + "'%s' = '%s'\n"
                                 + ")",
-                        Elasticsearch7DynamicSourceFactory.FACTORY_IDENTIFIER,
+                        Elasticsearch7DynamicTableSourceFactory.FACTORY_IDENTIFIER,
                         Elasticsearch7SourceOptions.HOSTS_OPTION.key(),
                         ES_CONTAINER.getHttpHostAddress(),
                         Elasticsearch7SourceOptions.INDEX_OPTION.key(),

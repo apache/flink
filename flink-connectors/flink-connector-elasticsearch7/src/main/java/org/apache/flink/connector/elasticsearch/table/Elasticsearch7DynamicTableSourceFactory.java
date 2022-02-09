@@ -51,9 +51,9 @@ import static org.apache.flink.connector.elasticsearch.table.Elasticsearch7Sourc
 import static org.apache.flink.formats.json.JsonFormatOptionsUtil.ISO_8601;
 import static org.apache.flink.formats.json.JsonFormatOptionsUtil.SQL;
 
-/** Factory for creating a {@link Elasticsearch7DynamicSource}. */
+/** Factory for creating a {@link Elasticsearch7DynamicTableSource}. */
 @Internal
-public class Elasticsearch7DynamicSourceFactory implements DynamicTableSourceFactory {
+public class Elasticsearch7DynamicTableSourceFactory implements DynamicTableSourceFactory {
     public static final String FACTORY_IDENTIFIER = "elasticsearch-7-src";
 
     @Override
@@ -69,8 +69,8 @@ public class Elasticsearch7DynamicSourceFactory implements DynamicTableSourceFac
 
         DataType physicalRowDataType = context.getPhysicalRowDataType();
 
-        Elasticsearch7DynamicSourceConfiguration sourceConfig =
-                new Elasticsearch7DynamicSourceConfiguration(
+        Elasticsearch7DynamicTableSourceConfiguration sourceConfig =
+                new Elasticsearch7DynamicTableSourceConfiguration(
                         Configuration.fromMap(context.getCatalogTable().getOptions()));
 
         final boolean failOnMissingFields = tableOptions.get(FAIL_ON_MISSING_FIELDS);
@@ -89,13 +89,13 @@ public class Elasticsearch7DynamicSourceFactory implements DynamicTableSourceFac
     @VisibleForTesting
     protected DynamicTableSource createElasticsearchTableSource(
             DataType physicalRowDataType,
-            Elasticsearch7DynamicSourceConfiguration config,
+            Elasticsearch7DynamicTableSourceConfiguration config,
             String tableIdentifier,
             boolean failOnMissingFields,
             boolean ignoreParseErrors,
             TimestampFormat timestampFormat) {
 
-        return new Elasticsearch7DynamicSource(
+        return new Elasticsearch7DynamicTableSource(
                 physicalRowDataType,
                 config,
                 tableIdentifier,

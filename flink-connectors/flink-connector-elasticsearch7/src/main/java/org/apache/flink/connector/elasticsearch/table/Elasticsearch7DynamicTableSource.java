@@ -45,12 +45,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** An Elasticsearch {@link ScanTableSource}. */
 @Internal
-public class Elasticsearch7DynamicSource implements ScanTableSource {
+public class Elasticsearch7DynamicTableSource implements ScanTableSource {
 
     /** Data type that describes the final output of the source. */
     private final DataType producedDataType;
 
-    private final Elasticsearch7DynamicSourceConfiguration sourceConfig;
+    private final Elasticsearch7DynamicTableSourceConfiguration sourceConfig;
 
     private final String tableIdentifier;
 
@@ -60,9 +60,9 @@ public class Elasticsearch7DynamicSource implements ScanTableSource {
 
     private final TimestampFormat timestampFormat;
 
-    public Elasticsearch7DynamicSource(
+    public Elasticsearch7DynamicTableSource(
             DataType producedDataType,
-            Elasticsearch7DynamicSourceConfiguration sourceConfig,
+            Elasticsearch7DynamicTableSourceConfiguration sourceConfig,
             String tableIdentifier,
             boolean failOnMissingFields,
             boolean ignoreParseErrors,
@@ -157,7 +157,7 @@ public class Elasticsearch7DynamicSource implements ScanTableSource {
 
     @Override
     public DynamicTableSource copy() {
-        return new Elasticsearch7DynamicSource(
+        return new Elasticsearch7DynamicTableSource(
                 producedDataType,
                 sourceConfig,
                 tableIdentifier,
@@ -179,7 +179,7 @@ public class Elasticsearch7DynamicSource implements ScanTableSource {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        Elasticsearch7DynamicSource that = (Elasticsearch7DynamicSource) o;
+        Elasticsearch7DynamicTableSource that = (Elasticsearch7DynamicTableSource) o;
         return failOnMissingFields == that.failOnMissingFields
                 && ignoreParseErrors == that.ignoreParseErrors
                 && Objects.equals(producedDataType, that.producedDataType)
