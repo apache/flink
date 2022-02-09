@@ -50,7 +50,7 @@ public class Elasticsearch7SourceOptions {
     public static final ConfigOption<Integer> NUMBER_OF_SLICES_OPTION =
             ConfigOptions.key("num-slices")
                     .intType()
-                    .defaultValue(3)
+                    .defaultValue(2)
                     .withDescription("Number of search slices.");
 
     public static final ConfigOption<Duration> PIT_KEEP_ALIVE_OPTION =

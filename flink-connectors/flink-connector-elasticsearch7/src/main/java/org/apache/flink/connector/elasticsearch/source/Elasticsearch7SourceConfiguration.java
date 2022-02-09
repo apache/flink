@@ -26,6 +26,9 @@ import java.io.Serializable;
 import java.time.Duration;
 import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** Configuration class for the {@link Elasticsearch7Source}. */
 @Internal
 public class Elasticsearch7SourceConfiguration implements Serializable {
@@ -36,10 +39,11 @@ public class Elasticsearch7SourceConfiguration implements Serializable {
 
     public Elasticsearch7SourceConfiguration(
             List<HttpHost> hosts, String index, int numberOfSlices, Duration pitKeepAlive) {
-        this.hosts = hosts;
-        this.index = index;
+        this.hosts = checkNotNull(hosts);
+        this.index = checkNotNull(index);
+        checkArgument(numberOfSlices >= 2);
         this.numberOfSlices = numberOfSlices;
-        this.pitKeepAlive = pitKeepAlive;
+        this.pitKeepAlive = checkNotNull(pitKeepAlive);
     }
 
     public List<HttpHost> getHosts() {

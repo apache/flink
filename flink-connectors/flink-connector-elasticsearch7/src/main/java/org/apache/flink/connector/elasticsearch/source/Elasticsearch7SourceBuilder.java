@@ -70,7 +70,7 @@ public class Elasticsearch7SourceBuilder<OUT> {
     private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch7SourceBuilder.class);
 
     private Duration pitKeepAlive = Duration.ofMinutes(5);
-    private int numberOfSearchSlices = 1;
+    private int numberOfSearchSlices = 2;
     private String indexName;
     private Elasticsearch7SearchHitDeserializationSchema<OUT> deserializationSchema;
 
@@ -114,7 +114,7 @@ public class Elasticsearch7SourceBuilder<OUT> {
      * @return this builder
      */
     public Elasticsearch7SourceBuilder<OUT> setNumberOfSearchSlices(int numberOfSearchSlices) {
-        checkArgument(numberOfSearchSlices > 0, "Number of search slices must be greater than 0.");
+        checkArgument(numberOfSearchSlices >= 2, "Number of search slices must be at least 2.");
         this.numberOfSearchSlices = numberOfSearchSlices;
         return this;
     }
@@ -240,7 +240,7 @@ public class Elasticsearch7SourceBuilder<OUT> {
         checkNotNull(hosts);
         checkArgument(!hosts.isEmpty(), "Hosts cannot be empty.");
         checkArgument(!indexName.isEmpty(), "Index name cannot be empty.");
-        checkArgument(numberOfSearchSlices > 0, "Number of search slices must be greater than 0.");
+        checkArgument(numberOfSearchSlices >= 2, "Number of search slices must be at least 2.");
         checkArgument(
                 isGreaterOrEqual(pitKeepAlive, Duration.ofMinutes(5)),
                 "PIT keep alive should be at least 5 minutes.");
