@@ -48,13 +48,6 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     public ChangelogStateHandleStreamImpl(
             List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets,
             KeyGroupRange keyGroupRange,
-            long size) {
-        this(handlesAndOffsets, keyGroupRange, size, size);
-    }
-
-    public ChangelogStateHandleStreamImpl(
-            List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets,
-            KeyGroupRange keyGroupRange,
             long size,
             long incrementalSize) {
         this.handlesAndOffsets = handlesAndOffsets;
@@ -83,7 +76,7 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
         if (offsets.getNumberOfKeyGroups() == 0) {
             return null;
         }
-        return new ChangelogStateHandleStreamImpl(handlesAndOffsets, offsets, 0L /* unknown */);
+        return new ChangelogStateHandleStreamImpl(handlesAndOffsets, offsets, 0L, 0L /* unknown */);
     }
 
     @Override
