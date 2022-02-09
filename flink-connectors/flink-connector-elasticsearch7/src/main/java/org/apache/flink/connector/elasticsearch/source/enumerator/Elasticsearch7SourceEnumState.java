@@ -21,7 +21,6 @@ package org.apache.flink.connector.elasticsearch.source.enumerator;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7Split;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -42,9 +41,6 @@ public class Elasticsearch7SourceEnumState {
 
     public static Elasticsearch7SourceEnumState fromCollectionSnapshot(
             final Collection<Elasticsearch7Split> splits) {
-
-        // create a copy to make sure the checkpoint is immutable
-        final Collection<Elasticsearch7Split> copy = new ArrayList<>(splits);
-        return new Elasticsearch7SourceEnumState(new HashSet<>(copy));
+        return new Elasticsearch7SourceEnumState(new HashSet<>(splits));
     }
 }
