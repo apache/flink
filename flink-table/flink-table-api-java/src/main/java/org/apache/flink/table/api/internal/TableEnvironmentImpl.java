@@ -41,6 +41,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogFunction;
@@ -85,6 +86,7 @@ import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleEntry;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CollectModifyOperation;
+import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -127,6 +129,7 @@ import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
 import org.apache.flink.table.operations.ddl.AlterViewOperation;
 import org.apache.flink.table.operations.ddl.AlterViewPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterViewRenameOperation;
+import org.apache.flink.table.operations.ddl.CompilePlanOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
@@ -154,7 +157,9 @@ import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -791,6 +796,52 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return executeInternal(transformations, sinkIdentifierNames);
     }
 
+    private CompiledPlan compilePlanAndWrite(
+            String filePath, boolean ifNotExists, Operation operation) {
+        File file = Paths.get(filePath).toFile();
+        if (file.exists()) {
+            if (ifNotExists) {
+                try {
+                    return loadPlan(PlanReference.fromFile(filePath));
+                } catch (IOException e) {
+                    throw new TableException("Cannot load the plan file '" + filePath + "'", e);
+                }
+            }
+
+            if (!tableConfig.getConfiguration().get(TableConfigOptions.PLAN_FORCE_RECOMPILE)) {
+                throw new TableException(
+                        String.format(
+                                "Cannot overwrite the plan file '%s', as the option '%s' is disabled. "
+                                        + "Either manually remove the file or, "
+                                        + "if you're debugging your job, "
+                                        + "set the option '%s' to true",
+                                filePath,
+                                TableConfigOptions.PLAN_FORCE_RECOMPILE.key(),
+                                TableConfigOptions.PLAN_FORCE_RECOMPILE.key()));
+            }
+        }
+
+        CompiledPlan compiledPlan;
+        if (operation instanceof StatementSetOperation) {
+            compiledPlan = compilePlan(((StatementSetOperation) operation).getOperations());
+        } else if (operation instanceof ModifyOperation) {
+            compiledPlan = compilePlan(Collections.singletonList((ModifyOperation) operation));
+        } else {
+            throw new TableException(
+                    "Unsupported operation to compile: "
+                            + operation.getClass()
+                            + ". This is a bug, please file an issue.");
+        }
+
+        try {
+            compiledPlan.writeToFile(file, false);
+        } catch (IOException e) {
+            throw new TableException(
+                    "Cannot write the compiled plan to file '" + filePath + "'", e);
+        }
+        return compiledPlan;
+    }
+
     @Override
     public CompiledPlan compilePlan(List<ModifyOperation> operations) {
         return planner.compilePlan(operations);
@@ -1361,6 +1412,22 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return executeInternal(createTableASOperation.toSinkModifyOperation(catalogManager));
         } else if (operation instanceof ExecutePlanOperation) {
             return executePlan(((ExecutePlanOperation) operation).getFilePath());
+        } else if (operation instanceof CompilePlanOperation) {
+            CompilePlanOperation compilePlanOperation = (CompilePlanOperation) operation;
+            compilePlanAndWrite(
+                    compilePlanOperation.getFilePath(),
+                    compilePlanOperation.isIfNotExists(),
+                    compilePlanOperation.getOperation());
+            return TableResultImpl.TABLE_RESULT_OK;
+        } else if (operation instanceof CompileAndExecutePlanOperation) {
+            CompileAndExecutePlanOperation compileAndExecutePlanOperation =
+                    (CompileAndExecutePlanOperation) operation;
+            CompiledPlan compiledPlan =
+                    compilePlanAndWrite(
+                            compileAndExecutePlanOperation.getFilePath(),
+                            true,
+                            compileAndExecutePlanOperation.getOperation());
+            return (TableResultInternal) executePlan(compiledPlan);
         } else if (operation instanceof NopOperation) {
             return TableResultImpl.TABLE_RESULT_OK;
         } else {
