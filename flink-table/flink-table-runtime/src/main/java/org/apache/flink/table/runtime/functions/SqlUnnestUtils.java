@@ -61,7 +61,7 @@ public final class SqlUnnestUtils {
                         mapType,
                         RowType.of(false, mapType.getKeyType(), mapType.getValueType()),
                         ArrayData.createElementGetter(mapType.getKeyType()),
-                        ArrayData.createElementGetter(mapType.getKeyType()));
+                        ArrayData.createElementGetter(mapType.getValueType()));
             default:
                 throw new UnsupportedOperationException("Unsupported type for UNNEST: " + t);
         }
