@@ -19,7 +19,6 @@
 package org.apache.flink.connector.elasticsearch.source;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 
 import org.apache.http.HttpHost;
 
@@ -35,7 +34,6 @@ public class Elasticsearch7SourceConfiguration implements Serializable {
     private final int numberOfSlices;
     private final Duration pitKeepAlive;
 
-    @VisibleForTesting
     public Elasticsearch7SourceConfiguration(
             List<HttpHost> hosts, String index, int numberOfSlices, Duration pitKeepAlive) {
         this.hosts = hosts;
