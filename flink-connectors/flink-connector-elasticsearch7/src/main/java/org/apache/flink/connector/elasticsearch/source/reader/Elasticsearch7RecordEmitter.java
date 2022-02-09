@@ -18,11 +18,13 @@
 
 package org.apache.flink.connector.elasticsearch.source.reader;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
 import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7SplitState;
 
 /** The {@link RecordEmitter} implementation for both {@link Elasticsearch7SourceReader}. */
+@PublicEvolving
 public class Elasticsearch7RecordEmitter<T>
         implements RecordEmitter<Elasticsearch7Record<T>, T, Elasticsearch7SplitState> {
 
