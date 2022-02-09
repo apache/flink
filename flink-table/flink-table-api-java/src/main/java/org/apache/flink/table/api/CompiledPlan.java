@@ -20,6 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Experimental;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -40,26 +41,37 @@ public interface CompiledPlan {
     /** Convert the plan to a JSON string representation. */
     String asJsonString();
 
-    /** @see #writeToFile(Path) */
+    /** @see #writeToFile(File) */
     default void writeToFile(String path) throws IOException {
         writeToFile(Paths.get(path));
     }
 
-    /** @see #writeToFile(Path, boolean) */
+    /** @see #writeToFile(File, boolean) */
     default void writeToFile(String path, boolean ignoreIfExists) throws IOException {
         writeToFile(Paths.get(path), ignoreIfExists);
+    }
+
+    /** @see #writeToFile(File) */
+    default void writeToFile(Path path) throws IOException {
+        writeToFile(path.toFile());
+    }
+
+    /** @see #writeToFile(File, boolean) */
+    default void writeToFile(Path path, boolean ignoreIfExists)
+            throws IOException, UnsupportedOperationException {
+        writeToFile(path.toFile(), ignoreIfExists);
     }
 
     /**
      * Write this plan to a file using the JSON representation. This will not overwrite the file if
      * it's already existing.
      */
-    default void writeToFile(Path path) throws IOException {
-        writeToFile(path, true);
+    default void writeToFile(File file) throws IOException {
+        writeToFile(file, true);
     }
 
     /** Write this plan to a file using the JSON representation. */
-    void writeToFile(Path path, boolean ignoreIfExists)
+    void writeToFile(File file, boolean ignoreIfExists)
             throws IOException, UnsupportedOperationException;
 
     // --- Accessors

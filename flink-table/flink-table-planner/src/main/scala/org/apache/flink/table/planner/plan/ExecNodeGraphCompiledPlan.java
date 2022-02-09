@@ -62,9 +62,8 @@ public class ExecNodeGraphCompiledPlan implements CompiledPlanInternal {
     }
 
     @Override
-    public void writeToFile(java.nio.file.Path path, boolean ignoreIfExists)
+    public void writeToFile(File file, boolean ignoreIfExists)
             throws IOException, UnsupportedOperationException {
-        File file = new File(path.toUri());
         if (ignoreIfExists && file.exists()) {
             return;
         }
