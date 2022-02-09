@@ -31,7 +31,6 @@ import java.util.List;
  * splits.
  */
 public class MultipleTopicConsumingContext extends MultipleTopicTemplateContext {
-    private static final long serialVersionUID = 1L;
 
     public MultipleTopicConsumingContext(PulsarTestEnvironment environment) {
         this(environment, Collections.emptyList());

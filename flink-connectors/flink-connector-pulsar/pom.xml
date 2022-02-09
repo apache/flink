@@ -120,22 +120,6 @@ under the License.
 		<!-- we don't override the version here. -->
 		<dependency>
 			<groupId>org.apache.pulsar</groupId>
-			<artifactId>testmocks</artifactId>
-			<version>${pulsar.version}</version>
-			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>org.testng</groupId>
-					<artifactId>testng</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.powermock</groupId>
-					<artifactId>powermock-module-testng</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.pulsar</groupId>
 			<artifactId>pulsar-broker</artifactId>
 			<version>${pulsar.version}</version>
 			<scope>test</scope>

@@ -40,11 +40,11 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
+import static org.apache.flink.connector.pulsar.common.utils.PulsarTransactionUtils.createTransaction;
 
 /**
  * The split reader a given {@link PulsarPartitionSplit}, it would be closed once the {@link
@@ -162,18 +162,6 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
 
     private Transaction newTransaction() {
         long timeoutMillis = sourceConfiguration.getTransactionTimeoutMillis();
-        CompletableFuture<Transaction> future =
-                sneakyClient(pulsarClient::newTransaction)
-                        .withTransactionTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
-                        .build();
-
-        try {
-            return future.get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        } catch (ExecutionException e) {
-            throw new RuntimeException(e);
-        }
+        return createTransaction(pulsarClient, timeoutMillis);
     }
 }

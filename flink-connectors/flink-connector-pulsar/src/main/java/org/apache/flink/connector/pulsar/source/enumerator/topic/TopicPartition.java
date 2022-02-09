@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.pulsar.source.enumerator.topic;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 
 import org.apache.pulsar.client.api.Range;
@@ -35,7 +35,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Topic partition is the basic topic information used by {@link SplitReader}, we create this topic
  * metas for a specified topic by subscription type and convert it into a partition split.
  */
-@Internal
+@PublicEvolving
 public class TopicPartition implements Serializable {
     private static final long serialVersionUID = -1474354741550810953L;
 

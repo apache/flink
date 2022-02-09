@@ -27,12 +27,8 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_ADMIN_URL;
-import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_SERVICE_URL;
-
 /** We would consume from test splits by using {@link SubscriptionType#Failover} subscription. */
 public class FailoverSubscriptionContext extends MultipleTopicTemplateContext {
-    private static final long serialVersionUID = 1L;
 
     public FailoverSubscriptionContext(PulsarTestEnvironment environment) {
         this(environment, Collections.emptyList());
@@ -56,15 +52,5 @@ public class FailoverSubscriptionContext extends MultipleTopicTemplateContext {
     @Override
     protected SubscriptionType subscriptionType() {
         return SubscriptionType.Failover;
-    }
-
-    @Override
-    protected String serviceUrl() {
-        return PULSAR_SERVICE_URL;
-    }
-
-    @Override
-    protected String adminUrl() {
-        return PULSAR_ADMIN_URL;
     }
 }
