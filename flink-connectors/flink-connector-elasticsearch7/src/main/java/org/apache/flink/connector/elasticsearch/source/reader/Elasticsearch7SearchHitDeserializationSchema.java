@@ -47,10 +47,8 @@ public interface Elasticsearch7SearchHitDeserializationSchema<T>
      *
      * @param context Contextual information that can be used during initialization.
      */
-    @PublicEvolving
     default void open(DeserializationSchema.InitializationContext context) throws Exception {}
 
     /** Deserializes the search hit. */
-    @PublicEvolving
     void deserialize(SearchHit record, Collector<T> out) throws IOException;
 }
