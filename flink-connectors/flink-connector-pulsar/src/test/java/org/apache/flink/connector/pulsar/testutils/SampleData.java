@@ -18,116 +18,20 @@
 
 package org.apache.flink.connector.pulsar.testutils;
 
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.function.Supplier;
-
-import static java.util.function.Function.identity;
-import static java.util.stream.Stream.generate;
-import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
-import static org.apache.commons.lang3.RandomStringUtils.randomAscii;
-import static org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList.toImmutableList;
-import static org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap.toImmutableMap;
 
 /** Sample data for various test cases. */
 public class SampleData {
-
-    private static final Random RAND = new Random(System.currentTimeMillis());
-    private static final Supplier<Integer> LIST_SIZE = () -> RAND.nextInt(10) + 5;
-    private static final long MIN_DAY = LocalDate.of(2000, 1, 1).toEpochDay();
-    private static final long MAX_DAY = LocalDate.of(2040, 12, 31).toEpochDay();
-    private static final Supplier<Bar> BAR_SUPPLIER =
-            () -> new Bar(RAND.nextBoolean(), randomAlphanumeric(10));
-    private static final Supplier<List<Bar>> BAR_LIST_SUPPLIER =
-            () -> generate(BAR_SUPPLIER).limit(LIST_SIZE.get()).collect(toImmutableList());
-    private static final Supplier<Map<String, Bar>> BAR_MAP_SUPPLIER =
-            () ->
-                    generate(BAR_SUPPLIER)
-                            .limit(LIST_SIZE.get())
-                            .collect(toImmutableMap(Bar::toString, identity()));
 
     // --------------------------------//
     //                                 //
     // Random sample data for tests.   //
     //                                 //
     // --------------------------------//
-
-    public static final List<Boolean> BOOLEAN_LIST =
-            generate(RAND::nextBoolean).limit(LIST_SIZE.get()).collect(toImmutableList());
-
-    public static final List<Integer> INTEGER_LIST =
-            generate(RAND::nextInt).limit(LIST_SIZE.get()).collect(toImmutableList());
-
-    public static final List<byte[]> BYTES_LIST =
-            generate(() -> randomAscii(8))
-                    .limit(LIST_SIZE.get())
-                    .map(s -> s.getBytes(StandardCharsets.UTF_8))
-                    .collect(toImmutableList());
-
-    public static final List<Byte> INT_8_LIST =
-            generate(RAND::nextInt)
-                    .limit(LIST_SIZE.get())
-                    .map(Integer::byteValue)
-                    .collect(toImmutableList());
-
-    public static final List<Short> INT_16_LIST =
-            generate(RAND::nextInt)
-                    .limit(LIST_SIZE.get())
-                    .map(Integer::shortValue)
-                    .collect(toImmutableList());
-
-    public static final List<Long> INT_64_LIST =
-            generate(RAND::nextLong).limit(LIST_SIZE.get()).collect(toImmutableList());
-
-    public static final List<Double> DOUBLE_LIST =
-            generate(RAND::nextDouble).limit(LIST_SIZE.get()).collect(toImmutableList());
-
-    public static final List<Float> FLOAT_LIST =
-            generate(RAND::nextFloat).limit(LIST_SIZE.get()).collect(toImmutableList());
-
-    public static final List<String> STRING_LIST =
-            generate(() -> randomAlphanumeric(8)).limit(LIST_SIZE.get()).collect(toImmutableList());
-
-    public static final List<LocalDate> LOCAL_DATE_LIST =
-            generate(() -> ThreadLocalRandom.current().nextLong(MIN_DAY, MAX_DAY))
-                    .limit(LIST_SIZE.get())
-                    .map(LocalDate::ofEpochDay)
-                    .collect(toImmutableList());
-
-    public static final List<LocalDateTime> LOCAL_DATE_TIME_LIST =
-            generate(() -> ThreadLocalRandom.current().nextLong(MIN_DAY, MAX_DAY))
-                    .limit(LIST_SIZE.get())
-                    .map(LocalDate::ofEpochDay)
-                    .map(LocalDate::atStartOfDay)
-                    .collect(toImmutableList());
-
-    public static final List<FA> FA_LIST =
-            generate(() -> new FA(BAR_LIST_SUPPLIER.get().toArray(new Bar[0])))
-                    .limit(LIST_SIZE.get())
-                    .collect(toImmutableList());
-
-    public static final List<Foo> FOO_LIST =
-            generate(() -> new Foo(RAND.nextInt(), RAND.nextFloat(), BAR_SUPPLIER.get()))
-                    .limit(LIST_SIZE.get())
-                    .collect(toImmutableList());
-
-    public static final List<FL> FL_LIST =
-            generate(() -> new FL(BAR_LIST_SUPPLIER.get()))
-                    .limit(LIST_SIZE.get())
-                    .collect(toImmutableList());
-
-    public static final List<FM> FM_LIST =
-            generate(() -> new FM(BAR_MAP_SUPPLIER.get()))
-                    .limit(LIST_SIZE.get())
-                    .collect(toImmutableList());
 
     /** Foo type. */
     public static class Foo {

@@ -19,7 +19,6 @@
 package org.apache.flink.tests.util.pulsar;
 
 import org.apache.flink.connector.pulsar.testutils.PulsarTestContextFactory;
-import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
 import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
@@ -29,8 +28,7 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.tests.util.pulsar.cases.ExclusiveSubscriptionContext;
 import org.apache.flink.tests.util.pulsar.cases.FailoverSubscriptionContext;
 import org.apache.flink.tests.util.pulsar.common.FlinkContainerWithPulsarEnvironment;
-
-import static org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime.container;
+import org.apache.flink.tests.util.pulsar.common.PulsarContainerTestEnvironment;
 
 /**
  * Pulsar E2E test based on connector testing framework. It's used for Failover & Exclusive
@@ -48,8 +46,7 @@ public class PulsarSourceOrderedE2ECase extends SourceTestSuiteBase<String> {
 
     // Defines ConnectorExternalSystem.
     @TestExternalSystem
-    PulsarTestEnvironment pulsar =
-            new PulsarTestEnvironment(container(flink.getFlinkContainers().getJobManager()));
+    PulsarContainerTestEnvironment pulsar = new PulsarContainerTestEnvironment(flink);
 
     // Defines a set of external context Factories for different test cases.
     @TestContext

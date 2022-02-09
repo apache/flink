@@ -94,7 +94,7 @@ abstract class PulsarSourceReaderTestBase extends PulsarTestSuiteBase {
 
     @AfterEach
     void afterEach(String topicName) {
-        operator().deleteTopic(topicName, true);
+        operator().deleteTopic(topicName);
     }
 
     @TestTemplate

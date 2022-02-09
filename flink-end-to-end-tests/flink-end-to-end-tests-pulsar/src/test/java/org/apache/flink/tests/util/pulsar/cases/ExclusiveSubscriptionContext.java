@@ -27,12 +27,8 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_ADMIN_URL;
-import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_SERVICE_URL;
-
 /** We would consume from test splits by using {@link SubscriptionType#Exclusive} subscription. */
 public class ExclusiveSubscriptionContext extends MultipleTopicTemplateContext {
-    private static final long serialVersionUID = 1L;
 
     public ExclusiveSubscriptionContext(PulsarTestEnvironment environment) {
         this(environment, Collections.emptyList());
@@ -56,15 +52,5 @@ public class ExclusiveSubscriptionContext extends MultipleTopicTemplateContext {
     @Override
     protected SubscriptionType subscriptionType() {
         return SubscriptionType.Exclusive;
-    }
-
-    @Override
-    protected String serviceUrl() {
-        return PULSAR_SERVICE_URL;
-    }
-
-    @Override
-    protected String adminUrl() {
-        return PULSAR_ADMIN_URL;
     }
 }
