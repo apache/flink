@@ -27,7 +27,6 @@ import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessageTypeInfo;
-import org.apache.flink.streaming.api.connector.sink2.StandardSinkTopologies;
 import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.WithPreCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.WithPreWriteTopology;
@@ -233,16 +232,6 @@ public class SinkTransformationTranslator<Input, Output>
                     transformations.subList(numTransformsBefore, transformations.size());
 
             for (Transformation<?> subTransformation : expandedTransformations) {
-                // Skip overwriting the parallelism for the global committer
-                if (subTransformation.getName() == null
-                        || !subTransformation
-                                .getName()
-                                .equals(
-                                        StandardSinkTopologies
-                                                .GLOBAL_COMMITTER_TRANSFORMATION_NAME)) {
-                    subTransformation.setParallelism(transformation.getParallelism());
-                }
-
                 concatUid(
                         subTransformation,
                         Transformation::getUid,
