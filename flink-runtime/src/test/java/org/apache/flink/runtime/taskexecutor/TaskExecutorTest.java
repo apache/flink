@@ -2697,7 +2697,7 @@ public class TaskExecutorTest extends TestLogger {
                     jobMasterGateway.getAddress(),
                     resourceManagerGateway.getFencingToken());
 
-            taskExecutor.freeInactiveSlots(jobId, timeout);
+            taskExecutorGateway.freeInactiveSlots(jobId, timeout);
 
             // the slot should be freed
             assertThat(availableSlotFuture.get().f1, is(slotId));
