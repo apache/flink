@@ -28,6 +28,7 @@ import org.apache.flink.connector.pulsar.common.config.PulsarOptions;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.FullRangeGenerator;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator;
@@ -51,13 +52,13 @@ import static java.lang.Boolean.FALSE;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ENABLE_TRANSACTION;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_SERVICE_URL;
+import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_CONSUMER_NAME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_NAME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_TYPE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_TRANSACTION_TIMEOUT_MILLIS;
 import static org.apache.flink.connector.pulsar.source.config.PulsarSourceConfigUtils.checkConfigurations;
-import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.distinctTopics;
 import static org.apache.flink.util.InstantiationUtil.isSerializable;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -97,7 +98,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>To stop the connector user has to disable the auto partition discovery. As auto partition
  * discovery always expected new splits to come and not exiting. To disable auto partition
  * discovery, use builder.setConfig({@link
- * PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS}, -1).
+ * PulsarSourceOptions#PULSAR_PARTITION_DISCOVERY_INTERVAL_MS}, -1).
  *
  * <pre>{@code
  * PulsarSource<String> source = PulsarSource
@@ -130,6 +131,7 @@ public final class PulsarSourceBuilder<OUT> {
         this.configuration = new Configuration();
         this.startCursor = StartCursor.defaultStartCursor();
         this.stopCursor = StopCursor.defaultStopCursor();
+        this.boundedness = Boundedness.CONTINUOUS_UNBOUNDED;
     }
 
     /**
@@ -210,7 +212,8 @@ public final class PulsarSourceBuilder<OUT> {
      */
     public PulsarSourceBuilder<OUT> setTopics(List<String> topics) {
         ensureSubscriberIsNull("topics");
-        this.subscriber = PulsarSubscriber.getTopicListSubscriber(distinctTopics(topics));
+        List<String> distinctTopics = TopicNameUtils.distinctTopics(topics);
+        this.subscriber = PulsarSubscriber.getTopicListSubscriber(distinctTopics);
         return this;
     }
 
@@ -273,6 +276,14 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
+     * The consumer name is informative, and it can be used to identify a particular consumer
+     * instance from the topic stats.
+     */
+    public PulsarSourceBuilder<OUT> setConsumerName(String consumerName) {
+        return setConfig(PULSAR_CONSUMER_NAME, consumerName);
+    }
+
+    /**
      * Set a topic range generator for Key_Shared subscription.
      *
      * @param rangeGenerator A generator which would generate a set of {@link TopicRange} for given
@@ -320,7 +331,7 @@ public final class PulsarSourceBuilder<OUT> {
      * <p>To stop the connector user has to disable the auto partition discovery. As auto partition
      * discovery always expected new splits to come and not exiting. To disable auto partition
      * discovery, use builder.setConfig({@link
-     * PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS}, -1).
+     * PulsarSourceOptions#PULSAR_PARTITION_DISCOVERY_INTERVAL_MS}, -1).
      *
      * @param stopCursor The {@link StopCursor} to specify the stopping offset.
      * @return this PulsarSourceBuilder.
@@ -333,7 +344,7 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
-     * By default the PulsarSource is set to run in {@link Boundedness#CONTINUOUS_UNBOUNDED} manner
+     * By default, the PulsarSource is set to run in {@link Boundedness#CONTINUOUS_UNBOUNDED} manner
      * and thus never stops until the Flink job fails or is canceled. To let the PulsarSource run in
      * {@link Boundedness#BOUNDED} manner and stops at some point, one can set an {@link StopCursor}
      * to specify the stopping offsets for each partition. When all the partitions have reached
@@ -369,7 +380,7 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
-     * Set an arbitrary property for the PulsarSource and PulsarConsumer. The valid keys can be
+     * Set an arbitrary property for the PulsarSource and Pulsar Consumer. The valid keys can be
      * found in {@link PulsarSourceOptions} and {@link PulsarOptions}.
      *
      * <p>Make sure the option could be set only once or with same value.
@@ -395,8 +406,8 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
-     * Set arbitrary properties for the PulsarSource and PulsarConsumer. The valid keys can be found
-     * in {@link PulsarSourceOptions} and {@link PulsarOptions}.
+     * Set arbitrary properties for the PulsarSource and Pulsar Consumer. The valid keys can be
+     * found in {@link PulsarSourceOptions} and {@link PulsarOptions}.
      *
      * @param config the config to set for the PulsarSource.
      * @return this PulsarSourceBuilder.
@@ -437,7 +448,7 @@ public final class PulsarSourceBuilder<OUT> {
             if (rangeGenerator == null) {
                 LOG.warn(
                         "No range generator provided for key_shared subscription,"
-                                + " we would use the DivideRangeGenerator as the default range generator.");
+                                + " we would use the UniformRangeGenerator as the default range generator.");
                 this.rangeGenerator = new UniformRangeGenerator();
             }
         } else {
@@ -478,6 +489,16 @@ public final class PulsarSourceBuilder<OUT> {
                         "The configured transaction timeout is {} mille seconds, "
                                 + "make sure it was greater than your checkpoint interval.",
                         timeout);
+            }
+        }
+
+        if (!configuration.contains(PULSAR_CONSUMER_NAME)) {
+            LOG.warn(
+                    "We recommend set a readable consumer name through setConsumerName(String) in production mode.");
+        } else {
+            String consumerName = configuration.get(PULSAR_CONSUMER_NAME);
+            if (!consumerName.contains("%s")) {
+                configuration.set(PULSAR_CONSUMER_NAME, consumerName + " - %s");
             }
         }
 

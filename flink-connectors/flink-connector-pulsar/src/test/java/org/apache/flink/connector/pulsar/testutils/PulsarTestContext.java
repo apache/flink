@@ -29,10 +29,7 @@ import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
 
 /** Common test context for pulsar based test. */
 public abstract class PulsarTestContext<T> implements ExternalContext<T> {
-    private static final long serialVersionUID = 4717940854368532130L;
-
-    private static final int NUM_RECORDS_UPPER_BOUND = 500;
-    private static final int NUM_RECORDS_LOWER_BOUND = 100;
+    private static final long serialVersionUID = 8109719617929996743L;
 
     protected final PulsarRuntimeOperator operator;
 
@@ -44,14 +41,12 @@ public abstract class PulsarTestContext<T> implements ExternalContext<T> {
 
     protected List<String> generateStringTestData(int splitIndex, long seed) {
         Random random = new Random(seed);
-        int recordNum =
-                random.nextInt(NUM_RECORDS_UPPER_BOUND - NUM_RECORDS_LOWER_BOUND)
-                        + NUM_RECORDS_LOWER_BOUND;
+        int recordNum = 300 + random.nextInt(200);
         List<String> records = new ArrayList<>(recordNum);
 
         for (int i = 0; i < recordNum; i++) {
-            int stringLength = random.nextInt(50) + 1;
-            records.add(splitIndex + "-" + randomAlphanumeric(stringLength));
+            int length = random.nextInt(40) + 10;
+            records.add(splitIndex + "-" + i + "-" + randomAlphanumeric(length));
         }
 
         return records;

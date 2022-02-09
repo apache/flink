@@ -65,11 +65,11 @@ class PulsarSubscriberTest extends PulsarTestSuiteBase {
 
     @AfterAll
     void tearDown() {
-        operator().deleteTopic(topic1, true);
-        operator().deleteTopic(topic2, true);
-        operator().deleteTopic(topic3, true);
-        operator().deleteTopic(topic4, false);
-        operator().deleteTopic(topic5, false);
+        operator().deleteTopic(topic1);
+        operator().deleteTopic(topic2);
+        operator().deleteTopic(topic3);
+        operator().deleteTopic(topic4);
+        operator().deleteTopic(topic5);
     }
 
     @Test

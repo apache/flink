@@ -36,6 +36,11 @@ public class FlinkContainerWithPulsarEnvironment extends FlinkContainerTestEnvir
                 resourcePath("pulsar-client-all.jar"),
                 resourcePath("pulsar-client-api.jar"),
                 resourcePath("pulsar-admin-api.jar"),
+                resourcePath("bouncy-castle-bc.jar"),
+                resourcePath("bcpkix-jdk15on.jar"),
+                resourcePath("bcprov-jdk15on.jar"),
+                resourcePath("bcutil-jdk15on.jar"),
+                resourcePath("bcprov-ext-jdk15on.jar"),
                 resourcePath("jul-to-slf4j.jar"));
     }
 

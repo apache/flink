@@ -33,12 +33,15 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.flink.connector.pulsar.common.config.PulsarConfigUtils.getProperties;
 import static org.apache.flink.connector.pulsar.common.config.PulsarConfigUtils.setOptionValue;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_AUTH_PARAMS;
@@ -65,7 +68,6 @@ import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSA
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_REPLICATE_SUBSCRIPTION_STATE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_RETRY_ENABLE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_RETRY_LETTER_TOPIC;
-import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_INITIAL_POSITION;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_MODE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_NAME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_TYPE;
@@ -150,14 +152,13 @@ public final class PulsarSourceConfigUtils {
                 configuration,
                 PULSAR_MAX_TOTAL_RECEIVER_QUEUE_SIZE_ACROSS_PARTITIONS,
                 builder::maxTotalReceiverQueueSizeAcrossPartitions);
-        setOptionValue(configuration, PULSAR_CONSUMER_NAME, builder::consumerName);
-        setOptionValue(configuration, PULSAR_READ_COMPACTED, builder::readCompacted);
-        setOptionValue(configuration, PULSAR_PRIORITY_LEVEL, builder::priorityLevel);
-        setOptionValue(configuration, PULSAR_CONSUMER_PROPERTIES, builder::properties);
         setOptionValue(
                 configuration,
-                PULSAR_SUBSCRIPTION_INITIAL_POSITION,
-                builder::subscriptionInitialPosition);
+                PULSAR_CONSUMER_NAME,
+                consumerName -> String.format(consumerName, UUID.randomUUID()),
+                builder::consumerName);
+        setOptionValue(configuration, PULSAR_READ_COMPACTED, builder::readCompacted);
+        setOptionValue(configuration, PULSAR_PRIORITY_LEVEL, builder::priorityLevel);
         createDeadLetterPolicy(configuration).ifPresent(builder::deadLetterPolicy);
         setOptionValue(
                 configuration,
@@ -177,6 +178,11 @@ public final class PulsarSourceConfigUtils {
                 PULSAR_EXPIRE_TIME_OF_INCOMPLETE_CHUNKED_MESSAGE_MILLIS,
                 v -> builder.expireTimeOfIncompleteChunkedMessage(v, MILLISECONDS));
         setOptionValue(configuration, PULSAR_POOL_MESSAGES, builder::poolMessages);
+
+        Map<String, String> properties = getProperties(configuration, PULSAR_CONSUMER_PROPERTIES);
+        if (!properties.isEmpty()) {
+            builder.properties(properties);
+        }
 
         return builder;
     }
