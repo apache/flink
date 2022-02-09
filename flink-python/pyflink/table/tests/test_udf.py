@@ -741,6 +741,7 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1970-01-01T00:00:00.123Z]"])
 
+    @unittest.skip("Python UDFs are currently unsupported in JSON plan")
     def test_execute_from_json_plan(self):
         # create source file path
         tmp_dir = self.tempdir

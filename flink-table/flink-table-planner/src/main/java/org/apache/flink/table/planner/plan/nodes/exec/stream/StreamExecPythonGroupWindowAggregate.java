@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -45,10 +44,7 @@ import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonDeserializer;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonSerializer;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
@@ -76,9 +72,6 @@ import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.slf4j.Logger;
@@ -104,19 +97,10 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Stream {@link ExecNode} for group widow aggregate (Python user defined aggregate function). */
-@ExecNodeMetadata(
-        name = "stream-exec-python-group-window-aggregate",
-        version = 1,
-        producedTransformations =
-                StreamExecGroupWindowAggregate.GROUP_WINDOW_AGGREGATE_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v1_15,
-        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBase {
 
     private static final Logger LOGGER =
             LoggerFactory.getLogger(StreamExecPythonGroupWindowAggregate.class);
-
-    private static final String GROUP_WINDOW_AGGREGATE_TRANSFORMATION = "group-window-aggregate";
 
     private static final String ARROW_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream."
@@ -134,27 +118,16 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
     private static final String GENERAL_STREAM_PYTHON_CREATE_SESSION_GROUP_WINDOW_METHOD =
             "createSessionGroupWindowAggregateOperator";
 
-    public static final String FIELD_NAME_WINDOW = "window";
-    public static final String FIELD_NAME_NAMED_WINDOW_PROPERTIES = "namedWindowProperties";
-
-    @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
 
-    @JsonProperty(FIELD_NAME_AGG_CALLS)
     private final AggregateCall[] aggCalls;
 
-    @JsonProperty(FIELD_NAME_WINDOW)
-    @JsonSerialize(using = LogicalWindowJsonSerializer.class)
-    @JsonDeserialize(using = LogicalWindowJsonDeserializer.class)
     private final LogicalWindow window;
 
-    @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
     private final NamedWindowProperty[] namedWindowProperties;
 
-    @JsonProperty(FIELD_NAME_NEED_RETRACTION)
     private final boolean needRetraction;
 
-    @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE)
     private final boolean generateUpdateBefore;
 
     public StreamExecPythonGroupWindowAggregate(
@@ -183,18 +156,17 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
 
     @JsonCreator
     public StreamExecPythonGroupWindowAggregate(
-            @JsonProperty(FIELD_NAME_ID) int id,
-            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
-            @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
-            @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
-            @JsonProperty(FIELD_NAME_WINDOW) LogicalWindow window,
-            @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
-                    NamedWindowProperty[] namedWindowProperties,
-            @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
-            @JsonProperty(FIELD_NAME_NEED_RETRACTION) boolean needRetraction,
-            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
-            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+            int id,
+            ExecNodeContext context,
+            int[] grouping,
+            AggregateCall[] aggCalls,
+            LogicalWindow window,
+            NamedWindowProperty[] namedWindowProperties,
+            boolean generateUpdateBefore,
+            boolean needRetraction,
+            List<InputProperty> inputProperties,
+            RowType outputType,
+            String description) {
         super(id, context, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.grouping = checkNotNull(grouping);
@@ -410,7 +382,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                         shiftTimeZone);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                createTransformationMeta(GROUP_WINDOW_AGGREGATE_TRANSFORMATION, tableConfig),
+                createTransformationName(tableConfig),
+                createTransformationDescription(tableConfig),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());
@@ -450,7 +423,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                createTransformationMeta(GROUP_WINDOW_AGGREGATE_TRANSFORMATION, config),
+                createTransformationName(config),
+                createTransformationDescription(config),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());

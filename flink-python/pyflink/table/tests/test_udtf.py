@@ -73,6 +73,8 @@ class UserDefinedTableFunctionTests(object):
 
 class PyFlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,
                                             PyFlinkStreamTableTestCase):
+
+    @unittest.skip("Python UDFs are currently unsupported in JSON plan")
     def test_execute_from_json_plan(self):
         # create source file path
         tmp_dir = self.tempdir
