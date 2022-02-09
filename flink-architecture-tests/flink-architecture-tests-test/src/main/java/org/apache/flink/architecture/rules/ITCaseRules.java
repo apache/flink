@@ -51,6 +51,48 @@ public class ITCaseRules {
                             .should()
                             .haveSimpleNameEndingWith("ITCase"));
 
+    /**
+     * In order to pass this check, IT cases must fulfill at least one of the following conditions.
+     *
+     * <p>1. For JUnit 5 test, both fields are required like:
+     *
+     * <pre>{@code
+     * public static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+     *         new MiniClusterExtension(
+     *                 new MiniClusterResourceConfiguration.Builder()
+     *                         .setConfiguration(getFlinkConfiguration())
+     *                         .build());
+     *
+     * @RegisterExtension
+     * public static AllCallbackWrapper allCallbackWrapper =
+     *         new AllCallbackWrapper(MINI_CLUSTER_RESOURCE);
+     * }</pre>
+     *
+     * <p>2. For JUnit 4 test via @Rule like:
+     *
+     * <pre>{@code
+     * @Rule
+     *  public final MiniClusterWithClientResource miniClusterResource =
+     *          new MiniClusterWithClientResource(
+     *                  new MiniClusterResourceConfiguration.Builder()
+     *                          .setNumberTaskManagers(1)
+     *                          .setNumberSlotsPerTaskManager(PARALLELISM)
+     *                          .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
+     *                          .withHaLeadershipControl()
+     *                          .build());
+     * }</pre>
+     *
+     * <p>3. For JUnit 4 test via @ClassRule like:
+     *
+     * <pre>{@code
+     * @ClassRule
+     * public static final MiniClusterWithClientResource MINI_CLUSTER =
+     *         new MiniClusterWithClientResource(
+     *                 new MiniClusterResourceConfiguration.Builder()
+     *                         .setConfiguration(new Configuration())
+     *                         .build());
+     * }</pre>
+     */
     @ArchTest
     public static final ArchRule ITCASE_USE_MINICLUSTER =
             freeze(
@@ -76,6 +118,7 @@ public class ITCaseRules {
                                                     // JUnit 4 violation check, which should be
                                                     // removed
                                                     // after the JUnit 4->5 migration is closed.
+                                                    // Please refer to FLINK-25858.
                                                     .or(
                                                             containAnyFieldsInClassHierarchyThat(
                                                                     arePublicStaticFinalOfTypeWithAnnotation(
