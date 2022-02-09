@@ -32,7 +32,7 @@ import java.util.Set;
 
 /**
  * The {@link org.apache.flink.core.io.SimpleVersionedSerializer Serializer} for the enumerator
- * state of Elasticsearch source.
+ * state of the Elasticsearch source.
  */
 @PublicEvolving
 public class Elasticsearch7SourceEnumStateSerializer
