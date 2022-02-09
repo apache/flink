@@ -29,7 +29,7 @@ import java.io.IOException;
 import java.io.Serializable;
 
 /**
- * A schema bridge for deserializing Elasticsearch's {@link SearchHit} into a flink managed
+ * A schema bridge for deserializing Elasticsearch's {@link SearchHit} into a Flink-managed
  * instance.
  *
  * @param <T> The output message type for sinking to downstream flink operator.
