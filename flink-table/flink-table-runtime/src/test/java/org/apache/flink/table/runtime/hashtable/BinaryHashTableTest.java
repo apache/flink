@@ -1074,6 +1074,7 @@ public class BinaryHashTableTest {
         area.freeMemory();
         table.close();
         Assert.assertEquals(35, table.getInternalPool().freePages());
+        table.free();
     }
 
     // ============================================================================================
