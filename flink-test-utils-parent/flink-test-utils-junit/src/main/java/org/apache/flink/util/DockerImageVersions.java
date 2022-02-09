@@ -45,4 +45,6 @@ public class DockerImageVersions {
     public static final String PULSAR = "apachepulsar/pulsar:2.8.0";
 
     public static final String CASSANDRA_3 = "cassandra:3.0";
+
+    public static final String MINIO = "minio/minio:RELEASE.2022-02-07T08-17-33Z";
 }
