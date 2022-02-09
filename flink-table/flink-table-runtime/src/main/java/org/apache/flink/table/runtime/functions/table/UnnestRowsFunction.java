@@ -16,99 +16,110 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.functions;
+package org.apache.flink.table.runtime.functions.table;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.MapData;
-import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.runtime.functions.BuiltInSpecializedFunction;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.TypeInference;
-import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.utils.DataTypeUtils;
 
-import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
-import static org.apache.flink.table.types.logical.LogicalTypeRoot.STRUCTURED_TYPE;
-
-/** Utility for handling SQL's {@code UNNEST}. */
+/**
+ * Flattens ARRAY, MAP, and MULTISET using a table function. It does this by another level of
+ * specialization using a subclass of {@link UnnestTableFunctionBase}.
+ */
 @Internal
-public final class SqlUnnestUtils {
+public class UnnestRowsFunction extends BuiltInSpecializedFunction {
 
-    public static UnnestTableFunction createUnnestFunction(LogicalType t) {
-        switch (t.getTypeRoot()) {
+    public UnnestRowsFunction() {
+        super(BuiltInFunctionDefinitions.INTERNAL_UNNEST_ROWS);
+    }
+
+    @Override
+    public UserDefinedFunction specialize(SpecializedContext context) {
+        final LogicalType argType =
+                context.getCallContext().getArgumentDataTypes().get(0).getLogicalType();
+        switch (argType.getTypeRoot()) {
             case ARRAY:
-                final ArrayType arrayType = (ArrayType) t;
+                final ArrayType arrayType = (ArrayType) argType;
                 return new CollectionUnnestTableFunction(
-                        arrayType,
+                        context,
                         arrayType.getElementType(),
                         ArrayData.createElementGetter(arrayType.getElementType()));
             case MULTISET:
-                final MultisetType multisetType = (MultisetType) t;
+                final MultisetType multisetType = (MultisetType) argType;
                 return new CollectionUnnestTableFunction(
-                        multisetType,
+                        context,
                         multisetType.getElementType(),
                         ArrayData.createElementGetter(multisetType.getElementType()));
             case MAP:
-                final MapType mapType = (MapType) t;
+                final MapType mapType = (MapType) argType;
                 return new MapUnnestTableFunction(
-                        mapType,
+                        context,
                         RowType.of(false, mapType.getKeyType(), mapType.getValueType()),
                         ArrayData.createElementGetter(mapType.getKeyType()),
                         ArrayData.createElementGetter(mapType.getValueType()));
             default:
-                throw new UnsupportedOperationException("Unsupported type for UNNEST: " + t);
+                throw new UnsupportedOperationException("Unsupported type for UNNEST: " + argType);
         }
     }
 
-    /** Base table function for all unnest functions. */
-    public abstract static class UnnestTableFunction extends TableFunction<Object> {
-
-        private final transient LogicalType inputType;
-
-        private final transient LogicalType outputType;
-
-        UnnestTableFunction(LogicalType inputType, LogicalType outputType) {
-            this.inputType = inputType;
-            this.outputType = outputType;
+    public static LogicalType getUnnestedType(LogicalType logicalType) {
+        switch (logicalType.getTypeRoot()) {
+            case ARRAY:
+                return ((ArrayType) logicalType).getElementType();
+            case MULTISET:
+                return ((MultisetType) logicalType).getElementType();
+            case MAP:
+                final MapType mapType = (MapType) logicalType;
+                return RowType.of(false, mapType.getKeyType(), mapType.getValueType());
+            default:
+                throw new UnsupportedOperationException("Unsupported UNNEST type: " + logicalType);
         }
+    }
 
-        public LogicalType getWrappedOutputType() {
-            if (outputType.isAnyOf(ROW, STRUCTURED_TYPE)) {
-                return outputType;
-            }
-            return RowType.of(outputType);
+    // --------------------------------------------------------------------------------------------
+    // Runtime Implementation
+    // --------------------------------------------------------------------------------------------
+
+    private abstract static class UnnestTableFunctionBase extends BuiltInTableFunction<Object> {
+
+        private final transient DataType outputDataType;
+
+        UnnestTableFunctionBase(SpecializedContext context, LogicalType outputType) {
+            super(BuiltInFunctionDefinitions.INTERNAL_UNNEST_ROWS, context);
+            // The output type in the context is already wrapped, however, the result of the
+            // function is not. Therefore, we need a custom output type.
+            outputDataType = DataTypes.of(outputType).toInternal();
         }
 
         @Override
-        public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-            final DataType inputDataType = DataTypeUtils.toInternalDataType(inputType);
-            final DataType outputDataType = DataTypeUtils.toInternalDataType(outputType);
-            return TypeInference.newBuilder()
-                    .typedArguments(inputDataType)
-                    .outputTypeStrategy(TypeStrategies.explicit(outputDataType))
-                    .build();
+        public DataType getOutputDataType() {
+            return outputDataType;
         }
     }
 
     /** Table function that unwraps the elements of a collection (array or multiset). */
-    public static final class CollectionUnnestTableFunction extends UnnestTableFunction {
+    public static final class CollectionUnnestTableFunction extends UnnestTableFunctionBase {
 
         private static final long serialVersionUID = 1L;
 
         private final ArrayData.ElementGetter elementGetter;
 
         public CollectionUnnestTableFunction(
-                LogicalType inputType,
+                SpecializedContext context,
                 LogicalType outputType,
                 ArrayData.ElementGetter elementGetter) {
-            super(inputType, outputType);
+            super(context, outputType);
             this.elementGetter = elementGetter;
         }
 
@@ -140,7 +151,7 @@ public final class SqlUnnestUtils {
     }
 
     /** Table function that unwraps the elements of a map. */
-    public static final class MapUnnestTableFunction extends UnnestTableFunction {
+    public static final class MapUnnestTableFunction extends UnnestTableFunctionBase {
 
         private static final long serialVersionUID = 1L;
 
@@ -149,11 +160,11 @@ public final class SqlUnnestUtils {
         private final ArrayData.ElementGetter valueGetter;
 
         public MapUnnestTableFunction(
-                LogicalType inputType,
+                SpecializedContext context,
                 LogicalType outputType,
                 ArrayData.ElementGetter keyGetter,
                 ArrayData.ElementGetter valueGetter) {
-            super(inputType, outputType);
+            super(context, outputType);
             this.keyGetter = keyGetter;
             this.valueGetter = valueGetter;
         }
@@ -172,9 +183,5 @@ public final class SqlUnnestUtils {
                                 valueGetter.getElementOrNull(valueArray, i)));
             }
         }
-    }
-
-    private SqlUnnestUtils() {
-        // no instantiation
     }
 }
