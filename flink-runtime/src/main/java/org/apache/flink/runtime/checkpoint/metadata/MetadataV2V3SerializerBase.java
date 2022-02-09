@@ -370,6 +370,7 @@ public abstract class MetadataV2V3SerializerBase {
                 serializeStreamStateHandle(streamHandleAndOffset.f0, dos);
             }
             dos.writeLong(handle.getStateSize());
+            dos.writeLong(handle.getCheckpointedSize());
 
         } else {
             throw new IllegalStateException(
@@ -458,8 +459,9 @@ public abstract class MetadataV2V3SerializerBase {
                 streamHandleAndOffset.add(Tuple2.of(h, o));
             }
             long size = dis.readLong();
-            return new ChangelogStateHandleStreamImpl(streamHandleAndOffset, keyGroupRange, size);
-
+            long checkpointedSize = dis.readLong();
+            return new ChangelogStateHandleStreamImpl(
+                    streamHandleAndOffset, keyGroupRange, size, checkpointedSize);
         } else {
             throw new IllegalStateException("Reading invalid KeyedStateHandle, type: " + type);
         }
