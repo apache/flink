@@ -31,7 +31,8 @@ under the License.
 	<name>Flink : E2E Tests : Pulsar</name>
 
 	<properties>
-		<pulsar.version>2.8.0</pulsar.version>
+		<pulsar.version>2.9.1</pulsar.version>
+		<bouncycastle.version>1.69</bouncycastle.version>
 	</properties>
 
 	<dependencies>
@@ -105,6 +106,46 @@ under the License.
 							<type>jar</type>
 							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
 						</artifactItem>
+						<dependency>
+							<groupId>org.apache.pulsar</groupId>
+							<artifactId>bouncy-castle-bc</artifactId>
+							<version>${pulsar.version}</version>
+							<destFileName>bouncy-castle-bc.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</dependency>
+						<dependency>
+							<groupId>org.bouncycastle</groupId>
+							<artifactId>bcpkix-jdk15on</artifactId>
+							<version>${bouncycastle.version}</version>
+							<destFileName>bcpkix-jdk15on.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</dependency>
+						<dependency>
+							<groupId>org.bouncycastle</groupId>
+							<artifactId>bcprov-jdk15on</artifactId>
+							<version>${bouncycastle.version}</version>
+							<destFileName>bcprov-jdk15on.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</dependency>
+						<dependency>
+							<groupId>org.bouncycastle</groupId>
+							<artifactId>bcutil-jdk15on</artifactId>
+							<version>${bouncycastle.version}</version>
+							<destFileName>bcutil-jdk15on.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</dependency>
+						<dependency>
+							<groupId>org.bouncycastle</groupId>
+							<artifactId>bcprov-ext-jdk15on</artifactId>
+							<version>${bouncycastle.version}</version>
+							<destFileName>bcprov-ext-jdk15on.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</dependency>
 						<artifactItem>
 							<groupId>org.slf4j</groupId>
 							<artifactId>jul-to-slf4j</artifactId>

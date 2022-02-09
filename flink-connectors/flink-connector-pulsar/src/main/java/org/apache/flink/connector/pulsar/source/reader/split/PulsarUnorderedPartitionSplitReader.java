@@ -20,7 +20,6 @@ package org.apache.flink.connector.pulsar.source.reader.split;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.pulsar.common.utils.PulsarTransactionUtils;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
 import org.apache.flink.connector.pulsar.source.reader.source.PulsarUnorderedSourceReader;
@@ -155,7 +154,7 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
 
         // Avoiding NP problem when Pulsar don't get the message before Flink checkpoint.
         if (uncommittedTransaction != null) {
-            TxnID txnID = PulsarTransactionUtils.getId(uncommittedTransaction);
+            TxnID txnID = uncommittedTransaction.getTxnID();
             this.uncommittedTransaction = newTransaction();
             state.setUncommittedTransactionId(txnID);
         }
