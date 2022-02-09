@@ -1176,22 +1176,28 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     @Override
     public CompletableFuture<Acknowledge> freeSlot(
             AllocationID allocationId, Throwable cause, Time timeout) {
-        freeSlotInternal(allocationId, cause);
+        // only respond to freeing slots when not shutting down to avoid freeing slot allocation
+        // information
+        if (isRunning()) {
+            freeSlotInternal(allocationId, cause);
+        }
 
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     @Override
     public void freeInactiveSlots(JobID jobId, Time timeout) {
-        log.debug("Freeing inactive slots for job {}.", jobId);
+        if (isRunning()) {
+            log.debug("Freeing inactive slots for job {}.", jobId);
 
-        // need a copy to prevent ConcurrentModificationExceptions
-        final ImmutableList<TaskSlot<Task>> inactiveSlots =
-                ImmutableList.copyOf(taskSlotTable.getAllocatedSlots(jobId));
-        for (TaskSlot<Task> slot : inactiveSlots) {
-            freeSlotInternal(
-                    slot.getAllocationId(),
-                    new FlinkException("Slot was re-claimed by resource manager."));
+            // need a copy to prevent ConcurrentModificationExceptions
+            final ImmutableList<TaskSlot<Task>> inactiveSlots =
+                    ImmutableList.copyOf(taskSlotTable.getAllocatedSlots(jobId));
+            for (TaskSlot<Task> slot : inactiveSlots) {
+                freeSlotInternal(
+                        slot.getAllocationId(),
+                        new FlinkException("Slot was re-claimed by resource manager."));
+            }
         }
     }
 
