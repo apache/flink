@@ -57,13 +57,6 @@ class Elasticsearch7SearchHitReader implements Closeable {
 
     private Object[] searchAfterSortValues;
 
-    static Elasticsearch7SearchHitReader createReader(
-            Elasticsearch7SourceConfiguration config,
-            NetworkClientConfig networkClientConfig,
-            Elasticsearch7Split split) {
-        return new Elasticsearch7SearchHitReader(config, networkClientConfig, split);
-    }
-
     Elasticsearch7SearchHitReader(
             Elasticsearch7SourceConfiguration sourceConfiguration,
             NetworkClientConfig networkClientConfig,

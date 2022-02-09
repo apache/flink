@@ -137,7 +137,7 @@ public class Elasticsearch7SplitReader<T>
 
         currentSplitId = nextSplit.splitId();
         currentReader =
-                Elasticsearch7SearchHitReader.createReader(
+                new Elasticsearch7SearchHitReader(
                         sourceConfiguration, networkClientConfig, nextSplit);
     }
 
