@@ -37,21 +37,25 @@ public abstract class PlanReference {
 
     /** @see #fromFile(File) */
     public static PlanReference fromFile(String path) {
+        Objects.requireNonNull(path, "Path cannot be null");
         return fromFile(Paths.get(path).toFile());
     }
 
     /** @see #fromFile(File) */
     public static PlanReference fromFile(Path path) {
+        Objects.requireNonNull(path, "Path cannot be null");
         return fromFile(path.toFile());
     }
 
     /** Create a reference starting from a file path. */
     public static PlanReference fromFile(File file) {
+        Objects.requireNonNull(file, "File cannot be null");
         return new FilePlanReference(file);
     }
 
     /** Create a reference starting from a JSON string. */
     public static PlanReference fromJsonString(String jsonString) {
+        Objects.requireNonNull(jsonString, "Json string cannot be null");
         return new ContentPlanReference(jsonString);
     }
 
@@ -60,11 +64,14 @@ public abstract class PlanReference {
      * Thread.currentThread().getContextClassLoader()} as {@link ClassLoader}.
      */
     public static PlanReference fromResource(String resourcePath) {
+        Objects.requireNonNull(resourcePath, "Resource path cannot be null");
         return fromResource(Thread.currentThread().getContextClassLoader(), resourcePath);
     }
 
     /** Create a reference from a file in the classpath. */
     public static PlanReference fromResource(ClassLoader classLoader, String resourcePath) {
+        Objects.requireNonNull(classLoader, "ClassLoader cannot be null");
+        Objects.requireNonNull(resourcePath, "Resource path cannot be null");
         return new ResourcePlanReference(classLoader, resourcePath);
     }
 
@@ -109,7 +116,7 @@ public abstract class PlanReference {
 
         private final String content;
 
-        public ContentPlanReference(String content) {
+        private ContentPlanReference(String content) {
             this.content = content;
         }
 
@@ -136,7 +143,7 @@ public abstract class PlanReference {
 
         @Override
         public String toString() {
-            return "Plan '" + content + "'";
+            return "Plan:\n" + content;
         }
     }
 
@@ -146,7 +153,7 @@ public abstract class PlanReference {
         private final ClassLoader classLoader;
         private final String resourcePath;
 
-        public ResourcePlanReference(ClassLoader classLoader, String resourcePath) {
+        private ResourcePlanReference(ClassLoader classLoader, String resourcePath) {
             this.classLoader = classLoader;
             this.resourcePath =
                     resourcePath.startsWith("/") ? resourcePath.substring(1) : resourcePath;

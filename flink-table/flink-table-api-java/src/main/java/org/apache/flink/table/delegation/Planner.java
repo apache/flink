@@ -24,6 +24,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.PlanReference;
+import org.apache.flink.table.api.internal.CompiledPlanInternal;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
@@ -95,11 +96,11 @@ public interface Planner {
     CompiledPlan loadPlan(PlanReference planReference) throws IOException;
 
     @Experimental
-    CompiledPlan compilePlan(List<ModifyOperation> modifyOperations);
+    CompiledPlanInternal compilePlan(List<ModifyOperation> modifyOperations);
 
     @Experimental
-    List<Transformation<?>> translatePlan(CompiledPlan plan);
+    List<Transformation<?>> translatePlan(CompiledPlanInternal plan);
 
     @Experimental
-    String explainPlan(CompiledPlan plan, ExplainDetail... extraDetails);
+    String explainPlan(CompiledPlanInternal plan, ExplainDetail... extraDetails);
 }

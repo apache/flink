@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.internal.CompiledPlanInternal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil;
@@ -37,7 +38,7 @@ import java.util.stream.Collectors;
 
 /** Implementation of {@link CompiledPlan} backed by an {@link ExecNodeGraph}. */
 @Internal
-public class ExecNodeGraphCompiledPlan implements CompiledPlan {
+public class ExecNodeGraphCompiledPlan implements CompiledPlanInternal {
 
     private final SerdeContext serdeContext;
     private final ExecNodeGraph execNodeGraph;

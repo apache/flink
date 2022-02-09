@@ -23,7 +23,6 @@ import org.apache.flink.annotation.Experimental;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
 
 /**
  * This interface represents a compiled plan that can be executed using {@link
@@ -67,7 +66,4 @@ public interface CompiledPlan {
 
     /** Get the flink version used to compile the plan. */
     String getFlinkVersion();
-
-    /** This returns an ordered list of sink identifiers, if any. */
-    List<String> getSinkIdentifiers();
 }

@@ -22,6 +22,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.PlanReference;
+import org.apache.flink.table.api.internal.CompiledPlanInternal;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -54,17 +55,17 @@ public class PlannerMock implements Planner {
     }
 
     @Override
-    public CompiledPlan compilePlan(List<ModifyOperation> modifyOperations) {
+    public CompiledPlanInternal compilePlan(List<ModifyOperation> modifyOperations) {
         return null;
     }
 
     @Override
-    public List<Transformation<?>> translatePlan(CompiledPlan plan) {
+    public List<Transformation<?>> translatePlan(CompiledPlanInternal plan) {
         return null;
     }
 
     @Override
-    public String explainPlan(CompiledPlan plan, ExplainDetail... extraDetails) {
+    public String explainPlan(CompiledPlanInternal plan, ExplainDetail... extraDetails) {
         return null;
     }
 }

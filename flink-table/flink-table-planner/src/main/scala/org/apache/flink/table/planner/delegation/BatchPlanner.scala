@@ -22,7 +22,8 @@ import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.api.{CompiledPlan, ExplainDetail, TableConfig, TableException}
+import org.apache.flink.table.api.internal.CompiledPlanInternal
+import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.module.ModuleManager
@@ -133,15 +134,15 @@ class BatchPlanner(
     new BatchPlanner(executor, config, moduleManager, functionCatalog, catalogManager)
   }
 
-  override def compilePlan(modifyOperations: util.List[ModifyOperation]): CompiledPlan =
+  override def compilePlan(modifyOperations: util.List[ModifyOperation]): CompiledPlanInternal =
     throw new UnsupportedOperationException(
       "The batch planner doesn't support the persisted plan feature.")
 
-  override def translatePlan(plan: CompiledPlan): util.List[Transformation[_]] =
+  override def translatePlan(plan: CompiledPlanInternal): util.List[Transformation[_]] =
     throw new UnsupportedOperationException(
       "The batch planner doesn't support the persisted plan feature.")
 
-  override def explainPlan(plan: CompiledPlan, extraDetails: ExplainDetail*): String =
+  override def explainPlan(plan: CompiledPlanInternal, extraDetails: ExplainDetail*): String =
     throw new UnsupportedOperationException(
       "The batch planner doesn't support the persisted plan feature.")
 

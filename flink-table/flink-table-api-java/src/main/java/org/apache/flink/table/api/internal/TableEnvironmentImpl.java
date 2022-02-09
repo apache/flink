@@ -775,9 +775,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public TableResult executePlan(CompiledPlan plan) {
-        List<Transformation<?>> transformations = planner.translatePlan(plan);
+        CompiledPlanInternal planInternal = (CompiledPlanInternal) plan;
+        List<Transformation<?>> transformations = planner.translatePlan(planInternal);
         List<String> sinkIdentifierNames =
-                deduplicateSinkIdentifierNames(plan.getSinkIdentifiers());
+                deduplicateSinkIdentifierNames(planInternal.getSinkIdentifiers());
         return executeInternal(transformations, sinkIdentifierNames);
     }
 
@@ -1904,6 +1905,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public String explainPlan(CompiledPlan compiledPlan, ExplainDetail... extraDetails) {
-        return planner.explainPlan(compiledPlan, extraDetails);
+        return planner.explainPlan((CompiledPlanInternal) compiledPlan, extraDetails);
     }
 }

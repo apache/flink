@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
+import org.apache.flink.table.api.internal.CompiledPlanInternal
 import org.apache.flink.table.catalog.ManagedTableListener.isManagedTable
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.sink.DynamicTableSink
@@ -471,7 +472,7 @@ abstract class PlannerBase(
     }
   }
 
-  override def loadPlan(planReference: PlanReference): CompiledPlan = {
+  override def loadPlan(planReference: PlanReference): CompiledPlanInternal = {
     val ctx = createSerdeContext
     val objectReader: ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
     val execNodeGraph = planReference match {
