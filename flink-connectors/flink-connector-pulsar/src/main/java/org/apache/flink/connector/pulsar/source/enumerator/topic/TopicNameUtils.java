@@ -20,7 +20,16 @@ package org.apache.flink.connector.pulsar.source.enumerator.topic;
 
 import org.apache.flink.annotation.Internal;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+
 import org.apache.pulsar.common.naming.TopicName;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -41,5 +50,41 @@ public final class TopicNameUtils {
     public static String topicNameWithPartition(String topic, int partitionId) {
         checkArgument(partitionId >= 0, "Illegal partition id %s", partitionId);
         return TopicName.get(topic).getPartition(partitionId).toString();
+    }
+
+    public static boolean isPartitioned(String topic) {
+        return TopicName.get(topic).isPartitioned();
+    }
+
+    /** Merge the same topics into one topics. */
+    public static List<String> distinctTopics(List<String> topics) {
+        Set<String> fullTopics = new HashSet<>();
+        Map<String, List<Integer>> partitionedTopics = new HashMap<>();
+
+        for (String topic : topics) {
+            TopicName topicName = TopicName.get(topic);
+            String partitionedTopicName = topicName.getPartitionedTopicName();
+
+            if (!topicName.isPartitioned()) {
+                fullTopics.add(partitionedTopicName);
+                partitionedTopics.remove(partitionedTopicName);
+            } else if (!fullTopics.contains(partitionedTopicName)) {
+                List<Integer> partitionIds =
+                        partitionedTopics.computeIfAbsent(
+                                partitionedTopicName, k -> new ArrayList<>());
+                partitionIds.add(topicName.getPartitionIndex());
+            }
+        }
+
+        ImmutableList.Builder<String> builder = ImmutableList.<String>builder().addAll(fullTopics);
+
+        for (Map.Entry<String, List<Integer>> topicSet : partitionedTopics.entrySet()) {
+            String topicName = topicSet.getKey();
+            for (Integer partitionId : topicSet.getValue()) {
+                builder.add(topicNameWithPartition(topicName, partitionId));
+            }
+        }
+
+        return builder.build();
     }
 }
