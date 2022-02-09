@@ -40,6 +40,8 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * The Source implementation for Elasticsearch. Please use a {@link Elasticsearch7SourceBuilder} to
  * construct a {@link Elasticsearch7Source}. The following example shows how to create a
@@ -83,9 +85,9 @@ public class Elasticsearch7Source<OUT>
             Elasticsearch7SearchHitDeserializationSchema<OUT> deserializationSchema,
             Elasticsearch7SourceConfiguration sourceConfiguration,
             NetworkClientConfig networkClientConfig) {
-        this.deserializationSchema = deserializationSchema;
-        this.sourceConfiguration = sourceConfiguration;
-        this.networkClientConfig = networkClientConfig;
+        this.deserializationSchema = checkNotNull(deserializationSchema);
+        this.sourceConfiguration = checkNotNull(sourceConfiguration);
+        this.networkClientConfig = checkNotNull(networkClientConfig);
     }
 
     /**
