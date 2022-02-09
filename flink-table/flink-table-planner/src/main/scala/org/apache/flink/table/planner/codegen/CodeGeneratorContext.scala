@@ -419,22 +419,31 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
       case _ => className[ObjectHashSet[_]]
     }
 
-    addReusableMember(
-      s"final $setTypeTerm $fieldTerm = new $setTypeTerm(${elements.size});")
+    val addElementsCode = elements.map { element =>
+      s"""
+         |${element.code}
+         |if (${element.nullTerm}) {
+         |  $fieldTerm.addNull();
+         |} else {
+         |  $fieldTerm.add(${element.resultTerm});
+         |}
+         |""".stripMargin
+    }.mkString("\n")
+    val setBuildingFunctionName = newName("buildSet")
+    val setBuildingFunctionCode =
+      s"""
+         |private void $setBuildingFunctionName() {
+         |  $addElementsCode
+         |  $fieldTerm.optimize();
+         |}
+         |""".stripMargin
 
-    elements.foreach { element =>
-      val content =
-        s"""
-           |${element.code}
-           |if (${element.nullTerm}) {
-           |  $fieldTerm.addNull();
-           |} else {
-           |  $fieldTerm.add(${element.resultTerm});
-           |}
-           |""".stripMargin
-      reusableInitStatements.add(content)
-    }
-    reusableInitStatements.add(s"$fieldTerm.optimize();")
+    addReusableMember(
+      s"""
+         |final $setTypeTerm $fieldTerm = new $setTypeTerm(${elements.size});
+         |$setBuildingFunctionCode
+         |""".stripMargin)
+    reusableInitStatements.add(s"$setBuildingFunctionName();")
 
     fieldTerm
   }
