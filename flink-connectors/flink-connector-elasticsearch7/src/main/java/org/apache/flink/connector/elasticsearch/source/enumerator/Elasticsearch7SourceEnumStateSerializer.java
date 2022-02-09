@@ -68,7 +68,7 @@ public class Elasticsearch7SourceEnumStateSerializer
                 DataInputStream in = new DataInputStream(bais)) {
 
             final int numSplits = in.readInt();
-            Set<Elasticsearch7Split> splits = new HashSet<>(numSplits);
+            final Set<Elasticsearch7Split> splits = new HashSet<>(numSplits);
             for (int i = 0; i < numSplits; i++) {
                 final String pitId = in.readUTF();
                 final int sliceId = in.readInt();
