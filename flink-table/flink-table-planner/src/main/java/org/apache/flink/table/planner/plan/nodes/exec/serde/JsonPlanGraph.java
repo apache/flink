@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -53,7 +54,7 @@ class JsonPlanGraph {
     public static final String FIELD_NAME_EDGES = "edges";
 
     @JsonProperty(FIELD_NAME_FLINK_VERSION)
-    private final String flinkVersion;
+    private final FlinkVersion flinkVersion;
 
     @JsonProperty(FIELD_NAME_NODES)
     private final List<ExecNode<?>> nodes;
@@ -63,7 +64,7 @@ class JsonPlanGraph {
 
     @JsonCreator
     public JsonPlanGraph(
-            @JsonProperty(FIELD_NAME_FLINK_VERSION) String flinkVersion,
+            @JsonProperty(FIELD_NAME_FLINK_VERSION) FlinkVersion flinkVersion,
             @JsonProperty(FIELD_NAME_NODES) List<ExecNode<?>> nodes,
             @JsonProperty(FIELD_NAME_EDGES) List<JsonPlanEdge> edges) {
         this.flinkVersion = flinkVersion;

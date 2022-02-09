@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
@@ -90,7 +91,7 @@ public class ExecNodeGraphCompiledPlan implements CompiledPlanInternal {
     }
 
     @Override
-    public String getFlinkVersion() {
+    public FlinkVersion getFlinkVersion() {
         return this.execNodeGraph.getFlinkVersion();
     }
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.table.api.config.TableConfigOptions;
 
@@ -109,7 +110,7 @@ public interface CompiledPlan {
     // --- Accessors
 
     /** Returns the Flink version used to compile the plan. */
-    String getFlinkVersion();
+    FlinkVersion getFlinkVersion();
 
     /**
      * Returns the AST of the specified statement and the execution plan to compute the result of

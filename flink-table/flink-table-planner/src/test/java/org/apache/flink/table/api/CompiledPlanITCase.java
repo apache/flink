@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
+import org.apache.flink.table.planner.utils.JsonTestUtils;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
 import org.apache.commons.io.FileUtils;
@@ -289,11 +291,16 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testExplainPlan() {
+    public void testExplainPlan() throws IOException {
+        String planFromResources =
+                JsonTestUtils.setFlinkVersion(
+                                JsonTestUtils.readFromResource("/jsonplan/testGetJsonPlan.out"),
+                                FlinkVersion.current())
+                        .toString();
+
         String actual =
                 tableEnv.explainPlan(
-                        tableEnv.loadPlan(
-                                PlanReference.fromResource("/jsonplan/testGetJsonPlan.out")),
+                        tableEnv.loadPlan(PlanReference.fromJsonString(planFromResources)),
                         ExplainDetail.JSON_EXECUTION_PLAN);
         String expected = TableTestUtil.readFromResource("/explain/testExplainJsonPlan.out");
         assertThat(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
