@@ -1258,22 +1258,44 @@ public interface TableEnvironment {
     // --- Plan compilation and restore
 
     /**
-     * Load a plan starting from a {@link PlanReference} into a {@link CompiledPlan}. This will
-     * parse the input reference and will validate the plan.
+     * Loads a plan from a {@link PlanReference} into a {@link CompiledPlan}.
+     *
+     * <p>Compiled plans can be persisted and reloaded across Flink versions. They describe static
+     * pipelines to ensure backwards compatibility and enable stateful streaming job upgrades. See
+     * {@link CompiledPlan} and the website documentation for more information.
+     *
+     * <p>This method will parse the input reference and will validate the plan. The returned
+     * instance can be executed via {@link #executePlan(CompiledPlan)}.
      */
     @Experimental
     CompiledPlan loadPlan(PlanReference planReference) throws IOException, TableException;
 
     /**
-     * Compile a SQL DML statement in a {@link CompiledPlan}. Only {@code INSERT INTO} is supported
-     * at the moment.
+     * Compiles a SQL DML statement into a {@link CompiledPlan}.
+     *
+     * <p>Compiled plans can be persisted and reloaded across Flink versions. They describe static
+     * pipelines to ensure backwards compatibility and enable stateful streaming job upgrades. See
+     * {@link CompiledPlan} and the website documentation for more information.
+     *
+     * <p>Note: Only {@code INSERT INTO} is supported at the moment.
+     *
+     * @see #executePlan(CompiledPlan)
+     * @see #loadPlan(PlanReference)
      */
     @Experimental
     CompiledPlan compilePlanSql(String stmt);
 
     /**
-     * Execute the provided {@link CompiledPlan}. This will eventually resume the execution if a
-     * previous savepoint is already existing for this job.
+     * Executes the provided {@link CompiledPlan}.
+     *
+     * <p>Compiled plans can be persisted and reloaded across Flink versions. They describe static
+     * pipelines to ensure backwards compatibility and enable stateful streaming job upgrades. See
+     * {@link CompiledPlan} and the website documentation for more information.
+     *
+     * <p>If a job is resumed from a savepoint, it will eventually resume the execution.
+     *
+     * @see #compilePlanSql(String)
+     * @see #loadPlan(PlanReference)
      */
     @Experimental
     TableResult executePlan(CompiledPlan plan);
@@ -1287,6 +1309,13 @@ public interface TableEnvironment {
     /**
      * Returns the AST of the specified statement and the execution plan to compute the result of
      * the given statement.
+     *
+     * <p>Compiled plans can be persisted and reloaded across Flink versions. They describe static
+     * pipelines to ensure backwards compatibility and enable stateful streaming job upgrades. See
+     * {@link CompiledPlan} and the website documentation for more information.
+     *
+     * @see #loadPlan(PlanReference)
+     * @see #compilePlanSql(String)
      */
     @Experimental
     String explainPlan(CompiledPlan compiledPlan, ExplainDetail... extraDetails);

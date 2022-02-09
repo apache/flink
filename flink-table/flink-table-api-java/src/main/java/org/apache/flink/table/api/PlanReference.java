@@ -26,9 +26,16 @@ import java.nio.file.Paths;
 import java.util.Objects;
 
 /**
- * Pointer to a persisted plan. You can load the content of this reference into a {@link
- * CompiledPlan} using {@link TableEnvironment#loadPlan(PlanReference)} or you can directly execute
- * it with {@link TableEnvironment#executePlan(PlanReference)}.
+ * Unresolved pointer to a persisted plan.
+ *
+ * <p>A plan represents a static, executable entity that has been compiled from a Table & SQL API
+ * pipeline definition.
+ *
+ * <p>You can load the content of this reference into a {@link CompiledPlan} using {@link
+ * TableEnvironment#loadPlan(PlanReference)}, or you can directly load and execute it with {@link
+ * TableEnvironment#executePlan(PlanReference)}.
+ *
+ * @see CompiledPlan
  */
 @Experimental
 public abstract class PlanReference {

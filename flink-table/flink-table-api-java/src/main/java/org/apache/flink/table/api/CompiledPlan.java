@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.table.api.config.TableConfigOptions;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,12 +27,33 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * This interface represents a compiled plan that can be executed using {@link
- * TableEnvironment#executePlan(CompiledPlan)}. A plan can be compiled starting from a SQL query
- * using {@link TableEnvironment#compilePlanSql(String)} and can be loaded back from a file or a
- * string using {@link TableEnvironment#loadPlan(PlanReference)}. A plan can be persisted using
- * {@link #writeToFile(Path, boolean)} or by manually extracting the JSON representation with {@link
- * #asJsonString()}.
+ * Represents a static, executable entity that has been compiled from a Table & SQL API pipeline
+ * definition. It encodes operators, expressions, functions, data types, and table connectors.
+ *
+ * <p>Every new Flink version might introduce improved optimizer rules, more efficient operators,
+ * and other changes that impact the behavior of previously defined pipelines. In order to ensure
+ * backwards compatibility and enable stateful streaming job upgrades, compiled plans can be
+ * persisted and reloaded across Flink versions. See the website documentation for more information
+ * about provided guarantees during stateful pipeline upgrades.
+ *
+ * <p>A plan can be compiled from a SQL query using {@link TableEnvironment#compilePlanSql(String)}.
+ * It can be persisted using {@link #writeToFile(Path, boolean)} or by manually extracting the JSON
+ * representation with {@link #asJsonString()}. A plan can be loaded back from a file or a string
+ * using {@link TableEnvironment#loadPlan(PlanReference)}. Instances can be executed using {@link
+ * TableEnvironment#executePlan(CompiledPlan)}.
+ *
+ * <p>Depending on the configuration, permanent catalog metadata (such as information about tables
+ * and functions) will be persisted in the plan as well. Anonymous/inline objects will be persisted
+ * if possible or fail the compilation otherwise. Temporary objects are never part of a plan and
+ * need to be present during a restore.
+ *
+ * <p>Note: Plan restores assume a stable session context. Configuration, loaded modules and
+ * catalogs, and temporary objects must not change. Schema evolution and changes of function
+ * signatures are not supported.
+ *
+ * @see TableConfigOptions#PLAN_COMPILE_CATALOG_OBJECTS
+ * @see TableConfigOptions#PLAN_RESTORE_CATALOG_OBJECTS
+ * @see PlanReference
  */
 @Experimental
 public interface CompiledPlan {
@@ -63,19 +85,19 @@ public interface CompiledPlan {
     }
 
     /**
-     * Write this plan to a file using the JSON representation. This will not overwrite the file if
+     * Writes this plan to a file using the JSON representation. This will not overwrite the file if
      * it's already existing.
      */
     default void writeToFile(File file) throws IOException {
         writeToFile(file, true);
     }
 
-    /** Write this plan to a file using the JSON representation. */
+    /** Writes this plan to a file using the JSON representation. */
     void writeToFile(File file, boolean ignoreIfExists)
             throws IOException, UnsupportedOperationException;
 
     // --- Accessors
 
-    /** Get the flink version used to compile the plan. */
+    /** Returns the Flink version used to compile the plan. */
     String getFlinkVersion();
 }
