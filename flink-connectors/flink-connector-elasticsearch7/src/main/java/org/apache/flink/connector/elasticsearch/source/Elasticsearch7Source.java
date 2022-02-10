@@ -48,12 +48,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * ElasticsearchSource emitting records of {@code String} type.
  *
  * <pre>{@code
- * Elasticsearch7Source<String> source = new Elasticsearch7Source.builder()
- *     .setHosts(new HttpHost("localhost:9200")
+ * Elasticsearch7Source<String> source = Elasticsearch7Source.<String>builder()
+ *     .setHosts(new HttpHost("localhost:9200"))
  *     .setIndexName("my-index")
  *     .setDeserializationSchema(new Elasticsearch7SearchHitDeserializationSchema<String>() {
  *          @Override
- *          public void deserialize(SearchHit record, Collector<String> out) throws IOException {
+ *          public void deserialize(SearchHit record, Collector<String> out) {
  *              out.collect(record.getSourceAsString());
  *          }
  *

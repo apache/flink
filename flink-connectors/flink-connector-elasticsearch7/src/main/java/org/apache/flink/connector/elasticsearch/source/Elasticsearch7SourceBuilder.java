@@ -19,14 +19,14 @@
 package org.apache.flink.connector.elasticsearch.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.connector.elasticsearch.common.NetworkClientConfig;
 import org.apache.flink.connector.elasticsearch.source.reader.Elasticsearch7SearchHitDeserializationSchema;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.http.HttpHost;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -43,12 +43,12 @@ import static org.apache.flink.util.Preconditions.checkState;
  * String values from an Elasticsearch index.
  *
  * <pre>{@code
- * Elasticsearch7Source<String> source = new Elasticsearch7Source.builder()
- *     .setHosts(new HttpHost("localhost:9200")
+ * Elasticsearch7Source<String> source = Elasticsearch7Source.<String>builder()
+ *     .setHosts(new HttpHost("localhost:9200"))
  *     .setIndexName("my-index")
  *     .setDeserializationSchema(new Elasticsearch7SearchHitDeserializationSchema<String>() {
  *          @Override
- *          public void deserialize(SearchHit record, Collector<String> out) throws IOException {
+ *          public void deserialize(SearchHit record, Collector<String> out) {
  *              out.collect(record.getSourceAsString());
  *          }
  *
@@ -68,7 +68,6 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @PublicEvolving
 public class Elasticsearch7SourceBuilder<OUT> {
-    private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch7SourceBuilder.class);
 
     private Duration pitKeepAlive = Duration.ofMinutes(5);
     private int numberOfSearchSlices = 2;
@@ -253,6 +252,9 @@ public class Elasticsearch7SourceBuilder<OUT> {
     /** Builds the {@link Elasticsearch7Source} using this preconfigured builder. */
     public Elasticsearch7Source<OUT> build() {
         checkRequiredParameters();
+
+        ClosureCleaner.clean(
+                deserializationSchema, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
         NetworkClientConfig networkClientConfig =
                 new NetworkClientConfig(

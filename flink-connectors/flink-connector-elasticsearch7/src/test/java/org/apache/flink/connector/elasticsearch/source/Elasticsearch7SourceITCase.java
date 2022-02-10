@@ -21,14 +21,17 @@ package org.apache.flink.connector.elasticsearch.source;
 import org.apache.flink.api.common.accumulators.ListAccumulator;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.elasticsearch.common.NetworkClientConfig;
+import org.apache.flink.connector.elasticsearch.source.reader.Elasticsearch7SearchHitDeserializationSchema;
 import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.DockerImageVersions;
 
 import org.apache.http.HttpHost;
@@ -37,6 +40,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.search.SearchHit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -87,9 +91,7 @@ public class Elasticsearch7SourceITCase {
     }
 
     @Test
-    public void testReading() throws Exception {
-        writeTestData(NUM_RECORDS, INDEX);
-
+    public void testReadingWithSource() throws Exception {
         NetworkClientConfig networkClientConfig =
                 new NetworkClientConfig(null, null, null, null, null, null);
 
@@ -106,6 +108,36 @@ public class Elasticsearch7SourceITCase {
                         new Elasticsearch7StringDeserializationSchema(),
                         sourceConfiguration,
                         networkClientConfig);
+
+        testReadingFromSource(source);
+    }
+
+    @Test
+    public void testReadingWithBuilder() throws Exception {
+        Elasticsearch7Source<String> source =
+                Elasticsearch7Source.<String>builder()
+                        .setHosts(HttpHost.create(ES_CONTAINER.getHttpHostAddress()))
+                        .setIndexName(INDEX)
+                        .setDeserializationSchema(
+                                new Elasticsearch7SearchHitDeserializationSchema<String>() {
+                                    @Override
+                                    public void deserialize(
+                                            SearchHit record, Collector<String> out) {
+                                        out.collect(record.getSourceAsString());
+                                    }
+
+                                    @Override
+                                    public TypeInformation<String> getProducedType() {
+                                        return TypeInformation.of(String.class);
+                                    }
+                                })
+                        .build();
+
+        testReadingFromSource(source);
+    }
+
+    private void testReadingFromSource(Elasticsearch7Source<String> source) throws Exception {
+        writeTestData(NUM_RECORDS, INDEX);
 
         final Configuration configuration = new Configuration();
         configuration.set(
