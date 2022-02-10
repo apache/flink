@@ -79,25 +79,37 @@ public interface CompiledPlan {
     }
 
     /** @see #writeToFile(File, boolean) */
-    default void writeToFile(Path path, boolean ignoreIfExists)
-            throws IOException, UnsupportedOperationException {
+    default void writeToFile(Path path, boolean ignoreIfExists) throws IOException {
         writeToFile(path.toFile(), ignoreIfExists);
     }
 
     /**
-     * Writes this plan to a file using the JSON representation. This will not overwrite the file if
-     * it's already existing.
+     * Writes this plan to a file using the JSON representation. This operation will be noop if the
+     * file already exists, even if the content is different from this plan.
+     *
+     * @throws IOException if the file cannot be written.
      */
     default void writeToFile(File file) throws IOException {
         writeToFile(file, true);
     }
 
-    /** Writes this plan to a file using the JSON representation. */
-    void writeToFile(File file, boolean ignoreIfExists)
-            throws IOException, UnsupportedOperationException;
+    /**
+     * Writes this plan to a file using the JSON representation.
+     *
+     * @throws IOException if the file cannot be written.
+     */
+    void writeToFile(File file, boolean ignoreIfExists) throws IOException;
 
     // --- Accessors
 
     /** Returns the Flink version used to compile the plan. */
     String getFlinkVersion();
+
+    /**
+     * Returns the AST of the specified statement and the execution plan to compute the result of
+     * the given statement.
+     *
+     * <p>Shorthand for {@link TableEnvironment#explainPlan(CompiledPlan, ExplainDetail...)}.
+     */
+    String explain(ExplainDetail... explainDetails);
 }

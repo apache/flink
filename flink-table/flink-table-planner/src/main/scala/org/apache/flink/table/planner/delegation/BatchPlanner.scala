@@ -23,7 +23,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.internal.CompiledPlanInternal
-import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException}
+import org.apache.flink.table.api.{ExplainDetail, PlanReference, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.module.ModuleManager
@@ -132,6 +132,11 @@ class BatchPlanner(
     val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
     val executor = new DefaultExecutor(dummyExecEnv)
     new BatchPlanner(executor, config, moduleManager, functionCatalog, catalogManager)
+  }
+
+  override def loadPlan(planReference: PlanReference): CompiledPlanInternal = {
+    throw new UnsupportedOperationException(
+      "The batch planner doesn't support the persisted plan feature.")
   }
 
   override def compilePlan(modifyOperations: util.List[ModifyOperation]): CompiledPlanInternal =
