@@ -19,16 +19,13 @@
 package org.apache.flink.table.planner.connectors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.util.Preconditions;
 
 /**
  * Provider that produces a {@link Transformation} as a runtime implementation for {@link
@@ -40,32 +37,6 @@ import org.apache.flink.util.Preconditions;
  */
 @Internal
 public interface TransformationScanProvider extends ScanTableSource.ScanRuntimeProvider {
-
-    /** Helper method for creating a static provider. The boundedness is derived automatically. */
-    static TransformationScanProvider of(
-            Transformation<RowData> transformation, String transformationName) {
-        Preconditions.checkNotNull(transformation, "Transformation must not be null.");
-        return new TransformationScanProvider() {
-            @Override
-            public Transformation<RowData> createTransformation(ProviderContext providerContext) {
-                providerContext.generateUid(transformationName).ifPresent(transformation::setUid);
-                return transformation;
-            }
-
-            @Override
-            public boolean isBounded() {
-                return !isUnboundedSource(transformation)
-                        && transformation.getTransitivePredecessors().stream()
-                                .noneMatch(this::isUnboundedSource);
-            }
-
-            private boolean isUnboundedSource(Transformation<?> transformation) {
-                return transformation instanceof WithBoundedness
-                        && ((WithBoundedness) transformation).getBoundedness()
-                                != Boundedness.BOUNDED;
-            }
-        };
-    }
 
     /**
      * Creates a {@link Transformation} instance.

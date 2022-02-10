@@ -472,8 +472,22 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                     (TransformationSinkProvider) runtimeProvider;
             Transformation<?> transformation =
                     provider.createTransformation(
-                            TransformationSinkProvider.Context.of(
-                                    inputTransform, rowtimeFieldIndex, createProviderContext()));
+                            new TransformationSinkProvider.Context() {
+                                @Override
+                                public Transformation<RowData> getInputTransformation() {
+                                    return inputTransform;
+                                }
+
+                                @Override
+                                public int getRowtimeIndex() {
+                                    return rowtimeFieldIndex;
+                                }
+
+                                @Override
+                                public Optional<String> generateUid(String name) {
+                                    return createProviderContext().generateUid(name);
+                                }
+                            });
             return transformation;
         } else if (runtimeProvider instanceof SinkFunctionProvider) {
             final SinkFunction<RowData> sinkFunction =

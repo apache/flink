@@ -23,8 +23,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
@@ -34,7 +32,6 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.ResultProvider;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -98,40 +95,40 @@ public final class CollectDynamicSink implements DynamicTableSink {
 
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-        return new DataStreamSinkProvider() {
-            @Override
-            public DataStreamSink<?> consumeDataStream(
-                    ProviderContext providerContext, DataStream<RowData> inputStream) {
-                final CheckpointConfig checkpointConfig =
-                        inputStream.getExecutionEnvironment().getCheckpointConfig();
-                final ExecutionConfig config = inputStream.getExecutionConfig();
+        return (DataStreamSinkProvider)
+                (providerContext, inputStream) -> {
+                    final CheckpointConfig checkpointConfig =
+                            inputStream.getExecutionEnvironment().getCheckpointConfig();
+                    final ExecutionConfig config = inputStream.getExecutionConfig();
 
-                final TypeSerializer<RowData> externalSerializer =
-                        InternalTypeInfo.<RowData>of(consumedDataType.getLogicalType())
-                                .createSerializer(config);
-                final String accumulatorName = tableIdentifier.getObjectName();
+                    final TypeSerializer<RowData> externalSerializer =
+                            InternalTypeInfo.<RowData>of(consumedDataType.getLogicalType())
+                                    .createSerializer(config);
+                    final String accumulatorName = tableIdentifier.getObjectName();
 
-                final CollectSinkOperatorFactory<RowData> factory =
-                        new CollectSinkOperatorFactory<>(
-                                externalSerializer, accumulatorName, maxBatchSize, socketTimeout);
-                final CollectSinkOperator<RowData> operator =
-                        (CollectSinkOperator<RowData>) factory.getOperator();
+                    final CollectSinkOperatorFactory<RowData> factory =
+                            new CollectSinkOperatorFactory<>(
+                                    externalSerializer,
+                                    accumulatorName,
+                                    maxBatchSize,
+                                    socketTimeout);
+                    final CollectSinkOperator<RowData> operator =
+                            (CollectSinkOperator<RowData>) factory.getOperator();
 
-                iterator =
-                        new CollectResultIterator<>(
-                                operator.getOperatorIdFuture(),
-                                externalSerializer,
-                                accumulatorName,
-                                checkpointConfig);
-                converter = context.createDataStructureConverter(consumedDataType);
-                converter.open(RuntimeConverter.Context.create(classLoader));
+                    iterator =
+                            new CollectResultIterator<>(
+                                    operator.getOperatorIdFuture(),
+                                    externalSerializer,
+                                    accumulatorName,
+                                    checkpointConfig);
+                    converter = context.createDataStructureConverter(consumedDataType);
+                    converter.open(RuntimeConverter.Context.create(classLoader));
 
-                final CollectStreamSink<RowData> sink =
-                        new CollectStreamSink<>(inputStream, factory);
-                providerContext.generateUid(COLLECT_TRANSFORMATION).ifPresent(sink::uid);
-                return sink.name("Collect table sink");
-            }
-        };
+                    final CollectStreamSink<RowData> sink =
+                            new CollectStreamSink<>(inputStream, factory);
+                    providerContext.generateUid(COLLECT_TRANSFORMATION).ifPresent(sink::uid);
+                    return sink.name("Collect table sink");
+                };
     }
 
     @Override

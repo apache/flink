@@ -41,10 +41,8 @@ public interface DataStreamScanProvider extends ScanTableSource.ScanRuntimeProvi
      * <p>This method MUST set an uid to each node of the transformation source, when the job is
      * unbounded, which can be generated with {@link ProviderContext#generateUid(String)}.
      */
-    default DataStream<RowData> produceDataStream(
-            ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
-        return produceDataStream(execEnv);
-    }
+    DataStream<RowData> produceDataStream(
+            ProviderContext providerContext, StreamExecutionEnvironment execEnv);
 
     /** Creates a scan Java {@link DataStream} from a {@link StreamExecutionEnvironment}. */
     @Deprecated

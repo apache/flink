@@ -47,10 +47,8 @@ public interface DataStreamSinkProvider
      * <p>This method MUST set an uid for each node of the data stream sink, when the job is
      * unbounded, which can be generated with {@link ProviderContext#generateUid(String)}.
      */
-    default DataStreamSink<?> consumeDataStream(
-            ProviderContext providerContext, DataStream<RowData> dataStream) {
-        return consumeDataStream(dataStream);
-    }
+    DataStreamSink<?> consumeDataStream(
+            ProviderContext providerContext, DataStream<RowData> dataStream);
 
     /**
      * Consumes the given Java {@link DataStream} and returns the sink transformation {@link

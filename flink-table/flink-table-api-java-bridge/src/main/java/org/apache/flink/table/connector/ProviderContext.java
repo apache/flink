@@ -19,14 +19,14 @@
 package org.apache.flink.table.connector;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.DynamicTableSink.SinkRuntimeProvider;
 import org.apache.flink.table.connector.source.ScanTableSource.ScanRuntimeProvider;
 
 import java.util.Optional;
 
 /**
- * Context provided by some {@link DynamicTableSink.SinkRuntimeProvider} and {@link
- * ScanRuntimeProvider} for generating the runtime objects.
+ * Context provided by some {@link ScanRuntimeProvider} and {@link SinkRuntimeProvider} for
+ * generating the runtime objects.
  */
 @PublicEvolving
 public interface ProviderContext {

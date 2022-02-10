@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -35,7 +33,6 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkProvider;
@@ -153,14 +150,8 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                                     @Override
                                     public DataStreamSinkProvider getSinkRuntimeProvider(
                                             DynamicTableSink.Context context) {
-                                        return new DataStreamSinkProvider() {
-                                            @Override
-                                            public DataStreamSink<?> consumeDataStream(
-                                                    ProviderContext providerContext,
-                                                    DataStream<RowData> dataStream) {
-                                                return dataStream.addSink(sinkFunction);
-                                            }
-                                        };
+                                        return (providerContext, dataStream) ->
+                                                dataStream.addSink(sinkFunction);
                                     }
                                 })
                         .build();
@@ -466,14 +457,8 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                                     @Override
                                     public DataStreamSinkProvider getSinkRuntimeProvider(
                                             DynamicTableSink.Context context) {
-                                        return new DataStreamSinkProvider() {
-                                            @Override
-                                            public DataStreamSink<?> consumeDataStream(
-                                                    ProviderContext providerContext,
-                                                    DataStream<RowData> dataStream) {
-                                                return dataStream.addSink(sinkFunction);
-                                            }
-                                        };
+                                        return (providerContext, dataStream) ->
+                                                dataStream.addSink(sinkFunction);
                                     }
                                 })
                         .build();
@@ -523,17 +508,12 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         return new TableFactoryHarness.SinkBase() {
             @Override
             public DataStreamSinkProvider getSinkRuntimeProvider(Context context) {
-                return new DataStreamSinkProvider() {
-                    @Override
-                    public DataStreamSink<?> consumeDataStream(
-                            ProviderContext providerContext, DataStream<RowData> dataStream) {
-                        TestSink<RowData> sink =
-                                buildRecordWriterTestSink(new RecordWriter(fetched));
-                        if (useSinkV2) {
-                            return dataStream.sinkTo(SinkV1Adapter.wrap(sink));
-                        }
-                        return dataStream.sinkTo(sink);
+                return (providerContext, dataStream) -> {
+                    TestSink<RowData> sink = buildRecordWriterTestSink(new RecordWriter(fetched));
+                    if (useSinkV2) {
+                        return dataStream.sinkTo(SinkV1Adapter.wrap(sink));
                     }
+                    return dataStream.sinkTo(sink);
                 };
             }
         };

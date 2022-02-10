@@ -832,7 +832,7 @@ public final class TestValuesTableFactory
                                 DataStreamSource<RowData> sourceStream =
                                         execEnv.addSource(function);
                                 providerContext
-                                        .generateUid("from-elements")
+                                        .generateUid("source-function")
                                         .ifPresent(sourceStream::uid);
                                 return sourceStream;
                             }
@@ -1658,7 +1658,7 @@ public final class TestValuesTableFactory
                                         dataStream.addSink(
                                                 new AppendingSinkFunction(
                                                         tableName, converter, rowtimeIndex));
-                                providerContext.generateUid("values").ifPresent(sink::uid);
+                                providerContext.generateUid("sink-function").ifPresent(sink::uid);
                                 return sink;
                             }
 

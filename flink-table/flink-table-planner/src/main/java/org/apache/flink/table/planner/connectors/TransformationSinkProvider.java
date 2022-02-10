@@ -27,8 +27,6 @@ import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.connector.sink.SinkProvider;
 import org.apache.flink.table.data.RowData;
 
-import java.util.Optional;
-
 /**
  * Provider that produces a {@link Transformation} as a runtime implementation for {@link
  * DynamicTableSink}.
@@ -50,30 +48,6 @@ public interface TransformationSinkProvider extends DynamicTableSink.SinkRuntime
 
     /** Context for {@link #createTransformation(Context)}. */
     interface Context extends ProviderContext {
-
-        /** Helper method for creating the default implementation of {@link Context}. */
-        static Context of(
-                Transformation<RowData> inputTransformation,
-                int rowtimeIndex,
-                ProviderContext providerContext) {
-            return new Context() {
-
-                @Override
-                public Transformation<RowData> getInputTransformation() {
-                    return inputTransformation;
-                }
-
-                @Override
-                public int getRowtimeIndex() {
-                    return rowtimeIndex;
-                }
-
-                @Override
-                public Optional<String> generateUid(String name) {
-                    return providerContext.generateUid(name);
-                }
-            };
-        }
 
         /** Input transformation to transform. */
         Transformation<RowData> getInputTransformation();
