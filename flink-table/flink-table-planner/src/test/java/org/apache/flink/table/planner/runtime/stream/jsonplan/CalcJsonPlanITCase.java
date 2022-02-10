@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
-import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc2;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.UdfWithOpen;
@@ -43,15 +42,14 @@ public class CalcJsonPlanITCase extends JsonPlanTestBase {
         File sinkPath =
                 createTestCsvSinkTable("MySink", "a bigint", "a1 varchar", "b int", "c1 varchar");
 
-        CompiledPlan compiledPlan =
-                tableEnv.compilePlanSql(
+        compileSqlAndExecutePlan(
                         "insert into MySink select "
                                 + "a, "
                                 + "cast(a as varchar) as a1, "
                                 + "b, "
                                 + "substring(c, 1, 8) as c1 "
-                                + "from MyTable where b > 1");
-        tableEnv.executePlan(compiledPlan).await();
+                                + "from MyTable where b > 1")
+                .await();
 
         assertResult(Collections.singletonList("3,3,2,hello wo"), sinkPath);
     }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
-import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.plan.rules.physical.stream.IncrementalAggregateRule;
@@ -57,13 +56,12 @@ public class ExpandJsonPlanITCase extends JsonPlanTestBase {
                 "c varchar");
         createTestNonInsertOnlyValuesSinkTable(
                 "MySink", "b bigint", "a bigint", "c varchar", "primary key (b) not enforced");
-        CompiledPlan compiledPlan =
-                tableEnv.compilePlanSql(
+        compileSqlAndExecutePlan(
                         "insert into MySink select b, "
                                 + "count(distinct a) as a, "
                                 + "max(c) as c "
-                                + "from MyTable group by b");
-        tableEnv.executePlan(compiledPlan).await();
+                                + "from MyTable group by b")
+                .await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(Arrays.asList("+I[1, 1, Hi]", "+I[2, 2, Hello world]"), result);
