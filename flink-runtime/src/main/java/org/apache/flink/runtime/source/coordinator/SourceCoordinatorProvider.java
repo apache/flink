@@ -31,8 +31,6 @@ import org.apache.flink.util.FatalExitExceptionHandler;
 import javax.annotation.Nullable;
 
 import java.util.concurrent.Callable;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.BiConsumer;
 
@@ -75,20 +73,13 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
         CoordinatorExecutorThreadFactory coordinatorThreadFactory =
                 new CoordinatorExecutorThreadFactory(
                         coordinatorThreadName, context.getUserCodeClassloader());
-        ScheduledExecutorService coordinatorExecutor =
-                Executors.newScheduledThreadPool(1, coordinatorThreadFactory);
 
         SimpleVersionedSerializer<SplitT> splitSerializer = source.getSplitSerializer();
         SourceCoordinatorContext<SplitT> sourceCoordinatorContext =
                 new SourceCoordinatorContext<>(
-                        coordinatorExecutor,
-                        coordinatorThreadFactory,
-                        numWorkerThreads,
-                        context,
-                        splitSerializer);
+                        coordinatorThreadFactory, numWorkerThreads, context, splitSerializer);
         return new SourceCoordinator<>(
                 operatorName,
-                coordinatorExecutor,
                 source,
                 sourceCoordinatorContext,
                 context.getCoordinatorStore(),
