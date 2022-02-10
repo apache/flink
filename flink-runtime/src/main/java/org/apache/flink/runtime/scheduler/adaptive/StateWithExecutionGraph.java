@@ -324,7 +324,7 @@ abstract class StateWithExecutionGraph implements State {
     abstract void onGloballyTerminalState(JobStatus globallyTerminalState);
 
     /** Context of the {@link StateWithExecutionGraph} state. */
-    interface Context {
+    interface Context extends StateTransitions.ToFinished {
 
         /**
          * Run the given action if the current state equals the expected state.
@@ -349,13 +349,5 @@ abstract class StateWithExecutionGraph implements State {
          * @return the main thread executor
          */
         Executor getMainThreadExecutor();
-
-        /**
-         * Transitions into the {@link Finished} state.
-         *
-         * @param archivedExecutionGraph archivedExecutionGraph which is passed to the {@link
-         *     Finished} state
-         */
-        void goToFinished(ArchivedExecutionGraph archivedExecutionGraph);
     }
 }

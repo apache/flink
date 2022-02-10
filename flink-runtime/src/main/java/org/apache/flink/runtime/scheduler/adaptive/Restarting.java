@@ -97,24 +97,10 @@ class Restarting extends StateWithExecutionGraph {
     }
 
     /** Context of the {@link Restarting} state. */
-    interface Context extends StateWithExecutionGraph.Context {
-
-        /**
-         * Transitions into the {@link Canceling} state.
-         *
-         * @param executionGraph executionGraph which is passed to the {@link Canceling} state
-         * @param executionGraphHandler executionGraphHandler which is passed to the {@link
-         *     Canceling} state
-         * @param operatorCoordinatorHandler operatorCoordinatorHandler which is passed to the
-         *     {@link Canceling} state
-         */
-        void goToCanceling(
-                ExecutionGraph executionGraph,
-                ExecutionGraphHandler executionGraphHandler,
-                OperatorCoordinatorHandler operatorCoordinatorHandler);
-
-        /** Transitions into the {@link WaitingForResources} state. */
-        void goToWaitingForResources();
+    interface Context
+            extends StateWithExecutionGraph.Context,
+                    StateTransitions.ToCancelling,
+                    StateTransitions.ToWaitingForResources {
 
         /**
          * Runs the given action after the specified delay if the state is the expected state at

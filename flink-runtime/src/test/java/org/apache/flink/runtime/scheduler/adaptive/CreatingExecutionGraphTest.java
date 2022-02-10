@@ -21,12 +21,17 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.testutils.CompletedScheduledFuture;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
+import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Test;
 
@@ -35,6 +40,7 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -193,7 +199,10 @@ public class CreatingExecutionGraphTest extends TestLogger {
         }
 
         @Override
-        public void goToExecuting(ExecutionGraph executionGraph) {
+        public void goToExecuting(
+                ExecutionGraph executionGraph,
+                ExecutionGraphHandler executionGraphHandler,
+                OperatorCoordinatorHandler operatorCoordinatorHandler) {
             executingStateValidator.validateInput(executionGraph);
             hadStateTransitionHappened = true;
         }
@@ -225,6 +234,16 @@ public class CreatingExecutionGraphTest extends TestLogger {
         public void goToWaitingForResources() {
             waitingForResourcesStateValidator.validateInput(null);
             hadStateTransitionHappened = true;
+        }
+
+        @Override
+        public Executor getIOExecutor() {
+            return Executors.directExecutor();
+        }
+
+        @Override
+        public ComponentMainThreadExecutor getMainThreadExecutor() {
+            return ComponentMainThreadExecutorServiceAdapter.forMainThread();
         }
 
         @Override

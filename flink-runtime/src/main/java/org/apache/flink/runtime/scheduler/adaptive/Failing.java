@@ -77,21 +77,7 @@ class Failing extends StateWithExecutionGraph {
     }
 
     /** Context of the {@link Failing} state. */
-    interface Context extends StateWithExecutionGraph.Context {
-
-        /**
-         * Transitions into the {@link Canceling} state.
-         *
-         * @param executionGraph executionGraph to pass to the {@link Canceling} state
-         * @param executionGraphHandler executionGraphHandler to pass to the {@link Canceling} state
-         * @param operatorCoordinatorHandler operatorCoordinatorHandler to pass to the {@link
-         *     Canceling} state
-         */
-        void goToCanceling(
-                ExecutionGraph executionGraph,
-                ExecutionGraphHandler executionGraphHandler,
-                OperatorCoordinatorHandler operatorCoordinatorHandler);
-    }
+    interface Context extends StateWithExecutionGraph.Context, StateTransitions.ToCancelling {}
 
     static class Factory implements StateFactory<Failing> {
 

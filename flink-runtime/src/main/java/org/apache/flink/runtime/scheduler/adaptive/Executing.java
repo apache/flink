@@ -196,20 +196,12 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
     }
 
     /** Context of the {@link Executing} state. */
-    interface Context extends StateWithExecutionGraph.Context {
-
-        /**
-         * Transitions into the {@link Canceling} state.
-         *
-         * @param executionGraph executionGraph to pass to the {@link Canceling} state
-         * @param executionGraphHandler executionGraphHandler to pass to the {@link Canceling} state
-         * @param operatorCoordinatorHandler operatorCoordinatorHandler to pass to the {@link
-         *     Canceling} state
-         */
-        void goToCanceling(
-                ExecutionGraph executionGraph,
-                ExecutionGraphHandler executionGraphHandler,
-                OperatorCoordinatorHandler operatorCoordinatorHandler);
+    interface Context
+            extends StateWithExecutionGraph.Context,
+                    StateTransitions.ToCancelling,
+                    StateTransitions.ToFailing,
+                    StateTransitions.ToRestarting,
+                    StateTransitions.ToStopWithSavepoint {
 
         /**
          * Asks how to handle the failure.
@@ -226,56 +218,6 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
          * @return true, if we can scale up
          */
         boolean canScaleUp(ExecutionGraph executionGraph);
-
-        /**
-         * Transitions into the {@link Restarting} state.
-         *
-         * @param executionGraph executionGraph to pass to the {@link Restarting} state
-         * @param executionGraphHandler executionGraphHandler to pass to the {@link Restarting}
-         *     state
-         * @param operatorCoordinatorHandler operatorCoordinatorHandler to pas to the {@link
-         *     Restarting} state
-         * @param backoffTime backoffTime to wait before transitioning to the {@link Restarting}
-         *     state
-         */
-        void goToRestarting(
-                ExecutionGraph executionGraph,
-                ExecutionGraphHandler executionGraphHandler,
-                OperatorCoordinatorHandler operatorCoordinatorHandler,
-                Duration backoffTime);
-
-        /**
-         * Transitions into the {@link Failing} state.
-         *
-         * @param executionGraph executionGraph to pass to the {@link Failing} state
-         * @param executionGraphHandler executionGraphHandler to pass to the {@link Failing} state
-         * @param operatorCoordinatorHandler operatorCoordinatorHandler to pass to the {@link
-         *     Failing} state
-         * @param failureCause failureCause describing why the job execution failed
-         */
-        void goToFailing(
-                ExecutionGraph executionGraph,
-                ExecutionGraphHandler executionGraphHandler,
-                OperatorCoordinatorHandler operatorCoordinatorHandler,
-                Throwable failureCause);
-
-        /**
-         * Transitions into the {@link StopWithSavepoint} state.
-         *
-         * @param executionGraph executionGraph to pass to the {@link StopWithSavepoint} state
-         * @param executionGraphHandler executionGraphHandler to pass to the {@link
-         *     StopWithSavepoint} state
-         * @param operatorCoordinatorHandler operatorCoordinatorHandler to pass to the {@link
-         *     StopWithSavepoint} state
-         * @param savepointFuture Future for the savepoint to complete.
-         * @return Location of the savepoint.
-         */
-        CompletableFuture<String> goToStopWithSavepoint(
-                ExecutionGraph executionGraph,
-                ExecutionGraphHandler executionGraphHandler,
-                OperatorCoordinatorHandler operatorCoordinatorHandler,
-                CheckpointScheduling checkpointScheduling,
-                CompletableFuture<String> savepointFuture);
 
         /**
          * Runs the given action after a delay if the state at this time equals the expected state.
