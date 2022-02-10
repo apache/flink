@@ -19,18 +19,10 @@
 package org.apache.flink.connector.firehose.table;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.base.table.AsyncDynamicTableSinkFactory;
 import org.apache.flink.connector.firehose.table.util.KinesisFirehoseConnectorOptionUtils;
-import org.apache.flink.table.catalog.ResolvedCatalogTable;
-import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.factories.SerializationFormatFactory;
-import org.apache.flink.table.types.DataType;
 
 import java.util.HashSet;
 import java.util.Optional;
@@ -50,30 +42,26 @@ public class KinesisFirehoseDynamicTableFactory extends AsyncDynamicTableSinkFac
 
     @Override
     public DynamicTableSink createDynamicTableSink(Context context) {
-        FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
-        ReadableConfig tableOptions = helper.getOptions();
-        ResolvedCatalogTable catalogTable = context.getCatalogTable();
-        DataType physicalDataType = catalogTable.getResolvedSchema().toPhysicalRowDataType();
 
-        // initialize the table format early in order to register its consumedOptionKeys
-        // in the TableFactoryHelper, as those are needed for correct option validation
-        EncodingFormat<SerializationSchema<RowData>> encodingFormat =
-                helper.discoverEncodingFormat(SerializationFormatFactory.class, FORMAT);
+        AsyncDynamicSinkContext factoryContext = new AsyncDynamicSinkContext(this, context);
 
         KinesisFirehoseDynamicSink.KinesisDataFirehoseDynamicSinkBuilder builder =
                 new KinesisFirehoseDynamicSink.KinesisDataFirehoseDynamicSinkBuilder();
 
         KinesisFirehoseConnectorOptionUtils optionsUtils =
-                new KinesisFirehoseConnectorOptionUtils(catalogTable.getOptions(), tableOptions);
+                new KinesisFirehoseConnectorOptionUtils(
+                        factoryContext.getResolvedOptions(), factoryContext.getTableOptions());
         // validate the data types of the table options
-        helper.validateExcept(optionsUtils.getNonValidatedPrefixes().toArray(new String[0]));
+        factoryContext
+                .getFactoryHelper()
+                .validateExcept(optionsUtils.getNonValidatedPrefixes().toArray(new String[0]));
         Properties properties = optionsUtils.getSinkProperties();
 
         builder.setDeliveryStream((String) properties.get(DELIVERY_STREAM.key()))
                 .setFirehoseClientProperties(
                         (Properties) properties.get(FIREHOSE_CLIENT_PROPERTIES_KEY))
-                .setEncodingFormat(encodingFormat)
-                .setConsumedDataType(physicalDataType);
+                .setEncodingFormat(factoryContext.getEncodingFormat())
+                .setConsumedDataType(factoryContext.getPhysicalDataType());
         Optional.ofNullable((Boolean) properties.get(SINK_FAIL_ON_ERROR.key()))
                 .ifPresent(builder::setFailOnError);
         return super.addAsyncOptionsToBuilder(properties, builder).build();
