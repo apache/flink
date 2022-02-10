@@ -32,12 +32,24 @@ public class ExtractionUtilsTest {
 
     @Test
     public void testExtractSimpleGeneric() {
-        assertEquals(Optional.of(RowData.class), ExtractionUtils.extractSimpleGeneric(Parent.class, GrandChild.class, 0));
-        assertEquals(Optional.empty(), ExtractionUtils.extractSimpleGeneric(Child2.class, GrandChild2.class, 0));
-        assertEquals(Optional.of(RowData.class), ExtractionUtils.extractSimpleGeneric(Parent.class, Child2.class, 0));
-        assertEquals(Optional.of(RowData.class), ExtractionUtils.extractSimpleGeneric(Child.class, GrandChild.class, 0));
-        assertEquals(Optional.empty(), ExtractionUtils.extractSimpleGeneric(Parent.class, Child.class, 0));
-        assertEquals(Optional.of(RowData.class), ExtractionUtils.extractSimpleGeneric(Parent.class, GrandChild3.class, 0));
+        assertEquals(
+                Optional.of(RowData.class),
+                ExtractionUtils.extractSimpleGeneric(Parent.class, GrandChild.class, 0));
+        assertEquals(
+                Optional.empty(),
+                ExtractionUtils.extractSimpleGeneric(Child2.class, GrandChild2.class, 0));
+        assertEquals(
+                Optional.of(RowData.class),
+                ExtractionUtils.extractSimpleGeneric(Parent.class, Child2.class, 0));
+        assertEquals(
+                Optional.of(RowData.class),
+                ExtractionUtils.extractSimpleGeneric(Child.class, GrandChild.class, 0));
+        assertEquals(
+                Optional.empty(),
+                ExtractionUtils.extractSimpleGeneric(Parent.class, Child.class, 0));
+        assertEquals(
+                Optional.of(RowData.class),
+                ExtractionUtils.extractSimpleGeneric(Parent.class, GrandChild3.class, 0));
     }
 
     private static class Parent<T> {}
