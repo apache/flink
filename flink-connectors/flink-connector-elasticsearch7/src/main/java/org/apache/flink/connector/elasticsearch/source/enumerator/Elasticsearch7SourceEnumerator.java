@@ -49,7 +49,16 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-/** The enumerator class for ElasticsearchSource. */
+/**
+ * The enumerator class for the ElasticsearchSource. To read data from Elasticsearch the enumerator
+ * has to initialize an Elasticsearch pit first. A pit (point in time) is a lightweight view into
+ * the state of the data as it existed when initialized. Changes happening after the pit was
+ * initialized are only visible to more recent pits. Using the same pit for all search requests
+ * allows the source to prevent inconsistencies in case data is added or removed between search
+ * requests. After initializing the pit, the enumerator creates the number of source splits defined
+ * by the number of search slices. More information about the splits can be found in {@link
+ * Elasticsearch7Split}.
+ */
 @Internal
 public class Elasticsearch7SourceEnumerator
         implements SplitEnumerator<Elasticsearch7Split, Elasticsearch7SourceEnumState> {

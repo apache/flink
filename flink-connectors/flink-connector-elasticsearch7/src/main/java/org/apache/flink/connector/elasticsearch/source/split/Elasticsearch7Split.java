@@ -23,7 +23,20 @@ import org.apache.flink.api.connector.source.SourceSplit;
 
 import java.util.Objects;
 
-/** A {@link SourceSplit} for an Elasticsearch 'slice'. */
+/**
+ * The {@link SourceSplit} for the ElasticsearchSource. Each split contains the pit (point in time)
+ * which was initialized in the {@code Elasticsearch7SourceEnumerator}. The pit is necessary to
+ * allow consistent reads from Elasticsearch. To read a large number of documents a search can be
+ * split into multiple slices to consume them independently. The number of slices is user-defined
+ * and matches the total number of splits. Elasticsearch says the following about tuning the number
+ * of slices:
+ *
+ * <p>If the number of slices is bigger than the number of shards the slice filter is very slow on
+ * the first calls, it has a complexity of O(N) and a memory cost equals to N bits per slice where N
+ * is the total number of documents in the shard. After few calls the filter should be cached and
+ * subsequent calls should be faster but you should limit the number of sliced query you perform in
+ * parallel to avoid the memory explosion.
+ */
 @PublicEvolving
 public class Elasticsearch7Split implements SourceSplit {
     private final String pitId;
