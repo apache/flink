@@ -353,7 +353,7 @@ public final class ExtractionUtils {
     /**
      * Extract a generic parameter class simply from a given class and the position of generic parameters.
      *
-     * <p> It will traverse all the super classes to the base class until find the generic parameter in pos has real class type
+     * <p>It will traverse all the super classes to the base class until find the generic parameter in pos has real class type
      *
      * @param clazz subClass
      * @param baseClass target super class
