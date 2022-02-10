@@ -1745,6 +1745,28 @@ under the License.
 						</configuration>
 					</execution>
 					<execution>
+						<id>forbid-direct-table-planner-dependencies</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<bannedDependencies>
+									<excludes>
+										<exclude>org.apache.flink:flink-table-planner_${scala.binary.version}</exclude>
+									</excludes>
+									<includes>
+										<include>org.apache.flink:flink-table-planner_${scala.binary.version}:*:*:test</include>
+									</includes>
+									<message>
+										Direct dependencies on flink-table-planner are not allowed.
+										You should depend on either Table API modules or flink-table-planner-loader.
+									</message>
+								</bannedDependencies>
+							</rules>
+						</configuration>
+					</execution>
+					<execution>
 						<id>dependency-convergence</id>
 						<!-- disabled by default as it interacts badly with shade-plugin -->
 						<phase>none</phase>

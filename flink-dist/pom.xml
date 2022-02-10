@@ -586,6 +586,16 @@ under the License.
 							<skip>true</skip>
 						</configuration>
 					</execution>
+					<execution>
+						<id>forbid-direct-table-planner-dependencies</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<!-- We need to depend on table planner to ship it in the /opt folder -->
+							<skip>true</skip>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 
