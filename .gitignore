@@ -10,6 +10,7 @@ scalastyle-output.xml
 .version.properties
 filter.properties
 logs.zip
+.mvn/wrapper/*.jar
 target
 tmp
 *.class
