@@ -269,6 +269,45 @@ public class InputProperty {
         }
     }
 
+    /** A special distribution which indicators the data distribution is the same as its input. */
+    public static class KeepInputAsIsDistribution extends RequiredDistribution {
+        private final RequiredDistribution inputDistribution;
+
+        private KeepInputAsIsDistribution(RequiredDistribution inputDistribution) {
+            super(DistributionType.KEEP_INPUT_AS_IS);
+            this.inputDistribution = checkNotNull(inputDistribution);
+        }
+
+        public RequiredDistribution getInputDistribution() {
+            return inputDistribution;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            if (!super.equals(o)) {
+                return false;
+            }
+            KeepInputAsIsDistribution that = (KeepInputAsIsDistribution) o;
+            return inputDistribution.equals(that.inputDistribution);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(super.hashCode(), inputDistribution);
+        }
+
+        @Override
+        public String toString() {
+            return "KEEP_INPUT_AS_IS(" + inputDistribution + ")";
+        }
+    }
+
     /**
      * The input will read the records whose keys hash to a particular hash value.
      *
@@ -276,6 +315,16 @@ public class InputProperty {
      */
     public static HashDistribution hashDistribution(int[] keys) {
         return new HashDistribution(keys);
+    }
+
+    /**
+     * A special distribution which indicators the data distribution is the same as its input.
+     *
+     * @param inputDistribution the input distribution
+     */
+    public static KeepInputAsIsDistribution keepInputAsIsDistribution(
+            RequiredDistribution inputDistribution) {
+        return new KeepInputAsIsDistribution(inputDistribution);
     }
 
     /** Enumeration which describes the type of the input data distribution. */
@@ -298,6 +347,12 @@ public class InputProperty {
 
         /** The input will read all records, and the parallelism of the target node must be 1. */
         SINGLETON,
+
+        /**
+         * A special distribution type which indicators the data distribution is the same as its
+         * input.
+         */
+        KEEP_INPUT_AS_IS,
 
         /** Unknown distribution type, will be filled out in the future. */
         UNKNOWN

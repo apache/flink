@@ -150,11 +150,19 @@ class BatchPhysicalPythonGroupAggregate(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val requiredDistribution = if (grouping.length == 0) {
+      InputProperty.SINGLETON_DISTRIBUTION
+    } else {
+      InputProperty.hashDistribution(grouping)
+    }
     new BatchExecPythonGroupAggregate(
       grouping,
       grouping ++ auxGrouping,
       aggCalls.toArray,
-      InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build(),
+      InputProperty.builder()
+        .requiredDistribution(requiredDistribution)
+        .damBehavior(InputProperty.DamBehavior.END_INPUT)
+        .build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

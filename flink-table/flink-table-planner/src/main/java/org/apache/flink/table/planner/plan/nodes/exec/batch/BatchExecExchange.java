@@ -24,6 +24,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ForwardForConsecutiveHashPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.table.api.TableException;
@@ -36,6 +37,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.HashDistribution;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.KeepInputAsIsDistribution;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.RequiredDistribution;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
 import org.apache.flink.table.runtime.partitioner.BinaryHashPartitioner;
@@ -49,6 +51,7 @@ import java.util.Collections;
 import java.util.Optional;
 
 import static org.apache.flink.table.planner.utils.StreamExchangeModeUtils.getBatchStreamExchangeMode;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * This {@link ExecNode} represents a change of partitioning of the input elements for batch.
@@ -106,12 +109,13 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
+        final RowType inputType = (RowType) inputEdge.getOutputType();
 
         final StreamPartitioner<RowData> partitioner;
         final int parallelism;
         final InputProperty inputProperty = getInputProperties().get(0);
-        final InputProperty.DistributionType distributionType =
-                inputProperty.getRequiredDistribution().getType();
+        final RequiredDistribution requiredDistribution = inputProperty.getRequiredDistribution();
+        final InputProperty.DistributionType distributionType = requiredDistribution.getType();
         switch (distributionType) {
             case ANY:
                 partitioner = null;
@@ -126,21 +130,24 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
                 parallelism = 1;
                 break;
             case HASH:
-                int[] keys = ((HashDistribution) inputProperty.getRequiredDistribution()).getKeys();
-                RowType inputType = (RowType) inputEdge.getOutputType();
-                String[] fieldNames =
-                        Arrays.stream(keys)
-                                .mapToObj(i -> inputType.getFieldNames().get(i))
-                                .toArray(String[]::new);
                 partitioner =
-                        new BinaryHashPartitioner(
-                                HashCodeGenerator.generateRowHash(
-                                        new CodeGeneratorContext(planner.getTableConfig()),
-                                        inputEdge.getOutputType(),
-                                        "HashPartitioner",
-                                        keys),
-                                fieldNames);
+                        createHashPartitioner(
+                                ((HashDistribution) requiredDistribution), inputType, planner);
                 parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+                break;
+            case KEEP_INPUT_AS_IS:
+                RequiredDistribution inputDistribution =
+                        ((KeepInputAsIsDistribution) requiredDistribution).getInputDistribution();
+                checkArgument(
+                        inputDistribution instanceof HashDistribution,
+                        "Only HashDistribution is supported now");
+                partitioner =
+                        new ForwardForConsecutiveHashPartitioner<>(
+                                createHashPartitioner(
+                                        ((HashDistribution) inputDistribution),
+                                        inputType,
+                                        planner));
+                parallelism = inputTransform.getParallelism();
                 break;
             default:
                 throw new TableException(distributionType + "is not supported now!");
@@ -153,6 +160,22 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
         transformation.setParallelism(parallelism);
         transformation.setOutputType(InternalTypeInfo.of(getOutputType()));
         return transformation;
+    }
+
+    private BinaryHashPartitioner createHashPartitioner(
+            HashDistribution hashDistribution, RowType inputType, PlannerBase planner) {
+        int[] keys = hashDistribution.getKeys();
+        String[] fieldNames =
+                Arrays.stream(keys)
+                        .mapToObj(i -> inputType.getFieldNames().get(i))
+                        .toArray(String[]::new);
+        return new BinaryHashPartitioner(
+                HashCodeGenerator.generateRowHash(
+                        new CodeGeneratorContext(planner.getTableConfig()),
+                        inputType,
+                        "HashPartitioner",
+                        keys),
+                fieldNames);
     }
 
     @VisibleForTesting

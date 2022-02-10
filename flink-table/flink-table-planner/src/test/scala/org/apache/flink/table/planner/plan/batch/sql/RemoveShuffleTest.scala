@@ -547,4 +547,24 @@ class RemoveShuffleTest extends TableTestBase {
       """.stripMargin
     util.verifyExecPlan(sqlQuery)
   }
+
+  @Test
+  def testRemoveSingletonShuffle_OverAgg(): Unit = {
+    util.verifyExecPlan("SELECT SUM(b) sum_b, AVG(SUM(b)) OVER () avg_b FROM x")
+  }
+
+  @Test
+  def testRemoveSingletonShuffle_HashAgg(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
+    util.verifyExecPlan("SELECT MAX(b) FROM (SELECT SUM(b) AS b FROM x)")
+  }
+
+  @Test
+  def testRemoveSingletonShuffle_SortAgg(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
+    util.verifyExecPlan("SELECT MAX(b) FROM (SELECT SUM(b) AS b FROM x)")
+  }
+
 }
