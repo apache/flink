@@ -1,9 +1,9 @@
 ---
-title: "SSL Setup"
+title: "Encryption and Authentication using SSL"
 weight: 2
 type: docs
 aliases:
-  - /deployment/security/security-ssl.html
+  - /deployment/security/ssl.html
   - /ops/security-ssl.html
 ---
 <!--

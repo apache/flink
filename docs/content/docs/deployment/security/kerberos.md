@@ -1,9 +1,9 @@
 ---
-title: Kerberos
+title: Authentication with Kerberos
 weight: 3
 type: docs
 aliases:
-  - /deployment/security/security-kerberos.html
+  - /deployment/security/kerberos.html
   - /ops/security-kerberos.html
 ---
 <!--
@@ -25,7 +25,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Kerberos Authentication Setup and Configuration
+# Authentication with Kerberos
 
 This document briefly describes how Flink security works in the context of various deployment mechanisms (Standalone, native Kubernetes, YARN),
 filesystems, connectors, and state backends.
@@ -47,6 +47,7 @@ for a certain job, simply launch a separate Flink cluster with a different confi
 environment.
 
 ## How Flink Security works
+
 In concept, a Flink program may use first- or third-party connectors (Kafka, HDFS, Cassandra, Flume, Kinesis etc.) necessitating arbitrary authentication methods (Kerberos, SSL/TLS, username/password, etc.).  While satisfying the security requirements for all connectors is an ongoing effort,
 Flink provides first-class support for Kerberos authentication only.  The following services and connectors are supported for Kerberos authentication:
 
@@ -63,6 +64,7 @@ The internal architecture is based on security modules (implementing `org.apache
 are installed at startup.  The following sections describes each security module.
 
 ### Hadoop Security Module
+
 This module uses the Hadoop `UserGroupInformation` (UGI) class to establish a process-wide *login user* context.   The login user is
 then used for all interactions with Hadoop, including HDFS, HBase, and YARN.
 
@@ -70,6 +72,7 @@ If Hadoop security is enabled (in `core-site.xml`), the login user will have wha
 the login user conveys only the user identity of the OS account that launched the cluster.
 
 ### JAAS Security Module
+
 This module provides a dynamic JAAS configuration to the cluster, making available the configured Kerberos credential to ZooKeeper,
 Kafka, and other such components that rely on JAAS.
 
@@ -77,10 +80,12 @@ Note that the user may also provide a static JAAS configuration file using the m
 dynamic entries provided by this module.
 
 ### ZooKeeper Security Module
+
 This module configures certain process-wide ZooKeeper security-related settings, namely the ZooKeeper service name (default: `zookeeper`)
 and the JAAS login context name (default: `Client`).
 
 ## Deployment Modes
+
 Here is some information specific to each deployment mode.
 
 ### Standalone Mode
@@ -120,8 +125,7 @@ Steps to run a secure Flink cluster using `kinit`:
 ## Further Details
 
 ### Ticket Renewal
+
 Each component that uses Kerberos is independently responsible for renewing the Kerberos ticket-granting-ticket (TGT).
 Hadoop, ZooKeeper, and Kafka all renew the TGT automatically when provided a keytab.  In the delegation token scenario,
 YARN itself renews the token (up to its maximum lifespan).
-
-{{< top >}}
