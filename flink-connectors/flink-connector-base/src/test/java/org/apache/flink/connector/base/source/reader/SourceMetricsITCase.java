@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.base.source.reader;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.BoundedOutOfOrdernessWatermarks;
 import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
@@ -44,8 +45,7 @@ import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matcher;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -74,29 +74,16 @@ public class SourceMetricsITCase extends TestLogger {
     // this basically is the time a build is allowed to be frozen before the test fails
     private static final long WATERMARK_EPSILON = Duration.ofHours(6).toMillis();
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
-    private InMemoryReporter reporter;
+    private static final InMemoryReporter reporter = InMemoryReporter.createWithRetainedMetrics();
 
-    private MiniClusterWithClientResource miniClusterResource;
-
-    @Before
-    public void setup() throws Exception {
-        reporter = InMemoryReporter.createWithRetainedMetrics();
-        Configuration configuration = new Configuration();
-        reporter.addToConfiguration(configuration);
-        miniClusterResource =
-                new MiniClusterWithClientResource(
-                        new MiniClusterResourceConfiguration.Builder()
-                                .setNumberTaskManagers(1)
-                                .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
-                                .setConfiguration(configuration)
-                                .build());
-        miniClusterResource.before();
-    }
-
-    @After
-    public void teardown() {
-        miniClusterResource.after();
-    }
+    @ClassRule
+    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
+                            .setConfiguration(reporter.addToConfiguration(new Configuration()))
+                            .build());
 
     @Test
     public void testMetricsWithTimestamp() throws Exception {
@@ -145,9 +132,11 @@ public class SourceMetricsITCase extends TestLogger {
                                 });
         stream.addSink(new DiscardingSink<>());
         JobClient jobClient = env.executeAsync();
+        final JobID jobId = jobClient.getJobID();
 
         beforeBarrier.get().await();
         assertSourceMetrics(
+                jobId,
                 reporter,
                 stopAtRecord1 + 1,
                 numRecordsPerSplit,
@@ -158,6 +147,7 @@ public class SourceMetricsITCase extends TestLogger {
 
         beforeBarrier.get().await();
         assertSourceMetrics(
+                jobId,
                 reporter,
                 stopAtRecord2 + 1,
                 numRecordsPerSplit,
@@ -170,13 +160,15 @@ public class SourceMetricsITCase extends TestLogger {
     }
 
     private void assertSourceMetrics(
+            JobID jobId,
             InMemoryReporter reporter,
             long processedRecordsPerSubtask,
             long numTotalPerSubtask,
             int parallelism,
             int numSplits,
             boolean hasTimestamps) {
-        List<OperatorMetricGroup> groups = reporter.findOperatorMetricGroups("MetricTestingSource");
+        List<OperatorMetricGroup> groups =
+                reporter.findOperatorMetricGroups(jobId, "MetricTestingSource");
         assertThat(groups, hasSize(parallelism));
 
         int subtaskWithMetrics = 0;
