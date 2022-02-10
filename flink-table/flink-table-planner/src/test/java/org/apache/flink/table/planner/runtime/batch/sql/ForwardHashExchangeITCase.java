@@ -17,6 +17,8 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql;
 
+import org.apache.flink.api.common.BatchShuffleMode;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.table.planner.runtime.utils.TestData;
@@ -35,6 +37,11 @@ public class ForwardHashExchangeITCase extends BatchTestBase {
     public void before() {
         super.before();
         env().getConfig().setDynamicGraph(true);
+        env().disableOperatorChaining();
+        tEnv().getConfig()
+                .getConfiguration()
+                .set(ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_BLOCKING);
+
         String testDataId = TestValuesTableFactory.registerData(TestData.data3());
         String ddl =
                 "CREATE TABLE MyTable (\n"
