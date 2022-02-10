@@ -79,25 +79,54 @@ public interface CompiledPlan {
     }
 
     /** @see #writeToFile(File, boolean) */
-    default void writeToFile(Path path, boolean ignoreIfExists)
-            throws IOException, UnsupportedOperationException {
+    default void writeToFile(Path path, boolean ignoreIfExists) throws IOException {
         writeToFile(path.toFile(), ignoreIfExists);
     }
 
     /**
-     * Writes this plan to a file using the JSON representation. This will not overwrite the file if
-     * it's already existing.
+     * Writes this plan to a file using the JSON representation. This operation will fail if the
+     * file already exists, even if the content is different from this plan.
+     *
+     * @param file the target file
+     * @throws IOException if the file cannot be written.
      */
     default void writeToFile(File file) throws IOException {
-        writeToFile(file, true);
+        writeToFile(file, false);
     }
 
-    /** Writes this plan to a file using the JSON representation. */
-    void writeToFile(File file, boolean ignoreIfExists)
-            throws IOException, UnsupportedOperationException;
+    /**
+     * Writes this plan to a file using the JSON representation.
+     *
+     * @param file the target file
+     * @param ignoreIfExists If a plan exists in the given file and this flag is set, no operation
+     *     is executed and the plan is not overwritten. An exception is thrown otherwise.
+     * @throws IOException if the file cannot be written.
+     * @throws TableException if {@code ignoreIfExists} is false and a plan already exists.
+     */
+    void writeToFile(File file, boolean ignoreIfExists) throws IOException;
 
     // --- Accessors
 
     /** Returns the Flink version used to compile the plan. */
     String getFlinkVersion();
+
+    /**
+     * Returns the AST of the specified statement and the execution plan to compute the result of
+     * the given statement.
+     *
+     * <p>Shorthand for {@link TableEnvironment#explainPlan(CompiledPlan, ExplainDetail...)}.
+     */
+    String explain(ExplainDetail... explainDetails);
+
+    /** Like {@link #asJsonString()}, but prints the result to {@link System#out}. */
+    default CompiledPlan printJsonString() {
+        System.out.println(this.asJsonString());
+        return this;
+    }
+
+    /** Like {@link #explain(ExplainDetail...)}, but prints the result to {@link System#out}. */
+    default CompiledPlan printExplain(ExplainDetail... explainDetails) {
+        System.out.println(this.explain(explainDetails));
+        return this;
+    }
 }

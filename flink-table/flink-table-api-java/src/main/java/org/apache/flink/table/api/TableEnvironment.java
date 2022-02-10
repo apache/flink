@@ -1266,6 +1266,12 @@ public interface TableEnvironment {
      *
      * <p>This method will parse the input reference and will validate the plan. The returned
      * instance can be executed via {@link #executePlan(CompiledPlan)}.
+     *
+     * <p>Note: The compiled plan feature is not supported in batch mode.
+     *
+     * @throws IOException if the plan cannot be loaded from the filesystem, or from classpath
+     *     resources.
+     * @throws TableException if the plan is invalid.
      */
     @Experimental
     CompiledPlan loadPlan(PlanReference planReference) throws IOException, TableException;
@@ -1279,11 +1285,14 @@ public interface TableEnvironment {
      *
      * <p>Note: Only {@code INSERT INTO} is supported at the moment.
      *
+     * <p>Note: The compiled plan feature is not supported in batch mode.
+     *
      * @see #executePlan(CompiledPlan)
      * @see #loadPlan(PlanReference)
+     * @throws TableException if the SQL statement is invalid or if the plan cannot be persisted.
      */
     @Experimental
-    CompiledPlan compilePlanSql(String stmt);
+    CompiledPlan compilePlanSql(String stmt) throws TableException;
 
     /**
      * Executes the provided {@link CompiledPlan}.
@@ -1294,13 +1303,20 @@ public interface TableEnvironment {
      *
      * <p>If a job is resumed from a savepoint, it will eventually resume the execution.
      *
+     * <p>Note: The compiled plan feature is not supported in batch mode.
+     *
      * @see #compilePlanSql(String)
      * @see #loadPlan(PlanReference)
      */
     @Experimental
     TableResult executePlan(CompiledPlan plan);
 
-    /** Shorthand for {@code tEnv.executePlan(tEnv.loadPlan(planReference))}. */
+    /**
+     * Shorthand for {@code tEnv.executePlan(tEnv.loadPlan(planReference))}.
+     *
+     * @see #loadPlan(PlanReference)
+     * @see #executePlan(CompiledPlan)
+     */
     @Experimental
     default TableResult executePlan(PlanReference planReference) throws IOException {
         return executePlan(loadPlan(planReference));
@@ -1313,6 +1329,8 @@ public interface TableEnvironment {
      * <p>Compiled plans can be persisted and reloaded across Flink versions. They describe static
      * pipelines to ensure backwards compatibility and enable stateful streaming job upgrades. See
      * {@link CompiledPlan} and the website documentation for more information.
+     *
+     * <p>Note: The compiled plan feature is not supported in batch mode.
      *
      * @see #loadPlan(PlanReference)
      * @see #compilePlanSql(String)

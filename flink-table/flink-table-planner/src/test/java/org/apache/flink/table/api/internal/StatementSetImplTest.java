@@ -69,9 +69,11 @@ public class StatementSetImplTest {
         String jsonPlan = stmtSet.compilePlan().asJsonString();
         String actual = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlan.out");
         assertEquals(
-                TableTestUtil.replaceExecNodeId(
-                        TableTestUtil.replaceFlinkVersion(
-                                TableTestUtil.getFormattedJson(jsonPlan))),
-                TableTestUtil.replaceExecNodeId(TableTestUtil.getFormattedJson(actual)));
+                TableTestUtil.getFormattedJson(
+                        TableTestUtil.replaceExecNodeId(
+                                TableTestUtil.replaceFlinkVersion(
+                                        TableTestUtil.getFormattedJson(jsonPlan)))),
+                TableTestUtil.getFormattedJson(
+                        TableTestUtil.replaceExecNodeId(TableTestUtil.getFormattedJson(actual))));
     }
 }

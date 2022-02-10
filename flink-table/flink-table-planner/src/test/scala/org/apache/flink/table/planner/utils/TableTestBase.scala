@@ -1749,7 +1749,7 @@ object TableTestUtil {
    * while StreamExecutionEnvironment is up
    */
   def replaceStreamNodeId(s: String): String = {
-    s.replaceAll("\"id\" : \\d+", "\"id\" : ").trim
+    s.replaceAll("\"id\"\\s*:\\s*\\d+", "\"id\" : ").trim
   }
 
   /**
@@ -1765,14 +1765,14 @@ object TableTestUtil {
    * Ignore flink version value.
    */
   def replaceFlinkVersion(s: String): String = {
-    s.replaceAll("\"flinkVersion\":\"[\\w.-]*\"", "\"flinkVersion\":\"\"")
+    s.replaceAll("\"flinkVersion\"\\s*:\\s*\"[\\w.-]*\"", "\"flinkVersion\": \"\"")
   }
 
   /**
    * Ignore exec node in operator name and description.
    */
   def replaceNodeIdInOperator(s: String): String = {
-    s.replaceAll("\"contents\" : \"\\[\\d+\\]:", "\"contents\" : \"[]:")
-      .replaceAll("(\"type\" : \".*?)\\[\\d+\\]", "$1[]")
+    s.replaceAll("\"contents\"\\s*:\\s*\"\\[\\d+\\]:", "\"contents\" : \"[]:")
+      .replaceAll("(\"type\"\\s*:\\s*\".*?)\\[\\d+\\]", "$1[]")
   }
 }

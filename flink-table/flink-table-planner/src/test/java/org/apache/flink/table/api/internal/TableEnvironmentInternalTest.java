@@ -129,6 +129,6 @@ public class TableEnvironmentInternalTest extends JsonPlanTestBase {
 
         assertThatThrownBy(() -> tableEnv.compilePlanSql("insert into sink select * from src"))
                 .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessage("The batch planner doesn't support the persisted plan feature.");
+                .hasMessage("The compiled plan feature is not supported in batch mode.");
     }
 }
