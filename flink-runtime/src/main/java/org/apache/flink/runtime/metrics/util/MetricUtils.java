@@ -331,7 +331,8 @@ public class MetricUtils {
 
             metrics.<Double, Gauge<Double>>gauge("Load", mxBean::getProcessCpuLoad);
             metrics.<Long, Gauge<Long>>gauge("Time", mxBean::getProcessCpuTime);
-            metrics.<Integer, Gauge<Integer>>gauge("Processor", mxBean::getAvailableProcessors);
+            metrics.<Double, Gauge<Double>>gauge("UsedProcessor", () -> mxBean.getProcessCpuLoad() * mxBean.getAvailableProcessors());
+
         } catch (Exception e) {
             LOG.warn(
                     "Cannot access com.sun.management.OperatingSystemMXBean.getProcessCpuLoad()"

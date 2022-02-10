@@ -595,8 +595,8 @@ Thus, in order to infer the metric identifier:
       <td>Gauge</td>
     </tr>
     <tr>
-      <td>Processor</td>
-      <td>The the number of processors available to  the JVM.</td>
+      <td>UsedProcessor</td>
+      <td>The the number of used processors to  the JVM.</td>
       <td>Gauge</td>
     </tr>
   </tbody>
