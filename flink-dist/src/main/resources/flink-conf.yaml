@@ -36,6 +36,14 @@ jobmanager.rpc.address: localhost
 
 jobmanager.rpc.port: 6123
 
+# The host interface the JobManager will bind to. My default, this is localhost, and will prevent
+# the JobManager from communicating outside the machine/container it is running on.
+#
+# To enable this, set the bind-host address to one that has access to an outside facing network
+# interface, such as 0.0.0.0.
+
+jobmanager.bind-host: localhost
+
 
 # The total process memory size for the JobManager.
 #
@@ -43,6 +51,13 @@ jobmanager.rpc.port: 6123
 
 jobmanager.memory.process.size: 1600m
 
+# The host interface the TaskManager will bind to. My default, this is localhost, and will prevent
+# the TaskManager from communicating outside the machine/container it is running on.
+#
+# To enable this, set the bind-host address to one that has access to an outside facing network
+# interface, such as 0.0.0.0.
+
+taskmanager.bind-host: localhost
 
 # The total process memory size for the TaskManager.
 #

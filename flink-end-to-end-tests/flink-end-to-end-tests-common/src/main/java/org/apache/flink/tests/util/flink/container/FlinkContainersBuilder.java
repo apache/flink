@@ -165,6 +165,9 @@ public class FlinkContainersBuilder {
                 CHECKPOINT_PATH.toAbsolutePath().toUri().toString());
         this.conf.set(RestOptions.BIND_ADDRESS, "0.0.0.0");
 
+        this.conf.set(JobManagerOptions.BIND_HOST, "0.0.0.0");
+        this.conf.set(TaskManagerOptions.BIND_HOST, "0.0.0.0");
+
         // Create temporary directory for building Flink image
         final Path imageBuildingTempDir;
         try {
