@@ -26,12 +26,14 @@ import org.apache.flink.connector.elasticsearch.source.Elasticsearch7SourceConfi
 import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7Split;
 import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7SplitState;
 
+import org.elasticsearch.search.SearchHit;
+
 import java.util.Map;
 
 /** The source reader for Elasticsearch. */
 public class Elasticsearch7SourceReader<OUT>
         extends SingleThreadMultiplexSourceReaderBase<
-                OUT, OUT, Elasticsearch7Split, Elasticsearch7SplitState> {
+                SearchHit, OUT, Elasticsearch7Split, Elasticsearch7SplitState> {
 
     public Elasticsearch7SourceReader(
             Configuration configuration,
@@ -40,10 +42,8 @@ public class Elasticsearch7SourceReader<OUT>
             NetworkClientConfig networkClientConfig,
             Elasticsearch7SearchHitDeserializationSchema<OUT> deserializationSchema) {
         super(
-                () ->
-                        new Elasticsearch7SplitReader<>(
-                                sourceConfiguration, networkClientConfig, deserializationSchema),
-                new Elasticsearch7RecordEmitter<>(),
+                () -> new Elasticsearch7SplitReader(sourceConfiguration, networkClientConfig),
+                new Elasticsearch7RecordEmitter<>(deserializationSchema),
                 configuration,
                 readerContext);
     }
