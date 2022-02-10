@@ -20,7 +20,6 @@ package org.apache.flink.runtime.dispatcher.cleanup;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 
@@ -42,7 +41,6 @@ public enum CheckpointResourcesCleanupRunnerFactory implements CleanupRunnerFact
         return new CheckpointResourcesCleanupRunner(
                 jobResult,
                 checkpointRecoveryFactory,
-                new CheckpointsCleaner(),
                 SharedStateRegistry.DEFAULT_FACTORY,
                 configuration,
                 cleanupExecutor,
