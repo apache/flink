@@ -32,6 +32,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
@@ -39,13 +40,16 @@ import org.apache.flink.util.StringUtils;
 
 import org.apache.http.HttpHost;
 
+import javax.annotation.Nullable;
+
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** An Elasticsearch {@link ScanTableSource}. */
 @Internal
-public class Elasticsearch7DynamicTableSource implements ScanTableSource {
+public class Elasticsearch7DynamicTableSource
+        implements ScanTableSource, SupportsWatermarkPushDown {
 
     /** Data type that describes the final output of the source. */
     private final DataType producedDataType;
@@ -59,6 +63,8 @@ public class Elasticsearch7DynamicTableSource implements ScanTableSource {
     private final boolean ignoreParseErrors;
 
     private final TimestampFormat timestampFormat;
+
+    protected @Nullable WatermarkStrategy<RowData> watermarkStrategy;
 
     public Elasticsearch7DynamicTableSource(
             DataType producedDataType,
@@ -101,7 +107,9 @@ public class Elasticsearch7DynamicTableSource implements ScanTableSource {
             public DataStream<RowData> produceDataStream(StreamExecutionEnvironment execEnv) {
                 return execEnv.fromSource(
                         elasticsearchSource,
-                        WatermarkStrategy.noWatermarks(),
+                        (watermarkStrategy != null)
+                                ? watermarkStrategy
+                                : WatermarkStrategy.noWatermarks(),
                         "ElasticsearchSource-" + tableIdentifier);
             }
 
@@ -156,14 +164,22 @@ public class Elasticsearch7DynamicTableSource implements ScanTableSource {
     }
 
     @Override
+    public void applyWatermark(WatermarkStrategy<RowData> watermarkStrategy) {
+        this.watermarkStrategy = watermarkStrategy;
+    }
+
+    @Override
     public DynamicTableSource copy() {
-        return new Elasticsearch7DynamicTableSource(
-                producedDataType,
-                sourceConfig,
-                tableIdentifier,
-                failOnMissingFields,
-                ignoreParseErrors,
-                timestampFormat);
+        Elasticsearch7DynamicTableSource copy =
+                new Elasticsearch7DynamicTableSource(
+                        producedDataType,
+                        sourceConfig,
+                        tableIdentifier,
+                        failOnMissingFields,
+                        ignoreParseErrors,
+                        timestampFormat);
+        copy.watermarkStrategy = watermarkStrategy;
+        return copy;
     }
 
     @Override
@@ -185,7 +201,8 @@ public class Elasticsearch7DynamicTableSource implements ScanTableSource {
                 && Objects.equals(producedDataType, that.producedDataType)
                 && Objects.equals(sourceConfig, that.sourceConfig)
                 && Objects.equals(tableIdentifier, that.tableIdentifier)
-                && timestampFormat == that.timestampFormat;
+                && timestampFormat == that.timestampFormat
+                && Objects.equals(watermarkStrategy, that.watermarkStrategy);
     }
 
     @Override
@@ -196,6 +213,7 @@ public class Elasticsearch7DynamicTableSource implements ScanTableSource {
                 tableIdentifier,
                 failOnMissingFields,
                 ignoreParseErrors,
-                timestampFormat);
+                timestampFormat,
+                watermarkStrategy);
     }
 }
