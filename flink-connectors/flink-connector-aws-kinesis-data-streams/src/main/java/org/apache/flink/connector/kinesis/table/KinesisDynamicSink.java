@@ -43,7 +43,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 
-/** Kinesis-backed {@link AsyncDynamicTableSink}. */
+/** Kinesis backed {@link AsyncDynamicTableSink}. */
 @Internal
 public class KinesisDynamicSink extends AsyncDynamicTableSink<PutRecordsRequestEntry>
         implements SupportsPartitioning {
@@ -114,8 +114,7 @@ public class KinesisDynamicSink extends AsyncDynamicTableSink<PutRecordsRequestE
 
         Optional.ofNullable(failOnError).ifPresent(builder::setFailOnError);
         addAsyncOptionsToSinkBuilder(builder);
-        KinesisDataStreamsSink<RowData> kdsSink = builder.build();
-        return SinkProvider.of(kdsSink);
+        return SinkProvider.of(builder.build());
     }
 
     @Override

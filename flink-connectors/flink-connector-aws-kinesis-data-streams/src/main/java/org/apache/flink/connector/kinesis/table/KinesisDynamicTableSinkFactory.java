@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.base.table.AsyncDynamicTableSinkFactory;
 import org.apache.flink.connector.kinesis.sink.PartitionKeyGenerator;
+import org.apache.flink.connector.kinesis.table.util.KinesisDataStreamsConnectorOptionsUtils;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
@@ -38,7 +39,7 @@ import static org.apache.flink.connector.kinesis.table.KinesisConnectorOptions.S
 import static org.apache.flink.connector.kinesis.table.KinesisConnectorOptions.SINK_PARTITIONER;
 import static org.apache.flink.connector.kinesis.table.KinesisConnectorOptions.SINK_PARTITIONER_FIELD_DELIMITER;
 import static org.apache.flink.connector.kinesis.table.KinesisConnectorOptions.STREAM;
-import static org.apache.flink.connector.kinesis.table.KinesisDataStreamsConnectorOptionsUtils.KINESIS_CLIENT_PROPERTIES_KEY;
+import static org.apache.flink.connector.kinesis.table.util.KinesisDataStreamsConnectorOptionsUtils.KINESIS_CLIENT_PROPERTIES_KEY;
 import static org.apache.flink.table.factories.FactoryUtil.FORMAT;
 
 /** Factory for creating {@link KinesisDynamicSink}. */

@@ -28,7 +28,7 @@
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
-	<artifactId>flink-end-to-end-tests-kinesis-streams</artifactId>
+	<artifactId>flink-end-to-end-tests-aws-kinesis-data-streams</artifactId>
 	<name>Flink : E2E Tests : Kinesis SQL tests</name>
 	<packaging>jar</packaging>
 
