@@ -26,9 +26,9 @@ under the License.
 
 Flink provides utilities for testing your job that you can add as dependencies.
 
-## DataStream API Test Dependencies
+## DataStream API Testing
 
-You need to add the following dependencies if you want to develop tests for a job built with the 
+You need to add the following dependencies if you want to develop tests for a job built with the
 DataStream API:
 
 {{< tabs "datastream test" >}}
@@ -58,9 +58,9 @@ dependencies {
 
 For more information on how to use these utilities, check out the section on [DataStream API testing]({{< ref "docs/dev/datastream/testing" >}})
 
-## Table Program Test Dependencies
+## Table API Testing
 
-If you want to test the Table API & SQL programs locally within your IDE, you can add the following 
+If you want to test the Table API & SQL programs locally within your IDE, you can add the following
 dependency:
 
 {{< tabs "table test" >}}
@@ -86,5 +86,9 @@ dependencies {
 
 {{< /tabs >}}
 
-This will automatically bring in the query planner and the runtime, required respectively to plan 
+This will automatically bring in the query planner and the runtime, required respectively to plan
 and execute the queries.
+
+{{< hint info >}}
+The module `flink-table-test-utils` has been introduced in Flink 1.15 and it's considered experimental.
+{{< /hint >}}
