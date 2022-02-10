@@ -1340,7 +1340,7 @@ class TableEnvironment(object):
         ::
 
             # commands executed in shell
-            $ echo numpy==1.16.5 > requirements.txt
+            $ echo numpy==1.22 > requirements.txt
             $ pip download -d cached_dir -r requirements.txt --no-binary :all:
 
             # python code

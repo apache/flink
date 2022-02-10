@@ -114,7 +114,7 @@ the Python UDF worker.
 You could prepare the `requirements.txt` manually as following:
 
 ```shell
-echo numpy==1.16.5 >> requirements.txt
+echo numpy==1.22 >> requirements.txt
 echo pandas==1.0.0 >> requirements.txt
 ```
 
@@ -127,7 +127,7 @@ pip freeze > requirements.txt
 The content of the requirements.txt file may look like the following:
 
 ```shell
-numpy==1.16.5
+numpy==1.22
 pandas==1.0.0
 ```
 

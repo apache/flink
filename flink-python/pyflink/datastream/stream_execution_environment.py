@@ -566,7 +566,7 @@ class StreamExecutionEnvironment(object):
         ::
 
             # commands executed in shell
-            $ echo numpy==1.16.5 > requirements.txt
+            $ echo numpy==1.22 > requirements.txt
             $ pip download -d cached_dir -r requirements.txt --no-binary :all:
 
             # python code
@@ -684,7 +684,7 @@ class StreamExecutionEnvironment(object):
 
         .. note::
 
-            The python udf worker depends on Apache Beam (version == 2.27.0).
+            The python udf worker depends on Apache Beam (version == 2.36.0).
             Please ensure that the specified environment meets the above requirements.
 
         :param python_exec: The path of python interpreter.
