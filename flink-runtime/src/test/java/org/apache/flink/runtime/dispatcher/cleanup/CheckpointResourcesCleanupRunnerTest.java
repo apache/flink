@@ -25,7 +25,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
@@ -481,7 +480,6 @@ public class CheckpointResourcesCleanupRunnerTest {
         private JobResult jobResult = createDummySuccessJobResult();
         private CheckpointRecoveryFactory checkpointRecoveryFactory =
                 createCheckpointRecoveryFactory();
-        private CheckpointsCleaner checkpointsCleaner = new CheckpointsCleaner();
         private SharedStateRegistryFactory sharedStateRegistryFactory =
                 SharedStateRegistry.DEFAULT_FACTORY;
         private Executor executor = Executors.directExecutor();
@@ -496,11 +494,6 @@ public class CheckpointResourcesCleanupRunnerTest {
         public TestInstanceBuilder withCheckpointRecoveryFactory(
                 CheckpointRecoveryFactory checkpointRecoveryFactory) {
             this.checkpointRecoveryFactory = checkpointRecoveryFactory;
-            return this;
-        }
-
-        public TestInstanceBuilder withCheckpointsCleaner(CheckpointsCleaner checkpointsCleaner) {
-            this.checkpointsCleaner = checkpointsCleaner;
             return this;
         }
 
@@ -529,7 +522,6 @@ public class CheckpointResourcesCleanupRunnerTest {
             return new CheckpointResourcesCleanupRunner(
                     jobResult,
                     checkpointRecoveryFactory,
-                    checkpointsCleaner,
                     sharedStateRegistryFactory,
                     configuration,
                     executor,

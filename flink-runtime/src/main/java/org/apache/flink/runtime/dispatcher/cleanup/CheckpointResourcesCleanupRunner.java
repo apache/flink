@@ -79,18 +79,18 @@ public class CheckpointResourcesCleanupRunner implements JobManagerRunner {
     public CheckpointResourcesCleanupRunner(
             JobResult jobResult,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
-            CheckpointsCleaner checkpointsCleaner,
             SharedStateRegistryFactory sharedStateRegistryFactory,
             Configuration jobManagerConfiguration,
             Executor cleanupExecutor,
             long initializationTimestamp) {
         this.jobResult = Preconditions.checkNotNull(jobResult);
         this.checkpointRecoveryFactory = Preconditions.checkNotNull(checkpointRecoveryFactory);
-        this.checkpointsCleaner = Preconditions.checkNotNull(checkpointsCleaner);
         this.sharedStateRegistryFactory = Preconditions.checkNotNull(sharedStateRegistryFactory);
         this.jobManagerConfiguration = Preconditions.checkNotNull(jobManagerConfiguration);
         this.cleanupExecutor = Preconditions.checkNotNull(cleanupExecutor);
         this.initializationTimestamp = initializationTimestamp;
+
+        this.checkpointsCleaner = new CheckpointsCleaner();
     }
 
     @Override
@@ -102,14 +102,15 @@ public class CheckpointResourcesCleanupRunner implements JobManagerRunner {
     public void start() throws Exception {
         cleanupFuture =
                 CompletableFuture.runAsync(
-                        () -> {
-                            try {
-                                cleanupCheckpoints();
-                            } catch (Exception e) {
-                                throw new CompletionException(e);
-                            }
-                        },
-                        cleanupExecutor);
+                                () -> {
+                                    try {
+                                        cleanupCheckpoints();
+                                    } catch (Exception e) {
+                                        throw new CompletionException(e);
+                                    }
+                                },
+                                cleanupExecutor)
+                        .thenCompose(ignore -> checkpointsCleaner.closeAsync());
 
         FutureUtils.forward(cleanupFuture, closeFuture);
     }
