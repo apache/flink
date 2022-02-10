@@ -66,9 +66,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-incremental-group-aggregate",
         version = 1,
+        producedTransformations =
+                StreamExecIncrementalGroupAggregate.INCREMENTAL_GROUP_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase {
+
+    public static final String INCREMENTAL_GROUP_AGGREGATE_TRANSFORMATION =
+            "incremental-group-aggregate";
 
     public static final String FIELD_NAME_PARTIAL_AGG_GROUPING = "partialAggGrouping";
     public static final String FIELD_NAME_FINAL_AGG_GROUPING = "finalAggGrouping";
@@ -221,8 +226,9 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorName(planner.getTableConfig()),
-                        getOperatorDescription(planner.getTableConfig()),
+                        createTransformationMeta(
+                                INCREMENTAL_GROUP_AGGREGATE_TRANSFORMATION,
+                                planner.getTableConfig()),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

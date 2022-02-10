@@ -99,6 +99,7 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ReactiveScaleUpController;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ScaleUpController;
+import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.ExceptionUtils;
@@ -207,6 +208,8 @@ public class AdaptiveScheduler
 
     private final SchedulerExecutionMode executionMode;
 
+    private final DeploymentStateTimeMetrics deploymentTimeMetrics;
+
     public AdaptiveScheduler(
             JobGraph jobGraph,
             Configuration configuration,
@@ -271,13 +274,20 @@ public class AdaptiveScheduler
         tmpJobStatusListeners.add(Preconditions.checkNotNull(jobStatusListener));
         tmpJobStatusListeners.add(jobStatusStore);
 
+        final MetricOptions.JobStatusMetricsSettings jobStatusMetricsSettings =
+                MetricOptions.JobStatusMetricsSettings.fromConfiguration(configuration);
+
+        deploymentTimeMetrics =
+                new DeploymentStateTimeMetrics(jobGraph.getJobType(), jobStatusMetricsSettings);
+
         SchedulerBase.registerJobMetrics(
                 jobManagerJobMetricGroup,
                 jobStatusStore,
                 () -> (long) numRestarts,
+                deploymentTimeMetrics,
                 tmpJobStatusListeners::add,
                 initializationTimestamp,
-                MetricOptions.JobStatusMetricsSettings.fromConfiguration(configuration));
+                jobStatusMetricsSettings);
 
         jobStatusListeners = Collections.unmodifiableCollection(tmpJobStatusListeners);
     }
@@ -1023,6 +1033,7 @@ public class AdaptiveScheduler
                 initializationTimestamp,
                 vertexAttemptNumberStore,
                 adjustedParallelismStore,
+                deploymentTimeMetrics,
                 LOG);
     }
 

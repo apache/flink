@@ -36,6 +36,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -70,6 +72,9 @@ public class BatchShuffleReadBufferPool {
 
     /** The number of buffers to be returned for a single request. */
     private final int numBuffersPerRequest;
+
+    /** All requesters which need to request buffers from this pool currently. */
+    private final Set<Object> bufferRequesters = ConcurrentHashMap.newKeySet();
 
     /** All available buffers in this buffer pool currently. */
     @GuardedBy("buffers")
@@ -179,6 +184,18 @@ public class BatchShuffleReadBufferPool {
                 "Batch shuffle IO buffer pool initialized: numBuffers={}, bufferSize={}.",
                 numTotalBuffers,
                 bufferSize);
+    }
+
+    public void registerRequester(Object requester) {
+        bufferRequesters.add(requester);
+    }
+
+    public void unregisterRequester(Object requester) {
+        bufferRequesters.remove(requester);
+    }
+
+    public int getAverageBuffersPerRequester() {
+        return Math.max(1, numTotalBuffers / Math.max(1, bufferRequesters.size()));
     }
 
     /**

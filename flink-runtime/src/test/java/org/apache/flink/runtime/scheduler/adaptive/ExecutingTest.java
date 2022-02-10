@@ -53,6 +53,7 @@ import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
@@ -763,7 +764,8 @@ public class ExecutingTest extends TestLogger {
                     1,
                     Time.milliseconds(1L),
                     1L,
-                    new DefaultSubtaskAttemptNumberStore(Collections.emptyList()));
+                    new DefaultSubtaskAttemptNumberStore(Collections.emptyList()),
+                    new CoordinatorStoreImpl());
             mockExecutionVertex = executionVertexSupplier.apply(this);
         }
 
@@ -914,7 +916,10 @@ public class ExecutingTest extends TestLogger {
         }
 
         @Override
-        public void notifyExecutionChange(Execution execution, ExecutionState newExecutionState) {}
+        public void notifyExecutionChange(
+                Execution execution,
+                ExecutionState previousState,
+                ExecutionState newExecutionState) {}
 
         @Override
         public EdgeManager getEdgeManager() {

@@ -496,9 +496,11 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
                 | IllegalAccessException
                 | InvocationTargetException e) {
 
-            LOG.warn(
-                    "Falling back to default Kryo serializer because Chill serializer couldn't be found.",
-                    e);
+            if (LOG.isDebugEnabled()) {
+                LOG.info("Kryo serializer scala extensions are not available.", e);
+            } else {
+                LOG.info("Kryo serializer scala extensions are not available.");
+            }
 
             Kryo.DefaultInstantiatorStrategy initStrategy = new Kryo.DefaultInstantiatorStrategy();
             initStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());

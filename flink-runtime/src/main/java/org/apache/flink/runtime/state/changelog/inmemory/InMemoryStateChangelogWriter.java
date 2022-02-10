@@ -109,7 +109,7 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
                 .filter(map -> !map.isEmpty())
                 .map(SortedMap::firstKey)
                 .min(Comparator.naturalOrder())
-                .orElse(initialSequenceNumber());
+                .orElse(lastAppendedSequenceNumber().next());
     }
 
     @Override

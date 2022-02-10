@@ -82,7 +82,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /** An abstract class for netty-based REST server endpoints. */
-public abstract class RestServerEndpoint implements AutoCloseableAsync {
+public abstract class RestServerEndpoint implements RestService {
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -104,6 +104,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
     private ServerBootstrap bootstrap;
     private Channel serverChannel;
     private String restBaseUrl;
+    private int port;
 
     private State state = State.CREATED;
 
@@ -290,7 +291,8 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
             } else {
                 advertisedAddress = bindAddress.getAddress().getHostAddress();
             }
-            final int port = bindAddress.getPort();
+
+            port = bindAddress.getPort();
 
             log.info("Rest endpoint listening at {}:{}", advertisedAddress, port);
 
@@ -319,8 +321,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
     @Nullable
     public InetSocketAddress getServerAddress() {
         synchronized (lock) {
-            Preconditions.checkState(
-                    state != State.CREATED, "The RestServerEndpoint has not been started yet.");
+            assertRestServerHasBeenStarted();
             Channel server = this.serverChannel;
 
             if (server != null) {
@@ -342,9 +343,21 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
      */
     public String getRestBaseUrl() {
         synchronized (lock) {
-            Preconditions.checkState(
-                    state != State.CREATED, "The RestServerEndpoint has not been started yet.");
+            assertRestServerHasBeenStarted();
             return restBaseUrl;
+        }
+    }
+
+    private void assertRestServerHasBeenStarted() {
+        Preconditions.checkState(
+                state != State.CREATED, "The RestServerEndpoint has not been started yet.");
+    }
+
+    @Override
+    public int getRestPort() {
+        synchronized (lock) {
+            assertRestServerHasBeenStarted();
+            return port;
         }
     }
 

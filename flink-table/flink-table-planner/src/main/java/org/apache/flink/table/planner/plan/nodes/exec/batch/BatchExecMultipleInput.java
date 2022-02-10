@@ -106,7 +106,7 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
 
         final MultipleInputTransformation<RowData> multipleInputTransform =
                 new MultipleInputTransformation<>(
-                        getOperatorName(planner.getTableConfig()),
+                        createTransformationName(planner.getTableConfig()),
                         new BatchMultipleInputStreamOperatorFactory(
                                 inputTransformAndInputSpecPairs.stream()
                                         .map(Pair::getValue)
@@ -115,7 +115,8 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
                                 generator.getTailWrapper()),
                         InternalTypeInfo.of(getOutputType()),
                         generator.getParallelism());
-        multipleInputTransform.setDescription(getOperatorDescription(planner.getTableConfig()));
+        multipleInputTransform.setDescription(
+                createTransformationDescription(planner.getTableConfig()));
         inputTransformAndInputSpecPairs.forEach(
                 input -> multipleInputTransform.addInput(input.getKey()));
 

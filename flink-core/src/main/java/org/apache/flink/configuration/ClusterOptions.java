@@ -37,6 +37,7 @@ public class ClusterOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
     public static final ConfigOption<Long> INITIAL_REGISTRATION_TIMEOUT =
             ConfigOptions.key("cluster.registration.initial-timeout")
+                    .longType()
                     .defaultValue(100L)
                     .withDescription(
                             "Initial registration timeout between cluster components in milliseconds.");
@@ -44,6 +45,7 @@ public class ClusterOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
     public static final ConfigOption<Long> MAX_REGISTRATION_TIMEOUT =
             ConfigOptions.key("cluster.registration.max-timeout")
+                    .longType()
                     .defaultValue(30000L)
                     .withDescription(
                             "Maximum registration timeout between cluster components in milliseconds.");
@@ -51,6 +53,7 @@ public class ClusterOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
     public static final ConfigOption<Long> ERROR_REGISTRATION_DELAY =
             ConfigOptions.key("cluster.registration.error-delay")
+                    .longType()
                     .defaultValue(10000L)
                     .withDescription(
                             "The pause made after an registration attempt caused an exception (other than timeout) in milliseconds.");
@@ -58,6 +61,7 @@ public class ClusterOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
     public static final ConfigOption<Long> REFUSED_REGISTRATION_DELAY =
             ConfigOptions.key("cluster.registration.refused-registration-delay")
+                    .longType()
                     .defaultValue(30000L)
                     .withDescription(
                             "The pause made after the registration attempt was refused in milliseconds.");
@@ -65,6 +69,7 @@ public class ClusterOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
     public static final ConfigOption<Long> CLUSTER_SERVICES_SHUTDOWN_TIMEOUT =
             ConfigOptions.key("cluster.services.shutdown-timeout")
+                    .longType()
                     .defaultValue(30000L)
                     .withDescription(
                             "The shutdown timeout for cluster services like executors in milliseconds.");
@@ -82,6 +87,7 @@ public class ClusterOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     public static final ConfigOption<Boolean> EVENLY_SPREAD_OUT_SLOTS_STRATEGY =
             ConfigOptions.key("cluster.evenly-spread-out-slots")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             Description.builder()

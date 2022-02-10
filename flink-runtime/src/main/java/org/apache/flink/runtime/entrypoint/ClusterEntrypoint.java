@@ -109,6 +109,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
     public static final ConfigOption<String> INTERNAL_CLUSTER_EXECUTION_MODE =
             ConfigOptions.key("internal.cluster.execution-mode")
+                    .stringType()
                     .defaultValue(ExecutionMode.NORMAL.toString());
 
     protected static final Logger LOG = LoggerFactory.getLogger(ClusterEntrypoint.class);
@@ -179,6 +180,29 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         shutDownHook =
                 ShutdownHookUtil.addShutdownHook(
                         () -> this.closeAsync().join(), getClass().getSimpleName(), LOG);
+    }
+
+    public int getRestPort() {
+        synchronized (lock) {
+            assertClusterEntrypointIsStarted();
+
+            return clusterComponent.getRestPort();
+        }
+    }
+
+    public int getRpcPort() {
+        synchronized (lock) {
+            assertClusterEntrypointIsStarted();
+
+            return commonRpcService.getPort();
+        }
+    }
+
+    @GuardedBy("lock")
+    private void assertClusterEntrypointIsStarted() {
+        Preconditions.checkNotNull(
+                commonRpcService,
+                String.format("%s has not been started yet.", getClass().getSimpleName()));
     }
 
     public CompletableFuture<ApplicationStatus> getTerminationFuture() {

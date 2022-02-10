@@ -18,7 +18,9 @@
 package org.apache.flink.connector.firehose.sink;
 
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.connector.aws.testutils.AWSServicesTestUtils;
 import org.apache.flink.connector.aws.testutils.LocalstackContainer;
+import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.DockerImageVersions;
@@ -33,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.core.SdkSystemSetting;
+import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.services.firehose.FirehoseAsyncClient;
 import software.amazon.awssdk.services.iam.IamAsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
@@ -43,10 +46,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.createBucket;
+import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.createConfig;
 import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.createIAMRole;
-import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.getConfig;
-import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.getIamClient;
-import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.getS3Client;
+import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.createIamClient;
+import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.createS3Client;
 import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.listBucketObjects;
 import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.readObjectsFromS3Bucket;
 import static org.apache.flink.connector.firehose.sink.testutils.KinesisFirehoseTestUtils.createDeliveryStream;
@@ -63,6 +66,7 @@ public class KinesisFirehoseSinkITCase {
     private static final String STREAM_NAME = "s3-stream";
     private static final int NUMBER_OF_ELEMENTS = 92;
 
+    private SdkAsyncHttpClient httpClient;
     private S3AsyncClient s3AsyncClient;
     private FirehoseAsyncClient firehoseAsyncClient;
     private IamAsyncClient iamAsyncClient;
@@ -74,14 +78,17 @@ public class KinesisFirehoseSinkITCase {
     @Before
     public void setup() throws Exception {
         System.setProperty(SdkSystemSetting.CBOR_ENABLED.property(), "false");
-        s3AsyncClient = getS3Client(mockFirehoseContainer.getEndpoint());
-        firehoseAsyncClient = getFirehoseClient(mockFirehoseContainer.getEndpoint());
-        iamAsyncClient = getIamClient(mockFirehoseContainer.getEndpoint());
+        httpClient = AWSServicesTestUtils.createHttpClient(mockFirehoseContainer.getEndpoint());
+        s3AsyncClient = createS3Client(mockFirehoseContainer.getEndpoint(), httpClient);
+        firehoseAsyncClient = getFirehoseClient(mockFirehoseContainer.getEndpoint(), httpClient);
+        iamAsyncClient = createIamClient(mockFirehoseContainer.getEndpoint(), httpClient);
     }
 
     @After
     public void teardown() {
         System.clearProperty(SdkSystemSetting.CBOR_ENABLED.property());
+        AWSGeneralUtil.closeResources(
+                httpClient, s3AsyncClient, firehoseAsyncClient, iamAsyncClient);
     }
 
     @Test
@@ -112,14 +119,17 @@ public class KinesisFirehoseSinkITCase {
                         .setSerializationSchema(new SimpleStringSchema())
                         .setDeliveryStreamName(STREAM_NAME)
                         .setMaxBatchSize(1)
-                        .setFirehoseClientProperties(getConfig(mockFirehoseContainer.getEndpoint()))
+                        .setFirehoseClientProperties(
+                                createConfig(mockFirehoseContainer.getEndpoint()))
                         .build();
 
         generator.sinkTo(kdsSink);
         env.execute("Integration Test");
 
         List<S3Object> objects =
-                listBucketObjects(getS3Client(mockFirehoseContainer.getEndpoint()), BUCKET_NAME);
+                listBucketObjects(
+                        createS3Client(mockFirehoseContainer.getEndpoint(), httpClient),
+                        BUCKET_NAME);
         assertThat(objects.size()).isEqualTo(NUMBER_OF_ELEMENTS);
         assertThat(
                         readObjectsFromS3Bucket(

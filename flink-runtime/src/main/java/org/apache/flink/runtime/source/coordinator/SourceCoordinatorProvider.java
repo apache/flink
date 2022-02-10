@@ -83,7 +83,11 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
                         context,
                         splitSerializer);
         return new SourceCoordinator<>(
-                operatorName, coordinatorExecutor, source, sourceCoordinatorContext);
+                operatorName,
+                coordinatorExecutor,
+                source,
+                sourceCoordinatorContext,
+                context.getCoordinatorStore());
     }
 
     /** A thread factory class that provides some helper methods. */

@@ -33,6 +33,7 @@ public class HeartbeatManagerOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
     public static final ConfigOption<Long> HEARTBEAT_INTERVAL =
             key("heartbeat.interval")
+                    .longType()
                     .defaultValue(10000L)
                     .withDescription(
                             "Time interval between heartbeat RPC requests from the sender to the receiver side.");
@@ -41,6 +42,7 @@ public class HeartbeatManagerOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
     public static final ConfigOption<Long> HEARTBEAT_TIMEOUT =
             key("heartbeat.timeout")
+                    .longType()
                     .defaultValue(50000L)
                     .withDescription(
                             "Timeout for requesting and receiving heartbeats for both sender and receiver sides.");

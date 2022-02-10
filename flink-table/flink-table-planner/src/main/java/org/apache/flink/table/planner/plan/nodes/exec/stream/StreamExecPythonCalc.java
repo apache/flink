@@ -39,6 +39,7 @@ import java.util.List;
 @ExecNodeMetadata(
         name = "stream-exec-python-calc",
         version = 1,
+        producedTransformations = CommonExecPythonCalc.PYTHON_CALC_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecPythonCalc extends CommonExecPythonCalc implements StreamExecNode<RowData> {

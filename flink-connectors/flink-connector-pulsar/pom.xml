@@ -161,6 +161,14 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
+
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<!-- gRPC use version range which don't support by flink ci. -->

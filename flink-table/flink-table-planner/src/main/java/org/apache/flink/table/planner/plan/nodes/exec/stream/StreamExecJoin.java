@@ -63,10 +63,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-join",
         version = 1,
+        producedTransformations = StreamExecJoin.JOIN_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecJoin extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
+    public static final String JOIN_TRANSFORMATION = "join";
+
     public static final String FIELD_NAME_JOIN_SPEC = "joinSpec";
     public static final String FIELD_NAME_LEFT_UNIQUE_KEYS = "leftUniqueKeys";
     public static final String FIELD_NAME_RIGHT_UNIQUE_KEYS = "rightUniqueKeys";
@@ -183,8 +187,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                 ExecNodeUtil.createTwoInputTransformation(
                         leftTransform,
                         rightTransform,
-                        getOperatorName(tableConfig),
-                        getOperatorDescription(tableConfig),
+                        createTransformationMeta(JOIN_TRANSFORMATION, tableConfig),
                         operator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());

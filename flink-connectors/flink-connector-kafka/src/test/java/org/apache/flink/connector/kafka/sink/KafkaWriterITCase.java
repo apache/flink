@@ -40,6 +40,7 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
@@ -54,8 +55,11 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -64,6 +68,7 @@ import java.util.OptionalLong;
 import java.util.PriorityQueue;
 import java.util.Properties;
 import java.util.concurrent.ScheduledFuture;
+import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.connector.kafka.testutils.KafkaUtil.createKafkaContainer;
@@ -177,6 +182,25 @@ public class KafkaWriterITCase extends TestLogger {
                                 }
                             });
             assertThat(currentSendTime.get().getValue(), greaterThan(0L));
+        }
+    }
+
+    @Test
+    public void testMetadataPublisher() throws Exception {
+        List<String> metadataList = new ArrayList<>();
+        try (final KafkaWriter<Integer> writer =
+                createWriterWithConfiguration(
+                        getKafkaClientConfiguration(),
+                        DeliveryGuarantee.AT_LEAST_ONCE,
+                        InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup()),
+                        meta -> metadataList.add(meta.toString()))) {
+            List<String> expected = new ArrayList<>();
+            for (int i = 0; i < 100; i++) {
+                writer.write(1, SINK_WRITER_CONTEXT);
+                expected.add("testMetadataPublisher-0@" + i);
+            }
+            writer.prepareCommit();
+            org.assertj.core.api.Assertions.assertThat(metadataList).isEqualTo(expected);
         }
     }
 
@@ -341,11 +365,19 @@ public class KafkaWriterITCase extends TestLogger {
             Properties config,
             DeliveryGuarantee guarantee,
             SinkWriterMetricGroup sinkWriterMetricGroup) {
+        return createWriterWithConfiguration(config, guarantee, sinkWriterMetricGroup, null);
+    }
+
+    private KafkaWriter<Integer> createWriterWithConfiguration(
+            Properties config,
+            DeliveryGuarantee guarantee,
+            SinkWriterMetricGroup sinkWriterMetricGroup,
+            @Nullable Consumer<RecordMetadata> metadataConsumer) {
         return new KafkaWriter<>(
                 guarantee,
                 config,
                 "test-prefix",
-                new SinkInitContext(sinkWriterMetricGroup, timeService),
+                new SinkInitContext(sinkWriterMetricGroup, timeService, metadataConsumer),
                 new DummyRecordSerializer(),
                 new DummySchemaContext(),
                 ImmutableList.of());
@@ -366,10 +398,15 @@ public class KafkaWriterITCase extends TestLogger {
 
         private final SinkWriterMetricGroup metricGroup;
         private final ProcessingTimeService timeService;
+        @Nullable private final Consumer<RecordMetadata> metadataConsumer;
 
-        SinkInitContext(SinkWriterMetricGroup metricGroup, ProcessingTimeService timeService) {
+        SinkInitContext(
+                SinkWriterMetricGroup metricGroup,
+                ProcessingTimeService timeService,
+                @Nullable Consumer<RecordMetadata> metadataConsumer) {
             this.metricGroup = metricGroup;
             this.timeService = timeService;
+            this.metadataConsumer = metadataConsumer;
         }
 
         @Override
@@ -411,6 +448,11 @@ public class KafkaWriterITCase extends TestLogger {
         public SerializationSchema.InitializationContext
                 asSerializationSchemaInitializationContext() {
             return null;
+        }
+
+        @Override
+        public <MetaT> Optional<Consumer<MetaT>> metadataConsumer() {
+            return Optional.ofNullable((Consumer<MetaT>) metadataConsumer);
         }
     }
 

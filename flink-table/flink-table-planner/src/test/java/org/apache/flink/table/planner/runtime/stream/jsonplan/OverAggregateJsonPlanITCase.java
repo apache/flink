@@ -56,7 +56,7 @@ public class OverAggregateJsonPlanITCase extends JsonPlanTestBase {
                         + "  MIN(c) OVER ("
                         + "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) "
                         + "FROM MyTable";
-        executeSqlWithJsonPlanVerified(sql).await();
+        compileSqlAndExecutePlan(sql).await();
 
         List<String> expected =
                 Arrays.asList(
@@ -108,7 +108,7 @@ public class OverAggregateJsonPlanITCase extends JsonPlanTestBase {
                         + "   as sum1\n"
                         + " FROM MyTable\n"
                         + ")";
-        executeSqlWithJsonPlanVerified(sql).await();
+        compileSqlAndExecutePlan(sql).await();
         List<String> expected =
                 Arrays.asList(
                         "+I[Hello World, 1, null]",
@@ -174,7 +174,7 @@ public class OverAggregateJsonPlanITCase extends JsonPlanTestBase {
         createTestNonInsertOnlyValuesSinkTable(
                 "MySink", "a string", "b int", "c bigint", "d bigint", "e bigint");
 
-        executeSqlWithJsonPlanVerified(sql).await();
+        compileSqlAndExecutePlan(sql).await();
         List<String> expected =
                 Arrays.asList(
                         "+I[Hello, 1, 0, 1, 1]",

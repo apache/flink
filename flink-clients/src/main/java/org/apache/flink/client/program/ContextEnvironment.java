@@ -118,6 +118,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
             if (!suppressSysout) {
                 System.out.println(jobExecutionResult);
             }
+            LOG.info(String.valueOf(jobExecutionResult));
         } else {
             jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
         }
@@ -133,7 +134,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
         if (!suppressSysout) {
             System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
         }
-
+        LOG.info("Job has been submitted with JobID {}", jobClient.getJobID());
         return jobClient;
     }
 

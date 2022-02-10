@@ -121,12 +121,14 @@ class CastRulesTest {
     private static final double DEFAULT_NEGATIVE_DOUBLE = -123.456789d;
 
     private static final int DATE = DateTimeUtils.toInternal(LocalDate.parse("2021-09-24"));
-    private static final int TIME = DateTimeUtils.toInternal(LocalTime.parse("12:34:56.123"));
+    private static final int TIME = DateTimeUtils.toInternal(LocalTime.parse("12:34:56.12345"));
     private static final StringData DATE_STRING = fromString("2021-09-24");
     private static final StringData TIME_STRING = fromString("12:34:56.123");
 
     private static final TimestampData TIMESTAMP =
             TimestampData.fromLocalDateTime(LocalDateTime.parse("2021-09-24T12:34:56.123456"));
+    private static final TimestampData TIMESTAMP_LTZ =
+            timestampDataFromInstant(2022, 1, 4, 12, 34, 56, 123456780);
     private static final StringData TIMESTAMP_STRING = fromString("2021-09-24 12:34:56.123456");
     private static final StringData TIMESTAMP_STRING_CET = fromString("2021-09-24 14:34:56.123456");
 
@@ -429,7 +431,15 @@ class CastRulesTest {
                                 STRING(),
                                 fromString("2021-09-27 12:34:56.123456789"),
                                 DateTimeUtils.toInternal(LocalDate.of(2021, 9, 27)))
-                        .fail(STRING(), fromString("2021/09/27"), TableException.class),
+                        .fail(STRING(), fromString("2021/09/27"), TableException.class)
+                        .fromCase(
+                                TIMESTAMP(9),
+                                TIMESTAMP,
+                                DateTimeUtils.toInternal(LocalDate.of(2021, 9, 24)))
+                        .fromCase(
+                                TIMESTAMP_LTZ(8),
+                                TIMESTAMP_LTZ,
+                                DateTimeUtils.toInternal(LocalDate.of(2022, 1, 4))),
                 CastTestSpecBuilder.testCastTo(TIME())
                         .fail(CHAR(3), fromString("foo"), TableException.class)
                         .fail(VARCHAR(5), fromString("Flink"), TableException.class)
@@ -443,6 +453,8 @@ class CastRulesTest {
                                 DateTimeUtils.toInternal(LocalTime.of(23, 45, 0)))
                         .fail(STRING(), fromString("2021-09-27"), TableException.class)
                         .fail(STRING(), fromString("2021-09-27 12:34:56"), TableException.class)
+                        // https://issues.apache.org/jira/browse/FLINK-17224 Currently, fractional
+                        // seconds are lost
                         .fromCase(
                                 STRING(),
                                 fromString("12:34:56.123456789"),
@@ -450,7 +462,15 @@ class CastRulesTest {
                         .fail(
                                 STRING(),
                                 fromString("2021-09-27 12:34:56.123456789"),
-                                TableException.class),
+                                TableException.class)
+                        .fromCase(
+                                TIMESTAMP(6),
+                                TIMESTAMP,
+                                DateTimeUtils.toInternal(LocalTime.of(12, 34, 56, 123_000_000)))
+                        .fromCase(
+                                TIMESTAMP_LTZ(8),
+                                TIMESTAMP_LTZ,
+                                DateTimeUtils.toInternal(LocalTime.of(11, 34, 56, 123_000_000))),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP(9))
                         .fail(CHAR(3), fromString("foo"), TableException.class)
                         .fail(VARCHAR(5), fromString("Flink"), TableException.class)
@@ -458,14 +478,53 @@ class CastRulesTest {
                         .fromCase(
                                 STRING(),
                                 fromString("2021-09-27"),
-                                TimestampData.fromLocalDateTime(
-                                        LocalDateTime.of(2021, 9, 27, 0, 0, 0, 0)))
+                                timestampDataFromLocalDateTime(2021, 9, 27, 0, 0, 0, 0))
                         .fail(STRING(), fromString("2021/09/27"), TableException.class)
                         .fromCase(
                                 STRING(),
                                 fromString("2021-09-27 12:34:56.123456789"),
-                                TimestampData.fromLocalDateTime(
-                                        LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123456789))),
+                                timestampDataFromLocalDateTime(
+                                        2021, 9, 27, 12, 34, 56, 123_456_789))
+                        .fromCase(
+                                DATE(),
+                                DateTimeUtils.toInternal(LocalDate.of(2022, 1, 4)),
+                                timestampDataFromLocalDateTime(2022, 1, 4, 0, 0, 0, 0))
+                        // https://issues.apache.org/jira/browse/FLINK-17224 Currently, fractional
+                        // seconds are lost
+                        .fromCase(
+                                TIME(5),
+                                TIME,
+                                timestampDataFromLocalDateTime(1970, 1, 1, 12, 34, 56, 123_000_000))
+                        .fromCase(
+                                TIMESTAMP_LTZ(8),
+                                TIMESTAMP_LTZ,
+                                timestampDataFromLocalDateTime(
+                                        2022, 1, 4, 11, 34, 56, 123_456_780)),
+                CastTestSpecBuilder.testCastTo(TIMESTAMP(4))
+                        .fromCase(
+                                TIMESTAMP(2),
+                                timestampDataFromLocalDateTime(2021, 9, 27, 0, 0, 0, 120_000_000),
+                                timestampDataFromLocalDateTime(2021, 9, 27, 0, 0, 0, 120_000_000))
+                        .fromCase(
+                                TIMESTAMP(4),
+                                timestampDataFromLocalDateTime(2021, 9, 27, 0, 0, 0, 123_400_000),
+                                timestampDataFromLocalDateTime(2021, 9, 27, 0, 0, 0, 123_400_000))
+                        .fromCase(
+                                TIMESTAMP(7),
+                                timestampDataFromLocalDateTime(2021, 9, 27, 0, 0, 0, 123_456_700),
+                                timestampDataFromLocalDateTime(2021, 9, 27, 0, 0, 0, 123_400_000))
+                        .fromCase(
+                                TIMESTAMP_LTZ(2),
+                                timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 120_000_000),
+                                timestampDataFromLocalDateTime(2021, 9, 26, 22, 0, 0, 120_000_000))
+                        .fromCase(
+                                TIMESTAMP_LTZ(4),
+                                timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 123_400_000),
+                                timestampDataFromLocalDateTime(2021, 9, 26, 22, 0, 0, 123_400_000))
+                        .fromCase(
+                                TIMESTAMP_LTZ(7),
+                                timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 123_456_700),
+                                timestampDataFromLocalDateTime(2021, 9, 26, 22, 0, 0, 123_400_000)),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(9))
                         .fail(CHAR(3), fromString("foo"), TableException.class)
                         .fail(VARCHAR(5), fromString("Flink"), TableException.class)
@@ -474,28 +533,58 @@ class CastRulesTest {
                                 STRING(),
                                 CET_CONTEXT,
                                 fromString("2021-09-27"),
-                                TimestampData.fromInstant(
-                                        LocalDateTime.of(2021, 9, 27, 0, 0, 0, 0)
-                                                .atZone(CET)
-                                                .toInstant()))
+                                timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 0))
                         .fromCase(
                                 STRING(),
                                 CET_CONTEXT,
                                 fromString("2021-09-27 12:34:56.123"),
-                                TimestampData.fromInstant(
-                                        LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123000000)
-                                                .atZone(CET)
-                                                .toInstant()))
+                                timestampDataFromInstant(2021, 9, 27, 12, 34, 56, 123_000_000))
                         // https://issues.apache.org/jira/browse/FLINK-24446 Fractional seconds are
                         // lost
                         .fromCase(
                                 STRING(),
                                 CET_CONTEXT,
                                 fromString("2021-09-27 12:34:56.123456789"),
-                                TimestampData.fromInstant(
-                                        LocalDateTime.of(2021, 9, 27, 12, 34, 56, 0)
-                                                .atZone(CET)
-                                                .toInstant())),
+                                timestampDataFromInstant(2021, 9, 27, 12, 34, 56, 0))
+                        .fromCase(
+                                DATE(),
+                                DateTimeUtils.toInternal(LocalDate.of(2022, 1, 4)),
+                                timestampDataFromInstant(2022, 1, 4, 1, 0, 0, 0))
+                        // https://issues.apache.org/jira/browse/FLINK-17224 Currently, fractional
+                        // seconds are lost
+                        .fromCase(
+                                TIME(5),
+                                TIME,
+                                timestampDataFromInstant(1970, 1, 1, 13, 34, 56, 123_000_000))
+                        .fromCase(
+                                TIMESTAMP(6),
+                                TIMESTAMP,
+                                timestampDataFromInstant(2021, 9, 24, 14, 34, 56, 123_456_000)),
+                CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(4))
+                        .fromCase(
+                                TIMESTAMP(2),
+                                timestampDataFromLocalDateTime(2021, 9, 27, 0, 0, 0, 120_000_000),
+                                timestampDataFromInstant(2021, 9, 27, 2, 0, 0, 120_000_000))
+                        .fromCase(
+                                TIMESTAMP(4),
+                                timestampDataFromLocalDateTime(2021, 9, 27, 0, 0, 0, 123_400_000),
+                                timestampDataFromInstant(2021, 9, 27, 2, 0, 0, 123_400_000))
+                        .fromCase(
+                                TIMESTAMP(7),
+                                timestampDataFromLocalDateTime(2021, 9, 27, 0, 0, 0, 123_456_700),
+                                timestampDataFromInstant(2021, 9, 27, 2, 0, 0, 123_400_000))
+                        .fromCase(
+                                TIMESTAMP_LTZ(2),
+                                timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 120_000_000),
+                                timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 120_000_000))
+                        .fromCase(
+                                TIMESTAMP_LTZ(4),
+                                timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 123_400_000),
+                                timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 123_400_000))
+                        .fromCase(
+                                TIMESTAMP_LTZ(7),
+                                timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 123_456_700),
+                                timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 123_400_000)),
                 CastTestSpecBuilder.testCastTo(STRING())
                         .fromCase(STRING(), null, null)
                         .fromCase(NULL(), null, BinaryStringDataUtil.NULL_STRING)
@@ -1443,5 +1532,19 @@ class CastRulesTest {
             }
             return Arrays.stream(testSpecs);
         }
+    }
+
+    private static TimestampData timestampDataFromLocalDateTime(
+            int years, int months, int days, int hours, int minutes, int seconds, int nanos) {
+        return TimestampData.fromLocalDateTime(
+                LocalDateTime.of(years, months, days, hours, minutes, seconds, nanos));
+    }
+
+    private static TimestampData timestampDataFromInstant(
+            int years, int months, int days, int hours, int minutes, int seconds, int nanos) {
+        return TimestampData.fromInstant(
+                LocalDateTime.of(years, months, days, hours, minutes, seconds, nanos)
+                        .atZone(CET)
+                        .toInstant());
     }
 }

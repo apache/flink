@@ -60,6 +60,8 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
+import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.SsgNetworkMemoryCalculationUtils;
@@ -130,6 +132,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     /** The executor which is used to execute blocking io operations. */
     private final Executor ioExecutor;
+
+    /** {@link CoordinatorStore} shared across all operator coordinators within this execution. */
+    private final CoordinatorStore coordinatorStore = new CoordinatorStoreImpl();
 
     /** Executor that runs tasks in the job manager's main thread. */
     @Nonnull private ComponentMainThreadExecutor jobMasterMainThreadExecutor;
@@ -845,7 +850,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 maxPriorAttemptsHistoryLength,
                 rpcTimeout,
                 createTimestamp,
-                this.initialAttemptCounts.getAttemptCounts(ejv.getJobVertexId()));
+                this.initialAttemptCounts.getAttemptCounts(ejv.getJobVertexId()),
+                coordinatorStore);
 
         ejv.connectToPredecessors(this.intermediateResults);
 
@@ -1506,8 +1512,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     @Override
     public void notifyExecutionChange(
-            final Execution execution, final ExecutionState newExecutionState) {
-        executionStateUpdateListener.onStateUpdate(execution.getAttemptId(), newExecutionState);
+            final Execution execution,
+            ExecutionState previousState,
+            final ExecutionState newExecutionState) {
+        executionStateUpdateListener.onStateUpdate(
+                execution.getAttemptId(), previousState, newExecutionState);
     }
 
     private void assertRunningInJobMasterMainThread() {

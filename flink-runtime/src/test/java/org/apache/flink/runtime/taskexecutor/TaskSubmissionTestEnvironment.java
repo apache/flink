@@ -62,6 +62,7 @@ import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.rules.TemporaryFolder;
@@ -150,7 +151,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
         TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
                         false,
-                        new File[] {temporaryFolder.newFolder()},
+                        Reference.owned(new File[] {temporaryFolder.newFolder()}),
                         Executors.directExecutor());
 
         final TaskManagerServices taskManagerServices =

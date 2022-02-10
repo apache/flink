@@ -23,10 +23,10 @@ import org.rnorth.ducttape.unreliables.Unreliables;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy;
 import org.testcontainers.utility.DockerImageName;
+import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
-import java.net.URISyntaxException;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -73,12 +73,15 @@ public class LocalstackContainer extends GenericContainer<LocalstackContainer> {
                     () -> rateLimiter.getWhenReady(this::list));
         }
 
-        private List<S3Object> list()
-                throws ExecutionException, InterruptedException, URISyntaxException {
-            String bucketName = "bucket-name-not-to-be-used";
-            S3AsyncClient client = AWSServicesTestUtils.getS3Client(getEndpoint());
-            AWSServicesTestUtils.createBucket(client, bucketName);
-            return AWSServicesTestUtils.listBucketObjects(client, bucketName);
+        private List<S3Object> list() throws ExecutionException, InterruptedException {
+            final String bucketName = "bucket-name-not-to-be-used";
+            try (final SdkAsyncHttpClient httpClient =
+                            AWSServicesTestUtils.createHttpClient(getEndpoint());
+                    final S3AsyncClient client =
+                            AWSServicesTestUtils.createS3Client(getEndpoint(), httpClient)) {
+                AWSServicesTestUtils.createBucket(client, bucketName);
+                return AWSServicesTestUtils.listBucketObjects(client, bucketName);
+            }
         }
     }
 }

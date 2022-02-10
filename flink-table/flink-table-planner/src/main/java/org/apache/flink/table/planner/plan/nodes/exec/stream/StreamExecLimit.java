@@ -44,6 +44,7 @@ import java.util.List;
 @ExecNodeMetadata(
         name = "stream-exec-limit",
         version = 1,
+        producedTransformations = StreamExecRank.RANK_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecLimit extends StreamExecRank {

@@ -19,11 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableConfig;
@@ -70,6 +67,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RANK_TOPN_CACHE_SIZE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -77,20 +75,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-rank",
         version = 1,
+        producedTransformations = StreamExecRank.RANK_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecRank extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-    // It is a experimental config, will may be removed later.
-    @Experimental
-    public static final ConfigOption<Long> TABLE_EXEC_TOPN_CACHE_SIZE =
-            ConfigOptions.key("table.exec.topn.cache-size")
-                    .longType()
-                    .defaultValue(10000L)
-                    .withDescription(
-                            "TopN operator has a cache which caches partial state contents to reduce"
-                                    + " state access. Cache size is the number of records in each TopN task.");
+    public static final String RANK_TRANSFORMATION = "rank";
 
     public static final String FIELD_NAME_RANK_TYPE = "rankType";
     public static final String FIELD_NAME_PARTITION_SPEC = "partition";
@@ -216,7 +207,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                         "StreamExecSortComparator",
                         RowType.of(sortSpec.getFieldTypes(inputType)),
                         sortSpecInSortKey);
-        long cacheSize = tableConfig.getConfiguration().getLong(TABLE_EXEC_TOPN_CACHE_SIZE);
+        long cacheSize = tableConfig.getConfiguration().getLong(TABLE_EXEC_RANK_TOPN_CACHE_SIZE);
         StateTtlConfig ttlConfig =
                 StateConfigUtil.createTtlConfig(tableConfig.getIdleStateRetention().toMillis());
 
@@ -331,8 +322,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorName(tableConfig),
-                        getOperatorDescription(tableConfig),
+                        createTransformationMeta(RANK_TRANSFORMATION, tableConfig),
                         operator,
                         InternalTypeInfo.of((RowType) getOutputType()),
                         inputTransform.getParallelism());

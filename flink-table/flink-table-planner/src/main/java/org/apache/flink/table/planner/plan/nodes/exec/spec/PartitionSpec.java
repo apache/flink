@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Arrays;
@@ -27,6 +28,7 @@ import java.util.Arrays;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** {@link PartitionSpec} describes how data is partitioned in Rank. */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class PartitionSpec {
 
     public static final String FIELD_NAME_FIELDS = "fields";

@@ -105,15 +105,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-group-window-aggregate",
         version = 1,
+        producedTransformations = StreamExecGroupWindowAggregate.GROUP_WINDOW_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
 
-    public static final String FIELD_NAME_WINDOW = "window";
-    public static final String FIELD_NAME_NAMED_WINDOW_PROPERTIES = "namedWindowProperties";
-
     private static final Logger LOGGER =
             LoggerFactory.getLogger(StreamExecGroupWindowAggregate.class);
+
+    public static final String GROUP_WINDOW_TRANSFORMATION = "group-window-aggregate";
+
+    public static final String FIELD_NAME_WINDOW = "window";
+    public static final String FIELD_NAME_NAMED_WINDOW_PROPERTIES = "namedWindowProperties";
 
     @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
@@ -272,8 +275,8 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorName(planner.getTableConfig()),
-                        getOperatorDescription(planner.getTableConfig()),
+                        createTransformationMeta(
+                                GROUP_WINDOW_TRANSFORMATION, planner.getTableConfig()),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

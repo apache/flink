@@ -19,14 +19,13 @@
 package org.apache.flink.connector.file.sink.committer;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
+import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -48,9 +47,10 @@ public class FileCommitter implements Committer<FileSinkCommittable> {
     }
 
     @Override
-    public List<FileSinkCommittable> commit(List<FileSinkCommittable> committables)
-            throws IOException {
-        for (FileSinkCommittable committable : committables) {
+    public void commit(Collection<CommitRequest<FileSinkCommittable>> requests)
+            throws IOException, InterruptedException {
+        for (CommitRequest<FileSinkCommittable> request : requests) {
+            FileSinkCommittable committable = request.getCommittable();
             if (committable.hasPendingFile()) {
                 // We should always use commitAfterRecovery which contains additional checks.
                 bucketWriter.recoverPendingFile(committable.getPendingFile()).commitAfterRecovery();
@@ -61,8 +61,6 @@ public class FileCommitter implements Committer<FileSinkCommittable> {
                         committable.getInProgressFileToCleanup());
             }
         }
-
-        return Collections.emptyList();
     }
 
     @Override

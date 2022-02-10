@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.clusterframework.types;
 
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.StringUtils;
 
 /**
  * Unique identifier for a physical slot allocated by a JobManager via the ResourceManager from a
@@ -41,6 +42,10 @@ public class AllocationID extends AbstractID {
         super();
     }
 
+    private AllocationID(byte[] bytes) {
+        super(bytes);
+    }
+
     /**
      * Constructs a new AllocationID with the given parts.
      *
@@ -49,5 +54,9 @@ public class AllocationID extends AbstractID {
      */
     public AllocationID(long lowerPart, long upperPart) {
         super(lowerPart, upperPart);
+    }
+
+    public static AllocationID fromHexString(String hexString) {
+        return new AllocationID(StringUtils.hexStringToByte(hexString));
     }
 }

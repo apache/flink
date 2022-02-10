@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.dispatcher.cleanup.CleanupRunnerFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultStore;
@@ -65,6 +66,8 @@ public class DispatcherServices {
 
     private final JobManagerRunnerFactory jobManagerRunnerFactory;
 
+    private final CleanupRunnerFactory cleanupRunnerFactory;
+
     private final Executor ioExecutor;
 
     DispatcherServices(
@@ -82,6 +85,7 @@ public class DispatcherServices {
             JobGraphWriter jobGraphWriter,
             JobResultStore jobResultStore,
             JobManagerRunnerFactory jobManagerRunnerFactory,
+            CleanupRunnerFactory cleanupRunnerFactory,
             Executor ioExecutor) {
         this.configuration = Preconditions.checkNotNull(configuration, "Configuration");
         this.highAvailabilityServices =
@@ -104,6 +108,8 @@ public class DispatcherServices {
         this.jobResultStore = Preconditions.checkNotNull(jobResultStore, "JobResultStore");
         this.jobManagerRunnerFactory =
                 Preconditions.checkNotNull(jobManagerRunnerFactory, "JobManagerRunnerFactory");
+        this.cleanupRunnerFactory =
+                Preconditions.checkNotNull(cleanupRunnerFactory, "CleanupRunnerFactory");
         this.ioExecutor = Preconditions.checkNotNull(ioExecutor, "IOExecutor");
     }
 
@@ -164,6 +170,10 @@ public class DispatcherServices {
         return jobManagerRunnerFactory;
     }
 
+    CleanupRunnerFactory getCleanupRunnerFactory() {
+        return cleanupRunnerFactory;
+    }
+
     public Executor getIoExecutor() {
         return ioExecutor;
     }
@@ -171,7 +181,8 @@ public class DispatcherServices {
     public static DispatcherServices from(
             PartialDispatcherServicesWithJobPersistenceComponents
                     partialDispatcherServicesWithJobPersistenceComponents,
-            JobManagerRunnerFactory jobManagerRunnerFactory) {
+            JobManagerRunnerFactory jobManagerRunnerFactory,
+            CleanupRunnerFactory cleanupRunnerFactory) {
         return new DispatcherServices(
                 partialDispatcherServicesWithJobPersistenceComponents.getConfiguration(),
                 partialDispatcherServicesWithJobPersistenceComponents.getHighAvailabilityServices(),
@@ -192,6 +203,7 @@ public class DispatcherServices {
                 partialDispatcherServicesWithJobPersistenceComponents.getJobGraphWriter(),
                 partialDispatcherServicesWithJobPersistenceComponents.getJobResultStore(),
                 jobManagerRunnerFactory,
+                cleanupRunnerFactory,
                 partialDispatcherServicesWithJobPersistenceComponents.getIoExecutor());
     }
 }

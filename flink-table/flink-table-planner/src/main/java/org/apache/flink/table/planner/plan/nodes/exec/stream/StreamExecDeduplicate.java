@@ -74,10 +74,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-deduplicate",
         version = 1,
+        producedTransformations = StreamExecDeduplicate.DEDUPLICATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
+    public static final String DEDUPLICATE_TRANSFORMATION = "deduplicate";
 
     public static final String FIELD_NAME_UNIQUE_KEYS = "uniqueKeys";
     public static final String FIELD_NAME_IS_ROWTIME = "isRowtime";
@@ -199,8 +202,8 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorName(planner.getTableConfig()),
-                        getOperatorDescription(planner.getTableConfig()),
+                        createTransformationMeta(
+                                DEDUPLICATE_TRANSFORMATION, planner.getTableConfig()),
                         operator,
                         rowTypeInfo,
                         inputTransform.getParallelism());

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -68,8 +69,8 @@ public class GroupWindowAggregateJsonITCase extends JsonPlanTestBase {
                 "cnt BIGINT",
                 "sum_int INT",
                 "distinct_cnt BIGINT");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
                         "insert into MySink select\n"
                                 + "  name,\n"
                                 + "  TUMBLE_START(rowtime, INTERVAL '5' SECOND) as window_start,\n"
@@ -79,7 +80,7 @@ public class GroupWindowAggregateJsonITCase extends JsonPlanTestBase {
                                 + "  COUNT(DISTINCT `string`)\n"
                                 + "FROM MyTable\n"
                                 + "GROUP BY name, TUMBLE(rowtime, INTERVAL '5' SECOND)");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        tableEnv.executePlan(compiledPlan).await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(
@@ -96,14 +97,14 @@ public class GroupWindowAggregateJsonITCase extends JsonPlanTestBase {
     @Test
     public void testEventTimeHopWindow() throws Exception {
         createTestValuesSinkTable("MySink", "name STRING", "cnt BIGINT");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
                         "insert into MySink select\n"
                                 + "  name,\n"
                                 + "  COUNT(*)\n"
                                 + "FROM MyTable\n"
                                 + "GROUP BY name, HOP(rowtime, INTERVAL '5' SECOND, INTERVAL '10' SECOND)");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        tableEnv.executePlan(compiledPlan).await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(
@@ -125,14 +126,14 @@ public class GroupWindowAggregateJsonITCase extends JsonPlanTestBase {
     @Test
     public void testEventTimeSessionWindow() throws Exception {
         createTestValuesSinkTable("MySink", "name STRING", "cnt BIGINT");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
                         "insert into MySink select\n"
                                 + "  name,\n"
                                 + "  COUNT(*)\n"
                                 + "FROM MyTable\n"
                                 + "GROUP BY name, Session(rowtime, INTERVAL '3' SECOND)");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        tableEnv.executePlan(compiledPlan).await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(

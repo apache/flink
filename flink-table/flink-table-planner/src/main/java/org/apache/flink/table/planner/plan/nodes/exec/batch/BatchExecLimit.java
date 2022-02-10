@@ -65,8 +65,8 @@ public class BatchExecLimit extends ExecNodeBase<RowData> implements BatchExecNo
         LimitOperator operator = new LimitOperator(isGlobal, limitStart, limitEnd);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(planner.getTableConfig()),
-                getOperatorDescription(planner.getTableConfig()),
+                createTransformationName(planner.getTableConfig()),
+                createTransformationDescription(planner.getTableConfig()),
                 SimpleOperatorFactory.of(operator),
                 inputTransform.getOutputType(),
                 inputTransform.getParallelism());
