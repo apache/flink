@@ -134,6 +134,10 @@ public class SinkTransformationTranslator<Input, Output>
                                         CommittableMessageTypeInfo.noOutput(),
                                         new SinkWriterOperatorFactory<>(sink)));
             }
+
+            // Restore the previous parallelism of the environment before transforming
+            executionEnvironment.setParallelism(environmentParallelism);
+
             final List<Transformation<?>> sinkTransformations =
                     executionEnvironment
                             .getTransformations()
@@ -147,8 +151,6 @@ public class SinkTransformationTranslator<Input, Output>
                         .getTransformations()
                         .remove(executionEnvironment.getTransformations().size() - 1);
             }
-            // Restore the previous parallelism of the environment
-            executionEnvironment.setParallelism(environmentParallelism);
         }
 
         private <CommT> void addCommittingTopology(Sink<T> sink, DataStream<T> inputStream) {
