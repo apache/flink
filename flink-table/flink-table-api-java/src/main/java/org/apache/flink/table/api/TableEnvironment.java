@@ -1285,11 +1285,12 @@ public interface TableEnvironment {
      *
      * <p>Note: Only {@code INSERT INTO} is supported at the moment.
      *
+     * <p>Note: The persisted plan feature is not supported in batch mode.
+     *
      * @see #executePlan(CompiledPlan)
      * @see #loadPlan(PlanReference)
      * @throws TableException if the SQL statement is invalid or if the plan cannot be persisted.
-     * @throws UnsupportedOperationException if the {@link EnvironmentSettings} is configured in
-     *     batch mode.
+     * @throws UnsupportedOperationException if the environment is configured in batch mode.
      */
     @Experimental
     CompiledPlan compilePlanSql(String stmt) throws TableException;
@@ -1303,10 +1304,11 @@ public interface TableEnvironment {
      *
      * <p>If a job is resumed from a savepoint, it will eventually resume the execution.
      *
+     * <p>Note: The persisted plan feature is not supported in batch mode.
+     *
      * @see #compilePlanSql(String)
      * @see #loadPlan(PlanReference)
-     * @throws UnsupportedOperationException if the {@link EnvironmentSettings} is configured in
-     *     batch mode.
+     * @throws UnsupportedOperationException if the environment is configured in batch mode.
      */
     @Experimental
     TableResult executePlan(CompiledPlan plan);
@@ -1330,10 +1332,11 @@ public interface TableEnvironment {
      * pipelines to ensure backwards compatibility and enable stateful streaming job upgrades. See
      * {@link CompiledPlan} and the website documentation for more information.
      *
+     * <p>Note: The persisted plan feature is not supported in batch mode.
+     *
      * @see #loadPlan(PlanReference)
      * @see #compilePlanSql(String)
-     * @throws UnsupportedOperationException if the {@link EnvironmentSettings} is configured in
-     *     batch mode.
+     * @throws UnsupportedOperationException if the environment is configured in batch mode.
      */
     @Experimental
     String explainPlan(CompiledPlan compiledPlan, ExplainDetail... extraDetails);

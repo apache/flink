@@ -136,20 +136,20 @@ class BatchPlanner(
 
   override def loadPlan(planReference: PlanReference): CompiledPlanInternal = {
     throw new UnsupportedOperationException(
-      "The batch planner doesn't support the persisted plan feature.")
+      "The persisted plan feature is not supported in batch mode.")
   }
 
   override def compilePlan(modifyOperations: util.List[ModifyOperation]): CompiledPlanInternal =
     throw new UnsupportedOperationException(
-      "The batch planner doesn't support the persisted plan feature.")
+      "The persisted plan feature is not supported in batch mode.")
 
   override def translatePlan(plan: CompiledPlanInternal): util.List[Transformation[_]] =
     throw new UnsupportedOperationException(
-      "The batch planner doesn't support the persisted plan feature.")
+      "The persisted plan feature is not supported in batch mode.")
 
   override def explainPlan(plan: CompiledPlanInternal, extraDetails: ExplainDetail*): String =
     throw new UnsupportedOperationException(
-      "The batch planner doesn't support the persisted plan feature.")
+      "The persisted plan feature is not supported in batch mode.")
 
   override def validateAndOverrideConfiguration(): Unit = {
     super.validateAndOverrideConfiguration()
