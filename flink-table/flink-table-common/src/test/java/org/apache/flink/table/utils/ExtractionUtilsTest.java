@@ -27,6 +27,7 @@ import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 
+/** Tests for {@link org.apache.flink.table.types.extraction.ExtractionUtils}. */
 public class ExtractionUtilsTest {
 
     @Test
@@ -40,10 +41,16 @@ public class ExtractionUtilsTest {
     }
 
     private static class Parent<T> {}
+
     private static class Child<T> extends Parent<T> {}
+
     private static class Child2 extends Parent<RowData> {}
+
     private static class Child3<T, P> extends Parent<T> {}
+
     private static class GrandChild extends Child<RowData> {}
+
     private static class GrandChild2 extends Child2 {}
+
     private static class GrandChild3 extends Child3<RowData, Boolean> {}
 }

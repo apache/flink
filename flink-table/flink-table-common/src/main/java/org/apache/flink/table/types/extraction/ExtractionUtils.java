@@ -349,10 +349,11 @@ public final class ExtractionUtils {
             return Optional.empty();
         }
     }
+
     /**
      * Extract a generic parameter class simply from a given class and the position of generic parameters.
      *
-     * It will traverse all the super classes to the base class until find the generic parameter in pos has real class type
+     * <p> It will traverse all the super classes to the base class until find the generic parameter in pos has real class type
      *
      * @param clazz subClass
      * @param baseClass target super class
@@ -367,7 +368,7 @@ public final class ExtractionUtils {
                 break;
             }
 
-            Type genericType= clazz.getGenericSuperclass();
+            Type genericType = clazz.getGenericSuperclass();
 
             if (genericType instanceof ParameterizedType) {
                 Type[] actualTypes  = ((ParameterizedType) genericType).getActualTypeArguments();
