@@ -63,12 +63,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-twitter</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-files</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -168,20 +162,6 @@ under the License.
 						<goals>
 							<goal>unpack</goal>
 						</goals>
-						<configuration>
-							<artifactItems>
-								<!-- For JSON utilities -->
-								<artifactItem>
-									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-connector-twitter</artifactId>
-									<version>${project.version}</version>
-									<type>jar</type>
-									<overWrite>false</overWrite>
-									<outputDirectory>${project.build.directory}/classes</outputDirectory>
-									<includes>org/apache/flink/streaming/connectors/json/*</includes>
-								</artifactItem>
-							</artifactItems>
-						</configuration>
 					</execution>
 				</executions>
 			</plugin>

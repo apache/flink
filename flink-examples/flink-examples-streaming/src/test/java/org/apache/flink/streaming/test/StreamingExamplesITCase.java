@@ -104,13 +104,6 @@ public class StreamingExamplesITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testTwitterStream() throws Exception {
-        final String resultPath = getTempDirPath("result");
-        org.apache.flink.streaming.examples.twitter.TwitterExample.main(
-                new String[] {"--output", resultPath});
-    }
-
-    @Test
     public void testSessionWindowing() throws Exception {
         final String resultPath = getTempDirPath("result");
         org.apache.flink.streaming.examples.windowing.SessionWindowing.main(
