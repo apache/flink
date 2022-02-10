@@ -135,9 +135,10 @@ public class FileSystemLookupFunction<P> extends TableFunction<RowData> {
                 RowData row;
                 while ((row = partitionReader.read(reuse)) != null) {
                     count++;
-                    RowData key = extractLookupKey(row);
+                    RowData rowData = serializer.copy(row);
+                    RowData key = extractLookupKey(rowData);
                     List<RowData> rows = cache.computeIfAbsent(key, k -> new ArrayList<>());
-                    rows.add(serializer.copy(row));
+                    rows.add(rowData);
                 }
                 partitionReader.close();
                 nextLoadTime = System.currentTimeMillis() + reloadInterval.toMillis();
