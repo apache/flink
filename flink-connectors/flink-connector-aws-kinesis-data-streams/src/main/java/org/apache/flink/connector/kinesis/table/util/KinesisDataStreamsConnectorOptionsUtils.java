@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.kinesis.table;
+package org.apache.flink.connector.kinesis.table.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -28,6 +28,7 @@ import org.apache.flink.connector.aws.table.util.AWSOptionUtils;
 import org.apache.flink.connector.aws.table.util.AsyncClientOptionsUtils;
 import org.apache.flink.connector.base.table.sink.options.AsyncSinkConfigurationValidator;
 import org.apache.flink.connector.kinesis.sink.PartitionKeyGenerator;
+import org.apache.flink.connector.kinesis.table.KinesisPartitionKeyGeneratorFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 
