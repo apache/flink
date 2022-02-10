@@ -31,7 +31,7 @@ import java.util.Map;
 /** The source reader for Elasticsearch. */
 public class Elasticsearch7SourceReader<OUT>
         extends SingleThreadMultiplexSourceReaderBase<
-                Elasticsearch7Record<OUT>, OUT, Elasticsearch7Split, Elasticsearch7SplitState> {
+                OUT, OUT, Elasticsearch7Split, Elasticsearch7SplitState> {
 
     public Elasticsearch7SourceReader(
             Configuration configuration,

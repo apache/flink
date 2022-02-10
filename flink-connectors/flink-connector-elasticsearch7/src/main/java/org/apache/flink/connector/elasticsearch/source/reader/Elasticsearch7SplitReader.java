@@ -44,13 +44,11 @@ import java.util.Queue;
 import java.util.Set;
 
 /**
- * A {@link SplitReader} implementation that reads {@link Elasticsearch7Record}s from {@link
- * Elasticsearch7Split}s.
+ * A {@link SplitReader} implementation that reads records from {@link Elasticsearch7Split}s.
  *
  * @param <T> the type of the record to be emitted from the Source.
  */
-public class Elasticsearch7SplitReader<T>
-        implements SplitReader<Elasticsearch7Record<T>, Elasticsearch7Split> {
+public class Elasticsearch7SplitReader<T> implements SplitReader<T, Elasticsearch7Split> {
     private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch7SplitReader.class);
     private final Elasticsearch7SourceConfiguration sourceConfiguration;
     private final NetworkClientConfig networkClientConfig;
@@ -73,15 +71,13 @@ public class Elasticsearch7SplitReader<T>
         this.collector = new SimpleCollector<>();
     }
 
-    private RecordsWithSplitIds<Elasticsearch7Record<T>> createRecordsFromSearchResults(
-            Collection<SearchHit> searchHits) throws IOException {
-        Collection<Elasticsearch7Record<T>> recordsForSplit = new ArrayList<>();
+    private RecordsWithSplitIds<T> createRecordsFromSearchResults(Collection<SearchHit> searchHits)
+            throws IOException {
+        Collection<T> recordsForSplit = new ArrayList<>();
         for (SearchHit hit : searchHits) {
             try {
                 deserializationSchema.deserialize(hit, collector);
-                collector
-                        .getRecords()
-                        .forEach(r -> recordsForSplit.add(new Elasticsearch7Record<>(r)));
+                recordsForSplit.addAll(collector.getRecords());
             } catch (Exception e) {
                 throw new IOException("Failed to deserialize consumer record due to", e);
             } finally {
@@ -93,7 +89,7 @@ public class Elasticsearch7SplitReader<T>
     }
 
     @Override
-    public RecordsWithSplitIds<Elasticsearch7Record<T>> fetch() throws IOException {
+    public RecordsWithSplitIds<T> fetch() throws IOException {
         checkSplitOrStartNext();
 
         final Collection<SearchHit> nextSearchHits = currentReader.readNextSearchHits();
@@ -153,21 +149,18 @@ public class Elasticsearch7SplitReader<T>
         return finishedRecords;
     }
 
-    private static class ElasticsearchSplitRecords<T>
-            implements RecordsWithSplitIds<Elasticsearch7Record<T>> {
+    private static class ElasticsearchSplitRecords<T> implements RecordsWithSplitIds<T> {
 
         @Nullable private String splitId;
 
-        @Nullable private Iterator<Elasticsearch7Record<T>> recordsForSplitCurrent;
+        @Nullable private Iterator<T> recordsForSplitCurrent;
 
-        @Nullable private final Iterator<Elasticsearch7Record<T>> recordsForSplit;
+        @Nullable private final Iterator<T> recordsForSplit;
 
         private final Set<String> finishedSplits;
 
         private ElasticsearchSplitRecords(
-                @Nullable String splitId,
-                Iterator<Elasticsearch7Record<T>> recordsForSplit,
-                Set<String> finishedSplits) {
+                @Nullable String splitId, Iterator<T> recordsForSplit, Set<String> finishedSplits) {
             this.splitId = splitId;
             this.recordsForSplit = recordsForSplit;
             this.finishedSplits = finishedSplits;
@@ -188,7 +181,7 @@ public class Elasticsearch7SplitReader<T>
 
         @Nullable
         @Override
-        public Elasticsearch7Record<T> nextRecordFromSplit() {
+        public T nextRecordFromSplit() {
             if (recordsForSplitCurrent != null) {
                 if (recordsForSplitCurrent.hasNext()) {
                     return recordsForSplitCurrent.next();
@@ -206,7 +199,7 @@ public class Elasticsearch7SplitReader<T>
         }
 
         public static <T> ElasticsearchSplitRecords<T> forRecords(
-                String splitId, Collection<Elasticsearch7Record<T>> recordsForSplit) {
+                String splitId, Collection<T> recordsForSplit) {
             return new ElasticsearchSplitRecords<>(
                     splitId, recordsForSplit.iterator(), Collections.emptySet());
         }

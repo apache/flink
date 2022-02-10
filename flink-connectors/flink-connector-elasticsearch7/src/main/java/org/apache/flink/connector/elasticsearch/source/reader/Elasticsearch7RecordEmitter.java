@@ -26,15 +26,11 @@ import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7Split
 /** The {@link RecordEmitter} implementation for both {@link Elasticsearch7SourceReader}. */
 @PublicEvolving
 public class Elasticsearch7RecordEmitter<T>
-        implements RecordEmitter<Elasticsearch7Record<T>, T, Elasticsearch7SplitState> {
+        implements RecordEmitter<T, T, Elasticsearch7SplitState> {
 
     @Override
-    public void emitRecord(
-            Elasticsearch7Record<T> element,
-            SourceOutput<T> output,
-            Elasticsearch7SplitState splitState)
-            throws Exception {
+    public void emitRecord(T element, SourceOutput<T> output, Elasticsearch7SplitState splitState) {
         // Sink the record to source output.
-        output.collect(element.getValue());
+        output.collect(element);
     }
 }

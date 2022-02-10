@@ -30,13 +30,11 @@ import java.util.function.Supplier;
 /** The fetcher manager class for the ElasticsearchSource. */
 @Internal
 public class Elasticsearch7SourceFetcherManager<T>
-        extends SingleThreadFetcherManager<Elasticsearch7Record<T>, Elasticsearch7Split> {
+        extends SingleThreadFetcherManager<T, Elasticsearch7Split> {
 
     public Elasticsearch7SourceFetcherManager(
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<Elasticsearch7Record<T>>>
-                    elementsQueue,
-            Supplier<SplitReader<Elasticsearch7Record<T>, Elasticsearch7Split>>
-                    splitReaderSupplier) {
+            FutureCompletingBlockingQueue<RecordsWithSplitIds<T>> elementsQueue,
+            Supplier<SplitReader<T, Elasticsearch7Split>> splitReaderSupplier) {
         super(elementsQueue, splitReaderSupplier);
     }
 }
