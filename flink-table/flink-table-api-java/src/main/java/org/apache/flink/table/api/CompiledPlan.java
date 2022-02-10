@@ -84,19 +84,24 @@ public interface CompiledPlan {
     }
 
     /**
-     * Writes this plan to a file using the JSON representation. This operation will be noop if the
+     * Writes this plan to a file using the JSON representation. This operation will fail if the
      * file already exists, even if the content is different from this plan.
      *
+     * @param file the target file
      * @throws IOException if the file cannot be written.
      */
     default void writeToFile(File file) throws IOException {
-        writeToFile(file, true);
+        writeToFile(file, false);
     }
 
     /**
      * Writes this plan to a file using the JSON representation.
      *
+     * @param file the target file
+     * @param ignoreIfExists If a plan exists in the given file and this flag is set, no operation
+     *     is executed and the plan is not overwritten. An exception is thrown otherwise.
      * @throws IOException if the file cannot be written.
+     * @throws TableException if {@code ignoreIfExists} is false and a plan already exists.
      */
     void writeToFile(File file, boolean ignoreIfExists) throws IOException;
 

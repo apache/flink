@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.internal.CompiledPlanInternal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -60,8 +61,12 @@ public class ExecNodeGraphCompiledPlan implements CompiledPlanInternal {
     @Override
     public void writeToFile(File file, boolean ignoreIfExists)
             throws IOException, UnsupportedOperationException {
-        if (ignoreIfExists && file.exists()) {
-            return;
+        if (!ignoreIfExists && file.exists()) {
+            throw new TableException(
+                    "The plan file '"
+                            + file
+                            + "' already exists. "
+                            + "If you want to recompile the plan, please manually remove the file.");
         }
         FileUtils.writeFileUtf8(file, serializedPlan);
     }
