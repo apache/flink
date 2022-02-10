@@ -818,11 +818,11 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
 
         self.t_env.create_temporary_function("my_sum", SumAggregateFunction())
 
-        json_plan = self.t_env._j_tenv.getJsonPlan("INSERT INTO sink_table "
-                                                   "SELECT a, my_sum(b) FROM source_table "
-                                                   "GROUP BY a")
+        json_plan = self.t_env._j_tenv.compilePlanSql("INSERT INTO sink_table "
+                                                      "SELECT a, my_sum(b) FROM source_table "
+                                                      "GROUP BY a")
         from py4j.java_gateway import get_method
-        get_method(self.t_env._j_tenv.executeJsonPlan(json_plan), "await")()
+        get_method(self.t_env._j_tenv.executePlan(json_plan), "await")()
 
     def test_execute_group_window_aggregate_from_json_plan(self):
         # create source file path
@@ -871,16 +871,18 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
 
         self.t_env.create_temporary_function("my_count", CountAggregateFunction())
 
-        json_plan = self.t_env._j_tenv.getJsonPlan("INSERT INTO sink_table "
-                                                   "SELECT a, "
-                                                   "SESSION_START(rowtime, INTERVAL '30' MINUTE), "
-                                                   "SESSION_END(rowtime, INTERVAL '30' MINUTE), "
-                                                   "my_count(c) "
-                                                   "FROM source_table "
-                                                   "GROUP BY "
-                                                   "a, b, SESSION(rowtime, INTERVAL '30' MINUTE)")
+        json_plan = self.t_env._j_tenv.compilePlanSql("INSERT INTO sink_table "
+                                                      "SELECT a, "
+                                                      "SESSION_START("
+                                                      "rowtime, INTERVAL '30' MINUTE), "
+                                                      "SESSION_END(rowtime, INTERVAL '30' MINUTE), "
+                                                      "my_count(c) "
+                                                      "FROM source_table "
+                                                      "GROUP BY "
+                                                      "a, b, "
+                                                      "SESSION(rowtime, INTERVAL '30' MINUTE)")
         from py4j.java_gateway import get_method
-        get_method(self.t_env._j_tenv.executeJsonPlan(json_plan), "await")()
+        get_method(self.t_env._j_tenv.executePlan(json_plan), "await")()
 
         import glob
         lines = [line.strip() for file in glob.glob(sink_path + '/*') for line in open(file, 'r')]

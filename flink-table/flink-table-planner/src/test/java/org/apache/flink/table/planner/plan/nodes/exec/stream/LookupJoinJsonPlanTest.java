@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.runtime.utils.InMemoryLookupableTableSource;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
@@ -33,6 +34,9 @@ import org.junit.Test;
 import java.util.ArrayList;
 
 import scala.collection.JavaConverters;
+
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test json serialization/deserialization for LookupJoin. */
 public class LookupJoinJsonPlanTest extends TableTestBase {
@@ -113,7 +117,6 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
 
     @Test
     public void testLegacyTableSourceException() {
-        expectedException().expectMessage("TemporalTableSourceSpec can not be serialized.");
         TableSchema tableSchema =
                 TableSchema.builder()
                         .field("id", Types.INT)
@@ -143,8 +146,14 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
                         + "  'connector' = 'values',\n"
                         + "  'table-sink-class' = 'DEFAULT')";
         tEnv.executeSql(sinkTableDdl);
-        util.verifyJsonPlan(
-                "INSERT INTO MySink SELECT * FROM MyTable AS T JOIN LookupTable "
-                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id");
+        assertThatThrownBy(
+                        () ->
+                                util.verifyJsonPlan(
+                                        "INSERT INTO MySink SELECT * FROM MyTable AS T JOIN LookupTable "
+                                                + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"))
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "TemporalTableSourceSpec can not be serialized."));
     }
 }

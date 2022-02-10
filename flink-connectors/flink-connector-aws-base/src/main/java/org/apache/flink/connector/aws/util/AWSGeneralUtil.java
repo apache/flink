@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.connector.aws.config.AWSConfigConstants.CredentialProvider;
+import org.apache.flink.util.ExceptionUtils;
 
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -40,6 +41,7 @@ import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 import software.amazon.awssdk.utils.AttributeMap;
+import software.amazon.awssdk.utils.SdkAutoCloseable;
 
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -349,6 +351,22 @@ public class AWSGeneralUtil {
                 throw new IllegalArgumentException(
                         "Invalid AWS region set in config. Valid values are: " + sb.toString());
             }
+        }
+    }
+
+    public static void closeResources(SdkAutoCloseable... resources) {
+        RuntimeException exception = null;
+        for (SdkAutoCloseable resource : resources) {
+            if (resource != null) {
+                try {
+                    resource.close();
+                } catch (RuntimeException e) {
+                    exception = ExceptionUtils.firstOrSuppressed(e, exception);
+                }
+            }
+        }
+        if (exception != null) {
+            throw exception;
         }
     }
 }

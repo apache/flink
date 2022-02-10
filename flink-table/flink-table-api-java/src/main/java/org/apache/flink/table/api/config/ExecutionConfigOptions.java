@@ -176,6 +176,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<Integer> TABLE_EXEC_SORT_DEFAULT_LIMIT =
             key("table.exec.sort.default-limit")
+                    .intType()
                     .defaultValue(-1)
                     .withDescription(
                             "Default limit when user don't set a limit after order by. -1 indicates that this configuration is ignored.");
@@ -183,6 +184,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<Integer> TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES =
             key("table.exec.sort.max-num-file-handles")
+                    .intType()
                     .defaultValue(128)
                     .withDescription(
                             "The maximal fan-in for external merge sort. It limits the number of file handles per operator. "
@@ -192,6 +194,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<Boolean> TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED =
             key("table.exec.sort.async-merge-enabled")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription("Whether to asynchronously merge sorted spill files.");
 
@@ -201,6 +204,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<Boolean> TABLE_EXEC_SPILL_COMPRESSION_ENABLED =
             key("table.exec.spill-compression.enabled")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             "Whether to compress spilled data. "
@@ -222,6 +226,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM =
             key("table.exec.resource.default-parallelism")
+                    .intType()
                     .defaultValue(-1)
                     .withDescription(
                             "Sets default parallelism for all operators "
@@ -294,6 +299,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<Integer> TABLE_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT =
             key("table.exec.window-agg.buffer-size-limit")
+                    .intType()
                     .defaultValue(100 * 1000)
                     .withDescription(
                             "Sets the window elements buffer size limit used in group window agg operator.");
@@ -304,6 +310,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY =
             key("table.exec.async-lookup.buffer-capacity")
+                    .intType()
                     .defaultValue(100)
                     .withDescription(
                             "The max number of async i/o operation that the async lookup join can trigger.");
@@ -322,6 +329,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Boolean> TABLE_EXEC_MINIBATCH_ENABLED =
             key("table.exec.mini-batch.enabled")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Specifies whether to enable MiniBatch optimization. "
@@ -346,6 +354,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Long> TABLE_EXEC_MINIBATCH_SIZE =
             key("table.exec.mini-batch.size")
+                    .longType()
                     .defaultValue(-1L)
                     .withDescription(
                             "The maximum number of input records can be buffered for MiniBatch. "
@@ -361,6 +370,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<String> TABLE_EXEC_DISABLED_OPERATORS =
             key("table.exec.disabled-operators")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "Mainly for testing. A comma-separated list of operator names, each name "

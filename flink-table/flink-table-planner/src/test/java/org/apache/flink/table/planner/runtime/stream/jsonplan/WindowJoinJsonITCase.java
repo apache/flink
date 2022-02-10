@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -88,8 +89,8 @@ public class WindowJoinJsonITCase extends JsonPlanTestBase {
                 "window_end TIMESTAMP(3)",
                 "uv1 BIGINT",
                 "uv2 BIGINT");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
                         "insert into MySink select\n"
                                 + "  L.name,\n"
                                 + "  L.window_start,\n"
@@ -117,7 +118,7 @@ public class WindowJoinJsonITCase extends JsonPlanTestBase {
                                 + "  GROUP BY name, window_start, window_end\n"
                                 + "  ) R\n"
                                 + "ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.name = R.name");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        tableEnv.executePlan(compiledPlan).await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(

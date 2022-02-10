@@ -83,11 +83,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-over-aggregate",
         version = 1,
+        producedTransformations = StreamExecOverAggregate.OVER_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecOverAggregate.class);
+
+    public static final String OVER_AGGREGATE_TRANSFORMATION = "over-aggregate";
 
     public static final String FIELD_NAME_OVER_SPEC = "overSpec";
 
@@ -230,8 +234,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorName(tableConfig),
-                        getOperatorDescription(tableConfig),
+                        createTransformationMeta(OVER_AGGREGATE_TRANSFORMATION, tableConfig),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

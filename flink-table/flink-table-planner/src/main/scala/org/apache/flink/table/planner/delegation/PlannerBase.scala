@@ -23,10 +23,12 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.StreamGraph
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
+import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
 import org.apache.flink.table.api._
-import org.apache.flink.table.catalog._
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
+import org.apache.flink.table.api.internal.CompiledPlanInternal
 import org.apache.flink.table.catalog.ManagedTableListener.isManagedTable
+import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.delegation.{Executor, Parser, Planner}
 import org.apache.flink.table.descriptors.{ConnectorDescriptorValidator, DescriptorProperties}
@@ -43,6 +45,7 @@ import org.apache.flink.table.planner.delegation.ParserFactory.DefaultParserCont
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
+import org.apache.flink.table.planner.plan.ExecNodeGraphCompiledPlan
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.processor.{ExecNodeGraphProcessor, ProcessorContext}
 import org.apache.flink.table.planner.plan.nodes.exec.serde.{JsonSerdeUtil, SerdeContext}
@@ -58,6 +61,8 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toS
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader
+
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
@@ -65,6 +70,7 @@ import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalTableModify
 import org.apache.calcite.tools.FrameworkConfig
 
+import java.io.{File, IOException}
 import java.lang.{Long => JLong}
 import java.util
 import java.util.{Collections, TimeZone}
@@ -466,32 +472,28 @@ abstract class PlannerBase(
     }
   }
 
-  override def getJsonPlan(modifyOperations: util.List[ModifyOperation]): String = {
-    if (!isStreamingMode) {
-      throw new TableException("Only streaming mode is supported now.")
+  override def loadPlan(planReference: PlanReference): CompiledPlanInternal = {
+    val ctx = createSerdeContext
+    val objectReader: ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
+    val execNodeGraph = planReference match {
+      case filePlanReference: FilePlanReference =>
+        objectReader.readValue(filePlanReference.getFile, classOf[ExecNodeGraph])
+      case contentPlanReference: ContentPlanReference =>
+        objectReader.readValue(contentPlanReference.getContent, classOf[ExecNodeGraph])
+      case resourcePlanReference: ResourcePlanReference => {
+        val url = resourcePlanReference.getClassLoader
+          .getResource(resourcePlanReference.getResourcePath)
+        if (url == null) {
+          throw new IOException(
+            "Cannot load the plan reference from classpath: " + planReference);
+        }
+        objectReader.readValue(new File(url.toURI), classOf[ExecNodeGraph])
+      }
+      case _ => throw new IllegalStateException(
+        "Unknown PlanReference. This is a bug, please contact the developers")
     }
-    validateAndOverrideConfiguration()
-    val relNodes = modifyOperations.map(translateToRel)
-    val optimizedRelNodes = optimize(relNodes)
-    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
-    val jsonPlan = JsonSerdeUtil
-      .createObjectWriter(createSerdeContext)
-      .writeValueAsString(execGraph)
-    cleanupInternalConfigurations()
-    jsonPlan
-  }
 
-  override def translateJsonPlan(jsonPlan: String): util.List[Transformation[_]] = {
-    if (!isStreamingMode) {
-      throw new TableException("Only streaming mode is supported now.")
-    }
-    validateAndOverrideConfiguration()
-    val execGraph = JsonSerdeUtil
-      .createObjectReader(createSerdeContext)
-      .readValue(jsonPlan, classOf[ExecNodeGraph])
-    val transformations = translateToPlan(execGraph)
-    cleanupInternalConfigurations()
-    transformations
+    new ExecNodeGraphCompiledPlan(ctx, execNodeGraph)
   }
 
   protected def createSerdeContext: SerdeContext = {

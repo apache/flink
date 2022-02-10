@@ -73,11 +73,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-python-over-aggregate",
         version = 1,
+        producedTransformations = StreamExecPythonOverAggregate.OVER_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecPythonOverAggregate.class);
+
+    public static final String OVER_AGGREGATE_TRANSFORMATION = "over-aggregate";
 
     private static final String
             ARROW_PYTHON_OVER_WINDOW_RANGE_ROW_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME =
@@ -249,8 +253,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(mergedConfig),
-                getOperatorDescription(mergedConfig),
+                createTransformationMeta(OVER_AGGREGATE_TRANSFORMATION, mergedConfig),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());

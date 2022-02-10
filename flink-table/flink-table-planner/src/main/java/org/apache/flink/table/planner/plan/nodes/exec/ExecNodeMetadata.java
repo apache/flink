@@ -84,7 +84,7 @@ public @interface ExecNodeMetadata {
     String[] consumedOptions() default {};
 
     /**
-     * Set of operator names that can be part of the resulting {@link Transformation}s.
+     * Set of transformation names that can be part of the resulting {@link Transformation}s.
      *
      * <p>Restore and completeness tests can verify there exists at least one test that adds each
      * operator and that the created {@link Transformation}s contain only operators with {@link
@@ -94,7 +94,7 @@ public @interface ExecNodeMetadata {
      * various parameters (both configuration and ExecNode-specific arguments such as interval size
      * etc.).
      */
-    String[] producedOperators() default {};
+    String[] producedTransformations() default {};
 
     /**
      * Used for plan validation and potentially plan migration.

@@ -29,6 +29,8 @@ import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
+import org.apache.flink.runtime.taskexecutor.slot.NoOpSlotAllocationSnapshotPersistenceService;
+import org.apache.flink.runtime.taskexecutor.slot.SlotAllocationSnapshotPersistenceService;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
@@ -60,6 +62,7 @@ public class TaskManagerServicesBuilder {
     private ExecutorService ioExecutor;
     private LibraryCacheManager libraryCacheManager;
     private long managedMemorySize;
+    private SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService;
 
     public TaskManagerServicesBuilder() {
         unresolvedTaskManagerLocation = new LocalUnresolvedTaskManagerLocation();
@@ -82,6 +85,8 @@ public class TaskManagerServicesBuilder {
         ioExecutor = TestingUtils.defaultExecutor();
         libraryCacheManager = TestingLibraryCacheManager.newBuilder().build();
         managedMemorySize = MemoryManager.MIN_PAGE_SIZE;
+        this.slotAllocationSnapshotPersistenceService =
+                NoOpSlotAllocationSnapshotPersistenceService.INSTANCE;
     }
 
     public TaskManagerServicesBuilder setUnresolvedTaskManagerLocation(
@@ -155,6 +160,12 @@ public class TaskManagerServicesBuilder {
         return this;
     }
 
+    public TaskManagerServicesBuilder setSlotAllocationSnapshotPersistenceService(
+            SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService) {
+        this.slotAllocationSnapshotPersistenceService = slotAllocationSnapshotPersistenceService;
+        return this;
+    }
+
     public TaskManagerServices build() {
         return new TaskManagerServices(
                 unresolvedTaskManagerLocation,
@@ -170,6 +181,7 @@ public class TaskManagerServicesBuilder {
                 taskChangelogStoragesManager,
                 taskEventDispatcher,
                 ioExecutor,
-                libraryCacheManager);
+                libraryCacheManager,
+                slotAllocationSnapshotPersistenceService);
     }
 }

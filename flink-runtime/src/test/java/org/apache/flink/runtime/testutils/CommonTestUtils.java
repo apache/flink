@@ -114,7 +114,7 @@ public class CommonTestUtils {
 
     public static void printLog4jDebugConfig(File file) throws IOException {
         try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
-            writer.println("rootLogger.level = INFO");
+            writer.println("rootLogger.level = DEBUG");
             writer.println("rootLogger.appenderRef.console.ref = ConsoleAppender");
             writer.println("appender.console.name = ConsoleAppender");
             writer.println("appender.console.type = CONSOLE");

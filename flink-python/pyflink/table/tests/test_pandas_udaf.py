@@ -811,7 +811,7 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
         self.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
         self.t_env.create_temporary_system_function("max_add_min_udaf", max_add_min_udaf)
 
-        json_plan = self.t_env._j_tenv.getJsonPlan("""
+        json_plan = self.t_env._j_tenv.compilePlanSql("""
         insert into sink_table
             select a,
              mean_udaf(b)
@@ -823,7 +823,7 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
             from source_table
         """)
         from py4j.java_gateway import get_method
-        get_method(self.t_env._j_tenv.executeJsonPlan(json_plan), "await")()
+        get_method(self.t_env._j_tenv.executePlan(json_plan), "await")()
 
         import glob
         lines = [line.strip() for file in glob.glob(sink_path + '/*') for line in open(file, 'r')]

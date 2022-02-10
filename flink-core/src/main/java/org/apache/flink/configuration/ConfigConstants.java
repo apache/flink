@@ -75,7 +75,7 @@ public final class ConfigConstants {
      */
     @Deprecated @PublicEvolving
     public static final ConfigOption<String> RESTART_STRATEGY_FIXED_DELAY_DELAY =
-            key("restart-strategy.fixed-delay.delay").defaultValue("0 s");
+            key("restart-strategy.fixed-delay.delay").stringType().defaultValue("0 s");
 
     /**
      * Maximum number of restarts in given time interval {@link
@@ -1460,7 +1460,7 @@ public final class ConfigConstants {
      */
     @Deprecated
     public static final ConfigOption<String> DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS =
-            key("jobmanager.web.address").noDefaultValue();
+            key("jobmanager.web.address").stringType().noDefaultValue();
 
     /**
      * The config key for the port of the JobManager web frontend. Setting this value to {@code -1}

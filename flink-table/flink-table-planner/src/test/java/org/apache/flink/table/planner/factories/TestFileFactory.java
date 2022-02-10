@@ -34,7 +34,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -56,7 +56,7 @@ import java.util.Set;
 
 /**
  * Test implementation of {@link DynamicTableSourceFactory} and {@link DynamicTableSinkFactory} that
- * creates a file source and sink based on {@link SourceProvider} and {@link SinkProvider}.
+ * creates a file source and sink based on {@link SourceProvider} and {@link SinkV2Provider}.
  */
 public class TestFileFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
@@ -158,7 +158,7 @@ public class TestFileFactory implements DynamicTableSourceFactory, DynamicTableS
         public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
             final FileSink<RowData> fileSink =
                     FileSink.forRowFormat(path, new RowDataEncoder()).build();
-            return SinkProvider.of(fileSink);
+            return SinkV2Provider.of(fileSink);
         }
 
         @Override

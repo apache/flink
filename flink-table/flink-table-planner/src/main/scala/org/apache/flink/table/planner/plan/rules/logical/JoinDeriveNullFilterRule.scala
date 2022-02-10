@@ -100,6 +100,7 @@ object JoinDeriveNullFilterRule {
   @Experimental
   val TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD: ConfigOption[JLong] =
     key("table.optimizer.join.null-filter-threshold")
+        .longType()
         .defaultValue(JLong.valueOf(2000000L))
         .withDescription("To avoid the impact of null values on the single join node, " +
             "We will add a null filter (possibly be pushed down) before the join to filter" +

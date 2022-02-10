@@ -19,6 +19,8 @@
 package org.apache.flink.connector.file.sink.writer;
 
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.api.connector.sink2.Committer.CommitRequest;
+import org.apache.flink.api.connector.sink2.mocks.MockCommitRequest;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
 import org.apache.flink.connector.file.sink.committer.FileCommitter;
@@ -169,7 +171,7 @@ public class FileWriterBucketStateSerializerMigrationTest {
     }
 
     @Test
-    public void testSerializationFull() throws IOException {
+    public void testSerializationFull() throws IOException, InterruptedException {
         testDeserializationFull(true, "full");
     }
 
@@ -180,12 +182,12 @@ public class FileWriterBucketStateSerializerMigrationTest {
     }
 
     @Test
-    public void testSerializationNullInProgress() throws IOException {
+    public void testSerializationNullInProgress() throws IOException, InterruptedException {
         testDeserializationFull(false, "full-no-in-progress");
     }
 
     private void testDeserializationFull(final boolean withInProgress, final String scenarioName)
-            throws IOException {
+            throws IOException, InterruptedException {
 
         final BucketStatePathResolver pathResolver =
                 new BucketStatePathResolver(BASE_PATH, previousVersion);
@@ -221,7 +223,10 @@ public class FileWriterBucketStateSerializerMigrationTest {
 
             // simulates we commit the recovered pending files on the first checkpoint
             bucket.snapshotState();
-            List<FileSinkCommittable> committables = bucket.prepareCommit(false);
+            Collection<CommitRequest<FileSinkCommittable>> committables =
+                    bucket.prepareCommit(false).stream()
+                            .map(MockCommitRequest::new)
+                            .collect(Collectors.toList());
             FileCommitter committer = new FileCommitter(createBucketWriter());
             committer.commit(committables);
 

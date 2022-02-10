@@ -74,7 +74,7 @@ The retry is only safe until the [async operation store duration]({{< ref "docs/
 
 ### JobManager
 
-[OpenAPI specification](/generated/rest_v1_dispatcher.yml)
+[OpenAPI specification]({{< ref_static "generated/rest_v1_dispatcher.yml" >}})
 
 {{< hint warning >}}
 The OpenAPI specification is still experimental.

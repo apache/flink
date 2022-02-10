@@ -20,9 +20,9 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -111,58 +111,10 @@ public interface TableEnvironmentInternal extends TableEnvironment {
     void registerTableSinkInternal(String name, TableSink<?> configuredSink);
 
     /**
-     * Get the json plan for the given statement.
+     * Compile a plan staring from a list of operations.
      *
-     * <p>The statement can only be DML.
-     *
-     * <p>The json plan is the string json representation of an optimized ExecNode plan for the
-     * given statement. An ExecNode plan can be serialized to json plan, and a json plan can be
-     * deserialized to an ExecNode plan.
-     *
-     * <p><b>NOTES</b>: This is an experimental feature now.
-     *
-     * @param stmt The SQL statement to generate json plan.
-     * @return the string json representation of an optimized ExecNode plan for the given statement.
+     * <p><b>Note:</b> This API is <b>experimental</b> and subject to change in future releases.
      */
     @Experimental
-    String getJsonPlan(String stmt);
-
-    /**
-     * Get the json plan for the given {@link ModifyOperation}s. see {@link #getJsonPlan(String)}
-     * for more info about json plan.
-     *
-     * <p><b>NOTES</b>: This is an experimental feature now.
-     *
-     * @param operations the {@link ModifyOperation}s to generate json plan.
-     * @return the string json representation of an optimized ExecNode plan for the given
-     *     operations.
-     */
-    @Experimental
-    String getJsonPlan(List<ModifyOperation> operations);
-
-    /**
-     * Returns the execution plan for the given json plan. A SQL statement can be converted to json
-     * plan through {@link #getJsonPlan(String)}.
-     *
-     * <p><b>NOTES</b>: This is an experimental feature now.
-     *
-     * @param jsonPlan The json plan to be explained.
-     * @param extraDetails The extra explain details which the explain result should include, e.g.
-     *     estimated cost, changelog mode for streaming
-     * @return the execution plan.
-     */
-    @Experimental
-    String explainJsonPlan(String jsonPlan, ExplainDetail... extraDetails);
-
-    /**
-     * Execute the given json plan, and return the execution result. A SQL statement can be
-     * converted to json plan through {@link #getJsonPlan(String)}.
-     *
-     * <p><b>NOTES</b>: This is an experimental feature now.
-     *
-     * @param jsonPlan The json plan to be executed.
-     * @return the affected row count for `DML` (-1 means unknown).
-     */
-    @Experimental
-    TableResult executeJsonPlan(String jsonPlan);
+    CompiledPlan compilePlan(List<ModifyOperation> operations);
 }

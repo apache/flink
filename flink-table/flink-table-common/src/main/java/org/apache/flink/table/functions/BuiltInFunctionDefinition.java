@@ -134,14 +134,16 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
         try {
             final Class<?> udfClass =
                     Class.forName(runtimeClass, true, context.getBuiltInClassLoader());
-            final Constructor<?> udfConstructor = udfClass.getConstructor(SpecializedContext.class);
-            final UserDefinedFunction udf =
-                    (UserDefinedFunction) udfConstructor.newInstance(context);
-            // in case another level of specialization is required
-            if (udf instanceof SpecializedFunction) {
-                return ((SpecializedFunction) udf).specialize(context);
+            // In case another level of specialization is required
+            if (SpecializedFunction.class.isAssignableFrom(udfClass)) {
+                final SpecializedFunction specializedFunction =
+                        (SpecializedFunction) udfClass.newInstance();
+                return specializedFunction.specialize(context);
+            } else {
+                final Constructor<?> udfConstructor =
+                        udfClass.getConstructor(SpecializedContext.class);
+                return (UserDefinedFunction) udfConstructor.newInstance(context);
             }
-            return udf;
         } catch (Exception e) {
             throw new TableException(
                     String.format(

@@ -47,6 +47,8 @@ import org.apache.kafka.common.errors.UnknownProducerIdException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Collection;
@@ -135,7 +137,10 @@ class KafkaWriter<IN>
         this.kafkaProducerConfig = checkNotNull(kafkaProducerConfig, "kafkaProducerConfig");
         this.transactionalIdPrefix = checkNotNull(transactionalIdPrefix, "transactionalIdPrefix");
         this.recordSerializer = checkNotNull(recordSerializer, "recordSerializer");
-        this.deliveryCallback = new WriterCallback(sinkInitContext.getMailboxExecutor());
+        this.deliveryCallback =
+                new WriterCallback(
+                        sinkInitContext.getMailboxExecutor(),
+                        sinkInitContext.<RecordMetadata>metadataConsumer().orElse(null));
         this.disabledMetrics =
                 kafkaProducerConfig.containsKey(KEY_DISABLE_METRICS)
                                 && Boolean.parseBoolean(
@@ -389,9 +394,13 @@ class KafkaWriter<IN>
 
     private class WriterCallback implements Callback {
         private final MailboxExecutor mailboxExecutor;
+        @Nullable private final Consumer<RecordMetadata> metadataConsumer;
 
-        public WriterCallback(MailboxExecutor mailboxExecutor) {
+        public WriterCallback(
+                MailboxExecutor mailboxExecutor,
+                @Nullable Consumer<RecordMetadata> metadataConsumer) {
             this.mailboxExecutor = mailboxExecutor;
+            this.metadataConsumer = metadataConsumer;
         }
 
         @Override
@@ -402,6 +411,10 @@ class KafkaWriter<IN>
                 mailboxExecutor.execute(
                         () -> throwException(metadata, exception, producer),
                         "Failed to send data to Kafka");
+            }
+
+            if (metadataConsumer != null) {
+                metadataConsumer.accept(metadata);
             }
         }
 

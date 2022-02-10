@@ -49,6 +49,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Base class for exec Calc. */
 public abstract class CommonExecCalc extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
+
+    public static final String CALC_TRANSFORMATION = "calc";
+
     public static final String FIELD_NAME_PROJECTION = "projection";
     public static final String FIELD_NAME_CONDITION = "condition";
 
@@ -100,8 +103,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
                         getClass().getSimpleName());
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(planner.getTableConfig()),
-                getOperatorDescription(planner.getTableConfig()),
+                createTransformationMeta(CALC_TRANSFORMATION, planner.getTableConfig()),
                 substituteStreamOperator,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());
