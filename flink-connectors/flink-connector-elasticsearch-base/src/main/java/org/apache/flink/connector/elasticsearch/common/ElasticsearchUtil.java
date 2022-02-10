@@ -26,12 +26,17 @@ import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.client.RestClientBuilder;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** Collection of utility methods for the Elasticsearch source and sink. */
 @Internal
 public class ElasticsearchUtil {
 
     public static RestClientBuilder configureRestClientBuilder(
             RestClientBuilder builder, NetworkClientConfig config) {
+        checkNotNull(builder);
+        checkNotNull(config);
+
         if (config.getConnectionPathPrefix() != null) {
             builder.setPathPrefix(config.getConnectionPathPrefix());
         }
