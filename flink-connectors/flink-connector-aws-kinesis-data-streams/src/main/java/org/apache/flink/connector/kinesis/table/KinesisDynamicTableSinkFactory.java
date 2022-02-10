@@ -19,20 +19,13 @@
 package org.apache.flink.connector.kinesis.table;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.base.table.AsyncDynamicTableSinkFactory;
 import org.apache.flink.connector.kinesis.sink.PartitionKeyGenerator;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.ResolvedCatalogTable;
-import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.factories.SerializationFormatFactory;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.util.HashSet;
@@ -56,28 +49,23 @@ public class KinesisDynamicTableSinkFactory extends AsyncDynamicTableSinkFactory
     @Override
     public DynamicTableSink createDynamicTableSink(Context context) {
 
-        FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
-        ReadableConfig tableOptions = helper.getOptions();
-        ResolvedCatalogTable catalogTable = context.getCatalogTable();
-        DataType physicalDataType = catalogTable.getResolvedSchema().toPhysicalRowDataType();
-
-        // initialize the table format early in order to register its consumedOptionKeys
-        // in the TableFactoryHelper, as those are needed for correct option validation
-        EncodingFormat<SerializationSchema<RowData>> encodingFormat =
-                helper.discoverEncodingFormat(SerializationFormatFactory.class, FORMAT);
+        AsyncDynamicSinkContext factoryContext = new AsyncDynamicSinkContext(this, context);
 
         KinesisDataStreamsConnectorOptionsUtils optionsUtils =
                 new KinesisDataStreamsConnectorOptionsUtils(
-                        catalogTable.getOptions(),
-                        tableOptions,
-                        (RowType) physicalDataType.getLogicalType(),
-                        catalogTable.getPartitionKeys(),
+                        factoryContext.getResolvedOptions(),
+                        factoryContext.getTableOptions(),
+                        (RowType) factoryContext.getPhysicalDataType().getLogicalType(),
+                        factoryContext.getPartitionKeys(),
                         context.getClassLoader());
         // validate the data types of the table options
-        helper.validateExcept(optionsUtils.getNonValidatedPrefixes().toArray(new String[0]));
+        factoryContext
+                .getFactoryHelper()
+                .validateExcept(optionsUtils.getNonValidatedPrefixes().toArray(new String[0]));
 
         // Validate option values
-        validateKinesisPartitioner(tableOptions, catalogTable);
+        validateKinesisPartitioner(
+                factoryContext.getTableOptions(), factoryContext.isPartitioned());
         Properties properties = optionsUtils.getValidatedSinkConfigurations();
 
         KinesisDynamicSink.KinesisDynamicTableSinkBuilder builder =
@@ -86,8 +74,8 @@ public class KinesisDynamicTableSinkFactory extends AsyncDynamicTableSinkFactory
         builder.setStream((String) properties.get(STREAM.key()))
                 .setKinesisClientProperties(
                         (Properties) properties.get(KINESIS_CLIENT_PROPERTIES_KEY))
-                .setEncodingFormat(encodingFormat)
-                .setConsumedDataType(physicalDataType)
+                .setEncodingFormat(factoryContext.getEncodingFormat())
+                .setConsumedDataType(factoryContext.getPhysicalDataType())
                 .setPartitioner(
                         (PartitionKeyGenerator<RowData>) properties.get(SINK_PARTITIONER.key()));
         addAsyncOptionsToBuilder(properties, builder);
@@ -121,12 +109,12 @@ public class KinesisDynamicTableSinkFactory extends AsyncDynamicTableSinkFactory
     }
 
     private static void validateKinesisPartitioner(
-            ReadableConfig tableOptions, CatalogTable targetTable) {
+            ReadableConfig tableOptions, boolean isPartitioned) {
         tableOptions
                 .getOptional(SINK_PARTITIONER)
                 .ifPresent(
                         partitioner -> {
-                            if (targetTable.isPartitioned()) {
+                            if (isPartitioned) {
                                 throw new ValidationException(
                                         String.format(
                                                 "Cannot set %s option for a table defined with a PARTITIONED BY clause",
