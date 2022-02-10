@@ -161,7 +161,6 @@ public abstract class SourceCoordinatorTestBase {
 
         return new SourceCoordinator<>(
                 OPERATOR_NAME,
-                coordinatorExecutor,
                 mockSource,
                 getNewSourceCoordinatorContext(),
                 new CoordinatorStoreImpl(),

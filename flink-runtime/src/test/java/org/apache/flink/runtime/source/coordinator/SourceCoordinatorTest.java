@@ -34,10 +34,12 @@ import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorContext;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.coordination.ComponentClosingUtils;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.Test;
 
@@ -53,6 +55,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
@@ -244,7 +248,6 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                 final SourceCoordinator<?, ?> coordinator =
                         new SourceCoordinator<>(
                                 OPERATOR_NAME,
-                                coordinatorExecutor,
                                 new EnumeratorCreatingSource<>(() -> splitEnumerator),
                                 context,
                                 new CoordinatorStoreImpl(),
@@ -266,7 +269,6 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         final SourceCoordinator<?, ?> coordinator =
                 new SourceCoordinator<>(
                         OPERATOR_NAME,
-                        coordinatorExecutor,
                         new EnumeratorCreatingSource<>(
                                 () -> {
                                     throw failureReason;
@@ -296,7 +298,6 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                 final SourceCoordinator<?, ?> coordinator =
                         new SourceCoordinator<>(
                                 OPERATOR_NAME,
-                                coordinatorExecutor,
                                 new EnumeratorCreatingSource<>(() -> splitEnumerator),
                                 context,
                                 new CoordinatorStoreImpl(),
@@ -310,6 +311,62 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                     Duration.ofSeconds(10),
                     "The job should have failed due to the artificial exception.");
             assertEquals(error, operatorCoordinatorContext.getJobFailureReason());
+        }
+    }
+
+    @Test
+    public void testBlockOnClose() throws Exception {
+        // It is possible that the split enumerator submits some heavy-duty work to the
+        // coordinator executor which blocks the coordinator closure.
+        final CountDownLatch latch = new CountDownLatch(1);
+        try (final MockSplitEnumeratorContext<MockSourceSplit> enumeratorContext =
+                        new MockSplitEnumeratorContext<>(1);
+                final MockSplitEnumerator splitEnumerator =
+                        new MockSplitEnumerator(1, enumeratorContext) {
+                            @Override
+                            public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
+                                context.callAsync(
+                                        () -> 1L,
+                                        (ignored, t) -> {
+                                            latch.countDown();
+                                            // Submit a callable that will never return.
+                                            try {
+                                                Thread.sleep(Long.MAX_VALUE);
+                                            } catch (InterruptedException e) {
+                                                throw new RuntimeException(e);
+                                            }
+                                        });
+                            }
+                        };
+                final SourceCoordinator<?, ?> coordinator =
+                        new SourceCoordinator<>(
+                                OPERATOR_NAME,
+                                new EnumeratorCreatingSource<>(() -> splitEnumerator),
+                                context,
+                                new CoordinatorStoreImpl())) {
+
+            coordinator.start();
+            coordinator.handleEventFromOperator(1, new SourceEventWrapper(new SourceEvent() {}));
+            // Wait until the coordinator executor blocks.
+            latch.await();
+
+            CompletableFuture<?> future =
+                    ComponentClosingUtils.closeAsyncWithTimeout(
+                            "testBlockOnClose",
+                            (ThrowingRunnable<Exception>) coordinator::close,
+                            Duration.ofMillis(1));
+
+            future.exceptionally(
+                            e -> {
+                                assertTrue(e instanceof TimeoutException);
+                                return null;
+                            })
+                    .get();
+
+            waitUtil(
+                    splitEnumerator::closed,
+                    Duration.ofSeconds(5),
+                    "Split enumerator was not closed in 5 seconds.");
         }
     }
 
