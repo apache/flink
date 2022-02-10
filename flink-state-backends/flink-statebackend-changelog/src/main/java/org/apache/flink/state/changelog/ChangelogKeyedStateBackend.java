@@ -387,7 +387,7 @@ public class ChangelogKeyedStateBackend<K>
                 checkpointId, changelogStateBackendStateCopy.materializationID);
 
         return toRunnableFuture(
-                stateChangelogWriter.lastAppendedSequenceNumber().isPresent()
+                shouldSnapshot()
                         ? stateChangelogWriter
                                 .persist(lastUploadedFrom)
                                 .thenApply(
@@ -396,6 +396,13 @@ public class ChangelogKeyedStateBackend<K>
                                                         delta, changelogStateBackendStateCopy))
                         : CompletableFuture.completedFuture(
                                 buildSnapshotResult(null, changelogSnapshotState)));
+    }
+
+    private boolean shouldSnapshot() {
+        return stateChangelogWriter
+                .lastAppendedSequenceNumber()
+                .map(last -> last.compareTo(changelogSnapshotState.lastMaterializedTo()) >= 0)
+                .orElse(false);
     }
 
     private SnapshotResult<KeyedStateHandle> buildSnapshotResult(
