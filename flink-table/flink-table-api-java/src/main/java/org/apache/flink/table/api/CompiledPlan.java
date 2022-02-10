@@ -112,4 +112,16 @@ public interface CompiledPlan {
      * <p>Shorthand for {@link TableEnvironment#explainPlan(CompiledPlan, ExplainDetail...)}.
      */
     String explain(ExplainDetail... explainDetails);
+
+    /** Like {@link #asJsonString()}, but printing the result to {@link System#out}. */
+    default CompiledPlan printJsonString() {
+        System.out.println(this.asJsonString());
+        return this;
+    }
+
+    /** Like {@link #explain(ExplainDetail...)}, but printing the result to {@link System#out}. */
+    default CompiledPlan printExplain(ExplainDetail... explainDetails) {
+        System.out.println(this.explain(explainDetails));
+        return this;
+    }
 }
