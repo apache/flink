@@ -357,7 +357,7 @@ Flink 内置了5种 BulkWriter 工厂类：
 
 ##### Parquet 格式
 
-Flink 包含了为 Avro 格式数据创建 Parquet 写入工厂的内置便利方法。在 ParquetAvroWriters 类中可以发现那些方法以及相关的使用说明。
+Flink 包含了为 Avro 格式数据创建 Parquet 写入工厂的内置便利方法。在 AvroParquetWriters 类中可以发现那些方法以及相关的使用说明。
 
 为了让 Parquet 格式数据写入更加通用，用户需要创建 ParquetWriterFactory 并且自定义实现 ParquetBuilder 接口。
 
