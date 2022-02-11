@@ -26,8 +26,8 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.runtime.FileSystemITCaseBase._
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.types.Row
+
 import org.junit.Assert.{assertEquals, assertNotNull, assertTrue}
 import org.junit.rules.TemporaryFolder
 import org.junit.{Rule, Test}
@@ -36,6 +36,7 @@ import java.io.File
 import java.net.URI
 import java.nio.file.Paths
 import java.time.Instant
+
 import scala.collection.{JavaConverters, Seq}
 
 /**
@@ -467,11 +468,11 @@ trait FileSystemITCaseBase {
 
   @Test
   def testInsertAppend(): Unit = {
-    tableEnv.sqlUpdate("insert into partitionedTable select x, y, a, b from originalT")
-    tableEnv.execute("test1")
+    tableEnv.executeSql("insert into partitionedTable select x, y, a, b from originalT")
+      .await()
 
-    tableEnv.sqlUpdate("insert into partitionedTable select x, y, a, b from originalT")
-    tableEnv.execute("test2")
+    tableEnv.executeSql("insert into partitionedTable select x, y, a, b from originalT")
+      .await()
 
     check(
       "select y, b, x from partitionedTable where a=3",
@@ -487,11 +488,11 @@ trait FileSystemITCaseBase {
 
   @Test
   def testInsertOverwrite(): Unit = {
-    tableEnv.sqlUpdate("insert overwrite partitionedTable select x, y, a, b from originalT")
-    tableEnv.execute("test1")
+    tableEnv.executeSql("insert overwrite partitionedTable select x, y, a, b from originalT")
+      .await()
 
-    tableEnv.sqlUpdate("insert overwrite partitionedTable select x, y, a, b from originalT")
-    tableEnv.execute("test2")
+    tableEnv.executeSql("insert overwrite partitionedTable select x, y, a, b from originalT")
+      .await()
 
     check(
       "select y, b, x from partitionedTable where a=3",

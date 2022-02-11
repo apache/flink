@@ -101,22 +101,6 @@ class StreamSqlTests(PyFlinkStreamTableTestCase):
         self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS)
         table_result.print()
 
-    def test_sql_update(self):
-        t_env = self.t_env
-        source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "sinks",
-            source_sink_utils.TestAppendSink(field_names, field_types))
-
-        t_env.sql_update("insert into sinks select * from %s" % source)
-        self.t_env.execute("test_sql_job")
-
-        actual = source_sink_utils.results()
-        expected = ['+I[1, Hi, Hello]', '+I[2, Hello, Hello]']
-        self.assert_equals(actual, expected)
-
 
 class JavaSqlTests(PyFlinkTestCase):
     """

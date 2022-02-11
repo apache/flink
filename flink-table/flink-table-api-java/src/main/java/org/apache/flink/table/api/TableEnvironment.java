@@ -20,7 +20,6 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
@@ -31,8 +30,6 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleEntry;
-import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.AbstractDataType;
 
 import java.io.Serializable;
@@ -379,14 +376,6 @@ public interface TableEnvironment {
      * @see #fromValues(AbstractDataType, Object...)
      */
     Table fromValues(AbstractDataType<?> rowType, Iterable<?> values);
-
-    /**
-     * Creates a table from a table source.
-     *
-     * @param source table source used as table
-     */
-    @Deprecated
-    Table fromTableSource(TableSource<?> source);
 
     /**
      * Registers a {@link Catalog} under a unique name. All tables registered in the {@link Catalog}
@@ -769,39 +758,6 @@ public interface TableEnvironment {
     Table from(TableDescriptor descriptor);
 
     /**
-     * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
-     *
-     * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or {@link
-     * TableEnvironment#useCatalog(String)} for the rules on the path resolution.
-     *
-     * @param table The Table to write to the sink.
-     * @param sinkPath The first part of the path of the registered {@link TableSink} to which the
-     *     {@link Table} is written. This is to ensure at least the name of the {@link TableSink} is
-     *     provided.
-     * @param sinkPathContinued The remaining part of the path of the registered {@link TableSink}
-     *     to which the {@link Table} is written.
-     * @deprecated use {@link Table#executeInsert(String)} for single sink, use {@link
-     *     TableEnvironment#createStatementSet()} for multiple sinks.
-     */
-    @Deprecated
-    void insertInto(Table table, String sinkPath, String... sinkPathContinued);
-
-    /**
-     * Instructs to write the content of a {@link Table} API object into a table.
-     *
-     * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or {@link
-     * TableEnvironment#useCatalog(String)} for the rules on the path resolution.
-     *
-     * @param targetPath The path of the registered {@link TableSink} to which the {@link Table} is
-     *     written.
-     * @param table The Table to write to the sink.
-     * @deprecated use {@link Table#executeInsert(String)} for single sink, use {@link
-     *     TableEnvironment#createStatementSet()} for multiple sinks.
-     */
-    @Deprecated
-    void insertInto(String targetPath, Table table);
-
-    /**
      * Gets the names of all catalogs registered in this environment.
      *
      * @return A list of the names of all registered catalogs.
@@ -898,37 +854,6 @@ public interface TableEnvironment {
     boolean dropTemporaryView(String path);
 
     /**
-     * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
-     * the result of the given {@link Table}.
-     *
-     * @param table The table for which the AST and execution plan will be returned.
-     * @deprecated use {@link Table#explain(ExplainDetail...)}.
-     */
-    @Deprecated
-    String explain(Table table);
-
-    /**
-     * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
-     * the result of the given {@link Table}.
-     *
-     * @param table The table for which the AST and execution plan will be returned.
-     * @param extended if the plan should contain additional properties, e.g. estimated cost, traits
-     * @deprecated use {@link Table#explain(ExplainDetail...)}.
-     */
-    @Deprecated
-    String explain(Table table, boolean extended);
-
-    /**
-     * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
-     * the result of multiple-sinks plan.
-     *
-     * @param extended if the plan should contain additional properties, e.g. estimated cost, traits
-     * @deprecated use {@link StatementSet#explain(ExplainDetail...)}.
-     */
-    @Deprecated
-    String explain(boolean extended);
-
-    /**
      * Returns the AST of the specified statement and the execution plan to compute the result of
      * the given statement.
      *
@@ -998,87 +923,6 @@ public interface TableEnvironment {
      *     unknown), or a string message ("OK") for other statements.
      */
     TableResult executeSql(String statement);
-
-    /**
-     * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement; NOTE:
-     * Currently only SQL INSERT statements and CREATE TABLE statements are supported.
-     *
-     * <p>All tables referenced by the query must be registered in the TableEnvironment. A {@link
-     * Table} is automatically registered when its {@link Table#toString()} method is called, for
-     * example when it is embedded into a String. Hence, SQL queries can directly reference a {@link
-     * Table} as follows:
-     *
-     * <pre>{@code
-     * // register the configured table sink into which the result is inserted.
-     * tEnv.registerTableSinkInternal("sinkTable", configuredSink);
-     * Table sourceTable = ...
-     * String tableName = sourceTable.toString();
-     * // sourceTable is not registered to the table environment
-     * tEnv.sqlUpdate(s"INSERT INTO sinkTable SELECT * FROM tableName");
-     * }</pre>
-     *
-     * <p>A DDL statement can also be executed to create a table: For example, the below DDL
-     * statement would create a CSV table named `tbl1` into the current catalog:
-     *
-     * <blockquote>
-     *
-     * <pre>
-     *    create table tbl1(
-     *      a int,
-     *      b bigint,
-     *      c varchar
-     *    ) with (
-     *      'connector.type' = 'filesystem',
-     *      'format.type' = 'csv',
-     *      'connector.path' = 'xxx'
-     *    )
-     * </pre>
-     *
-     * </blockquote>
-     *
-     * <p>SQL queries can directly execute as follows:
-     *
-     * <blockquote>
-     *
-     * <pre>
-     *    String sinkDDL = "create table sinkTable(
-     *                        a int,
-     *                        b varchar
-     *                      ) with (
-     *                        'connector.type' = 'filesystem',
-     *                        'format.type' = 'csv',
-     *                        'connector.path' = 'xxx'
-     *                      )";
-     *
-     *    String sourceDDL ="create table sourceTable(
-     *                        a int,
-     *                        b varchar
-     *                      ) with (
-     *                        'connector.type' = 'kafka',
-     *                        'update-mode' = 'append',
-     *                        'connector.topic' = 'xxx',
-     *                        'connector.properties.bootstrap.servers' = 'localhost:9092',
-     *                        ...
-     *                      )";
-     *
-     *    String query = "INSERT INTO sinkTable SELECT * FROM sourceTable";
-     *
-     *    tEnv.sqlUpdate(sourceDDL);
-     *    tEnv.sqlUpdate(sinkDDL);
-     *    tEnv.sqlUpdate(query);
-     *    tEnv.execute("MyJob");
-     * </pre>
-     *
-     * </blockquote>
-     *
-     * <p>This code snippet creates a job to read data from Kafka source into a CSV sink.
-     *
-     * @param stmt The SQL statement to evaluate.
-     * @deprecated use {@link #executeSql(String)} for single statement, use {@link
-     *     TableEnvironment#createStatementSet()} for multiple DML statements.
-     */
-    @Deprecated
-    void sqlUpdate(String stmt);
 
     /**
      * Gets the current default catalog name of the current session.
@@ -1220,32 +1064,6 @@ public interface TableEnvironment {
 
     /** Returns the table config that defines the runtime behavior of the Table API. */
     TableConfig getConfig();
-
-    /**
-     * Triggers the program execution. The environment will execute all parts of the program.
-     *
-     * <p>The program execution will be logged and displayed with the provided name
-     *
-     * <p><b>NOTE:</b>It is highly advised to set all parameters in the {@link TableConfig} on the
-     * very beginning of the program. It is undefined what configurations values will be used for
-     * the execution if queries are mixed with config changes. It depends on the characteristic of
-     * the particular parameter. For some of them the value from the point in time of query
-     * construction (e.g. the currentCatalog) will be used. On the other hand some values might be
-     * evaluated according to the state from the time when this method is called (e.g. timeZone).
-     *
-     * <p>Once the execution finishes, any previously defined DMLs will be cleared, no matter
-     * whether the execution succeeds or not. Therefore, if you want to retry in case of failures,
-     * you have to re-define the DMLs, i.e. by calling {@link #sqlUpdate(String)}, before you call
-     * this method again.
-     *
-     * @param jobName Desired name of the job
-     * @return The result of the job execution, containing elapsed time and accumulators.
-     * @throws Exception which occurs during job execution.
-     * @deprecated use {@link #executeSql(String)} or {@link Table#executeInsert(String)} for single
-     *     sink, use {@link #createStatementSet()} for multiple sinks.
-     */
-    @Deprecated
-    JobExecutionResult execute(String jobName) throws Exception;
 
     /**
      * Returns a {@link StatementSet} that accepts pipelines defined by DML statements or {@link

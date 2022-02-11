@@ -27,7 +27,6 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TemporalTableFunction;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.types.DataType;
 
 /**
@@ -941,19 +940,6 @@ public interface Table {
     default Table limit(int offset, int fetch) {
         return offset(offset).fetch(fetch);
     }
-
-    /**
-     * Writes the {@link Table} to a {@link DynamicTableSink} that was registered under the
-     * specified path. For the path resolution algorithm see {@link
-     * TableEnvironment#useDatabase(String)}.
-     *
-     * @param tablePath The path of the registered {@link TableSink} to which the {@link Table} is
-     *     written.
-     * @deprecated use {@link #executeInsert(String)} for single sink, use {@link
-     *     TableEnvironment#createStatementSet()} for multiple sinks.
-     */
-    @Deprecated
-    void insertInto(String tablePath);
 
     /**
      * Groups the records of a table by assigning them to windows defined by a time or row interval.

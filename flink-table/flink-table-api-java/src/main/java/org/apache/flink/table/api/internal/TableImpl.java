@@ -431,11 +431,6 @@ public class TableImpl implements Table {
     }
 
     @Override
-    public void insertInto(String tablePath) {
-        tableEnvironment.insertInto(tablePath, this);
-    }
-
-    @Override
     public GroupWindowedTable window(GroupWindow groupWindow) {
         return new GroupWindowedTableImpl(this, groupWindow);
     }

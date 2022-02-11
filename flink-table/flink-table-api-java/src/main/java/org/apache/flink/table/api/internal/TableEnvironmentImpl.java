@@ -20,7 +20,6 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
@@ -187,7 +186,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private final CatalogManager catalogManager;
     private final ModuleManager moduleManager;
     private final OperationTreeBuilder operationTreeBuilder;
-    private final List<ModifyOperation> bufferedModifyOperations = new ArrayList<>();
 
     protected final TableConfig tableConfig;
     protected final Executor execEnv;
@@ -195,12 +193,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     protected final Planner planner;
     private final boolean isStreamingMode;
     private final ClassLoader userClassLoader;
-    private static final String UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG =
-            "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type "
-                    + "INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, "
-                    + "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, "
-                    + "CREATE CATALOG, DROP CATALOG, CREATE VIEW, DROP VIEW, LOAD MODULE, UNLOAD "
-                    + "MODULE, USE MODULES.";
     private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
             "Unsupported SQL query! executeSql() only accepts a single SQL statement of type "
                     + "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, "
@@ -555,34 +547,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return createTable(queryOperation);
     }
 
-    @Override
-    public void insertInto(String targetPath, Table table) {
-        UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(targetPath);
-        insertIntoInternal(unresolvedIdentifier, table);
-    }
-
-    @Override
-    public void insertInto(Table table, String sinkPath, String... sinkPathContinued) {
-        List<String> fullPath = new ArrayList<>(Arrays.asList(sinkPathContinued));
-        fullPath.add(0, sinkPath);
-        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(fullPath);
-
-        insertIntoInternal(unresolvedIdentifier, table);
-    }
-
-    private void insertIntoInternal(UnresolvedIdentifier unresolvedIdentifier, Table table) {
-        ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-
-        ContextResolvedTable contextResolvedTable =
-                catalogManager.getTableOrError(objectIdentifier);
-
-        List<ModifyOperation> modifyOperations =
-                Collections.singletonList(
-                        new SinkModifyOperation(contextResolvedTable, table.getQueryOperation()));
-
-        buffer(modifyOperations);
-    }
-
     private Optional<SourceQueryOperation> scanInternal(UnresolvedIdentifier identifier) {
         ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(identifier);
 
@@ -669,26 +633,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         String[] functions = functionCatalog.getFunctions();
         Arrays.sort(functions);
         return functions;
-    }
-
-    @Override
-    public String explain(Table table) {
-        return explain(table, false);
-    }
-
-    @Override
-    public String explain(Table table, boolean extended) {
-        return planner.explain(
-                Collections.singletonList(table.getQueryOperation()), getExplainDetails(extended));
-    }
-
-    @Override
-    public String explain(boolean extended) {
-        List<Operation> operations =
-                bufferedModifyOperations.stream()
-                        .map(o -> (Operation) o)
-                        .collect(Collectors.toList());
-        return planner.explain(operations, getExplainDetails(extended));
     }
 
     @Override
@@ -905,43 +849,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     .build();
         } catch (Exception e) {
             throw new TableException("Failed to execute sql", e);
-        }
-    }
-
-    @Override
-    public void sqlUpdate(String stmt) {
-        List<Operation> operations = getParser().parse(stmt);
-
-        if (operations.size() != 1) {
-            throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
-        }
-
-        Operation operation = operations.get(0);
-        if (operation instanceof ModifyOperation) {
-            buffer(Collections.singletonList((ModifyOperation) operation));
-        } else if (operation instanceof CreateTableOperation
-                || operation instanceof DropTableOperation
-                || operation instanceof AlterTableOperation
-                || operation instanceof CreateViewOperation
-                || operation instanceof DropViewOperation
-                || operation instanceof CreateDatabaseOperation
-                || operation instanceof DropDatabaseOperation
-                || operation instanceof AlterDatabaseOperation
-                || operation instanceof CreateCatalogFunctionOperation
-                || operation instanceof CreateTempSystemFunctionOperation
-                || operation instanceof DropCatalogFunctionOperation
-                || operation instanceof DropTempSystemFunctionOperation
-                || operation instanceof AlterCatalogFunctionOperation
-                || operation instanceof CreateCatalogOperation
-                || operation instanceof DropCatalogOperation
-                || operation instanceof UseCatalogOperation
-                || operation instanceof UseDatabaseOperation
-                || operation instanceof LoadModuleOperation
-                || operation instanceof UnloadModuleOperation
-                || operation instanceof NopOperation) {
-            executeInternal(operation);
-        } else {
-            throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
         }
     }
 
@@ -1678,14 +1585,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
-    public JobExecutionResult execute(String jobName) throws Exception {
-        Pipeline pipeline =
-                execEnv.createPipeline(
-                        translateAndClearBuffer(), tableConfig.getConfiguration(), jobName);
-        return execEnv.execute(pipeline);
-    }
-
-    @Override
     public Parser getParser() {
         return getPlanner().getParser();
     }
@@ -1721,44 +1620,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         TableSourceValidation.validateTableSource(tableSource, tableSource.getTableSchema());
     }
 
-    /**
-     * Translate the buffered operations to Transformations, and clear the buffer.
-     *
-     * <p>The buffer will be clear even if the `translate` fails. In most cases, the failure is not
-     * retryable (e.g. type mismatch, can't generate physical plan). If the buffer is not clear
-     * after failure, the following `translate` will also fail.
-     */
-    protected List<Transformation<?>> translateAndClearBuffer() {
-        List<Transformation<?>> transformations;
-        try {
-            transformations = translate(bufferedModifyOperations);
-        } finally {
-            bufferedModifyOperations.clear();
-        }
-        return transformations;
-    }
-
     protected List<Transformation<?>> translate(List<ModifyOperation> modifyOperations) {
         return planner.translate(modifyOperations);
-    }
-
-    private void buffer(List<ModifyOperation> modifyOperations) {
-        bufferedModifyOperations.addAll(modifyOperations);
-    }
-
-    @VisibleForTesting
-    protected ExplainDetail[] getExplainDetails(boolean extended) {
-        if (extended) {
-            if (isStreamingMode) {
-                return new ExplainDetail[] {
-                    ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE
-                };
-            } else {
-                return new ExplainDetail[] {ExplainDetail.ESTIMATED_COST};
-            }
-        } else {
-            return new ExplainDetail[0];
-        }
     }
 
     @Override
