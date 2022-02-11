@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.operations.command;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.operations.Operation;
 
 /** Operation to describe an EXECUTE PLAN statement. */
-@Experimental
+@Internal
 public class ExecutePlanOperation implements Operation {
 
     private final String filePath;

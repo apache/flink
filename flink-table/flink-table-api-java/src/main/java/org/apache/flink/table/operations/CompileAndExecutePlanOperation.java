@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 /** Operation to describe an {@code COMPILE AND EXECUTE PLAN} statement. */
+@Internal
 public class CompileAndExecutePlanOperation implements Operation {
 
     private final String filePath;
