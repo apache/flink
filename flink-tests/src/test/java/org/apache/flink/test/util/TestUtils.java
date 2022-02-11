@@ -95,10 +95,15 @@ public class TestUtils {
     }
 
     public static File getMostRecentCompletedCheckpoint(File checkpointDir) throws IOException {
+        return getMostRecentCompletedCheckpointMaybe(checkpointDir)
+                .orElseThrow(() -> new IllegalStateException("Cannot generate checkpoint"));
+    }
+
+    public static Optional<File> getMostRecentCompletedCheckpointMaybe(File checkpointDir)
+            throws IOException {
         return Files.find(checkpointDir.toPath(), 2, TestUtils::isCompletedCheckpoint)
                 .max(Comparator.comparing(Path::toString))
-                .map(Path::toFile)
-                .orElseThrow(() -> new IllegalStateException("Cannot generate checkpoint"));
+                .map(Path::toFile);
     }
 
     private static boolean isCompletedCheckpoint(Path path, BasicFileAttributes attr) {
