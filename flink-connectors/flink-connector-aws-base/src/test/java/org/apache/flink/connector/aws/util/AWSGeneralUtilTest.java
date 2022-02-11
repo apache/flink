@@ -34,6 +34,7 @@ import software.amazon.awssdk.http.Protocol;
 import software.amazon.awssdk.http.SdkHttpConfigurationOption;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
+import software.amazon.awssdk.http.nio.netty.SdkEventLoopGroup;
 import software.amazon.awssdk.http.nio.netty.internal.NettyConfiguration;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
@@ -683,6 +684,29 @@ public class AWSGeneralUtilTest {
 
         assertEquals(
                 httpVersion, nettyConfiguration.attribute(SdkHttpConfigurationOption.PROTOCOL));
+    }
+
+    @Test
+    public void testCreateNettyAsyncHttpClientEventLoopGroup() {
+        SdkEventLoopGroupBuilder sdkEventLoopGroupBuilder = new SdkEventLoopGroupBuilder();
+        AWSGeneralUtil.createAsyncHttpClient(
+                AttributeMap.empty(), NettyNioAsyncHttpClient.builder(), sdkEventLoopGroupBuilder);
+        assertTrue(sdkEventLoopGroupBuilder.isBuildCalled());
+    }
+
+    @Test
+    public void nettyAsyncHttpClientClosesEventLoopGroupWhenItselfIsBeingClosed() {
+        SdkEventLoopGroupBuilder sdkEventLoopGroupBuilder = new SdkEventLoopGroupBuilder();
+        SdkAsyncHttpClient asyncHttpClient =
+                AWSGeneralUtil.createAsyncHttpClient(
+                        AttributeMap.empty(),
+                        NettyNioAsyncHttpClient.builder(),
+                        sdkEventLoopGroupBuilder);
+        SdkEventLoopGroup createdEventLoopGroup =
+                sdkEventLoopGroupBuilder.getCreatedEventLoopGroup();
+
+        asyncHttpClient.close();
+        assertTrue(createdEventLoopGroup.eventLoopGroup().isShuttingDown());
     }
 
     @Test
